@@ -592,7 +592,7 @@ function renderPage({
     </main>
   </div>
   <footer>
-    <span>Staged projection — not published</span>
+    <span>Published projection — D1 ruled 2026-08-08</span>
     <span>Published closure ${escapeHtml(binding.closure.version)}</span>
     <span>Guide content <code>${escapeHtml(binding.guide.contentDigest)}</code></span>
     <span>Package qualification marker ${escapeHtml(binding.closure.newestQualified ?? 'not recorded')}</span>
@@ -687,7 +687,7 @@ function buildLlmsTxt({ pages, binding }) {
   const lines = [
     '# Snapback Guide',
     '',
-    `> Staged, unpublished projection of published closure ${binding.closure.version}.`,
+    `> Published documentation projection of published closure ${binding.closure.version} (D1 ruled 2026-08-08; LLP 0195).`,
     `> Guide content digest: ${binding.guide.contentDigest}`,
     '> Presence in the build-bound API reference is not by itself a package-publication claim.',
     '',
@@ -930,7 +930,7 @@ function buildSite(root) {
   const siteManifest = {
     schemaVersion: SITE_SCHEMA,
     generatedBy: 'scripts/generate-docs-site.mjs',
-    publicationStatus: 'staged-only-author-decision-required',
+    publicationStatus: 'published-d1-ruled-2026-08-08',
     sourceBinding: binding,
     availabilityFences: {
       total: renderedFenceLabels.length,
@@ -1115,7 +1115,7 @@ function serve(root, outputRoot, port) {
     const address = server.address();
     const actualPort = typeof address === 'object' && address ? address.port : port;
     console.log(`[docs-site] serving ${relative(root, outputRoot)}/ at http://127.0.0.1:${actualPort}/`);
-    console.log('[docs-site] staged preview only; no public deployment has occurred.');
+    console.log('[docs-site] publication authorized (D1 ruled 2026-08-08); deploy per issues/20260808-llp0195-docs-site-staging-execution.md.');
   });
 }
 

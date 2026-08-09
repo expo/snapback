@@ -3,14 +3,14 @@ title: Mutations
 id: backend.mutations
 order: 2
 audience: agent-first
-capabilities: [backend.query-semantics, backend.record-history]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/runtime.rs, src/result_contract.rs, src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+capabilities: [backend.query-semantics, backend.record-history, backend.mutation-settlement-identity]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/runtime.rs, src/result_contract.rs, src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
 ---
 
 # Mutations
@@ -138,6 +138,54 @@ same mutation and have their own pages: a declared `sequences` counter
 allocated through `ctx.sequence.allocate`
 ([sequences](./sequences.md)) and durable follow-up work enqueued through
 `ctx.jobs.enqueue` ([one-off durable jobs](./jobs.md)).
+
+<!-- since: 0.1.15 -->
+
+## Derive a replay-stable effect key
+
+When a mutation records an intent that an action or worker will deliver to an
+external provider, derive the provider idempotency key from
+`ctx.mutation.settlement()`. Write the intent and key inside the transaction;
+perform the network I/O later, outside the mutation:
+
+```js source=tests/mutation_settlement_identity_v0.rs
+  async recordEffectIntent(ctx) {
+    var settlement = await ctx.mutation.settlement();
+    var providerIdempotencyKey = settlement.settlementId === null
+      ? null
+      : 'notification:' + settlement.settlementId;
+    await ctx.db.insert('entries', {
+      marker: providerIdempotencyKey === null ? 'no-settlement-identity' : providerIdempotencyKey,
+      clientMutationId: settlement.clientMutationId,
+      settlementId: settlement.settlementId
+    });
+    return {
+      queued: providerIdempotencyKey !== null,
+      providerIdempotencyKey: providerIdempotencyKey
+    };
+  },
+```
+
+The projection has two opaque fields. `clientMutationId` is the client-minted
+protocol identity; `settlementId` is the server-namespaced digest for the exact
+mutation, authenticated principal, function, and arguments. Both are `null`
+when the invocation carried no client mutation id. A settled duplicate returns
+its stored result without handler re-entry. If an earlier attempt failed before
+settlement and the handler genuinely re-enters, the same logical mutation sees
+the same `settlementId` even though fresh per-entry values such as
+`ctx.runtime.id()` may differ.
+
+Treat both fields as opaque. Do not parse or re-hash a raw client mutation id,
+and do not use a bearer token or secret as the provider key. Namespace the
+server settlement id by effect, as the example does, so two providers do not
+share one key.
+
+Queries and actions have no mutation settlement identity and refuse the call
+with `SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE`. An action should call a named
+mutation through `ctx.runMutation`; that mutation writes the effect intent and
+the later action or worker performs delivery. The hosted coordinator currently
+has no client-mutation replay ledger and returns the all-null twin, so a
+replay-stable effect key is a local-target capability.
 
 A mutation that declares a write to a `permissionBacking` table is generated
 with `authorityCreating: true`. Authors may explicitly mark an opaque mutation

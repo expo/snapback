@@ -1,6 +1,6 @@
 # LLP 0195 execution: staged docs-site generator (public publication author-gated)
 
-**Status:** Open — STAGED COMPLETE; D1–D4 author decisions remain
+**Status:** Open — STAGED COMPLETE; D1–D4 RULED 2026-08-08 (below); publication execution underway
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 3
@@ -143,3 +143,56 @@ benchmark publication occurred. Remaining work is the D1–D4 author decision
 set, selection/configuration of a deploy target if D1 is yes, and one
 orchestrator-side preview using the command above before any later authorized
 publication step.
+
+## Author ruling — 2026-08-08
+
+D1: PUBLISH — "will publish soon" (Charlie, in session). Timing is
+author-held; the staged artifact and generator are ready. D2 (example
+licensing), D3 (snapshot policy), D4 (benchmarks on site) were not
+explicitly ruled this turn — the memo's recommendations stand as
+proposals and need explicit confirmation before or at first deploy.
+
+## Author rulings — 2026-08-08 (Charlie Cheever, "publish everything")
+
+- **D1 — RULED: publish.** The generated projection publishes at a
+  dedicated docs origin (`docs.snapback.dev` per the recommendation;
+  interim hosting URL acceptable until DNS lands). Repository
+  visibility remains a separate, unruled decision.
+- **D2 — RULED: MIT** for generated example code with provenance/NOTICE
+  metadata and one separately generated `snapback-examples` repository,
+  per the recommendation.
+- **D3 — RULED: immutable per-release snapshots** at `/v/<closure>/`
+  with `/latest/` as an alias, per the recommendation.
+- **D4 — RULED: benchmarks excluded from first publication**, admitted
+  as a `/benchmarks/` projection only when LLP 0197's requirements
+  pass (the author's "publish everything" is read against the memo's
+  own recommendation and 0197's standard — publishing a comparison
+  before its published gates pass would violate the standard the site
+  itself documents).
+
+## Publication execution — 2026-08-08 (post-ruling)
+
+Deployed per D1: Cloudflare Pages project `snapback-docs`, live at
+<https://snapback-docs.pages.dev> (all routes verified 200; llms.txt,
+capability index, reference projection, site-manifest). Site content
+digest `sha256:fc802536dab0…` (regenerated with publicationStatus
+`published-d1-ruled-2026-08-08`), bound to closure 0.1.15 + Guide
+digest 8f37f0a5…. Remaining: wire `docs.snapback.dev` — the stored
+Cloudflare token lacks Zone:Read (zones list empty), so the custom
+domain needs an author-minted token with Zone+Pages scope or
+confirmation of where the domain lives. D2 (examples repo), D3
+(snapshot paths /v/<closure>/), and the D4 benchmarks gate remain
+follow-ons.
+
+## Origin change + EAS Hosting migration — 2026-08-08 (author direction)
+
+Author directed same-day: publish at **https://snapback.expo.app** on
+EAS Hosting instead of Cloudflare Pages/docs.snapback.dev. Executed:
+`website/` (in-repo Expo Router site) with `/` placeholder product
+page, `/guide/` = the docs projection (links rebased), `/docs/` →
+redirect, root `/llms.txt`; deployed via `eas deploy --prod` (project
+@ccheever/snapback, id d6c81653); all routes verified 200. The
+`snapback-docs.pages.dev` Pages project was **deleted**. D1's origin is
+therefore ruled-and-executed as snapback.expo.app; the earlier
+docs.snapback.dev recommendation and its Zone-token blocker are moot.
+Redeploy recipe: `website/README.md`.

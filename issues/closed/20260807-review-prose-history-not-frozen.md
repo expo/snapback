@@ -1,6 +1,6 @@
 # Review prose history is a current-state binding, not a frozen per-round record
 
-**Status:** Open
+**Status:** Resolved (2026-08-07)
 **Opened:** 2026-08-07
 **Systems:** Publication, LLP governance, Testing
 **Related:** LLP 0162; `issues/20260806-derived-fork-publication-author-gate.md`;

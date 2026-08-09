@@ -705,10 +705,10 @@ feature-off).
 | Family | Decoder (local arm) | Schema | Decided posture |
 | --- | --- | --- | --- |
 | `OpenConnectionRequest` (`src/server.rs:4081-4094`) | **closed** | `connection.open.input.schema.json`, closed | stays closed; the §0B.5 B1 member and LLP 0136's staged `liveSearchProtocol` member are sanctioned gated evolution paths |
-| `AuthorizationInvalidationAckInput` (`src/local.rs`) | **closed** | closed | stays closed |
-| manual-retry input (`src/local.rs`, `AuthorizationInvalidationManualRetryInput`) | **closed** | closed | stays closed |
+| `AuthorizationInvalidationAckInput` (`src/local/live_protocol.rs`) | **closed** | closed | stays closed |
+| manual-retry input (`src/local/live_protocol.rs`, `AuthorizationInvalidationManualRetryInput`) | **closed** | closed | stays closed |
 | `SessionLiveSocketClientMessage` (`src/server.rs`, sessions-mode socket) | **closed** (auth-mode-dependent third family) | `live.socket-client.sessions.schema.json`, closed (committed 2026-07-27, closing the §0F item-4 gap) | stays closed |
-| `LiveSubscribeInput` / `LiveResumeInput` / `LiveUnsubscribeInput` (`src/local.rs`) | **open** | open | **stays open** — LLP 0091's `resumeFromToken` rides the open subscribe body as its compatible fallback, and closing an open decoder changes observable behavior for every deployed caller; the silent-feature-off hazard is mitigated by response witnesses: `resumeRefusal` for token resume, and `superseded` or `supersessionRefusal` for every presented `supersedes` id |
+| `LiveSubscribeInput` / `LiveResumeInput` / `LiveUnsubscribeInput` (`src/local/live_protocol.rs`) | **open** | open | **stays open** — LLP 0091's `resumeFromToken` rides the open subscribe body as its compatible fallback, and closing an open decoder changes observable behavior for every deployed caller; the silent-feature-off hazard is mitigated by response witnesses: `resumeRefusal` for token resume, and `superseded` or `supersessionRefusal` for every presented `supersedes` id |
 | `HandlerInput` (`src/manifest.rs`) | **open** | open (`query.input` / `mutation.input`) | stays open (it is the app-args carrier; the sessions-mode body-auth **rejection family** of LLP 0031 is the enforced closed subset — auth-bearing members are rejected, not ignored) |
 | dev-mode socket client message (`LiveSocketClientMessage`, `src/live_wire.rs`) | **open** | `live.socket-client.schema.json` | stays open in dev mode; sessions mode already substitutes the closed family above |
 | `AuthorizedLeaseQueryRequest` (`src/server.rs`) | **closed** | `authorized-lease.query.input.schema.json`, closed | stays closed (exact-protocol lease surface, LLP 0043/0053) |
@@ -732,7 +732,7 @@ clients are not proven tolerant needs capability gating or a new token
 | `LiveSocketServerFrame` (`live.socket-server.schema.json`) | closed `oneOf` | `durable_bytes` carries the required recovery transition (LLP 0093 D3 fact 2b) |
 | `Receipt` (`receipt.schema.json`) | closed variants | §0D ratifies its appearance on subscribe/unsubscribe outputs as typed |
 | `AuthorizationInvalidationSnapshot` (`src/live_wire.rs:128-136`) | **closed** (`additionalProperties: false`) | additions need gating per the rule above |
-| `AuthorizationInvalidationAckOutput` (`src/local.rs:790-794`) | **closed** | same |
+| `AuthorizationInvalidationAckOutput` (`src/local/live_protocol.rs`) | **closed** | same |
 | `LiveSubscribeOutput` / `LiveUnsubscribeOutput` / `LiveResumeOutput` | open objects | additive optional fields are the sanctioned in-v1 evolution (server→client direction). Exercised 2026-07-30: subscribe/resume outputs gained optional `attribution` (the LLP 0055 §Audit block, same `FunctionAttribution` type as the finite envelopes) — establishment-derived, immutable subscription metadata re-answered unchanged on resume; schemas regenerated under the LLP 0051 §D4 drift gates |
 | `RealtimeEnvelope` drain wrapper (`realtime.envelope.schema.json`) | closed | lane-P framing only |
 | `RealtimeEnvelope::EphemeralAck` | nominally closed variant with a flattened ack payload | deliberate unknown-field-detection exception: serde `flatten` consumes extra top-level members into the ack payload, so a generic closed-envelope decoder cannot distinguish a future wrapper field. Do not seed an unknown-field tolerance fixture for this variant until the payload is typed or flattening is removed |

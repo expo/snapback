@@ -11,11 +11,16 @@
     "triageMove1Exit": "sha256:93ec8310e353ca0b515f95b374359eb2466f5d081a05a880581b93ab350aa48a"
   },
   "executorSourceSha256": {
-    "src/local.rs": "sha256:b3283318c7413bf82152dc10162be9badf0cd011270b1eb781dda2f8dba1d30e",
-    "src/storage.rs": "sha256:15d4adf39c810d0a1a9a73702b535476d640c511fde404ebc23acf21a7ec0ef4"
+    "src/local.rs": "sha256:673031f6e24d7d91bfded50aceb50836b75e1ba95f4f1fdacffd0275849e52a9",
+    "src/storage.rs": "sha256:f4d38e94394b5fe131409e17c0ed7de7ceff7d54a1dcadeb49d2a1316b9ac20d",
+    "src/storage/connections.rs": "sha256:4c0b511d40746ce0a6520697cead1e9b108c81e84a1260c919e3a765bb254b15",
+    "src/storage/migration_scan.rs": "sha256:42f0b15bca498d6781ea5c77e0e0b9eafc18fa490ca1e13339d89f76176f6d2e",
+    "src/storage/projection_rebuild.rs": "sha256:e4f7406a1921232507f02221da7d9f6fceb77910d4757b1abb4512124dd6e980",
+    "src/storage/schema_transition.rs": "sha256:9768b7aa06f3f76f8e2776b13c848da60324d1d60d463cb6f5df1ae152d12455",
+    "src/storage/tests.rs": "sha256:f1bbd934fca9cba0dfa211132dc2ae53d42127aab3a2f1b80ce645090c206f3a"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/index.mjs": "sha256:691387a42e81dbbc930930c5b50ae0cb82f9377f9576f98ba1b639946473c743"
+    "packages/snapback-codegen/index.mjs": "sha256:e2544f93add6c3fcbd022e5170c6d11081f9a96dc062de54b79cf34a37f7487f"
   },
   "clientSourceSha256": {
     "packages/snapback-client/local-read-admission.mjs": "sha256:703f293078782ab3d595d518925be5b299ed7e26e19edc8ecef8c29627cc7900",

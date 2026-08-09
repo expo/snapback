@@ -4,13 +4,13 @@ id: realtime.snapshot-bundles
 order: 3
 audience: agent-first
 capabilities: [realtime.snapshot-bundles]
-authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-codegen/index.mjs, src/bundle.rs, src/local.rs]
+authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/authoring-validation.test.mjs, demos/public-dashboard/snapback/routes.mjs, demos/public-dashboard/tests/acceptance/headless.mjs, src/bundle.rs, src/local.rs]
 examples: [demos/public-dashboard]
 status: current
 targets: [local, cloudflare]
 maturity: partial
-reviewed: 2026-08-04
-reviewed-commit: cf47cc3b75172cec3ac6c44428ce40db48d81465
+reviewed: 2026-08-08
+reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
 ---
 
 # Route snapshot bundles
@@ -61,7 +61,6 @@ Routes are generated artifacts. Bind URL parameters through `routeParam`
 instead of accepting an ad hoc query list from the caller:
 
 ```js source=demos/public-dashboard/snapback/routes.mjs
-export default defineRoutes([
   {
     route: '/dashboards/:dashboardId',
     queries: [
@@ -71,7 +70,6 @@ export default defineRoutes([
       },
     ],
   },
-]);
 ```
 
 For anonymous Channel A boot, the query must explicitly declare all three
@@ -97,6 +95,60 @@ argument must be a literal or a declared route-parameter binding.
 This example works on contributor-source builds and, since
 `@expo/snapback-*@0.1.11`, on published packages carrying the packaged-store
 qualification receipt — see [offline retention](../sync/offline-and-retention.md).
+
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** Structured route-group arguments are newer than the newest
+> published closure, 0.1.15; until the next closure publishes, use them only
+> from contributor-source builds.
+
+## Bind route parameters inside structured query arguments
+
+A `routeParam()` may sit at any object-reachable leaf of a query argument.
+Keep the surrounding context literal: objects may recursively contain `null`,
+literal-union values, arrays of literal values, and finite-number vector
+literals. Public Dashboard binds the URL id inside `context` while carrying a
+nullable cursor, sort direction, and tags beside it:
+
+```js source=demos/public-dashboard/snapback/routes.mjs
+  {
+    route: '/context-dashboards/:dashboardId',
+    queries: [
+      {
+        function: 'dashboardMetricsByContext',
+        args: {
+          context: {
+            dashboardId: routeParam('dashboardId'),
+            cursor: null,
+            sort: 'asc',
+            tags: ['current', 'critical'],
+          },
+        },
+      },
+    ],
+  },
+```
+
+The query validator remains the authority for the whole structure. Codegen
+checks every literal member against it and confirms that the nested binding
+lands on a scalar string-, number-, or boolean-compatible leaf. At runtime the
+bound value preserves that scalar type; it is not flattened or merged by a
+handler.
+
+Some shapes deliberately refuse generation:
+
+- A bare `routeParam()` as the whole `args` root has no declared argument key.
+- A reference inside an array, or a reference object mixed with sibling keys,
+  is ambiguous and refuses. Arrays are literal context only.
+- A non-string `$param`, defaults, transforms, optional route parameters, and
+  tuple-style argument invention are outside this surface.
+- Register and mixed-route groups require every reference at every depth to
+  target a string-typed leaf. A number- or boolean-typed binding remains valid
+  for read-mode argument lowering but makes that group ineligible.
+
+Targets with an older routes-manifest validator fail closed on the structured
+shape. Do not flatten the object or add a server-side merge to work around
+version skew; align the codegen and runtime closure instead.
 
 ## Fetch one consistent page snapshot
 

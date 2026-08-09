@@ -15,6 +15,7 @@
     "codegen-summary.d.mts",
     "codegen-summary.mjs",
     "codegen-policy.schema.json",
+    "ctx.d.mts",
     "data-tier-corpus.mjs",
     "define.d.ts",
     "define.mjs",
@@ -68,6 +69,9 @@
       "default": "./codegen-summary.mjs"
     },
     "./codegen-policy.schema.json": "./codegen-policy.schema.json",
+    "./ctx": {
+      "types": "./ctx.d.mts"
+    },
     "./provider-introspection": {
       "types": "./provider-introspection.d.mts",
       "default": "./provider-introspection.mjs"

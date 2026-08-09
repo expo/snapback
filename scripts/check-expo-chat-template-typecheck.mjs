@@ -153,6 +153,7 @@ for (const [name, version] of Object.entries(templateManifest.dependencies ?? {}
   assert.equal(version, '__SNAPBACK_VERSION__', `${name} must remain a scaffold placeholder`);
   if (![
     '@expo/snapback-client',
+    '@expo/snapback-codegen',
     '@expo/snapback-expo',
     '@expo/snapback-react',
   ].includes(name)) continue;

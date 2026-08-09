@@ -1,6 +1,6 @@
 # `packages/snapback-codegen/index.d.mts` is digest-covered but has no drift gate
 
-**Status:** Open
+**Status:** Resolved (2026-08-07)
 **Opened:** 2026-08-07
 **Systems:** Codegen, Publication, Testing
 **Related:** LLP 0162; `issues/20260807-review-prose-history-not-frozen.md`

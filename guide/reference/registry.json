@@ -2,11 +2,12 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "commit": "108e83427fabb33530e5f4d3132b1b2281d3a720",
-    "sourceDigest": "sha256:f8d69f9a1b65a781d997a42e86beaac79dcc0a1b5c1692583ffdb4fb30baac4a",
+    "commit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78",
+    "sourceDigest": "sha256:cc6a2b043d1c7d30d7136b9bbcd9c07147af3f151589a47d6ee8626e630666b5",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.0",
       "@expo/snapback-client": "0.1.0",
+      "@expo/snapback-codegen": "0.1.0",
       "@expo/snapback-expo": "0.1.0",
       "@expo/snapback-react": "0.1.0"
     }
@@ -21,11 +22,14 @@
       "packages/snapback-client/package.json",
       "packages/snapback-react/package.json",
       "packages/snapback-expo/package.json",
-      "packages/snapback-cli/package.json"
+      "packages/snapback-cli/package.json",
+      "packages/snapback-codegen/package.json"
     ],
     "handlerContext": {
-      "status": "excluded-pending-published-declaration",
-      "bootstrapReference": "guide/reference/ctx-db-bootstrap.md"
+      "status": "included-published-type-only-declaration",
+      "module": "@expo/snapback-codegen/ctx",
+      "declaration": "packages/snapback-codegen/ctx.d.mts",
+      "runtimeParity": "exempt-type-only"
     }
   },
   "modules": [
@@ -1767,6 +1771,62 @@
         "npm:@expo/snapback-cli/verify#VerifyIdentityContext",
         "npm:@expo/snapback-cli/verify#VerifyPathKind",
         "npm:@expo/snapback-cli/verify#writeVerifyReceipt"
+      ]
+    },
+    {
+      "package": "@expo/snapback-codegen",
+      "packageVersion": "0.1.0",
+      "subpath": "./ctx",
+      "module": "@expo/snapback-codegen/ctx",
+      "manifest": "packages/snapback-codegen/package.json",
+      "typesTarget": "packages/snapback-codegen/ctx.d.mts",
+      "runtimeCondition": null,
+      "runtimeTarget": null,
+      "conditionalRuntimeTargets": {},
+      "parity": {
+        "applicableConditions": [],
+        "excludedConditions": []
+      },
+      "page": "guide/reference/expo-snapback-codegen--ctx.md",
+      "symbolIds": [
+        "npm:@expo/snapback-codegen/ctx#ActionContext",
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase",
+        "npm:@expo/snapback-codegen/ctx#AdmissionsOf",
+        "npm:@expo/snapback-codegen/ctx#AdmittedTable",
+        "npm:@expo/snapback-codegen/ctx#AnonymousAuthContext",
+        "npm:@expo/snapback-codegen/ctx#AnyHandlerSchema",
+        "npm:@expo/snapback-codegen/ctx#AssetsContext",
+        "npm:@expo/snapback-codegen/ctx#AuthContext",
+        "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext",
+        "npm:@expo/snapback-codegen/ctx#DeletableTable",
+        "npm:@expo/snapback-codegen/ctx#Handler",
+        "npm:@expo/snapback-codegen/ctx#HandlerIndexMap",
+        "npm:@expo/snapback-codegen/ctx#HandlerRow",
+        "npm:@expo/snapback-codegen/ctx#HandlerRowId",
+        "npm:@expo/snapback-codegen/ctx#HandlerRowMap",
+        "npm:@expo/snapback-codegen/ctx#HandlerSchema",
+        "npm:@expo/snapback-codegen/ctx#HandlerTableAdmissionMaps",
+        "npm:@expo/snapback-codegen/ctx#HandlerWriteMap",
+        "npm:@expo/snapback-codegen/ctx#IndexesOf",
+        "npm:@expo/snapback-codegen/ctx#InsertableTable",
+        "npm:@expo/snapback-codegen/ctx#InsertsOf",
+        "npm:@expo/snapback-codegen/ctx#JobsContext",
+        "npm:@expo/snapback-codegen/ctx#MutationContext",
+        "npm:@expo/snapback-codegen/ctx#MutationDatabase",
+        "npm:@expo/snapback-codegen/ctx#MutationIdentityContext",
+        "npm:@expo/snapback-codegen/ctx#MutationSettlement",
+        "npm:@expo/snapback-codegen/ctx#PatchableTable",
+        "npm:@expo/snapback-codegen/ctx#PatchesOf",
+        "npm:@expo/snapback-codegen/ctx#QueryBuilder",
+        "npm:@expo/snapback-codegen/ctx#QueryContext",
+        "npm:@expo/snapback-codegen/ctx#QueryDatabase",
+        "npm:@expo/snapback-codegen/ctx#ReadableTable",
+        "npm:@expo/snapback-codegen/ctx#RowsOf",
+        "npm:@expo/snapback-codegen/ctx#RuntimeContext",
+        "npm:@expo/snapback-codegen/ctx#SecretHandle",
+        "npm:@expo/snapback-codegen/ctx#SecretsContext",
+        "npm:@expo/snapback-codegen/ctx#SequenceContext",
+        "npm:@expo/snapback-codegen/ctx#StreamAttemptContext"
       ]
     }
   ],
@@ -77987,6 +78047,3141 @@
         "status": "build-bound",
         "note": "Derived from this checkout public declaration and applicable runtime export target."
       }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#ActionContext",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#ActionContext",
+      "anchor": "symbol-actioncontext-bbaad8c8fa",
+      "name": "ActionContext",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type ActionContext<\n  Auth extends AuthContext = AuthContext,\n  Runtime extends RuntimeContext = RuntimeContext,\n  Assets = unknown,\n  Secrets = SecretsContext,\n  Run = unknown,\n  Push = never,\n> = ActionContextBase<Auth, Runtime, Assets, Secrets, Run>\n  & ([Push] extends [never] ? object : { readonly push: Push });",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "Action handler context. `push` exists in types only when codegen admits it.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 282,
+        "column": 1,
+        "endLine": 290
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 282,
+          "column": 1,
+          "endLine": 290
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "ActionContext"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#ActionContextBase",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#ActionContextBase",
+      "anchor": "symbol-actioncontextbase-99096f0f55",
+      "name": "ActionContextBase",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface ActionContextBase<\n  Auth extends AuthContext,\n  Runtime extends RuntimeContext,\n  Assets,\n  Secrets,\n  Run,\n> {\n  readonly auth: Auth;\n  readonly runtime: Runtime;\n  readonly assets: Assets;\n  readonly secrets: Secrets;\n  readonly run: Run;\n  readonly cron: Run;\n  readonly streamAttempt: StreamAttemptContext;\n  isDirectHuman(): boolean;\n  runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>;\n  fetch(request: Readonly<Record<string, unknown>>): Promise<any>;\n  fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>;\n  refuse(code: string, details?: unknown): never;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#ActionContextBase.auth",
+          "name": "auth",
+          "kind": "property",
+          "signature": "readonly auth: Auth;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 267,
+              "column": 3,
+              "endLine": 267
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#ActionContextBase.runtime",
+          "name": "runtime",
+          "kind": "property",
+          "signature": "readonly runtime: Runtime;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 268,
+              "column": 3,
+              "endLine": 268
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#ActionContextBase.assets",
+          "name": "assets",
+          "kind": "property",
+          "signature": "readonly assets: Assets;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 269,
+              "column": 3,
+              "endLine": 269
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#ActionContextBase.secrets",
+          "name": "secrets",
+          "kind": "property",
+          "signature": "readonly secrets: Secrets;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 270,
+              "column": 3,
+              "endLine": 270
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#ActionContextBase.run",
+          "name": "run",
+          "kind": "property",
+          "signature": "readonly run: Run;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 271,
+              "column": 3,
+              "endLine": 271
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#ActionContextBase.cron",
+          "name": "cron",
+          "kind": "property",
+          "signature": "readonly cron: Run;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 272,
+              "column": 3,
+              "endLine": 272
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#ActionContextBase.streamAttempt",
+          "name": "streamAttempt",
+          "kind": "property",
+          "signature": "readonly streamAttempt: StreamAttemptContext;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 273,
+              "column": 3,
+              "endLine": 273
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#ActionContextBase.isDirectHuman",
+          "name": "isDirectHuman",
+          "kind": "method",
+          "signature": "isDirectHuman(): boolean;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 274,
+              "column": 3,
+              "endLine": 274
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#ActionContextBase.runMutation",
+          "name": "runMutation",
+          "kind": "method",
+          "signature": "runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 275,
+              "column": 3,
+              "endLine": 275
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#ActionContextBase.fetch",
+          "name": "fetch",
+          "kind": "method",
+          "signature": "fetch(request: Readonly<Record<string, unknown>>): Promise<any>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 276,
+              "column": 3,
+              "endLine": 276
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#ActionContextBase.fetchStream",
+          "name": "fetchStream",
+          "kind": "method",
+          "signature": "fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 277,
+              "column": 3,
+              "endLine": 277
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#ActionContextBase.refuse",
+          "name": "refuse",
+          "kind": "method",
+          "signature": "refuse(code: string, details?: unknown): never;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 278,
+              "column": 3,
+              "endLine": 278
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 260,
+        "column": 1,
+        "endLine": 279
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 260,
+          "column": 1,
+          "endLine": 279
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "ActionContextBase"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#AdmissionsOf",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#AdmissionsOf",
+      "anchor": "symbol-admissionsof-219a7dc9fa",
+      "name": "AdmissionsOf",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type AdmissionsOf<Schema extends AnyHandlerSchema> = Schema['admissions'];",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 49,
+        "column": 1,
+        "endLine": 49
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 49,
+          "column": 1,
+          "endLine": 49
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "AdmissionsOf"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#AdmittedTable",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#AdmittedTable",
+      "anchor": "symbol-admittedtable-fb26d87bfe",
+      "name": "AdmittedTable",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type AdmittedTable<\n  Schema extends AnyHandlerSchema,\n  Operation extends keyof AdmissionsOf<Schema>,\n> = Extract<keyof AdmissionsOf<Schema>[Operation], keyof RowsOf<Schema> & string>;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 50,
+        "column": 1,
+        "endLine": 53
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 50,
+          "column": 1,
+          "endLine": 53
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "AdmittedTable"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#AnonymousAuthContext",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#AnonymousAuthContext",
+      "anchor": "symbol-anonymousauthcontext-916765a884",
+      "name": "AnonymousAuthContext",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface AnonymousAuthContext {\n  readonly userId: null;\n  readonly sessionId: null;\n  readonly isAuthenticated: false;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#AnonymousAuthContext.userId",
+          "name": "userId",
+          "kind": "property",
+          "signature": "readonly userId: null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 148,
+              "column": 3,
+              "endLine": 148
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#AnonymousAuthContext.sessionId",
+          "name": "sessionId",
+          "kind": "property",
+          "signature": "readonly sessionId: null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 149,
+              "column": 3,
+              "endLine": 149
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#AnonymousAuthContext.isAuthenticated",
+          "name": "isAuthenticated",
+          "kind": "property",
+          "signature": "readonly isAuthenticated: false;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 150,
+              "column": 3,
+              "endLine": 150
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 147,
+        "column": 1,
+        "endLine": 151
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 147,
+          "column": 1,
+          "endLine": 151
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "AnonymousAuthContext"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#AnyHandlerSchema",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#AnyHandlerSchema",
+      "anchor": "symbol-anyhandlerschema-43369f5dc5",
+      "name": "AnyHandlerSchema",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type AnyHandlerSchema = HandlerSchema<any, any, any, any, any>;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 44,
+        "column": 1,
+        "endLine": 44
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 44,
+          "column": 1,
+          "endLine": 44
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "AnyHandlerSchema"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#AssetsContext",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#AssetsContext",
+      "anchor": "symbol-assetscontext-add61bc0e9",
+      "name": "AssetsContext",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface AssetsContext<AssetId = string, Options = unknown, Attached = any> {\n  attach(assetId: AssetId, options?: Options): Promise<Attached>;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#AssetsContext.attach",
+          "name": "attach",
+          "kind": "method",
+          "signature": "attach(assetId: AssetId, options?: Options): Promise<Attached>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 190,
+              "column": 3,
+              "endLine": 190
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "Transactional asset attachment; concrete generated APIs narrow its values.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 189,
+        "column": 1,
+        "endLine": 191
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 189,
+          "column": 1,
+          "endLine": 191
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "AssetsContext"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#AuthContext",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#AuthContext",
+      "anchor": "symbol-authcontext-db1f624093",
+      "name": "AuthContext",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type AuthContext<Principal extends string = string> =\n  | AnonymousAuthContext\n  | AuthenticatedAuthContext<Principal>;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 168,
+        "column": 1,
+        "endLine": 170
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 168,
+          "column": 1,
+          "endLine": 170
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "AuthContext"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#AuthenticatedAuthContext",
+      "anchor": "symbol-authenticatedauthcontext-83e0518726",
+      "name": "AuthenticatedAuthContext",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface AuthenticatedAuthContext<Principal extends string = string> {\n  readonly userId: Principal;\n  readonly sessionId: string | null;\n  readonly isAuthenticated: true;\n  readonly provider?: string;\n  readonly roles: readonly string[];\n  readonly kind: 'human' | 'agent';\n  readonly actor?: {\n    readonly userId: Principal;\n    readonly kind: 'agent';\n    readonly grantId: string;\n  };\n  readonly actorKind?: 'asset-callbacks';\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext.userId",
+          "name": "userId",
+          "kind": "property",
+          "signature": "readonly userId: Principal;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 154,
+              "column": 3,
+              "endLine": 154
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext.sessionId",
+          "name": "sessionId",
+          "kind": "property",
+          "signature": "readonly sessionId: string | null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 155,
+              "column": 3,
+              "endLine": 155
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext.isAuthenticated",
+          "name": "isAuthenticated",
+          "kind": "property",
+          "signature": "readonly isAuthenticated: true;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 156,
+              "column": 3,
+              "endLine": 156
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext.provider",
+          "name": "provider",
+          "kind": "property",
+          "signature": "readonly provider?: string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 157,
+              "column": 3,
+              "endLine": 157
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext.roles",
+          "name": "roles",
+          "kind": "property",
+          "signature": "readonly roles: readonly string[];",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 158,
+              "column": 3,
+              "endLine": 158
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext.kind",
+          "name": "kind",
+          "kind": "property",
+          "signature": "readonly kind: 'human' | 'agent';",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 159,
+              "column": 3,
+              "endLine": 159
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext.actor",
+          "name": "actor",
+          "kind": "property",
+          "signature": "readonly actor?: {\n    readonly userId: Principal;\n    readonly kind: 'agent';\n    readonly grantId: string;\n  };",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 160,
+              "column": 3,
+              "endLine": 164
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext.actorKind",
+          "name": "actorKind",
+          "kind": "property",
+          "signature": "readonly actorKind?: 'asset-callbacks';",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 165,
+              "column": 3,
+              "endLine": 165
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 153,
+        "column": 1,
+        "endLine": 166
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 153,
+          "column": 1,
+          "endLine": 166
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "AuthenticatedAuthContext"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#DeletableTable",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#DeletableTable",
+      "anchor": "symbol-deletabletable-e95bd8b81b",
+      "name": "DeletableTable",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type DeletableTable<Schema extends AnyHandlerSchema> = AdmittedTable<Schema, 'delete'>;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 64,
+        "column": 1,
+        "endLine": 64
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 64,
+          "column": 1,
+          "endLine": 64
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "DeletableTable"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#Handler",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#Handler",
+      "anchor": "symbol-handler-96fad46c8e",
+      "name": "Handler",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type Handler<Context, Args, Result> = (\n  ctx: Context,\n  args: Args,\n) => Result | Promise<Result>;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "Generic handler function shape instantiated by each generated API.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 293,
+        "column": 1,
+        "endLine": 296
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 293,
+          "column": 1,
+          "endLine": 296
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "Handler"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#HandlerIndexMap",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#HandlerIndexMap",
+      "anchor": "symbol-handlerindexmap-44566e5169",
+      "name": "HandlerIndexMap",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type HandlerIndexMap<Rows extends HandlerRowMap> = {\n  readonly [Table in keyof Rows]?: PropertyKey;\n};",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "Declared index-name unions keyed by schema table name.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 9,
+        "column": 1,
+        "endLine": 11
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 9,
+          "column": 1,
+          "endLine": 11
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "HandlerIndexMap"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#HandlerRow",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#HandlerRow",
+      "anchor": "symbol-handlerrow-a47bafaf6e",
+      "name": "HandlerRow",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type HandlerRow<\n  Schema extends AnyHandlerSchema,\n  Table extends ReadableTable<Schema>,\n> = RowsOf<Schema>[Table];",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "The schema-derived row returned for one admitted table.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 67,
+        "column": 1,
+        "endLine": 70
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 67,
+          "column": 1,
+          "endLine": 70
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "HandlerRow"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#HandlerRowId",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#HandlerRowId",
+      "anchor": "symbol-handlerrowid-16dcfb2bff",
+      "name": "HandlerRowId",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type HandlerRowId<\n  Schema extends AnyHandlerSchema,\n  Table extends keyof RowsOf<Schema> & string,\n> = RowsOf<Schema>[Table] extends { readonly _id: infer Id } ? Id : never;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "The opaque row id carried by the generated row's `_id` field.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 73,
+        "column": 1,
+        "endLine": 76
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 73,
+          "column": 1,
+          "endLine": 76
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "HandlerRowId"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#HandlerRowMap",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#HandlerRowMap",
+      "anchor": "symbol-handlerrowmap-5e7c81c7f6",
+      "name": "HandlerRowMap",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type HandlerRowMap = object;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "Rows keyed by their schema table name.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 6,
+        "column": 1,
+        "endLine": 6
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 6,
+          "column": 1,
+          "endLine": 6
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "HandlerRowMap"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#HandlerSchema",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#HandlerSchema",
+      "anchor": "symbol-handlerschema-c91197597f",
+      "name": "HandlerSchema",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface HandlerSchema<\n  Rows extends HandlerRowMap,\n  Indexes extends HandlerIndexMap<Rows>,\n  Inserts extends HandlerWriteMap<Rows>,\n  Patches extends HandlerWriteMap<Rows>,\n  Admissions extends HandlerTableAdmissionMaps<Rows>,\n> {\n  readonly rows: Rows;\n  readonly indexes: Indexes;\n  readonly inserts: Inserts;\n  readonly patches: Patches;\n  readonly admissions: Admissions;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#HandlerSchema.rows",
+          "name": "rows",
+          "kind": "property",
+          "signature": "readonly rows: Rows;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 37,
+              "column": 3,
+              "endLine": 37
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#HandlerSchema.indexes",
+          "name": "indexes",
+          "kind": "property",
+          "signature": "readonly indexes: Indexes;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 38,
+              "column": 3,
+              "endLine": 38
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#HandlerSchema.inserts",
+          "name": "inserts",
+          "kind": "property",
+          "signature": "readonly inserts: Inserts;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 39,
+              "column": 3,
+              "endLine": 39
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#HandlerSchema.patches",
+          "name": "patches",
+          "kind": "property",
+          "signature": "readonly patches: Patches;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 40,
+              "column": 3,
+              "endLine": 40
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#HandlerSchema.admissions",
+          "name": "admissions",
+          "kind": "property",
+          "signature": "readonly admissions: Admissions;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 41,
+              "column": 3,
+              "endLine": 41
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "One schema-derived type argument for every handler database surface.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 30,
+        "column": 1,
+        "endLine": 42
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 30,
+          "column": 1,
+          "endLine": 42
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "HandlerSchema"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#HandlerTableAdmissionMaps",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#HandlerTableAdmissionMaps",
+      "anchor": "symbol-handlertableadmissionmaps-522cb71851",
+      "name": "HandlerTableAdmissionMaps",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface HandlerTableAdmissionMaps<Rows extends HandlerRowMap> {\n  readonly read: Partial<Record<keyof Rows, true>>;\n  readonly insert: Partial<Record<keyof Rows, true>>;\n  readonly patch: Partial<Record<keyof Rows, true>>;\n  readonly delete: Partial<Record<keyof Rows, true>>;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#HandlerTableAdmissionMaps.read",
+          "name": "read",
+          "kind": "property",
+          "signature": "readonly read: Partial<Record<keyof Rows, true>>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 23,
+              "column": 3,
+              "endLine": 23
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#HandlerTableAdmissionMaps.insert",
+          "name": "insert",
+          "kind": "property",
+          "signature": "readonly insert: Partial<Record<keyof Rows, true>>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 24,
+              "column": 3,
+              "endLine": 24
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#HandlerTableAdmissionMaps.patch",
+          "name": "patch",
+          "kind": "property",
+          "signature": "readonly patch: Partial<Record<keyof Rows, true>>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 25,
+              "column": 3,
+              "endLine": 25
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#HandlerTableAdmissionMaps.delete",
+          "name": "delete",
+          "kind": "property",
+          "signature": "readonly delete: Partial<Record<keyof Rows, true>>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 26,
+              "column": 3,
+              "endLine": 26
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "Operation-specific table admission. A table is admitted to an operation\nexactly when it is a key of that operation's generated map.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 22,
+        "column": 1,
+        "endLine": 27
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 22,
+          "column": 1,
+          "endLine": 27
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "HandlerTableAdmissionMaps"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#HandlerWriteMap",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#HandlerWriteMap",
+      "anchor": "symbol-handlerwritemap-d8ed315d83",
+      "name": "HandlerWriteMap",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type HandlerWriteMap<Rows extends HandlerRowMap> = Partial<{\n  readonly [Table in keyof Rows]: unknown;\n}>;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "Insert or patch value shapes keyed by admitted schema table name.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 14,
+        "column": 1,
+        "endLine": 16
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 14,
+          "column": 1,
+          "endLine": 16
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "HandlerWriteMap"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#IndexesOf",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#IndexesOf",
+      "anchor": "symbol-indexesof-b02e01533a",
+      "name": "IndexesOf",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type IndexesOf<Schema extends AnyHandlerSchema> = Schema['indexes'];",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 46,
+        "column": 1,
+        "endLine": 46
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 46,
+          "column": 1,
+          "endLine": 46
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "IndexesOf"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#InsertableTable",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#InsertableTable",
+      "anchor": "symbol-insertabletable-748c59518f",
+      "name": "InsertableTable",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type InsertableTable<Schema extends AnyHandlerSchema> = Extract<\n  AdmittedTable<Schema, 'insert'>,\n  keyof InsertsOf<Schema> & string\n>;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 56,
+        "column": 1,
+        "endLine": 59
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 56,
+          "column": 1,
+          "endLine": 59
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "InsertableTable"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#InsertsOf",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#InsertsOf",
+      "anchor": "symbol-insertsof-50c028939e",
+      "name": "InsertsOf",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type InsertsOf<Schema extends AnyHandlerSchema> = Schema['inserts'];",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 47,
+        "column": 1,
+        "endLine": 47
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 47,
+          "column": 1,
+          "endLine": 47
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "InsertsOf"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#JobsContext",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#JobsContext",
+      "anchor": "symbol-jobscontext-d9289513d1",
+      "name": "JobsContext",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface JobsContext {\n  enqueue(\n    name: string,\n    args: Readonly<Record<string, unknown>>,\n    options?: Readonly<Record<string, unknown>>,\n  ): Promise<unknown>;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#JobsContext.enqueue",
+          "name": "enqueue",
+          "kind": "method",
+          "signature": "enqueue(\n    name: string,\n    args: Readonly<Record<string, unknown>>,\n    options?: Readonly<Record<string, unknown>>,\n  ): Promise<unknown>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 195,
+              "column": 3,
+              "endLine": 199
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "Transactional durable-job enqueue available to mutation handlers.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 194,
+        "column": 1,
+        "endLine": 200
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 194,
+          "column": 1,
+          "endLine": 200
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "JobsContext"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#MutationContext",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#MutationContext",
+      "anchor": "symbol-mutationcontext-a715494c41",
+      "name": "MutationContext",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface MutationContext<\n  Schema extends AnyHandlerSchema,\n  Auth extends AuthContext = AuthContext,\n  Permissions = Record<string, never>,\n  Assets = AssetsContext,\n  Runtime extends RuntimeContext = RuntimeContext,\n  Membership = Record<string, never>,\n  Jobs extends JobsContext = JobsContext,\n  Sequence extends SequenceContext = SequenceContext,\n  Mutation extends MutationIdentityContext = MutationIdentityContext,\n> extends QueryContext<Schema, Auth, Permissions, Assets, Runtime> {\n  readonly db: MutationDatabase<Schema>;\n  readonly membership: Membership;\n  readonly jobs: Jobs;\n  readonly sequence: Sequence;\n  readonly mutation: Mutation;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#MutationContext.db",
+          "name": "db",
+          "kind": "property",
+          "signature": "readonly db: MutationDatabase<Schema>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 236,
+              "column": 3,
+              "endLine": 236
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#MutationContext.membership",
+          "name": "membership",
+          "kind": "property",
+          "signature": "readonly membership: Membership;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 237,
+              "column": 3,
+              "endLine": 237
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#MutationContext.jobs",
+          "name": "jobs",
+          "kind": "property",
+          "signature": "readonly jobs: Jobs;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 238,
+              "column": 3,
+              "endLine": 238
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#MutationContext.sequence",
+          "name": "sequence",
+          "kind": "property",
+          "signature": "readonly sequence: Sequence;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 239,
+              "column": 3,
+              "endLine": 239
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#MutationContext.mutation",
+          "name": "mutation",
+          "kind": "property",
+          "signature": "readonly mutation: Mutation;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 240,
+              "column": 3,
+              "endLine": 240
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "Shared mutation-handler context with the write-capability additions.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 225,
+        "column": 1,
+        "endLine": 241
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 225,
+          "column": 1,
+          "endLine": 241
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "MutationContext"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#MutationDatabase",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#MutationDatabase",
+      "anchor": "symbol-mutationdatabase-d1abad012f",
+      "name": "MutationDatabase",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface MutationDatabase<Schema extends AnyHandlerSchema>\n  extends QueryDatabase<Schema> {\n  insert<Table extends InsertableTable<Schema>>(\n    table: Table,\n    values: InsertsOf<Schema>[Table],\n  ): Promise<HandlerRowId<Schema, Table>>;\n  patch<Table extends PatchableTable<Schema>>(\n    table: Table,\n    id: HandlerRowId<Schema, Table>,\n    values: PatchesOf<Schema>[Table],\n  ): Promise<unknown>;\n  delete<Table extends DeletableTable<Schema>>(\n    table: Table,\n    id: HandlerRowId<Schema, Table>,\n  ): Promise<unknown>;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#MutationDatabase.insert",
+          "name": "insert",
+          "kind": "method",
+          "signature": "insert<Table extends InsertableTable<Schema>>(\n    table: Table,\n    values: InsertsOf<Schema>[Table],\n  ): Promise<HandlerRowId<Schema, Table>>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 132,
+              "column": 3,
+              "endLine": 135
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#MutationDatabase.patch",
+          "name": "patch",
+          "kind": "method",
+          "signature": "patch<Table extends PatchableTable<Schema>>(\n    table: Table,\n    id: HandlerRowId<Schema, Table>,\n    values: PatchesOf<Schema>[Table],\n  ): Promise<unknown>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 136,
+              "column": 3,
+              "endLine": 140
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#MutationDatabase.delete",
+          "name": "delete",
+          "kind": "method",
+          "signature": "delete<Table extends DeletableTable<Schema>>(\n    table: Table,\n    id: HandlerRowId<Schema, Table>,\n  ): Promise<unknown>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 141,
+              "column": 3,
+              "endLine": 144
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "Read-write database authority available only to mutation handlers.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 130,
+        "column": 1,
+        "endLine": 145
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 130,
+          "column": 1,
+          "endLine": 145
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "MutationDatabase"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#MutationIdentityContext",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#MutationIdentityContext",
+      "anchor": "symbol-mutationidentitycontext-06a528f47f",
+      "name": "MutationIdentityContext",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface MutationIdentityContext {\n  settlement(): MutationSettlement;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#MutationIdentityContext.settlement",
+          "name": "settlement",
+          "kind": "method",
+          "signature": "settlement(): MutationSettlement;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 185,
+              "column": 3,
+              "endLine": 185
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 184,
+        "column": 1,
+        "endLine": 186
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 184,
+          "column": 1,
+          "endLine": 186
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "MutationIdentityContext"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#MutationSettlement",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#MutationSettlement",
+      "anchor": "symbol-mutationsettlement-bf19c0d502",
+      "name": "MutationSettlement",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface MutationSettlement {\n  readonly clientMutationId: string | null;\n  readonly settlementId: string | null;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#MutationSettlement.clientMutationId",
+          "name": "clientMutationId",
+          "kind": "property",
+          "signature": "readonly clientMutationId: string | null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 180,
+              "column": 3,
+              "endLine": 180
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#MutationSettlement.settlementId",
+          "name": "settlementId",
+          "kind": "property",
+          "signature": "readonly settlementId: string | null;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 181,
+              "column": 3,
+              "endLine": 181
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "Mutation replay identity projected from the admitted request.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 179,
+        "column": 1,
+        "endLine": 182
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 179,
+          "column": 1,
+          "endLine": 182
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "MutationSettlement"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#PatchableTable",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#PatchableTable",
+      "anchor": "symbol-patchabletable-9b02b76d66",
+      "name": "PatchableTable",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type PatchableTable<Schema extends AnyHandlerSchema> = Extract<\n  AdmittedTable<Schema, 'patch'>,\n  keyof PatchesOf<Schema> & string\n>;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 60,
+        "column": 1,
+        "endLine": 63
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 60,
+          "column": 1,
+          "endLine": 63
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "PatchableTable"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#PatchesOf",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#PatchesOf",
+      "anchor": "symbol-patchesof-b4b9a3ec7f",
+      "name": "PatchesOf",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type PatchesOf<Schema extends AnyHandlerSchema> = Schema['patches'];",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 48,
+        "column": 1,
+        "endLine": 48
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 48,
+          "column": 1,
+          "endLine": 48
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "PatchesOf"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#QueryBuilder",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#QueryBuilder",
+      "anchor": "symbol-querybuilder-17b757a757",
+      "name": "QueryBuilder",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface QueryBuilder<\n  Schema extends AnyHandlerSchema,\n  Table extends ReadableTable<Schema>,\n> {\n  withIndex(index: IndexesOf<Schema>[Table]): QueryBuilder<Schema, Table>;\n  eq<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    value: HandlerRow<Schema, Table>[Field],\n  ): QueryBuilder<Schema, Table>;\n  in<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    values: ReadonlyArray<HandlerRow<Schema, Table>[Field]>,\n  ): QueryBuilder<Schema, Table>;\n  lt<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    value: HandlerRow<Schema, Table>[Field],\n  ): QueryBuilder<Schema, Table>;\n  lte<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    value: HandlerRow<Schema, Table>[Field],\n  ): QueryBuilder<Schema, Table>;\n  gt<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    value: HandlerRow<Schema, Table>[Field],\n  ): QueryBuilder<Schema, Table>;\n  gte<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    value: HandlerRow<Schema, Table>[Field],\n  ): QueryBuilder<Schema, Table>;\n  order<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    direction?: 'asc' | 'desc' | 'Asc' | 'Desc',\n  ): QueryBuilder<Schema, Table>;\n  take(limit: number): QueryBuilder<Schema, Table>;\n  collect(): Promise<Array<HandlerRow<Schema, Table>>>;\n  first(): Promise<HandlerRow<Schema, Table> | null>;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryBuilder.withIndex",
+          "name": "withIndex",
+          "kind": "method",
+          "signature": "withIndex(index: IndexesOf<Schema>[Table]): QueryBuilder<Schema, Table>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 86,
+              "column": 3,
+              "endLine": 86
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryBuilder.eq",
+          "name": "eq",
+          "kind": "method",
+          "signature": "eq<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    value: HandlerRow<Schema, Table>[Field],\n  ): QueryBuilder<Schema, Table>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 87,
+              "column": 3,
+              "endLine": 90
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryBuilder.in",
+          "name": "in",
+          "kind": "method",
+          "signature": "in<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    values: ReadonlyArray<HandlerRow<Schema, Table>[Field]>,\n  ): QueryBuilder<Schema, Table>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 91,
+              "column": 3,
+              "endLine": 94
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryBuilder.lt",
+          "name": "lt",
+          "kind": "method",
+          "signature": "lt<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    value: HandlerRow<Schema, Table>[Field],\n  ): QueryBuilder<Schema, Table>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 95,
+              "column": 3,
+              "endLine": 98
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryBuilder.lte",
+          "name": "lte",
+          "kind": "method",
+          "signature": "lte<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    value: HandlerRow<Schema, Table>[Field],\n  ): QueryBuilder<Schema, Table>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 99,
+              "column": 3,
+              "endLine": 102
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryBuilder.gt",
+          "name": "gt",
+          "kind": "method",
+          "signature": "gt<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    value: HandlerRow<Schema, Table>[Field],\n  ): QueryBuilder<Schema, Table>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 103,
+              "column": 3,
+              "endLine": 106
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryBuilder.gte",
+          "name": "gte",
+          "kind": "method",
+          "signature": "gte<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    value: HandlerRow<Schema, Table>[Field],\n  ): QueryBuilder<Schema, Table>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 107,
+              "column": 3,
+              "endLine": 110
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryBuilder.order",
+          "name": "order",
+          "kind": "method",
+          "signature": "order<Field extends keyof HandlerRow<Schema, Table> & string>(\n    field: Field,\n    direction?: 'asc' | 'desc' | 'Asc' | 'Desc',\n  ): QueryBuilder<Schema, Table>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 111,
+              "column": 3,
+              "endLine": 114
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryBuilder.take",
+          "name": "take",
+          "kind": "method",
+          "signature": "take(limit: number): QueryBuilder<Schema, Table>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 115,
+              "column": 3,
+              "endLine": 115
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryBuilder.collect",
+          "name": "collect",
+          "kind": "method",
+          "signature": "collect(): Promise<Array<HandlerRow<Schema, Table>>>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 116,
+              "column": 3,
+              "endLine": 116
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryBuilder.first",
+          "name": "first",
+          "kind": "method",
+          "signature": "first(): Promise<HandlerRow<Schema, Table> | null>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 117,
+              "column": 3,
+              "endLine": 117
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "Immutable portable query builder. Every chaining call returns the same\ntable-specialized surface; `collect` and `first` execute it.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 82,
+        "column": 1,
+        "endLine": 118
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 82,
+          "column": 1,
+          "endLine": 118
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "QueryBuilder"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#QueryContext",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#QueryContext",
+      "anchor": "symbol-querycontext-ac3a672b35",
+      "name": "QueryContext",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface QueryContext<\n  Schema extends AnyHandlerSchema,\n  Auth extends AuthContext = AuthContext,\n  Permissions = Record<string, never>,\n  Assets = unknown,\n  Runtime extends RuntimeContext = RuntimeContext,\n> {\n  readonly db: QueryDatabase<Schema>;\n  readonly permissions: Permissions;\n  readonly auth: Auth;\n  readonly runtime: Runtime;\n  readonly assets: Assets;\n  isDirectHuman(): boolean;\n  refuse(code: string, details?: unknown): never;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryContext.db",
+          "name": "db",
+          "kind": "property",
+          "signature": "readonly db: QueryDatabase<Schema>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 215,
+              "column": 3,
+              "endLine": 215
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryContext.permissions",
+          "name": "permissions",
+          "kind": "property",
+          "signature": "readonly permissions: Permissions;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 216,
+              "column": 3,
+              "endLine": 216
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryContext.auth",
+          "name": "auth",
+          "kind": "property",
+          "signature": "readonly auth: Auth;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 217,
+              "column": 3,
+              "endLine": 217
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryContext.runtime",
+          "name": "runtime",
+          "kind": "property",
+          "signature": "readonly runtime: Runtime;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 218,
+              "column": 3,
+              "endLine": 218
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryContext.assets",
+          "name": "assets",
+          "kind": "property",
+          "signature": "readonly assets: Assets;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 219,
+              "column": 3,
+              "endLine": 219
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryContext.isDirectHuman",
+          "name": "isDirectHuman",
+          "kind": "method",
+          "signature": "isDirectHuman(): boolean;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 220,
+              "column": 3,
+              "endLine": 220
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryContext.refuse",
+          "name": "refuse",
+          "kind": "method",
+          "signature": "refuse(code: string, details?: unknown): never;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 221,
+              "column": 3,
+              "endLine": 221
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "Shared query-handler context with read-only database authority.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 208,
+        "column": 1,
+        "endLine": 222
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 208,
+          "column": 1,
+          "endLine": 222
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "QueryContext"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#QueryDatabase",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#QueryDatabase",
+      "anchor": "symbol-querydatabase-8d46ad3df0",
+      "name": "QueryDatabase",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface QueryDatabase<Schema extends AnyHandlerSchema> {\n  get<Table extends ReadableTable<Schema>>(\n    table: Table,\n    id: HandlerRowId<Schema, Table>,\n  ): Promise<HandlerRow<Schema, Table> | null>;\n  query<Table extends ReadableTable<Schema>>(table: Table): QueryBuilder<Schema, Table>;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryDatabase.get",
+          "name": "get",
+          "kind": "method",
+          "signature": "get<Table extends ReadableTable<Schema>>(\n    table: Table,\n    id: HandlerRowId<Schema, Table>,\n  ): Promise<HandlerRow<Schema, Table> | null>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 122,
+              "column": 3,
+              "endLine": 125
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#QueryDatabase.query",
+          "name": "query",
+          "kind": "method",
+          "signature": "query<Table extends ReadableTable<Schema>>(table: Table): QueryBuilder<Schema, Table>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 126,
+              "column": 3,
+              "endLine": 126
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "Read-only database authority available to query handlers.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 121,
+        "column": 1,
+        "endLine": 127
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 121,
+          "column": 1,
+          "endLine": 127
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "QueryDatabase"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#ReadableTable",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#ReadableTable",
+      "anchor": "symbol-readabletable-43c5560a8c",
+      "name": "ReadableTable",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type ReadableTable<Schema extends AnyHandlerSchema> = AdmittedTable<Schema, 'read'>;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 55,
+        "column": 1,
+        "endLine": 55
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 55,
+          "column": 1,
+          "endLine": 55
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "ReadableTable"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#RowsOf",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#RowsOf",
+      "anchor": "symbol-rowsof-59b84a6e3c",
+      "name": "RowsOf",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type RowsOf<Schema extends AnyHandlerSchema> = Schema['rows'];",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 45,
+        "column": 1,
+        "endLine": 45
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 45,
+          "column": 1,
+          "endLine": 45
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "RowsOf"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#RuntimeContext",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#RuntimeContext",
+      "anchor": "symbol-runtimecontext-92be488bf6",
+      "name": "RuntimeContext",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface RuntimeContext {\n  now(): number;\n  id(): string;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#RuntimeContext.now",
+          "name": "now",
+          "kind": "method",
+          "signature": "now(): number;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 174,
+              "column": 3,
+              "endLine": 174
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#RuntimeContext.id",
+          "name": "id",
+          "kind": "method",
+          "signature": "id(): string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 175,
+              "column": 3,
+              "endLine": 175
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "Deterministic handler invocation time and id allocation.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 173,
+        "column": 1,
+        "endLine": 176
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 173,
+          "column": 1,
+          "endLine": 176
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "RuntimeContext"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#SecretHandle",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#SecretHandle",
+      "anchor": "symbol-secrethandle-33a521d29b",
+      "name": "SecretHandle",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface SecretHandle {\n  expose(): string;\n  asBearer(): string;\n  toString(): string;\n  toJSON(): string;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#SecretHandle.expose",
+          "name": "expose",
+          "kind": "method",
+          "signature": "expose(): string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 244,
+              "column": 3,
+              "endLine": 244
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#SecretHandle.asBearer",
+          "name": "asBearer",
+          "kind": "method",
+          "signature": "asBearer(): string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 245,
+              "column": 3,
+              "endLine": 245
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#SecretHandle.toString",
+          "name": "toString",
+          "kind": "method",
+          "signature": "toString(): string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 246,
+              "column": 3,
+              "endLine": 246
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#SecretHandle.toJSON",
+          "name": "toJSON",
+          "kind": "method",
+          "signature": "toJSON(): string;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 247,
+              "column": 3,
+              "endLine": 247
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 243,
+        "column": 1,
+        "endLine": 248
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 243,
+          "column": 1,
+          "endLine": 248
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "SecretHandle"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#SecretsContext",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#SecretsContext",
+      "anchor": "symbol-secretscontext-d6c60ce3bb",
+      "name": "SecretsContext",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface SecretsContext<Handle = SecretHandle> {\n  get(name: string): Handle;\n  rotating(name: string): Handle;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#SecretsContext.get",
+          "name": "get",
+          "kind": "method",
+          "signature": "get(name: string): Handle;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 251,
+              "column": 3,
+              "endLine": 251
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#SecretsContext.rotating",
+          "name": "rotating",
+          "kind": "method",
+          "signature": "rotating(name: string): Handle;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 252,
+              "column": 3,
+              "endLine": 252
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 250,
+        "column": 1,
+        "endLine": 253
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 250,
+          "column": 1,
+          "endLine": 253
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "SecretsContext"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#SequenceContext",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#SequenceContext",
+      "anchor": "symbol-sequencecontext-fa8f107856",
+      "name": "SequenceContext",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface SequenceContext<Counter extends string = string, ScopeId = string> {\n  allocate(counter: Counter, scopeId: ScopeId): Promise<number>;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#SequenceContext.allocate",
+          "name": "allocate",
+          "kind": "method",
+          "signature": "allocate(counter: Counter, scopeId: ScopeId): Promise<number>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 204,
+              "column": 3,
+              "endLine": 204
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "Scoped transactional counter allocation available to declared mutations.",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 203,
+        "column": 1,
+        "endLine": 205
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 203,
+          "column": 1,
+          "endLine": 205
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "SequenceContext"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-codegen/ctx#StreamAttemptContext",
+      "originIdentity": "packages/snapback-codegen/ctx.d.mts#StreamAttemptContext",
+      "anchor": "symbol-streamattemptcontext-7a3b76cd41",
+      "name": "StreamAttemptContext",
+      "package": "@expo/snapback-codegen",
+      "module": "@expo/snapback-codegen/ctx",
+      "moduleSubpath": "./ctx",
+      "kind": "type-interface",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export interface StreamAttemptContext {\n  start(clientKey: string): Promise<unknown>;\n  settle(attemptToken: string, cause: unknown): Promise<unknown>;\n}",
+      "overloads": [],
+      "members": [
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#StreamAttemptContext.start",
+          "name": "start",
+          "kind": "method",
+          "signature": "start(clientKey: string): Promise<unknown>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 256,
+              "column": 3,
+              "endLine": 256
+            }
+          ]
+        },
+        {
+          "identity": "npm:@expo/snapback-codegen/ctx#StreamAttemptContext.settle",
+          "name": "settle",
+          "kind": "method",
+          "signature": "settle(attemptToken: string, cause: unknown): Promise<unknown>;",
+          "overloads": [],
+          "documentation": {
+            "text": "",
+            "tags": []
+          },
+          "sources": [
+            {
+              "file": "packages/snapback-codegen/ctx.d.mts",
+              "line": 257,
+              "column": 3,
+              "endLine": 257
+            }
+          ]
+        }
+      ],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "line": 255,
+        "column": 1,
+        "endLine": 258
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-codegen/ctx.d.mts",
+          "line": 255,
+          "column": 1,
+          "endLine": 258
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-codegen/ctx.d.mts",
+        "exportName": "StreamAttemptContext"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public type-only declaration; runtime parity is not applicable."
+      }
     }
   ],
   "lookup": {
@@ -84527,6 +87722,348 @@
       ],
       "writeVerifyReceipt": [
         "npm:@expo/snapback-cli/verify#writeVerifyReceipt"
+      ],
+      "ActionContext": [
+        "npm:@expo/snapback-codegen/ctx#ActionContext"
+      ],
+      "ActionContextBase": [
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase"
+      ],
+      "ActionContextBase.auth": [
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase"
+      ],
+      "ActionContextBase.runtime": [
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase"
+      ],
+      "ActionContextBase.assets": [
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase"
+      ],
+      "ActionContextBase.secrets": [
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase"
+      ],
+      "ActionContextBase.run": [
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase"
+      ],
+      "ActionContextBase.cron": [
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase"
+      ],
+      "ActionContextBase.streamAttempt": [
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase"
+      ],
+      "ActionContextBase.isDirectHuman": [
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase"
+      ],
+      "ActionContextBase.runMutation": [
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase"
+      ],
+      "ActionContextBase.fetch": [
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase"
+      ],
+      "ActionContextBase.fetchStream": [
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase"
+      ],
+      "ActionContextBase.refuse": [
+        "npm:@expo/snapback-codegen/ctx#ActionContextBase"
+      ],
+      "AdmissionsOf": [
+        "npm:@expo/snapback-codegen/ctx#AdmissionsOf"
+      ],
+      "AdmittedTable": [
+        "npm:@expo/snapback-codegen/ctx#AdmittedTable"
+      ],
+      "AnonymousAuthContext": [
+        "npm:@expo/snapback-codegen/ctx#AnonymousAuthContext"
+      ],
+      "AnonymousAuthContext.userId": [
+        "npm:@expo/snapback-codegen/ctx#AnonymousAuthContext"
+      ],
+      "AnonymousAuthContext.sessionId": [
+        "npm:@expo/snapback-codegen/ctx#AnonymousAuthContext"
+      ],
+      "AnonymousAuthContext.isAuthenticated": [
+        "npm:@expo/snapback-codegen/ctx#AnonymousAuthContext"
+      ],
+      "AnyHandlerSchema": [
+        "npm:@expo/snapback-codegen/ctx#AnyHandlerSchema"
+      ],
+      "AssetsContext": [
+        "npm:@expo/snapback-codegen/ctx#AssetsContext"
+      ],
+      "AssetsContext.attach": [
+        "npm:@expo/snapback-codegen/ctx#AssetsContext"
+      ],
+      "AuthContext": [
+        "npm:@expo/snapback-codegen/ctx#AuthContext"
+      ],
+      "AuthenticatedAuthContext": [
+        "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext"
+      ],
+      "AuthenticatedAuthContext.userId": [
+        "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext"
+      ],
+      "AuthenticatedAuthContext.sessionId": [
+        "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext"
+      ],
+      "AuthenticatedAuthContext.isAuthenticated": [
+        "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext"
+      ],
+      "AuthenticatedAuthContext.provider": [
+        "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext"
+      ],
+      "AuthenticatedAuthContext.roles": [
+        "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext"
+      ],
+      "AuthenticatedAuthContext.kind": [
+        "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext"
+      ],
+      "AuthenticatedAuthContext.actor": [
+        "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext"
+      ],
+      "AuthenticatedAuthContext.actorKind": [
+        "npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext"
+      ],
+      "DeletableTable": [
+        "npm:@expo/snapback-codegen/ctx#DeletableTable"
+      ],
+      "Handler": [
+        "npm:@expo/snapback-codegen/ctx#Handler"
+      ],
+      "HandlerIndexMap": [
+        "npm:@expo/snapback-codegen/ctx#HandlerIndexMap"
+      ],
+      "HandlerRow": [
+        "npm:@expo/snapback-codegen/ctx#HandlerRow"
+      ],
+      "HandlerRowId": [
+        "npm:@expo/snapback-codegen/ctx#HandlerRowId"
+      ],
+      "HandlerRowMap": [
+        "npm:@expo/snapback-codegen/ctx#HandlerRowMap"
+      ],
+      "HandlerSchema": [
+        "npm:@expo/snapback-codegen/ctx#HandlerSchema"
+      ],
+      "HandlerSchema.rows": [
+        "npm:@expo/snapback-codegen/ctx#HandlerSchema"
+      ],
+      "HandlerSchema.indexes": [
+        "npm:@expo/snapback-codegen/ctx#HandlerSchema"
+      ],
+      "HandlerSchema.inserts": [
+        "npm:@expo/snapback-codegen/ctx#HandlerSchema"
+      ],
+      "HandlerSchema.patches": [
+        "npm:@expo/snapback-codegen/ctx#HandlerSchema"
+      ],
+      "HandlerSchema.admissions": [
+        "npm:@expo/snapback-codegen/ctx#HandlerSchema"
+      ],
+      "HandlerTableAdmissionMaps": [
+        "npm:@expo/snapback-codegen/ctx#HandlerTableAdmissionMaps"
+      ],
+      "HandlerTableAdmissionMaps.read": [
+        "npm:@expo/snapback-codegen/ctx#HandlerTableAdmissionMaps"
+      ],
+      "HandlerTableAdmissionMaps.insert": [
+        "npm:@expo/snapback-codegen/ctx#HandlerTableAdmissionMaps"
+      ],
+      "HandlerTableAdmissionMaps.patch": [
+        "npm:@expo/snapback-codegen/ctx#HandlerTableAdmissionMaps"
+      ],
+      "HandlerTableAdmissionMaps.delete": [
+        "npm:@expo/snapback-codegen/ctx#HandlerTableAdmissionMaps"
+      ],
+      "HandlerWriteMap": [
+        "npm:@expo/snapback-codegen/ctx#HandlerWriteMap"
+      ],
+      "IndexesOf": [
+        "npm:@expo/snapback-codegen/ctx#IndexesOf"
+      ],
+      "InsertableTable": [
+        "npm:@expo/snapback-codegen/ctx#InsertableTable"
+      ],
+      "InsertsOf": [
+        "npm:@expo/snapback-codegen/ctx#InsertsOf"
+      ],
+      "JobsContext": [
+        "npm:@expo/snapback-codegen/ctx#JobsContext"
+      ],
+      "JobsContext.enqueue": [
+        "npm:@expo/snapback-codegen/ctx#JobsContext"
+      ],
+      "MutationContext": [
+        "npm:@expo/snapback-codegen/ctx#MutationContext"
+      ],
+      "MutationContext.db": [
+        "npm:@expo/snapback-codegen/ctx#MutationContext"
+      ],
+      "MutationContext.membership": [
+        "npm:@expo/snapback-codegen/ctx#MutationContext"
+      ],
+      "MutationContext.jobs": [
+        "npm:@expo/snapback-codegen/ctx#MutationContext"
+      ],
+      "MutationContext.sequence": [
+        "npm:@expo/snapback-codegen/ctx#MutationContext"
+      ],
+      "MutationContext.mutation": [
+        "npm:@expo/snapback-codegen/ctx#MutationContext"
+      ],
+      "MutationDatabase": [
+        "npm:@expo/snapback-codegen/ctx#MutationDatabase"
+      ],
+      "MutationDatabase.insert": [
+        "npm:@expo/snapback-codegen/ctx#MutationDatabase"
+      ],
+      "MutationDatabase.patch": [
+        "npm:@expo/snapback-codegen/ctx#MutationDatabase"
+      ],
+      "MutationDatabase.delete": [
+        "npm:@expo/snapback-codegen/ctx#MutationDatabase"
+      ],
+      "MutationIdentityContext": [
+        "npm:@expo/snapback-codegen/ctx#MutationIdentityContext"
+      ],
+      "MutationIdentityContext.settlement": [
+        "npm:@expo/snapback-codegen/ctx#MutationIdentityContext"
+      ],
+      "MutationSettlement": [
+        "npm:@expo/snapback-codegen/ctx#MutationSettlement"
+      ],
+      "MutationSettlement.clientMutationId": [
+        "npm:@expo/snapback-codegen/ctx#MutationSettlement"
+      ],
+      "MutationSettlement.settlementId": [
+        "npm:@expo/snapback-codegen/ctx#MutationSettlement"
+      ],
+      "PatchableTable": [
+        "npm:@expo/snapback-codegen/ctx#PatchableTable"
+      ],
+      "PatchesOf": [
+        "npm:@expo/snapback-codegen/ctx#PatchesOf"
+      ],
+      "QueryBuilder": [
+        "npm:@expo/snapback-codegen/ctx#QueryBuilder"
+      ],
+      "QueryBuilder.withIndex": [
+        "npm:@expo/snapback-codegen/ctx#QueryBuilder"
+      ],
+      "QueryBuilder.eq": [
+        "npm:@expo/snapback-codegen/ctx#QueryBuilder"
+      ],
+      "QueryBuilder.in": [
+        "npm:@expo/snapback-codegen/ctx#QueryBuilder"
+      ],
+      "QueryBuilder.lt": [
+        "npm:@expo/snapback-codegen/ctx#QueryBuilder"
+      ],
+      "QueryBuilder.lte": [
+        "npm:@expo/snapback-codegen/ctx#QueryBuilder"
+      ],
+      "QueryBuilder.gt": [
+        "npm:@expo/snapback-codegen/ctx#QueryBuilder"
+      ],
+      "QueryBuilder.gte": [
+        "npm:@expo/snapback-codegen/ctx#QueryBuilder"
+      ],
+      "QueryBuilder.order": [
+        "npm:@expo/snapback-codegen/ctx#QueryBuilder"
+      ],
+      "QueryBuilder.take": [
+        "npm:@expo/snapback-codegen/ctx#QueryBuilder"
+      ],
+      "QueryBuilder.collect": [
+        "npm:@expo/snapback-codegen/ctx#QueryBuilder"
+      ],
+      "QueryBuilder.first": [
+        "npm:@expo/snapback-codegen/ctx#QueryBuilder"
+      ],
+      "QueryContext": [
+        "npm:@expo/snapback-codegen/ctx#QueryContext"
+      ],
+      "QueryContext.db": [
+        "npm:@expo/snapback-codegen/ctx#QueryContext"
+      ],
+      "QueryContext.permissions": [
+        "npm:@expo/snapback-codegen/ctx#QueryContext"
+      ],
+      "QueryContext.auth": [
+        "npm:@expo/snapback-codegen/ctx#QueryContext"
+      ],
+      "QueryContext.runtime": [
+        "npm:@expo/snapback-codegen/ctx#QueryContext"
+      ],
+      "QueryContext.assets": [
+        "npm:@expo/snapback-codegen/ctx#QueryContext"
+      ],
+      "QueryContext.isDirectHuman": [
+        "npm:@expo/snapback-codegen/ctx#QueryContext"
+      ],
+      "QueryContext.refuse": [
+        "npm:@expo/snapback-codegen/ctx#QueryContext"
+      ],
+      "QueryDatabase": [
+        "npm:@expo/snapback-codegen/ctx#QueryDatabase"
+      ],
+      "QueryDatabase.get": [
+        "npm:@expo/snapback-codegen/ctx#QueryDatabase"
+      ],
+      "QueryDatabase.query": [
+        "npm:@expo/snapback-codegen/ctx#QueryDatabase"
+      ],
+      "ReadableTable": [
+        "npm:@expo/snapback-codegen/ctx#ReadableTable"
+      ],
+      "RowsOf": [
+        "npm:@expo/snapback-codegen/ctx#RowsOf"
+      ],
+      "RuntimeContext": [
+        "npm:@expo/snapback-codegen/ctx#RuntimeContext"
+      ],
+      "RuntimeContext.now": [
+        "npm:@expo/snapback-codegen/ctx#RuntimeContext"
+      ],
+      "RuntimeContext.id": [
+        "npm:@expo/snapback-codegen/ctx#RuntimeContext"
+      ],
+      "SecretHandle": [
+        "npm:@expo/snapback-codegen/ctx#SecretHandle"
+      ],
+      "SecretHandle.expose": [
+        "npm:@expo/snapback-codegen/ctx#SecretHandle"
+      ],
+      "SecretHandle.asBearer": [
+        "npm:@expo/snapback-codegen/ctx#SecretHandle"
+      ],
+      "SecretHandle.toString": [
+        "npm:@expo/snapback-codegen/ctx#SecretHandle"
+      ],
+      "SecretHandle.toJSON": [
+        "npm:@expo/snapback-codegen/ctx#SecretHandle"
+      ],
+      "SecretsContext": [
+        "npm:@expo/snapback-codegen/ctx#SecretsContext"
+      ],
+      "SecretsContext.get": [
+        "npm:@expo/snapback-codegen/ctx#SecretsContext"
+      ],
+      "SecretsContext.rotating": [
+        "npm:@expo/snapback-codegen/ctx#SecretsContext"
+      ],
+      "SequenceContext": [
+        "npm:@expo/snapback-codegen/ctx#SequenceContext"
+      ],
+      "SequenceContext.allocate": [
+        "npm:@expo/snapback-codegen/ctx#SequenceContext"
+      ],
+      "StreamAttemptContext": [
+        "npm:@expo/snapback-codegen/ctx#StreamAttemptContext"
+      ],
+      "StreamAttemptContext.start": [
+        "npm:@expo/snapback-codegen/ctx#StreamAttemptContext"
+      ],
+      "StreamAttemptContext.settle": [
+        "npm:@expo/snapback-codegen/ctx#StreamAttemptContext"
       ]
     }
   }

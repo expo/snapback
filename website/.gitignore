@@ -1,0 +1,5 @@
+node_modules/
+dist/
+public/guide/
+public/llms.txt
+.expo/

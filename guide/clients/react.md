@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
 ---
 
 # The React client
@@ -388,20 +388,26 @@ and a presentation-only key needs no unpredictability.
 
 Render the pending items beside the query rows, marked as unsettled. On
 rejection, only the corresponding pending item disappears; on success the
-authoritative row replaces it through the ordinary live update. The
-contention-calendar bakeoff arm
-([diary 0044](repo:diaries/0044-contention-calendar-zero-bakeoff.diary.md))
-is the witness for this shape — and for the type system correctly refusing
-the forgery.
+authoritative row replaces it through the ordinary live update. This is the
+smallest hook-native shape when a pending item does not need to participate in
+query filtering, ordering, counts, or relationships.
 
 This is honestly less composable than a provider-owned optimistic insert: the
 pending row does not participate in the query store's filtering, sorting, or
-counting. A first-class typed intent-ID optimistic create — a provisional row
-in the provider's store that reconciles one intent to one canonical row under
-ambiguous retry — is an explicit GAP
+counting. When the create **does** need those semantics, the shipped
+framework-neutral generated-IR path uses
+`SnapbackClient.createOptimisticMutationView`, durable protocol intent
+identity, and the server's logical-mint map without forging a canonical id;
+follow the CI-verified
+[optimistic-create recipe](../recipes/optimistic-create.md). That path is
+lower-level than this provider/hook.
+
+A first-class typed intent-ID optimistic create directly in the provider's
+canonical query store — reconciling one intent to one canonical row under
+ambiguous retry — remains an explicit GAP
 (`clients.optimistic-create` in the [capability index](../capabilities.md);
 issue
-[20260801-optimistic-create-and-app-error-guide-gap](repo:issues/20260801-optimistic-create-and-app-error-guide-gap.md)).
+[20260808-first-class-react-optimistic-create](repo:issues/20260808-first-class-react-optimistic-create.md)).
 
 ## Show stable application errors through rollback
 

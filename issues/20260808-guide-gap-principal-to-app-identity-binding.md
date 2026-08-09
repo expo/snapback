@@ -87,3 +87,36 @@ guards. It touches LLP 0057 (provider protocol), LLP 0058 (invocation
 authority), and the auth-mode readiness projection, and it needs a named
 owner and sequencing — i.e. it wants Linear (Exact project, Snapback label),
 not this file. Ticket stays open until that is filed or ruled out.
+
+## Further partial resolution — 2026-08-08 (registered browser carrier)
+
+The local composition is now executable rather than pseudocode. Registered
+[`demos/browser-auth`](../demos/browser-auth) and
+[`guide/recipes/browser-auth.md`](../guide/recipes/browser-auth.md) prove in
+real Chrome that an app-owned trusted server can:
+
+- verify a replaceable signed external assertion fixture;
+- key the app identity by immutable `(issuer, subject)`, not mutable email;
+- bind the server-derived principal to exactly one app user before browser
+  credential release;
+- omit the binder, fixture setup, capture mailbox, and host operations from an
+  exact public gateway allowlist;
+- stage a one-use email-code exchange so browser custody enters
+  `AuthCoordinator` + IndexedDB rather than page-owned external-bearer state;
+- query protected data only through `ctx.auth.userId`; and
+- restore across reload, revoke on logout, and isolate a second subject.
+
+This resolves the missing **local product-shaped recipe**, but not this
+ticket's platform ask. Draft LLP 0151 owns the future first-party provider
+identity/lifecycle substrate and explicitly requires immutable issuer/subject,
+provider installation identity, sender-constrained completion, provider
+configuration, adversarial fixtures, and both deployment arms. It also chooses
+app-owned provider credentials over a shared production broker. Until its
+commissioned completion/lifecycle specs and an admitted hosted auth target
+land, the demo's signed assertion and capture mailbox remain hermetic local
+fixtures.
+
+The unresolved decision is still whether verified provider claims enter the
+handler authority projection or bindings use a declared privileged
+provisioning channel. Therefore this ticket remains open and must not be closed
+or converted into a hosted-production capability claim by the carrier above.

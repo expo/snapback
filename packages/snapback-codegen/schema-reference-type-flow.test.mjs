@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -10,7 +10,13 @@ import { generate } from './index.mjs';
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
 const tsc = join(packageDir, '..', '..', 'node_modules', '.bin', 'tsc');
+const packageManifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
+assert.deepEqual(packageManifest.exports['./ctx'], { types: './ctx.d.mts' });
+assert(packageManifest.files.includes('ctx.d.mts'));
 const root = mkdtempSync(join(tmpdir(), 'snapback-schema-ref-type-flow-'));
+const expoModules = join(root, 'node_modules', '@expo');
+mkdirSync(expoModules, { recursive: true });
+symlinkSync(packageDir, join(expoModules, 'snapback-codegen'), 'dir');
 
 const schemaSource = (extraField = '') => `
   import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
@@ -140,8 +146,9 @@ try {
 
   const firstHash = first.resultContractHash;
   const firstTypes = readFileSync(join(root, 'generated', 'api.d.ts'), 'utf8');
-  assert.match(firstTypes, /export interface GeneratedQueryDatabase/u);
-  assert.match(firstTypes, /export interface GeneratedMutationDatabase extends GeneratedQueryDatabase/u);
+  assert.match(firstTypes, /export type \* from '@expo\/snapback-codegen\/ctx'/u);
+  assert.match(firstTypes, /export type GeneratedQueryDatabase = QueryDatabase<GeneratedHandlerSchema>/u);
+  assert.match(firstTypes, /export type GeneratedMutationDatabase = MutationDatabase<GeneratedHandlerSchema>/u);
   assert.match(firstTypes, /GeneratedReadableTableName = Exclude<GeneratedTableName, "orgMembers">/u);
   assert.match(firstTypes, /GeneratedInsertableTableName = Exclude<GeneratedReadableTableName, "orgs">/u);
   assert.match(firstTypes, /GeneratedPatchableTableName = GeneratedReadableTableName/u);
@@ -150,10 +157,11 @@ try {
   assert.match(firstTypes, /export type OrgMembersInsert = \{[^\n]+note\?: null \| string/u);
   assert.match(firstTypes, /export type OrgMembersPatch = \{ note\?: null \| string \}/u);
   assert.match(firstTypes, /export type OrgMembersBootstrap = \{ name: string; tagline\?: null \| string \}/u);
-  assert.match(firstTypes, /GeneratedAnonymousAuthContext \{ readonly userId: null; readonly sessionId: null; readonly isAuthenticated: false \}/u);
-  assert.match(firstTypes, /GeneratedAuthenticatedAuthContext \{ readonly userId: Principal; readonly sessionId: string \| null; readonly isAuthenticated: true;/u);
-  assert.match(firstTypes, /GeneratedMutationSettlement \{ readonly clientMutationId: string \| null; readonly settlementId: string \| null \}/u);
-  assert.match(firstTypes, /readonly mutation: \{ settlement\(\): GeneratedMutationSettlement \}/u);
+  assert.match(firstTypes, /GeneratedAnonymousAuthContext = AnonymousAuthContext/u);
+  assert.match(firstTypes, /GeneratedAuthenticatedAuthContext = AuthenticatedAuthContext<Principal>/u);
+  assert.match(firstTypes, /GeneratedMutationSettlement = MutationSettlement/u);
+  assert.match(firstTypes, /GeneratedMutationContext<Auth[^\n]+MutationContext<GeneratedHandlerSchema/u);
+  assert.match(firstTypes, /JobsContext, SequenceContext, MutationIdentityContext/u);
   assert.match(firstTypes, /listCustomers: GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;/u);
   assert.match(firstTypes, /listCustomers: FunctionReference<[^\n]+GeneratedDataModel\["customers"\]/u);
   assert.match(firstTypes, /customerEnvelopes: FunctionReference<[^\n]+"createdAt": number/u);

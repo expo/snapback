@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: effa2773760fd0d740c49f06990b3fde5e82a66b
+reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
 ---
 
 # Retrieval eval protocol
@@ -167,11 +167,12 @@ Lane 1 misses, absorbed 2026-08-07).
 16. **Domain errors and optimistic create:** "Show 'card is locked' copy when
     a mutation is rejected, and optimistically create a row whose ID the
     server mints." The run fails if the plan parses `SNAPBACK_HANDLER_FAILED`
-    message text, or forges a provisional generated row ID instead of the
-    intent-keyed pending sidecar.
-    Expected pages: `clients/react.md` (both sections) and
+    message text, forges a provisional generated row ID, or claims the
+    lower-level optimistic mutation view is a first-class provider hook.
+    Expected pages: `clients/react.md`, `recipes/optimistic-create.md`, and
     `backend/mutations.md` (declared refusals).
-    Route terms: "optimistic create", "ctx.refuse", "refusals".
+    Route terms: "optimistic create", "server-minted ID", "ctx.refuse",
+    "refusals".
 
 Case 17 is an absorption seed from the 2026-08-07 three-lane measurement
 (Diary 0066 finding 6, `issues/20260807-arg-filtered-retention-none-maze.md`).
@@ -219,7 +220,7 @@ tickets (declared refusals, principal↔app-identity binding, SVG assets).
     "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED", "nosniff".
 
 Case 21 is an absorption seed from the 2026-08-07 zerobugs `zb5-hot` `v4`
-attempt (`issues/20260808-sessions-store-copy-needs-auth-keyring-sibling.md`):
+attempt (`issues/closed/20260808-sessions-store-copy-needs-auth-keyring-sibling.md`):
 a full receipted gate run was burned discovering that a database copy is not a
 store copy, and nothing in the guide named the sibling.
 
@@ -233,7 +234,7 @@ store copy, and nothing in the guide named the sibling.
     "auth-keyring.json", "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE".
 
 Case 22 absorbs the replicated mutation-authoring miss recorded in
-`issues/20260808-ctx-db-verbs-undocumented.md`.
+`issues/closed/20260808-ctx-db-verbs-undocumented.md`.
 
 22. **Mutation database verbs:** "Inside a JS mutation, query a declared
     index, collect at most 500 rows, and delete one matched row." The run fails
@@ -244,7 +245,7 @@ Case 22 absorbs the replicated mutation-authoring miss recorded in
     Route terms: "ctx.db", "withIndex", "bounded collection", "delete row".
 
 Case 23 absorbs the repeated headless-call-shape miss recorded in
-`issues/20260808-headless-args-shape-guide-snippet.md`.
+`issues/closed/20260808-headless-args-shape-guide-snippet.md`.
 
 23. **Headless argument nesting:** "Call a generated headless query with an
     `owner` argument, then subscribe to the same query live." The run fails if
@@ -255,7 +256,7 @@ Case 23 absorbs the repeated headless-call-shape miss recorded in
     "SNAPBACK_ARGUMENT_VALIDATION_FAILED", "liveQuery args".
 
 Case 24 absorbs the repeated verifier-config source-reading detour recorded in
-`issues/20260808-verify-config-authoring-guide-anchor.md`.
+`issues/closed/20260808-verify-config-authoring-guide-anchor.md`.
 
 24. **Verify config authoring:** "Register my headless acceptance suite with
     `snapback verify`, including its execution identities and read/write
@@ -267,7 +268,7 @@ Case 24 absorbs the repeated verifier-config source-reading detour recorded in
     "@expo/snapback-cli/verify", "acceptance profile".
 
 Case 25 absorbs the repeated bare-Metro cold-offline source excavation
-recorded in `issues/20260808-offline-supervisor-origin-guide-anchor.md`.
+recorded in `issues/closed/20260808-offline-supervisor-origin-guide-anchor.md`.
 
 25. **Expo supervised cold offline boot:** "After warming an Expo app through
     `snapback dev --expo`, stop the supervisor and prove a cold launch from the
@@ -280,7 +281,7 @@ recorded in `issues/20260808-offline-supervisor-origin-guide-anchor.md`.
     "cold offline", "persisted-receipt".
 
 Case 26 absorbs the duplicated native-lane simulator setup recorded in
-`issues/20260808-headless-simulator-proof-recipe.md`.
+`issues/closed/20260808-headless-simulator-proof-recipe.md`.
 
 26. **Headless iOS simulator proof:** "Drive an Expo iOS proof without opening
     Simulator.app: install and launch the app, dismiss Expo Go onboarding,
@@ -291,6 +292,66 @@ Case 26 absorbs the duplicated native-lane simulator setup recorded in
     Expected pages: `clients/react-expo.md`.
     Route terms: "headless simulator", "plistlib", "Expo Go onboarding",
     "simctl openurl", "deep-link drive channel".
+
+Cases 27–31 absorb the paged-list, server-minted optimistic-create,
+structured route-argument, and mutation-settlement guide gaps closed or
+narrowed on 2026-08-08.
+
+27. **React load-more list:** "Build an infinite-scroll React feed whose
+    live queries replace whole page results, survives equal timestamps at the
+    boundary, and explains what is actually retained after reload." The run
+    fails if the plan paginates on `createdAt`, appends every replacement,
+    claims the assembled archive is durable, or feeds a raw key into a
+    standard-pattern opaque cursor.
+    Expected pages: `recipes/paged-list.md`.
+    Route terms: "load more", "infinite scroll", "whole-result replacement",
+    "retained pages", "pageKey".
+
+28. **Server-minted optimistic ID under response loss:** "Show a provisional
+    create in the same filter/order/count projection as canonical rows, then
+    lose the response after commit and settle one intent to one server ID."
+    The run fails if the plan forges `Id<Table>`, authors a second reducer,
+    retries with a fresh intent, guesses the mapping by content/call order, or
+    claims a first-class `useSnapbackMutation` insert API exists.
+    Expected pages: `recipes/optimistic-create.md`.
+    Route terms: "createOptimisticMutationView", "logical mint", "idMap",
+    "ambiguous retry", "response loss".
+
+29. **Structured route arguments:** "Bundle `/projects/:projectId` into a
+    query taking `{ context: { projectId, cursor: null, sort: 'asc', tags:
+    ['open'] } }`." The run fails if the plan flattens `context`, adds a
+    server-side merge, puts `routeParam()` inside an array, or invents
+    transforms or defaults.
+    Expected pages: `realtime/snapshot-bundles.md`.
+    Route terms: "structured route arguments", "nested routeParam",
+    "query context", "route group args".
+
+30. **Replay-stable effect intent:** "A client mutation writes a notification
+    intent; retries must reuse one provider idempotency key even if the handler
+    threw before commit." The run fails if the plan uses `ctx.runtime.id()`,
+    parses or hashes the raw `clientMutationId`, calls the settlement surface
+    from a query or action, or performs external I/O inside the mutation.
+    Expected pages: `backend/mutations.md`,
+    `backend/trusted-runtime-values.md`.
+    Route terms: "ctx.mutation.settlement", "settlementId",
+    "replay-stable effect", "provider idempotency key".
+
+Case 31 absorbs the browser-custody and real-sign-in recipe gaps recorded in
+`issues/closed/20260806-guide-gap-browser-auth-custody-indexeddb-adapter.md`
+and LLP 0196 T4.
+
+31. **Browser external sign-in and reload:** "Connect my browser app's
+    existing external identity to Snapback, bind it to my users table, keep
+    protected data signed in across a full reload, and log out safely." The
+    run fails if it uses memory custody, gives mailbox/admin/impersonation
+    material to page code, exposes a caller-selectable binding mutation,
+    keys identity by email, hands a raw external bearer to page state and
+    calls that coordinator custody, or claims the local fixture is hosted
+    production/OIDC support.
+    Expected pages: `recipes/browser-auth.md` and
+    `auth/app-identity-binding.md`.
+    Route terms: "browser auth reload", "IndexedDB auth custody",
+    "createIndexedDbAuthCustodyStorage", "issuer subject".
 
 ## Static routing check
 

@@ -9,6 +9,7 @@ export const EXPECTED_DEMO_IDS = Object.freeze([
   'access-desk',
   'all-aboard',
   'backend-bakeoff',
+  'browser-auth',
   'browser-local-first',
   'campfire',
   'card-game',

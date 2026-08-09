@@ -1,0 +1,21 @@
+{
+  "tables": {
+    "appUsers": [
+      {
+        "_id": "app_user_alice",
+        "externalIssuer": "https://identity.fixture.invalid",
+        "externalSubject": "fixture-alice-001",
+        "displayName": "Alice Fixture",
+        "privateNote": "alice-only: north star"
+      },
+      {
+        "_id": "app_user_bob",
+        "externalIssuer": "https://identity.fixture.invalid",
+        "externalSubject": "fixture-bob-002",
+        "displayName": "Bob Fixture",
+        "privateNote": "bob-only: red kite"
+      }
+    ],
+    "identityBindings": []
+  }
+}

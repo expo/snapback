@@ -337,3 +337,14 @@ author's. 0194 is acceptable as-is on a dual-READY revision;
 as applied-per-enumerated-resolving-changes, or an optional future
 delta round can clear the tail. This loop applies no further
 transitions.
+
+## Author acceptance — 2026-08-08
+
+Charlie Cheever accepted all five documents in session ("accept/
+promote/flip/whatever"): 0193/0194/0195/0196/0197 Review → Accepted.
+Binding as stated in the close-out: 0194 at its dual-READY r8; the
+other four with the enumerated, journal-dispositioned r9 tail.
+Companion rulings the same turn: 0195 D1 = publish (timing soon,
+author-held; D2-D4 defaults in the ticket memo pending explicit
+ruling before first deploy); 0194 OQ2 = @expo/snapback-codegen/ctx
+ratified.

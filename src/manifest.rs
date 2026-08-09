@@ -11,6 +11,7 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::OnceLock;
 
+pub use crate::contract_types::{AppIdentity, AuthManifest, AuthMode, AuthRequirement};
 pub use crate::search::types::{
     FullTextSearchFactsV1, SearchClauseV1, SearchCursorLimitsV1, SearchCursorV1,
     SearchFieldClassV1, SearchFilterV1, SearchHighlightV1, SearchIndexManifestV1, SearchItemV1,
@@ -320,112 +321,6 @@ fn default_true() -> bool {
 
 fn is_false(value: &bool) -> bool {
     !*value
-}
-
-/// The authority mode declared by a schema artifact. The enum is deliberately
-/// closed: a mode changes who is allowed to supply invocation authority and an
-/// unknown spelling therefore cannot be treated as an additive field.
-///
-/// @ref LLP 0058#closed-auth-mode — auth mode is a must-understand closed value.
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Deserialize,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Serialize,
-    schemars::JsonSchema,
-)]
-#[serde(rename_all = "lowercase")]
-pub enum AuthMode {
-    #[default]
-    Dev,
-    Sessions,
-}
-
-impl AuthMode {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Dev => "dev",
-            Self::Sessions => "sessions",
-        }
-    }
-
-    pub const fn artifact_version(self) -> &'static str {
-        match self {
-            Self::Dev => "snapback.v0",
-            Self::Sessions => "snapback.v1",
-        }
-    }
-}
-
-/// Closed schema-manifest auth declaration. Unknown members are rejected so a
-/// future authority-changing field cannot be silently ignored by this parser.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct AuthManifest {
-    pub mode: AuthMode,
-}
-
-/// Function-level requirement applied after caller authority has been resolved.
-/// Absence in a legacy function is represented by
-/// [`FunctionDefinition::effective_auth_requirement`] as `optional-user`.
-///
-/// @ref LLP 0058#closed-function-requirement — closed values fail at manifest parse.
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Deserialize,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Serialize,
-    schemars::JsonSchema,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum AuthRequirement {
-    Public,
-    #[default]
-    OptionalUser,
-    Authenticated,
-}
-
-impl AuthRequirement {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Public => "public",
-            Self::OptionalUser => "optional-user",
-            Self::Authenticated => "authenticated",
-        }
-    }
-}
-
-/// Optional presentation identity for the loaded app: how the instance should
-/// introduce itself to a human. Everything here is public by construction — it
-/// is rendered on the public root page and flows into the public inspect
-/// projection — so apps must not put secrets in it. The icon/wordmark URLs are
-/// ordinary app-served or absolute URLs; the root page renders them as plain
-/// `<img>` references with attribute escaping.
-///
-/// @ref LLP 0017#instance-home-page — the root page renders this identity when
-///   the manifest declares it; absent, the page is Snapback-branded only.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-pub struct AppIdentity {
-    #[serde(default)]
-    pub name: Option<String>,
-    #[serde(default)]
-    pub description: Option<String>,
-    #[serde(default, rename = "iconUrl", alias = "icon_url")]
-    pub icon_url: Option<String>,
-    #[serde(default, rename = "wordmarkUrl", alias = "wordmark_url")]
-    pub wordmark_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -10446,13 +10341,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:d48c037f7eaba817cb233a5c8c448042503cb987c3ffc1875c9be65c5277d83a";
+    "sha256:665ea569fb393b835cc050065ddf34030e51a0ea9dee30bc4e363e0c88b6de6f";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:2bbb79ab999b1df063c1f22e861eb84fb3e247f66f309e1eae0484757f1c186a";
+    "sha256:b6567146492da569c4a3ac60a863695bde4cabb2b3c13493a4444b77c3675241";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -10852,12 +10747,37 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:b3283318c7413bf82152dc10162be9badf0cd011270b1eb781dda2f8dba1d30e"
+                    "sha256:673031f6e24d7d91bfded50aceb50836b75e1ba95f4f1fdacffd0275849e52a9"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:15d4adf39c810d0a1a9a73702b535476d640c511fde404ebc23acf21a7ec0ef4"
+                    "sha256:f4d38e94394b5fe131409e17c0ed7de7ceff7d54a1dcadeb49d2a1316b9ac20d"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/connections.rs".to_owned(),
+                    "sha256:4c0b511d40746ce0a6520697cead1e9b108c81e84a1260c919e3a765bb254b15"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/migration_scan.rs".to_owned(),
+                    "sha256:42f0b15bca498d6781ea5c77e0e0b9eafc18fa490ca1e13339d89f76176f6d2e"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/projection_rebuild.rs".to_owned(),
+                    "sha256:e4f7406a1921232507f02221da7d9f6fceb77910d4757b1abb4512124dd6e980"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/schema_transition.rs".to_owned(),
+                    "sha256:9768b7aa06f3f76f8e2776b13c848da60324d1d60d463cb6f5df1ae152d12455"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/tests.rs".to_owned(),
+                    "sha256:f1bbd934fca9cba0dfa211132dc2ae53d42127aab3a2f1b80ce645090c206f3a"
                         .to_owned(),
                 ),
             ])
@@ -10920,7 +10840,32 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:15d4adf39c810d0a1a9a73702b535476d640c511fde404ebc23acf21a7ec0ef4"
+                    "sha256:f4d38e94394b5fe131409e17c0ed7de7ceff7d54a1dcadeb49d2a1316b9ac20d"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/connections.rs".to_owned(),
+                    "sha256:4c0b511d40746ce0a6520697cead1e9b108c81e84a1260c919e3a765bb254b15"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/migration_scan.rs".to_owned(),
+                    "sha256:42f0b15bca498d6781ea5c77e0e0b9eafc18fa490ca1e13339d89f76176f6d2e"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/projection_rebuild.rs".to_owned(),
+                    "sha256:e4f7406a1921232507f02221da7d9f6fceb77910d4757b1abb4512124dd6e980"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/schema_transition.rs".to_owned(),
+                    "sha256:9768b7aa06f3f76f8e2776b13c848da60324d1d60d463cb6f5df1ae152d12455"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/tests.rs".to_owned(),
+                    "sha256:f1bbd934fca9cba0dfa211132dc2ae53d42127aab3a2f1b80ce645090c206f3a"
                         .to_owned(),
                 ),
             ])
@@ -11059,19 +11004,44 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:b3283318c7413bf82152dc10162be9badf0cd011270b1eb781dda2f8dba1d30e"
+                    "sha256:673031f6e24d7d91bfded50aceb50836b75e1ba95f4f1fdacffd0275849e52a9"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:15d4adf39c810d0a1a9a73702b535476d640c511fde404ebc23acf21a7ec0ef4"
+                    "sha256:f4d38e94394b5fe131409e17c0ed7de7ceff7d54a1dcadeb49d2a1316b9ac20d"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/connections.rs".to_owned(),
+                    "sha256:4c0b511d40746ce0a6520697cead1e9b108c81e84a1260c919e3a765bb254b15"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/migration_scan.rs".to_owned(),
+                    "sha256:42f0b15bca498d6781ea5c77e0e0b9eafc18fa490ca1e13339d89f76176f6d2e"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/projection_rebuild.rs".to_owned(),
+                    "sha256:e4f7406a1921232507f02221da7d9f6fceb77910d4757b1abb4512124dd6e980"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/schema_transition.rs".to_owned(),
+                    "sha256:9768b7aa06f3f76f8e2776b13c848da60324d1d60d463cb6f5df1ae152d12455"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage/tests.rs".to_owned(),
+                    "sha256:f1bbd934fca9cba0dfa211132dc2ae53d42127aab3a2f1b80ce645090c206f3a"
                         .to_owned(),
                 ),
             ])
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:691387a42e81dbbc930930c5b50ae0cb82f9377f9576f98ba1b639946473c743"
+                "sha256:e2544f93add6c3fcbd022e5170c6d11081f9a96dc062de54b79cf34a37f7487f"
                     .to_owned(),
             )])
         && carrier.client_source_sha256

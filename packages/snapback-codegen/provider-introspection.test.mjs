@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -49,6 +49,10 @@ const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
 const backend = mkdtempSync(join(tmpdir(), 'snapback-provider-introspection-'));
 
 try {
+  const snapbackModules = join(backend, 'node_modules', '@expo');
+  mkdirSync(snapbackModules, { recursive: true });
+  symlinkSync(packageRoot, join(snapbackModules, 'snapback-codegen'), 'dir');
+
   writeFileSync(join(backend, 'schema.mjs'), `
 import { allow, defineEphemeral, defineSchema, defineTable, ephemeral, v } from '${defineUrl}';
 export default defineSchema({

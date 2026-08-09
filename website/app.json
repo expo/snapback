@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Snapback",
+    "slug": "snapback",
+    "version": "0.1.0",
+    "platforms": [
+      "web"
+    ],
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d6c81653-6146-4fc3-ab26-4c58e98e5b83"
+      }
+    },
+    "owner": "ccheever"
+  }
+}

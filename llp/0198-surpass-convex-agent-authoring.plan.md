@@ -1,11 +1,17 @@
 # LLP 0198: Surpassing Convex on agent authoring — state of the world and the closing plan
 
 **Type:** Plan
-**Status:** Review
+**Status:** Accepted
 **Systems:** Competitive evaluation, Developer experience, Documentation,
 Templates, Error handling, Operations, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
+**Revised:** 2026-08-08 (e — **Accepted by author ruling** (Charlie
+Cheever, 2026-08-08), applied at revision (d) with the loop's terminal
+state on the record: revision (d) is the unreviewed post-loop residue
+repair; the Claude-family READY binds to revision (c). The run journal
+`llp/reviews/0198-surpass-convex-agent-authoring.run.md` holds the
+verdict history and the disclosed growth-budget deviation.)
 **Revised:** 2026-08-08 (d — **UNREVIEWED post-loop residue repair**,
 applied at round-budget exhaustion under the delta rule's
 label-unreviewed terminal. Round 3: Claude READY on (c) with 0
@@ -654,9 +660,10 @@ in the middle.
 
 ## Open questions
 
-- **OQ1 — Operations posture.** Which P4 option — hosted
-  productization, new preregistered scorecard, or accept-the-deficit?
-  Author decision; the P4 evidence leg proceeds regardless.
+- **OQ1 — Operations posture.** RULED 2026-08-08 (author): run the P4
+  deploy-and-operate evidence leg first, then choose among the three
+  options on the measured cost table. The posture choice itself remains
+  open pending that evidence.
 - **OQ2 — Identity-provider onboarding.** The trust-boundary brief
   prices security outcomes vendor-neutrally; does *onboarding* ceremony
   (provider setup, credentials, account flows) deserve its own priced

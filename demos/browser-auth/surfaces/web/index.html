@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Snapback browser auth recipe</title>
+    <script type="module" src="/main.mjs"></script>
+    <style>
+      body { font: 16px/1.45 system-ui, sans-serif; margin: 3rem auto; max-width: 42rem; padding: 0 1rem; }
+      button { font: inherit; padding: .55rem .9rem; }
+      output { display: block; margin: 1rem 0; padding: 1rem; background: #f3f4f6; white-space: pre-wrap; }
+      [data-private="true"] { border-left: .35rem solid #2563eb; }
+    </style>
+  </head>
+  <body>
+    <main id="app" data-phase="loading">
+      <h1>Browser auth recipe</h1>
+      <p id="status">Restoring session custody…</p>
+    </main>
+  </body>
+</html>

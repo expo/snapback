@@ -68,6 +68,13 @@ client must offer `auth/rr`; auth-scoped live work must additionally offer
 and acknowledge them after apply. The first-party JS factory and Swift client
 do this.
 
+A browser that must restore sign-in after a full-page reload needs a different
+last mile: stage a one-use challenge/code and call ordinary `authExchange` on a
+client backed by `createIndexedDbAuthCustodyStorage()`. See the executable
+[browser sign-in and reload recipe](../recipes/browser-auth.md). Returning an
+external bearer to page state or `createExternalSessionClient` does not become
+`AuthCoordinator` custody merely because the caller is a browser.
+
 Replacing or clearing a bearer is an authority transition. In JavaScript use
 `await client.replaceBearerToken(nextBearer)` (or `null` to clear): it releases
 protected live-query demand, blanks predecessor rows, retires old grants and

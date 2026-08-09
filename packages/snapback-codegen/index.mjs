@@ -130,6 +130,10 @@ const SEARCH_FIELD_CLASSIFICATIONS = new Set([
 
 const HEADER = generatedByHeader();
 
+// @ref LLP 0194#acceptance — generated app declarations instantiate and
+// re-export this owner; they never define the generic ctx identities again.
+const CTX_DECLARATION_MODULE = '@expo/snapback-codegen/ctx';
+
 const SYSTEM_FIELDS = ['_id', '_version', '_createdAt', '_updatedAt'];
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -10310,6 +10314,8 @@ function renderApiTypes(
   };
   const lines = [
     HEADER,
+    `import type { ActionContext, AnonymousAuthContext, AssetsContext, AuthContext, AuthenticatedAuthContext, Handler, HandlerSchema, JobsContext, MutationContext, MutationDatabase, MutationIdentityContext, MutationSettlement, QueryBuilder, QueryContext, QueryDatabase, RuntimeContext, SecretsContext, SequenceContext } from '${CTX_DECLARATION_MODULE}';`,
+    `export type * from '${CTX_DECLARATION_MODULE}';`,
     ...(hasSearchFunction
       ? ["import type { SearchPageV1 as ClientSearchPageV1 } from '@expo/snapback-client';"]
       : []),
@@ -10524,37 +10530,26 @@ function renderApiTypes(
   }
   lines.push(
     '}',
-    'export interface GeneratedQueryBuilder<Table extends GeneratedReadableTableName> {',
-    '  withIndex(index: GeneratedIndexNames[Table]): GeneratedQueryBuilder<Table>;',
-    '  eq<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;',
-    '  in<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, values: ReadonlyArray<GeneratedDataModel[Table][Field]>): GeneratedQueryBuilder<Table>;',
-    '  lt<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;',
-    '  lte<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;',
-    '  gt<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;',
-    '  gte<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;',
-    '  order<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, direction?: "asc" | "desc" | "Asc" | "Desc"): GeneratedQueryBuilder<Table>;',
-    '  take(limit: number): GeneratedQueryBuilder<Table>;',
-    '  collect(): Promise<Array<GeneratedDataModel[Table]>>;',
-    '  first(): Promise<GeneratedDataModel[Table] | null>;',
+    'export interface GeneratedTableAdmissionMaps {',
+    '  readonly read: Record<GeneratedReadableTableName, true>;',
+    '  readonly insert: Record<GeneratedInsertableTableName, true>;',
+    '  readonly patch: Record<GeneratedPatchableTableName, true>;',
+    '  readonly delete: Record<GeneratedDeletableTableName, true>;',
     '}',
-    'export interface GeneratedQueryDatabase {',
-    '  get<Table extends GeneratedReadableTableName>(table: Table, id: Id<Table>): Promise<GeneratedDataModel[Table] | null>;',
-    '  query<Table extends GeneratedReadableTableName>(table: Table): GeneratedQueryBuilder<Table>;',
-    '}',
-    'export interface GeneratedMutationDatabase extends GeneratedQueryDatabase {',
-    '  insert<Table extends GeneratedInsertableTableName>(table: Table, values: GeneratedInsertModel[Table]): Promise<Id<Table>>;',
-    '  patch<Table extends GeneratedPatchableTableName>(table: Table, id: Id<Table>, values: GeneratedPatchModel[Table]): Promise<unknown>;',
-    '  delete<Table extends GeneratedDeletableTableName>(table: Table, id: Id<Table>): Promise<unknown>;',
-    '}',
+    'export type GeneratedHandlerSchema = HandlerSchema<GeneratedDataModel, GeneratedIndexNames, GeneratedInsertModel, GeneratedPatchModel, GeneratedTableAdmissionMaps>;',
+    'export type GeneratedQueryBuilder<Table extends GeneratedReadableTableName> = QueryBuilder<GeneratedHandlerSchema, Table>;',
+    'export type GeneratedQueryDatabase = QueryDatabase<GeneratedHandlerSchema>;',
+    'export type GeneratedMutationDatabase = MutationDatabase<GeneratedHandlerSchema>;',
     // The Rust HandlerAuthProjection always carries userId/sessionId, using
     // null for anonymous or non-session authority; all other authority facts
     // are omitted for anonymous calls. Keep that distinction exact so a
     // helper must narrow before treating optional-user authority as human.
-    'export interface GeneratedAnonymousAuthContext { readonly userId: null; readonly sessionId: null; readonly isAuthenticated: false }',
-    'export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string }; readonly actorKind?: "asset-callbacks" }',
-    'export type GeneratedAuthContext = GeneratedAnonymousAuthContext | GeneratedAuthenticatedAuthContext;',
-    'export interface GeneratedRuntimeContext { now(): number; id(): string }',
-    'export interface GeneratedMutationSettlement { readonly clientMutationId: string | null; readonly settlementId: string | null }',
+    'export type GeneratedAnonymousAuthContext = AnonymousAuthContext;',
+    'export type GeneratedAuthenticatedAuthContext = AuthenticatedAuthContext<Principal>;',
+    'export type GeneratedAuthContext = AuthContext<Principal>;',
+    'export type GeneratedRuntimeContext = RuntimeContext;',
+    'export type GeneratedMutationSettlement = MutationSettlement;',
+    'export type GeneratedAssetsContext = AssetsContext<string, Readonly<{ upload?: string | Readonly<{ name?: string; id?: string }> }>, any>;',
   );
   if (hasPushSend) {
     lines.push(
@@ -10650,13 +10645,10 @@ function renderApiTypes(
       '}',
     );
   }
-  const generatedPushProperty = hasPushSend
-    ? ' readonly push: GeneratedPush;'
-    : '';
   lines.push(
-    'export interface GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly db: GeneratedQueryDatabase; readonly permissions: GeneratedPermissions; readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; isDirectHuman(): boolean; refuse(code: string, details?: unknown): never }',
-    'export interface GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> extends GeneratedQueryContext<Auth> { readonly db: GeneratedMutationDatabase; readonly membership: GeneratedMembership; readonly jobs: { enqueue(name: string, args: Readonly<Record<string, unknown>>, options?: Readonly<Record<string, unknown>>): Promise<unknown> }; readonly mutation: { settlement(): GeneratedMutationSettlement } }',
-    `export interface GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; readonly secrets: { get(name: string): any; rotating(name: string): any }; readonly run: unknown; readonly cron: unknown;${generatedPushProperty} isDirectHuman(): boolean; runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>; fetch(request: Readonly<Record<string, unknown>>): Promise<any>; fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>; readonly streamAttempt: any; refuse(code: string, details?: unknown): never }`,
+    'export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = QueryContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, any, GeneratedRuntimeContext>;',
+    'export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext>;',
+    `export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, ${hasPushSend ? 'GeneratedPush' : 'never'}>;`,
     'export interface GeneratedFunctionContexts {',
   );
   for (const fn of functions) {
@@ -10758,7 +10750,7 @@ function renderApiTypes(
   lines.push('  groups: GeneratedQueryGroups;');
   lines.push('}');
   lines.push('export type GeneratedFunctionName = keyof GeneratedFunctionContexts & keyof GeneratedApi;');
-  lines.push('export type GeneratedHandler<Name extends GeneratedFunctionName> = GeneratedApi[Name] extends FunctionReference<string, FunctionKind, infer Args, infer Result> ? (ctx: GeneratedFunctionContexts[Name], args: Args) => Result | Promise<Result> : never;');
+  lines.push('export type GeneratedHandler<Name extends GeneratedFunctionName> = GeneratedApi[Name] extends FunctionReference<string, FunctionKind, infer Args, infer Result> ? Handler<GeneratedFunctionContexts[Name], Args, Result> : never;');
   lines.push('export declare const ephemeral: GeneratedEphemeral;');
   lines.push('export declare const groups: GeneratedQueryGroups;');
   // Derived default upload intents (LLP 0044 §Ceremony floor) project as

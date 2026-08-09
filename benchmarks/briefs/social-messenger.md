@@ -1,0 +1,880 @@
+# Brief: social-messenger (canonical full-app benchmark)
+
+**Status:** DRAFT — freeze-candidate. This brief freezes at LLP 0201 P3
+(after the pilot calibrates budgets and the prerequisite artifacts
+exist). Until freeze, nothing here supports a claim. Governing plan:
+`llp/0201-social-messenger-canonical-benchmark.plan.md`; publication
+rules: LLP 0197; scoring definition: LLP 0198 P0.0(e) (new brief family
+⇒ this brief's own preregistered rubric, below).
+
+**Design rule for this document:** the brief decides everything two
+reasonable agents would build differently. The lane's remaining
+decisions are backend-shaped only: schema, auth wiring, sync strategy,
+media pipeline, API surface. Where this brief is silent and the choice
+is not backend-shaped, lanes take the simplest option and note it in
+the diary.
+
+## The app
+
+A group messaging and social app named **Clique**, built as an Expo
+(Expo Router) client on the lane's backend, targeting iOS, Android,
+and web. (Clique is the product name used in the UI and docs; the
+brief family and measurement identity remain `social-messenger`.)
+Accounts, profiles, a follow graph and post feeds, WhatsApp-shaped
+messaging
+(DMs and groups, typing, receipts, quoted replies, reactions,
+media, edit/delete, disappearing and view-once), per-chat
+customization, search, offline-first behavior, push emission at the
+provider seam, and a documented third-party client API.
+
+Lanes use the frozen presentational UI kit and fixture pack (LLP 0201
+P1 artifacts; versions pinned at freeze). All test media and personas
+come from the fixture pack — lanes never generate test content.
+
+## Global rulings
+
+These apply across all milestones.
+
+- **Conflict policy: last-write-wins** by server arrival order.
+  No lane builds CRDTs or custom merge logic.
+- **Links:** `http(s)` URLs in any text are auto-detected and rendered
+  as tappable text opening the system browser. **No unfurling, no
+  OpenGraph fetching, no previews.**
+- **Images:** JPEG/PNG/WebP, ≤10 MB. Client-side downscaling is
+  permitted but not required.
+- **Video:** MP4 (H.264/AAC), ≤50 MB, ≤60 s. Played as uploaded —
+  **no transcoding, no thumbnail generation required** (a poster frame
+  is optional).
+- **Time windows:** message edit within **15 minutes** of send;
+  delete-for-everyone within **60 minutes**; disappearing-message
+  options **off / 24 h / 7 d**. There is no delete-for-me. The app
+  reads its window durations from a config file with these production
+  defaults; grading runs the fixture pack's **shortened-windows
+  config** so expiry behavior is testable in minutes. Window
+  enforcement is always server-side against server time — a backend
+  that accepts caller-supplied timestamps for window checks fails the
+  relevant probe.
+- **Revocation semantics** (applies to view-once, delete-for-everyone,
+  and disappearing expiry): the guarantee is
+  **server-authoritative refusal plus client purge at the next sync**.
+  The server refuses reads/assets from the moment of
+  revocation/expiry; connected clients purge within the stated
+  tolerance; a disconnected client purges immediately on reconnect.
+  Revoked and expired content must never render from the offline
+  cache after the client has synced the revocation — **view-once
+  media is never durably cached at all** and never renders offline
+  after its one view. Bytes a client copied while access was valid
+  (screenshots, exports) are outside the threat model. **Unfollow is
+  projection-scoped, not content revocation:** it server-
+  authoritatively removes the account's posts from the viewer's
+  Following feed (purged locally on next load) but never revokes
+  access to the posts themselves, which remain readable in Global.
+- **Write idempotency:** toggle-shaped operations (like, repost,
+  reaction, follow, poll vote) are expressed as **idempotent
+  set-state intents** (set/clear, not flip) carrying client-generated
+  mutation IDs, so at-least-once delivery and offline-queue retry can
+  never invert intended state. Queued offline writes replay in order.
+- **Identity is entirely in-system.** No device address-book access,
+  no phone-number identity, no contact upload/matching (that flow
+  needs SMS verification and measures OS permission plumbing, not the
+  backend). "Contacts" means registered accounts: discovery is
+  people-search by display name or handle; the de-facto contact set is
+  who you follow and who you share chats with.
+- **Out of scope everywhere:** email sending (so: no verification, no
+  password reset), SMS, OAuth/social login, device address-book
+  access, quote-posts, link previews, message forwarding, voice notes
+  (the media pipeline is already priced by photo/video; recording
+  measures the client, not the backend), calls, E2E encryption,
+  blocking/reporting, follow requests/private accounts, real APNs/FCM
+  delivery.
+- **Platform proof per milestone:** interaction proofs run on web
+  (two browser contexts for two-client choreography); every milestone
+  also produces an iOS Hermes bundle export as a build artifact. M6's
+  offline proofs additionally run on the iOS simulator. Android is a
+  spot-check outside scored runs, not a per-run requirement.
+- **Seeding:** a versioned, idempotent seed installs the fixture
+  personas and starter content. Both seeds — the small starter seed
+  and the scale seed — are fixture-pack **action logs** replayed
+  through the app's own write path. The starter log ships
+  **segmented per milestone** (the M1 segment has only registrations
+  and profiles; follows and posts arrive with M2's segment; chats
+  and messages with M3's): a lane installs each segment when its
+  milestone first needs it, that milestone's budget absorbs the
+  segment's replay tooling, and idempotency ("running it twice
+  changes nothing") is judged **per installed segment** — M3's
+  seed-idempotency acceptance item covers every segment installed so
+  far, and each milestone's suite re-runs it. The
+  M6-budget replay-adapter ruling applies to the **scale** replay
+  only (see "Scale envelope and performance").
+- **Acceptance entrypoint:** the lane ships one documented command
+  (e.g. `npm run acceptance`) that runs the scripted acceptance suite
+  from a clean checkout against the running backend — the same
+  invocation shape for every lane, so grader environment loops don't
+  contaminate defect counts. Timing-sensitive checks (typing
+  latency, live updates) are judged **best-of-3** under grader
+  execution so machine-load flakes don't inflate defect severity.
+
+## Scale envelope and performance
+
+The app must remain correct and responsive at this envelope (visible
+to builders by design — whether the agent designs for scale is part of
+what the benchmark measures):
+
+- ~1,000 registered users; ~50,000 posts; ~100,000 messages total;
+  one "busy" group chat with 10,000 messages and 50 members; a probe
+  user who follows 500 accounts and belongs to 100 conversations.
+- The fixture pack provides the envelope as an **action log**: one
+  action per line, human-readable but structured (e.g.
+  `2026-01-03T10:15:00Z u0117 post "Coffee time"`,
+  `… u0117 follow u0042`, `… u0042 send g003 "on my way"`), produced
+  once by a committed deterministic generator (seeded RNG). The log
+  is deliberately backend-neutral — no SQL dumps, no rows shaped
+  like any backend's schema.
+
+**Replay contract** (frozen with the brief):
+
+- **Replay order is authoritative; log timestamps are documentary.**
+  Content ordering follows replay order and server arrival time —
+  lanes never backdate, and no privileged time seam is required for
+  seeding. No chat in the scale log has disappearing messages
+  enabled, so nothing is expired-on-arrival.
+- **Registration is real:** the log's `register` actions run through
+  the actual signup path (yes, ~1,000 password hashes — that is
+  load, not waste); all scale-user credentials, including the probe
+  user's, live in the fixture pack for the grader.
+- **The replay adapter is authored inside M6's budget** and drives
+  the app's **own mutation and auth path** (headless client, API, or
+  the app's function surface — whatever the lane has), covering
+  **every action-log verb** per the fixture pack's frozen action
+  schema (register, profile-set, follow, post, like, repost, reply,
+  chat-create, group-create, member-add, send, react, and so on —
+  the schema file is the authority). Each action **settles before
+  the next** so authoritative replay order is reproducible.
+  **Replay execution** runs on its own recorded clock with its own
+  wall cap — exhausting it scores O5, never the lane's completion
+  statuses.
+- **The push seam is disabled during replay** (a pinned replay-mode
+  flag) so lanes don't diverge on ~100k notification side effects;
+  receipts and feeds behave normally.
+- **Base state:** the scale replay runs against a **fresh backend
+  instance seeded with the starter log** (mirroring M7's ruling) —
+  never the dev instance, whose acceptance and choreography residue
+  would make exact-count verification fail spuriously. The
+  invariant manifest is generated over the combined starter + scale
+  content, so expected counts are exact. The M6 adapter-conformance
+  check (50-action sample log) runs on the dev instance.
+- End state is verified against the log's **invariant manifest** —
+  per-entity counts, per-chat message counts, follow-edge counts,
+  and named spot entities. Mechanics: corpus-wide counts come from
+  the harness's **settle-receipt accounting** (every action
+  acknowledged during replay — a fully acknowledged replay
+  establishes the *expected* counts from the log itself); the
+  *actual* end state is then independently verified by a **seeded
+  deterministic sample covering every action-schema class**, whose
+  seed is committed with the wave's probe set and hidden from
+  builders — the adapter cannot predict which entities are checked,
+  so no-opping any action class risks detection: 10 sampled chats'
+  message counts via paged API history, the busy chat counted
+  exactly by full paging, the probe user's conversation count, 10
+  sampled users resolvable with correct profiles via people search,
+  10 sampled users' follow counts via web-UI profiles, 10 sampled
+  posts with their like/repost/reply counts via the feeds, sampled
+  group membership lists via chat settings, sampled reactions and
+  quoted replies on named messages via the field manifest. In
+  addition, the **named O5 fixtures are checked exactly, at each
+  checkpoint, before probes run**: the probe user's 500 follows, the
+  5-follow comparison user's count, and the busy group's 50-member
+  roster — a fixture mismatch, like any **manifest nonconformance,
+  caps O5 at its failure band (0)** — performance is never scored on
+  an artifact that did not validly reach the envelope, nor against
+  an underfilled workload.
+- The log carries **checkpoint markers at 10% and 50%**: replay
+  pauses at each marker, probes run (their wall time excluded from
+  the replay cap), and replay resumes — so growth is a curve through
+  three sizes, not a two-endpoint ratio.
+
+Performance grading runs on full-app runs after M6, using the
+custom-client API and web client on the run machine. Probes run
+sequentially (no concurrency), k=20 requests per probe after 3
+warm-ups, 30 s timeout; each lane's **deployment posture** (local
+binary, local dev server, hosted dev deployment) is a pinned record
+field. **O5 is a scale-safety gate, not a comparative speed
+statistic** — postures differ across backends, so cross-backend
+latency ordering is never a claim; what is scored is viability at
+the envelope. Absolute latency ceilings are **calibrated at P3 from
+the pilot** (recorded with the budget caps). What is pinned now,
+because it is hardware-independent, are **degradation rules** — the
+signal is pathological growth, not milliseconds:
+
+- Paging deep into the 10k-message chat must not grow superlinearly:
+  p95 of page 50 ≤ 3× p95 of page 1.
+- Following-feed load for the 500-follow probe user ≤ 3× the same
+  query for a 5-follow user.
+- Global message search latency at the full corpus ≤ 3× the same
+  query at the 10% checkpoint, with the 50% checkpoint on or below
+  the line between them (no superlinear blow-up mid-curve).
+- Receipt aggregation in the 50-member group must not visibly stall
+  message send/render.
+- Cold-start initial sync of the probe user's account (100
+  conversations) completes without timeout or unbounded memory
+  growth; its wall time is recorded.
+- No probe may time out, error, or OOM at the envelope.
+
+The exact probe queries rotate with the holdout set; the envelope
+above is the published contract. Absolute numbers are indicative only
+(local, colocated); network-realistic performance measurement is a
+future leg once a hosted service exists (LLP 0201 D2).
+
+## Screens (pinned)
+
+Auth (sign up / sign in) · Feed (Following / Global tabs) · Post
+thread · Compose post · Own profile (view + edit, follower/following
+counts) · Other-user profile (follow toggle, counts) · Chats list ·
+Conversation · Chat settings · New chat / new group · Search (people /
+this chat / all messages) · Settings (account, log out).
+
+The UI kit provides the presentational components and design tokens
+for all of these; wireframe notes ship with the kit. Lanes wire data
+and navigation.
+
+## Fixture personas
+
+Eight personas, `alice`…`henry` (`<name>@example.com`), passwords in
+the fixture pack, each seeded with a profile, avatar, and starter
+content (chats, group, posts, and a follow graph) defined by the
+pack's seed manifest. The seeded follow graph is asymmetric by design
+(some pairs follow one way only) so Following-feed acceptance can
+distinguish the two feeds.
+Two-client proofs use Alice and Bob in separate browser contexts,
+driven by the choreography script.
+
+---
+
+## Milestones
+
+Reduced run = M1–M3. Full run = M1–M7. Each milestone lists its spec
+and its acceptance checklist — observable behaviors the grader
+executes independently.
+
+**Budgets.** Cap keys (LLP 0201 D2): the **wall cap** is keyed by
+milestone and shared by every lane in every family of a wave; the
+**token cap** is keyed by (cap family, milestone) — cap families
+enumerate the model matrix (primary Claude frontier; GPT frontier;
+the mid-tier model as its own family; Kimi and Grok each their own
+cap-advisory family — wall caps recorded for reference, token caps
+recorded as inapplicable, never enforced, with the pilot safety
+limits as hard stops), and no per-backend token caps exist. Wall cap(m) = 2× the slowest
+tier-1 pilot lane's wall figure; primary token cap(m) = 2× the
+largest tier-1 pilot token figure; the GPT and mid-tier families'
+token caps come from their Convex mini-pilots via LLP 0201 D2's
+max-over-backends pilot-figure transfer rule, 2× applied after
+transfer, clamped at 2× the safety limit; pilot figures read green
+pilot milestones, with the safety limit standing in as the *figure*
+where a pilot lane has no green one — the ordinary 2× formula then
+applies, the same rule as LLP 0201 D2/P2 (numbers recorded in the
+table at the end at P3). Unused budget
+does not roll over.
+
+**Executors.** At P1 every checklist item is split into atomic
+assertions with stable IDs, and every assertion (not merely every
+numbered item — compound items get one class per clause) is assigned
+exactly one executor class: **suite-required** (the builder's
+scripted suite must cover it; the harness validates a coverage
+manifest mapping every suite-required assertion to a test),
+**[choreo]** (two-client and simulator behavior — executed by the
+harness choreography script), or **[grader]** (source inspection,
+API probing, snapshot comparison — grader phase only). **A
+milestone's green receipt requires both a passing suite run
+(coverage-validated) and a passing run of that milestone's
+choreography segment** — realtime behavior gates green too; only
+[grader] assertions are deferred to grading. The grader
+spot-verifies the coverage mapping is honest. Tags below mark items
+whose class is not obvious from phrasing.
+
+**Statuses and dependencies.** A milestone ends in exactly one
+execution-time status: `green` (harness-recorded passing suite run
+plus passing choreography segment — this stops the milestone's
+authoring clock), `capability-failure` (cap exhausted; the lane
+proceeds to the next non-blocked milestone), `aborted` (abandoned
+mid-attempt before cap exhaustion — treated as a capability failure
+for proceed/completeness purposes, distinct in the record),
+`blocked-by-M{n}` (a prerequisite failed; when several did, the
+record lists the complete failed-prerequisite set, `n` = the lowest;
+never counted as an additional independent capability failure), or
+`not-run` (the lane terminated before reaching it). A milestone
+whose prerequisite is itself blocked is likewise blocked, recording
+the transitive failed set. Charging (mirrors LLP 0201 D2):
+wall-exhausted `capability-failure` = full wall cap plus actual
+tokens; token-exhausted = token cap plus actual wall; `aborted` =
+full wall cap plus actual tokens, flagged `aborted`. A dishonest coverage mapping found
+at grading **adjudicates** the milestone to `capability-failure` —
+scoring-only and non-retroactive: execution-time statuses,
+dependencies, termination history, and other milestones' clocks
+stand as run; the published wall recharges that milestone to its
+cap; O1 scores its checklist not-passed. The prerequisite DAG: M2
+requires M1; M3 requires M1; M4, M5 require M3; **M6 requires M2,
+M3, M4, and M5** (its checklist re-verifies likes, media,
+view-once, and search behavior offline); M7 requires M6. Two
+consecutive `capability-failure`/`aborted` results (blocks do not
+count) end the lane; the record carries an orthogonal termination
+reason. All full-run milestones stay in the completeness
+denominator regardless of status.
+
+### M1 — Accounts and profiles
+
+Spec:
+
+- Sign up with email + password (password ≥8 chars). The lane uses
+  its backend's **built-in auth if it supports password
+  credentials**; otherwise it implements password auth with a named
+  adaptive KDF — argon2id, scrypt, or bcrypt at standard published
+  parameters. Fast unsalted hashes do not qualify. Never plaintext or
+  reversible; the gap between "built-in fit" and "hand-rolled" is
+  priced by rubric dimension B2, not hidden. Third-party identity
+  services are out of scope (identity is in-system).
+- Sessions are expiring tokens; logout revokes server-side.
+- Sign in; sessions persist across app restart; log out invalidates
+  the session server-side.
+- Profile fields (exactly these): display name (1–50 chars), handle
+  (unique, 3–20 chars, `[a-z0-9_]`), avatar image, bio (≤200), location
+  (≤50), link (one URL). Handle uniqueness is enforced server-side.
+- Own-profile editing for every field, including replacing the avatar.
+
+Acceptance:
+
+1. Sign up as a new user; app lands in the authenticated state.
+2. Duplicate handle is rejected with a visible error; duplicate email
+   likewise.
+3. Kill and relaunch the app; still signed in.
+4. Log out; relaunch; signed out. The old session token no longer
+   works against the backend (the API sub-assertion is marked
+   run-scope-conditional in the applicability manifest — [grader]
+   via the API on full runs only).
+5. Edit display name and bio; changes visible on the other client
+   without manual refresh.
+6. Upload a fixture avatar; it renders on the profile (avatars
+   beside posts and messages are asserted at M2/M3, where those
+   surfaces exist).
+7. [grader] Source inspection: passwords stored via built-in auth
+   or a named adaptive KDF; no plaintext or reversible password
+   storage in server persistence, client bundles, or logs. The
+   fixture pack's credential files are a declared test-fixture
+   exception (they live outside the app). A backend's managed auth
+   provider qualifies by its documentation — the grader verifies the
+   lane uses the documented provider path, not provider internals.
+
+### M2 — Posts and the follow graph
+
+Spec:
+
+- Post types: text (≤500 chars); images (1–4 fixture images);
+  video (exactly 1). Image and video may carry a text body; a post
+  never mixes images and video.
+- **Follow graph:** follow/unfollow any other user from their profile
+  (toggle; takes effect immediately — no requests, no private
+  accounts). Profiles show follower and following counts.
+- Likes: toggle, one per user per post, count visible.
+- Reposts: toggle, one per user per post; appears in feeds attributed
+  "reposted by {display name}". No quote-posts.
+- Replies: any post can be replied to; a reply is a post referencing
+  its parent. The thread screen shows the parent and its **direct**
+  replies, chronological. Parents show a reply count. Replies never
+  appear in feeds, only on thread screens.
+- **Feeds, two tabs** (Following is the default): **Following** —
+  reverse-chronological original posts and reposts from accounts the
+  viewer currently follows; after an unfollow, that account's posts
+  (including older ones) no longer appear on next load. **Global** —
+  reverse-chronological original posts and reposts from everyone.
+  Both paginate 20 per page with infinite scroll.
+- Profile screens list that user's posts, reverse-chronological.
+
+Acceptance:
+
+1. Create a text, an image (2 images), and a video post; all render
+   in the Global feed on the other client without manual refresh,
+   with the author's avatar and display name.
+2. Bob follows Alice; Alice's posts appear in Bob's Following feed and
+   her follower count updates live. Bob unfollows; on next feed load
+   her posts (including older ones) are gone from Following but remain
+   in Global.
+3. A post from a user Bob doesn't follow appears in his Global feed
+   but not his Following feed.
+4. A URL in a text post is tappable; no preview card renders.
+5. Like from client B; count updates live on client A. Unlike works.
+6. Repost from client B; feeds show the attributed repost; reposting
+   again removes it. A repost by a followed user surfaces the original
+   author's post in the Following feed.
+7. Reply to a post; reply count increments live; thread screen shows
+   parent + direct replies in order; the reply is absent from both
+   feeds.
+8. Feed pagination: with >20 seeded posts, scrolling loads the next
+   page in both tabs; no duplicates, no gaps.
+
+### M3 — Messaging core
+
+Spec:
+
+- **DMs:** at most one DM channel per user pair; starting a DM with an
+  existing counterpart opens the existing channel.
+- **Groups are entities:** created with a name (1–50 chars), optional
+  description (≤200); 2–50 members; multiple groups with identical
+  membership are distinct. The creator is an admin; admins can add and
+  remove members and promote others to admin; anyone can leave. Adds
+  take effect immediately — **no invitation/acceptance flow**.
+- Text messages, ≤2000 chars.
+- **Quoted replies** (WhatsApp-style): a reply carries a pointer to
+  the quoted message; the bubble shows a quoted excerpt; tapping it
+  scrolls/jumps to the original. No thread model.
+- **Typing indicators:** appear on other members' screens within 2 s
+  of typing, expire within 5 s of the last keystroke. Shown as "…"
+  in the conversation and a hint in the chats list.
+- **Receipts**, per message, monotonic: `sent` (accepted by the
+  backend) → `delivered` (fetched by the recipient's client) →
+  `read` (recipient viewed the conversation). Rendered as
+  single-check / double-check / colored double-check. In groups the
+  aggregate indicator shows a state only when every member of the
+  message's **recipient set** has reached it — the recipient set is
+  **membership at send time**, and members who leave or are removed
+  before reaching a state drop out of the aggregate requirement.
+- New members see the group's **full prior history** on join.
+- Removed members immediately stop receiving new messages but keep
+  their local copy of history from before removal.
+
+Acceptance:
+
+1. Alice DMs Bob; Bob replies; both see messages live with sender
+   avatars. Starting the "same" DM again reuses the channel.
+2. Create a group with Alice, Bob, Carol; a second group with the same
+   three members coexists.
+3. Bob types; Alice sees "…" within 2 s; it expires when he stops.
+4. Receipt ticks transition sent → delivered → read as Bob's client
+   fetches and then opens the conversation; group indicator waits for
+   the slowest member.
+5. Quoted reply renders the excerpt; tapping jumps to the original.
+6. Admin removes Carol; she no longer receives new messages but still
+   sees pre-removal history. A non-admin cannot remove members.
+7. Seed is idempotent (second run: no duplicates).
+
+### M4 — Media messages, reactions, edit/delete
+
+Spec:
+
+- Photo and video messages: fixture asset → picker → upload →
+  rendered inline from a query result on the recipient; optional
+  caption ≤500 chars.
+- **Reactions:** any emoji, at most one per user per message; tapping
+  the same emoji removes it, a different one replaces it; aggregate
+  counts on the bubble.
+- **Edit** own text messages ≤15 min after send; edited bubbles show
+  an "edited" label; recipients see the new content. Media messages:
+  caption is editable, media is not.
+- **Delete-for-everyone** ≤60 min after send; the bubble becomes a
+  "This message was deleted" tombstone for all members; the asset is
+  no longer served.
+
+Acceptance:
+
+1. Photo message end-to-end: Alice picks a fixture image, sends; Bob
+   sees it rendered (not a placeholder) live.
+2. Video message end-to-end; plays on the recipient.
+3. Bob reacts 👍; Alice sees it live; Bob switches to ❤️ (replaces);
+   taps ❤️ again (removes).
+4. Alice edits a sent message; Bob sees the new text and the label.
+   Under the shortened-windows config, an edit attempted after the
+   window is rejected **server-side** (the grader verifies via the
+   API, not just the absence of the UI affordance).
+5. Alice deletes a message; Bob sees the tombstone; the media URL no
+   longer serves the asset.
+
+### M5 — Ephemeral, chat config, search
+
+Spec:
+
+- **Disappearing messages:** per-chat setting (off / 24 h / 7 d),
+  changeable by any member (admins only in groups); applies to
+  messages sent after the change; the chat shows the current setting.
+  Expiry is **server-enforced**: the server refuses expired content
+  within 5 minutes of expiry with no client open, and clients purge
+  per the global revocation ruling (connected: within tolerance;
+  disconnected: on reconnect). Expired messages also leave the local
+  store and offline search results once the client has synced the
+  expiry.
+- **View-once photos:** sender flags a photo message as view-once;
+  each recipient can open it exactly once; after closing, reopening is
+  denied and the backend refuses the asset. In groups, one view per
+  member.
+- **Chat customization**, synced to all members: group name and
+  description editable by admins; accent color from the kit's pinned
+  8-color palette; background image (fixture upload) rendered behind
+  the conversation. DMs: color and background only.
+- **Search** — matching semantics pinned as **case-insensitive
+  word-prefix over Unicode-normalized (NFC) text** ("cof" matches
+  "Coffee time"; mid-word substrings are explicitly not required —
+  arbitrary substring would conflict with every tier-1 backend's
+  indexed text search and force full scans at the envelope). Case
+  folding is Unicode simple case folding; word boundaries split on
+  whitespace and punctuation; the frozen fixture corpus and probes
+  stay within Latin-script text, so locale-specific folding edge
+  cases are out of scope. Newest first, paginated. Three scopes: people — all registered accounts by
+  display name or handle; messages within one chat; messages across
+  all the user's chats, grouped by chat. At M5, search over
+  **already-synced** messages must keep working **warm-offline** (the
+  running app loses connectivity — no restart); cold-start offline
+  search is M6's obligation, re-verified there.
+
+Acceptance:
+
+1. [grader] Set a DM to disappearing (shortened-windows config):
+   with both clients closed at expiry, the server refuses the expired
+   message (API check); each client purges it on next
+   launch/reconnect; it no longer appears in offline search after
+   that sync.
+2. View-once photo: Bob opens it once; second open is denied; direct
+   asset fetch after the view is refused (server-side).
+3. Admin sets group color + background; Carol sees both; non-admin
+   cannot rename the group.
+4. People search finds "car" → Carol; in-chat search finds a known
+   seeded string; global search groups results by chat.
+5. Warm-offline: with the app running, cut connectivity; search over
+   previously synced messages still returns results (no restart —
+   cold-start offline search is verified at M6).
+
+### M6 — Offline writes, push seam, custom-client API
+
+Spec:
+
+- **Offline reads:** cold-starting the app with the backend
+  unreachable shows all previously synced chats, messages, and
+  already-viewed media — **except view-once media and revoked/expired
+  content**, per the global revocation ruling. Message search over
+  synced content also works cold-offline (re-verifying M5's warm
+  guarantee against the durable store).
+- **Offline writes:** composing while offline queues messages with a
+  visible `pending` state; on reconnect they flush **in order** and
+  walk the normal receipt states. Likes and reactions queue the same
+  way.
+- **Push seam:** when a message arrives for a user with no connected
+  client, the backend emits a notification payload through its
+  provider seam and logs it:
+  `{targetUserId, chatId, senderDisplayName, preview}` — preview is
+  the first 80 chars of text, or `"Photo"`/`"Video"` for media and
+  view-once. Real APNs/FCM delivery is out of scope.
+- **Custom-client API**, for third-party clients. Deliverables:
+  a docs artifact (`API.md`) and a headless Node demo script
+  (`scripts/custom-client-demo.mjs`). A third-party developer with
+  only an access token and `API.md` must be able to: authenticate
+  (or use an issued token), list their conversations, page through
+  message history, send a text message, and receive new messages
+  (streaming or documented polling — state which). API tokens are
+  scoped to one user, expire, and die with logout/revocation —
+  `API.md` states the issuance, expiry, and revocation story. REST
+  is **not** required; the backend's native protocol is fine if
+  `API.md` makes it followable. **Minimum message-object field
+  manifest** (what the history operation must expose per message, so
+  probes and the M7 snapshot are backend-neutral): id, conversation
+  id, sender id, server timestamp, type, text/caption, media
+  reference, edited flag, tombstone flag, reply-to id, reactions
+  (emoji, count, caller's own state), and — for the caller's own
+  messages — the receipt state.
+
+Acceptance:
+
+1. Cold-start offline (iOS simulator, backend stopped): history and
+   previously viewed media render; synced-message search works; a
+   previously viewed view-once photo does **not** render.
+2. Send two messages offline; both show pending; on reconnect they
+   arrive in order and reach `read` normally.
+3. With Bob's clients closed, Alice messages him; the logged push
+   payload has the right target, sender, and preview; a view-once
+   photo previews as "Photo".
+4. `custom-client-demo.mjs` runs green against the live backend from
+   a clean checkout, exercising every listed operation.
+5. [grader] Grader-written variation: following only `API.md`,
+   fetch the latest message of a named conversation. (Documentation
+   quality is part of the bar.)
+6. The scale-replay adapter passes the fixture pack's action-schema
+   conformance check (replays a 50-action sample log green,
+   harness-validated) — adapter authoring is thereby inside M6's
+   coverage manifest, cap, and authoring clock, not deferrable
+   off-clock.
+
+### M7 — Day-2 evolution (fresh session, after M1–M6 grading)
+
+Run by a **fresh agent session** with no builder context. **Data
+environment (author ruling, 2026-08-08): the pre-replay starter
+state** — a fresh backend instance seeded with the starter log, not
+the scale replay's ~100k-message database (migration-at-scale is a
+possible future leg). The pre-M7 snapshot is exported through the
+custom-client API over the M6 field manifest, using each persona's
+token, before the M7 session starts.
+
+Spec, two parts (the second exists because polls alone could live in
+a new table without ever touching existing data — the backfill is
+what forces a real migration):
+
+1. Add **group polls** — a new message type: question (≤200 chars),
+   2–4 options (≤50 chars each); one vote per user, changeable
+   (idempotent set-state, per the global ruling); live tallies
+   visible to all members; votes queue offline like reactions.
+2. Add a **backfilled field**: every conversation gains a message
+   count, shown in chat settings, **backfilled over all existing
+   conversations** and maintained forward. Count semantics: currently
+   visible messages — excludes tombstoned and expired messages;
+   polls count as messages.
+
+Existing data must survive the schema change intact. The record
+notes whether the pre-M7 schema already carried count structures
+(a lane may have maintained counts early; the field keeps B8's
+forced-migration signal honest). The M7 session
+runs under the same aid condition as the lane it continues, on its
+own recorded clock, and writes its own diary entry and closing-essay
+paragraphs under the same essay-before-numbers sequencing; it scores
+rubric dimension B8.
+
+Acceptance:
+
+1. Create a poll in a group; members vote; tallies update live;
+   changing a vote adjusts counts; a duplicate/retried vote intent
+   does not flip state.
+2. An offline vote queues and settles on reconnect.
+3. Message counts are correct for pre-existing conversations
+   (backfill) and increment with new messages.
+4. Pre-existing messages, media, receipts, and reactions are intact
+   after the migration — the grader compares against the **pre-M7
+   snapshot exported through the custom-client API** before M7
+   started (backend-neutral by construction).
+5. The acceptance suites of previously-green milestones still pass
+   (prior failures are preserved, not repaired under M7's budget).
+
+---
+
+## Holdout probes
+
+A rotated probe set — trust-boundary shaped (cross-user DM access via
+the API, removed-member delivery, view-once re-fetch, expired edit
+window, session invalidation after logout, **server-side denials
+surviving the offline cache**) and performance shaped (the exact
+queries measured against the scale envelope's degradation rules) —
+is maintained outside this brief, run by the grader, and **published
+after each scored wave, rotated for the next** (LLP 0201 D3).
+Builders never see the current wave's **scored** probes; the trust
+obligations and the scale envelope they test against are published
+here. Custody and comparability per LLP 0201 D3: the wave's probe
+set is hash-committed before its first lane starts, and the rotation
+log records the category mapping; probes whose target behavior a
+failed milestone never built score under a preregistered rule
+(not-passed or excluded-with-note) frozen with the probe set.
+**Anchor probes are non-scored**
+(author ruling, 2026-08-08): each category's unchanged cross-wave
+anchor is a published continuity diagnostic that never bears on
+O3/O5 — scores read only the wave's secret rotated probes, which
+cover every category.
+
+## Scoring
+
+Two layers per LLP 0201 D4. The grader scores outcome (45); the
+builder scores experience (55); the builder separately records a
+holistic 0–100 **before** seeing any computed total or metric, citing
+2–3 concrete moments. Sequencing: closing essay → dimension scores →
+holistic → numbers revealed.
+
+**Applicability (frozen; author ruling 2026-08-08 — nulls block
+totals):** a run scores only the dimensions it exercises. Each
+dimension's **observing milestones**: O1/O2 — all in-scope; O3 —
+M6 green plus M1–M5 attempted; O4 — M6 green; O5 — the replay; B1 — M1–M3;
+B2 — M1; B3 — M2–M3; B4 — M6; B5 — M1–M2 on reduced runs, plus
+M4–M5 on full runs; B6 — M5; B7 — M6; B8 — M7; B9/B10/B11 — the
+whole run. Per-dimension rules (these govern; there is no blanket
+O-rule): O1 and O2 score whenever the grading phase ran, over every
+in-scope milestone regardless of status (failed/blocked checklists
+score not-passed — the partial-credit design); O3 and O4 require M6
+green (O3 additionally M1–M5 attempted); O5 requires the replay
+*attempted* — its exact function scores failures, including its 0
+branches, so an attempted replay is never null; B-dimensions score
+if every observing milestone was at least attempted
+(`green`/`capability-failure`/`aborted`), except B9/B10/B11, which
+score if at least one milestone was attempted (terminated lanes'
+experience data is exactly what must publish). Never-attempted
+scopes record null. So reduced runs (M1–M3) record null for O3, O4,
+O5, B4, B6, B7, B8. The P1 applicability manifest instantiates this
+table at assertion granularity for the record schema. A **complete
+lane**, by enumeration: M6 green, replay attempted, M7 attempted,
+every other milestone attempted — that is execution completeness; a
+weighted total and L4 eligibility additionally require a **usable
+grading record** (the dual grader-abort outcome nulls O-dimensions
+and overrides these applicability rules). **Any run with a null dimension publishes
+per-dimension scores and efficiency statistics only — no overall
+weighted total**; L4 statistics read complete lanes, with every lane
+reported and the completion rate published alongside (the Holistic
+section's "report both" applies only when a weighted total exists).
+On reduced
+runs, anchors are interpreted over M1–M3 scope only (O1's 60-anchor
+reads "M1–M2 solid, M3 patchy"; B5 reads over avatars and post
+media). The holistic score is recorded and published for every run
+as narrative evidence, never a claim statistic.
+
+Anchors describe what ~30 / ~60 / ~90 look like; interpolate.
+
+### Grader-scored outcome (45)
+
+**O1. Functional completeness — 13.** Fraction and quality of the
+frozen acceptance checklists passing, with **every milestone of the
+run's scope in the denominator** regardless of status — non-green
+milestones (`capability-failure`, `aborted`, `blocked-by-M{n}`,
+`not-run`) score their checklists as not passed (the status
+distinction matters for attribution, not for completeness
+credit). *30:* core features
+partially work; several checklist items fail. *60:* M1–M4 solid,
+later milestones patchy or failed on cap. *90:* every in-scope
+milestone green, including platform-proof artifacts.
+
+**O2. Correctness under grading — 7.** Severity-weighted defects the
+grader finds beyond the checklist (crashes, wrong data, broken flows).
+*30:* multiple high-severity defects in core flows. *60:* a few
+medium defects off the happy path. *90:* only cosmetic nits.
+
+**O3. Trust boundaries — 8.** Holdout-probe results: authorization
+enforced server-side, not by UI absence. *30:* a probe reads another
+user's private data. *60:* core reads protected; a secondary probe
+(e.g., expired-window edit) succeeds when it shouldn't. *90:* every
+probe correctly denied, including asset access after view-once/delete.
+
+**O4. Observed offline behavior — 9.** What the offline acceptance
+actually demonstrated, and honesty of any gap between claim and
+guarantee. *30:* cold-start offline shows an empty or broken app.
+*60:* reads work; offline writes lost or mis-ordered, or receipts
+wrong after flush. *90:* reads, ordered queued writes, receipt
+transitions, and offline search all behave as specced on the native
+proof.
+
+**O5. Performance at the scale envelope — 8.** A **scale-safety
+gate**, mapped by an exact function of the frozen invariants — never
+a cross-backend speed comparison (deployment postures differ; see
+the replay contract), never perceived feel; absolute latencies
+publish as diagnostics only. Full-app runs only; the rubric-wide
+"interpolate" instruction does not apply to O5. Function (the P3
+decision table instantiates it against the frozen ceilings): **0**
+if the invariant manifest does not conform or replay's cap was
+exhausted; **30** if any degradation rule fails or any probe times
+out/errors/OOMs; **60** if all rules pass but any ceiling is
+exceeded or replay used >80% of its cap; **90** if every probe's
+observed ceiling utilization is ≤50% and replay used ≤50% of its
+cap; **75** otherwise (all rules and ceilings pass, 90's condition
+not met). Bands evaluate **first-match in the order 0, 30, 60, 90,
+75** — the function is total and unambiguous by construction. Each
+degradation rule's measurable predicate (the p95 comparisons over
+k=20 samples) is frozen with the probe set.
+
+### Builder-scored experience (55)
+
+**B1. Schema and data-model ergonomics — 6.** Declaring this app's
+model: chats, membership, messages, receipts, reactions, posts, and
+the follow graph with its two feed read-models.
+*30:* fought the model layer; workarounds encode the model in blobs
+or duplicate state. *60:* workable with boilerplate or missing
+constructs (e.g., no clean unique constraint). *90:* the model
+expressed directly; constraints (handle uniqueness, DM dedupe)
+enforced where declared.
+
+**B2. Auth ergonomics — 5.** Real signup/login/sessions on this
+backend. *30:* hand-rolled critical pieces (hashing, tokens) or
+fought the built-in system into shape. *60:* built-in auth fit with
+notable ceremony or docs gaps. *90:* secure-by-default flow wired
+quickly; sessions and server-side scoping composed with the data
+layer.
+
+**B3. Realtime ergonomics — 6.** Live queries and ephemeral state
+(typing, presence-ish). *30:* polling or hand-built channels for core
+liveness. *60:* live data easy but ephemeral state needed a durable
+workaround (tables + expiry jobs). *90:* both durable-live and
+ephemeral expressed with purpose-built primitives.
+
+**B4. Offline/sync authoring ergonomics — 7.** Effort to *author* the
+offline behavior (distinct from O4's observed result). *30:* the
+offline layer was built by hand (own cache, own queue, own conflict
+handling). *60:* platform gives reads or writes but not both, or the
+guarantees were hard to determine from docs. *90:* offline reads and
+queued writes fell out of the platform with configuration-level
+effort, and the docs stated the actual guarantees.
+
+**B5. Media and storage ergonomics — 4.** Upload, serve, authorize,
+and delete media, including view-once/tombstone asset denial. *30:*
+CORS/auth/URL ceremony dominated; asset denial required hacks. *60:*
+happy path smooth; access revocation awkward. *90:* policy-integrated
+storage: upload trivial, per-recipient/one-view denial expressible
+server-side.
+
+**B6. Search ergonomics — 3.** Building the three search scopes with
+the offline requirement. *30:* full client-side scan hand-rolled with
+no help. *60:* server search easy but the offline requirement forced
+a second parallel implementation. *90:* one coherent approach covered
+online and offline search.
+
+**B7. Push/actions ergonomics — 3.** Detecting no-connected-client
+and emitting through the seam. *30:* no server-side hook existed;
+polling or external infra required. *60:* doable with plumbing
+(connection tracking hand-built). *90:* presence/connectivity and a
+notification seam were first-class.
+
+**B8. Day-2 evolution experience — 6.** Scored by the M7 session: the
+schema-change-against-live-data loop. *30:* migration risked or
+required manual data surgery; codegen/types fought the change. *60:*
+migration worked but the workflow was undocumented or nervous
+(no dry-run, unclear rollback). *90:* additive evolution was routine:
+declare, migrate, types flow through, data verifiably intact.
+
+**B9. DX, docs, setup — 6.** From zero to productive: install,
+scaffold, dev loop, doc discoverability at point of need. *30:*
+setup consumed a milestone's budget; docs missing or wrong. *60:*
+productive after friction; some knowledge only in community sources.
+*90:* first green proof fast; every needed doc was findable when
+needed and correct.
+
+**B10. Diagnostics and error quality — 4.** When things failed, did
+the platform say why (LLP 0193's errors-as-docs bar). *30:* opaque
+errors; debugging by bisection. *60:* accurate but shallow errors;
+root causes needed digging. *90:* errors named the actual cause and
+pointed at the fix or doc.
+
+**B11. Operations and maturity — 5.** Running, inspecting, and
+trusting the backend during development: data inspection, logs,
+resets, lifecycle. *30:* opaque runtime; state inspected by writing
+code. *60:* adequate basics, gaps in inspection or lifecycle. *90:*
+productized dev operations: console/CLI inspection, clean resets,
+trustworthy lifecycle.
+
+### Holistic (builder, non-formulaic)
+
+One 0–100 for "what was this experience actually like," explicitly not
+computed from B1–B11, recorded before any totals are visible, with 2–3
+cited moments. Divergence between holistic and weighted totals is
+signal, not error — report both.
+
+## Narrative artifacts
+
+Per lane: a run diary (`diaries/` convention) with a timestamped entry
+at each milestone boundary, and a 1–2 page closing essay — purely
+qualitative, comparing the backend against alternatives the model
+knows — written before any metrics are visible.
+
+## Budget caps and performance ceilings (placeholder — set at P3 from pilot)
+
+Cap keys, formulas, and fallbacks: see the Budgets paragraph in
+the Milestones preamble (the single authority). At P3 this table
+grows one row per milestone, with one token-cap column per cap
+family.
+
+| Milestone | Wall cap | Token cap |
+|---|---|---|
+| M1–M7 | *pilot-calibrated* | *pilot-calibrated* |
+| Scale replay (own clock) | *pilot-calibrated* | n/a |
+
+| Performance probe | Absolute p95 ceiling |
+|---|---|
+| *per rotated probe set* | *pilot-calibrated* |
+
+## Lane-prompt block (placeholder — instantiated at freeze)
+
+The verbatim per-lane prompt is instantiated at P3 freeze from this
+brief plus the kit/fixture versions and budget caps, and recorded here,
+following the messaging brief's convention.

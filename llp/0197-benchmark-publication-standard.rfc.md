@@ -1,11 +1,11 @@
 # LLP 0197: Competitive benchmark publication standard
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Competitive evaluation, Publishing, Documentation
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (r9, round-7 fixes: rule 5's earlier sentences reconciled with the r8 boundary (raw tool calls private-only, keyed commitments replace retained hashes); rule 2's balance defined for every lane-count/N combination.) 2026-08-08 (r8, round-6 fixes: rule 5 gains an explicit public/private boundary — opaque evidence IDs, keyed integrity commitments over private originals, fail-closed publisher; rule 2 defines near-balance at odd N; rule 3 conditioned on 0195 D4 with an alternate-home fallback.) 2026-08-08 (r7, author-merge: Charlie's restructure after the
+**Revised:** 2026-08-08 (Accepted by Charlie Cheever — author ruling in session; final review binding per llp/reviews/0193-*.run.md close-out: 0194 dual-READY at r8, the others accepted with the enumerated r9 tail.) 2026-08-08 (r9, round-7 fixes: rule 5's earlier sentences reconciled with the r8 boundary (raw tool calls private-only, keyed commitments replace retained hashes); rule 2's balance defined for every lane-count/N combination.) 2026-08-08 (r8, round-6 fixes: rule 5 gains an explicit public/private boundary — opaque evidence IDs, keyed integrity commitments over private originals, fail-closed publisher; rule 2 defines near-balance at odd N; rule 3 conditioned on 0195 D4 with an alternate-home fallback.) 2026-08-08 (r7, author-merge: Charlie's restructure after the
 first harness-native run — counterbalanced repetitions, mandatory machine
 records, action-economy evidence with semantic action classes,
 receipt-backed proof over LLP 0146 verify, the `snapback-defect`

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -41,6 +41,9 @@ async function invalidCase({ schema = validSchema, functions, handlers = {} }) {
 async function validCase({ schema = validSchema, functions, handlers = {} }) {
   const dir = mkdtempSync(join(tmpdir(), 'snapback-codegen-authoring-'));
   dirs.push(dir);
+  const snapbackModules = join(dir, 'node_modules', '@expo');
+  mkdirSync(snapbackModules, { recursive: true });
+  symlinkSync(packageDir, join(snapbackModules, 'snapback-codegen'), 'dir');
   writeFileSync(join(dir, 'schema.mjs'), schema);
   writeFileSync(join(dir, 'functions.mjs'), functions);
   for (const [path, source] of Object.entries(handlers)) {
@@ -101,7 +104,10 @@ export default defineSchema(
     registry: { idleRetentionMs: 2_592_000_000 },
   });
   const apiTypes = readFileSync(join(result.outDir, 'api.d.ts'), 'utf8');
-  assert(!apiTypes.includes('readonly push:'), 'registry-only declaration has no send surface');
+  assert(
+    apiTypes.includes('GeneratedRuntimeContext, any, SecretsContext<any>, unknown, never>;'),
+    'registry-only declaration instantiates the shared action context without a send surface',
+  );
 }
 
 // @ref LLP 0146#d1-declarationobservation-conformance — strict declaration
@@ -236,7 +242,9 @@ export const pushLedger = definePushLedgerQuery({ auth: 'authenticated' });
     'Readonly<{ audience: "selectedGuests"; args: Readonly<{ "principalIds": readonly Principal[] }> }>',
   ));
   assert(apiTypes.includes('export type GeneratedPushAudienceName = "guests" | "selectedGuests";'));
-  assert(apiTypes.includes('readonly push: GeneratedPush;'));
+  assert(apiTypes.includes(
+    'GeneratedRuntimeContext, any, SecretsContext<any>, unknown, GeneratedPush>;',
+  ));
   assert(apiTypes.includes('send(request: GeneratedPushSendRequest): Promise<GeneratedPushSendResult>;'));
   assert(apiTypes.includes('readonly redriveAmbiguous?: boolean'));
 }

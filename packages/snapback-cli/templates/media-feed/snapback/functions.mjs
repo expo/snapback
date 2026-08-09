@@ -45,8 +45,8 @@ export const privatePhotoUpload = defineAssetUpload({
 export const liveFeed = defineLiveQuery({
   table: 'entries',
   args: {},
-  order: [desc('createdAt')],
-  index: 'by_created',
+  order: [desc('pageKey')],
+  index: 'by_page_key',
   limit: 6,
   auth: 'public',
   authorityIndependent: true,
@@ -54,10 +54,10 @@ export const liveFeed = defineLiveQuery({
 
 export const olderFeedPage = defineLiveQuery({
   table: 'entries',
-  args: { before: v.integer() },
-  filter: [ltFilter('createdAt', arg('before'))],
-  order: [desc('createdAt')],
-  index: 'by_created',
+  args: { before: v.string() },
+  filter: [ltFilter('pageKey', arg('before'))],
+  order: [desc('pageKey')],
+  index: 'by_page_key',
   limit: 6,
   auth: 'public',
   authorityIndependent: true,
@@ -72,13 +72,19 @@ export const createEntry = defineJsMutation({
   auth: 'authenticated',
   writes: ['entries'],
   result: results.value(v.id('entries')),
-  handler: async (ctx, args) => ctx.db.insert('entries', {
-    ownerId: ctx.auth.userId,
-    authorName: args.authorName,
-    caption: args.caption,
-    photo: await ctx.assets.attach(args.photo, { upload: 'feedPhotoUpload' }),
-    createdAt: ctx.runtime.now(),
-  }),
+  handler: async (ctx, args) => {
+    const createdAt = ctx.runtime.now();
+    return ctx.db.insert('entries', {
+      ownerId: ctx.auth.userId,
+      authorName: args.authorName,
+      caption: args.caption,
+      photo: await ctx.assets.attach(args.photo, { upload: 'feedPhotoUpload' }),
+      // Time keeps feed order intuitive; the runtime id makes the boundary
+      // unique even when two entries share the same millisecond.
+      pageKey: `${String(createdAt).padStart(16, '0')}:${ctx.runtime.id()}`,
+      createdAt,
+    });
+  },
 });
 
 export const publishEntry = defineCommand({

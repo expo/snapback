@@ -32,6 +32,11 @@ const scopes = [
   { manifest: 'packages/snapback-react/package.json', exports: 'all' },
   { manifest: 'packages/snapback-expo/package.json', exports: 'all' },
   { manifest: 'packages/snapback-cli/package.json', exports: ['./verify'] },
+  {
+    manifest: 'packages/snapback-codegen/package.json',
+    exports: ['./ctx'],
+    typeOnly: true,
+  },
 ];
 
 function sha256(value) {
@@ -86,10 +91,15 @@ function publicModules() {
         ? 'import'
         : targetAt('require', target) !== null
           ? 'require'
-          : 'default';
-      const runtimeTarget = targetAt(runtimeCondition, target);
-      if (runtimeTarget === null) {
+          : targetAt('default', target) !== null
+            ? 'default'
+            : null;
+      const runtimeTarget = runtimeCondition === null ? null : targetAt(runtimeCondition, target);
+      if (runtimeTarget === null && scope.typeOnly !== true) {
         throw new Error(`${scope.manifest} export ${subpath} has types but no applicable runtime target`);
+      }
+      if (runtimeTarget !== null && scope.typeOnly === true) {
+        throw new Error(`${scope.manifest} export ${subpath} is declared type-only but has a runtime target`);
       }
       const conditionalRuntimeTargets = Object.fromEntries(
         ['import', 'require', 'default']
@@ -98,7 +108,7 @@ function publicModules() {
           .map(([condition, value]) => [condition, repoPath(resolve(dirname(manifestPath), value))]),
       );
       const applicableConditions = Object.entries(conditionalRuntimeTargets)
-        .filter(([, path]) => path === repoPath(resolve(dirname(manifestPath), runtimeTarget)))
+        .filter(([, path]) => runtimeTarget !== null && path === repoPath(resolve(dirname(manifestPath), runtimeTarget)))
         .map(([condition]) => condition);
       modules.push({
         package: manifest.name,
@@ -108,12 +118,14 @@ function publicModules() {
         manifest: scope.manifest,
         typesTarget: repoPath(resolve(dirname(manifestPath), typesTarget)),
         runtimeCondition,
-        runtimeTarget: repoPath(resolve(dirname(manifestPath), runtimeTarget)),
+        runtimeTarget: runtimeTarget === null
+          ? null
+          : repoPath(resolve(dirname(manifestPath), runtimeTarget)),
         conditionalRuntimeTargets,
         parity: {
           applicableConditions,
           excludedConditions: Object.entries(conditionalRuntimeTargets)
-            .filter(([, path]) => path !== repoPath(resolve(dirname(manifestPath), runtimeTarget)))
+            .filter(([, path]) => runtimeTarget !== null && path !== repoPath(resolve(dirname(manifestPath), runtimeTarget)))
             .map(([condition, path]) => ({
               condition,
               target: path,
@@ -279,7 +291,9 @@ function createRegistry(modules) {
         publicDeclaration: { file: moduleEntry.typesTarget, exportName: exported.name },
         closure: {
           status: 'build-bound',
-          note: 'Derived from this checkout public declaration and applicable runtime export target.',
+          note: moduleEntry.runtimeTarget === null
+            ? 'Derived from this checkout public type-only declaration; runtime parity is not applicable.'
+            : 'Derived from this checkout public declaration and applicable runtime export target.',
         },
       };
       symbols.push(symbol);
@@ -298,7 +312,7 @@ function createRegistry(modules) {
   for (const moduleEntry of modules) {
     inputPaths.add(moduleEntry.manifest);
     inputPaths.add(moduleEntry.typesTarget);
-    inputPaths.add(moduleEntry.runtimeTarget);
+    if (moduleEntry.runtimeTarget !== null) inputPaths.add(moduleEntry.runtimeTarget);
     for (const path of Object.values(moduleEntry.conditionalRuntimeTargets)) inputPaths.add(path);
   }
   const sourceDigest = sha256([...inputPaths].sort().map((path) => (
@@ -330,8 +344,10 @@ function createRegistry(modules) {
     scope: {
       packages: scopes.map((scope) => scope.manifest),
       handlerContext: {
-        status: 'excluded-pending-published-declaration',
-        bootstrapReference: 'guide/reference/ctx-db-bootstrap.md',
+        status: 'included-published-type-only-declaration',
+        module: '@expo/snapback-codegen/ctx',
+        declaration: 'packages/snapback-codegen/ctx.d.mts',
+        runtimeParity: 'exempt-type-only',
       },
     },
     modules: moduleRecords,
@@ -348,6 +364,14 @@ async function checkRuntimeParity(registry) {
     symbolsByModule.get(symbol.module).push(symbol);
   }
   for (const moduleRecord of registry.modules) {
+    if (moduleRecord.runtimeTarget === null) {
+      const runtimeSymbols = (symbolsByModule.get(moduleRecord.module) ?? [])
+        .filter((symbol) => symbol.runtime.kind !== 'type-only');
+      for (const symbol of runtimeSymbols) {
+        errors.push(`${moduleRecord.module}: type-only module exported value-space symbol '${symbol.name}'`);
+      }
+      continue;
+    }
     const url = pathToFileURL(join(root, moduleRecord.runtimeTarget));
     url.searchParams.set('snapback-symbol-registry', registry.buildIdentity.sourceDigest.slice(-16));
     let runtime;
@@ -371,6 +395,61 @@ async function checkRuntimeParity(registry) {
       if (!declaredValues.includes(name)) {
         errors.push(`${moduleRecord.module}: public ${moduleRecord.runtimeCondition} runtime export '${name}' has no value-space registry entry`);
       }
+    }
+  }
+  return errors;
+}
+
+function checkHandlerContextOwnership(registry) {
+  const errors = [];
+  const ownerModule = '@expo/snapback-codegen/ctx';
+  const ownerSymbols = registry.symbols.filter((symbol) => symbol.module === ownerModule);
+  if (ownerSymbols.length === 0) {
+    return [`${ownerModule}: published declaration contributed no registry symbols`];
+  }
+  const emitterPath = 'packages/snapback-codegen/index.mjs';
+  const emitter = readFileSync(join(root, emitterPath), 'utf8');
+  if (!emitter.includes("const CTX_DECLARATION_MODULE = '@expo/snapback-codegen/ctx';")) {
+    errors.push(`${emitterPath}: generated API template does not name the published ctx owner`);
+  }
+  if (!emitter.includes("export type * from '${CTX_DECLARATION_MODULE}';")) {
+    errors.push(`${emitterPath}: generated API template does not re-export the published ctx owner`);
+  }
+  for (const symbol of ownerSymbols) {
+    const duplicate = new RegExp(
+      `export\\s+(?:declare\\s+)?(?:interface|type|class|enum|namespace|const|function)\\s+${symbol.name}\\b`,
+      'u',
+    );
+    if (duplicate.test(emitter)) {
+      errors.push(`${emitterPath}: generated API template redeclares stable ctx owner ${symbol.identity}`);
+    }
+  }
+  for (const name of [
+    'GeneratedQueryBuilder',
+    'GeneratedQueryDatabase',
+    'GeneratedMutationDatabase',
+    'GeneratedQueryContext',
+    'GeneratedMutationContext',
+    'GeneratedActionContext',
+  ]) {
+    const duplicateGeneric = new RegExp(
+      `export\\s+interface\\s+${name}\\b`,
+      'u',
+    );
+    if (duplicateGeneric.test(emitter)) {
+      errors.push(`${emitterPath}: ${name} redeclares the generic ctx contract instead of instantiating its owner`);
+    }
+  }
+  for (const expected of [
+    'GeneratedQueryBuilder<Table extends GeneratedReadableTableName> = QueryBuilder<GeneratedHandlerSchema, Table>',
+    'GeneratedQueryDatabase = QueryDatabase<GeneratedHandlerSchema>',
+    'GeneratedMutationDatabase = MutationDatabase<GeneratedHandlerSchema>',
+    'GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = QueryContext<',
+    'GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<',
+    'GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<',
+  ]) {
+    if (!emitter.includes(expected)) {
+      errors.push(`${emitterPath}: generated API template is missing ctx-owner instantiation ${expected}`);
     }
   }
   return errors;
@@ -403,8 +482,13 @@ function modulePage(registry, moduleRecord, order) {
     `# ${moduleRecord.module}`,
     '',
     `Build-bound public API projection for \`${moduleRecord.module}\`. Canonical registry identity:`,
-    `\`${registry.buildIdentity.sourceDigest}\`. Runtime parity condition:`,
-    `\`${moduleRecord.parity.applicableConditions.join(', ')}\` → \`${moduleRecord.runtimeTarget}\`.`,
+    `\`${registry.buildIdentity.sourceDigest}\`.`,
+    ...(moduleRecord.runtimeTarget === null
+      ? ['This package subpath is type-only; runtime export parity is not applicable.']
+      : [
+          'Runtime parity condition:',
+          `\`${moduleRecord.parity.applicableConditions.join(', ')}\` → \`${moduleRecord.runtimeTarget}\`.`,
+        ]),
     '',
     `[Compact reference index](./index.md) · [machine-readable registry](./registry.json)`,
     '',
@@ -465,7 +549,7 @@ function indexPage(registry, order) {
     '',
     'Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json).',
     '',
-    'The handler `ctx.db` declaration is intentionally excluded until its published owner lands. The temporary [ctx.db bootstrap reference](./ctx-db-bootstrap.md) states that boundary and its retirement trigger.',
+    'The handler context contract is owned by the type-only [`@expo/snapback-codegen/ctx`](./expo-snapback-codegen--ctx.md) module. Generated app declarations instantiate its schema maps and re-export its types rather than defining a parallel generic surface.',
     '',
     '## Modules',
     '',
@@ -526,7 +610,10 @@ if (check && existsSync(registryPath)) {
     // The ordinary missing/malformed comparison below reports the artifact.
   }
 }
-const parityErrors = await checkRuntimeParity(registry);
+const parityErrors = [
+  ...checkHandlerContextOwnership(registry),
+  ...await checkRuntimeParity(registry),
+];
 if (parityErrors.length > 0) {
   for (const error of parityErrors) console.error(`[symbol-registry] parity error: ${error}`);
   process.exit(1);

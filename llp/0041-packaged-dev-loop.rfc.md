@@ -1233,3 +1233,24 @@ machines, and the retained aggregate satisfies the `0.1.0` packaged-loop claim
 with no nonclaims. LLP 0041 remains Review pending the normal
 document-acceptance decision. The distinct `0.1.1` candidate-promotion
 amendment above remains unexecuted.
+
+## Amendment (2026-08-08): rapid-publication posture — author ruling
+
+Ruled by the author (Charlie Cheever, 2026-08-08), recorded here because
+this document owns packaging/distribution:
+
+**Publish to npm rapidly and often — effectively whenever `main` carries
+meaningful surface changes and the qualified publication path passes.**
+The default is land → publish, not land → batch.
+
+Rationale, verbatim in substance: there are currently no users counting
+on Snapback to work a certain way, so release scarcity protects no one;
+to the extent users arrive, they will be agents who read all the docs,
+so doc-accurate frequent releases beat rare "stable" ones. The
+qualification bar itself is unchanged — publish qualified, never
+broken (the LLP 0186 W0 bar and the ceremony receipts stay) — but
+release *frequency* is never treated as a cost, and unpublished landed
+work is treated as a liability (the run-6 series measured 0.1.15 for a
+full day while its biggest papercut fix sat landed-but-unpublished on
+main). Standing until users with stability expectations exist; revisit
+then.

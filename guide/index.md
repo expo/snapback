@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-07
-reviewed-commit: cca0db7d8e94c8d4943eb808d4e10238a506c70c
+reviewed: 2026-08-08
+reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -191,6 +191,9 @@ you never build around a feature because you didn't know it existed.
 ### Auth
 - [Sessions and principals](./auth/sessions-and-principals.md) — the server
   derives who you are; scoped queries; logout barriers.
+- [Browser sign-in and reload custody](./recipes/browser-auth.md) — local
+  trusted-server identity verification, immutable app-user binding,
+  IndexedDB restoration, protected rows, and logout without a hosted claim.
 - [Bind a principal to your app's user identity](./auth/app-identity-binding.md)
   — the principal↔app-user table every ported app needs first: the broker
   pattern for production, the frozen-actor-map bootstrap for acceptance.
@@ -283,6 +286,9 @@ you never build around a feature because you didn't know it existed.
   Aboard on the honest partial hosted profile; explicit supported subset and gaps.
 
 ### Recipes
+- [Browser sign-in and reload custody](./recipes/browser-auth.md) — verified
+  external assertion seam, principal↔app-user binding, durable IndexedDB
+  custody, protected rows, and revoking logout (local product-shaped recipe).
 - [Presence cursors](./recipes/presence-cursors.md) — ephemeral rooms, TTL,
   publish budgets (the cursors-web demo, distilled).
 - [Hidden hands](./recipes/hidden-hands.md) — per-principal secrecy, logout
@@ -291,6 +297,13 @@ you never build around a feature because you didn't know it existed.
   count: atomic two-field projection, replayable capture-and-set reducers,
   complete-receipt matching, and the one-canonical-store rule across query
   surfaces.
+- [Paginated and load-more lists](./recipes/paged-list.md) — a unique
+  immutable keyset boundary, whole-result live replacement, React archive
+  assembly, and honest retained-state limits (media-feed, distilled).
+- [Optimistic create with a server-minted ID](./recipes/optimistic-create.md)
+  — generated mutation IR, durable intent identity, typed provisional
+  presentation, logical-mint mapping, and ambiguous retry (Contention
+  Calendar, distilled).
 - [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
   — worked-example translations of common Convex/Supabase journeys into
   Snapback, CI-verified against real demo sources (LLP 0186 W2).

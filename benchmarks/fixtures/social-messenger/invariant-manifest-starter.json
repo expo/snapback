@@ -1,0 +1,215 @@
+{
+  "schemaVersion": "0.1.0-p1",
+  "generatedBy": {
+    "generator": "generate.mjs",
+    "generatorVersion": "0.1.0-p1",
+    "generatorSourceSha256": "abb3ef90b1605f87d28dc390d47aa0ba552c14067bb16fef0d4ba9f1c64326d4",
+    "prng": "mulberry32",
+    "seed": 20260808,
+    "timestampEpoch": "2026-01-01T00:00:00Z",
+    "wallClockSourcesForbidden": true
+  },
+  "stateBase": "empty backend plus starter-m1.log, starter-m2.log, starter-m3.log in that order",
+  "artifacts": {
+    "starter-m1.log": {
+      "name": "starter-m1.log",
+      "committed": true,
+      "sha256": "35265421454ed708dd0af1b3cfc4a9b48af2b96525c8d9a16b45ad5f358cef1c",
+      "byteCount": 1889,
+      "lineCount": 16,
+      "actionCount": 16
+    },
+    "starter-m2.log": {
+      "name": "starter-m2.log",
+      "committed": true,
+      "sha256": "e74ec486e34ffb5d6fc0dac19d1312d3dd061c87912083be130a71e5658d3be6",
+      "byteCount": 3755,
+      "lineCount": 52,
+      "actionCount": 52
+    },
+    "starter-m3.log": {
+      "name": "starter-m3.log",
+      "committed": true,
+      "sha256": "4b03a5935eda1cee32e4031ade2bef41cb1d304922edc07ecf9e6f3893e51008",
+      "byteCount": 1497,
+      "lineCount": 19,
+      "actionCount": 19
+    }
+  },
+  "expectedState": {
+    "perEntityCounts": {
+      "users": 8,
+      "profiles": 8,
+      "followEdges": 12,
+      "posts": 28,
+      "topLevelPosts": 24,
+      "replies": 4,
+      "activeLikes": 8,
+      "activeReposts": 4,
+      "conversations": 2,
+      "dms": 1,
+      "groups": 1,
+      "memberships": 6,
+      "messages": 15,
+      "textMessages": 15,
+      "mediaMessages": 0,
+      "quotedReplies": 6,
+      "activeReactions": 0,
+      "disappearingSettingsEnabled": 0
+    },
+    "followEdgeCount": 12,
+    "perUserFollowingCounts": {
+      "alice": 2,
+      "bob": 2,
+      "carol": 1,
+      "dave": 1,
+      "erin": 2,
+      "frank": 1,
+      "grace": 1,
+      "henry": 2
+    },
+    "perUserConversationCounts": {
+      "alice": 2,
+      "bob": 2,
+      "carol": 1,
+      "dave": 1,
+      "erin": 0,
+      "frank": 0,
+      "grace": 0,
+      "henry": 0
+    },
+    "perChatMessageCounts": {
+      "d-alice-bob": 6,
+      "g-starter": 9
+    },
+    "perGroupMemberCounts": {
+      "g-starter": 4
+    },
+    "namedO5Fixtures": null
+  },
+  "namedSpotEntities": {
+    "profiles": {
+      "alice": {
+        "id": "alice",
+        "displayName": "Alice Alvarez",
+        "handle": "alice",
+        "bio": "Coffee, cameras, and neighborhood walks.",
+        "location": "Oakland, CA",
+        "link": "https://example.com/alice",
+        "avatar": "media/avatar-alice.png"
+      },
+      "bob": {
+        "id": "bob",
+        "displayName": "Bob Bennett",
+        "handle": "bob",
+        "bio": "Bikes, bread, and tiny software tools.",
+        "location": "Berkeley, CA",
+        "link": "https://example.com/bob",
+        "avatar": "media/avatar-bob.png"
+      }
+    },
+    "posts": {
+      "sp0001": {
+        "id": "sp0001",
+        "authorId": "alice",
+        "postType": "text",
+        "text": "Coffee time at the corner table https://example.com/cafe",
+        "media": [],
+        "parentPostId": null,
+        "activeLikeCount": 2,
+        "activeRepostCount": 1,
+        "directReplyCount": 1
+      },
+      "sp0002": {
+        "id": "sp0002",
+        "authorId": "alice",
+        "postType": "images",
+        "text": "Two colors from this morning's walk.",
+        "media": [
+          "media/img-02.png",
+          "media/img-03.png"
+        ],
+        "parentPostId": null,
+        "activeLikeCount": 0,
+        "activeRepostCount": 0,
+        "directReplyCount": 0
+      }
+    },
+    "messages": {
+      "sm0001": {
+        "id": "sm0001",
+        "conversationId": "d-alice-bob",
+        "senderId": "alice",
+        "messageType": "text",
+        "text": "Coffee after work?",
+        "media": null,
+        "caption": null,
+        "viewOnce": false,
+        "quoteId": null,
+        "reactions": []
+      },
+      "sm0002": {
+        "id": "sm0002",
+        "conversationId": "d-alice-bob",
+        "senderId": "bob",
+        "messageType": "text",
+        "text": "Yes. Corner place?",
+        "media": null,
+        "caption": null,
+        "viewOnce": false,
+        "quoteId": "sm0001",
+        "reactions": []
+      },
+      "sm0007": {
+        "id": "sm0007",
+        "conversationId": "g-starter",
+        "senderId": "alice",
+        "messageType": "text",
+        "text": "Saturday plan: coffee, lake, then noodles.",
+        "media": null,
+        "caption": null,
+        "viewOnce": false,
+        "quoteId": null,
+        "reactions": []
+      },
+      "sm0008": {
+        "id": "sm0008",
+        "conversationId": "g-starter",
+        "senderId": "carol",
+        "messageType": "text",
+        "text": "Coffee is a definite yes.",
+        "media": null,
+        "caption": null,
+        "viewOnce": false,
+        "quoteId": "sm0007",
+        "reactions": []
+      }
+    },
+    "conversations": {
+      "d-alice-bob": {
+        "id": "d-alice-bob",
+        "type": "dm",
+        "name": null,
+        "description": null,
+        "members": [
+          "alice",
+          "bob"
+        ],
+        "messageCount": 6
+      },
+      "g-starter": {
+        "id": "g-starter",
+        "type": "group",
+        "name": "Weekend Plans",
+        "description": "Coffee, a walk, and dinner.",
+        "members": [
+          "alice",
+          "bob",
+          "carol",
+          "dave"
+        ],
+        "messageCount": 9
+      }
+    }
+  }
+}

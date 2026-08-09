@@ -6,6 +6,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~57.0.8",
     "@expo/snapback-client": "file:../../packages/snapback-client",
+    "@expo/snapback-codegen": "file:../../packages/snapback-codegen",
     "@expo/snapback-contract": "file:../../packages/snapback-contract",
     "@expo/snapback-expo": "file:../../packages/snapback-expo",
     "@expo/snapback-react": "file:../../packages/snapback-react",
@@ -24,6 +25,7 @@
   },
   "overrides": {
     "@expo/snapback-client": "file:../../packages/snapback-client",
+    "@expo/snapback-codegen": "file:../../packages/snapback-codegen",
     "@expo/snapback-contract": "file:../../packages/snapback-contract",
     "@expo/snapback-expo": "file:../../packages/snapback-expo",
     "@expo/snapback-react": "file:../../packages/snapback-react"
