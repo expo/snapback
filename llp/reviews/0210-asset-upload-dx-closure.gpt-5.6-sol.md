@@ -169,3 +169,45 @@ I found no PRE-EXISTING MATERIAL concern.
 **(c) D1:** No. The keyed, authority-partitioned shared loop is the correct owner, but the missing `issuing` semantics, absent same-authority recovery from `denied`, and incomplete final-unsubscribe fencing prevent a complete fixture matrix.
 
 VERDICT: NOT READY
+## Round 3 (focused delta round) — 2026-08-09
+
+- Reviewer: Codex CLI `gpt-5.6-sol`, `model_reasoning_effort=xhigh`,
+  read-only sandbox rooted at the r3 capsule; mutually blind; no
+  prior-round knowledge.
+- Target revision r3 sha256:
+  `21e33e4b87982317f06fc6f2a9436a2914f9bcb5a7781c8cfe1dcb3dd37e3d96`
+- Capsule sha256:
+  `aa6bc1e1f6979272c4fb64e54663468b038b0a8511280803cb8b055326b16469`
+- Instructions sha256:
+  `62852c1533e7af60e34bd5f0a519d01a0ea61776671e231eae14fb78a4d98e8a`
+- Received: complete, well-formed. Verdict: **NOT READY**
+  (2 MATERIAL, both IN-DELTA; 2 DETAIL IN-DELTA; explicitly no
+  PRE-EXISTING MATERIAL).
+
+### Review body (verbatim)
+
+## Delta assessment
+
+r3 substantially improves the design: D3 now matches the accepted successor-attempt lifecycle, and D5’s owner-mint, frozen-policy, and commit-time checks form a coherent no-ambient-widening model. It is not ready, however, because D1’s claimed total fixture matrix remains incomplete and D5 introduces a mandatory grant-count ceiling without an acceptance oracle.
+
+## Concerns
+
+- **MATERIAL — IN-DELTA — §D1 state algebra and fixture matrix.** Authority replacement or logout synchronously blanks an old entry, but that reachable snapshot maps to none of the five states: it is not `ready`, has no issuance required for `issuing`/`refreshing`, has no non-authorization failure required for `unavailable`, and cannot be `denied` because that state requires a structured authorization refusal. This conflicts with “every reachable condition maps to exactly one state” in [LLP 0210 §D1](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r3/llp/0210-asset-upload-dx-closure.rfc.md:135); LLP 0114 instead explicitly specifies an empty/pending authority handoff before the successor snapshot ([LLP 0114 §Context, identity, and authority](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r3/llp/0114-first-class-react-and-query-groups.spec.md:252)). Additionally, D1 names three exits from `denied`, but Acceptance explicitly tests only `refresh()`; it does not pin fresh-subscription or composed invalidation-signal recovery. The unsubscribe fixture proves “zero residual work” but does not explicitly prove registry-entry eviction. Resolve by defining the authority-handoff snapshot or terminal disposal in the five-state model, then add fixtures for each denied-exit trigger, exact A→B/logout status transitions, entry absence after final unsubscribe, and fresh-generation behavior on resubscription.
+
+- **MATERIAL — IN-DELTA — §D5(b) grant-count quotas.** The design correctly names per-app/per-principal grant-count ceilings, but D5 Acceptance contains no quota fixture or refusal behavior ([LLP 0210 §Acceptance](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r3/llp/0210-asset-upload-dx-closure.rfc.md:439)). This leaves the new durable, per-recipient record class without proof of the bounded-state rule required by LLP 0044, which requires ceilings for every durable record class and per-principal limits where principals can mint records ([LLP 0044 §Deduplication, keys, and quotas](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r3/llp/0044-asset-storage-pipeline.rfc.md:860)). Resolve by defining which principal dimension is charged, counting both pending and active edges, checking the ceiling atomically with mint, releasing the live-edge count atomically on revoke, and adding limit, over-limit, concurrent-mint, and revoke-then-remint fixtures with a typed quota refusal.
+
+- **DETAIL — IN-DELTA — §D5(b) frozen-generation and race wording.** “At creation/finalization” is unnecessarily ambiguous; LLP 0044 says each asset records the generation under which it was admitted and finalizes under that same frozen policy ([LLP 0044 §Internal model](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r3/llp/0044-asset-storage-pipeline.rfc.md:451)). Replace it with “captured at asset admission/creation; finalization and later grant operations read that stored generation.” Also give the revoke-versus-issuance fixture a precise oracle: revoke-first must deny issuance; issuance-first may return a TTL-bounded URL; no execution may authorize from a stale post-revoke edge.
+
+- **DETAIL — IN-DELTA — §D3 ineligible `retry()` result.** The semantics correctly prohibit successors for `ready` and `rejected`, but the API text first says terminal `retry()` yields a successor and then says those rows are “never” eligible. State explicitly that these calls refuse with a typed not-retryable diagnostic and create no successor. This is consistent with LLP 0044’s rule that only pending assets admit successor attempts ([LLP 0044 §Client upload surface](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r3/llp/0044-asset-storage-pipeline.rfc.md:354)).
+
+No PRE-EXISTING MATERIAL concern was identified.
+
+## Explicit answers
+
+**(a) Do the denied-exit and unsubscribe-fence rules complete D1’s fixture matrix?** No. Only the explicit-`refresh()` denied exit is pinned; fresh subscription and composed invalidation are not. Entry eviction is also not asserted directly, and authority replacement/logout lacks a valid state mapping.
+
+**(b) Are retry-successor semantics consistent with LLP 0044 §Client upload surface?** Yes. They preserve the asset id, require the underlying asset to remain pending-eligible, leave the predecessor settled, and give the successor an independent generation and `.done`. The shipped terminal set is indeed `ready | rejected | cancelled | failed` ([client ground-truth excerpt](/private/tmp/claude-501/-Users-ccheever-projects-snapback/94eb0fa7-610e-4b8f-8ad9-e56c319904a7/scratchpad/0210-capsule-r3/packages-excerpts/asset-client-custody-excerpt.txt:102)); only the ineligible-call result needs editorial clarification.
+
+**(c) Do frozen-generation opt-in and commit atomicity make D5(b)’s no-ambient-widening claim and probes sound?** Substantively yes: admission-time frozen opt-in prevents redeploy from widening old assets, owner-only mint prevents viewer-originated authority, final-lock revalidation prevents aborted or stale transitions, and the sole-authority `owner-only` composition makes 403/200/403 meaningful. The frozen-generation wording and race oracle should be tightened, while the omitted quota acceptance remains a separate material readiness failure.
+
+VERDICT: NOT READY
