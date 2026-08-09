@@ -2123,6 +2123,14 @@ fn validate_exact(
     }) {
         super::declared_clients::validate_exact_schema(conn)?;
     }
+    // @ref LLP 0204#d91--streaming-conversations — the
+    // function-manifest companion is recognized only in its exact shape.
+    if objects.iter().any(|object| {
+        object.kind == "table"
+            && object.name == super::stream_transcripts::STREAM_TRANSCRIPT_TABLE
+    }) {
+        super::stream_transcripts::validate_exact_schema(conn)?;
+    }
 
     for table in schema.tables {
         let Some(object) = by_name.get(table.name) else {

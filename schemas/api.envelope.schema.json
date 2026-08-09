@@ -711,6 +711,9 @@
           },
           "type": "array"
         },
+        "stream": {
+          "type": "boolean"
+        },
         "syncabilityClass": {
           "type": [
             "string",
@@ -731,6 +734,7 @@
         "id",
         "name",
         "kind",
+        "stream",
         "sequences",
         "resultContract",
         "requiredCapabilities",

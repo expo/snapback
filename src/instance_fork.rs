@@ -2113,6 +2113,7 @@ pub enum EgressFamily {
     StreamOpen,
     StreamRead,
     StreamCancel,
+    StreamEmit,
     JobsEnqueue,
     JobsDrain,
     CronTick,
@@ -2122,13 +2123,14 @@ pub enum EgressFamily {
 }
 
 impl EgressFamily {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Fetch,
         Self::PushSend,
         Self::PushReceipt,
         Self::StreamOpen,
         Self::StreamRead,
         Self::StreamCancel,
+        Self::StreamEmit,
         Self::JobsEnqueue,
         Self::JobsDrain,
         Self::CronTick,
@@ -2145,6 +2147,7 @@ impl EgressFamily {
             Self::StreamOpen => "stream_open",
             Self::StreamRead => "stream_read",
             Self::StreamCancel => "stream_cancel",
+            Self::StreamEmit => "stream_emit",
             Self::JobsEnqueue => "jobs_enqueue",
             Self::JobsDrain => "jobs_drain",
             Self::CronTick => "cron_tick",
@@ -2163,6 +2166,7 @@ impl EgressFamily {
             "action.streamOpen" => Some(Self::StreamOpen),
             "action.streamRead" => Some(Self::StreamRead),
             "action.streamCancel" => Some(Self::StreamCancel),
+            "action.streamEmit" => Some(Self::StreamEmit),
             "jobs.enqueue" => Some(Self::JobsEnqueue),
             "db.query"
             | "db.get"

@@ -25,3 +25,9 @@ All three reproduce at origin/main tips after a8787cb53 with unrelated
 working-tree changes absent. Owner: the handler-error-exposure landing's
 author. (The pre-existing implementationScope red is tracked separately in
 issues/20260809-main-red-agent-safe-derived-chain-implementationscope.md.)
+
+**Addendum (S4 Landing A verification):**
+`action_stream_envelope_v0::staged_secret_values_are_scrubbed_from_stream_error_envelopes`
+shows the same signature (generic SNAPBACK_HANDLER_FAILED where the enriched
+scrubbed detail is expected) and reproduces with the pre-a8787cb53 harness
+bootstrap, so it belongs to this family too. Same owner.

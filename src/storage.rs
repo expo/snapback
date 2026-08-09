@@ -144,6 +144,9 @@ pub(crate) mod auth_integrations;
 #[path = "storage/declared_clients.rs"]
 pub(crate) mod declared_clients;
 
+#[path = "storage/stream_transcripts.rs"]
+pub(crate) mod stream_transcripts;
+
 #[allow(dead_code)]
 #[path = "storage/auth_rescue.rs"]
 pub(crate) mod auth_rescue;

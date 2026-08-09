@@ -5,7 +5,9 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-29 (implementation-drift repair — LLP 0102's frozen
+**Revised:** 2026-08-09 (LLP 0204 S4 Landing A adds the distinct bounded
+private action-output stream described in the dated amendment below; the
+accepted upstream-response reader contract remains unchanged). 2026-07-29 (implementation-drift repair — LLP 0102's frozen
 Research Room/Snapback arm found that sessions complete-pair preflight still
 constructed `local_v0_declared()` while ordinary loading and served inspection
 used the process-live instance manifest. The mismatch refused a valid
@@ -224,12 +226,68 @@ Snapback actions should consume an upstream HTTP response incrementally without
 granting direct database access, retaining unbounded bytes, or allowing a late
 continuation to write after cancellation, timeout, deployment change, or
 authority loss. This RFC defines a narrow v1 streaming profile and the durable
-progress pattern required by LLP 0074. It does not turn an action result into a
-streaming client response: clients continue to observe ordinary authoritative
-live-query commits.
+progress pattern required by LLP 0074. It did not originally turn an action
+result into a streaming client response. The 2026-08-09 amendment adds a
+separate, bounded action-output stream for LLP 0204 conversations; it does not
+change the upstream-response reader defined by the original RFC.
 
-This document is Draft. Implementation and evidence may proceed, but gate 2
-cannot be called closed until this authority is reviewed and accepted.
+This document is Accepted. The evidence residues and open questions below stay
+honest for the original upstream-response profile.
+
+## Dated amendment: private action-output streams (2026-08-09)
+
+LLP 0204 S4 Landing A reuses the host-owned attempt settlement and bounded
+ephemeral machinery in this RFC for the opposite direction: an action can emit
+incremental JSON values to its initiating client. This is deliberately a
+distinct surface from `ctx.fetchStream`, which reads an upstream HTTP response.
+
+An Ibex action may declare `stream: true` in `defineAction`. The declaration is
+a validated manifest fact, participates in the implementation identity, and is
+refused on queries and mutations. Its context gains
+`await ctx.stream.emit(chunk)`, where `chunk` is a string or another JSON value.
+The host serializes the value before admission and enforces these exact v1
+limits on the serialized chunk value:
+
+- at most 16 KiB per chunk;
+- at most 2 MiB across one attempt; and
+- at most 20 admitted chunks in any rolling one-second window.
+
+The function call returns its opaque `attemptToken` once the host has durably
+created the attempt and acquired its single-runner lease. Execution continues
+under the ordinary detached-action watchdog. Each accepted emit receives a
+host-owned, zero-based monotonic `chunkIndex`; cancellation settles the same attempt
+`cancelled`, and the next emit is refused by that terminal winner.
+
+Chunks travel through the reserved `_snapback_stream` collection using the
+normal ephemeral publish, retention, ordering, subscription, and socket
+delivery machinery. Only the server can publish. The room scope is exactly the
+opaque `attemptToken`, but possession of that token is not read authority: the
+subscription gate compares the initiating session user, service-credential id,
+or anonymous connection id. A reconnect by the same session user may use a
+different connection; a second principal is refused.
+
+`sinceChunk` is an ephemeral reconnect hint, not a durable cursor. The initial
+snapshot returns retained chunks whose `chunkIndex` is greater than the hint
+and a `streamResume` fact. If the retained prefix is missing, `truncated` is
+true and the response points to `/streams/{attemptToken}`. No raw chunks and no
+resume cursor are written durably.
+
+Deployment activates the exact protected `_snapback_stream_transcripts` table
+iff the function manifest contains at least one streaming action. Settlement is
+immutable and records the attempt token, function id, initiator identity,
+started and settled times, terminal cause, a final value bounded to 256 KiB,
+chunk count, and nullable prompt/completion token counts. Failure,
+cancellation, timeout, and process-death reconciliation settle with no final
+value. `GET /streams/{attemptToken}` and
+`POST /streams/{attemptToken}/cancel` are private, `no-store` AppData routes;
+in sessions mode they accept only a resolved session or scoped service token
+whose initiator identity exactly matches the attempt. Unknown transcript reads
+return 404 and known foreign reads return 403.
+
+The Vercel AI SDK/SSE projection, durable chat-history query, token metering,
+shared/multi-viewer streams, `ask`, and wire `run_code` remain later LLP 0204
+landings. The remote MCP description therefore continues to advertise no
+server-initiated streams.
 
 ## Surface
 

@@ -1845,6 +1845,7 @@ fn local_snapback_reuses_in_memory_ephemeral_store() {
                 scope: scope.clone(),
                 connection_id: "observer".to_owned(),
                 auth: auth.clone(),
+                since_chunk: None,
             },
             1_000,
         )
@@ -1891,6 +1892,7 @@ fn ephemeral_unsubscribe_removes_only_the_requester_registration() {
         scope: scope.clone(),
         connection_id: connection_id.to_owned(),
         auth: auth.clone(),
+        since_chunk: None,
     };
 
     // Two observers on one room; only `observer` unsubscribes.
@@ -1955,6 +1957,7 @@ fn ephemeral_unsubscribe_unknown_collection_still_touches_liveness() {
                 scope: Scope::from_pairs([("boardId", "board_1")]),
                 connection_id: "observer".to_owned(),
                 auth: AuthContext::default(),
+                since_chunk: None,
             },
             1_100,
         )
@@ -1990,6 +1993,7 @@ fn schema_manifest_registers_authorized_ephemeral_board_cursors() {
                 scope: scope.clone(),
                 connection_id: "intruder".to_owned(),
                 auth: non_member.clone(),
+                since_chunk: None,
             },
             1_000,
         )
@@ -2003,6 +2007,7 @@ fn schema_manifest_registers_authorized_ephemeral_board_cursors() {
                 scope: scope.clone(),
                 connection_id: "observer".to_owned(),
                 auth: member.clone(),
+                since_chunk: None,
             },
             1_000,
         )
@@ -2157,6 +2162,7 @@ fn repeated_matching_schema_load_preserves_ephemeral_rooms_and_outbox() {
                 scope: scope.clone(),
                 connection_id: "observer_a".to_owned(),
                 auth: auth.clone(),
+                since_chunk: None,
             },
             1_000,
         )
@@ -2198,6 +2204,7 @@ fn repeated_matching_schema_load_preserves_ephemeral_rooms_and_outbox() {
                 scope,
                 connection_id: "observer_b".to_owned(),
                 auth,
+                since_chunk: None,
             },
             1_002,
         )
@@ -2266,6 +2273,7 @@ fn invalid_ephemeral_schema_is_rejected_before_durable_or_live_state_changes() {
                 scope,
                 connection_id: "observer".to_owned(),
                 auth: AuthContext::default(),
+                since_chunk: None,
             },
             1_001,
         )
@@ -2321,6 +2329,7 @@ fn ensure_ephemeral_collections_rejects_mismatch_without_clearing_room() {
                 scope,
                 connection_id: "observer".to_owned(),
                 auth,
+                since_chunk: None,
             },
             1_001,
         )
@@ -4650,6 +4659,7 @@ fn l9_reap_vs_revival_subscribe_leaves_no_unreapable_zombie() {
                         scope: Scope::from_pairs([("roomId", "room-1")]),
                         connection_id,
                         auth: AuthContext::default(),
+                        since_chunk: None,
                     },
                     1_000,
                 );
@@ -4761,6 +4771,7 @@ fn eng_23424_empty_ws_drain_is_not_liveness() {
             scope: Scope::from_pairs([("roomId", "room-1")]),
             connection_id: "observer".to_owned(),
             auth: AuthContext::default(),
+            since_chunk: None,
         },
         1_000,
     )
@@ -4831,6 +4842,7 @@ fn eng_23427_reap_under_open_registration_signals_resync() {
                 scope: Scope::from_pairs([("roomId", "room-1")]),
                 connection_id: connection_id.to_owned(),
                 auth: AuthContext::default(),
+                since_chunk: None,
             },
             1_000,
         )
@@ -6058,6 +6070,7 @@ fn d2_collection_replace_bumps_epoch_and_signals_resync() {
                 scope: scope.clone(),
                 connection_id: "observer".to_owned(),
                 auth: auth.clone(),
+                since_chunk: None,
             },
             1_000,
         )
@@ -6116,6 +6129,7 @@ fn d2_collection_replace_bumps_epoch_and_signals_resync() {
                 scope: scope.clone(),
                 connection_id: "observer".to_owned(),
                 auth: auth.clone(),
+                since_chunk: None,
             },
             2_000,
         )

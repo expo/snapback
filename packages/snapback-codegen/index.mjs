@@ -3588,6 +3588,7 @@ export async function generateInProcess(backendDir, options = {}) {
       functions.push({
         name,
         kind: 'Action',
+        ...(def.stream === true ? { stream: true } : {}),
         ...authoredFunctionManifestFields(def, writes, tables),
         uses: def.uses ?? [],
         runtime: {
@@ -3630,6 +3631,7 @@ export async function generateInProcess(backendDir, options = {}) {
       functions.push({
         name,
         kind: 'Action',
+        ...(def.stream === true ? { stream: true } : {}),
         ...authoredFunctionManifestFields(def, writes, tables),
         uses: def.uses ?? [],
         runtime: { HostPlan: { Action: serializeActionPlan(def.plan, name, err) } },
@@ -7304,9 +7306,9 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
     // @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 —
     // `sequences` extends the frozen implementation identity only through a
     // new format domain; sequence-free v1/v2 hashes remain byte-identical.
-    const implementationFormatVersion = sequences.length > 0
-      ? 'v3'
-      : (inlineHelpers ? 'v2' : 'v1');
+    const implementationFormatVersion = fn.stream === true
+      ? 'v4'
+      : (sequences.length > 0 ? 'v3' : (inlineHelpers ? 'v2' : 'v1'));
     const implementationIdentity = {
       format: `snapback.function-implementation.${implementationFormatVersion}`,
       app: appId,
@@ -7337,6 +7339,7 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
       authorizationDependence: fn.authorizationDependence ?? [],
       uses: fn.uses ?? [],
       standardPattern: fn.standardPattern ?? null,
+      ...(fn.stream === true ? { stream: true } : {}),
       ...(sequences.length > 0 ? { sequences } : {}),
       ...(fn.boundedSkew !== undefined ? { boundedSkew: fn.boundedSkew } : {}),
     };
@@ -7345,6 +7348,7 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
       name: fn.name,
       exportedName: fn.name,
       kind: fn.kind,
+      ...(fn.stream === true ? { stream: true } : {}),
       sourceSpan: fn.sourceSpan ?? null,
       handlerForm: fn.handlerForm
         ?? (fn.runtime?.IbexModule ? 'module' : 'plan'),

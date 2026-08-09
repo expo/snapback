@@ -1332,6 +1332,7 @@ fn base_room_auth(user_id: &str) -> AuthContext {
         ),
         user_id: Some(user_id.to_owned()),
         permissions: BTreeSet::new(),
+        stream_initiator: None,
     }
 }
 
@@ -1432,6 +1433,7 @@ fn room_subscribe_for(connection_id: &str, auth: AuthContext, game_id: &str) -> 
         scope: room_scope_for(game_id),
         connection_id: connection_id.to_owned(),
         auth,
+        since_chunk: None,
     }
 }
 

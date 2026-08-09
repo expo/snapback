@@ -420,6 +420,13 @@
         "$ref": "#/$defs/ReadDependency"
       },
       "type": "array"
+    },
+    "streamConnectionId": {
+      "description": "Anonymous streaming actions bind their private room to an already-open\nconnection grant. Authenticated callers omit this: their resolved user\nor service credential is the reconnect-stable initiator identity.\n\n@ref LLP 0204#d91--streaming-conversations — anonymous\nstreams are connection-private rather than bearer-by-room-name.",
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "title": "FiniteQueryRequest",

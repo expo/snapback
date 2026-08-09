@@ -2904,6 +2904,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
                 scope: Scope::from_pairs([("doc", "d1")]),
                 connection_id: "conn_1".to_owned(),
                 auth: Default::default(),
+                since_chunk: None,
             },
         },
         LiveSocketClientMessage::EphemeralDelete {

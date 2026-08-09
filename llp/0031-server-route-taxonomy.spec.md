@@ -5,7 +5,8 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-09 (LLP 0204 S2 Landing E remote MCP server and Landing C local OAuth facade;
+**Revised:** 2026-08-09 (LLP 0204 S4 Landing A private stream transcript and
+cancel routes; earlier S2 Landing E remote MCP server and Landing C local OAuth facade;
 earlier Landing B declared-client operator routes, Landing A integration lifecycle, and S1 `/api/v1` plus
 `api.origins` bearer-token CORS — see dated amendments).
 2026-08-08 (hosted app-data SPA-fallback refusal: reserved
@@ -1634,6 +1635,39 @@ declared-tier semantics on `/mcp`; the bare first-party routes still ignore it.
 The JSON-RPC route has honest-null schema references because its method and
 tool schemas are generated from the current envelope rather than committed as
 standalone Rust DTO schema artifacts.
+
+## Dated amendment: LLP 0204 S4 private stream routes (2026-08-09)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md) D9.1;
+**implemented** by `S4 Landing A`.
+
+The first streaming-conversation landing adds two exact root AppData route
+rows. Neither is a chunk transport: live chunks use the already-classified
+connection-authenticated live/ephemeral socket machinery.
+
+| Route | Policy tuple | Result |
+| --- | --- | --- |
+| `GET /streams/{attempt_token}` | dev `AppAuth`/`LegacyBodyAuth`/`ClientAsserted`; sessions overlay → `SessionAuth`/`RequiredSessionOrScopedToken`/`ResolvedCaller`, legacy body authority rejected; `SensitiveApplicationData` | immutable transcript for the initiating session user or service credential; unknown → 404, known foreign → 403; `no-store, private` |
+| `POST /streams/{attempt_token}/cancel` | same tuple | same-initiator cancellation of the host-owned attempt; the committed terminal winner is returned; `no-store, private` |
+
+The path token is an opaque locator, never its own authority. Both handlers
+compare the resolved session-user or service-credential identity with the
+attempt's durable initiator identity after lookup. Anonymous chunk viewing is
+connection-bound on the existing live transport and has no transcript HTTP
+read lane in v1.
+
+Streaming actions invoked anonymously additionally bind the ordinary action
+request's optional `streamConnectionId` to the existing
+`Snapback-Connection-Token` carrier through the connection registry before an
+attempt can start. The body field is a locator and the header remains the sole
+connection credential; a non-anonymous connection authority is refused. This
+closed branch exists only for a manifest-proven `stream: true` action and does
+not make the general action route connection-authenticated.
+
+Route registry parity, invocation-source mapping (`HttpQuery` for transcript
+read, `HttpAction` for cancel), sessions carrier coverage, empty-body probes,
+error status mapping, and the guide surface map cover both exact rows. The
+remote `/mcp` contract remains stateless and does not gain GET streaming.
 
 ## Status
 

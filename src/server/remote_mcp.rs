@@ -397,6 +397,7 @@ async fn call_tool(
                 Result::<_, JsonRejection>::Ok(Json(FiniteQueryRequest {
                     request: FunctionCallRequest {
                         input,
+                        stream_connection_id: None,
                         expected_generation: None,
                     },
                     ..FiniteQueryRequest::default()
@@ -420,12 +421,15 @@ async fn call_tool(
             .await
         }
         FunctionKind::Action => invoke_action(
+            State(runtime.clone()),
             State(state.clone()),
+            HeaderMap::new(),
             Extension(authority.clone()),
             Extension(route),
             Path(tool.function_name.clone()),
             Result::<_, JsonRejection>::Ok(Json(FunctionCallRequest {
                 input,
+                stream_connection_id: None,
                 expected_generation: None,
             })),
         )

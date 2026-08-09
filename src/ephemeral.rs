@@ -600,6 +600,9 @@ impl ConnectionEffectFence {
 pub struct Scope(BTreeMap<String, String>);
 
 impl Scope {
+    pub fn get(&self, field: &str) -> Option<&str> {
+        self.0.get(field).map(String::as_str)
+    }
     pub fn from_pairs<I, K, V>(pairs: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
@@ -622,9 +625,6 @@ impl Scope {
             .join("|")
     }
 
-    pub(crate) fn get(&self, field: &str) -> Option<&str> {
-        self.0.get(field).map(String::as_str)
-    }
 
     fn routed_key(&self, routing_fields: &[String]) -> Option<String> {
         if routing_fields.is_empty() {
@@ -770,6 +770,8 @@ pub struct AuthContext {
     pub session_id: Option<String>,
     pub user_id: Option<String>,
     pub permissions: BTreeSet<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stream_initiator: Option<crate::stream_attempt::StreamInitiator>,
 }
 
 impl AuthContext {
@@ -784,6 +786,7 @@ impl AuthContext {
 pub enum AccessPolicy {
     AllowAll,
     RequireRoomPermission { prefix: String },
+    RequireStreamInitiator,
 }
 
 impl AccessPolicy {
@@ -793,7 +796,43 @@ impl AccessPolicy {
             Self::RequireRoomPermission { prefix } => auth
                 .permissions
                 .contains(&format!("{prefix}:{}", scope.normalized_key())),
+            Self::RequireStreamInitiator => scope
+                .get("attemptToken")
+                .zip(auth.stream_initiator.as_ref())
+                .is_some_and(|(attempt, candidate)| {
+                    crate::stream_attempt::global_stream_attempt_registry()
+                        .authorize_stream_initiator(attempt, candidate)
+                        .is_ok()
+                }),
         }
+    }
+}
+
+pub const STREAM_COLLECTION_NAME: &str = "_snapback_stream";
+
+/// The platform-owned live chunk room. It is installed only while the served
+/// function manifest contains at least one `stream: true` action.
+pub fn stream_collection_definition() -> EphemeralCollection {
+    EphemeralCollection {
+        name: STREAM_COLLECTION_NAME.to_owned(),
+        scope_fields: vec!["attemptToken".to_owned()],
+        scope_contract: serde_json::json!({"kind":"object","fields":{"attemptToken":"string"}}),
+        value_contract: serde_json::json!({"kind":"stream-chunk-v1"}),
+        key_mode: KeyMode::Custom,
+        routing_fields: vec!["attemptToken".to_owned()],
+        default_ttl_ms: 30_000,
+        max_ttl_ms: 30_000,
+        max_value_bytes: 20 * 1024,
+        hard_max_value_bytes: 20 * 1024,
+        sustained_hz: crate::stream_attempt::STREAM_CHUNKS_PER_SECOND as u32,
+        burst: crate::stream_attempt::STREAM_CHUNKS_PER_SECOND as u32,
+        dispatch_ms: 1,
+        publish: AccessPolicy::RequireRoomPermission {
+            prefix: "_snapback_stream_server".to_owned(),
+        },
+        subscribe: AccessPolicy::RequireStreamInitiator,
+        permission_backing: None,
+        max_pending_ephemeral_keys: 1_024,
     }
 }
 
@@ -1104,6 +1143,16 @@ pub struct SubscribeRequest {
     pub scope: Scope,
     pub connection_id: ConnectionId,
     pub auth: AuthContext,
+    #[serde(default, rename = "sinceChunk", alias = "since_chunk")]
+    pub since_chunk: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamResumeInfo {
+    pub truncated: bool,
+    pub next_chunk: u64,
+    pub transcript_path: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1266,6 +1315,8 @@ pub enum EphemeralMessage {
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         high_water_version: u64,
         entries: Vec<EphemeralEntry>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stream_resume: Option<StreamResumeInfo>,
     },
     Upsert {
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -4884,6 +4935,12 @@ impl LocalEphemeralBackend {
             .is_some_and(collection_requires_room_permission)
     }
 
+    pub fn subscription_requires_room_permission(&self, name: &str) -> bool {
+        self.collection_if_loaded(name).is_some_and(|collection| {
+            matches!(collection.subscribe, AccessPolicy::RequireRoomPermission { .. })
+        })
+    }
+
     pub(crate) fn collection_definition(&self, name: &str) -> Option<EphemeralCollection> {
         self.collection_if_loaded(name)
     }
@@ -5442,6 +5499,7 @@ impl LocalEphemeralBackend {
                     room_authority_generation,
                     high_water_version,
                     entries: entries.clone(),
+                    stream_resume: None,
                 }),
                 effect_fence.clone(),
             ));
@@ -6380,11 +6438,45 @@ impl LocalEphemeralBackend {
             // enqueue. Fan-out keeps this handle and does not take the
             // store-global outbox map on the hot path.
             let outbox = self.ensure_outbox(&request.connection_id);
-            let entries = room
+            let mut entries: Vec<EphemeralEntry> = room
                 .entries
                 .iter()
                 .map(|(key, record)| record.to_entry(key))
                 .collect();
+            let stream_resume = if collection.name == STREAM_COLLECTION_NAME {
+                let attempt_token = request.scope.get("attemptToken").unwrap_or_default();
+                let retained_indexes = entries
+                    .iter()
+                    .filter_map(|entry| serde_json::from_slice::<Value>(&entry.value).ok())
+                    .filter_map(|value| value.get("chunkIndex").and_then(Value::as_u64))
+                    .collect::<Vec<_>>();
+                if let Some(since) = request.since_chunk {
+                    entries.retain(|entry| {
+                        serde_json::from_slice::<Value>(&entry.value)
+                            .ok()
+                            .and_then(|value| value.get("chunkIndex").and_then(Value::as_u64))
+                            .is_some_and(|index| index > since)
+                    });
+                }
+                let next_chunk = crate::stream_attempt::global_stream_attempt_registry()
+                    .stream_output(attempt_token)
+                    .map_or(0, |attempt| attempt.chunk_count);
+                let truncated = request.since_chunk.is_some_and(|since| {
+                    let expected = since.saturating_add(1);
+                    retained_indexes
+                        .iter()
+                        .min()
+                        .is_some_and(|minimum| expected < *minimum)
+                        || (retained_indexes.is_empty() && expected < next_chunk)
+                });
+                Some(StreamResumeInfo {
+                    truncated,
+                    next_chunk,
+                    transcript_path: format!("/streams/{attempt_token}"),
+                })
+            } else {
+                None
+            };
             room.subscribers.insert(
                 request.connection_id.clone(),
                 SubscriberState {
@@ -6407,6 +6499,7 @@ impl LocalEphemeralBackend {
                 room_authority_generation,
                 high_water_version: room.next_entry_version.saturating_sub(1),
                 entries,
+                stream_resume,
             })
         }) {
             Ok(inner) => inner,
@@ -8830,12 +8923,15 @@ pub fn validate_collection_definitions(
         if collection.max_value_bytes == 0
             || collection.hard_max_value_bytes == 0
             || collection.max_value_bytes > collection.hard_max_value_bytes
-            || collection.hard_max_value_bytes > 4_096
+            || (collection.hard_max_value_bytes > 4_096
+                && collection.name != STREAM_COLLECTION_NAME)
+            || (collection.name == STREAM_COLLECTION_NAME
+                && collection.hard_max_value_bytes > 20 * 1024)
         {
             return Err(EphemeralError::new(
                 EphemeralErrorCode::IncompatibleCollectionDefinition,
                 format!(
-                    "ephemeral collection {} value budget must satisfy 0 < max <= hardMax <= 4096",
+                    "ephemeral collection {} value budget is outside the admitted ceiling",
                     collection.name
                 ),
             ));
@@ -8877,6 +8973,15 @@ pub fn validate_collection_permission_backing(
     require_for_protected: bool,
 ) -> Result<(), EphemeralError> {
     for collection in collections {
+        if collection.name == STREAM_COLLECTION_NAME {
+            return Err(EphemeralError::new(
+                EphemeralErrorCode::IncompatibleCollectionDefinition,
+                format!(
+                    "ephemeral collection {} is reserved for platform streaming",
+                    STREAM_COLLECTION_NAME
+                ),
+            ));
+        }
         let protected = collection_requires_room_permission(collection);
         let Some(projection) = collection.permission_backing.as_ref() else {
             if require_for_protected && protected {
@@ -10362,7 +10467,136 @@ mod tests {
             auth: auth_for(&scope),
             scope,
             connection_id: connection_id.to_owned(),
+            since_chunk: None,
         }
+    }
+
+    #[test]
+    fn reserved_stream_room_is_initiator_private_ordered_and_gap_explicit() {
+        let backend = LocalEphemeralBackend::new();
+        backend
+            .register_collection(stream_collection_definition())
+            .expect("platform stream collection");
+        let runner = crate::stream_attempt::StreamRunnerIdentity::new(Arc::new(
+            std::sync::atomic::AtomicBool::new(false),
+        ));
+        let initiator = crate::stream_attempt::StreamInitiator::SessionUser("user-a".to_owned());
+        let client_key = format!("ephemeral-stream-test:{}", uuid::Uuid::new_v4());
+        let attempt = crate::stream_attempt::global_stream_attempt_registry()
+            .start_with_metadata(
+                usize::MAX - 7,
+                &client_key,
+                &runner,
+                None,
+                crate::stream_attempt::StreamAttemptMetadata {
+                    function_id: Some("app:conversation".to_owned()),
+                    initiator: Some(initiator.clone()),
+                    started_at_ms: 1_000,
+                },
+            )
+            .expect("stream attempt");
+        let scope = Scope::from_pairs([("attemptToken", attempt.attempt_token.as_str())]);
+
+        let subscribe = |connection_id: &str, candidate, since_chunk| SubscribeRequest {
+            collection: STREAM_COLLECTION_NAME.to_owned(),
+            scope: scope.clone(),
+            connection_id: connection_id.to_owned(),
+            auth: AuthContext {
+                stream_initiator: Some(candidate),
+                ..AuthContext::default()
+            },
+            since_chunk,
+        };
+        backend
+            .subscribe(subscribe("first", initiator.clone(), None), 1_000)
+            .expect("initiator first connection");
+        backend
+            .subscribe(subscribe("second", initiator.clone(), None), 1_000)
+            .expect("same user second connection reconnects");
+        for (connection, outsider) in [
+            (
+                "other-user",
+                crate::stream_attempt::StreamInitiator::SessionUser("user-b".to_owned()),
+            ),
+            (
+                "service",
+                crate::stream_attempt::StreamInitiator::ServiceCredential("credential-b".to_owned()),
+            ),
+            (
+                "anonymous",
+                crate::stream_attempt::StreamInitiator::AnonymousConnection("anonymous".to_owned()),
+            ),
+        ] {
+            assert_eq!(
+                backend
+                    .subscribe(subscribe(connection, outsider, None), 1_000)
+                    .expect_err("second principal refused")
+                    .code,
+                EphemeralErrorCode::Unauthorized
+            );
+        }
+
+        // Reserve five monotonic indexes, but retain only 3 and 4. This is
+        // the post-eviction shape a reconnect must distinguish from a full
+        // replay; chunks themselves remain live-only.
+        for _ in 0..5 {
+            crate::stream_attempt::global_stream_attempt_registry()
+                .emit_chunk(&attempt.attempt_token, 1, &runner)
+                .expect("reserve chunk index");
+        }
+        for index in [3_u64, 4] {
+            backend
+                .publish(
+                    PublishRequest {
+                        collection: STREAM_COLLECTION_NAME.to_owned(),
+                        scope: scope.clone(),
+                        connection_id: "server".to_owned(),
+                        session_id: None,
+                        user_id: None,
+                        custom_key: Some(format!("{index:020}")),
+                        value: serde_json::to_vec(&serde_json::json!({
+                            "attemptToken": attempt.attempt_token.clone(),
+                            "chunkIndex": index,
+                            "chunk": index,
+                        }))
+                        .unwrap(),
+                        ttl_ms: None,
+                        auth: AuthContext::default()
+                            .with_room_permission("_snapback_stream_server", &scope),
+                    },
+                    1_001 + index,
+                )
+                .expect("server publish");
+        }
+
+        let replay = backend
+            .subscribe(subscribe("third", initiator.clone(), Some(3)), 1_010)
+            .expect("retained replay");
+        let EphemeralMessage::Snapshot {
+            entries,
+            stream_resume: Some(resume),
+            ..
+        } = replay
+        else {
+            panic!("stream replay snapshot")
+        };
+        assert_eq!(entries.len(), 1);
+        assert_eq!(serde_json::from_slice::<Value>(&entries[0].value).unwrap()["chunkIndex"], 4);
+        assert!(!resume.truncated);
+        assert_eq!(resume.next_chunk, 5);
+
+        let gap = backend
+            .subscribe(subscribe("fourth", initiator, Some(0)), 1_010)
+            .expect("gap snapshot");
+        let EphemeralMessage::Snapshot {
+            stream_resume: Some(resume),
+            ..
+        } = gap
+        else {
+            panic!("stream gap snapshot")
+        };
+        assert!(resume.truncated);
+        assert_eq!(resume.transcript_path, format!("/streams/{}", attempt.attempt_token));
     }
 
     fn delete_request(connection_id: &str) -> DeleteRequest {
@@ -10721,6 +10955,7 @@ mod tests {
             scope: scope(),
             connection_id: "observer".to_owned(),
             auth: AuthContext::default(),
+            since_chunk: None,
         };
         let first = backend.subscribe(subscribe, 1_000).unwrap();
         let first_epoch = first.scope_epoch().unwrap();
@@ -12291,6 +12526,7 @@ mod tests {
             scope: publish.scope.clone(),
             connection_id: oversized_connection,
             auth: publish.auth.clone(),
+            since_chunk: None,
         };
         assert_eq!(
             backend
@@ -12469,6 +12705,7 @@ mod tests {
             scope: Scope::from_pairs([("boardId", board)]),
             connection_id: connection.to_owned(),
             auth: AuthContext::default(),
+            since_chunk: None,
         };
 
         backend
@@ -12713,6 +12950,7 @@ mod tests {
                     auth: auth_for(&scope_b),
                     scope: scope_b,
                     connection_id: "y".to_owned(),
+                    since_chunk: None,
                 },
                 1_001,
             )
@@ -12763,6 +13001,7 @@ mod tests {
                     auth: auth_for(&scope_b),
                     scope: scope_b,
                     connection_id: "a".to_owned(),
+                    since_chunk: None,
                 },
                 1_001,
             )
@@ -13186,6 +13425,7 @@ mod tests {
                 scope_epoch: 1,
                 entry_version: 2,
             }],
+            stream_resume: None,
         });
 
         let stale = EphemeralMessage::Upsert {
@@ -13230,6 +13470,7 @@ mod tests {
                 room_authority_generation: 0,
                 high_water_version: 1,
                 entries: vec![entry(1, b"present")],
+                stream_resume: None,
             }),
             OverlayApply::Applied
         );
@@ -13241,6 +13482,7 @@ mod tests {
                 room_authority_generation: 0,
                 high_water_version: 2,
                 entries: Vec::new(),
+                stream_resume: None,
             }),
             OverlayApply::Applied
         );
@@ -13276,6 +13518,7 @@ mod tests {
                 scope_epoch: 1,
                 entry_version: 1,
             }],
+            stream_resume: None,
         });
         assert_eq!(
             overlay.apply(&EphemeralMessage::Remove {
@@ -13452,6 +13695,7 @@ mod tests {
                 scope_epoch: 1,
                 entry_version: 1,
             }],
+            stream_resume: None,
         });
 
         overlay.prune_expired(5);
@@ -13536,6 +13780,7 @@ mod tests {
                     scope: scope_one.clone(),
                     connection_id: "observer".to_owned(),
                     auth: auth_one.clone(),
+                    since_chunk: None,
                 },
                 1_000,
             )
@@ -13547,6 +13792,7 @@ mod tests {
                     scope: scope_two.clone(),
                     connection_id: "observer".to_owned(),
                     auth: auth_two.clone(),
+                    since_chunk: None,
                 },
                 1_000,
             )
@@ -13622,6 +13868,7 @@ mod tests {
                     scope: scope.clone(),
                     connection_id: "observer".to_owned(),
                     auth: AuthContext::default(),
+                    since_chunk: None,
                 },
                 1_000,
             )
@@ -13694,6 +13941,7 @@ mod tests {
                         scope: Scope::from_pairs([("boardId", board)]),
                         connection_id: "observer".to_owned(),
                         auth: AuthContext::default(),
+                        since_chunk: None,
                     },
                     1_000,
                 )
@@ -13883,6 +14131,7 @@ mod tests {
             scope: Scope::from_pairs([("boardId", "board-1")]),
             connection_id: connection.to_owned(),
             auth: AuthContext::default(),
+            since_chunk: None,
         };
         backend.subscribe(subscribe("obs-1"), 1_002).unwrap();
         let subscriber_cap = backend.subscribe(subscribe("obs-2"), 1_002).unwrap_err();
@@ -13970,6 +14219,7 @@ mod tests {
                 scope_epoch: old_upsert_version.scope_epoch,
                 entry_version: old_upsert_version.entry_version,
             }],
+            stream_resume: None,
         });
 
         // The room empties (no subscribers, entries expire) and is pruned.
@@ -14141,6 +14391,7 @@ mod tests {
                     scope: scope(),
                     connection_id: "observer".to_owned(),
                     auth: AuthContext::default(),
+                    since_chunk: None,
                 },
                 1_001,
             )
@@ -14288,6 +14539,7 @@ mod tests {
             scope: Scope::from_pairs([("boardId", "board-1")]),
             connection_id: "observer".to_owned(),
             auth: AuthContext::default(),
+            since_chunk: None,
         };
         backend.subscribe(subscribe.clone(), 1_000).unwrap();
         backend.enqueue_durable("observer", b"{\"kind\":\"live_replace\"}".to_vec());
@@ -14353,6 +14605,7 @@ mod tests {
             scope: Scope::from_pairs([("boardId", "board-1")]),
             connection_id: "observer".to_owned(),
             auth: AuthContext::default(),
+            since_chunk: None,
         };
         let first = backend.subscribe(subscribe.clone(), 1_000).unwrap();
         let EphemeralMessage::Snapshot {
@@ -14506,6 +14759,7 @@ mod tests {
                     scope: Scope::from_pairs([("boardId", "board-1")]),
                     connection_id: "observer".to_owned(),
                     auth: AuthContext::default(),
+                    since_chunk: None,
                 },
                 now,
             )
@@ -15880,6 +16134,7 @@ mod tests {
             scope: Scope::from_pairs([("boardId", board)]),
             connection_id: "terminal".to_owned(),
             auth: AuthContext::default(),
+            since_chunk: None,
         };
         let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
         backend

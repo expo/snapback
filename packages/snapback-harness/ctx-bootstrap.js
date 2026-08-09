@@ -1095,6 +1095,13 @@
           return host("action.streamAttemptSettle", { attemptToken: attemptToken, cause: cause });
         }
       };
+      // @ref LLP 0204#d91--streaming-conversations — the host
+      // checks the compiled stream fact, bounds, lease, and private room.
+      ctx.stream = {
+        emit: function(chunk) {
+          return host("action.streamEmit", { chunk: chunk });
+        }
+      };
     } else {
       ctx.push = {
         audience: function() {
@@ -1117,6 +1124,11 @@
         },
         settle: function() {
           throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "streamAttempt");
+        }
+      };
+      ctx.stream = {
+        emit: function() {
+          throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "stream.emit");
         }
       };
       // LLP 0056 M3: ctx.permissions.<declaration>.requireRole(resource, ...roles).

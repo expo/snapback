@@ -1742,6 +1742,52 @@ export default defineSchema({
   );
 }
 
+// @ref LLP 0204#d91--streaming-conversations — `stream` is a
+// compiled action fact. Other function kinds reject the spelling at authoring
+// time, while the accepted action carries it into the served manifest basis.
+{
+  const streamed = await validCase({
+    functions: `
+import { defineAction } from '${defineUrl}';
+export const conversation = defineAction({
+  stream: true,
+  args: {},
+  handler: async (ctx) => {
+    await ctx.stream.emit('hello');
+    await ctx.stream.emit({ kind: 'done' });
+    return 'hello';
+  },
+});
+`,
+  });
+  const manifest = JSON.parse(
+    readFileSync(join(streamed.outDir, 'functions.manifest.json'), 'utf8'),
+  );
+  assert.equal(manifest.functions[0].kind, 'Action');
+  assert.equal(manifest.functions[0].stream, true);
+  assert.match(manifest.functions[0].implementationHash, /^sha256:/u);
+
+  for (const functions of [
+    `
+import { defineQuery } from '${defineUrl}';
+export const illegalQuery = defineQuery({ table: 'todos', args: {}, stream: true });
+`,
+    `
+import { defineMutation, insert, lit } from '${defineUrl}';
+export const illegalMutation = defineMutation({
+  stream: true,
+  plan: insert('todos', { title: lit('nope') }),
+});
+`,
+  ]) {
+    const diagnostics = await invalidCase({ functions });
+    assert(
+      diagnostics.some((diagnostic) => /stream/u.test(diagnostic.message ?? '')),
+      `expected stream kind refusal, got ${JSON.stringify(diagnostics)}`,
+    );
+  }
+}
+
 for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
 
 console.log('authoring-validation.test.mjs: all cases passed');

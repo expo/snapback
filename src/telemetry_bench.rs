@@ -460,6 +460,7 @@ fn measure_http_amplification(
     let disabled_router = crate::server::router(disabled);
     let body = serde_json::to_vec(&crate::manifest::FunctionCallRequest {
         input: crate::bench::args(json!({})),
+        stream_connection_id: None,
         expected_generation: None,
     })
     .map_err(|error| bench_error("SNAPBACK_TELEMETRY_BENCH_HTTP_FAILED", error.to_string()))?;

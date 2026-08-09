@@ -6,7 +6,10 @@
 Hosted platform, Developer experience, Docs
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (v0.7 — **Accepted** by author direction after
+**Revised:** 2026-08-09 (S4 Landing A implements the bounded private
+streaming-action primitive described in D9.1; `ask`, wire `run_code`, SSE,
+shared viewing, history queries, and token accounting remain deferred).
+2026-08-08 (v0.7 — **Accepted** by author direction after
 the OQ8 refinement: the declared-tier contact requirement is satisfied
 by an e-mail address embedded in the client-id string itself, no
 separate field. Super-refine dual-READY verdicts bind v0.5 = 310745d3d;
@@ -684,6 +687,28 @@ honest on gated targets. A Vercel AI SDK-compatible SSE endpoint
 (`/api/v1/stream/...`) is a projection for drop-in chat UIs, not the
 core. Token accounting integrates with the D5/D7 budget ladder.
 
+**Implementation note (S4 Landing A, 2026-08-09):** `defineAction` now accepts
+the action-only manifest fact `stream: true`, and Ibex actions emit strings or
+bounded JSON values through `ctx.stream.emit`. The host starts a durable
+single-runner attempt before returning its opaque token, then publishes
+zero-based, monotonically indexed chunks through the reserved `_snapback_stream` ephemeral
+collection. The v1 limits are 16 KiB per serialized chunk, 2 MiB per attempt,
+and 20 chunks per rolling second. Subscription is private to the initiating
+session user, service credential, or anonymous connection; the same session
+user may reconnect from a second connection, while another principal is
+refused.
+
+The manifest activates an exact protected transcript table only when at least
+one streaming action exists. Immutable terminal rows record attempt/function/
+initiator identity, start and settlement times, cause, a final value bounded to
+256 KiB, chunk count, and nullable token counts. Chunks and reconnect cursors
+are not durable. `sinceChunk` resumes only from retained live chunks and marks
+a missing prefix `truncated` with a `/streams/{attemptToken}` transcript
+pointer. Initiator-scoped transcript read and cancel routes are registered as
+private no-store AppData operations. This landing does not flip `ask`, wire
+`run_code`, the AI-SDK SSE projection, durable history queries, shared viewing,
+or token metering.
+
 ### D9.2 — Generated agent skill
 
 Every app serves an installable Agent Skill — a small, digest-pinned
@@ -919,6 +944,12 @@ each entry keeps the question and records the ruling.
 
 ## Revision history
 
+- 2026-08-09 — S4 Landing A implemented the D9.1 private streaming-action
+  primitive: action-only manifest fact and implementation identity,
+  `ctx.stream.emit`, bounded server-authorized ephemeral delivery, initiator
+  privacy, live retained reconnect hints, immutable manifest-gated transcript
+  settlement, process-death reconciliation, cancellation, route taxonomy, and
+  focused proofs. The wider D9.1 projections remain explicitly deferred.
 - 2026-08-08 — v0.1 Draft. Synthesis of the 2026-08-08 corpus survey
   (agent-access primitives: LLPs 0024, 0055, 0062, 0149, 0150) and the
   competitive survey (Convex, Supabase, Firebase, PocketBase, Hasura,
