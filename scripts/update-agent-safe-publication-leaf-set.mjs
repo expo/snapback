@@ -12,28 +12,19 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { generatedPublicationPathsAt } from './check-agent-safe-publication.mjs';
-import { CODEGEN_JOBS, codegenOutputRoot } from './generated-artifact-policy.mjs';
+import { isContentAddressedFullyCommittedLeaf } from './generated-artifact-policy.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const TEST_PATH = resolve(ROOT, 'tests/agent_safe_publication_checker_v1.mjs');
 const BEGIN = '  // BEGIN GENERATED PUBLICATION LEAF SET\n';
 const END = '  // END GENERATED PUBLICATION LEAF SET\n';
-const CONTENT_ADDRESSED_ROOTS = new Set(CODEGEN_JOBS.map(codegenOutputRoot));
-const CONTENT_ADDRESSED_LEAF = /^(?:app\.binding\.[0-9a-f]{64}\.mjs|app\.descriptor\.[0-9a-f]{64}\.json)$/u;
-
-function isContentAddressedLeaf(path) {
-  const separator = path.lastIndexOf('/');
-  return separator !== -1
-    && CONTENT_ADDRESSED_ROOTS.has(path.slice(0, separator))
-    && CONTENT_ADDRESSED_LEAF.test(path.slice(separator + 1));
-}
 
 const revision = execFileSync('git', ['rev-parse', '--verify', 'HEAD^{commit}'], {
   cwd: ROOT,
   encoding: 'utf8',
 }).trim();
 const paths = [...generatedPublicationPathsAt(ROOT, revision).keys()]
-  .filter((path) => !isContentAddressedLeaf(path))
+  .filter((path) => !isContentAddressedFullyCommittedLeaf(path))
   .sort();
 const source = readFileSync(TEST_PATH, 'utf8');
 const beginAt = source.indexOf(BEGIN);

@@ -56,6 +56,7 @@ import {
   FULLY_COMMITTED_ROOTS,
   REVIEW_CACHE_ROOTS,
   codegenOutputRoot,
+  isContentAddressedFullyCommittedLeaf,
 } from '../scripts/generated-artifact-policy.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -2618,20 +2619,6 @@ test('generated-artifact registry covers every codegen job exactly once', () => 
   assert.deepEqual(ADMIN_GENERATED_ROOTS, ['admin-ui/generated']);
 });
 
-const CONTENT_ADDRESSED_GENERATED_ROOTS = new Set(CODEGEN_JOBS.map(codegenOutputRoot));
-const CONTENT_ADDRESSED_APP_BINDING = /^app\.binding\.[0-9a-f]{64}\.mjs$/u;
-const CONTENT_ADDRESSED_APP_DESCRIPTOR = /^app\.descriptor\.[0-9a-f]{64}\.json$/u;
-
-function isRegisteredContentAddressedGeneratedLeaf(path) {
-  const separator = path.lastIndexOf('/');
-  if (separator === -1) return false;
-  return CONTENT_ADDRESSED_GENERATED_ROOTS.has(path.slice(0, separator))
-    && (
-      CONTENT_ADDRESSED_APP_BINDING.test(path.slice(separator + 1))
-      || CONTENT_ADDRESSED_APP_DESCRIPTOR.test(path.slice(separator + 1))
-    );
-}
-
 const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   // BEGIN GENERATED PUBLICATION LEAF SET
   'admin-ui/generated/contract/activateNetworkProfile.mutation.contract-meta.ts',
@@ -2920,7 +2907,7 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
 
 export function auditReviewedGeneratedPublicationPaths(generated) {
   const actual = new Set(
-    [...generated.keys()].filter((path) => !isRegisteredContentAddressedGeneratedLeaf(path)),
+    [...generated.keys()].filter((path) => !isContentAddressedFullyCommittedLeaf(path)),
   );
   const unexpected = [...actual]
     .filter((path) => !REVIEWED_GENERATED_PUBLICATION_PATHS.has(path))
@@ -2947,55 +2934,134 @@ export function auditAgentSafePublicationLeafSet({
   return auditReviewedGeneratedPublicationPaths(generated);
 }
 
-test('P-vs-C generated allowance is the exact qualification-C leaf set', () => {
+function currentGeneratedPublicationPaths() {
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
-  const generated = generatedPublicationPathsAt(root, head);
+  return generatedPublicationPathsAt(root, head);
+}
+
+function assertUnexpectedGeneratedLeaf(generated, unexpectedPath, entry) {
+  const widened = new Map(generated).set(unexpectedPath, entry);
+  assert.throws(
+    () => assertReviewedGeneratedPublicationPaths(widened),
+    (error) => {
+      assert.deepEqual(error.actual, { unexpected: [unexpectedPath], missing: [] });
+      return true;
+    },
+    unexpectedPath,
+  );
+}
+
+test('P-vs-C generated allowance exactly enumerates non-content-addressed leaves', () => {
+  const generated = currentGeneratedPublicationPaths();
   assertReviewedGeneratedPublicationPaths(generated);
+
+  const generatedPath = 'demos/todo/snapback/generated/artifacts.json';
+  const expected = generated.get(generatedPath);
+  const sameMode = new Map([[generatedPath, { ...expected }]]);
+  assert.equal(allowedPublicationChange(
+    { status: 'M', path: generatedPath }, generated, sameMode,
+  ), true);
+  for (const status of ['A', 'D', 'R100', 'T']) {
+    assert.equal(allowedPublicationChange(
+      { status, path: generatedPath }, generated, sameMode,
+    ), false, status);
+  }
+  assert.equal(allowedPublicationChange(
+    { status: 'M', path: generatedPath },
+    generated,
+    new Map([[generatedPath, { mode: '120000', type: 'blob' }]]),
+  ), false);
+  // A P manifest cannot widen this set: only paths frozen from C are queried.
+  assert.equal(generated.has('demos/todo/snapback/generated/evil.mjs'), false);
+});
+
+test('reviewed leaf set survives app content-address rotation under a fully committed root', () => {
+  const generated = currentGeneratedPublicationPaths();
 
   const registeredRoot = 'packages/snapback-cli/fixtures/comparator/app/snapback/generated';
   const validDigest = '0'.repeat(64);
   const existingBinding = [...generated.keys()].find((path) => (
     path.startsWith(`${registeredRoot}/app.binding.`)
-    && CONTENT_ADDRESSED_APP_BINDING.test(path.slice(registeredRoot.length + 1))
+    && isContentAddressedFullyCommittedLeaf(path)
+  ));
+  const existingDescriptor = [...generated.keys()].find((path) => (
+    path.startsWith(`${registeredRoot}/app.descriptor.`)
+    && isContentAddressedFullyCommittedLeaf(path)
   ));
   assert.ok(existingBinding, 'comparator fixture has no content-addressed binding leaf');
+  assert.ok(existingDescriptor, 'comparator fixture has no content-addressed descriptor leaf');
   const churnedBinding = `${registeredRoot}/app.binding.${validDigest}.mjs`;
+  const churnedDescriptor = `${registeredRoot}/app.descriptor.${validDigest}.json`;
   const churned = new Map(generated);
   const bindingEntry = churned.get(existingBinding);
-  churned.delete(existingBinding);
-  churned.set(churnedBinding, bindingEntry);
-  assertReviewedGeneratedPublicationPaths(churned);
-
-  for (const unexpectedPath of [
-    `${registeredRoot}/brand-new-non-hash.mjs`,
-    `${registeredRoot}/unregistered/app.binding.${validDigest}.mjs`,
-  ]) {
-    const widened = new Map(generated).set(unexpectedPath, bindingEntry);
-    assert.throws(
-      () => assertReviewedGeneratedPublicationPaths(widened),
-      (error) => {
-        assert.deepEqual(error.actual, { unexpected: [unexpectedPath], missing: [] });
-        return true;
-      },
-      unexpectedPath,
-    );
+  const descriptorEntry = churned.get(existingDescriptor);
+  for (const path of generated.keys()) {
+    if (isContentAddressedFullyCommittedLeaf(path)
+        && path.startsWith(`${registeredRoot}/`)) {
+      churned.delete(path);
+    }
   }
+  churned.set(churnedBinding, bindingEntry);
+  churned.set(churnedDescriptor, descriptorEntry);
+  assertReviewedGeneratedPublicationPaths(churned);
+});
 
+test('reviewed leaf set rejects a new content-addressed path kind under a registered root', () => {
+  const generated = currentGeneratedPublicationPaths();
+  const registeredRoot = 'packages/snapback-cli/fixtures/comparator/app/snapback/generated';
+  const unexpectedPath = `${registeredRoot}/app.runtime.${'0'.repeat(64)}.mjs`;
+  assertUnexpectedGeneratedLeaf(generated, unexpectedPath, generated.values().next().value);
+});
+
+test('reviewed leaf set rejects a content-addressed-looking leaf under an unregistered root', () => {
+  const generated = currentGeneratedPublicationPaths();
+  const registeredRoot = 'packages/snapback-cli/fixtures/comparator/app/snapback/generated';
+  const unexpectedPath = `${registeredRoot}/unregistered/app.binding.${'0'.repeat(64)}.mjs`;
+  assertUnexpectedGeneratedLeaf(generated, unexpectedPath, generated.values().next().value);
+});
+
+test('reviewed leaf set rejects every new non-content-addressed leaf', () => {
+  const generated = currentGeneratedPublicationPaths();
+  const registeredRoot = 'packages/snapback-cli/fixtures/comparator/app/snapback/generated';
+  const unexpectedPath = `${registeredRoot}/brand-new-non-hash.mjs`;
+  assertUnexpectedGeneratedLeaf(generated, unexpectedPath, generated.values().next().value);
+});
+
+test('content-addressed generated leaf matching is strict', () => {
+  const registeredRoot = 'packages/snapback-cli/fixtures/comparator/app/snapback/generated';
+  const reviewCacheRoot = 'demos/todo/snapback/generated';
+  const validDigest = '0'.repeat(64);
   for (const invalidContentAddressedPath of [
     `${registeredRoot}/app.binding.${'0'.repeat(63)}.mjs`,
     `${registeredRoot}/app.binding.${'A'.repeat(64)}.mjs`,
     `${registeredRoot}/app.binding.${validDigest}.json`,
     `${registeredRoot}/app.descriptor.${validDigest}.mjs`,
     `${registeredRoot}/arbitrary.${validDigest}.mjs`,
+    `${reviewCacheRoot}/app.binding.${validDigest}.mjs`,
     `admin-ui/generated/app.binding.${validDigest}.mjs`,
   ]) {
     assert.equal(
-      isRegisteredContentAddressedGeneratedLeaf(invalidContentAddressedPath),
+      isContentAddressedFullyCommittedLeaf(invalidContentAddressedPath),
       false,
       invalidContentAddressedPath,
     );
   }
+  assert.equal(
+    isContentAddressedFullyCommittedLeaf(
+      `${registeredRoot}/app.binding.${validDigest}.mjs`,
+    ),
+    true,
+  );
+  assert.equal(
+    isContentAddressedFullyCommittedLeaf(
+      `${registeredRoot}/app.descriptor.${validDigest}.json`,
+    ),
+    true,
+  );
+});
 
+test('P-vs-C generated allowance admits only qualification-C paths', () => {
+  const generated = currentGeneratedPublicationPaths();
   const unchangedPublicationEntries = new Map(
     [...generated].map(([path, entry]) => [path, { ...entry }]),
   );
@@ -3032,25 +3098,6 @@ test('P-vs-C generated allowance is the exact qualification-C leaf set', () => {
   ]) {
     assert.equal(allowedPublicationPath(path, generated), false, path);
   }
-
-  const generatedPath = 'demos/todo/snapback/generated/artifacts.json';
-  const expected = generated.get(generatedPath);
-  const sameMode = new Map([[generatedPath, { ...expected }]]);
-  assert.equal(allowedPublicationChange(
-    { status: 'M', path: generatedPath }, generated, sameMode,
-  ), true);
-  for (const status of ['A', 'D', 'R100', 'T']) {
-    assert.equal(allowedPublicationChange(
-      { status, path: generatedPath }, generated, sameMode,
-    ), false, status);
-  }
-  assert.equal(allowedPublicationChange(
-    { status: 'M', path: generatedPath },
-    generated,
-    new Map([[generatedPath, { mode: '120000', type: 'blob' }]]),
-  ), false);
-  // A P manifest cannot widen this set: only paths frozen from C are queried.
-  assert.equal(generated.has('demos/todo/snapback/generated/evil.mjs'), false);
 });
 
 test('P-vs-C publication path allowlist rejects executable drift', () => {

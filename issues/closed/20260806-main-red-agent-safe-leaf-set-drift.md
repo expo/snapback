@@ -1,6 +1,6 @@
 # `main` has been red for 433 commits: agent-safe leaf-set allowance drifts with every landing
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -141,3 +141,48 @@ battery form (`issues/20260803-wave3-program.md`). The pattern-based leaf
 matching follow-up below remains live and is explicitly endorsed by LLP 0189
 (Consequences: exact enumeration only where the enumerated thing is the
 claim).
+
+## Resolution (2026-08-09) — durable pattern boundary implemented
+
+The reviewed inventory now recognizes exactly two content-addressed leaf
+kinds — `app.binding.<64 lowercase hex>.mjs` and
+`app.descriptor.<64 lowercase hex>.json` — and only when the leaf's direct
+parent is an exact member of `FULLY_COMMITTED_ROOTS`. Review-cache roots,
+admin-generated roots, nested unregistered roots, near-miss digests,
+extensions, and any future content-addressed kind do not inherit that
+allowance. Every non-content-addressed leaf remains in the explicit reviewed
+set and its sorted symmetric-difference check.
+
+The matcher lives in `scripts/generated-artifact-policy.mjs` and is shared by
+the fixture audit and `scripts/update-agent-safe-publication-leaf-set.mjs`, so
+the named regeneration command cannot silently restore the former all-codegen-
+root widening. Tests rotate both hashed app leaves under a registered root and
+keep the gate green, then prove fail-closed behavior for a new hashed path
+kind, a hash-shaped leaf under an unregistered nested root, and a new ordinary
+leaf.
+
+This widening is sound under LLP 0189's Consequences rule because the changing
+hash is not the enumerated claim. The claim that remains enforced is: generated
+publication inventory consists of frozen review manifests and their selected
+consumer projections, plus regular blobs under explicitly registered fully
+committed/admin roots; within fully committed roots, only the two established
+content-addressed basename kinds may vary by digest. This preserves LLP 0162's
+separate fail-closed inventory claim and does not widen the LLP 0162/0164
+C-to-P custody boundary: `generatedPublicationPathsAt()` still derives
+publication paths from qualification C, and `allowedPublicationChange()`
+still permits only same-mode modifications of those C-frozen paths.
+
+Verification with Node 24.18.0:
+
+- `node --test tests/agent_safe_publication_checker_v1.mjs` — 110 passed,
+  0 failed.
+- `node tests/agent_safe_publication_checker_v1.mjs --leaf-set-only` — PASS,
+  281 reviewed regular leaves.
+- `node scripts/update-agent-safe-publication-leaf-set.mjs` — refreshed the
+  same 281-leaf reviewed record; no extra diff.
+- `./ref-check --verbose` — 0 errors, 0 unchecked.
+- `node scripts/check-agent-safe-publication.mjs` was run directly and reached
+  its mandatory clean-tree custody check, where it refused because this
+  implementation-scope change is intentionally uncommitted. A green full
+  oracle run is therefore a post-commit landing check; no dirty-tree bypass was
+  used.

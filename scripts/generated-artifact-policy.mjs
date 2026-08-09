@@ -4,9 +4,7 @@
 // roots reproduced by scripts/check-generated-artifacts. Publication may
 // consult this registry, but must freeze its allowed leaf set at the
 // qualification commit rather than trusting a later manifest or directory
-// prefix. Exact enumeration applies to non-content-addressed leaves;
-// content-addressed leaves under registered roots may be matched by pattern
-// (LLP 0189: exact enumeration only where the enumerated thing is the claim).
+// prefix.
 
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -90,6 +88,19 @@ export const FULLY_COMMITTED_ROOTS = Object.freeze([
 ]);
 
 export const ADMIN_GENERATED_ROOTS = Object.freeze(['admin-ui/generated']);
+
+const FULLY_COMMITTED_ROOT_SET = new Set(FULLY_COMMITTED_ROOTS);
+const CONTENT_ADDRESSED_APP_LEAF =
+  /^(?:app\.binding\.[0-9a-f]{64}\.mjs|app\.descriptor\.[0-9a-f]{64}\.json)$/u;
+
+// @ref LLP 0189#consequences — the filename hash is regenerated identity, not
+// the publication-inventory claim; root membership and leaf kind remain exact.
+export function isContentAddressedFullyCommittedLeaf(path) {
+  const separator = path.lastIndexOf('/');
+  return separator !== -1
+    && FULLY_COMMITTED_ROOT_SET.has(path.slice(0, separator))
+    && CONTENT_ADDRESSED_APP_LEAF.test(path.slice(separator + 1));
+}
 
 export function codegenOutputRoot(job) {
   const output = job.targetProfile === 'remote-service-sqlite-ibex'
