@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v1",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 181,
-  "edgeCount": 1067,
+  "moduleCount": 182,
+  "edgeCount": 1068,
   "edges": [
     {
       "from": "src/admin_impersonation.rs",
@@ -428,6 +428,12 @@
       "from": "src/assets.rs",
       "fromOwner": "background-services",
       "to": "src/assets_s3.rs",
+      "toOwner": "background-services"
+    },
+    {
+      "from": "src/assets.rs",
+      "fromOwner": "background-services",
+      "to": "src/assets_store.rs",
       "toOwner": "background-services"
     },
     {
@@ -2431,12 +2437,6 @@
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
-      "to": "src/assets_image.rs",
-      "toOwner": "background-services"
-    },
-    {
-      "from": "src/local.rs",
-      "fromOwner": "unassigned",
       "to": "src/assets_s3.rs",
       "toOwner": "background-services"
     },
@@ -2444,12 +2444,6 @@
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/assets_store.rs",
-      "toOwner": "background-services"
-    },
-    {
-      "from": "src/local.rs",
-      "fromOwner": "unassigned",
-      "to": "src/assets_video.rs",
       "toOwner": "background-services"
     },
     {
@@ -2685,6 +2679,12 @@
       "fromOwner": "unassigned",
       "to": "src/push.rs",
       "toOwner": "background-services"
+    },
+    {
+      "from": "src/local.rs",
+      "fromOwner": "unassigned",
+      "to": "src/realtime.rs",
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local.rs",
@@ -3614,6 +3614,12 @@
       "from": "src/push.rs",
       "fromOwner": "background-services",
       "to": "src/storage/auth.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/realtime.rs",
+      "fromOwner": "sync-realtime-engine",
+      "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {

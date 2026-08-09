@@ -5,7 +5,10 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-08-04 (implemented the per-app `asset-callbacks` principal and exact grants). 2026-08-03 (per-app `asset-callbacks` service principal for
+**Revised:** 2026-08-08 (LLP 0204 commissioned the integration-registration,
+integration-lifecycle, ownership, watch-anchor, DCR, and suspension design
+amendments; design only, with no implementation or capability claim — see the
+dated amendment). 2026-08-04 (implemented the per-app `asset-callbacks` principal and exact grants). 2026-08-03 (per-app `asset-callbacks` service principal for
 sessions-mode asset lifecycle callbacks — author decision sitting #2;
 see the dated amendment). 2026-08-01 (LLP 0062 app-CLI credentialed lane: exact scoped-token
 release, server-relative TTL receipts, actor/effective tuple re-attestation,
@@ -146,7 +149,7 @@ attribution block, hosted refused wholesale; round 2 — ending surfaces,
 invitation class split, one-live-credential invariant, structured scopes;
 round 1 — authority-transition reclassification, `sbat_` collision fix, plane
 narrowing, sealed projections; initial draft same day)
-**Related:** LLP 0000, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0024, LLP 0031, LLP 0039, LLP 0042, LLP 0045, LLP 0053, LLP 0056, LLP 0058
+**Related:** LLP 0000, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0024, LLP 0031, LLP 0039, LLP 0042, LLP 0045, LLP 0053, LLP 0056, LLP 0058, LLP 0150, LLP 0204
 
 ## Summary
 
@@ -2371,6 +2374,201 @@ secret, or owner bearer. Fresh execution and commit both revalidate the app
 provenance, principal, live grant, and current scope basis; mutation receipts
 retain the ordinary authority binding, and the asset work-completion receipt
 explicitly records the service actor and exact grant.
+
+## Dated amendment: LLP 0204 integration registrations and watch anchors (2026-08-08)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md),
+especially D7, D8, D9.3, and the OQ11 ruling.
+
+**Status:** design amendment only. This section is part of this RFC's Review
+contract; it does not claim that any route, migration, or capability described
+below is implemented. This amendment does not widen scoped-token routing:
+scoped tokens still address exactly the app-data invocation gate and
+`POST /connection/open` pinned in [§Routes and credential classes](#routes-and-credential-classes),
+and scoped-token minting of capability links is deferred to LLP 0204 D9.4's
+granted-link amendment set.
+
+### Integration registration class
+
+The principal model gains a named **`integration` registration class**. It is
+still a `kind: "agent"` principal rather than a new principal kind, but its
+authority profile is delegation-only. This is a necessary refinement of the
+existing registration behavior: [§Registration](#registration) says that an
+`auth.agents.template` grant is minted as an explicit registration step, and
+[§Re-credentialing](#re-credentialing-recovery-and-the-production-profile-invariant)
+says owner re-credentialing re-applies the current autonomous template. For an
+integration-class principal, template application is suppressed at **both**
+sites:
+
+- registration, including DCR-backed registration, never creates the
+  `auth.agents.template` grant; and
+- owner re-credentialing never re-applies that template to the integration.
+
+The token mint predicate extends the one in [§Grants](#grants): an integration
+credential may mint only against a live **installation grant** — a delegated
+grant whose actor is that integration principal, whose effective principal is
+the consenting user, and whose provenance binds the integration registration
+and installation ceremony. It refuses autonomous grants, template grants, and
+ordinary delegated grants lacking that installation lineage. Integration
+principals cannot hold autonomous memberships; any membership or grant that
+would authorize the principal without an effective consenting user is invalid
+for this class.
+
+Manifest activation and import/migration validate the class invariant before
+admission opens. A record with a template-derived grant, an autonomous grant,
+an autonomous membership, or an installation whose actor does not match the
+registration is refused for explicit repair; activation and migration do not
+silently delete or reinterpret authority. These checks supplement, and do not
+weaken, the existing live credential/grant checks in [§Grants](#grants).
+
+### Installation does not seat integration ownership
+
+The approval-link ownership rules in LLP 0150
+[§2, “What approval of a first-contact request creates”](./0150-agent-token-acquisition.rfc.md#2-the-approval-link-flow-agent-initiated-consent-without-the-oracle)
+normally seat the approver as owner under `open`, and under user-`invited` seat
+the invitation creator while requiring approver = inviter. Integration-class
+registrations expressly displace **both** rules: approving an installation
+never seats or transfers ownership. In `invited` mode the inviter is recorded
+only in immutable registration provenance, not as owner. Operator-minted
+invitations remain unowned as LLP 0150 already specifies.
+
+An integration record may gain an owner only through a distinct ceremony that
+proves possession of the integration credential/key, or through an operator
+action. The operator ownership-claim arm is dev/test/demo-only and refused on
+`prod`, matching the host invariant that the operator plane on `prod` may end
+agent authority but never create or assume it. Before committing the claim,
+the ceremony renders and binds into its receipt the ownership-assumption
+disclosure required by
+[§Principal kinds](#principal-kinds), [§Re-credentialing](#re-credentialing-recovery-and-the-production-profile-invariant),
+and [§Grants](#grants): ownership includes the power to re-credential and to
+assume any surviving membership authority the principal holds. The disclosure
+is mandatory even when the integration-class checks currently find no
+autonomous membership; an empty present set does not narrow the ownership
+capability.
+
+Once an owner exists, the existing owner re-credentialing verb retains its
+exact semantics: it terminally revokes every grant for fresh consent and does
+not become hygiene rotation
+([§Re-credentialing](#re-credentialing-recovery-and-the-production-profile-invariant)).
+On `prod`, that owner path remains delivery-gated by LLP 0045 because its
+operation-bound step-up challenge must reach the human
+([§Landing decomposition](#landing-decomposition)). Until that delivery seam is
+available, the operator's ending-only integration-retirement arm below is the
+backstop; no operator re-credential/assume path is introduced on `prod`.
+
+### Integration retirement
+
+The lifecycle gains the terminal verb **`integration.retire`**, invokable by
+either:
+
+- a caller proving possession of a live or attributable tombstoned credential
+  in the integration's credential family; or
+- an operator satisfying the destroy-class policy.
+
+Retirement atomically marks the integration record revoked, destroys the whole
+credential family, terminates its tokens/connections/queued carriers, and
+terminally revokes **every installation grant** issued to that integration.
+Every user must complete fresh consent before any successor registration can
+act. This is the unowned integration record's non-operator global kill path; it
+does not redefine `POST /auth/agents/rotate`, which remains the
+grant-preserving generation bump described in
+[§Credentials and tokens](#credentials-and-tokens), and it does not replace a
+user's existing right to revoke only their own installation.
+
+The key-holder arm inherits the tombstoned-family proof obligations of
+`revoke-self` in [§Credentials and tokens](#credentials-and-tokens): a bare
+public thumbprint or family identifier proves nothing; attribution is
+proof-bound, destroy-only, idempotent, retained only for the bounded family
+horizon, and reveals no data. The operator arm inherits at least the production
+protection on the existing kill verbs in
+[§Routes and credential classes](#routes-and-credential-classes): on `prod`,
+`AdminWrite` alone and the browser console credential are insufficient;
+`AgentDestroyCapability` on its domain-separated non-browser carrier is also
+required. Retirement has greater blast radius than those verbs — credential
+family plus all installations — so an implementing spec may strengthen but
+must not weaken that floor.
+
+Wire and host-operation spellings, atomic transition details, and registry rows
+belong to a future LLP 0031 amendment. Until they land,
+`integration.retire` is commissioned design, not a reachable verb.
+
+### Dynamic client registration under the registration modes
+
+RFC 7591 dynamic client registration (DCR) consumes the same
+`auth.agents.mode` policy described in [§Registration](#registration); it is
+not a bypass or a second mode:
+
+- `disabled` refuses **new integration-principal creation**. It does not
+  disable an existing integration or prevent an existing integration from
+  requesting another user's installation grant through fresh consent — the
+  same new-principal-only boundary [§Registration](#registration) states for
+  existing agents;
+- `invited` accepts DCR when the request carries a live `sbagi_` creation
+  invitation from the source selected by `invitedBy`. The registration
+  transaction revalidates the current mode, `invitedBy` value, invitation
+  class, creator, reservation, expiry, and single-use state, then consumes the
+  invitation atomically. Under `invitedBy: "operators"`, an operator-minted
+  invitation remains consumable under the existing consumption-site profile
+  gate: it is accepted on dev/test/demo, refused at consumption only on
+  `prod`, and yields an unowned integration record. Production registration
+  therefore remains user-invited or `open`, per LLP 0204 D1. The inviter is
+  retained as provenance only under the ownership exemption above; and
+- `open` creates an unowned, provisional integration-class record. DCR creates
+  no installation and no authority; each installation still requires that
+  user's consent.
+
+This uses the invitation reservation/consumption contract that LLP 0150
+[§2](./0150-agent-token-acquisition.rfc.md#2-the-approval-link-flow-agent-initiated-consent-without-the-oracle)
+already specifies, while changing only the integration ownership result named
+above.
+
+### Watch-anchoring grants
+
+The delegated-grant lifetime in [§Grants](#grants) has a 90-day hard maximum
+and treats renewal as fresh consent. LLP 0204 OQ11 commissions a distinct
+**`watchAnchor` grant profile** for durable watches. It may live longer than
+that ordinary delegated maximum, but it is strictly narrower:
+
+- it binds one immutable watch id, exactly one exposed query with its canonical
+  argument/template digest, and exactly the declared reaction scope;
+- it contains no tier wildcard, cannot authorize an ad hoc wire invocation,
+  cannot be reused by another watch, and cannot gain scopes through manifest
+  growth;
+- every scheduled evaluation and firing revalidates the anchoring principal,
+  integration/installation where present, grant, query basis, reaction basis,
+  and watch status before work or external effects begin; and
+- the user may revoke it instantly. Revocation cancels pending firings,
+  terminates retained evaluation, and kills the watch under the same
+  grant-scoped terminal disposition used by
+  [§Ending authority](#ending-authority-revocation-expiry-deactivation).
+
+The implementing spec must choose and publish the longer finite lifetime and
+renewal ceiling; this amendment does not invent an unchecked indefinite grant.
+A suspended or deleted anchoring principal kills the watch. For an
+integration-owned watch, suspension of the integration admission record also
+stops evaluation immediately; resumption never substitutes for re-consent to a
+revoked/expired watch anchor. Every reaction remains separately admitted and
+journaled under LLP 0204 D9.3.
+
+### Suspension is not revocation
+
+An integration record's `suspended` status is a reversible admission-layer
+state. While suspended it refuses new token mint, invocation, watch evaluation,
+and new installation ceremonies, but it does not itself revoke, renew, or
+replace any installation consent. Resumption merely removes that admission
+block and re-runs all ordinary live checks; only installations and watch
+anchors that remain independently live, unexpired, and unrevoked may act.
+Consent revoked or expired during suspension never resurrects.
+
+This reversible suspension delivers the immediate-stop half of LLP 0204 D7's
+operator-suspension sentence without claiming terminal revocation.
+
+This is deliberately separate from the terminal transitions enumerated in
+[§Ending authority](#ending-authority-revocation-expiry-deactivation), from
+owner re-credentialing's all-grant revocation, and from `integration.retire`.
+Those verbs remain terminal. Implementations and operator UI must never label
+suspension as credential/grant revocation or infer fresh consent from
+resumption.
 
 ## Status
 

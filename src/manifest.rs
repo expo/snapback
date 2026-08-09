@@ -11,7 +11,18 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::OnceLock;
 
-pub use crate::contract_types::{AppIdentity, AuthManifest, AuthMode, AuthRequirement};
+pub use crate::contract_types::{
+    AppIdentity, AuthManifest, AuthMode, AuthRequirement, BoundedParentVisibility,
+    BoundedProjectionField, DependencySummary, EffectCeiling, EffectCeilingRead,
+    EffectCeilingWrite, FieldManifest, FieldType, FunctionArgsContract, FunctionKind,
+    FunctionResultContract, IbexModule, IndexManifest, JoinEquality, JoinKind, PermissionScopeExpr,
+    ProjectionLeaf, ProjectionOutputKey, ProjectionSource, ProjectionVisibility,
+    ResultObjectFieldContract, ResultRowsBound, ResultValueContract, SchemaRefAuthority,
+    SequenceDeclaration, SequenceExistingOwnerAccess, SequenceScopeAccess, SourceSpan,
+    StandardPatternIdentity, StandardPatternMembershipIdentity, WriteActivityProvenanceFields,
+    WriteActivityRelation, WriteWithActivityEffectFormula, WriteWithActivityMode,
+    WriteWithActivitySourceOperation,
+};
 pub use crate::search::types::{
     FullTextSearchFactsV1, SearchClauseV1, SearchCursorLimitsV1, SearchCursorV1,
     SearchFieldClassV1, SearchFilterV1, SearchHighlightV1, SearchIndexManifestV1, SearchItemV1,
@@ -1072,100 +1083,6 @@ impl MembershipManifest {
             .map(String::as_str)
             .chain(self.pending_roles.iter().flatten().map(String::as_str))
     }
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-pub struct FieldManifest {
-    pub name: String,
-    pub field_type: FieldType,
-    #[serde(default)]
-    pub optional: bool,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-pub enum FieldType {
-    String,
-    /// A closed, declaration-ordered domain of two through eight exact string
-    /// values. The authored order is part of manifest identity and generated
-    /// TypeScript projection; storage remains the ordinary portable text
-    /// representation.
-    ///
-    /// @ref LLP 0004#dated-alignment-stored-literal-union-domains-2026-08-08
-    Enum {
-        values: Vec<String>,
-    },
-    Boolean,
-    Integer,
-    Real,
-    /// `v.vector(dimensions)` — an exact fixed-dimension binary64 vector.
-    /// Ordinary arrays keep their separate 1,024-item contract ceiling.
-    ///
-    /// @ref LLP 0132#the-vvectordimensions-value
-    Vector {
-        dimensions: u32,
-    },
-    Json,
-    /// `v.principal()` — nominal typing over the auth-principal id string space
-    /// (the same space as `ctx.auth.userId`, including LLP 0055 agent
-    /// principals). It stores and compares exactly like [`FieldType::String`];
-    /// the distinct variant lets the schema surface *name* an axis as a
-    /// principal reference. It is validated by **shape**, never by a
-    /// foreign-key existence check, because memberships may outlive a
-    /// principal's deactivation and LLP 0055 recovery preserves the id.
-    ///
-    /// @ref LLP 0056#declaring-a-membership-table — `v.principal()` is nominal
-    ///   typing over the principal-id string space, not an existence check.
-    Principal,
-    /// `v.id("table")` — a nominal application-table id. The value remains a
-    /// string on SQLite and the public wire, while the target table travels in
-    /// the manifest so membership resource bindings and helper arguments can
-    /// be checked rather than inferred from a bare string.
-    ///
-    /// @ref LLP 0056#rule-helpers — resource references must name the same
-    ///   declared resource type; a plain string cannot prove that equality.
-    Id {
-        table: String,
-    },
-    /// Framework-owned relation-incarnation stamp. It is stored as a string,
-    /// but unlike an application string it is never writable by application
-    /// arguments. The paired required foreign-key field is the complete
-    /// relationship declaration.
-    ///
-    /// @ref LLP 0110#protected-relation-incarnation-and-stamping — central
-    ///   writers overwrite the stamp from the active parent registry.
-    RelationIncarnation {
-        #[serde(rename = "foreignKeyField", alias = "foreign_key_field")]
-        foreign_key_field: String,
-        #[serde(rename = "parentTable", alias = "parent_table")]
-        parent_table: String,
-    },
-    /// `v.assetRef({ upload? })` — a typed asset reference (LLP 0044 §Typed
-    /// references; LLP 0007 dated amendment 2026-07-31). Stored as the opaque
-    /// asset id string; the commit boundary validates every write's
-    /// admission, so a raw string assignment fails there rather than by
-    /// shape. The optional `upload` restriction names the upload-intent
-    /// binding whose assets the field admits and is what lets write paths
-    /// without handler execution derive a commit-boundary admission.
-    AssetRef {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        upload: Option<String>,
-    },
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-pub struct IndexManifest {
-    pub name: String,
-    pub fields: Vec<String>,
-    /// A **true, total** unique index: SQLite/Postgres reject a second row
-    /// whose declared columns duplicate an existing one. Load-bearing for
-    /// LLP 0056 memberships, whose `(principal, resource)` uniqueness invariant
-    /// the whole primitive rests on. Non-null key axes are what keep it total —
-    /// a NULL-bearing column would admit multiple duplicate-looking rows.
-    ///
-    /// @ref LLP 0056#declaring-a-membership-table — the generated membership
-    ///   index is true-unique; today's `IndexManifest` had no uniqueness flag.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub unique: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -6474,106 +6391,6 @@ pub fn effective_query_limit(plan: &QueryPlan) -> usize {
     plan.limit.unwrap_or(QUERY_DEFAULT_LIMIT)
 }
 
-/// The schema-expanded value grammar used to validate handler results at the
-/// Rust publication boundary.
-///
-/// @ref LLP 0108#final-author-reconciliation-after-round-3 — result contracts
-/// are Rust-owned, bounded, and carried by every generated function.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
-pub enum ResultValueContract {
-    Null,
-    Boolean,
-    String {
-        #[serde(rename = "maxBytes", alias = "max_bytes")]
-        max_bytes: usize,
-    },
-    Integer {
-        min: i64,
-        max: i64,
-    },
-    FiniteReal {
-        min: f64,
-        max: f64,
-    },
-    Principal,
-    /// A typed asset reference in a handler result. Its post-JSON wire image
-    /// is the non-empty opaque asset id string; attachment authority remains
-    /// a storage-commit concern rather than an egress-shape concern.
-    AssetRef,
-    Id {
-        table: String,
-    },
-    Literal {
-        value: Value,
-    },
-    Json {
-        #[serde(rename = "maxDepth", alias = "max_depth")]
-        max_depth: usize,
-        #[serde(rename = "maxBytes", alias = "max_bytes")]
-        max_bytes: usize,
-    },
-    Array {
-        element: Box<ResultValueContract>,
-        #[serde(rename = "maxItems", alias = "max_items")]
-        max_items: usize,
-    },
-    /// A declaration-ordered heterogeneous fixed tuple. Snapshot-batch uses
-    /// this closed node so each visible child page keeps its own projection
-    /// contract instead of being widened to a homogeneous array.
-    ///
-    /// @ref LLP 0135#23-seal-entirely-partial-refusal — visible composite
-    ///   nodes are an exact static tuple, not a bag of widened values.
-    Tuple {
-        elements: Vec<ResultValueContract>,
-    },
-    /// One exact fixed-dimension binary64 vector. This is intentionally not
-    /// encoded as an ordinary array: dimensions may reach 4,096 while the
-    /// general collection node remains capped at 1,024.
-    ///
-    /// @ref LLP 0132#the-vvectordimensions-value
-    Vector {
-        dimensions: u32,
-    },
-    Union {
-        variants: Vec<ResultValueContract>,
-    },
-    Object {
-        fields: Vec<ResultObjectFieldContract>,
-        #[serde(rename = "allowExtra", alias = "allow_extra")]
-        allow_extra: bool,
-    },
-    /// A reference to an entry in the closed, platform-owned registry of
-    /// exported Rust-owned schemas. Valid only at argument positions in v1;
-    /// not an app-authorable spelling — `defineSearchQuery` constructs it
-    /// internally and no `v.*` builder emits it. The node contributes its
-    /// authority class and reference id (never the referenced artifact's
-    /// bytes) to the canonical hash form; artifact drift is gated by the
-    /// schema-export drift test. The explicit `authority` member is a closed
-    /// enum with exactly one admitted value in v1, so a future app-schema
-    /// reference (option E) is a distinct authority class with
-    /// digest-carrying identity rather than a silent reinterpretation.
-    ///
-    /// @ref LLP 0131#the-argument-contract-descriptor — PlatformSchemaRef is
-    /// the one new node kind; v1's registry has exactly
-    /// `snapback:search-query-ast:v1`.
-    PlatformSchemaRef {
-        authority: SchemaRefAuthority,
-        schema: String,
-    },
-}
-
-/// The closed authority classes a schema-reference node may name. V1 admits
-/// exactly `platform`; hash-by-reference-id is a property of this class.
-#[derive(
-    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
-)]
-pub enum SchemaRefAuthority {
-    #[default]
-    #[serde(rename = "platform")]
-    Platform,
-}
-
 /// The closed v1 registry of platform schema-reference ids (LLP 0131).
 /// Exactly one entry: the search query AST, resolving to the
 /// `SearchQueryAstV1` definition inside the exported
@@ -6585,94 +6402,6 @@ pub const SCHEMA_REF_SEARCH_QUERY_AST_V1: &str = "snapback:search-query-ast:v1";
 
 pub fn schema_ref_registry_v1() -> [&'static str; 1] {
     [SCHEMA_REF_SEARCH_QUERY_AST_V1]
-}
-
-/// One closed object contract over a function's declared arguments:
-/// declaration-ordered fields, each carrying a value node from the same node
-/// vocabulary the result manifest uses (LLP 0131 — one node vocabulary, two
-/// contract roots).
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct FunctionArgsContract {
-    pub fields: Vec<ResultObjectFieldContract>,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ResultObjectFieldContract {
-    pub name: String,
-    pub required: bool,
-    pub value: ResultValueContract,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ResultRowsBound {
-    #[serde(rename = "minItems", alias = "min_items")]
-    pub min_items: usize,
-    #[serde(rename = "maxItems", alias = "max_items")]
-    pub max_items: usize,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
-pub enum FunctionResultContract {
-    #[default]
-    Unknown,
-    Documents {
-        table: String,
-        document: ResultValueContract,
-    },
-    Records {
-        record: ResultValueContract,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        rows: Option<ResultRowsBound>,
-    },
-    Document {
-        table: String,
-        document: ResultValueContract,
-    },
-    Value {
-        value: ResultValueContract,
-    },
-    LegacyQueryRowsV0 {
-        row: ResultValueContract,
-    },
-}
-
-/// One declared sequence counter and the structural proof that an invocation
-/// may observe its allocation count. `public.v1` is deliberately a string on
-/// the wire because it is the reviewed disclosure spelling pinned by LLP
-/// 0135; non-public access names the membership declaration and exact roles
-/// the host evaluates against the supplied scope row.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(untagged)]
-pub enum SequenceScopeAccess {
-    Public(String),
-    Membership {
-        declaration: String,
-        roles: Vec<String>,
-    },
-    ExistingOwner(SequenceExistingOwnerAccess),
-}
-
-/// Generated-plan access proof. The function's normalized
-/// `write-with-activity.v1` plan must carry the same scope table, owner field,
-/// scope expression, and parent-unavailable refusal before this profile is
-/// admitted; handlers cannot author this variant.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct SequenceExistingOwnerAccess {
-    pub kind: String,
-    pub owner_field: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct SequenceDeclaration {
-    pub name: String,
-    pub scope_table: String,
-    pub scope_access: SequenceScopeAccess,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -6957,91 +6686,6 @@ impl FunctionDefinition {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-pub enum PermissionScopeExpr {
-    AuthUser,
-    Arg(String),
-    Literal(String),
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-pub struct SourceSpan {
-    pub file: String,
-    pub line: u32,
-    pub column: u32,
-}
-
-/// EffectCeilingV1 (LLP 0065 §1): the versioned conservative effect ceiling —
-/// operations, tables, index ranges, host operations, and authorization
-/// dependencies — recorded per generated function. `basis` is `"static"`
-/// when the ceiling was proved by codegen's total default-deny traversal of
-/// the closed plan vocabulary and `"declared"` when it restates author
-/// declarations for an opaque handler.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct EffectCeiling {
-    pub version: String,
-    pub basis: String,
-    #[serde(default)]
-    pub reads: Vec<EffectCeilingRead>,
-    #[serde(default)]
-    pub writes: Vec<EffectCeilingWrite>,
-    #[serde(default, rename = "hostOperations", alias = "host_operations")]
-    pub host_operations: Vec<String>,
-    #[serde(
-        default,
-        rename = "authorizationInputs",
-        alias = "authorization_inputs"
-    )]
-    pub authorization_inputs: Vec<String>,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct EffectCeilingRead {
-    pub table: String,
-    /// `"point"` or `"query"`.
-    pub access: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub index: Option<String>,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct EffectCeilingWrite {
-    pub table: String,
-    pub operations: Vec<String>,
-}
-
-/// The closed root-to-output key expression of a maintained projection
-/// (LLP 0080 §5): the root `_id`, or the complete ordered tuple of a
-/// declared unique root index whose fields the plan marks immutable, so an
-/// output key cannot move under maintenance. Either form is injective over
-/// roots by the uniqueness proof.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-pub enum ProjectionOutputKey {
-    RootId,
-    RootUniqueIndex {
-        index: String,
-        /// The exact index fields, restated so the plan is self-describing
-        /// and validation can prove the restatement matches the schema.
-        fields: Vec<String>,
-    },
-}
-
-/// Source/output visibility declaration for a maintained projection —
-/// declarative (unlike the callable plan's executable filter lists) because
-/// maintenance runs under internal projection-maintenance authority and the
-/// declarations constrain information flow and the output's read
-/// enforcement, not a caller (LLP 0080 §3/§5).
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-pub enum ProjectionVisibility {
-    #[serde(rename = "public-read")]
-    PublicRead,
-    #[serde(rename = "owner")]
-    Owner { field: String },
-}
-
 /// `MaintainedProjectionPlanV1` (LLP 0080 §5): a relational core plus a
 /// stable output key expression, per-source and output visibility
 /// declarations, the declared root reverse index (the bounded lookup and
@@ -7103,35 +6747,6 @@ pub struct MaintainedProjectionPlan {
     /// `"rebuild-v1"` is the only admitted value until the 0081 slice.
     #[serde(rename = "rebuildRecipe", alias = "rebuild_recipe")]
     pub rebuild_recipe: String,
-}
-
-/// The versioned helper/profile identity a standard-pattern function carries
-/// (LLP 0065 §3).
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct StandardPatternIdentity {
-    pub helper: String,
-    pub profile: String,
-    /// Membership-specific generation facts for callable keyset pages. This
-    /// block is closed and is admitted only for the exact
-    /// `membership-keyset-pages.v1` / `membership.v1` pair.
-    ///
-    /// @ref LLP 0100#5-index-and-continuation-contract — membership cursor
-    ///   custody binds the declaration, resource argument/field, and canonical
-    ///   role set; other helpers must not smuggle an uninterpreted block.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub membership: Option<StandardPatternMembershipIdentity>,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct StandardPatternMembershipIdentity {
-    pub declaration: String,
-    #[serde(rename = "resourceArg", alias = "resource_arg")]
-    pub resource_arg: String,
-    #[serde(rename = "resourceField", alias = "resource_field")]
-    pub resource_field: String,
-    pub roles: Vec<String>,
 }
 
 // @ref LLP 0080#1-closed-relational-plan — this Rust-owned shape is the
@@ -7326,22 +6941,6 @@ pub struct SnapshotBatchPlanV2 {
     pub plan_hash: String,
 }
 
-#[derive(
-    Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
-)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub enum BoundedParentVisibility {
-    PublicRead,
-    Owner { field: String },
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct BoundedProjectionField {
-    pub name: String,
-    pub field: String,
-}
-
 /// One normalized `write-with-activity.v1` plan. `mutation` is the complete
 /// executable closed IR including scope/source guards, the host-checked source
 /// effect assertion, the activity insert, and final result expression.
@@ -7387,123 +6986,6 @@ pub struct WriteWithActivityPlan {
     pub mutation: MutationPlan,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct WriteActivityRelation {
-    pub table: String,
-    #[serde(rename = "scopeForeignKey", alias = "scope_foreign_key")]
-    pub scope_foreign_key: String,
-    #[serde(rename = "scopeIncarnation", alias = "scope_incarnation")]
-    pub scope_incarnation: String,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum WriteWithActivityMode {
-    ExistingOwnerV1,
-    CreateOwnerV1,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum WriteWithActivitySourceOperation {
-    Insert,
-    Patch,
-    Delete,
-}
-
-impl WriteWithActivitySourceOperation {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Insert => "insert",
-            Self::Patch => "patch",
-            Self::Delete => "delete",
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct WriteActivityProvenanceFields {
-    pub scope_id: String,
-    pub source_table: String,
-    pub source_id: String,
-    pub operation: String,
-    pub effective_subject: String,
-    pub actual_actor: String,
-    pub actor_kind: String,
-    pub grant: String,
-    pub occurred_at: String,
-    pub mutation: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct WriteWithActivityEffectFormula {
-    pub scope_reads: u8,
-    pub scope_patches: u8,
-    pub auxiliary_point_reads: u8,
-    pub source_writes: u8,
-    pub activity_inserts: u8,
-    pub runtime_ids: u8,
-    pub runtime_now: u8,
-    pub settlement_lookups: u8,
-    pub settlement_writes: u8,
-    /// Fixed host bookkeeping; v1 admits zero or one allocation.
-    #[serde(default)]
-    pub sequence_allocations: u8,
-    pub maximum_application_writes: u8,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-pub enum JoinKind {
-    Inner,
-    Left,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct JoinEquality {
-    #[serde(rename = "rootField", alias = "root_field")]
-    pub root_field: String,
-    #[serde(rename = "joinedField", alias = "joined_field")]
-    pub joined_field: String,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ProjectionLeaf {
-    pub name: String,
-    pub source: ProjectionSource,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-pub enum ProjectionSource {
-    RootField(String),
-    JoinedField(String),
-    Literal(Value),
-}
-
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-pub struct DependencySummary {
-    #[serde(default, rename = "primaryTable", alias = "primary_table")]
-    pub primary_table: Option<String>,
-    #[serde(default)]
-    pub tables: Vec<String>,
-    #[serde(default)]
-    pub mode: Option<String>,
-    #[serde(default, rename = "authScopeField", alias = "auth_scope_field")]
-    pub auth_scope_field: Option<String>,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-pub enum FunctionKind {
-    Query,
-    Mutation,
-    LiveQuery,
-    Action,
-}
-
 // `HandlerPlan` outgrew clippy's variant-size threshold as the relational
 // profile (LLP 0080) widened query plans. The externally-tagged shape is the
 // ratified v0 artifact pin and every construction site spells the variant
@@ -7513,12 +6995,6 @@ pub enum FunctionKind {
 pub enum FunctionRuntime {
     HostPlan(HandlerPlan),
     IbexModule(IbexModule),
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-pub struct IbexModule {
-    pub source: String,
-    pub export: String,
 }
 
 /// The public projection of [`FunctionManifest`] served inside the root
