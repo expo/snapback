@@ -2464,6 +2464,10 @@ pub struct AppState {
     /// capability. The non-cloneable raw operator half never enters router
     /// state and is consumed by readiness/terminal publication.
     pub(crate) impersonation_capabilities: Option<ImpersonationCapabilityRegistry>,
+    /// Independent digest-only request half for production integration
+    /// retirement. It is never a browser-console credential.
+    pub(crate) agent_destroy_capabilities:
+        Option<crate::admin_agent_destroy::AgentDestroyCapabilityRegistry>,
     /// Optional email-code provider projection. Startup activation is owned by
     /// the staged-mode composition lane; embeddings and tests may install an
     /// already-activated provider through the builder below.
@@ -2609,6 +2613,7 @@ impl AppState {
                 recent_invocations: crate::host_ops::RecentInvocationRing::default(),
                 secret_read_mint: None,
                 impersonation_capabilities: None,
+                agent_destroy_capabilities: None,
                 auth_provider: None,
                 auth_coordinator: None,
                 hosted_serving: None,
@@ -2733,6 +2738,14 @@ impl AppState {
         registry: ImpersonationCapabilityRegistry,
     ) -> Self {
         self.impersonation_capabilities = Some(registry);
+        self
+    }
+
+    pub fn with_agent_destroy_capabilities(
+        mut self,
+        registry: crate::admin_agent_destroy::AgentDestroyCapabilityRegistry,
+    ) -> Self {
+        self.agent_destroy_capabilities = Some(registry);
         self
     }
 

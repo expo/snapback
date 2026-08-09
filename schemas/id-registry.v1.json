@@ -55,6 +55,11 @@
     },
     {
       "body": "timeOrdered",
+      "kind": "Integration",
+      "prefix": "intg"
+    },
+    {
+      "body": "timeOrdered",
       "kind": "Mutation",
       "prefix": "mut"
     },

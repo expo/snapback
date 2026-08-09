@@ -267,6 +267,8 @@ impl LocalDatabase {
             let credential = live_credential_by_hash(tx, credential_hash.as_bytes())?
                 .ok_or_else(agent_credential_invalid)?;
             require_agent_active_on(tx, &credential.user_id)?;
+            // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — suspension blocks the integration side of a new installation ceremony while leaving existing installations untouched.
+            super::auth_integrations::require_active_if_integration_on(tx, &credential.user_id)?;
             coalesce_credential_use(tx, &credential.credential_id, now_ms)?;
             sweep_pairing_requests_on(tx, now_ms)?;
             let row = tx
@@ -438,6 +440,8 @@ impl LocalDatabase {
             }
             let actor_user_id = request.agent_user_id.ok_or_else(grant_invalid)?;
             require_agent_active_on(tx, &actor_user_id)?;
+            // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — suspension refuses the approval half of every new installation ceremony without revoking existing consent.
+            super::auth_integrations::require_active_if_integration_on(tx, &actor_user_id)?;
             let scopes_json = request.requested_scopes.ok_or_else(grant_invalid)?;
             let scopes = parse_scopes_json(&scopes_json)?;
             // @ref LLP 0039#dated-amendment-operation-bound-step-up-2026-07-15

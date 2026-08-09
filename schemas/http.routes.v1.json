@@ -113,6 +113,33 @@
       "class": "SystemApi",
       "credential_resolution": "AdminCredential",
       "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/auth/integrations/{id}/resume",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/auth/integrations/{id}/retire",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/_snapback/api/auth/integrations/{id}/suspend",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
       "method": "GET",
       "outputSchema": null,
       "path": "/_snapback/api/auth/mailbox",
@@ -979,6 +1006,15 @@
       "outputSchema": null,
       "path": "/auth/grants/{id}",
       "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "AgentFamilySecretBody",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/integrations/retire",
+      "path_policy": "Public"
     },
     {
       "class": "AppData",

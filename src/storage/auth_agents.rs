@@ -99,6 +99,37 @@ impl LocalDatabase {
         now_ms: u64,
         random: &dyn RandomSource,
     ) -> SnapbackResult<IssuedAgentCredential> {
+        self.register_agent_principal_with_class(
+            mode,
+            invitation,
+            display_name,
+            operator_contact,
+            super::auth_integrations::AgentRegistrationClass::Agent,
+            super::auth_integrations::IntegrationRegistrationFacts::default(),
+            profile,
+            now_ms,
+            random,
+        )
+    }
+
+    /// Typed registration-class entry used by the public registration route
+    /// and the future DCR facade. Both classes share one transaction; only the
+    /// integration class displaces ownership and writes the companion record.
+    ///
+    /// @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — integration registration is delegation-only, never seats an owner, and records inviter provenance only.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn register_agent_principal_with_class(
+        &mut self,
+        mode: AgentsMode,
+        invitation: Option<&CreationInvitation>,
+        display_name: Option<String>,
+        operator_contact: Option<String>,
+        class: super::auth_integrations::AgentRegistrationClass,
+        integration_facts: super::auth_integrations::IntegrationRegistrationFacts,
+        profile: ServerProfile,
+        now_ms: u64,
+        random: &dyn RandomSource,
+    ) -> SnapbackResult<IssuedAgentCredential> {
         if mode == AgentsMode::Disabled {
             return Err(agent_registration_disabled());
         }
@@ -117,7 +148,7 @@ impl LocalDatabase {
         let mut consumed_invitation_id = None;
         let attempt = self.attempt_auth_transaction(|tx| {
             advance_agent_clock_on(tx, now_ms)?;
-            let (owner_user_id, invitation_id, source) = match invitation {
+            let (ordinary_owner_user_id, invitation_id, source, inviter) = match invitation {
                 Some(invitation) => {
                     let row = creation_invitation_on(tx, invitation, now_ms)?;
                     if profile == ServerProfile::Prod
@@ -144,13 +175,18 @@ impl LocalDatabase {
                     } else {
                         "operator-invitation"
                     };
-                    (owner, Some(row.id), source)
+                    let inviter = Some(row.created_by.clone());
+                    (owner, Some(row.id), source, inviter)
                 }
-                None => (None, None, "self-register"),
+                None => (None, None, "self-register", None),
             };
+            let owner_user_id = (class == super::auth_integrations::AgentRegistrationClass::Agent)
+                .then_some(ordinary_owner_user_id)
+                .flatten();
             consumed_invitation_id = invitation_id.clone();
             let provenance = if mode == AgentsMode::Open {
                 json!({
+                    "class": class.as_str(),
                     "source": source,
                     "mode": mode.as_str(),
                     "profile": profile.as_str(),
@@ -159,12 +195,14 @@ impl LocalDatabase {
                 .to_string()
             } else {
                 json!({
+                    "class": class.as_str(),
                     "source": source,
                     "mode": mode.as_str(),
                     "profile": profile.as_str(),
                     "createdAtMs": now_ms,
                     "invitationClass": "creation",
                     "invitationId": invitation_id,
+                    "inviter": inviter,
                 })
                 .to_string()
             };
@@ -175,10 +213,27 @@ impl LocalDatabase {
                 &AgentRegistration {
                     display_name: display_name.clone(),
                     operator_contact: operator_contact.clone(),
-                    registration_provenance: provenance,
+                    registration_provenance: provenance.clone(),
                     owner_user_id,
                 },
             )?;
+            if class == super::auth_integrations::AgentRegistrationClass::Integration {
+                // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — registration-time template application is forbidden for integration-class principals.
+                super::auth_integrations::validate_registration_template_suppressed_on(
+                    tx, &user_id,
+                )?;
+                super::auth_integrations::create_record_on(
+                    tx,
+                    &user_id,
+                    display_name.as_deref(),
+                    &integration_facts,
+                    &provenance,
+                    mode == AgentsMode::Open,
+                    now_ms,
+                )?;
+            } else if integration_facts != super::auth_integrations::IntegrationRegistrationFacts::default() {
+                return Err(super::auth_integrations::integration_facts_for_agent());
+            }
             body_outcome = Some(issue_initial_agent_credential_on(
                 tx,
                 &user_id,
@@ -203,6 +258,7 @@ impl LocalDatabase {
                         connection,
                         expected,
                         consumed_invitation_id.as_deref(),
+                        class,
                     )
                 })?;
                 body_outcome.ok_or_else(agent_registration_commit_uncertain)
@@ -526,6 +582,7 @@ fn reconcile_registered_agent(
     connection: &Connection,
     expected: &IssuedAgentCredential,
     invitation_id: Option<&str>,
+    class: super::auth_integrations::AgentRegistrationClass,
 ) -> SnapbackResult<()> {
     reconcile_issued_agent_credential(connection, expected)
         .map_err(|_| agent_registration_commit_uncertain())?;
@@ -552,7 +609,14 @@ fn reconcile_registered_agent(
         }
         None => true,
     };
-    if agent_exists && invitation_exact {
+    let integration_exact = match class {
+        super::auth_integrations::AgentRegistrationClass::Agent => true,
+        super::auth_integrations::AgentRegistrationClass::Integration => {
+            super::auth_integrations::record_for_principal_on(connection, &expected.user_id)?
+                .is_some()
+        }
+    };
+    if agent_exists && invitation_exact && integration_exact {
         Ok(())
     } else {
         Err(agent_registration_commit_uncertain())

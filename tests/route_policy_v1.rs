@@ -209,6 +209,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/auth/agents/token"),
         ("POST", "/auth/agents/token/release"),
         ("POST", "/auth/agents/revoke-self"),
+        ("POST", "/auth/integrations/retire"),
         ("GET", "/auth/grant-requests"),
         ("POST", "/auth/grant-requests/{id}/approve"),
         ("POST", "/auth/grant-requests/{id}/deny"),
@@ -254,6 +255,9 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/ephemeral/delete"),
         ("POST", "/_snapback/api/schema/load"),
         ("GET", "/_snapback/api/auth/mailbox"),
+        ("POST", "/_snapback/api/auth/integrations/{id}/retire"),
+        ("POST", "/_snapback/api/auth/integrations/{id}/suspend"),
+        ("POST", "/_snapback/api/auth/integrations/{id}/resume"),
         ("POST", "/_snapback/api/functions/load"),
         ("POST", "/_snapback/api/app/reset"),
         ("POST", "/_snapback/api/app/seed/clear-v1"),
@@ -568,7 +572,7 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         .filter(|route| route.path.starts_with("/auth/"))
         .map(|route| (route.path, *route))
         .collect::<BTreeMap<_, _>>();
-    assert_eq!(provider.len(), 21);
+    assert_eq!(provider.len(), 22);
 
     let handshake = provider["/auth/session"];
     assert_eq!(handshake.method, "GET");
@@ -699,6 +703,15 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         revoke_self.response_sensitivity,
         ResponseSensitivity::PublicNoStore
     );
+    let retire = provider["/auth/integrations/retire"];
+    assert_eq!(retire.path_policy, RoutePolicy::Public);
+    assert_eq!(
+        retire.credential_resolution,
+        CredentialResolution::AgentFamilySecretBody
+    );
+    assert_eq!(retire.invocation_authority, InvocationAuthority::None);
+    assert_eq!(retire.legacy_body_policy, LegacyBodyPolicy::NotApplicable);
+    assert_eq!(retire.response_sensitivity, ResponseSensitivity::PublicNoStore);
 
     let step_up = provider["/auth/step-up/request"];
     assert_eq!(
@@ -723,6 +736,31 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         mailbox.response_sensitivity,
         ResponseSensitivity::CredentialSecret
     );
+
+    for (path, effect) in [
+        (
+            "/_snapback/api/auth/integrations/{id}/retire",
+            EffectPolicy::AgentDestroyCapability,
+        ),
+        (
+            "/_snapback/api/auth/integrations/{id}/suspend",
+            EffectPolicy::None,
+        ),
+        (
+            "/_snapback/api/auth/integrations/{id}/resume",
+            EffectPolicy::None,
+        ),
+    ] {
+        let route = registry.iter().find(|route| route.path == path).unwrap();
+        assert_eq!(route.method, "POST", "{path}");
+        assert_eq!(route.class, RouteClass::SystemApi, "{path}");
+        assert_eq!(route.path_policy, RoutePolicy::AdminWrite, "{path}");
+        assert_eq!(route.credential_resolution, CredentialResolution::AdminCredential, "{path}");
+        assert_eq!(route.invocation_authority, InvocationAuthority::Operator, "{path}");
+        assert_eq!(route.legacy_body_policy, LegacyBodyPolicy::NotApplicable, "{path}");
+        assert_eq!(route.effect_policy, effect, "{path}");
+        assert_eq!(route.response_sensitivity, ResponseSensitivity::OperatorMetadata, "{path}");
+    }
 
     let router = app(AppState::detached(
         LocalSnapback::memory().expect("in-memory auth route fixture"),
@@ -768,6 +806,34 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
             } else {
                 "SNAPBACK_AUTH_MODE_DEV"
             }
+        );
+    }
+}
+
+#[tokio::test]
+async fn integration_lifecycle_body_postures_are_closed_and_executable() {
+    let mut context = exposed_context("sekrit");
+    context.profile = ServerProfile::Test;
+    let router = app(AppState::from_snapback(
+        LocalSnapback::memory().expect("integration body-policy fixture"),
+        context,
+    ));
+
+    for uri in [
+        "/_snapback/api/auth/integrations/missing/retire",
+        "/_snapback/api/auth/integrations/missing/suspend",
+        "/_snapback/api/auth/integrations/missing/resume",
+    ] {
+        let mut probe = request("POST", uri, Some(json!({})));
+        probe.headers_mut().insert(
+            "x-snapback-admin-token",
+            "sekrit".parse().expect("admin header"),
+        );
+        let response = router.clone().oneshot(probe).await.expect("empty-body route probe");
+        assert_eq!(
+            response.status(),
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "{uri} must reject every non-empty body before handler dispatch"
         );
     }
 }
@@ -1006,6 +1072,20 @@ fn route_policy_validation_rejects_invalid_combinations() {
             )
             .with_effect(EffectPolicy::ImpersonationCapability),
         ),
+        (
+            "agent destroy effect without AdminWrite",
+            RouteSpec::new(
+                "POST",
+                "/_snapback/api/invalid-agent-destroy",
+                RouteClass::SystemApi,
+                RoutePolicy::AdminRead,
+                CredentialResolution::AdminCredential,
+                InvocationAuthority::Operator,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::OperatorMetadata,
+            )
+            .with_effect(EffectPolicy::AgentDestroyCapability),
+        ),
     ];
 
     for (label, route) in invalid {
@@ -1141,6 +1221,9 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.app.seed.reset-install.v1",
             "host_ops.auth.mintSession",
             "host_ops.auth.rescueCollidingTable",
+            "host_ops.auth.integrationRetire",
+            "host_ops.auth.integrationSuspend",
+            "host_ops.auth.integrationResume",
             "host_ops.branch.create.v1",
             "host_ops.branch.drop.v1",
             "host_ops.branch.execute.v1",
@@ -1554,6 +1637,9 @@ fn session_overlay_closes_every_host_ops_branch() {
         "host_ops.functions.load",
         "host_ops.auth.mintSession",
         "host_ops.auth.rescueCollidingTable",
+        "host_ops.auth.integrationRetire",
+        "host_ops.auth.integrationSuspend",
+        "host_ops.auth.integrationResume",
         "host_ops.debug.networkProfileSet",
         "host_ops.function.run.mutation",
         "host_ops.function.run.action",
@@ -1569,6 +1655,21 @@ fn session_overlay_closes_every_host_ops_branch() {
     ] {
         let policy = host_ops.get(name).expect("admin-write host operation");
         assert_eq!(policy.path_policy, RoutePolicy::AdminWrite, "{name}");
+    }
+    assert_eq!(
+        host_ops["host_ops.auth.integrationRetire"].effect_policy,
+        EffectPolicy::AgentDestroyCapability
+    );
+    for name in [
+        "host_ops.auth.integrationSuspend",
+        "host_ops.auth.integrationResume",
+    ] {
+        assert_eq!(host_ops[name].effect_policy, EffectPolicy::None, "{name}");
+        assert_eq!(
+            host_ops[name].response_sensitivity,
+            ResponseSensitivity::OperatorMetadata,
+            "{name}"
+        );
     }
 
     for name in [

@@ -865,6 +865,10 @@ impl LocalDatabase {
         // sessions catalog. Install the generation-fenced token-retirement
         // triggers after their auth tables exist, in this same activation cut.
         crate::push::activate_manifest_in(&tx, staged.schema_manifest.push_seam.as_ref())?;
+        crate::storage::auth_integrations::activate_manifest_in(
+            &tx,
+            &staged.schema_manifest,
+        )?;
         // @ref LLP 0055#grants — initial sessions activation seeds the durable
         //   exact-function basis rows in the same cut as the existing LLP 0053
         //   activation event. No grant can observe an empty/intermediate set.
@@ -1822,6 +1826,7 @@ fn apply_schema_tables(tx: &Transaction<'_>, manifest: &SchemaManifest) -> Snapb
     // @ref LLP 0143#d6-activation-migration-and-the-no-op-posture — registry storage
     // and auth-lifecycle triggers exist iff the schema declares the seam.
     crate::push::activate_manifest_in(tx, manifest.push_seam.as_ref())?;
+    crate::storage::auth_integrations::activate_manifest_in(tx, manifest)?;
     Ok(())
 }
 

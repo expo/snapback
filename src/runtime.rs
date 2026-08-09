@@ -5598,6 +5598,7 @@ mod membership_bridge_tests {
             effective_user_id: Some("alice".to_owned()),
             scopes: Vec::new(),
             token_expires_at_ms: 10_000,
+            integration_status: None,
         };
         IbexHostContext::new_with_projection(
             DbRead::Live(db),
@@ -6543,6 +6544,7 @@ mod direct_human_projection_tests {
             effective_user_id: effective_user_id.map(str::to_owned),
             scopes: Vec::new(),
             token_expires_at_ms: 20_000,
+            integration_status: None,
         }
     }
 

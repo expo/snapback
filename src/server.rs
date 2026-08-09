@@ -7156,6 +7156,7 @@ pub enum EffectPolicy {
     OperationSpecific,
     SecretReadMintProof,
     ImpersonationCapability,
+    AgentDestroyCapability,
     Unavailable,
 }
 
@@ -7599,6 +7600,11 @@ impl RouteSpec {
             && self.path_policy != RoutePolicy::AdminWrite
         {
             return fail("impersonation capability must compose with AdminWrite");
+        }
+        if self.effect_policy == EffectPolicy::AgentDestroyCapability
+            && self.path_policy != RoutePolicy::AdminWrite
+        {
+            return fail("agent destroy capability must compose with AdminWrite");
         }
         if self.effect_policy == EffectPolicy::SecretReadMintProof
             && (self.path_policy != RoutePolicy::AdminWrite
@@ -8328,6 +8334,20 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             ),
             post(auth_agent_revoke_self).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
+        // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — key possession of a live or attributable tombstoned family reaches the destroy-only integration retirement transaction.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/integrations/retire",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::AgentFamilySecretBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::PublicNoStore,
+            ),
+            post(auth_integration_retire).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
         RegisteredRoute::new(
             app_function_route("POST", "/query/{name}"),
             post(invoke_query),
@@ -8675,6 +8695,28 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
             )
             .with_effect(EffectPolicy::ImpersonationCapability),
             get(auth_mailbox),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/auth/integrations/{id}/retire",
+                ResponseSensitivity::OperatorMetadata,
+            )
+            .with_effect(EffectPolicy::AgentDestroyCapability),
+            post(admin_integration_retire).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/auth/integrations/{id}/suspend",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(admin_integration_suspend).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            write(
+                "/_snapback/api/auth/integrations/{id}/resume",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(admin_integration_resume).layer(DefaultBodyLimit::max(0)),
         ),
         RegisteredRoute::new(
             write(
@@ -10100,6 +10142,9 @@ fn route_uses_managed_admission(spec: RouteSpec) -> bool {
                 | "/_snapback/api/storage/operation-coverage/activate"
                 | "/_snapback/api/auth/mailbox"
                 | "/_snapback/api/admin-secret-read/mint"
+                | "/_snapback/api/auth/integrations/{id}/retire"
+                | "/_snapback/api/auth/integrations/{id}/suspend"
+                | "/_snapback/api/auth/integrations/{id}/resume"
         )
 }
 
@@ -12026,6 +12071,37 @@ async fn enforce_registered_route_policy(
             }
         }
     }
+    if selected_policy.effect_policy == EffectPolicy::AgentDestroyCapability
+        && runtime.server.profile == crate::admin::ServerProfile::Prod
+    {
+        let verified = runtime
+            .agent_destroy_capabilities
+            .as_ref()
+            .ok_or_else(crate::admin_agent_destroy::agent_destroy_capability_required)
+            .and_then(|registry| {
+                let _effect = route_admission
+                    .as_ref()
+                    .expect("agent-destroy routes are managed")
+                    .effect_guard("agent destroy capability claim")?;
+                registry.authorize(single_header_value(
+                    request.headers(),
+                    crate::admin_agent_destroy::AGENT_DESTROY_CAPABILITY_HEADER,
+                ))
+            });
+        match verified {
+            Ok(verified) => {
+                request.extensions_mut().insert(verified);
+            }
+            Err(error) => {
+                return finish_registered_response(
+                    response_policy,
+                    ApiError::from(error).into_response(),
+                    route_admission.as_ref(),
+                    None,
+                );
+            }
+        }
+    }
     if selected_policy.effect_policy == EffectPolicy::SecretReadMintProof {
         let Some(bridge) = runtime.secret_read_mint.as_ref() else {
             return finish_registered_response(
@@ -12405,9 +12481,14 @@ struct AgentPairRequest {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct AgentRegistrationRequest {
+    #[serde(default)]
+    class: crate::storage::auth_integrations::AgentRegistrationClass,
     display_name: Option<String>,
     operator_contact: Option<String>,
     invitation: Option<SecretInput>,
+    origin: Option<String>,
+    #[serde(default)]
+    redirect_uris: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -12848,11 +12929,16 @@ async fn auth_agent_register(
     let profile = runtime.server.profile;
     let issued = with_snapback(&runtime.snapback, move |snapback| {
         let _effect = route_admission.effect_guard("agent registration transaction")?;
-        snapback.auth_database_mut().register_agent_principal(
+        snapback.auth_database_mut().register_agent_principal_with_class(
             policy.mode,
             invitation.as_ref(),
             request.display_name,
             request.operator_contact,
+            request.class,
+            crate::storage::auth_integrations::IntegrationRegistrationFacts {
+                origin: request.origin,
+                redirect_uris: request.redirect_uris,
+            },
             profile,
             provider.now_ms(),
             provider.agent_random_source(),
@@ -13391,6 +13477,56 @@ async fn auth_agent_revoke_self(
     )
     .await;
     let _revoked = await_owned_auth_transaction(transaction).await??;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+/// Terminal key-holder retirement of an integration registration. Rotation
+/// remains the ordinary grant-preserving agent rotation verb.
+async fn auth_integration_retire(
+    State(runtime): State<AppState>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Response, ApiError> {
+    let provider = require_agent_routes_available(&runtime)?;
+    reject_agent_route_authorization_header(&headers)?;
+    let request: AgentCredentialRequest = parse_auth_json(&headers, body)?;
+    let credential = parse_agent_credential(&request.credential)?;
+    let now_ms = provider.now_ms();
+    let snapback = runtime.snapback.clone();
+    let lifecycle = runtime.auth_terminal_lifecycle.clone();
+    let (credential, terminal_token_ids) = with_snapback(&runtime.snapback, move |snapback| {
+        let token_ids = snapback
+            .auth_database_mut()
+            .plan_integration_credential_family_service_terminal(&credential, now_ms)?;
+        Ok::<_, SnapbackError>((credential, token_ids))
+    })
+    .await?;
+    let service_terminal_gate = runtime
+        .service_authority_fences
+        .acquire_terminal_gate(
+            &terminal_token_ids,
+            ServiceAuthorityDisposition::DurableDelete,
+        )
+        .await
+        .map_err(ApiError::from)?;
+    let transaction = spawn_owned_auth_transaction(async move {
+        let retired = with_snapback(&snapback, move |snapback| {
+            let retired = with_service_authority_terminal_gate(service_terminal_gate, || {
+                snapback
+                    .auth_database_mut()
+                    .retire_integration_credential_family(&credential, now_ms)
+            })?;
+            let terminal_token_ids = retired.token_ids.clone();
+            let close_by = terminal_close_by(Instant::now());
+            crate::exec_guard::run_or_defer_after_local(move || {
+                lifecycle.terminate_service_tokens(&terminal_token_ids, close_by);
+            });
+            Ok::<_, SnapbackError>(retired)
+        })
+        .await?;
+        Ok::<_, SnapbackError>(retired)
+    });
+    let _retired = await_owned_auth_transaction(transaction).await??;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -14803,6 +14939,117 @@ async fn auth_mailbox(
     Ok(Json(response))
 }
 
+async fn retire_integration_as_operator(
+    runtime: &AppState,
+    principal_user_id: String,
+    now_ms: u64,
+) -> Result<crate::storage::auth_agent_credentials::AgentFamilyRevocation, ApiError> {
+    let snapback = runtime.snapback.clone();
+    let lifecycle = runtime.auth_terminal_lifecycle.clone();
+    let (principal_user_id, terminal_token_ids) =
+        with_snapback(&runtime.snapback, move |snapback| {
+            let token_ids = snapback
+                .auth_database_mut()
+                .plan_integration_principal_service_terminal(&principal_user_id)?;
+            Ok::<_, SnapbackError>((principal_user_id, token_ids))
+        })
+        .await?;
+    let terminal_gate = runtime
+        .service_authority_fences
+        .acquire_terminal_gate(
+            &terminal_token_ids,
+            ServiceAuthorityDisposition::DurableDelete,
+        )
+        .await
+        .map_err(ApiError::from)?;
+    let transaction = spawn_owned_auth_transaction(async move {
+        let retired = with_snapback(&snapback, move |snapback| {
+            let retired = with_service_authority_terminal_gate(terminal_gate, || {
+                snapback
+                    .auth_database_mut()
+                    .retire_integration_principal(&principal_user_id, now_ms)
+            })?;
+            let token_ids = retired.token_ids.clone();
+            let close_by = terminal_close_by(Instant::now());
+            crate::exec_guard::run_or_defer_after_local(move || {
+                lifecycle.terminate_service_tokens(&token_ids, close_by);
+            });
+            Ok::<_, SnapbackError>(retired)
+        })
+        .await?;
+        Ok::<_, SnapbackError>(retired)
+    });
+    let retired = await_owned_auth_transaction(transaction).await??;
+    Ok(retired)
+}
+
+async fn admin_integration_retire(
+    State(runtime): State<AppState>,
+    Path(principal_user_id): Path<String>,
+    _body: Bytes,
+) -> Result<Response, ApiError> {
+    let provider = require_agent_routes_available(&runtime)?;
+    let _retired =
+        retire_integration_as_operator(&runtime, principal_user_id, provider.now_ms()).await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+async fn set_integration_suspension_as_operator(
+    runtime: &AppState,
+    principal_user_id: String,
+    suspended: bool,
+    now_ms: u64,
+) -> Result<crate::storage::auth_integrations::IntegrationRecord, ApiError> {
+    Ok(with_snapback(&runtime.snapback, move |snapback| {
+        snapback.auth_database_mut().set_integration_suspended(
+            &principal_user_id,
+            suspended,
+            now_ms,
+        )
+    })
+    .await?)
+}
+
+async fn admin_integration_suspend(
+    State(runtime): State<AppState>,
+    Path(principal_user_id): Path<String>,
+    _body: Bytes,
+) -> Result<Json<Value>, ApiError> {
+    let provider = require_agent_routes_available(&runtime)?;
+    let record = set_integration_suspension_as_operator(
+        &runtime,
+        principal_user_id,
+        true,
+        provider.now_ms(),
+    )
+    .await?;
+    Ok(Json(json!({
+        "integrationId": record.integration_id,
+        "userId": record.principal_user_id,
+        "status": record.status.as_str(),
+    })))
+}
+
+async fn admin_integration_resume(
+    State(runtime): State<AppState>,
+    Path(principal_user_id): Path<String>,
+    _body: Bytes,
+) -> Result<Json<Value>, ApiError> {
+    let provider = require_agent_routes_available(&runtime)?;
+    let record = set_integration_suspension_as_operator(
+        &runtime,
+        principal_user_id,
+        false,
+        provider.now_ms(),
+    )
+    .await?;
+    Ok(Json(json!({
+        "integrationId": record.integration_id,
+        "userId": record.principal_user_id,
+        "status": record.status.as_str(),
+    })))
+}
+
 async fn telemetry_not_found(State(runtime): State<AppState>, request: Request<Body>) -> Response {
     let method = request.method().as_str().to_owned();
     // `Uri::path` excludes the query string. The details admission scrubber
@@ -15962,6 +16209,45 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             ResponseSensitivity::OperatorMetadata,
             SessionModeOverlay::NONE,
         ),
+        operation(
+            "host_ops.auth.integrationRetire",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::AgentDestroyCapability,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
+            "host_ops.auth.integrationSuspend",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
+            "host_ops.auth.integrationResume",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
         host(
             "host_ops.function.run.query",
             RoutePolicy::AdminRead,
@@ -16156,6 +16442,7 @@ fn authorize_operation_effect(
         EffectPolicy::ImpersonationCapability if impersonation.is_none() => {
             Err(crate::admin_impersonation::impersonation_required().into())
         }
+        EffectPolicy::AgentDestroyCapability => Ok(()),
         _ => Ok(()),
     }
 }
@@ -16218,6 +16505,9 @@ pub(crate) fn host_ops_operation_spec(
         "functions.load" => "host_ops.functions.load",
         "auth.mintSession" => "host_ops.auth.mintSession",
         "auth.rescueCollidingTable" => "host_ops.auth.rescueCollidingTable",
+        "auth.integrationRetire" => "host_ops.auth.integrationRetire",
+        "auth.integrationSuspend" => "host_ops.auth.integrationSuspend",
+        "auth.integrationResume" => "host_ops.auth.integrationResume",
         "asset.put" => "host_ops.asset.put",
         "asset.ensureSeedFixture" => "host_ops.asset.ensureSeedFixture",
         "asset.inspect" => "host_ops.asset.inspect",
@@ -17634,6 +17924,12 @@ async fn auth_host_result(
     .await
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct IntegrationOperatorRequest {
+    principal_user_id: String,
+}
+
 fn auth_mint_session_mode_unavailable(runtime: &AppState) -> SnapbackError {
     // @ref LLP 0184#dated-amendment-discovery-completeness-and-projection-repair-2026-08-08 —
     //   policy middleware and the handler backstop expose the same actionable
@@ -17662,7 +17958,7 @@ fn auth_mint_session_mode_unavailable(runtime: &AppState) -> SnapbackError {
 ///
 /// @ref LLP 0057#concurrency-locks-and-linearization — maintenance/address
 /// admission precedes the outer app lock for mint and rescue.
-/// @ref LLP 0057#routes-operations-and-dtos — both host operations use closed
+/// @ref LLP 0057#routes-operations-and-dtos — auth host operations use closed
 /// args and the ordinary hostOpsResult envelope.
 async fn execute_auth_host_operation(
     runtime: &AppState,
@@ -17774,6 +18070,69 @@ async fn execute_auth_host_operation(
             })
             .await;
             Ok(outcome)
+        }
+        "auth.integrationRetire" => {
+            let args = match auth_host_operation_input::<IntegrationOperatorRequest>(&request) {
+                Ok(args) => args,
+                Err(error) => {
+                    return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                }
+            };
+            let Some(provider) = runtime.auth_provider.as_ref() else {
+                return Ok(auth_host_result(
+                    runtime,
+                    request,
+                    server_url,
+                    Err(auth_provider_unavailable_error()),
+                )
+                .await);
+            };
+            let outcome = retire_integration_as_operator(
+                runtime,
+                args.principal_user_id,
+                provider.now_ms(),
+            )
+            .await
+            .map(|retired| json!({
+                "userId": retired.user_id,
+                "credentialIds": retired.credential_ids,
+                "tokenIds": retired.token_ids,
+                "grantIds": retired.grant_ids,
+            }))
+            .map_err(|error| error.0);
+            Ok(auth_host_result(runtime, request, server_url, outcome).await)
+        }
+        "auth.integrationSuspend" | "auth.integrationResume" => {
+            let suspended = request.operation == "auth.integrationSuspend";
+            let args = match auth_host_operation_input::<IntegrationOperatorRequest>(&request) {
+                Ok(args) => args,
+                Err(error) => {
+                    return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                }
+            };
+            let Some(provider) = runtime.auth_provider.as_ref() else {
+                return Ok(auth_host_result(
+                    runtime,
+                    request,
+                    server_url,
+                    Err(auth_provider_unavailable_error()),
+                )
+                .await);
+            };
+            let outcome = set_integration_suspension_as_operator(
+                runtime,
+                args.principal_user_id,
+                suspended,
+                provider.now_ms(),
+            )
+            .await
+            .map(|record| json!({
+                "integrationId": record.integration_id,
+                "userId": record.principal_user_id,
+                "status": record.status.as_str(),
+            }))
+            .map_err(|error| error.0);
+            Ok(auth_host_result(runtime, request, server_url, outcome).await)
         }
         _ => unreachable!("caller dispatches only registered auth host operations"),
     }
@@ -17900,7 +18259,11 @@ async fn host_ops_handler_inner(
 
     if matches!(
         request.operation.as_str(),
-        "auth.mintSession" | "auth.rescueCollidingTable"
+        "auth.mintSession"
+            | "auth.rescueCollidingTable"
+            | "auth.integrationRetire"
+            | "auth.integrationSuspend"
+            | "auth.integrationResume"
     ) {
         let result = execute_auth_host_operation(
             &runtime,

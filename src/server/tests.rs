@@ -2863,6 +2863,43 @@ async fn sessions_activation_server_fixture_with_agents_async(agents: AgentsMani
     .expect("construct agent-registration fixture off the async workers")
 }
 
+async fn sessions_activation_server_fixture_with_integrations_async() -> AppState {
+    tokio::task::spawn_blocking(|| {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        let mut functions = activation_functions('2', false);
+        for function in &mut functions.functions {
+            function.api_exposure = Some(ApiFunctionExposure::default());
+        }
+        functions
+            .functions
+            .iter_mut()
+            .find(|function| function.name == "listItems")
+            .unwrap()
+            .api_exposure = Some(ApiFunctionExposure {
+                expose: true,
+                since: None,
+            });
+        sessions_activation_server_fixture_with_api(
+            functions,
+            None,
+            Some(agent_policy(AgentsMode::Open, InvitedBy::Operators)),
+            Some(ApiManifest {
+                enabled: true,
+                functions: BTreeMap::from([(
+                    "listItems".to_owned(),
+                    ApiFunctionExposure {
+                        expose: true,
+                        since: None,
+                    },
+                )]),
+                ..ApiManifest::default()
+            }),
+        )
+    })
+    .await
+    .expect("construct integration lifecycle fixture off the async workers")
+}
+
 #[tokio::test]
 async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
     let mut functions = activation_functions('2', false);
@@ -11780,6 +11817,407 @@ async fn registered_agent_completes_the_full_pairing_journey() {
 }
 
 #[tokio::test]
+async fn integration_key_holder_retires_the_complete_installed_family() {
+let state = sessions_activation_server_fixture_with_integrations_async().await;
+with_snapback(&state.snapback, |snapback| {
+snapback
+.auth_database_mut()
+.reconcile_auth_scope_bases(&activation_functions('2', false))
+})
+.await
+.unwrap();
+let owner = mint_test_credential(&state, "integration-owner@example.com").await;
+let bearer = owner["token"].as_str().unwrap().to_owned();
+let router = app(state.clone());
+let registered = router
+.clone()
+.oneshot(agent_registration_http_request(json!({
+"class": "integration",
+"displayName": "Journey Integration",
+"origin": "https://integration.example.test",
+"redirectUris": ["https://integration.example.test/callback"]
+})))
+.await
+.unwrap();
+let registered_status = registered.status();
+let registered = response_json(registered).await;
+assert_eq!(registered_status, StatusCode::OK, "{registered}");
+let integration_id = registered["userId"].as_str().unwrap().to_owned();
+let credential = registered["credential"].as_str().unwrap().to_owned();
+
+let mut planted_authority = auth_http_request(
+"POST",
+"/auth/integrations/retire",
+serde_json::to_vec(&json!({
+"credential": credential,
+"auth": { "userId": "planted" },
+}))
+.unwrap(),
+true,
+None,
+None,
+);
+offer_auth_client_protocol(&mut planted_authority);
+let planted_authority = router.clone().oneshot(planted_authority).await.unwrap();
+assert_eq!(planted_authority.status(), StatusCode::BAD_REQUEST);
+assert_eq!(
+response_json(planted_authority).await["diagnostic"]["code"],
+"SNAPBACK_AUTH_REQUEST_INVALID"
+);
+
+let pairing = router
+.clone()
+.oneshot(session_auth_http_request(
+"/auth/pairing-codes",
+br#"{}"#.to_vec(),
+&bearer,
+))
+.await
+.unwrap();
+let pairing = response_json(pairing).await;
+let pairing_request_id = pairing["pairingRequestId"].as_str().unwrap().to_owned();
+let mut pair_request = auth_http_request(
+"POST",
+"/auth/agents/pair",
+serde_json::to_vec(&json!({
+"credential": credential,
+"pairingRequestId": pairing_request_id,
+"pairingCode": pairing["pairingCode"],
+"requestedScopes": [{ "tier": "query" }],
+}))
+.unwrap(),
+true,
+None,
+None,
+);
+offer_auth_client_protocol(&mut pair_request);
+let paired = router.clone().oneshot(pair_request).await.unwrap();
+let paired_status = paired.status();
+let paired = response_json(paired).await;
+assert_eq!(paired_status, StatusCode::OK, "{paired}");
+let approved = router
+.clone()
+.oneshot(session_auth_http_request(
+&format!("/auth/grant-requests/{pairing_request_id}/approve"),
+br#"{}"#.to_vec(),
+&bearer,
+))
+.await
+.unwrap();
+let approved_status = approved.status();
+let approved = response_json(approved).await;
+assert_eq!(approved_status, StatusCode::OK, "{approved}");
+let grant_id = approved["grantId"].as_str().unwrap().to_owned();
+
+let mut token_request = auth_http_request(
+"POST",
+"/auth/agents/token",
+serde_json::to_vec(&json!({
+"credential": credential,
+"grantId": grant_id,
+}))
+.unwrap(),
+true,
+None,
+None,
+);
+offer_auth_client_protocol(&mut token_request);
+let token = router.clone().oneshot(token_request).await.unwrap();
+let token_status = token.status();
+let token = response_json(token).await;
+assert_eq!(token_status, StatusCode::OK, "{token}");
+let scoped_token = token["token"].as_str().unwrap().to_owned();
+
+let pending_installation = router
+.clone()
+.oneshot(session_auth_http_request(
+"/auth/pairing-codes",
+br#"{}"#.to_vec(),
+&bearer,
+))
+.await
+.unwrap();
+let pending_installation = response_json(pending_installation).await;
+let pending_installation_id = pending_installation["pairingRequestId"]
+.as_str()
+.unwrap()
+.to_owned();
+let mut pending_installation_request = auth_http_request(
+"POST",
+"/auth/agents/pair",
+serde_json::to_vec(&json!({
+"credential": credential,
+"pairingRequestId": pending_installation_id,
+"pairingCode": pending_installation["pairingCode"],
+"requestedScopes": [{ "tier": "query" }],
+}))
+.unwrap(),
+true,
+None,
+None,
+);
+offer_auth_client_protocol(&mut pending_installation_request);
+let pending_installation_request = router
+.clone()
+.oneshot(pending_installation_request)
+.await
+.unwrap();
+let pending_installation_status = pending_installation_request.status();
+let pending_installation_request = response_json(pending_installation_request).await;
+assert_eq!(
+pending_installation_status,
+StatusCode::OK,
+"{pending_installation_request}"
+);
+
+let suspend = Request::builder()
+.method("POST")
+.uri(format!(
+"/_snapback/api/auth/integrations/{integration_id}/suspend"
+))
+.header("x-snapback-admin-token", "auth-http-admin")
+.body(Body::empty())
+.unwrap();
+let suspend = router.clone().oneshot(suspend).await.unwrap();
+let suspend_status = suspend.status();
+let suspend = response_json(suspend).await;
+assert_eq!(suspend_status, StatusCode::OK, "{suspend}");
+assert_eq!(suspend["status"], "suspended");
+let suspended_query = Request::builder()
+.method("POST")
+.uri("/query/listItems")
+.header(header::CONTENT_TYPE, "application/json")
+.header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
+.header("x-snapback-auth-client-protocol", "1")
+.via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+.body(Body::from(r#"{"args":{}}"#))
+.unwrap();
+let suspended_query = router.clone().oneshot(suspended_query).await.unwrap();
+assert_eq!(suspended_query.status(), StatusCode::FORBIDDEN);
+let suspended_query = response_json(suspended_query).await;
+assert_eq!(
+suspended_query["diagnostic"]["code"],
+"SNAPBACK_AUTH_INTEGRATION_SUSPENDED"
+);
+assert!(suspended_query["diagnostic"]["message"]
+.as_str()
+.unwrap()
+.contains("suspended"));
+
+let blocked_approval = router
+.clone()
+.oneshot(session_auth_http_request(
+&format!("/auth/grant-requests/{pending_installation_id}/approve"),
+br#"{}"#.to_vec(),
+&bearer,
+))
+.await
+.unwrap();
+assert_eq!(blocked_approval.status(), StatusCode::FORBIDDEN);
+let blocked_approval = response_json(blocked_approval).await;
+assert_eq!(
+blocked_approval["diagnostic"]["code"],
+"SNAPBACK_AUTH_INTEGRATION_SUSPENDED"
+);
+assert!(!blocked_approval["diagnostic"]["message"]
+.as_str()
+.unwrap()
+.contains("revok"));
+
+let blocked_pairing = router
+.clone()
+.oneshot(session_auth_http_request(
+"/auth/pairing-codes",
+br#"{}"#.to_vec(),
+&bearer,
+))
+.await
+.unwrap();
+let blocked_pairing = response_json(blocked_pairing).await;
+let blocked_pairing_id = blocked_pairing["pairingRequestId"]
+.as_str()
+.unwrap()
+.to_owned();
+let blocked_pairing_code = blocked_pairing["pairingCode"].as_str().unwrap().to_owned();
+let make_blocked_pairing_request = || {
+let mut request = auth_http_request(
+"POST",
+"/auth/agents/pair",
+serde_json::to_vec(&json!({
+"credential": credential,
+"pairingRequestId": blocked_pairing_id,
+"pairingCode": blocked_pairing_code,
+"requestedScopes": [{ "tier": "query" }],
+}))
+.unwrap(),
+true,
+None,
+None,
+);
+offer_auth_client_protocol(&mut request);
+request
+};
+let blocked_pairing_response = router
+.clone()
+.oneshot(make_blocked_pairing_request())
+.await
+.unwrap();
+assert_eq!(blocked_pairing_response.status(), StatusCode::FORBIDDEN);
+assert_eq!(
+response_json(blocked_pairing_response).await["diagnostic"]["code"],
+"SNAPBACK_AUTH_INTEGRATION_SUSPENDED"
+);
+
+let resume = Request::builder()
+.method("POST")
+.uri(format!(
+"/_snapback/api/auth/integrations/{integration_id}/resume"
+))
+.header("x-snapback-admin-token", "auth-http-admin")
+.body(Body::empty())
+.unwrap();
+let resume = router.clone().oneshot(resume).await.unwrap();
+let resume_status = resume.status();
+let resume = response_json(resume).await;
+assert_eq!(resume_status, StatusCode::OK, "{resume}");
+assert_eq!(resume["status"], "active");
+let resumed_approval = router
+.clone()
+.oneshot(session_auth_http_request(
+&format!("/auth/grant-requests/{pending_installation_id}/approve"),
+br#"{}"#.to_vec(),
+&bearer,
+))
+.await
+.unwrap();
+let resumed_approval_status = resumed_approval.status();
+let resumed_approval = response_json(resumed_approval).await;
+assert_eq!(resumed_approval_status, StatusCode::OK, "{resumed_approval}");
+let resumed_grant_id = resumed_approval["grantId"].as_str().unwrap().to_owned();
+let resumed_pairing = router
+.clone()
+.oneshot(make_blocked_pairing_request())
+.await
+.unwrap();
+let resumed_pairing_status = resumed_pairing.status();
+let resumed_pairing = response_json(resumed_pairing).await;
+assert_eq!(resumed_pairing_status, StatusCode::OK, "{resumed_pairing}");
+let resumed_query = Request::builder()
+.method("POST")
+.uri("/query/listItems")
+.header(header::CONTENT_TYPE, "application/json")
+.header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
+.header("x-snapback-auth-client-protocol", "1")
+.via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+.body(Body::from(r#"{"args":{}}"#))
+.unwrap();
+let resumed_query = router.clone().oneshot(resumed_query).await.unwrap();
+let resumed_status = resumed_query.status();
+let resumed_query = response_json(resumed_query).await;
+assert_eq!(resumed_status, StatusCode::OK, "{resumed_query}");
+
+let mut retire = auth_http_request(
+"POST",
+"/auth/integrations/retire",
+serde_json::to_vec(&json!({ "credential": credential })).unwrap(),
+true,
+None,
+None,
+);
+offer_auth_client_protocol(&mut retire);
+assert_eq!(router.clone().oneshot(retire).await.unwrap().status(), StatusCode::NO_CONTENT);
+
+let dead_query = Request::builder()
+.method("POST")
+.uri("/query/listItems")
+.header(header::CONTENT_TYPE, "application/json")
+.header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
+.header("x-snapback-auth-client-protocol", "1")
+.via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+.body(Body::from(r#"{"args":{}}"#))
+.unwrap();
+assert_eq!(router.clone().oneshot(dead_query).await.unwrap().status(), StatusCode::UNAUTHORIZED);
+
+let mut remint = auth_http_request(
+"POST",
+"/auth/agents/token",
+serde_json::to_vec(&json!({
+"credential": credential,
+"grantId": grant_id,
+}))
+.unwrap(),
+true,
+None,
+None,
+);
+offer_auth_client_protocol(&mut remint);
+assert_eq!(router.oneshot(remint).await.unwrap().status(), StatusCode::UNAUTHORIZED);
+let facts = with_snapback(&state.snapback, move |snapback| {
+let db = snapback.auth_database_mut();
+let record = db.integration_record_for_test(&integration_id)?.unwrap();
+let revoked = db.integration_grant_revoked_for_test(&grant_id)?;
+let resumed_revoked = db.integration_grant_revoked_for_test(&resumed_grant_id)?;
+Ok::<_, SnapbackError>((record.status, revoked, resumed_revoked))
+})
+.await
+.unwrap();
+assert_eq!(facts.0, crate::storage::auth_integrations::IntegrationStatus::Revoked);
+assert!(facts.1);
+assert!(facts.2);
+}
+
+#[tokio::test]
+async fn production_operator_retirement_requires_process_bound_agent_destroy_capability() {
+let mut state = sessions_activation_server_fixture_with_integrations_async().await;
+Arc::make_mut(&mut state.server).profile = ServerProfile::Prod;
+let (registry, operator) =
+crate::admin_agent_destroy::AgentDestroyCapabilityRegistry::generate(
+"integration-retire-http".to_owned(),
+&OsRandom,
+)
+.unwrap();
+let destroy_capability = operator.expose_secret().to_owned();
+let (_, unrelated) = crate::admin_agent_destroy::AgentDestroyCapabilityRegistry::generate(
+"integration-retire-http".to_owned(),
+&OsRandom,
+)
+.unwrap();
+let unrelated = unrelated.expose_secret().to_owned();
+state = state.with_agent_destroy_capabilities(registry);
+let router = app(state);
+let request = |capability: Option<&str>| {
+let mut builder = Request::builder()
+.method("POST")
+.uri("/_snapback/api/auth/integrations/not-an-integration/retire")
+.header("x-snapback-admin-token", "auth-http-admin");
+if let Some(capability) = capability {
+builder = builder.header(
+crate::admin_agent_destroy::AGENT_DESTROY_CAPABILITY_HEADER,
+capability,
+);
+}
+builder.body(Body::empty()).unwrap()
+};
+let missing = router.clone().oneshot(request(None)).await.unwrap();
+assert_eq!(missing.status(), StatusCode::FORBIDDEN);
+assert_eq!(
+response_json(missing).await["diagnostic"]["code"],
+"SNAPBACK_AUTH_AGENT_DESTROY_CAPABILITY_REQUIRED"
+);
+let wrong = router.clone().oneshot(request(Some(&unrelated))).await.unwrap();
+assert_eq!(wrong.status(), StatusCode::FORBIDDEN);
+let admitted = router
+.oneshot(request(Some(&destroy_capability)))
+.await
+.unwrap();
+assert_eq!(admitted.status(), StatusCode::NOT_FOUND);
+assert_eq!(
+response_json(admitted).await["diagnostic"]["code"],
+"SNAPBACK_AUTH_INTEGRATION_UNKNOWN"
+);
+}
+
+#[tokio::test]
 async fn deactivated_agent_cannot_re_register_or_reuse_its_credential() {
     let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
         AgentsMode::Open,
@@ -15450,6 +15888,7 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_AGENT_INVITATION_REQUIRED",
     "SNAPBACK_AUTH_AGENT_INVITATION_UNEXPECTED",
     "SNAPBACK_AUTH_AGENT_POLICY_MODE_INVALID",
+    "SNAPBACK_AUTH_INTEGRATION_REQUEST_INVALID",
     // LLP 0204 S1 external-surface declarations and unpinned carrier.
     "SNAPBACK_API_AUTH_MODE_INVALID",
     "SNAPBACK_API_BUDGETS_UNAVAILABLE",
@@ -15918,6 +16357,12 @@ const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_AGENT_INVITATION_PROFILE_MISMATCH",
     "SNAPBACK_AUTH_AGENT_INVITATION_USER_INVALID",
     "SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED",
+    "SNAPBACK_AUTH_AGENT_DESTROY_CAPABILITY_REQUIRED",
+    "SNAPBACK_AUTH_INTEGRATION_INSTALLATION_REQUIRED",
+    "SNAPBACK_AUTH_INTEGRATION_REVOKED",
+    "SNAPBACK_AUTH_INTEGRATION_SUSPENDED",
+    "SNAPBACK_AUTH_INTEGRATION_TEMPLATE_FORBIDDEN",
+    "SNAPBACK_AUTH_INTEGRATION_UNAVAILABLE",
     "SNAPBACK_API_EXPOSURE_DENIED",
     "SNAPBACK_API_NOT_ENABLED",
     // LLP 0158/0163/0164 authorization and sealed-authority refusals.
@@ -16000,6 +16445,7 @@ const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_ADMIN_RELAY_LEASE_INVALID",
     "SNAPBACK_ADMIN_REACHABILITY_SESSION_INVALID",
     "SNAPBACK_AUTH_AGENT_UNKNOWN",
+    "SNAPBACK_AUTH_INTEGRATION_UNKNOWN",
     "SNAPBACK_JOB_UNKNOWN",
     "SNAPBACK_BUNDLE_ROUTE_UNKNOWN",
     "SNAPBACK_ROUTE_UNKNOWN",
@@ -16028,6 +16474,8 @@ const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
 ];
 
 const CONFLICT_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTH_INTEGRATION_CATALOG_CORRUPT",
+    "SNAPBACK_AUTH_INTEGRATION_CLASS_INVALID",
     // LLP 0158/0163/0164 current-state, CAS, and reseal conflicts.
     "SNAPBACK_BRANCH_ARTIFACT_DRIFT",
     "SNAPBACK_BRANCH_BASE_NOT_CURRENT",
@@ -18990,6 +19438,7 @@ async fn service_principal_terminalization_fences_stream_open_and_discards_late_
             effective_user_id: Some("user-a".to_owned()),
             scopes: Vec::new(),
             token_expires_at_ms: expires_at_ms,
+            integration_status: None,
         },
     )
     .expect("prepare scoped-token action authority")
@@ -20139,6 +20588,7 @@ fn synthetic_service_bound(token_id: &str) -> BoundGrantAuthority {
             effective_user_id: Some("user-a".to_owned()),
             scopes: Vec::new(),
             token_expires_at_ms: u64::MAX,
+            integration_status: None,
         },
         token_id: token_id.to_owned(),
         deadline_ms: u64::MAX,

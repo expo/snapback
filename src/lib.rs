@@ -26,6 +26,7 @@ pub mod embed;
 pub mod admin;
 #[doc(hidden)]
 pub mod admin_impersonation;
+pub mod admin_agent_destroy;
 #[doc(hidden)]
 pub mod admin_link;
 #[doc(hidden)]

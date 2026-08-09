@@ -5,9 +5,9 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-09 (LLP 0204 S1: the implemented `/api/v1` versioned
-external finite family and the `api.origins` bearer-token CORS statement —
-see the dated amendment). 2026-08-08 (hosted app-data SPA-fallback refusal: reserved
+**Revised:** 2026-08-09 (LLP 0204 S2 Landing A integration lifecycle; earlier
+S1 `/api/v1` and `api.origins` bearer-token CORS — see dated amendments).
+2026-08-08 (hosted app-data SPA-fallback refusal: reserved
 app-data prefixes whose unimplemented route is answered by Workers Assets as
 200 HTML now return the structured
 `SNAPBACK_ROUTE_UNSUPPORTED_ON_TARGET` ErrorResponse). 2026-08-08 (LLP 0204 commissioned the OAuth-facade, capability-link, and external-anonymous route/response classes; design only, outside this Active spec's implemented-route claim — see the dated amendment). 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-05 (§Server-binary identity: the build-identity dirty
@@ -1526,6 +1526,35 @@ The route registry remains the single method inventory (the CORS
 allow-methods projection continues to derive from it), and the three rows
 surface in `schemas/http.routes.v1.json` through the standard generator with
 the same input/output schema refs as their bare siblings.
+
+## Dated amendment: LLP 0204 S2 integration lifecycle routes (2026-08-09)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md) D7 and
+the [LLP 0055 integration-registration amendment](./0055-agent-principals-and-scoped-grants.rfc.md#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08);
+**implemented** by `S2 Landing A`.
+
+The integration-registration class, companion record, terminal retirement,
+and reversible suspension use these registered routes:
+
+| Route / operation | Policy tuple | Body / result |
+| --- | --- | --- |
+| `POST /auth/integrations/retire` | `AppData`, `Public`, `AgentFamilySecretBody`, `InvocationAuthority::None`, `LegacyBodyPolicy::NotApplicable`, no extra effect, `PublicNoStore` | closed credential body; `204` |
+| `POST /_snapback/api/auth/integrations/{id}/retire` | `SystemApi`, `AdminWrite`, `AdminCredential`, `InvocationAuthority::Operator`, `LegacyBodyPolicy::NotApplicable`, `AgentDestroyCapability`, `OperatorMetadata` | empty body; `204` |
+| `POST /_snapback/api/auth/integrations/{id}/suspend` | `SystemApi`, `AdminWrite`, `AdminCredential`, `InvocationAuthority::Operator`, `LegacyBodyPolicy::NotApplicable`, no extra effect, `OperatorMetadata` | empty body; status projection |
+| `POST /_snapback/api/auth/integrations/{id}/resume` | same tuple as suspend | empty body; status projection |
+| `auth.integrationRetire` | host-ops projection of the retirement operator tuple above | closed `principalUserId` args; ordinary `hostOpsResult` |
+| `auth.integrationSuspend` / `auth.integrationResume` | host-ops projection of the suspension operator tuple above | closed `principalUserId` args; ordinary `hostOpsResult` |
+
+On `prod`, operator retirement requires both `AdminWrite` and the independent,
+process-bound, non-browser `AgentDestroyCapability`; dev/test/demo require
+`AdminWrite` only. The key-holder route accepts a live or attributable
+tombstoned integration credential-family secret and is destroy-only.
+Suspension is reversible admission state and is not represented or described
+as credential or grant revocation.
+
+The OAuth discovery, DCR, authorization, token, and revocation facade rows in
+the 2026-08-08 LLP 0204 amendment remain commissioned design. This amendment
+does not claim that those facade routes are implemented.
 
 ## Status
 

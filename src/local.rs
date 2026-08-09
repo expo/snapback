@@ -3599,6 +3599,9 @@ impl LocalSnapback {
                 "finite service authority disagrees with its exact process fence",
             ));
         }
+        // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — re-read reversible integration admission under the app lock so suspension is named rather than collapsed into revocation/carrier churn.
+        self.db
+            .require_active_integration_if_present(actor_user_id)?;
         if !self.db.retained_service_authority_is_live_readonly(
             crate::storage::auth_agent_credentials::RetainedServiceAuthority {
                 actor_user_id,
@@ -3759,6 +3762,9 @@ impl LocalSnapback {
             ..
         } = retained.resolved()
         {
+            // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — a retained live computation observes current suspension as an admission refusal without deleting its durable installation.
+            self.db
+                .require_active_integration_if_present(actor_user_id)?;
             if !self.db.retained_service_authority_is_live(
                 crate::storage::auth_agent_credentials::RetainedServiceAuthority {
                     actor_user_id,

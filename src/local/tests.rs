@@ -20024,6 +20024,7 @@ globalThis.__snapbackHandlers = {
             }],
             expires_at_ms: SERVICE_REPLAY_EXPIRES_AT_MS,
             grant_expires_at_ms: Some(SERVICE_REPLAY_EXPIRES_AT_MS),
+            integration_status: None,
         };
         let publication = service_fences
             .register(
@@ -22992,6 +22993,7 @@ globalThis.__snapbackHandlers = {
                 effective_user_id: Some("alice".to_owned()),
                 scopes: vec![scope],
                 token_expires_at_ms: 10_000,
+                integration_status: None,
             },
         )
         .expect("prepared service authority");

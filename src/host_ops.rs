@@ -43,7 +43,7 @@ pub const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE: usize = 64 * 1024;
 /// `require_operation_profile`. These groups are fully served today; they
 /// belong here so `host_op_diagnostic` recognizes their spelling instead of
 /// rewriting it to `"unrecognized"` in diagnostics.
-pub const SERVED_HOST_OPS: [&str; 40] = [
+pub const SERVED_HOST_OPS: [&str; 43] = [
     "app.inspect",
     "cron.list",
     "app.reset",
@@ -57,6 +57,9 @@ pub const SERVED_HOST_OPS: [&str; 40] = [
     "function.explain",
     "auth.mintSession",
     "auth.rescueCollidingTable",
+    "auth.integrationRetire",
+    "auth.integrationSuspend",
+    "auth.integrationResume",
     "telemetry.stats",
     "telemetry.events",
     "telemetry.export",
@@ -1942,7 +1945,11 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
                 ),
             }
         }
-        "auth.mintSession" | "auth.rescueCollidingTable" => envelope(
+        "auth.mintSession"
+        | "auth.rescueCollidingTable"
+        | "auth.integrationRetire"
+        | "auth.integrationSuspend"
+        | "auth.integrationResume" => envelope(
             snapback,
             false,
             authority_none(),

@@ -3222,6 +3222,18 @@ fn emit_impersonation_capability_to_writer(
     })
 }
 
+fn emit_agent_destroy_capability_to_writer(
+    operator: crate::admin_agent_destroy::AgentDestroyCapabilityOperator,
+    writer: &mut impl std::io::Write,
+) -> std::io::Result<()> {
+    operator.emit_once_to_terminal(|bearer| {
+        writer.write_all(b"agent destroy capability: ")?;
+        writer.write_all(bearer.as_bytes())?;
+        writer.write_all(b"\n")?;
+        writer.flush()
+    })
+}
+
 /// No-ready-file fallback. Write the process bearer directly to the
 /// controlling terminal: never stdout/stderr, tracing, or a generic inherited
 /// file descriptor that a launcher may capture into logs.
@@ -3244,9 +3256,38 @@ fn emit_impersonation_capability_to_controlling_terminal(
     emit_impersonation_capability_to_writer(operator, &mut terminal)
 }
 
+#[cfg(unix)]
+fn emit_agent_destroy_capability_to_controlling_terminal(
+    operator: crate::admin_agent_destroy::AgentDestroyCapabilityOperator,
+) -> std::io::Result<()> {
+    use std::os::unix::fs::{FileTypeExt as _, OpenOptionsExt as _};
+
+    let mut terminal = std::fs::OpenOptions::new()
+        .write(true)
+        .custom_flags(libc::O_CLOEXEC | libc::O_NOFOLLOW)
+        .open("/dev/tty")?;
+    if !terminal.metadata()?.file_type().is_char_device() {
+        return Err(std::io::Error::new(
+            ErrorKind::PermissionDenied,
+            "controlling-terminal capability is not a character device",
+        ));
+    }
+    emit_agent_destroy_capability_to_writer(operator, &mut terminal)
+}
+
 #[cfg(not(unix))]
 fn emit_impersonation_capability_to_controlling_terminal(
     _operator: crate::admin_impersonation::ImpersonationOperator,
+) -> std::io::Result<()> {
+    Err(std::io::Error::new(
+        ErrorKind::Unsupported,
+        "direct controlling-terminal capability emission is unavailable on this host",
+    ))
+}
+
+#[cfg(not(unix))]
+fn emit_agent_destroy_capability_to_controlling_terminal(
+    _operator: crate::admin_agent_destroy::AgentDestroyCapabilityOperator,
 ) -> std::io::Result<()> {
     Err(std::io::Error::new(
         ErrorKind::Unsupported,
@@ -3288,6 +3329,7 @@ struct ResolvedHttpTarget {
     server_url: String,
     minted_token: Option<String>,
     impersonation_capability: Option<crate::auth::crypto::ImpersonationBearer>,
+    agent_destroy_capability: Option<crate::auth::crypto::ImpersonationBearer>,
 }
 
 impl std::fmt::Debug for ResolvedHttpTarget {
@@ -3303,18 +3345,23 @@ impl std::fmt::Debug for ResolvedHttpTarget {
                 "impersonation_capability",
                 &self.impersonation_capability.as_ref().map(|_| "[REDACTED]"),
             )
+            .field(
+                "agent_destroy_capability",
+                &self.agent_destroy_capability.as_ref().map(|_| "[REDACTED]"),
+            )
             .finish()
     }
 }
 
 #[cfg(test)]
 fn resolve_http_target(target: &TargetArgs) -> anyhow::Result<ResolvedHttpTarget> {
-    resolve_http_target_for_operation(target, false)
+    resolve_http_target_for_operation(target, false, false)
 }
 
 fn resolve_http_target_for_operation(
     target: &TargetArgs,
     requires_impersonation: bool,
+    requires_agent_destroy: bool,
 ) -> anyhow::Result<ResolvedHttpTarget> {
     if let Some(url) = &target.url {
         let impersonation_capability =
@@ -3329,6 +3376,7 @@ fn resolve_http_target_for_operation(
             // A URL never selects a local capability file. The only explicit
             // no-ready-file carrier is the bounded stdin channel above.
             impersonation_capability,
+            agent_destroy_capability: None,
         });
     }
     if let Some(path) = &target.ready_file {
@@ -3385,6 +3433,42 @@ fn resolve_http_target_for_operation(
         } else {
             None
         };
+        let agent_destroy_capability = if requires_agent_destroy {
+            let health = fetch_health(&descriptor.server_url);
+            verify_live_descriptor_identity(&descriptor, &health, "integration retirement")
+                .map_err(|diagnostic| {
+                    anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message)
+                })?;
+            let sidecar = crate::admin_agent_destroy::agent_destroy_capability_sibling(
+                &canonical_ready,
+            )?;
+            match ready_target.read_strict_owner_only_sibling(
+                &sidecar,
+                crate::admin_agent_destroy::MAX_AGENT_DESTROY_CAPABILITY_FILE_BYTES,
+            ) {
+                Ok(bytes) => Some(
+                    crate::admin_agent_destroy::parse_agent_destroy_capability_file(
+                        zeroize::Zeroizing::new(bytes),
+                    )
+                    .map_err(anyhow::Error::new)?,
+                ),
+                // Non-production servers deliberately do not mint this
+                // capability; AdminWrite remains sufficient there. Production
+                // publishes the mechanical sidecar and middleware fails closed
+                // if it is ever absent.
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+                Err(error) => {
+                    return Err(error).with_context(|| {
+                        format!(
+                            "failed to read owner-only agent destroy capability {}",
+                            sidecar.display()
+                        )
+                    });
+                }
+            }
+        } else {
+            None
+        };
         // For capability-bearing operations the branch above has verified the
         // live startup nonce before either local sibling is read. Ordinary
         // host operations use the same storage-mode-aware minted-token
@@ -3395,6 +3479,7 @@ fn resolve_http_target_for_operation(
             server_url: descriptor.server_url.trim_end_matches('/').to_owned(),
             minted_token,
             impersonation_capability,
+            agent_destroy_capability,
         });
     }
     anyhow::bail!("no target: pass --url or --ready-file")
@@ -3442,6 +3527,7 @@ fn resolve_operator_ephemeral_target(
             server_url: descriptor.server_url.trim_end_matches('/').to_owned(),
             minted_token,
             impersonation_capability: None,
+            agent_destroy_capability: None,
         },
         startup_nonce,
     })
@@ -3501,6 +3587,23 @@ fn request_requires_impersonation(request: &Value) -> bool {
     })
 }
 
+fn request_requires_agent_destroy(request: &Value) -> bool {
+    let Some(operation) = request.get("operation").and_then(Value::as_str) else {
+        return false;
+    };
+    crate::server::host_ops_operation_spec(operation, None, false).is_some_and(|spec| {
+        [
+            crate::server::PolicyAuthMode::Dev,
+            crate::server::PolicyAuthMode::Sessions,
+        ]
+        .into_iter()
+        .any(|mode| {
+            spec.effective_for(mode).effect_policy
+                == crate::server::EffectPolicy::AgentDestroyCapability
+        })
+    })
+}
+
 // @ref LLP 0176#g0--baseline-truth-and-mechanical-repair — this CLI primitive
 // is only a closed-argument projection of the existing auth.mintSession host-op.
 fn mint_session_request(email: String) -> Value {
@@ -3553,7 +3656,12 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
     // token would let a rename between reads combine an attacker's URL with a
     // trusted descriptor's token handoff (ENG-24338).
     let requires_impersonation = request_requires_impersonation(&request);
-    let resolved = resolve_http_target_for_operation(target, requires_impersonation)?;
+    let requires_agent_destroy = request_requires_agent_destroy(&request);
+    let resolved = resolve_http_target_for_operation(
+        target,
+        requires_impersonation,
+        requires_agent_destroy,
+    )?;
     let token = target
         .token
         .clone()
@@ -3567,6 +3675,14 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
     if requires_impersonation && let Some(capability) = resolved.impersonation_capability.as_ref() {
         http = http.set(
             crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER,
+            capability.expose_secret(),
+        );
+    }
+    if requires_agent_destroy
+        && let Some(capability) = resolved.agent_destroy_capability.as_ref()
+    {
+        http = http.set(
+            crate::admin_agent_destroy::AGENT_DESTROY_CAPABILITY_HEADER,
             capability.expose_secret(),
         );
     }
@@ -3619,7 +3735,7 @@ fn telemetry_get(
     query: Vec<(&'static str, String)>,
     secret_read_lease: Option<&str>,
 ) -> anyhow::Result<ureq::Response> {
-    let resolved = resolve_http_target_for_operation(target, false)?;
+    let resolved = resolve_http_target_for_operation(target, false, false)?;
     let token = target
         .token
         .clone()
@@ -3826,7 +3942,7 @@ fn data_command(command: DataCommand) -> anyhow::Result<()> {
 }
 
 fn errors_json_post(target: &TargetArgs, value: Value) -> anyhow::Result<Value> {
-    let resolved = resolve_http_target_for_operation(target, false)?;
+    let resolved = resolve_http_target_for_operation(target, false, false)?;
     let token = target
         .token
         .clone()
@@ -4002,7 +4118,7 @@ fn path_segment_escape(raw: &str) -> String {
 /// `jobs.drain`). Mirrors `errors_json_post`'s token resolution exactly, one
 /// level more generic (an arbitrary path instead of one hardcoded route).
 fn admin_json_post(target: &TargetArgs, path: &str, value: Value) -> anyhow::Result<Value> {
-    let resolved = resolve_http_target_for_operation(target, false)?;
+    let resolved = resolve_http_target_for_operation(target, false, false)?;
     admin_json_post_resolved(target, resolved, path, value)
 }
 
@@ -4042,7 +4158,7 @@ fn admin_json_post_resolved(
 /// today, so `reason` is a client-recorded receipt field, not a
 /// server-acknowledged one — the printed receipt says so.
 fn admin_json_post_no_content(target: &TargetArgs, path: &str, value: Value) -> anyhow::Result<()> {
-    let resolved = resolve_http_target_for_operation(target, false)?;
+    let resolved = resolve_http_target_for_operation(target, false, false)?;
     let token = target
         .token
         .clone()
@@ -6186,6 +6302,14 @@ async fn run_composed(
         .as_deref()
         .map(ready_file_temp_path)
         .transpose()?;
+    let provisional_agent_destroy_temp = args
+        .ready_file
+        .as_deref()
+        .map(crate::admin_agent_destroy::agent_destroy_capability_sibling)
+        .transpose()?
+        .as_deref()
+        .map(ready_file_temp_path)
+        .transpose()?;
     let mut provisional_paths = managed_startup_paths(
         prepared_database_path.as_deref(),
         args.ready_file.as_deref(),
@@ -6199,6 +6323,12 @@ async fn run_composed(
     if let Some(path) = provisional_impersonation_temp {
         provisional_paths.push(ManagedPath {
             label: "impersonation capability temporary artifact",
+            path,
+        });
+    }
+    if let Some(path) = provisional_agent_destroy_temp {
+        provisional_paths.push(ManagedPath {
+            label: "agent destroy capability temporary artifact",
             path,
         });
     }
@@ -6228,6 +6358,14 @@ async fn run_composed(
         .as_deref()
         .map(ready_file_temp_path)
         .transpose()?;
+    let agent_destroy_capability_file = ready_path
+        .as_deref()
+        .map(crate::admin_agent_destroy::agent_destroy_capability_sibling)
+        .transpose()?;
+    let agent_destroy_temp_path = agent_destroy_capability_file
+        .as_deref()
+        .map(ready_file_temp_path)
+        .transpose()?;
     let mut managed_paths =
         managed_startup_paths(prepared_database_path.as_deref(), ready_path.as_deref())?;
     if let Some(path) = &ready_temp_path {
@@ -6239,6 +6377,12 @@ async fn run_composed(
     if let Some(path) = &impersonation_temp_path {
         managed_paths.push(ManagedPath {
             label: "impersonation capability temporary artifact",
+            path: path.clone(),
+        });
+    }
+    if let Some(path) = &agent_destroy_temp_path {
+        managed_paths.push(ManagedPath {
+            label: "agent destroy capability temporary artifact",
             path: path.clone(),
         });
     }
@@ -6445,6 +6589,18 @@ async fn run_composed(
     } else {
         (None, None)
     };
+    let (agent_destroy_capabilities, agent_destroy_operator) =
+        if server_context.profile == crate::admin::ServerProfile::Prod {
+            let (registry, operator) =
+                crate::admin_agent_destroy::AgentDestroyCapabilityRegistry::generate(
+                    startup_nonce.clone(),
+                    &crate::auth::crypto::OsRandom,
+                )
+                .context("failed to generate the process-bound agent destroy capability")?;
+            (Some(registry), Some(operator))
+        } else {
+            (None, None)
+        };
     let secret_read_root_file = ready_path.as_deref().map(secret_read_root_sibling);
     let secret_read_proof_root = match (ready_target.as_ref(), secret_read_root_file.as_ref()) {
         (Some(target), Some(path)) => Some(
@@ -6724,8 +6880,12 @@ async fn run_composed(
         )),
         None => app_state,
     };
-    let mut app_state = match impersonation_capabilities {
+    let app_state = match impersonation_capabilities {
         Some(registry) => app_state.with_impersonation_capabilities(registry),
+        None => app_state,
+    };
+    let mut app_state = match agent_destroy_capabilities {
+        Some(registry) => app_state.with_agent_destroy_capabilities(registry),
         None => app_state,
     };
     // Consume the connection-binding construction receipt before acquiring a
@@ -6794,6 +6954,31 @@ async fn run_composed(
             impersonation_capability_file_display = Some(path.display().to_string());
         } else {
             emit_impersonation_capability_to_controlling_terminal(operator)
+                .map_err(|_| anyhow::Error::new(ready_descriptor_required_error()))?;
+        }
+    }
+    if let Some(operator) = agent_destroy_operator {
+        if let Some(target) = ready_target.as_mut() {
+            let ready_file = target.pinned_path().to_path_buf();
+            let temporary = agent_destroy_temp_path
+                .as_deref()
+                .context("agent destroy sidecar temporary path was not allocated")?;
+            let path = operator
+                .publish_with(&ready_file, |path, bytes| {
+                    target.publish_owner_only_sibling_atomic(path, temporary, bytes)
+                })
+                .with_context(|| {
+                    format!(
+                        "failed to publish owner-only agent destroy capability for {}",
+                        ready_file.display()
+                    )
+                })?;
+            anyhow::ensure!(
+                agent_destroy_capability_file.as_deref() == Some(path.as_path()),
+                "agent destroy publisher returned a non-mechanical sidecar path"
+            );
+        } else {
+            emit_agent_destroy_capability_to_controlling_terminal(operator)
                 .map_err(|_| anyhow::Error::new(ready_descriptor_required_error()))?;
         }
     }
@@ -7061,6 +7246,7 @@ async fn run_composed(
     drop(database_lock);
     if let Some(target) = ready_target.as_ref() {
         let _ = target.remove_impersonation_capability();
+        let _ = target.remove_agent_destroy_capability();
         let _ = target.remove_secret_read_root();
         // Keep the non-secret descriptor after an expiry-driven shutdown.
         // The next registry-bound reap can then verify the recorded PID is
@@ -7388,6 +7574,10 @@ pub(crate) fn managed_startup_paths(
             label: "impersonation capability",
             path: crate::admin_impersonation::impersonation_capability_sibling(ready_file)?,
         });
+        paths.push(ManagedPath {
+            label: "agent destroy capability",
+            path: crate::admin_agent_destroy::agent_destroy_capability_sibling(ready_file)?,
+        });
     }
     Ok(paths)
 }
@@ -7506,6 +7696,7 @@ struct ReadyFileTarget {
     published_identity: Option<(u64, u64)>,
     parent_identity: Option<(u64, u64)>,
     impersonation_identity: Option<(PathBuf, (u64, u64))>,
+    agent_destroy_identity: Option<(PathBuf, (u64, u64))>,
     secret_read_root_identity: Option<(PathBuf, (u64, u64))>,
     #[cfg(unix)]
     _secret_read_root_handle: Option<std::fs::File>,
@@ -7575,6 +7766,7 @@ impl ReadyFileTarget {
             published_identity: None,
             parent_identity,
             impersonation_identity: None,
+            agent_destroy_identity: None,
             secret_read_root_identity: None,
             #[cfg(unix)]
             _secret_read_root_handle: None,
@@ -7911,7 +8103,13 @@ impl ReadyFileTarget {
             let _ = self.parent.sync_all();
         }
         let identity = result?;
-        self.impersonation_identity = Some((path.to_path_buf(), identity));
+        if crate::admin_agent_destroy::agent_destroy_capability_sibling(&self.pinned_path)
+            .is_ok_and(|expected| expected == path)
+        {
+            self.agent_destroy_identity = Some((path.to_path_buf(), identity));
+        } else {
+            self.impersonation_identity = Some((path.to_path_buf(), identity));
+        }
         Ok(())
     }
 
@@ -7990,6 +8188,13 @@ impl ReadyFileTarget {
 
     fn remove_impersonation_capability(&self) -> std::io::Result<()> {
         let Some((path, identity)) = self.impersonation_identity.as_ref() else {
+            return Ok(());
+        };
+        self.remove_sibling_if_identity(path, *identity)
+    }
+
+    fn remove_agent_destroy_capability(&self) -> std::io::Result<()> {
+        let Some((path, identity)) = self.agent_destroy_identity.as_ref() else {
             return Ok(());
         };
         self.remove_sibling_if_identity(path, *identity)
@@ -8267,6 +8472,7 @@ impl ReadyFileTarget {
 impl Drop for ReadyFileTarget {
     fn drop(&mut self) {
         let _ = self.remove_impersonation_capability();
+        let _ = self.remove_agent_destroy_capability();
         // The secret-read proof root shares the descriptor's identity; a
         // target that dies without reaching the explicit shutdown removal
         // (startup failure, task abort) must not orphan it (0137 G1).
