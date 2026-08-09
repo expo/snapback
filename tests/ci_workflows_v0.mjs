@@ -202,7 +202,9 @@ assert.equal(setupNodeCount, 9, 'the Node-using workflow inventory changed; revi
 // 38 -> 44 (2026-08-06): rolling telemetry evidence adds a coalesced Linux
 // producer with checkout, Node, Bun, Hermes/Cargo caches, and artifact upload.
 // 44 -> 45 (2026-08-09): LLP 0188 G1 ltx-conformance adds one pinned checkout.
-assert.equal(actionCount, 45, 'the reviewed workflow action inventory changed; review and update this count');
+// 45 -> 46 (2026-08-09): the public-package matrix installs checkout-pinned
+// Bun for the nested Expo public-registry closure rehearsal.
+assert.equal(actionCount, 46, 'the reviewed workflow action inventory changed; review and update this count');
 
 const telemetryLatestMain = readFileSync(
   join(workflowDir, 'telemetry-latest-main.yml'),
@@ -272,6 +274,11 @@ assert.match(
   publicPackageProof,
   /else[\s\S]*\[\[ -z "\$EXPECTED_PRIOR_ROOT_VERSION" \]\][\s\S]*\[\[ -z "\$AUTHORIZED_LEASE_SHA256" \]\][\s\S]*\[\[ -z "\$PUBLICATION_EPOCH" \]\]/u,
   'exact public proof must refuse latest-root retry authority inputs',
+);
+assert.match(
+  publicPackageProof,
+  /if:\s*\$\{\{ steps\.ledger\.outputs\.scope_preset != 'ccheever' \}\}[\s\S]*SNAPBACK_PUBLISHED_CLOSURE_VERSION:\s*\$\{\{ steps\.ledger\.outputs\.version \}\}[\s\S]*node --test scripts\/published-closure-rehearsal\.test\.mjs/u,
+  'terminal-scope public package proofs must run the nested Expo registry-closure rehearsal at the ledger version',
 );
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');

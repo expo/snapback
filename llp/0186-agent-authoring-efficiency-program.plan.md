@@ -111,7 +111,7 @@ needed, before product code ran live:
 - a local package-closure repair — `file:` installs of
   `@expo/snapback-client`/`-react` still resolve the unpublished
   `@expo/snapback-contract` from npm and fail without a manual override
-  (`issues/20260805-local-source-package-closure-needs-contract-override.md`);
+  (`issues/closed/20260805-local-source-package-closure-needs-contract-override.md`);
 - runtime bootstrap plus three codegen correction rounds;
 - a managed dev-loop defect at measurement time — `snapback dev` could not
   parse the native `load`'s two-document JSON success output and aborted with
@@ -244,7 +244,7 @@ agent installs.
    but that closure predates the current surface (the Chessfield arm
    authored against documented primitives absent from it), and the local
    `file:` path still needs a manual contract override
-   (`issues/20260805-local-source-package-closure-needs-contract-override.md`).
+   (`issues/closed/20260805-local-source-package-closure-needs-contract-override.md`).
    The open work is the first promotion under the qualification bar that
    makes the published closure current and coherent.
 3. **Landed 2026-08-05.** The dev-mode asset-upload anonymous-caller wall

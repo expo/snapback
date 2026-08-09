@@ -114,7 +114,7 @@ package override before installing the client and React packages.
 
 This is understandable in a framework source checkout, but it is ceremony the
 Convex arm did not have. Convex was one `bun add convex`. Filed
-`issues/20260805-local-source-package-closure-needs-contract-override.md` with
+`issues/closed/20260805-local-source-package-closure-needs-contract-override.md` with
 the exact dependency edge and cold-install acceptance criteria.
 
 ### 03:42 — codegen was fast and useful

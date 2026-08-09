@@ -9,7 +9,7 @@
 **Date:** 2026-08-05
 **Governing:** LLP 0041, LLP 0103
 **Related:** LLP 0176; `demos/tandem-expo-bakeoff/scripts/build-ios-dev-client`;
-`issues/20260805-local-source-package-closure-needs-contract-override.md`;
+`issues/closed/20260805-local-source-package-closure-needs-contract-override.md`;
 Diary 0059 ("Expo and device packaging")
 
 ## Problem

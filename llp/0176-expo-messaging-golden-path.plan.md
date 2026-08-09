@@ -7,7 +7,12 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (t) — Recorded G4's registry-only result against the
+**Revised:** 2026-08-09 (u) — A2's source and published package-closure halves
+are now both resolved: the nested Expo source fixture installs one all-local
+closure, and its public-registry twin cold-installs client/React 0.1.15 with a
+transitive Contract 0.1.15, no local paths or overrides, and successful root
+imports. The issue pointer moves to `issues/closed/`; no other program gate or
+status changes. 2026-08-06 (t) — Recorded G4's registry-only result against the
 live 0.1.10 ten-package vector: clean external generation, Metro closure,
 local Expo export, and EAS stage-only inspection succeeded, but both fleet
 platforms stopped before Metro because the packaged runtime rejects generated
@@ -290,10 +295,13 @@ the cheaper mechanical fixes.
   emitted by a valid native load while refusing a failed envelope or malformed
   stream. Resolution:
   `issues/closed/20260805-managed-dev-multi-json-load.md`.
-- **A2 — local package closure.** A file-installed client still resolves its
-  exact Contract dependency from the registry. Tickets:
-  `issues/20260805-local-source-package-closure-needs-contract-override.md`
-  and `issues/20260803-first-npm-latest-promotion.md`.
+- **A2 — local package closure (resolved 2026-08-09).** The supported local
+  installer packs and overrides one coherent checkout closure; the independent
+  public-registry rehearsal cold-installs the same nested Expo consumer shape
+  at one exact published version without local paths, overrides, or a direct
+  Contract dependency. Tickets:
+  `issues/closed/20260805-local-source-package-closure-needs-contract-override.md`
+  and `issues/closed/20260803-first-npm-latest-promotion.md`.
 - **A3 — nested EAS roots.** EAS resolves the repository Git root instead of
   the nested app, leading two bakeoffs to invent staging copies. Resolved
   2026-08-05: the staging workaround is the paved path

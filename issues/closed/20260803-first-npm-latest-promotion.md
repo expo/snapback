@@ -44,7 +44,7 @@ closure and packaging facets), LLP 0145 (client bundle metrology), LLP 0148
   registry and stopped installation because that version was unavailable.
   The app required both an explicit local Contract dependency and an
   `overrides` entry. This is tracked separately in
-  `issues/20260805-local-source-package-closure-needs-contract-override.md`.
+  `issues/closed/20260805-local-source-package-closure-needs-contract-override.md`.
   Publishing a coherent closure should make the registry path green, but the
   promotion proof should also cover a source-checkout/file consumer so local
   development cannot silently mix checkout packages with registry packages.
@@ -159,7 +159,7 @@ the published versions.
   (`issues/20260806-llp0134-bar-vs-npm-promotion-ruling-needed.md`); the
   0134 soak window runs as its own decoupled 14-day program. The
   source-checkout/`file:` consumer proof remains open in
-  `issues/20260805-local-source-package-closure-needs-contract-override.md`.
+  `issues/closed/20260805-local-source-package-closure-needs-contract-override.md`.
   Dated notes landed on LLP 0041/0074/0122 and the LLP 0115 board.
 
 - **2026-08-06 — 0.1.10 publication anomaly; do not treat as a proved G4

@@ -82,6 +82,8 @@ jobs:
             }
             fs.copyFileSync(path, process.env.RUNNER_TEMP + "/snapback-publication-ledger.json");
             fs.appendFileSync(process.env.GITHUB_OUTPUT, "revision=" + ledger.revision + "\n");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "version=" + ledger.version + "\n");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "scope_preset=" + ledger.scopePreset + "\n");
           '
 
       - name: Materialize the immutable package-source checkout
@@ -103,6 +105,17 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .node-version
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        if: ${{ steps.ledger.outputs.scope_preset != 'ccheever' }}
+        with:
+          bun-version-file: package.json
+
+      - name: Prove the nested Expo client and React registry closure
+        if: ${{ steps.ledger.outputs.scope_preset != 'ccheever' }}
+        env:
+          SNAPBACK_PUBLISHED_CLOSURE_VERSION: ${{ steps.ledger.outputs.version }}
+        run: node --test scripts/published-closure-rehearsal.test.mjs
 
       - name: Prove the public package loop
         env:
