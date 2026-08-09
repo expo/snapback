@@ -1229,13 +1229,17 @@ pub struct AssetFinalizeResponseV1 {
     pub task: AssetTaskStateV1,
 }
 
-/// `private-signed` issuance (LLP 0044 §Delivery profiles). The variant is a
-/// concrete key — the declarative `best` selector resolves at request time
-/// and is deliberately not signable, since the signature binds one alias.
+/// `private-signed` issuance (LLP 0044 §Delivery profiles). When supplied,
+/// the variant is a concrete key — the declarative `best` selector resolves
+/// at request time and is deliberately not signable, since the signature
+/// binds one alias.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct AssetSignedUrlIssueRequestV1 {
-    pub variant: String,
+    /// @ref LLP 0210#d2--issuance-defaults-and-typed-refusals — omission
+    /// selects `primary`; `widthPx` continues to supersede this selector.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant: Option<String>,
     /// Bounded by the declared maximum; the declared default applies when
     /// absent.
     #[serde(default, skip_serializing_if = "Option::is_none")]

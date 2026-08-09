@@ -1720,7 +1720,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(empty, 0, "refuse-partial lands no rows");
     }
 
-    fn asset_dev_authority(
+    pub(crate) fn asset_dev_authority(
         snapback: &LocalSnapback,
         user: &str,
         source: InvocationSource,
@@ -2181,15 +2181,28 @@ globalThis.__snapbackHandlers = {
         intent
     }
 
-    fn asset_profile_snapback() -> LocalSnapback {
+    pub(crate) fn asset_profile_snapback() -> LocalSnapback {
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        let mut signed_intent = asset_profile_intent(
+            "signedUpload",
+            crate::assets::AssetDeliveryProfile::PrivateSigned,
+        );
+        signed_intent
+            .accept
+            .media_types
+            .push("image/jpeg".to_owned());
+        signed_intent.image = Some(crate::manifest::AssetImagePolicy {
+            location: crate::manifest::AssetLocationPolicy::Retain,
+            variants: vec![crate::manifest::AssetImageVariant {
+                key: "thumb".to_owned(),
+                width: 16,
+                required: false,
+            }],
+        });
         let diagnostics = snapback.load_functions(FunctionManifest {
             asset_upload_intents: vec![
                 asset_test_intent(),
-                asset_profile_intent(
-                    "signedUpload",
-                    crate::assets::AssetDeliveryProfile::PrivateSigned,
-                ),
+                signed_intent,
                 asset_profile_intent(
                     "publicUpload",
                     crate::assets::AssetDeliveryProfile::PublicImmutable,
@@ -2207,7 +2220,7 @@ globalThis.__snapbackHandlers = {
     }
 
     /// Upload + finalize under a named profile intent; returns the asset id.
-    fn asset_ready_under_intent(
+    pub(crate) fn asset_ready_under_intent(
         snapback: &mut LocalSnapback,
         user: &str,
         bytes: &[u8],
@@ -6972,20 +6985,26 @@ globalThis.__snapbackHandlers = {
         let asset_id = asset_ready_under_intent(&mut snapback, "user_a", &bytes, "signedUpload");
         let owner = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
 
-        // Issuance is per-request authorized: a foreign caller refuses.
+        // @ref LLP 0210#d2--issuance-defaults-and-typed-refusals — issuance
+        // authorization hides both asset existence and declared variants.
         let foreign = asset_dev_authority(&snapback, "user_b", InvocationSource::HttpQuery);
-        let refused = snapback
-            .asset_signed_url_issue(
-                &foreign,
-                &asset_id,
-                crate::assets::AssetSignedUrlIssueRequestV1 {
-                    variant: "primary".to_owned(),
-                    ttl_ms: None,
-                    width_px: None,
-                },
-            )
-            .expect_err("foreign issuance refuses");
-        assert_eq!(refused.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+        let unknown_request = || crate::assets::AssetSignedUrlIssueRequestV1 {
+            variant: Some("secret-variant".to_owned()),
+            ttl_ms: None,
+            width_px: None,
+        };
+        let existing_denial = snapback
+            .asset_signed_url_issue(&foreign, &asset_id, unknown_request())
+            .expect_err("foreign issuance refuses before variant validation");
+        let missing_denial = snapback
+            .asset_signed_url_issue(&foreign, "asset_missing", unknown_request())
+            .expect_err("missing asset refuses without becoming an existence oracle");
+        assert_eq!(existing_denial, missing_denial);
+        assert_eq!(
+            existing_denial.diagnostic.code,
+            "SNAPBACK_ASSET_FORBIDDEN"
+        );
+        assert!(existing_denial.diagnostic.details.get("variants").is_none());
 
         // TTL beyond the declared maximum and the unsignable `best`
         // selector refuse structurally.
@@ -6994,7 +7013,7 @@ globalThis.__snapbackHandlers = {
                 &owner,
                 &asset_id,
                 crate::assets::AssetSignedUrlIssueRequestV1 {
-                    variant: "primary".to_owned(),
+                    variant: Some("primary".to_owned()),
                     ttl_ms: Some(crate::assets::ASSET_SIGNED_URL_MAX_TTL_MS + 1),
                     width_px: None,
                 },
@@ -7006,13 +7025,18 @@ globalThis.__snapbackHandlers = {
                 &owner,
                 &asset_id,
                 crate::assets::AssetSignedUrlIssueRequestV1 {
-                    variant: "best".to_owned(),
+                    variant: Some("best".to_owned()),
                     ttl_ms: None,
                     width_px: None,
                 },
             )
             .expect_err("best is unsignable");
         assert_eq!(best.diagnostic.code, "SNAPBACK_ASSET_VARIANT_UNKNOWN");
+        assert_eq!(
+            best.diagnostic.details["variants"],
+            serde_json::json!(["primary", "thumb"])
+        );
+        assert_eq!(best.diagnostic.details["requestedVariant"], "best");
 
         // A strict-profile asset does not issue.
         let strict_asset = asset_ready(&mut snapback, "user_a", b"strict-bytes");
@@ -7021,7 +7045,7 @@ globalThis.__snapbackHandlers = {
                 &owner,
                 &strict_asset,
                 crate::assets::AssetSignedUrlIssueRequestV1 {
-                    variant: "primary".to_owned(),
+                    variant: Some("primary".to_owned()),
                     ttl_ms: None,
                     width_px: None,
                 },
@@ -7039,7 +7063,7 @@ globalThis.__snapbackHandlers = {
                 &owner,
                 &asset_id,
                 crate::assets::AssetSignedUrlIssueRequestV1 {
-                    variant: "primary".to_owned(),
+                    variant: Some("primary".to_owned()),
                     ttl_ms: None,
                     width_px: None,
                 },
@@ -7047,6 +7071,23 @@ globalThis.__snapbackHandlers = {
             .expect("owner issuance");
         assert!(
             issued
+                .url
+                .starts_with(&format!("/assets/signed/{asset_id}/primary?token=v1."))
+        );
+        let defaulted = snapback
+            .asset_signed_url_issue(
+                &owner,
+                &asset_id,
+                crate::assets::AssetSignedUrlIssueRequestV1 {
+                    variant: None,
+                    ttl_ms: None,
+                    width_px: None,
+                },
+            )
+            .expect("omitted variant defaults to primary");
+        assert_eq!(defaulted.variant, "primary");
+        assert!(
+            defaulted
                 .url
                 .starts_with(&format!("/assets/signed/{asset_id}/primary?token=v1."))
         );
@@ -7108,7 +7149,7 @@ globalThis.__snapbackHandlers = {
                     owner,
                     &asset_id,
                     crate::assets::AssetSignedUrlIssueRequestV1 {
-                        variant: "primary".to_owned(),
+                        variant: Some("primary".to_owned()),
                         ttl_ms: None,
                         width_px: None,
                     },

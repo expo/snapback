@@ -26,6 +26,85 @@ fn asset_delivery_window_refuses_oversized_store_chunks() {
     );
 }
 
+#[test]
+fn asset_signed_url_request_accepts_empty_defaults_and_types_parse_refusals() {
+    let empty = super::parse_asset_signed_url_issue_request(Ok(Bytes::new()))
+        .expect("empty issuance body is the default request");
+    let omitted = super::parse_asset_signed_url_issue_request(Ok(Bytes::from_static(b"{}")))
+        .expect("omitted variant is valid");
+    assert_eq!(empty, omitted);
+    assert_eq!(empty.variant, None);
+    assert_eq!(empty.ttl_ms, None);
+    assert_eq!(empty.width_px, None);
+
+    let malformed = super::parse_asset_signed_url_issue_request(Ok(Bytes::from_static(
+        br#"{"ttlMs":"forever"}"#,
+    )))
+    .expect_err("a malformed field refuses through the typed asset diagnostic");
+    assert_eq!(
+        malformed.0.diagnostic.code,
+        "SNAPBACK_ASSET_REQUEST_INVALID"
+    );
+    assert_eq!(malformed.0.diagnostic.details["field"], "ttlMs");
+    assert_eq!(
+        malformed.into_response().status(),
+        StatusCode::BAD_REQUEST,
+        "malformed issuance never escapes as a framework 422"
+    );
+
+    let invalid_json = super::parse_asset_signed_url_issue_request(Ok(Bytes::from_static(b"{")))
+        .expect_err("invalid JSON refuses through the same typed diagnostic");
+    assert_eq!(
+        invalid_json.0.diagnostic.code,
+        "SNAPBACK_ASSET_REQUEST_INVALID"
+    );
+    assert_eq!(invalid_json.0.diagnostic.details["field"], "body");
+    assert_eq!(invalid_json.into_response().status(), StatusCode::BAD_REQUEST);
+
+    let unknown = super::parse_asset_signed_url_issue_request(Ok(Bytes::from_static(
+        br#"{"surprise":true}"#,
+    )))
+    .expect_err("an unknown field refuses through the typed diagnostic");
+    assert_eq!(unknown.0.diagnostic.details["field"], "surprise");
+    assert_eq!(unknown.into_response().status(), StatusCode::BAD_REQUEST);
+
+    let trailing = super::parse_asset_signed_url_issue_request(Ok(Bytes::from_static(b"{} {}")))
+        .expect_err("trailing JSON refuses through the typed diagnostic");
+    assert_eq!(trailing.0.diagnostic.details["field"], "body");
+    assert_eq!(trailing.into_response().status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn asset_signed_url_route_empty_and_omitted_body_issue_primary() {
+    let mut snapback = crate::local::tests::asset_profile_snapback();
+    let asset_id = crate::local::tests::asset_ready_under_intent(
+        &mut snapback,
+        "user_a",
+        b"signed-route-defaults",
+        "signedUpload",
+    );
+    let authority = crate::local::tests::asset_dev_authority(
+        &snapback,
+        "user_a",
+        InvocationSource::HttpQuery,
+    );
+    let state = Arc::new(Mutex::new(snapback));
+
+    for body in [Bytes::new(), Bytes::from_static(b"{}")] {
+        let issued = super::asset_signed_url_issue_route(
+            State(state.clone()),
+            Extension(authority.clone()),
+            AxumPath(asset_id.clone()),
+            Ok(body),
+        )
+        .await
+        .expect("empty/default issuance succeeds");
+        assert_eq!(issued.0.variant, "primary");
+        assert!(issued.0.url.contains(&format!("/{asset_id}/primary?token=")));
+        assert_eq!(issued.into_response().status(), StatusCode::OK);
+    }
+}
+
 #[tokio::test]
 async fn network_profile_http_release_marks_delay_and_keeps_normal_identity() {
     let profiles = crate::network_profile::NetworkProfileState::new();
@@ -15791,6 +15870,7 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_ASSET_ATTACH_INTENT_MISMATCH",
     "SNAPBACK_ASSET_ATTACH_UNAVAILABLE",
     "SNAPBACK_ASSET_ATTACH_DENIED",
+    "SNAPBACK_ASSET_REQUEST_INVALID",
     "SNAPBACK_ASSET_TTL_INVALID",
     "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED",
     "SNAPBACK_PUSH_SEAM_NOT_DECLARED",

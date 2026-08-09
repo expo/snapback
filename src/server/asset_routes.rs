@@ -436,13 +436,61 @@ pub(super) async fn asset_signed_url_issue_route(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
     Path(id): Path<String>,
-    Json(request): Json<crate::assets::AssetSignedUrlIssueRequestV1>,
+    body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<crate::assets::AssetSignedUrlIssueResponseV1>, ApiError> {
+    let request = parse_asset_signed_url_issue_request(body)?;
     let response = with_snapback(&state, move |snapback| {
         snapback.asset_signed_url_issue(&authority, &id, request)
     })
     .await?;
     Ok(Json(response))
+}
+
+/// @ref LLP 0210#d2--issuance-defaults-and-typed-refusals — the issuance
+/// route owns its tolerant empty-body grammar and typed parse refusals rather
+/// than exposing axum's framework rejection.
+pub(super) fn parse_asset_signed_url_issue_request(
+    body: Result<Bytes, BytesRejection>,
+) -> Result<crate::assets::AssetSignedUrlIssueRequestV1, ApiError> {
+    let body = body.map_err(|error| asset_request_invalid("body", error.to_string()))?;
+    if body.is_empty() {
+        return Ok(crate::assets::AssetSignedUrlIssueRequestV1 {
+            variant: None,
+            ttl_ms: None,
+            width_px: None,
+        });
+    }
+
+    let mut deserializer = serde_json::Deserializer::from_slice(&body);
+    let request = serde_path_to_error::deserialize(&mut deserializer).map_err(|error| {
+        let path = error.path().to_string();
+        let field = if path.is_empty() || path == "." || path == "?" {
+            "body".to_owned()
+        } else {
+            path
+        };
+        asset_request_invalid(&field, error.inner().to_string())
+    })?;
+    deserializer
+        .end()
+        .map_err(|error| asset_request_invalid("body", error.to_string()))?;
+    Ok(request)
+}
+
+fn asset_request_invalid(field: &str, error: String) -> ApiError {
+    ApiError::from(
+        SnapbackError::error(
+            "SNAPBACK_ASSET_REQUEST_INVALID",
+            "assets",
+            format!(
+                "signed-URL issuance field {field} is invalid; send an empty body or a JSON object with variant, widthPx, and ttlMs"
+            ),
+        )
+        .with_details(serde_json::json!({
+            "field": field,
+            "error": error,
+        })),
+    )
 }
 
 pub(super) async fn asset_deliver_signed_route(

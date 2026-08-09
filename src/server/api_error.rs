@@ -669,7 +669,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // a probe learns nothing about which part failed.
         "SNAPBACK_ASSET_SIGNATURE_EXPIRED" => StatusCode::UNAUTHORIZED,
         "SNAPBACK_ASSET_SIGNATURE_INVALID" => StatusCode::FORBIDDEN,
-        "SNAPBACK_ASSET_TTL_INVALID" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_ASSET_REQUEST_INVALID" | "SNAPBACK_ASSET_TTL_INVALID" => {
+            StatusCode::BAD_REQUEST
+        }
         "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED" => StatusCode::UNPROCESSABLE_ENTITY,
         "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED" => StatusCode::UNPROCESSABLE_ENTITY,
         // Image-processing refusals about the client's bytes are 422: the

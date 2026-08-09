@@ -9,6 +9,14 @@ use rusqlite::TransactionBehavior;
 use serde_json::Value;
 use std::sync::Arc;
 
+fn asset_signed_url_forbidden() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ASSET_FORBIDDEN",
+        "assets",
+        "this asset is not readable by the caller",
+    )
+}
+
 /// One resolved delivery window over an `(asset, rendition)` alias. The
 /// cache posture is the profile's: strict is `private, no-store`, signed is
 /// `private` bounded by the remaining bearer window, public-immutable is the
@@ -620,23 +628,18 @@ impl LocalDatabase {
         asset_id: &str,
     ) -> SnapbackResult<()> {
         self.asset_reads_transaction(|tx| {
-            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
-            if asset.availability == assets::AssetAvailability::Deleted {
-                return Err(asset_unknown(asset_id)());
+            let asset = assets::load_asset(tx, asset_id)?
+                .filter(|asset| asset.availability != assets::AssetAvailability::Deleted)
+                .ok_or_else(asset_signed_url_forbidden)?;
+            let decision = super::asset_read_authorized(schema, tx, caller, &asset)?;
+            if !decision.authorized {
+                return Err(asset_signed_url_forbidden());
             }
             if asset.delivery_profile != assets::AssetDeliveryProfile::PrivateSigned {
                 return Err(SnapbackError::error(
                     "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
                     "assets",
                     "this asset's declared delivery profile does not issue signed URLs",
-                ));
-            }
-            let decision = super::asset_read_authorized(schema, tx, caller, &asset)?;
-            if !decision.authorized {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_FORBIDDEN",
-                    "assets",
-                    "this asset is not readable by the caller",
                 ));
             }
             Ok(())
@@ -650,13 +653,17 @@ impl LocalDatabase {
         caller: Option<&str>,
         asset_id: &str,
         issued_variant: &str,
+        validate_declared_variant: bool,
         ttl: u64,
         now: u64,
     ) -> SnapbackResult<assets::AssetSignedUrlIssueResponseV1> {
         self.asset_reads_transaction(|tx| {
-            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
-            if asset.availability == assets::AssetAvailability::Deleted {
-                return Err(asset_unknown(asset_id)());
+            let asset = assets::load_asset(tx, asset_id)?
+                .filter(|asset| asset.availability != assets::AssetAvailability::Deleted)
+                .ok_or_else(asset_signed_url_forbidden)?;
+            let decision = super::asset_read_authorized(schema, tx, caller, &asset)?;
+            if !decision.authorized {
+                return Err(asset_signed_url_forbidden());
             }
             if asset.delivery_profile != assets::AssetDeliveryProfile::PrivateSigned {
                 return Err(SnapbackError::error(
@@ -665,13 +672,52 @@ impl LocalDatabase {
                     "this asset's declared delivery profile does not issue signed URLs",
                 ));
             }
-            let decision = super::asset_read_authorized(schema, tx, caller, &asset)?;
-            if !decision.authorized {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_FORBIDDEN",
-                    "assets",
-                    "this asset is not readable by the caller",
-                ));
+            // @ref LLP 0210#d2--issuance-defaults-and-typed-refusals — the
+            // declared keys are metadata, so enumerate only after the read
+            // policy has authorized this caller.
+            if validate_declared_variant {
+                let intent_json = assets::load_intent_artifact(
+                    tx,
+                    &asset.intent_id,
+                    asset.policy_generation,
+                )?
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_RECORD_INVALID",
+                        "assets",
+                        "the asset's admitted upload-intent artifact is unavailable",
+                    )
+                })?;
+                let intent: crate::manifest::AssetUploadIntentDefinition =
+                    serde_json::from_str(&intent_json).map_err(|_| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_RECORD_INVALID",
+                            "assets",
+                            "the asset's admitted upload-intent artifact is invalid",
+                        )
+                    })?;
+                let mut variants = vec!["primary".to_owned()];
+                if let Some(image) = intent.image {
+                    for variant in image.variants {
+                        if !variants.contains(&variant.key) {
+                            variants.push(variant.key);
+                        }
+                    }
+                }
+                if !variants.iter().any(|variant| variant == issued_variant) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ASSET_VARIANT_UNKNOWN",
+                        "assets",
+                        format!(
+                            "variant {issued_variant} is not declared; choose one of {}",
+                            variants.join(", ")
+                        ),
+                    )
+                    .with_details(serde_json::json!({
+                        "requestedVariant": issued_variant,
+                        "variants": variants,
+                    })));
+                }
             }
             if asset.availability != assets::AssetAvailability::Ready {
                 return Err(SnapbackError::error(
@@ -1650,11 +1696,19 @@ impl<'a> AssetReadsKernel<'a> {
         caller: Option<&str>,
         asset_id: &str,
         issued_variant: &str,
+        validate_declared_variant: bool,
         ttl: u64,
         now: u64,
     ) -> SnapbackResult<assets::AssetSignedUrlIssueResponseV1> {
-        self.db
-            .asset_signed_url_issue(schema, caller, asset_id, issued_variant, ttl, now)
+        self.db.asset_signed_url_issue(
+            schema,
+            caller,
+            asset_id,
+            issued_variant,
+            validate_declared_variant,
+            ttl,
+            now,
+        )
     }
 
     pub fn deliver_signed(
