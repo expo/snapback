@@ -214,6 +214,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("DELETE", "/auth/grants/by-actor/{actor_id}"),
         ("DELETE", "/auth/grants/{id}"),
         ("POST", "/query/{name}"),
+        ("POST", "/api/v1/query/{name}"),
         ("POST", "/query/{name}/authorized-lease"),
         ("POST", "/client-mutations/acknowledge"),
         ("POST", "/client-mutations/identity-range"),
@@ -232,7 +233,9 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("PATCH", "/assets/tus/{id}"),
         ("DELETE", "/assets/tus/{id}"),
         ("POST", "/mutation/{name}"),
+        ("POST", "/api/v1/mutation/{name}"),
         ("POST", "/action/{name}"),
+        ("POST", "/api/v1/action/{name}"),
         ("POST", "/app/bundle"),
         ("POST", "/app/ensure"),
         ("POST", "/connection/open"),
@@ -808,7 +811,13 @@ fn session_overlay_closes_every_client_asserted_http_route() {
                     // Bundle entries are evaluated exactly like /query
                     // invocations, so the generated app-data route class's
                     // scoped tokens stay legal (LLP 0092 §0D.7).
-                    "/query/{name}" | "/mutation/{name}" | "/action/{name}" | "/app/bundle" => {
+                    "/query/{name}"
+                    | "/api/v1/query/{name}"
+                    | "/mutation/{name}"
+                    | "/api/v1/mutation/{name}"
+                    | "/action/{name}"
+                    | "/api/v1/action/{name}"
+                    | "/app/bundle" => {
                         CredentialResolution::OptionalSessionOrScopedToken
                     }
                     _ => CredentialResolution::OptionalSessionBearer,
@@ -1647,6 +1656,14 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             },
         ),
         (
+            ("POST", "/api/v1/query/{name}"),
+            SessionBodyProbe {
+                uri: "/api/v1/query/missing_function",
+                base: json!({ "args": {} }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
             ("POST", "/app/bundle"),
             SessionBodyProbe {
                 uri: "/app/bundle",
@@ -1836,9 +1853,25 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             },
         ),
         (
+            ("POST", "/api/v1/mutation/{name}"),
+            SessionBodyProbe {
+                uri: "/api/v1/mutation/missing_function",
+                base: json!({ "args": {} }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
             ("POST", "/action/{name}"),
             SessionBodyProbe {
                 uri: "/action/missing_function",
+                base: json!({ "args": {} }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/api/v1/action/{name}"),
+            SessionBodyProbe {
+                uri: "/api/v1/action/missing_function",
                 base: json!({ "args": {} }),
                 forbidden_fields: handler_fields(),
             },

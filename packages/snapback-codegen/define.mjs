@@ -47,6 +47,7 @@ const isUserIdentifier = (value) => {
 const AUTH_MODES = new Set(['dev', 'sessions']);
 const AGENT_REGISTRATION_MODES = new Set(['disabled', 'invited', 'open']);
 const AGENT_INVITERS = new Set(['operators', 'users']);
+const API_DISCLOSURES = new Set(['exposed-only', 'full']);
 const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
 const AUTHORIZATION_DIMENSIONS = new Set([
   'userId',
@@ -1405,6 +1406,52 @@ export function defineSchema(tables, options = {}) {
     // sessions-only registration policy; omission remains disabled.
     auth = { mode: options.auth.mode, ...(agents ? { agents } : {}) };
   }
+  let api;
+  if (options.api !== undefined) {
+    assert(options.api && typeof options.api === 'object' && !Array.isArray(options.api), 'defineSchema option "api" must be an object');
+    if (Object.hasOwn(options.api, 'budgets')) {
+      assert(
+        false,
+        'defineSchema api.budgets lands with LLP 0204 S2',
+        'SNAPBACK_API_BUDGETS_UNAVAILABLE',
+      );
+    }
+    exactObject(options.api, 'defineSchema api', new Set(['enabled', 'disclosure', 'functions', 'origins']));
+    const enabled = options.api.enabled ?? false;
+    const disclosure = options.api.disclosure ?? 'exposed-only';
+    const functions = options.api.functions ?? {};
+    assert(typeof enabled === 'boolean', 'defineSchema api.enabled must be a boolean');
+    assert(API_DISCLOSURES.has(disclosure), 'defineSchema api.disclosure must be exposed-only or full');
+    assert(functions && typeof functions === 'object' && !Array.isArray(functions), 'defineSchema api.functions must be an object');
+    const normalizedFunctions = {};
+    for (const [name, exposure] of Object.entries(functions)) {
+      assert(exposure && typeof exposure === 'object' && !Array.isArray(exposure), `defineSchema api.functions.${name} must be an object`);
+      exactObject(exposure, `defineSchema api.functions.${name}`, new Set(['expose', 'since']));
+      const expose = exposure.expose ?? false;
+      assert(typeof expose === 'boolean', `defineSchema api.functions.${name}.expose must be a boolean`);
+      assert(exposure.since === undefined || typeof exposure.since === 'string', `defineSchema api.functions.${name}.since must be a string`);
+      normalizedFunctions[name] = {
+        expose,
+        ...(exposure.since !== undefined ? { since: exposure.since } : {}),
+      };
+    }
+    let origins;
+    if (options.api.origins !== undefined) {
+      assert(Array.isArray(options.api.origins), 'defineSchema api.origins must be an array');
+      origins = [...options.api.origins];
+    }
+    // @ref LLP 0204#d1--the-exposure-declaration-keystone — preserve the
+    // explicit registration posture and the default-closed function map.
+    api = {
+      enabled,
+      disclosure,
+      functions: normalizedFunctions,
+      ...(origins ? { origins } : {}),
+      __agentsModeExplicit: Boolean(
+        options.auth?.agents && Object.hasOwn(options.auth.agents, 'mode'),
+      ),
+    };
+  }
   if (options.requiredCapabilities !== undefined) {
     assert(Array.isArray(options.requiredCapabilities), 'defineSchema requiredCapabilities must be an array');
     for (const capability of options.requiredCapabilities) {
@@ -1467,6 +1514,7 @@ export function defineSchema(tables, options = {}) {
     tables,
     ephemeral: ephemeralDef,
     ...(auth ? { auth } : {}),
+    ...(api ? { api } : {}),
     ...(assets ? { assets } : {}),
     ...(pushSeam ? { pushSeam } : {}),
     ...(strictDeclarations === true ? { strictDeclarations: true } : {}),

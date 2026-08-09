@@ -53,6 +53,60 @@
       ],
       "type": "string"
     },
+    "ApiDisclosure": {
+      "enum": [
+        "exposed-only",
+        "full"
+      ],
+      "type": "string"
+    },
+    "ApiFunctionExposure": {
+      "additionalProperties": false,
+      "properties": {
+        "expose": {
+          "default": false,
+          "type": "boolean"
+        },
+        "since": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ApiManifest": {
+      "additionalProperties": false,
+      "description": "App-owned declaration of the outward-facing function surface. Absence (or\n`enabled: false`) preserves the existing first-party/grant behavior; when\nenabled, every function is closed unless its named entry opts in.\n\n@ref LLP 0204#d1--the-exposure-declaration-keystone — exposure is one\ndeclaration governing callability and public projections.",
+      "properties": {
+        "disclosure": {
+          "$ref": "#/$defs/ApiDisclosure",
+          "default": "exposed-only"
+        },
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "functions": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ApiFunctionExposure"
+          },
+          "default": {},
+          "type": "object"
+        },
+        "origins": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "AppIdentity": {
       "description": "Optional presentation identity for the loaded app: how the instance should\nintroduce itself to a human. Everything here is public by construction — it\nis rendered on the public root page and flows into the public inspect\nprojection — so apps must not put secrets in it. The icon/wordmark URLs are\nordinary app-served or absolute URLs; the root page renders them as plain\n`<img>` references with attribute escaping.\n\n@ref LLP 0017#instance-home-page — the root page renders this identity when\n  the manifest declares it; absent, the page is Snapback-branded only.",
       "properties": {
@@ -1693,6 +1747,17 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/schema.manifest.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
+    "api": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ApiManifest"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "External function exposure policy. This is public by construction: it\nis the declaration selecting the outward-facing projection, not a\ncredential or implementation secret."
+    },
     "app": {
       "anyOf": [
         {

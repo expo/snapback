@@ -1701,6 +1701,25 @@ fn evaluate_function_policy(
             .iter()
             .find(|scope| scope.function_id == function.id && scope.kind == function.kind)
             .ok_or_else(|| missing_grant_scope(&function.id, &function.kind))?;
+        // @ref LLP 0204#d1--the-exposure-declaration-keystone — the
+        // credentialed exposure check shares the function-policy chokepoint,
+        // after scope selection and before profile-class admission, so bare
+        // routes, live reruns, and nested mutations cannot bypass it.
+        if function
+            .api_exposure
+            .as_ref()
+            .is_some_and(|exposure| !exposure.expose)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_API_EXPOSURE_DENIED",
+                "api",
+                "the external API exposure policy does not authorize this function",
+            )
+            .with_details(serde_json::json!({
+                "functionId": function.id,
+                "function": function.name,
+            })));
+        }
         authority_creating_consent = scope.authority_creating;
         matched_grant_scope = Some(scope.clone());
         if function.authority_creating && !authority_creating_consent {
@@ -2418,6 +2437,112 @@ mod tests {
         )
         .unwrap();
         assert!(consented.authority_creating_consent());
+    }
+
+    #[test]
+    fn api_exposure_gate_covers_finite_live_rerun_and_nested_service_invocations() {
+        let mut exposed_query = function(Some(AuthRequirement::Authenticated));
+        exposed_query.api_exposure = Some(crate::manifest::ApiFunctionExposure {
+            expose: true,
+            since: None,
+        });
+        let mut closed_query = exposed_query.clone();
+        closed_query.name = "closedQuery".to_owned();
+        closed_query.id = "fn:closedQuery".to_owned();
+        closed_query.api_exposure = Some(crate::manifest::ApiFunctionExposure::default());
+        let mut exposed_mutation = FunctionDefinition::new(
+            "exposedMutation",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(
+                crate::manifest::MutationPlan {
+                    steps: Vec::new(),
+                    return_value: None,
+                },
+            )),
+        );
+        exposed_mutation.auth_requirement = Some(AuthRequirement::Authenticated);
+        exposed_mutation.api_exposure = Some(crate::manifest::ApiFunctionExposure {
+            expose: true,
+            since: None,
+        });
+        let mut closed_mutation = exposed_mutation.clone();
+        closed_mutation.name = "closedMutation".to_owned();
+        closed_mutation.id = "fn:closedMutation".to_owned();
+        closed_mutation.auth_requirement = Some(AuthRequirement::Authenticated);
+        closed_mutation.api_exposure = Some(crate::manifest::ApiFunctionExposure::default());
+
+        let scopes = [
+            &exposed_query,
+            &closed_query,
+            &exposed_mutation,
+            &closed_mutation,
+        ]
+            .into_iter()
+            .map(|function| ResolvedGrantScope {
+                function_id: function.id.clone(),
+                kind: function.kind.clone(),
+                basis: 0,
+                authority_creating: false,
+            })
+            .collect::<Vec<_>>();
+        let service = ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id: "agent_1".to_owned(),
+            credential_id: "credential_1".to_owned(),
+            credential_generation: 1,
+            grant_id: "grant_1".to_owned(),
+            token_id: "token_1".to_owned(),
+            effective_user_id: Some("user_1".to_owned()),
+            scopes,
+            token_expires_at_ms: 20_000,
+        };
+        let prepare = |source| {
+            InvocationGate::prepare_authority(
+                source,
+                AuthMode::Sessions,
+                ServerProfile::Test,
+                1,
+                1,
+                &WireAuthorityFields::default(),
+                service.clone(),
+            )
+            .unwrap()
+        };
+
+        for source in [InvocationSource::HttpQuery, InvocationSource::LiveInitialQuery] {
+            InvocationGate::prepare_function(prepare(source), &exposed_query)
+                .expect("an exposed, granted finite or initial-live query succeeds");
+        }
+        for source in [InvocationSource::HttpQuery, InvocationSource::LiveInitialQuery] {
+            let error = InvocationGate::prepare_function(prepare(source), &closed_query)
+                .expect_err("unexposed service query refuses");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_API_EXPOSURE_DENIED");
+        }
+
+        let live = prepare(InvocationSource::LiveInitialQuery)
+            .inherit_for(InvocationSource::LiveRerun)
+            .unwrap();
+        InvocationGate::prepare_function(live.clone(), &exposed_query)
+            .expect("an exposed, granted live rerun succeeds");
+        assert_eq!(
+            InvocationGate::prepare_function(live, &closed_query)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_API_EXPOSURE_DENIED"
+        );
+
+        let nested = prepare(InvocationSource::HttpQuery)
+            .inherit_for(InvocationSource::NestedMutation)
+            .unwrap();
+        InvocationGate::prepare_function(nested.clone(), &exposed_mutation)
+            .expect("an exposed, granted nested mutation succeeds");
+        assert_eq!(
+            InvocationGate::prepare_function(nested, &closed_mutation)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_API_EXPOSURE_DENIED"
+        );
     }
 
     #[test]

@@ -10,7 +10,7 @@
     "src/local/auth_room_kick_acceptance.rs": "sha256:1a8600f9e74c64744c8c0f403e701568b8de2fca9ea46769e7636f567349f289",
     "src/local/authorization_acceptance.rs": "sha256:a1e3fd4f342fc1b1a1511746842d18e0baf2d62d6f9afd965d4de9664005788a",
     "src/local/config_types.rs": "sha256:ccae542de561b1e394053f482f21b88118c74d028017f72307691b806f2b0e85",
-    "src/local/inspection.rs": "sha256:6d71043af2197673095ef9eaf6dc53d457ccfb04a1384c57c047b64eec9f3a35",
+    "src/local/inspection.rs": "sha256:7fb4c23095d8df8d0ffd746be06a80e16134a542274c9368f5ea533864ac27c7",
     "src/local/live_protocol.rs": "sha256:0157ad0e62bb723f31a67a45fbcd82ad7cc6f63fa9fad9c41edd661d4d31ed1d",
     "src/local/receipt_log.rs": "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add",
     "src/local/tests.rs": "sha256:80414a5e82c862ed8a89d8c0fb8cf5c5d396c9084c4aeaf09ab81c80a88ef238",
@@ -40,7 +40,7 @@
     "src/storage/write_authority.rs": "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/define.mjs": "sha256:4b2d4a50f52cfa367349ccdd85e5fced4b7ff701d84af09e75c03bca0557d018"
+    "packages/snapback-codegen/define.mjs": "sha256:c4ffc4cc5b3f508138f618c6d75ba6ed3366bf05c86a415b2ebd1bfdfd23f377"
   },
   "clientSourceSha256": {
     "packages/snapback-contract/derived-overlay.mjs": "sha256:8b5324a45a8beaaa7db4eaf93361f8faf1008e152a74f9903844335d0f8e0a32",

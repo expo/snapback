@@ -351,7 +351,8 @@ use crate::local::{
     EnsureAppMode, LiveInvalidationAdmission, LiveSubscribeInput, LocalSnapback, StagedAction,
 };
 use crate::manifest::{
-    ActionPlan, ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, AuthInput, AuthManifest,
+    ActionPlan, ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ApiDisclosure,
+    ApiFunctionExposure, ApiManifest, AuthInput, AuthManifest,
     AuthMode, AuthRequirement, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
     CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, FieldManifest, FieldType,
     FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
@@ -2484,6 +2485,20 @@ fn sessions_activation_server_fixture_with_agents(
     clock: Option<Arc<ManualServerAuthClock>>,
     agents: Option<AgentsManifest>,
 ) -> AppState {
+    sessions_activation_server_fixture_with_api(
+        predecessor_functions,
+        clock,
+        agents,
+        None,
+    )
+}
+
+fn sessions_activation_server_fixture_with_api(
+    predecessor_functions: FunctionManifest,
+    clock: Option<Arc<ManualServerAuthClock>>,
+    agents: Option<AgentsManifest>,
+    api: Option<ApiManifest>,
+) -> AppState {
     let activation_now_ms = clock
         .as_ref()
         .map_or_else(super::now_millis, |clock| clock.epoch_ms());
@@ -2495,6 +2510,7 @@ fn sessions_activation_server_fixture_with_agents(
             mode: AuthMode::Sessions,
             agents,
         }),
+        api,
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
         schema_hash: Some(format!("{SCHEMA_V1_PREFIX}{}", "1".repeat(64))),
         inputs_hash: Some(format!("{INPUTS_V1_PREFIX}{}", "3".repeat(64))),
@@ -2641,6 +2657,277 @@ async fn sessions_activation_server_fixture_with_agents_async(agents: AgentsMani
     })
     .await
     .expect("construct agent-registration fixture off the async workers")
+}
+
+#[tokio::test]
+async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
+    let mut functions = activation_functions('2', false);
+    for function in &mut functions.functions {
+        function.api_exposure = Some(ApiFunctionExposure::default());
+    }
+    functions
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "listItems")
+        .unwrap()
+        .api_exposure = Some(ApiFunctionExposure {
+        expose: true,
+        since: Some("v1".to_owned()),
+    });
+    let api = ApiManifest {
+        enabled: true,
+        disclosure: ApiDisclosure::ExposedOnly,
+        functions: BTreeMap::from([(
+            "listItems".to_owned(),
+            ApiFunctionExposure {
+                expose: true,
+                since: Some("v1".to_owned()),
+            },
+        )]),
+        origins: Some(vec!["https://integration.example:8443".to_owned()]),
+    };
+    let state = tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        sessions_activation_server_fixture_with_api(
+            functions,
+            None,
+            Some(AgentsManifest::explicit(
+                AgentsMode::Disabled,
+                InvitedBy::Operators,
+            )),
+            Some(api),
+        )
+    })
+    .await
+    .unwrap();
+    let router = app(state);
+
+    let exposed = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/query/listItems")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .header(header::ORIGIN, "https://integration.example:8443")
+                .body(Body::from(r#"{"args":{}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(exposed.status(), StatusCode::OK);
+    assert_eq!(
+        exposed.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
+        "https://integration.example:8443"
+    );
+    assert_eq!(exposed.headers()[header::VARY], "Origin");
+    assert!(
+        exposed
+            .headers()
+            .get(header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
+            .is_none()
+    );
+
+    let bare_unexposed = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/query/liveItems")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .body(Body::from(r#"{"args":{}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(bare_unexposed.status(), StatusCode::OK);
+
+    let external_unexposed = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/query/liveItems")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .body(Body::from(r#"{"args":{}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(external_unexposed.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(external_unexposed).await["diagnostic"]["code"],
+        "SNAPBACK_API_EXPOSURE_DENIED"
+    );
+
+    let pinned = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/query/listItems")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .body(Body::from(format!(
+                    r#"{{"args":{{}},"expectedGeneration":{{"schemaVersion":"snapback.v1","appId":"auth-activation-fixture","schemaHash":"{SCHEMA_V1_PREFIX}{}","bundleHash":"{FUNCTION_V1_PREFIX}{}","inputsHash":"{INPUTS_V1_PREFIX}{}"}}}}"#,
+                    "1".repeat(64),
+                    "2".repeat(64),
+                    "3".repeat(64),
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(pinned.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response_json(pinned).await["diagnostic"]["code"],
+        "SNAPBACK_API_GENERATION_PIN_UNSUPPORTED"
+    );
+
+    let inspect = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/inspect")
+                .header("x-snapback-auth-client-protocol", "1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let inspect = response_json(inspect).await;
+    assert_eq!(
+        inspect["functions"]["functions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|function| function["name"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        vec!["listItems"]
+    );
+
+    let undeclared_origin = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/query/listItems")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .header(header::ORIGIN, "https://other.example")
+                .body(Body::from(r#"{"args":{}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert!(
+        undeclared_origin
+            .headers()
+            .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
+            .is_none()
+    );
+
+    let preflight = router
+        .oneshot(
+            Request::builder()
+                .method("OPTIONS")
+                .uri("/api/v1/query/listItems")
+                .header(header::ORIGIN, "https://integration.example:8443")
+                .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(preflight.status(), StatusCode::NO_CONTENT);
+    assert_eq!(
+        preflight.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
+        "https://integration.example:8443"
+    );
+
+    let mut full_functions = activation_functions('3', false);
+    for function in &mut full_functions.functions {
+        function.api_exposure = Some(ApiFunctionExposure::default());
+    }
+    full_functions
+        .functions
+        .iter_mut()
+        .find(|function| function.name == "listItems")
+        .unwrap()
+        .api_exposure = Some(ApiFunctionExposure {
+        expose: true,
+        since: None,
+    });
+    let full_api = ApiManifest {
+        enabled: true,
+        disclosure: ApiDisclosure::Full,
+        functions: BTreeMap::from([(
+            "listItems".to_owned(),
+            ApiFunctionExposure {
+                expose: true,
+                since: None,
+            },
+        )]),
+        origins: None,
+    };
+    let full_state = tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        sessions_activation_server_fixture_with_api(
+            full_functions,
+            None,
+            Some(AgentsManifest::explicit(
+                AgentsMode::Disabled,
+                InvitedBy::Operators,
+            )),
+            Some(full_api),
+        )
+    })
+    .await
+    .unwrap();
+    let full_inspect = app(full_state)
+        .oneshot(
+            Request::builder()
+                .uri("/inspect")
+                .header("x-snapback-auth-client-protocol", "1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let full_inspect = response_json(full_inspect).await;
+    let full_names = full_inspect["functions"]["functions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|function| function["name"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert!(full_names.contains(&"listItems"));
+    assert!(full_names.contains(&"liveItems"));
+}
+
+#[tokio::test]
+async fn external_api_v1_refuses_when_the_app_did_not_enable_it() {
+    let state = sessions_activation_server_fixture_async().await;
+    let response = app(state)
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/query/listItems")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .body(Body::from(r#"{"args":{}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(response).await["diagnostic"]["code"],
+        "SNAPBACK_API_NOT_ENABLED"
+    );
 }
 
 fn finite_authority_matrix_functions() -> FunctionManifest {
@@ -4182,7 +4469,7 @@ fn agent_registration_http_request(body: Value) -> Request<Body> {
 }
 
 fn agent_policy(mode: AgentsMode, invited_by: InvitedBy) -> AgentsManifest {
-    AgentsManifest { mode, invited_by }
+    AgentsManifest::explicit(mode, invited_by)
 }
 
 async fn mint_user_agent_invitation(state: &AppState, router: &SnapbackApp, bearer: &str) -> Value {
@@ -7360,8 +7647,8 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     assert_eq!(details["candidateFunctions"][0]["name"], "listTodos");
     assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
     // Rotates with the embedded todo demo's generated artifacts; the
-    // stored-enum codegen change is the 2026-08-08 rotation.
-    assert_eq!(details["artifactHash"], "sha256:f43d03078fc90366");
+    // LLP 0204 S1 api-exposure codegen change is the 2026-08-09 rotation.
+    assert_eq!(details["artifactHash"], "sha256:4c9e1792ef45dcbb");
     assert!(
         details["localMissSummary"]["sameMissCount"]
             .as_u64()
@@ -15194,6 +15481,17 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_AGENT_INVITATION_REQUIRED",
     "SNAPBACK_AUTH_AGENT_INVITATION_UNEXPECTED",
     "SNAPBACK_AUTH_AGENT_POLICY_MODE_INVALID",
+    // LLP 0204 S1 external-surface declarations and unpinned carrier.
+    "SNAPBACK_API_AUTH_MODE_INVALID",
+    "SNAPBACK_API_BUDGETS_UNAVAILABLE",
+    "SNAPBACK_API_EXPOSURE_COMPILATION_INVALID",
+    "SNAPBACK_API_FUNCTION_EXPOSURE_INVALID",
+    "SNAPBACK_API_FUNCTION_UNKNOWN",
+    "SNAPBACK_API_GENERATION_PIN_UNSUPPORTED",
+    "SNAPBACK_API_MANIFEST_INVALID",
+    "SNAPBACK_API_ORIGIN_INVALID",
+    "SNAPBACK_API_PAGINATION_RECOMMENDED",
+    "SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED",
     // LLP 0158/0163/0164/0165 experimental control-plane request shapes.
     "SNAPBACK_BRANCH_NESTING_UNSUPPORTED",
     "SNAPBACK_BRANCH_OPERATION_KIND_UNSUPPORTED",
@@ -15650,6 +15948,8 @@ const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_AGENT_INVITATION_PROFILE_MISMATCH",
     "SNAPBACK_AUTH_AGENT_INVITATION_USER_INVALID",
     "SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED",
+    "SNAPBACK_API_EXPOSURE_DENIED",
+    "SNAPBACK_API_NOT_ENABLED",
     // LLP 0158/0163/0164 authorization and sealed-authority refusals.
     "SNAPBACK_BRANCH_AUTHORITY_DENIED",
     "SNAPBACK_BRANCH_EGRESS_DENIED",

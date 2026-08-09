@@ -12,7 +12,8 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 
 pub use crate::contract_types::{
-    AgentsManifest, AgentsMode, AppIdentity, AuthManifest, AuthMode, AuthRequirement, BoundedParentVisibility,
+    AgentsManifest, AgentsMode, ApiDisclosure, ApiFunctionExposure, ApiManifest, AppIdentity,
+    AuthManifest, AuthMode, AuthRequirement, BoundedParentVisibility,
     BoundedProjectionField, DependencySummary, EffectCeiling, EffectCeilingRead,
     EffectCeilingWrite, FieldManifest, FieldType, FunctionArgsContract, FunctionKind,
     FunctionResultContract, IbexModule, IndexManifest, InvitedBy, JoinEquality, JoinKind,
@@ -334,6 +335,39 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
+fn validate_api_origin(origin: &str) -> SnapbackResult<()> {
+    let parsed = origin.parse::<axum::http::Uri>().map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_API_ORIGIN_INVALID",
+            "api",
+            format!("api origin {origin:?} must be an exact http(s) scheme+host+port origin"),
+        )
+    })?;
+    let valid_scheme = matches!(parsed.scheme_str(), Some("http" | "https"));
+    let authority = parsed.authority();
+    let canonical = parsed
+        .scheme_str()
+        .zip(authority)
+        .map(|(scheme, authority)| format!("{scheme}://{}", authority.as_str()));
+    if !valid_scheme
+        || authority.is_none_or(|value| {
+            value.host().is_empty() || value.as_str().contains('@')
+        })
+        || parsed
+            .path_and_query()
+            .is_some_and(|path| path.as_str() != "/")
+        || origin.contains('*')
+        || canonical.as_deref() != Some(origin)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_API_ORIGIN_INVALID",
+            "api",
+            format!("api origin {origin:?} must be an exact http(s) scheme+host+port origin without wildcards"),
+        ));
+    }
+    Ok(())
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct SchemaManifest {
     #[serde(
@@ -354,6 +388,13 @@ pub struct SchemaManifest {
     pub app: Option<AppIdentity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auth: Option<AuthManifest>,
+    /// External function exposure policy. This is public by construction: it
+    /// is the declaration selecting the outward-facing projection, not a
+    /// credential or implementation secret.
+    // @ref LLP 0204#d1--the-exposure-declaration-keystone — one declaration
+    // controls credentialed callability and exposed-only disclosure.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api: Option<ApiManifest>,
     /// App-level asset policy (LLP 0044 §Deletion: the reference-GC opt-in
     /// is a schema declaration — "an app may enable" — not an intent knob).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -423,6 +464,7 @@ impl Default for SchemaManifest {
             app_id: local_app_id(),
             app: None,
             auth: None,
+            api: None,
             assets: None,
             push_seam: None,
             required_capabilities: Vec::new(),
@@ -453,6 +495,12 @@ impl SchemaManifest {
         self.auth.and_then(|auth| auth.agents).unwrap_or_default()
     }
 
+    pub fn uses_exposed_only_disclosure(&self) -> bool {
+        self.api.as_ref().is_some_and(|api| {
+            api.enabled && api.disclosure == ApiDisclosure::ExposedOnly
+        })
+    }
+
     pub fn agent_registration_diagnostics(&self) -> Vec<Diagnostic> {
         let agents = self.effective_agents_manifest();
         if agents.mode == AgentsMode::Invited && agents.invited_by == InvitedBy::Operators {
@@ -466,6 +514,96 @@ impl SchemaManifest {
         }
     }
 
+    pub fn api_exposure_diagnostics(&self, functions: &FunctionManifest) -> Vec<Diagnostic> {
+        const PAGINATION_LINT_THRESHOLD: usize = 100;
+        if !self.api.as_ref().is_some_and(|api| api.enabled) {
+            return Vec::new();
+        }
+        functions
+            .functions
+            .iter()
+            .filter(|function| {
+                function.api_exposure.as_ref().is_some_and(|exposure| exposure.expose)
+                    && matches!(function.kind, FunctionKind::Query | FunctionKind::LiveQuery)
+                    && matches!(
+                        &function.result_contract,
+                        FunctionResultContract::Records { rows: Some(rows), .. }
+                            if rows.max_items > PAGINATION_LINT_THRESHOLD
+                    )
+                    && !function.args_contract.as_ref().is_some_and(|contract| {
+                        contract.fields.iter().any(|field| {
+                            matches!(field.name.as_str(), "cursor" | "continuation")
+                        })
+                    })
+            })
+            .map(|function| {
+                let FunctionResultContract::Records { rows: Some(rows), .. } =
+                    &function.result_contract
+                else {
+                    unreachable!("pagination lint predicate selected bounded records")
+                };
+                Diagnostic::warning(
+                    "SNAPBACK_API_PAGINATION_RECOMMENDED",
+                    "api",
+                    format!(
+                        "exposed query {} declares rows.maxItems {} (> {}) without a cursor or continuation argument",
+                        function.name, rows.max_items, PAGINATION_LINT_THRESHOLD
+                    ),
+                )
+            })
+            .collect()
+    }
+
+    /// Revalidate the codegen-compiled exposure fact against the exact paired
+    /// function manifest. Artifact activation never trusts either half alone.
+    pub fn validate_api_against_functions(
+        &self,
+        functions: &FunctionManifest,
+    ) -> SnapbackResult<()> {
+        let Some(api) = &self.api else {
+            if functions
+                .functions
+                .iter()
+                .any(|function| function.api_exposure.is_some())
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_API_EXPOSURE_COMPILATION_INVALID",
+                    "api",
+                    "function exposure facts require an enabled schema api declaration",
+                ));
+            }
+            return Ok(());
+        };
+        let names = functions
+            .functions
+            .iter()
+            .map(|function| function.name.as_str())
+            .collect::<BTreeSet<_>>();
+        if let Some(name) = api.functions.keys().find(|name| !names.contains(name.as_str())) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_API_FUNCTION_UNKNOWN",
+                "api",
+                format!("api.functions names unknown function {name}"),
+            ));
+        }
+        for function in &functions.functions {
+            let expected = api
+                .enabled
+                .then(|| api.functions.get(&function.name).cloned().unwrap_or_default());
+            if function.api_exposure != expected {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_API_EXPOSURE_COMPILATION_INVALID",
+                    "api",
+                    format!(
+                        "function {} exposure does not match the schema api declaration",
+                        function.name
+                    ),
+                ));
+            }
+        }
+        Ok(())
+    }
+
     pub fn validate_artifact(&self) -> SnapbackResult<()> {
         validate_artifact_header(
             "schema",
@@ -477,6 +615,35 @@ impl SchemaManifest {
         )?;
 
         let mode = self.effective_auth_mode();
+        if let Some(api) = &self.api {
+            if api.enabled
+                && self
+                    .auth
+                    .and_then(|auth| auth.agents)
+                    .is_none_or(|agents| !agents.mode_explicit)
+            {
+                // @ref LLP 0204#d1--the-exposure-declaration-keystone — an
+                // enabled external surface must name both authority mode and
+                // registration posture; explicit disabled remains valid.
+                return Err(SnapbackError::error(
+                    "SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED",
+                    "api",
+                    "api.enabled requires both auth.mode sessions and an explicit auth.agents.mode declaration",
+                ));
+            }
+            if mode != AuthMode::Sessions {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_API_AUTH_MODE_INVALID",
+                    "api",
+                    "the api block is meaningful only when auth.mode is sessions",
+                ));
+            }
+            if let Some(origins) = &api.origins {
+                for origin in origins {
+                    validate_api_origin(origin)?;
+                }
+            }
+        }
         if self.auth.is_some_and(|auth| auth.agents.is_some()) && mode != AuthMode::Sessions {
             // @ref LLP 0055#registration — auth.agents changes abuse posture
             // only inside the sessions authority model; dev declarations are
@@ -613,6 +780,8 @@ pub struct PublicSchemaManifest {
     pub app: Option<AppIdentity>,
     pub auth: Option<AuthManifest>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api: Option<ApiManifest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assets: Option<SchemaAssetsPolicyV1>,
     #[serde(rename = "pushSeam", default, skip_serializing_if = "Option::is_none")]
     pub push_seam: Option<crate::push::PushSeamDeclarationV1>,
@@ -645,6 +814,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             app_id,
             app,
             auth,
+            api,
             assets,
             push_seam,
             required_capabilities,
@@ -667,6 +837,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             app_id,
             app,
             auth,
+            api,
             assets,
             push_seam,
             required_capabilities,
@@ -6500,6 +6671,19 @@ pub struct FunctionDefinition {
     pub required_capabilities: Vec<String>,
     #[serde(default, rename = "authRequirement", alias = "auth_requirement")]
     pub auth_requirement: Option<AuthRequirement>,
+    /// Codegen-compiled external exposure. `None` means the app has no
+    /// enabled external API and preserves the historical grant-only policy;
+    /// `Some(default)` means the enabled surface explicitly keeps this
+    /// function closed.
+    // @ref LLP 0204#d1--the-exposure-declaration-keystone — the fact rides
+    // every invocation source through the function manifest.
+    #[serde(
+        default,
+        rename = "apiExposure",
+        alias = "api_exposure",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub api_exposure: Option<ApiFunctionExposure>,
     #[serde(
         default,
         rename = "authorityIndependent",
@@ -6649,6 +6833,7 @@ impl FunctionDefinition {
             result_contract_hash: None,
             required_capabilities: Vec::new(),
             auth_requirement: None,
+            api_exposure: None,
             authority_independent: false,
             public_inline: false,
             authority_creating: false,
@@ -7149,6 +7334,8 @@ pub struct PublicFunctionDefinition {
     pub required_capabilities: Vec<String>,
     #[serde(rename = "authRequirement")]
     pub auth_requirement: Option<AuthRequirement>,
+    #[serde(rename = "apiExposure", skip_serializing_if = "Option::is_none")]
+    pub api_exposure: Option<ApiFunctionExposure>,
     #[serde(rename = "authorityIndependent")]
     pub authority_independent: bool,
     /// LLP 0092 §0C.3 disclosure fact — already disclosed by the behavior it
@@ -7262,6 +7449,39 @@ impl From<FunctionManifest> for PublicFunctionManifest {
     }
 }
 
+/// Build the one public function projection selected by the schema's
+/// disclosure posture. `/inspect` and the server-composed envelope both call
+/// this helper so they cannot drift into different inventories.
+///
+/// @ref LLP 0204#d1--the-exposure-declaration-keystone — exposed-only must
+/// govern inspect and the envelope together.
+pub fn public_function_manifest_for_schema(
+    schema: &SchemaManifest,
+    functions: FunctionManifest,
+) -> PublicFunctionManifest {
+    let mut public = PublicFunctionManifest::from(functions);
+    if schema.uses_exposed_only_disclosure() {
+        let exposed = public
+            .functions
+            .iter()
+            .filter(|function| {
+                function
+                    .api_exposure
+                    .as_ref()
+                    .is_some_and(|exposure| exposure.expose)
+            })
+            .map(|function| function.name.clone())
+            .collect::<BTreeSet<_>>();
+        public
+            .functions
+            .retain(|function| exposed.contains(&function.name));
+        public
+            .cron_jobs
+            .retain(|job| exposed.contains(&job.action));
+    }
+    public
+}
+
 impl From<CronJobDefinition> for PublicCronJobDefinition {
     fn from(job: CronJobDefinition) -> Self {
         let CronJobDefinition {
@@ -7343,6 +7563,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             result_contract_hash,
             required_capabilities,
             auth_requirement,
+            api_exposure,
             authority_independent,
             public_inline,
             authority_creating,
@@ -7379,6 +7600,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             result_contract_hash,
             required_capabilities,
             auth_requirement,
+            api_exposure,
             authority_independent,
             public_inline,
             rqs_eligible,
@@ -9844,13 +10066,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:e94c71efa2e3086a99e284c8880279bf742965301c1e6c0c738c31999c84f9f1";
+    "sha256:226cf055d895ec7cfa6f59f9167a45accc39861e14db04f7d9846adc26f44502";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:6d2b3b79855519f263adf11a05c4add7d008528203cc270a65c54bce8fbb95af";
+    "sha256:805e419560084fc3680a05feaba4b566cbe1882ba47719bb2502678ab201c0bc";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -10250,7 +10472,7 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:a862705a20f8d73effd94e94119bdf3862d099a2994556268e4a3c21afaf84f0"
+                    "sha256:0759fd06b46d8f30820162fdc568fe8662511edc69d5eabea2025404f10ba4a1"
                         .to_owned(),
                 ),
                 (
@@ -10270,7 +10492,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/inspection.rs".to_owned(),
-                    "sha256:6d71043af2197673095ef9eaf6dc53d457ccfb04a1384c57c047b64eec9f3a35"
+                    "sha256:7fb4c23095d8df8d0ffd746be06a80e16134a542274c9368f5ea533864ac27c7"
                         .to_owned(),
                 ),
                 (
@@ -10407,7 +10629,7 @@ fn local_relation_activity_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:4b2d4a50f52cfa367349ccdd85e5fced4b7ff701d84af09e75c03bca0557d018"
+                "sha256:c4ffc4cc5b3f508138f618c6d75ba6ed3366bf05c86a415b2ebd1bfdfd23f377"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -10473,7 +10695,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/inspection.rs".to_owned(),
-                    "sha256:6d71043af2197673095ef9eaf6dc53d457ccfb04a1384c57c047b64eec9f3a35"
+                    "sha256:7fb4c23095d8df8d0ffd746be06a80e16134a542274c9368f5ea533864ac27c7"
                         .to_owned(),
                 ),
                 (
@@ -10615,7 +10837,7 @@ fn local_sequence_allocation_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:4b2d4a50f52cfa367349ccdd85e5fced4b7ff701d84af09e75c03bca0557d018"
+                "sha256:c4ffc4cc5b3f508138f618c6d75ba6ed3366bf05c86a415b2ebd1bfdfd23f377"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -10747,7 +10969,7 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:a862705a20f8d73effd94e94119bdf3862d099a2994556268e4a3c21afaf84f0"
+                    "sha256:0759fd06b46d8f30820162fdc568fe8662511edc69d5eabea2025404f10ba4a1"
                         .to_owned(),
                 ),
                 (
@@ -10767,7 +10989,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/inspection.rs".to_owned(),
-                    "sha256:6d71043af2197673095ef9eaf6dc53d457ccfb04a1384c57c047b64eec9f3a35"
+                    "sha256:7fb4c23095d8df8d0ffd746be06a80e16134a542274c9368f5ea533864ac27c7"
                         .to_owned(),
                 ),
                 (
@@ -10904,7 +11126,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:4fe19fa72df1f843791c765dc6f84616e003b3614a76a45ba9db824c3be38c8d"
+                "sha256:cba7e7b79107eea67fc175c3518d721b5e6e442285714c10ec744d508c7d1d06"
                     .to_owned(),
             )])
         && carrier.client_source_sha256

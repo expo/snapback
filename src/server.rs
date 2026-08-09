@@ -8230,6 +8230,13 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             app_function_route("POST", "/query/{name}"),
             post(invoke_query),
         ),
+        // @ref LLP 0204#d2--surface-1-the-third-party-api — the external v1
+        // carrier reuses the finite handlers while remaining a separately
+        // classified app-data route family.
+        RegisteredRoute::new(
+            app_function_route("POST", "/api/v1/query/{name}"),
+            post(invoke_query),
+        ),
         RegisteredRoute::new(
             app_auth_route("POST", "/query/{name}/authorized-lease"),
             post(invoke_authorized_lease_query),
@@ -8271,7 +8278,15 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             post(invoke_mutation),
         ),
         RegisteredRoute::new(
+            app_function_route("POST", "/api/v1/mutation/{name}"),
+            post(invoke_mutation),
+        ),
+        RegisteredRoute::new(
             app_function_route("POST", "/action/{name}"),
+            post(invoke_action),
+        ),
+        RegisteredRoute::new(
+            app_function_route("POST", "/api/v1/action/{name}"),
             post(invoke_action),
         ),
         // Asset upload sessions (LLP 0044; LLP 0031 dated amendment
@@ -9500,7 +9515,7 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         | "/auth/grants"
         | "/auth/grants/by-actor/{actor_id}"
         | "/auth/grants/{id}" => Some(InvocationSource::AgentGrantManagement),
-        "/query/{name}" => Some(InvocationSource::HttpQuery),
+        "/query/{name}" | "/api/v1/query/{name}" => Some(InvocationSource::HttpQuery),
         // Attempt creation runs the generated upload-intent authorizer — a
         // Query-kind admission (LLP 0044 §Upload sessions).
         // Create and finalize both run the generated authorizer (finalize
@@ -9520,8 +9535,10 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         // mode re-prepares LiveInitialQuery authorities per entry inside the
         // local cut (LLP 0092 §0D.5).
         "/app/bundle" => Some(InvocationSource::HttpQuery),
-        "/mutation/{name}" => Some(InvocationSource::HttpMutation),
-        "/action/{name}" => Some(InvocationSource::HttpAction),
+        "/mutation/{name}" | "/api/v1/mutation/{name}" => {
+            Some(InvocationSource::HttpMutation)
+        }
+        "/action/{name}" | "/api/v1/action/{name}" => Some(InvocationSource::HttpAction),
         "/client-mutations/acknowledge" | "/client-mutations/identity-range" => {
             Some(InvocationSource::MutationSettlementAcknowledgement)
         }
@@ -10607,11 +10624,14 @@ fn sender_proof_subprotocol(headers: &HeaderMap) -> Result<Option<String>, Snapb
 fn function_invocation_route_name(spec: RouteSpec, path: &str) -> Option<&str> {
     let name = match spec.path {
         "/query/{name}" => path.strip_prefix("/query/")?,
+        "/api/v1/query/{name}" => path.strip_prefix("/api/v1/query/")?,
         "/query/{name}/authorized-lease" => path
             .strip_prefix("/query/")?
             .strip_suffix("/authorized-lease")?,
         "/mutation/{name}" => path.strip_prefix("/mutation/")?,
+        "/api/v1/mutation/{name}" => path.strip_prefix("/api/v1/mutation/")?,
         "/action/{name}" => path.strip_prefix("/action/")?,
+        "/api/v1/action/{name}" => path.strip_prefix("/api/v1/action/")?,
         _ => return None,
     };
     (!name.is_empty() && !name.contains('/')).then_some(name)
@@ -12121,7 +12141,8 @@ async fn enforce_registered_route_policy(
             .extensions()
             .get::<NetworkProfileObservation>()
             .is_none()
-        && (spec.path != "/action/{name}" || response.status().is_success())
+        && (!matches!(spec.path, "/action/{name}" | "/api/v1/action/{name}")
+            || response.status().is_success())
     {
         response
             .extensions_mut()
@@ -14745,13 +14766,19 @@ fn network_profile_refusal_lane(
     spec: RouteSpec,
 ) -> Option<crate::network_profile::NetworkEgressLane> {
     match spec.path {
-        "/query/{name}" => Some(crate::network_profile::NetworkEgressLane::QueryResponse),
-        "/mutation/{name}" => Some(crate::network_profile::NetworkEgressLane::MutationAck),
+        "/query/{name}" | "/api/v1/query/{name}" => {
+            Some(crate::network_profile::NetworkEgressLane::QueryResponse)
+        }
+        "/mutation/{name}" | "/api/v1/mutation/{name}" => {
+            Some(crate::network_profile::NetworkEgressLane::MutationAck)
+        }
         // LLP 0167 defines no action-response lane. A refusal before an action
         // handler runs is an ordinary commitless HTTP result, so the shared
         // route tower assigns it the query-response lane; successful action
         // responses are marked as handler-origin and remain unchanged.
-        "/action/{name}" => Some(crate::network_profile::NetworkEgressLane::QueryResponse),
+        "/action/{name}" | "/api/v1/action/{name}" => {
+            Some(crate::network_profile::NetworkEgressLane::QueryResponse)
+        }
         _ => None,
     }
 }
@@ -14995,17 +15022,17 @@ impl BoundSnapbackApp {
 }
 
 fn router_for_state(state: AppState) -> Router {
-    let reachability = state.console_reachability.clone();
+    let cors_state = state.clone();
     router_from_registrations(all_route_registrations(), state.clone())
         .with_state(state)
-        .layer(middleware::from_fn_with_state(reachability, local_dev_cors))
+        .layer(middleware::from_fn_with_state(cors_state, local_dev_cors))
 }
 
 fn app_from_registrations(registrations: Vec<RegisteredRoute>, state: AppState) -> SnapbackApp {
-    let reachability = state.console_reachability.clone();
+    let cors_state = state.clone();
     let router = router_from_registrations(registrations, state.clone())
         .with_state(state.clone())
-        .layer(middleware::from_fn_with_state(reachability, local_dev_cors));
+        .layer(middleware::from_fn_with_state(cors_state, local_dev_cors));
     SnapbackApp { router, state }
 }
 
@@ -16674,14 +16701,37 @@ pub fn spawn_cron_scheduler(state: SharedSnapback, autonomy_disabled: bool) -> J
 }
 
 async fn local_dev_cors(
-    State(reachability): State<crate::admin::ConsoleReachabilityRegistry>,
+    State(runtime): State<AppState>,
     request: Request<Body>,
     next: Next,
 ) -> Response {
     // @ref LLP 0025#demo-shape — web-only demos may be served by an ordinary
     // static/Vite origin while talking to the local Snapback server.
     let origin = request.headers().get(header::ORIGIN);
-    let allowed_origin = loopback_origin(origin).or_else(|| reachability.admitted_origin(origin));
+    let declared_api_origin = if request.uri().path().starts_with("/api/v1/") {
+        let candidate = origin.and_then(|value| value.to_str().ok()).map(str::to_owned);
+        let origins = with_snapback(&runtime.snapback, |snapback| {
+            Ok::<_, SnapbackError>(snapback.api_origins())
+        })
+        .await
+        .ok()
+        .flatten();
+        candidate.and_then(|candidate| {
+            origins
+                .as_ref()
+                .is_some_and(|origins| origins.iter().any(|origin| origin == &candidate))
+                .then(|| HeaderValue::from_str(&candidate).ok())
+                .flatten()
+        })
+    } else {
+        None
+    };
+    // @ref LLP 0204#d2--surface-1-the-third-party-api — browser integrations
+    // use bearer headers, so a declared exact origin is echoed with Vary but
+    // never Access-Control-Allow-Credentials.
+    let allowed_origin = loopback_origin(origin)
+        .or_else(|| runtime.console_reachability.admitted_origin(origin))
+        .or(declared_api_origin);
     with_cors_headers(next.run(request).await, allowed_origin)
 }
 
@@ -19449,6 +19499,44 @@ fn prepare_mutation_network_egress(
     }
 }
 
+fn external_api_route(spec: RouteSpec) -> bool {
+    matches!(
+        spec.path,
+        "/api/v1/query/{name}"
+            | "/api/v1/mutation/{name}"
+            | "/api/v1/action/{name}"
+    )
+}
+
+async fn validate_external_api_request(
+    state: &SharedSnapback,
+    spec: RouteSpec,
+    name: &str,
+    carries_expected_generation: bool,
+) -> Result<(), ApiError> {
+    if !external_api_route(spec) {
+        return Ok(());
+    }
+    let name = name.to_owned();
+    with_snapback(state, move |snapback| {
+        snapback.validate_external_api_function(&name)
+    })
+    .await
+    .map_err(ApiError::from)?;
+    if carries_expected_generation {
+        // @ref LLP 0204#d2--surface-1-the-third-party-api — v1 external calls
+        // are deliberately unpinned; a supplied pin is refused rather than
+        // silently ignored under a different contract regime.
+        return Err(SnapbackError::error(
+            "SNAPBACK_API_GENERATION_PIN_UNSUPPORTED",
+            "api",
+            "the external API surface is unpinned; omit expectedGeneration",
+        )
+        .into());
+    }
+    Ok(())
+}
+
 /// `/query/{name}` runs on the lock-free read lane when the instance is
 /// file-backed: a pooled WAL reader inside a pinned read transaction, so
 /// queries proceed during long writes. In-memory instances (no WAL) keep the
@@ -19460,6 +19548,7 @@ async fn invoke_query(
     State(state): State<SharedSnapback>,
     State(read): State<crate::local::ReadLane>,
     Extension(authority): Extension<PreparedAuthority>,
+    Extension(route): Extension<RouteSpec>,
     Path(name): Path<String>,
     input: Result<Json<FiniteQueryRequest>, JsonRejection>,
 ) -> Response {
@@ -19469,6 +19558,14 @@ async fn invoke_query(
         let Json(request) = input
             .map_err(ApiError::from_json_rejection)
             .map_err(|error| error.with_attribution(attribution.clone()))?;
+        validate_external_api_request(
+            &state,
+            route,
+            &name,
+            request.request.expected_generation.is_some(),
+        )
+        .await
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
         let input = request.request.input;
         let expected_generation = request.request.expected_generation;
         let completeness_namespace = request.completeness_namespace;
@@ -20261,6 +20358,7 @@ async fn invoke_mutation(
     State(runtime): State<AppState>,
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
+    Extension(route): Extension<RouteSpec>,
     Path(name): Path<String>,
     input: Result<Json<MutationRequest>, JsonRejection>,
 ) -> Response {
@@ -20282,6 +20380,14 @@ async fn invoke_mutation(
         if crate::spike_trace::enabled() {
             trace_client_mutation_id = request.client_mutation_id.clone();
         }
+        validate_external_api_request(
+            &state,
+            route,
+            &name,
+            request.expected_generation.is_some(),
+        )
+        .await
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
         if let Some(current_id) = request.client_mutation_id.as_deref()
             && request
                 .acknowledged_client_mutation_ids
@@ -20506,6 +20612,7 @@ fn observe_mutation_settlement(
 async fn invoke_action(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
+    Extension(route): Extension<RouteSpec>,
     Path(name): Path<String>,
     input: Result<Json<FunctionCallRequest>, JsonRejection>,
 ) -> Result<Json<FunctionResponse<crate::local::FunctionRunResult>>, ApiError> {
@@ -20513,6 +20620,14 @@ async fn invoke_action(
     let Json(request) = input
         .map_err(ApiError::from_json_rejection)
         .map_err(|error| error.with_attribution(attribution.clone()))?;
+    validate_external_api_request(
+        &state,
+        route,
+        &name,
+        request.expected_generation.is_some(),
+    )
+    .await
+    .map_err(|error| error.with_attribution(attribution.clone()))?;
     let input = request.input;
     let expected_generation = request.expected_generation;
     let facts_mode = authority.active_mode();
