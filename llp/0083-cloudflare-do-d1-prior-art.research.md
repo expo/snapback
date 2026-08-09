@@ -339,6 +339,19 @@ permission-checked sync, no acceptance surface. Same discipline as Facets
 (LLP 0087): prior art, spike, and code-lift material today, not a
 rearchitecture trigger.
 
+**Spike executed 2026-08-09** (`cloudflare/spike-celld/RESULTS-20260809.md`,
+celld v0.1.0): **clean negative for faithful execution** — celld's runtime
+depends on configurable post-evaluation globals that the LLP 0048 handler
+harness's ambient-authority strip deliberately removes, and DO
+`stub.fetch()` POST bodies fail in celld's request construction — with
+positive substrate evidence (per-cell SQLite, WebSocket hibernation with
+eviction/rehydration, DO alarms) under explicitly unsafe diagnostic
+adaptations only. Role (1)'s "cheap spike" is answered: no
+`celld-do-sqlite-v8` manifest is admissible and the conformance twin must
+not add celld as a leg until upstream fixes both faithfulness blockers;
+role (2)'s code-lift proceeded independently (LLP 0188, vendored
+`vendor/celld-ltx`). [confirmed — spike artifact]
+
 ## Synthesis — cross-cutting
 
 1. **The ratified DO bet is validated from three directions.** [inferred]

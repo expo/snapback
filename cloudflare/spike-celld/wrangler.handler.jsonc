@@ -1,0 +1,10 @@
+{
+  // celld spike adaptation of ../wrangler.handler.jsonc. The app alias is
+  // resolved by bundle.sh because celld's Wrangler subset has no alias key.
+  "name": "snapback-notes-handler",
+  "main": "generated/handler-worker.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": [],
+  "services": [{ "binding": "HOST", "service": "snapback-notes-proof" }]
+}
+

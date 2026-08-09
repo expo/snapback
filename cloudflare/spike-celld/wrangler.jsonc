@@ -1,0 +1,18 @@
+{
+  // celld spike adaptation of ../wrangler.jsonc. version_metadata is omitted
+  // and the app alias is resolved by bundle.sh.
+  "name": "snapback-notes-proof",
+  "main": "generated/gateway.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": [],
+  "services": [
+    { "binding": "HANDLER", "service": "snapback-notes-handler" }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "COORDINATOR", "class_name": "Coordinator" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Coordinator"] }
+  ]
+}
+
