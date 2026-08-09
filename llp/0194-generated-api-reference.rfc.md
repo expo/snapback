@@ -5,6 +5,10 @@
 **Systems:** Guide, Documentation, Client packages, Types, Build
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
+**Revised:** 2026-08-09 (authored symbol lifecycle facts — the registry
+gains `replaces`/`removedIn`/replacement-identity fields authored at the
+change site, and publication refuses an undeclared removal; see the
+dated amendment. Adopted from the LLP 0207 dissolution.)
 **Revised:** 2026-08-08 (Accepted by Charlie Cheever — author ruling in session; final review binding per llp/reviews/0193-*.run.md close-out: 0194 dual-READY at r8, the others accepted with the enumerated r9 tail.) 2026-08-08 (r8, round-6 fixes: export parity split value-space vs type-space (non-runtime registry kinds exempt from the runtime check); acceptance 2 requires bootstrap removal/conversion + CI duplicate-ownership rejection once the ctx declaration lands.) 2026-08-08 (r7, author-merge: Charlie's action-economy revision
 — a canonical machine-readable symbol registry becomes the authority behind
 Markdown, CLI, and MCP projections; a published `ctx` declaration source is
@@ -132,3 +136,37 @@ gap.
   correct; whether the public docs surface (LLP 0195) pins per-release
   snapshots is that RFC's question, and reference entries for symbols
   newer than the published closure carry the guide's fence treatment.
+
+## Amendment (2026-08-09): authored symbol lifecycle facts
+
+Adopted from the LLP 0207 super-refine close-out (that Plan was withdrawn
+and dissolved to its owners; the dual-family review record under
+`llp/reviews/0207-*` is the provenance, including why the alternatives
+were rejected). The publish-often posture (LLP 0041) makes this
+time-critical in one specific way: a rename or removal whose facts are
+not recorded *at the change site* is unrecoverable later — successive
+registry snapshots cannot distinguish a rename from a
+remove-plus-add — and the published history is still short enough that
+starting now costs almost nothing.
+
+1. **Lifecycle fields on the registry (Design 2).** A symbol change
+   records `replaces`, `removedIn`, and the replacement's stable
+   identity, authored where the change is made (declaration source or
+   registry-adjacent metadata, decided at implementation). The registry
+   carries these fields like any other symbol fact; projections render
+   them (reference pages, exact lookup) without independent parsing.
+2. **Publication enforcement.** The publication pipeline generates a
+   release-over-release symbol diff from the authored facts and
+   **refuses an undeclared removal** — an extension of the existing
+   qualification checks, not a new gate family. The diff is a safety
+   net behind the authored facts, never a rename-inference mechanism.
+3. **Consumer projections deliberately not commissioned.** Typed
+   codegen tombstones (old names failing typecheck carrying migration
+   text) and a `whatsnew` release-diff verb were evaluated in the 0207
+   loop and deferred behind two gates that have not fired: a
+   feasibility spike (plain `@deprecated` is advisory and fails
+   nothing) and naturalistic demand evidence (no verified stale-name
+   episode exists; see LLP 0186's failure-to-recovery trace amendment,
+   which is the instrument that would observe one). Recording the facts
+   now is what keeps those projections buildable later without
+   archaeology.
