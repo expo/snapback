@@ -28,6 +28,10 @@ follow the links for depth instead of composing from memory.
   standing local-admin authority. Generate client config instead of guessing:
   `snapback agent setup --print claude|codex|cursor` (see `guide/index.md`,
   "Choose the MCP authority").
+- **Exact API symbols:** use `guide/reference/index.md` or
+  `snapback guide <ExactSymbolName>` for a budgeted lookup against the
+  generated, build-bound API reference; do not search package source for a
+  declaration-exact signature.
 
 ## The golden path
 
@@ -40,7 +44,8 @@ Local target; hosted targets make deliberately weaker claims
    `@expo/snapback-cli`: `npm install -g @expo/snapback-cli` (or
    `bun add -g @expo/snapback-cli`). Check the toolchain, then scaffold:
    `snapback doctor --json`, then `snapback new my-app --template react`
-   (messaging-shaped briefs: `--template expo-chat`, a full chat starter),
+   (CRUD/admin briefs: `--template crud-dashboard`; media/feed briefs:
+   `--template media-feed`; messaging briefs: `--template expo-chat`),
    `cd my-app`, `bun install`.
 2. **Schema.** Author `snapback/schema.mjs` with
    `defineSchema`/`defineTable`/`v.*`, chainable `.index(...)` and `.sync()`.

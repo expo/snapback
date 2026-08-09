@@ -569,11 +569,16 @@ export function checkCapabilityIndex(root, index, pageInfo, errors) {
   for (const cap of capabilities.values()) {
     const gap = cap.page.startsWith('GAP');
     if (gap) {
+      // @ref LLP 0061#2-the-capability-index-registry-lite-with-witnesses —
+      // every honest GAP has durable issue custody, not only an owner/date.
       const m = cap.page.match(/owner:\s*([^,)]+),\s*review:\s*(\d{4}-\d{2}-\d{2})/);
       if (!m) {
         errors.push(`${CAPABILITIES_PATH}: GAP row '${cap.id}' must carry (owner: X, review: YYYY-MM-DD)`);
       } else if (m[2] < today) {
         errors.push(`${CAPABILITIES_PATH}: GAP row '${cap.id}' review date ${m[2]} has expired`);
+      }
+      if (!/\bissues\/[A-Za-z0-9._/-]+\.md\b/.test(cap.page)) {
+        errors.push(`${CAPABILITIES_PATH}: GAP row '${cap.id}' must carry an issues/*.md link`);
       }
     } else {
       const pagePath = join(GUIDE_DIR, cap.page);

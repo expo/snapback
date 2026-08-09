@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Queries
@@ -74,6 +74,14 @@ Use the declarative form when the plan vocabulary expresses the query. Use a
 JS handler for bounded logic the plan cannot express. Both styles return the
 same public query envelope and must use declared indexes for author-facing
 lookup paths.
+
+Indexes name authored table fields only. `_id`, `_version`, `_createdAt`, and
+`_updatedAt` are legal filter/order leaves but are rejected inside
+`.index(...)` with `SCHEMA_UNKNOWN_FIELD`; `_id` is already the implicit final
+tie-break for every declared index. For a version cursor, declare an index over
+the authored partition key and apply the `_version` range/order after selecting
+that index, as in the keyset example below. There is no portable composite
+system-field index declaration to opt into.
 
 Specialized read shapes are their own closed carriers with their own pages —
 cross-reference rather than reimplementing them in a JS handler. Before using

@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Your first backend
@@ -150,6 +150,15 @@ options object:
 The system fields `_id`, `_version`, `_createdAt`, `_updatedAt` are
 server-owned. Declaring one is a hard error
 (`SNAPBACK_SCHEMA_SYSTEM_FIELD`), and handlers never set timestamps.
+
+They also cannot appear in an authored `.index(...)` declaration: codegen
+reports `SCHEMA_UNKNOWN_FIELD`. Every declared index already receives an
+implicit trailing `_id` component for deterministic scan order, so never add
+`_id` yourself. System fields remain legal query filter/order leaves; for a
+cursor such as `(playerId, _version)`, declare the authored partition index on
+`playerId`, then range/order by `_version` in the query. Snapback does not yet
+offer a portable author-declared composite index containing `_version` or a
+timestamp system field.
 
 ## Define functions
 
@@ -293,7 +302,7 @@ and transition rules.
 ## Generate and load
 
 ```sh
-node packages/snapback-codegen/index.mjs myapp/snapback
+snapback generate myapp/snapback
 ```
 
 Codegen **fails closed**: on any error it leaves the previously serveable

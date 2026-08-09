@@ -95,6 +95,10 @@ served [native app authentication](http://127.0.0.1:4287/_snapback/guide/auth/na
 Guide page for the complete session flow; it is also available through
 `snapback mcp`.
 
+The `agent-authority` credential mode only adopts an already-issued token;
+there is no user-reachable agent-registration or initial `sbac_` issuance route
+today, and those credentials currently come from harness/test-lane provisioning.
+
 For mobile hosts, bind the platform lifecycle to a live-query handle:
 
 ```js

@@ -1,6 +1,6 @@
 # Guide/docs hygiene batch: false template count, skill routing gaps, GAP-row cliff, orphan docs/
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-08 · **Severity:** P2 batch (item 1 is P1) · **Area:** guide / skills/snapback-authoring / capabilities index / docs/
 
 From the 2026-08-08 agentic surface audit (LLP 0202 themes 5 and 10).
@@ -46,3 +46,28 @@ From the 2026-08-08 agentic surface audit (LLP 0202 themes 5 and 10).
    no-agent-registration boundary at the credential-mode fork so agents stop
    hunting for a route that does not exist (LLP 0202 P0 #4's only
    presently-actionable slice).
+
+## Resolution (2026-08-08)
+
+The hygiene batch landed across the guide, checker, skill, and package readme:
+
+- `guide/getting-started/the-authoring-loop.md` now lists all five packaged
+  templates with one-line intent summaries and treats the template directory
+  as a freshness authority. `skills/snapback-authoring/SKILL.md` routes CRUD
+  and media briefs to their templates.
+- The authoring skill routes declaration-exact questions to
+  `guide/reference/index.md` and `snapback guide <ExactSymbolName>`.
+- All capability GAPs now link durable `issues/` custody; the eleven shared
+  review dates are staggered, and `scripts/guide-lib.mjs` rejects future GAP
+  rows without an issue link under the governing LLP 0061 reference.
+- `docs/README.md` labels the directory as a legacy shelf and points readers to
+  `llp/` and `guide/` without moving historical files.
+- `guide/surface-map.md` has a full 40-character review pin;
+  `issues/20260808-guide-freshness-warning-saturation.md` records the corrected
+  45/65 measurement and the `examples:` freshness blind spot; and the headless
+  guide plus package README state that agent-authority mode only adopts an
+  already-issued credential and has no user-facing registration/initial-token
+  route.
+
+The generated symbol registry, reference pages, and guide manifest/flat
+projection were regenerated after these source changes.
