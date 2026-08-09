@@ -64,11 +64,16 @@ the assessment in release receipts; capability maturity currently cites and
 consumes no telemetry evidence.) 2026-08-07 (LLP 0189 round-1 review
 amendments: Acceptance #10 and D2.4's release-claim sentence are re-scoped to
 the LLP 0189 D-6 form; D2.4's exact-current telemetry authority is preserved
-under its D-7.)
+under its D-7.) 2026-08-09 (fast-core provisioning correction: `rustfmt` and
+`package-readme-funnel` move from the universal docs-only core to explicit
+Rust-source and published-package owners. Additive Rust ownership preserves
+the file's ordinary affected suite, while narrow Rust-toolchain and JavaScript-
+dependency requirements provision only what the selected fast gate needs.)
 **Related:** LLP 0010, LLP 0032, LLP 0109, LLP 0115, LLP 0145, LLP 0154,
 issues/closed/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md,
 issues/closed/20260802-verify-local-proof-stops-at-the-first-failure.md,
-issues/closed/20260802-main-proof-greening-18-gates.md
+issues/closed/20260802-main-proof-greening-18-gates.md,
+issues/closed/20260809-local-proof-docs-core-required-missing-toolchains.md
 
 ## Summary
 
@@ -332,6 +337,19 @@ package-test inventory. Explicit LLP/issue/diary docs remain on that boundary;
 guide inputs add generated-artifact and guide closure checks. The selector
 emits its exact chosen and `NOT_SELECTED` inventories even when no affected
 group is needed.
+
+The universal boundary is therefore seven gates, all runnable with the
+checked-out repository and the pinned Node runtime alone: `ref-check`,
+`ref-check-fixtures`, `ci-workflow-fixtures`, `proof-runner-fixtures`,
+`local-proof-inventory`, `affected-selector-fixtures`, and
+`package-test-inventory`.
+`rustfmt` is an additive cross-cutting owner for `.rs` paths, so it supplements
+rather than replaces the file's primary native/package/demo classification.
+The README funnel has a dedicated fast owner for public package `README.md`
+files and remains in the affected package groups for publication inputs.
+Selection receipts expose separate Rust-toolchain and JavaScript-dependency
+requirements; selecting either gate provisions its narrow prerequisite without
+pulling unrelated docs-only changes into native or package setup.
 
 ##### Same-change frozen-record coupling
 
@@ -866,7 +884,9 @@ executable code:
   historical defect diffs replay to the gates that caught them;
 - explicit docs/guide changes exercise a fast boundary, while affected code
   retains required Contract/Exact and admin behavior and reports its exact
-  selection receipt; and
+  selection receipt; docs-only changes no longer select Cargo- or
+  `node_modules`-dependent gates, while Rust and public-package README owners
+  request those prerequisites explicitly; and
 - the complete inventory now runs on six-hour/manual latest-main cadence rather
   than once per push, with heavyweight setup conditional on selected claims.
 

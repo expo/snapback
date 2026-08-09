@@ -306,7 +306,7 @@ assert.match(
 );
 assert.match(
   localProof,
-  /node scripts\/select-local-proof\.mjs[\s\S]*requires_native[\s\S]*scripts\/verify-local-proof --selection-receipt/u,
+  /node scripts\/select-local-proof\.mjs[\s\S]*requires_rust_toolchain[\s\S]*requires_native[\s\S]*scripts\/verify-local-proof --selection-receipt/u,
   'CI must plan once, condition heavyweight setup, and reopen the exact selector receipt',
 );
 assert.equal(
@@ -323,6 +323,18 @@ assert.match(
   localProof,
   /Initialize native runtime submodules[\s\S]*if:\s*steps\.selection\.outputs\.requires_native == 'true'[\s\S]*git submodule update --init --recursive/u,
   'large native submodules must be demand-loaded only for native selections',
+);
+const rustToolchainStepStart = localProof.indexOf('      - name: Install the pinned Rust toolchain');
+const rustToolchainStepEnd = localProof.indexOf('\n      - ', rustToolchainStepStart + 1);
+assert(
+  rustToolchainStepStart >= 0 && rustToolchainStepEnd > rustToolchainStepStart,
+  'Rust toolchain step block must be bounded',
+);
+const rustToolchainStep = localProof.slice(rustToolchainStepStart, rustToolchainStepEnd);
+assert.match(
+  rustToolchainStep,
+  /if:\s*steps\.selection\.outputs\.requires_rust_toolchain == 'true'/u,
+  'Rust formatting selections must provision cargo without selecting native setup',
 );
 assert.match(
   localProof,

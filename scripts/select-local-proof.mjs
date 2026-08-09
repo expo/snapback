@@ -83,6 +83,20 @@ export function validateSelectionPolicy(policy, calls) {
       for (const group of rule.groups) assert(policy.groups[group], `path rule ${rule.id} group ${group}`);
     }
   }
+  assert(Array.isArray(policy.additivePathRules), 'additive path rules exist');
+  for (const rule of policy.additivePathRules) {
+    assert(typeof rule?.id === 'string' && /^[a-z0-9-]+$/u.test(rule.id), 'additive path rule id');
+    assert(!ruleIds.has(rule.id), `duplicate path rule ${rule.id}`);
+    ruleIds.add(rule.id);
+    const matchers = ['files', 'prefixes', 'suffixes'].flatMap((key) => rule[key] ?? []);
+    validateUniqueStrings(matchers, `additive path rule ${rule.id} matchers`);
+    assert(matchers.length > 0, `additive path rule ${rule.id} has a matcher`);
+    assert(rule.disposition === undefined, `additive path rule ${rule.id} disposition`);
+    validateUniqueStrings(rule.groups, `additive path rule ${rule.id} groups`);
+    for (const group of rule.groups) {
+      assert(policy.groups[group], `additive path rule ${rule.id} group ${group}`);
+    }
+  }
 
   for (const [gate, prerequisites] of Object.entries(policy.dependencyOverrides ?? {})) {
     assert(canonicalSet.has(gate), `dependency override gate ${gate}`);
@@ -184,22 +198,36 @@ export function selectChangedPaths(changedFiles, context = loadSelectionContext(
   validateUniqueStrings(changedFiles, 'changed files');
   const classifications = [];
   const selectedGroups = new Set();
+  const matchedRules = new Set();
   const broadFiles = [];
   const unknownFiles = [];
 
   for (const path of [...changedFiles].sort()) {
     assert(validRepositoryPath(path), `invalid changed path ${JSON.stringify(path)}`);
     const rule = policy.pathRules.find((candidate) => matchesRule(path, candidate));
+    const additiveRules = policy.additivePathRules
+      .filter((candidate) => matchesRule(path, candidate));
+    const additiveRuleIds = additiveRules.map(({ id }) => id).sort();
+    const additiveGroups = additiveRules.flatMap(({ groups }) => groups);
+    for (const { id } of additiveRules) matchedRules.add(id);
+    for (const group of additiveGroups) selectedGroups.add(group);
     if (!rule) {
       unknownFiles.push(path);
-      classifications.push({ path, ruleId: null, disposition: 'all', groups: [] });
+      classifications.push({
+        path,
+        ruleId: null,
+        additiveRuleIds,
+        disposition: 'all',
+        groups: [...new Set(additiveGroups)].sort(),
+      });
       continue;
     }
+    matchedRules.add(rule.id);
     const disposition = rule.disposition === 'all' ? 'all' : 'groups';
-    const groups = [...(rule.groups ?? [])].sort();
+    const groups = [...new Set([...(rule.groups ?? []), ...additiveGroups])].sort();
     if (disposition === 'all') broadFiles.push(path);
     for (const group of groups) selectedGroups.add(group);
-    classifications.push({ path, ruleId: rule.id, disposition, groups });
+    classifications.push({ path, ruleId: rule.id, additiveRuleIds, disposition, groups });
   }
 
   const failBroad = broadFiles.length > 0 || unknownFiles.length > 0;
@@ -233,15 +261,21 @@ export function selectChangedPaths(changedFiles, context = loadSelectionContext(
   return {
     selectionClass,
     classifications,
-    matchedRules: [...new Set(classifications.map(({ ruleId }) => ruleId).filter(Boolean))].sort(),
+    matchedRules: [...matchedRules].sort(),
     selectedGroups: [...selectedGroups].sort(),
     broadFiles,
     unknownFiles,
     selectedGates,
     notSelectedGates,
     requirements: {
-      javascriptDependencies: selectionClass !== 'FAST_ONLY' || selectedSet.has('generated-artifacts'),
+      // @ref LLP 0175#d2--assign-every-test-to-an-explicit-cadence — the
+      // docs-only core stays dependency-free; fast path-owned gates declare
+      // the narrow workflow setup they need instead of widening the core.
+      javascriptDependencies: selectionClass !== 'FAST_ONLY'
+        || selectedSet.has('generated-artifacts')
+        || requires('javascriptDependencies'),
       native: requires('native'),
+      rustToolchain: requires('native') || requires('rustToolchain'),
       browser: requires('browser'),
       cargoAudit: requires('cargoAudit'),
       privateRoot: requires('privateRoot'),
@@ -297,6 +331,7 @@ export function completeSelection(context = loadSelectionContext()) {
     requirements: {
       javascriptDependencies: true,
       native: requires('native'),
+      rustToolchain: requires('native') || requires('rustToolchain'),
       browser: requires('browser'),
       cargoAudit: requires('cargoAudit'),
       privateRoot: requires('privateRoot'),
@@ -461,6 +496,7 @@ function writeGitHubOutputs(path, receipt) {
     selected_gate_count: receipt.selectedGateCount,
     requires_javascript_dependencies: receipt.requirements.javascriptDependencies,
     requires_native: receipt.requirements.native,
+    requires_rust_toolchain: receipt.requirements.rustToolchain,
     requires_browser: receipt.requirements.browser,
     requires_cargo_audit: receipt.requirements.cargoAudit,
     requires_private_root: receipt.requirements.privateRoot,

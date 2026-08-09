@@ -149,8 +149,11 @@ jobs:
       # The self-hosted expo image ships no Rust toolchain (cargo ENOENT),
       # unlike GitHub's ubuntu-latest. Install rustup bare, then let
       # rust-toolchain.toml select the reviewed compiler authority.
+      # @ref LLP 0175#d2--assign-every-test-to-an-explicit-cadence — rustfmt is
+      # path-owned and needs only this cheap toolchain step, not the native
+      # submodule, Hermes, cache, or bootstrap closure.
       - name: Install the pinned Rust toolchain
-        if: steps.selection.outputs.requires_native == 'true'
+        if: steps.selection.outputs.requires_rust_toolchain == 'true'
         run: |
           if ! command -v rustup >/dev/null 2>&1; then
             curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \

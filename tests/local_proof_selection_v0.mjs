@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -46,8 +46,12 @@ test('the policy classifies every canonical gate and keeps docs/guide fast', () 
   includesAll(docs, [
     'ref-check',
     'affected-selector-fixtures',
-    'package-readme-funnel',
+    'package-test-inventory',
   ]);
+  assert.equal(docs.selectedGates.includes('rustfmt'), false);
+  assert.equal(docs.selectedGates.includes('package-readme-funnel'), false);
+  assert.equal(docs.requirements.javascriptDependencies, false);
+  assert.equal(docs.requirements.rustToolchain, false);
 
   const guide = select(['guide/clients/react-expo.md']);
   assert.equal(guide.selectionClass, 'FAST_ONLY');
@@ -158,7 +162,62 @@ test('root production audit selection does not depend on Exact/admin baseline ga
 
 test('a new Rust source file selects the rustfmt gate', () => {
   const rustSource = select(['packages/snapback-client/src/new-native-bridge.rs']);
-  includesAll(rustSource, ['rustfmt']);
+  includesAll(rustSource, ['rustfmt', 'snapback-client-package']);
+  assert(rustSource.matchedRules.includes('rust-sources'));
+  assert.equal(rustSource.requirements.rustToolchain, true);
+
+  const nativeRust = select(['src/storage.rs']);
+  includesAll(nativeRust, ['rustfmt', 'rust-tests']);
+  assert.equal(nativeRust.requirements.rustToolchain, true);
+
+  assert.equal(select(['README.md']).selectedGates.includes('rustfmt'), false);
+});
+
+test('published package READMEs select only their fast funnel and its JS setup', () => {
+  const packageRoot = new URL('../packages/', import.meta.url);
+  const publicReadmes = readdirSync(packageRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .filter((entry) => {
+      try {
+        const manifest = JSON.parse(
+          readFileSync(new URL(`${entry.name}/package.json`, packageRoot), 'utf8'),
+        );
+        return manifest.private !== true;
+      } catch (error) {
+        if (error.code === 'ENOENT') return false;
+        throw error;
+      }
+    })
+    .map(({ name }) => `packages/${name}/README.md`)
+    .sort();
+  const readmeRule = context.policy.pathRules
+    .find(({ id }) => id === 'published-package-readmes');
+  assert.deepEqual(readmeRule.files, publicReadmes);
+
+  const readme = select(['packages/snapback-client/README.md']);
+  assert.equal(readme.selectionClass, 'FAST_ONLY');
+  assert.deepEqual(readme.selectedGroups, ['package-readme']);
+  includesAll(readme, ['package-readme-funnel']);
+  assert.equal(readme.selectedGates.includes('snapback-client-package'), false);
+  assert.equal(readme.requirements.javascriptDependencies, true);
+  assert.equal(readme.requirements.native, false);
+  assert.equal(readme.requirements.rustToolchain, false);
+
+  const privateReadme = select(['packages/snapback-sidecar/README.md']);
+  assert.equal(privateReadme.selectionClass, 'FAIL_CLOSED_FULL');
+  assert.equal(privateReadme.matchedRules.includes('published-package-readmes'), false);
+});
+
+test('every selected shell-out gate provisions its narrow workflow dependency', () => {
+  const cases = [
+    [select(['src/storage.rs']), 'rustfmt', 'rustToolchain'],
+    [select(['packages/snapback-client/README.md']), 'package-readme-funnel', 'javascriptDependencies'],
+    [select(['packages/snapback-client/package.json']), 'package-readme-funnel', 'javascriptDependencies'],
+  ];
+  for (const [selection, gate, requirement] of cases) {
+    assert(selection.selectedGates.includes(gate));
+    assert.equal(selection.requirements[requirement], true, `${gate} needs ${requirement}`);
+  }
 });
 
 test('Rust modules and ownership authorities select the module-ownership ratchet', () => {

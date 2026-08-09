@@ -11,9 +11,7 @@
     "proof-runner-fixtures",
     "local-proof-inventory",
     "affected-selector-fixtures",
-    "rustfmt",
-    "package-test-inventory",
-    "package-readme-funnel"
+    "package-test-inventory"
   ],
   "dependencyOverrides": {
     "snapback-cli-real-server": [
@@ -46,6 +44,12 @@
     ],
     "privateRoot": [
       "snapback-cli-real-server"
+    ],
+    "rustToolchain": [
+      "rustfmt"
+    ],
+    "javascriptDependencies": [
+      "package-readme-funnel"
     ]
   },
   "driftFailClosedCoreGates": [
@@ -510,6 +514,17 @@
       ]
     }
   },
+  "additivePathRules": [
+    {
+      "id": "rust-sources",
+      "groups": [
+        "rustfmt"
+      ],
+      "suffixes": [
+        ".rs"
+      ]
+    }
+  ],
   "pathRules": [
     {
       "id": "selector-authority",
@@ -643,6 +658,26 @@
       ],
       "prefixes": [
         "clients/swift/"
+      ]
+    },
+    {
+      "id": "published-package-readmes",
+      "groups": [
+        "package-readme"
+      ],
+      "files": [
+        "packages/create-snapback-app/README.md",
+        "packages/snapback-app-cli/README.md",
+        "packages/snapback-cli/README.md",
+        "packages/snapback-client/README.md",
+        "packages/snapback-codegen/README.md",
+        "packages/snapback-contract/README.md",
+        "packages/snapback-expo/README.md",
+        "packages/snapback-hosted-supervisor/README.md",
+        "packages/snapback-react/README.md",
+        "packages/snapback-runtime-darwin-arm64/README.md",
+        "packages/snapback-runtime-linux-x64/README.md",
+        "packages/snapback-vite/README.md"
       ]
     },
     {
@@ -863,6 +898,18 @@
         "module-ownership"
       ]
     },
+    "rustfmt": {
+      "lane": "fast",
+      "gates": [
+        "rustfmt"
+      ]
+    },
+    "package-readme": {
+      "lane": "fast",
+      "gates": [
+        "package-readme-funnel"
+      ]
+    },
     "drift-enforcement": {
       "lane": "fast",
       "gates": [
@@ -921,6 +968,7 @@
         "client-bundle-metrology",
         "hermes-intrinsics",
         "package-export-types",
+        "package-readme-funnel",
         "client-errors",
         "live-wire-schema",
         "provenance-unit",
@@ -955,6 +1003,7 @@
         "deployment-identity",
         "generated-types",
         "demo-surfaces",
+        "package-readme-funnel",
         "required-surface-builds",
         "headsign-typecheck",
         "js-production-audit",
