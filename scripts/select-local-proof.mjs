@@ -240,8 +240,16 @@ export function selectChangedPaths(changedFiles, context = loadSelectionContext(
     selectedGates,
     notSelectedGates,
     requirements: {
-      javascriptDependencies: selectionClass !== 'FAST_ONLY' || selectedSet.has('generated-artifacts'),
+      // @ref LLP 0175#d2--assign-every-test-to-an-explicit-cadence — a selection
+      // must provision what it selects. `alwaysGates` run under every cadence,
+      // so a gate that needs node_modules or cargo keeps its requirement true
+      // even on the smallest FAST_ONLY docs selection; otherwise the cheapest
+      // lane is permanently red on provisioning, not on the change under test.
+      javascriptDependencies: selectionClass !== 'FAST_ONLY'
+        || selectedSet.has('generated-artifacts')
+        || requires('javascriptDependencies'),
       native: requires('native'),
+      rustToolchain: requires('native') || requires('rustToolchain'),
       browser: requires('browser'),
       cargoAudit: requires('cargoAudit'),
       privateRoot: requires('privateRoot'),
@@ -297,6 +305,7 @@ export function completeSelection(context = loadSelectionContext()) {
     requirements: {
       javascriptDependencies: true,
       native: requires('native'),
+      rustToolchain: requires('native') || requires('rustToolchain'),
       browser: requires('browser'),
       cargoAudit: requires('cargoAudit'),
       privateRoot: requires('privateRoot'),
@@ -461,6 +470,7 @@ function writeGitHubOutputs(path, receipt) {
     selected_gate_count: receipt.selectedGateCount,
     requires_javascript_dependencies: receipt.requirements.javascriptDependencies,
     requires_native: receipt.requirements.native,
+    requires_rust_toolchain: receipt.requirements.rustToolchain,
     requires_browser: receipt.requirements.browser,
     requires_cargo_audit: receipt.requirements.cargoAudit,
     requires_private_root: receipt.requirements.privateRoot,

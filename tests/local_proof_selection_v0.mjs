@@ -48,6 +48,15 @@ test('the policy classifies every canonical gate and keeps docs/guide fast', () 
     'affected-selector-fixtures',
     'package-readme-funnel',
   ]);
+  // The cheapest selection still runs `alwaysGates`, and two of them shell out
+  // past plain node: `package-readme-funnel` resolves `ajv` from node_modules
+  // and `rustfmt` spawns `cargo fmt`. Both requirements must stay true here or
+  // every docs-only landing fails on provisioning instead of on its own change.
+  assert.equal(docs.requirements.javascriptDependencies, true);
+  assert.equal(docs.requirements.rustToolchain, true);
+  // The cheap toolchain install must not drag in the minutes-long native
+  // closure (submodules, Hermes, apt, bootstrap).
+  assert.equal(docs.requirements.native, false);
 
   const guide = select(['guide/clients/react-expo.md']);
   assert.equal(guide.selectionClass, 'FAST_ONLY');
@@ -159,6 +168,37 @@ test('root production audit selection does not depend on Exact/admin baseline ga
 test('a new Rust source file selects the rustfmt gate', () => {
   const rustSource = select(['packages/snapback-client/src/new-native-bridge.rs']);
   includesAll(rustSource, ['rustfmt']);
+});
+
+// The selector may narrow which gates run, but it may never hand the workflow a
+// selection whose gates cannot start. `rustfmt` spawns `cargo fmt` and
+// `package-readme-funnel` resolves `ajv` from node_modules; when a selection
+// includes them and leaves the matching requirement false, the workflow skips
+// the provisioning step and the gate dies on ENOENT rather than on its subject.
+test('every selection provisions the toolchains its selected gates shell out to', () => {
+  const provisioning = [
+    ['rustfmt', 'rustToolchain'],
+    ['package-readme-funnel', 'javascriptDependencies'],
+  ];
+  const selections = [
+    ['llp/0000-snapback.explainer.md'],
+    ['guide/clients/react-expo.md'],
+    ['README.md'],
+    ['src/storage.rs'],
+    ['packages/snapback-client/index.mjs'],
+  ];
+  for (const paths of selections) {
+    const selection = select(paths);
+    const selected = new Set(selection.selectedGates);
+    for (const [gate, requirement] of provisioning) {
+      if (!selected.has(gate)) continue;
+      assert.equal(
+        selection.requirements[requirement],
+        true,
+        `${paths[0]} selects ${gate} but leaves requirements.${requirement} false`,
+      );
+    }
+  }
 });
 
 test('Rust modules and ownership authorities select the module-ownership ratchet', () => {

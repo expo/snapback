@@ -46,6 +46,12 @@
     ],
     "privateRoot": [
       "snapback-cli-real-server"
+    ],
+    "rustToolchain": [
+      "rustfmt"
+    ],
+    "javascriptDependencies": [
+      "package-readme-funnel"
     ]
   },
   "driftFailClosedCoreGates": [
