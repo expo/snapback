@@ -229,6 +229,43 @@ pub(crate) fn eval(
     );
 }
 
+/// Record a queued evaluation that latest-value replacement made obsolete
+/// before it started. This retains the evaluation event shape used by the OQ4
+/// trace while leaving `connection_id` null because the scheduler queue is
+/// keyed only by subscription.
+///
+/// @ref LLP 0200#4-acceptance-instruments-and-predeclared-hypotheses — H-4
+/// requires superseded queued evaluations to be observable.
+pub(crate) fn eval_superseded(
+    subscription_id: &str,
+    commit_versions: &[u64],
+    queue_ms: Option<f64>,
+    version: u64,
+) {
+    let Some(finish_ms) = timestamp_ms() else {
+        return;
+    };
+    let queue_ms = queue_ms.unwrap_or(finish_ms);
+    emit_at(
+        finish_ms,
+        json!({
+            "event": "eval",
+            "subscription_id": subscription_id,
+            "connection_id": Option::<&str>::None,
+            "commit_versions": commit_versions,
+            "queue_ms": queue_ms,
+            "start_ms": finish_ms,
+            "finish_ms": finish_ms,
+            "duration_ms": 0.0,
+            "delivered_frame_bytes": 0,
+            "frame_kind": Option::<&str>::None,
+            "version": version,
+            "outcome": "superseded",
+            "diagnostic_code": Option::<&str>::None,
+        }),
+    );
+}
+
 pub(crate) fn coalesce(
     action: &str,
     commit_versions: &[u64],

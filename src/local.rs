@@ -775,6 +775,23 @@ impl PendingLiveScheduler {
         let generation = self.next_generation();
         pending.generation = generation;
         let lane = pending.lane;
+        if let Some(replaced) = self.entries.remove(&subscription_id) {
+            // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness —
+            // a replacement keeps the oldest undelivered age and trace
+            // frontier; only the data-lane in-place merge avoids cancellation.
+            crate::spike_trace::eval_superseded(
+                &subscription_id,
+                &replaced.trace_commit_versions,
+                replaced.trace_queued_ms,
+                replaced.coverage_through,
+            );
+            pending.first_deferred_at =
+                pending.first_deferred_at.min(replaced.first_deferred_at);
+            let mut inherited_commit_versions = replaced.trace_commit_versions;
+            inherited_commit_versions.append(&mut pending.trace_commit_versions);
+            pending.trace_commit_versions = inherited_commit_versions;
+            pending.trace_queued_ms = replaced.trace_queued_ms.or(pending.trace_queued_ms);
+        }
         self.entries.insert(subscription_id.clone(), pending);
         match lane {
             PendingLiveLane::Authority => self.authority.push_back((subscription_id, generation)),
@@ -784,55 +801,102 @@ impl PendingLiveScheduler {
     }
 
     fn peek(&mut self) -> Option<String> {
-        self.discard_stale_fronts();
-        self.authority
-            .front()
-            .or_else(|| self.refresh.front())
-            .or_else(|| self.data.front())
-            .map(|(subscription_id, _)| subscription_id.clone())
+        self.discard_stale_generations();
+        // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — lane
+        // precedence is Authority > Refresh > Data; within a lane inherited
+        // age, not the most recent replacement's queue position, orders work.
+        Self::oldest_in_lane(
+            &self.entries,
+            PendingLiveLane::Authority,
+            &self.authority,
+        )
+        .or_else(|| {
+            Self::oldest_in_lane(
+                &self.entries,
+                PendingLiveLane::Refresh,
+                &self.refresh,
+            )
+        })
+        .or_else(|| {
+            Self::oldest_in_lane(&self.entries, PendingLiveLane::Data, &self.data)
+        })
+        .map(str::to_owned)
     }
 
     fn pop(&mut self, subscription_id: &str) -> Option<PendingLiveFanout> {
-        self.discard_stale_fronts();
-        let pending = self.entries.get(subscription_id)?;
-        let front = match pending.lane {
-            PendingLiveLane::Authority => self.authority.front(),
-            PendingLiveLane::Refresh => self.refresh.front(),
-            PendingLiveLane::Data => self.data.front(),
-        }?;
-        if front.0 != subscription_id || front.1 != pending.generation {
+        if self.peek().as_deref() != Some(subscription_id) {
             return None;
         }
-        match pending.lane {
-            PendingLiveLane::Authority => self.authority.pop_front(),
-            PendingLiveLane::Refresh => self.refresh.pop_front(),
-            PendingLiveLane::Data => self.data.pop_front(),
+        let pending = self.entries.get(subscription_id)?;
+        let lane = pending.lane;
+        let generation = pending.generation;
+        let queue = match lane {
+            PendingLiveLane::Authority => &mut self.authority,
+            PendingLiveLane::Refresh => &mut self.refresh,
+            PendingLiveLane::Data => &mut self.data,
         };
+        let index = queue.iter().position(|(queued_id, queued_generation)| {
+            queued_id == subscription_id && *queued_generation == generation
+        })?;
+        queue.remove(index)?;
         self.entries.remove(subscription_id)
     }
 
-    fn discard_stale_fronts(&mut self) {
-        Self::discard_stale_front(
+    fn discard_stale_generations(&mut self) {
+        Self::discard_stale_generations_in_lane(
             &self.entries,
             PendingLiveLane::Authority,
             &mut self.authority,
         );
-        Self::discard_stale_front(&self.entries, PendingLiveLane::Refresh, &mut self.refresh);
-        Self::discard_stale_front(&self.entries, PendingLiveLane::Data, &mut self.data);
+        Self::discard_stale_generations_in_lane(
+            &self.entries,
+            PendingLiveLane::Refresh,
+            &mut self.refresh,
+        );
+        Self::discard_stale_generations_in_lane(
+            &self.entries,
+            PendingLiveLane::Data,
+            &mut self.data,
+        );
     }
 
-    fn discard_stale_front(
+    fn discard_stale_generations_in_lane(
         entries: &BTreeMap<String, PendingLiveFanout>,
         lane: PendingLiveLane,
         queue: &mut VecDeque<(String, u64)>,
     ) {
-        while queue.front().is_some_and(|(subscription_id, generation)| {
-            !entries
+        queue.retain(|(subscription_id, generation)| {
+            entries
                 .get(subscription_id)
                 .is_some_and(|pending| pending.lane == lane && pending.generation == *generation)
-        }) {
-            queue.pop_front();
-        }
+        });
+    }
+
+    fn oldest_in_lane<'a>(
+        entries: &'a BTreeMap<String, PendingLiveFanout>,
+        lane: PendingLiveLane,
+        queue: &'a VecDeque<(String, u64)>,
+    ) -> Option<&'a str> {
+        queue
+            .iter()
+            .filter_map(|(subscription_id, generation)| {
+                entries
+                    .get(subscription_id)
+                    .filter(|pending| {
+                        pending.lane == lane && pending.generation == *generation
+                    })
+                    .map(|pending| (subscription_id, *generation, pending))
+            })
+            .min_by(
+                |(left_id, left_generation, left),
+                 (right_id, right_generation, right)| {
+                    left.first_deferred_at
+                        .cmp(&right.first_deferred_at)
+                        .then_with(|| left_generation.cmp(right_generation))
+                        .then_with(|| left_id.cmp(right_id))
+                },
+            )
+            .map(|(subscription_id, _, _)| subscription_id.as_str())
     }
 }
 
@@ -20112,14 +20176,12 @@ impl LocalSnapback {
                     || pending.changes.len() >= coalescer.tunables().max_changes
                     || pending.first_deferred_at.elapsed() >= coalescer.tunables().max_hold
                 {
-                    let first_deferred_at = pending.first_deferred_at;
                     // The refresh counts as ONE unit of accepted work in the
                     // coalescer diagnostics (the committed contract of
                     // `last_flush_merged_frames`), but the measurement trace
-                    // keeps the absorbed commit versions so the A/B can
-                    // attribute the refresh evaluation to its real commits.
-                    let trace_commit_versions = std::mem::take(&mut pending.trace_commit_versions);
-                    let trace_queued_ms = pending.trace_queued_ms.or(trace_queued_ms);
+                    // keeps the absorbed commit versions through `push` so the
+                    // A/B can attribute the refresh evaluation to its real
+                    // commits without resetting its queue timestamp.
                     self.pending_live_fanout.push(
                         subscription_id,
                         PendingLiveFanout {
@@ -20129,8 +20191,8 @@ impl LocalSnapback {
                             force_replace: true,
                             frames: 1,
                             coverage_through: frame_version,
-                            first_deferred_at,
-                            trace_commit_versions,
+                            first_deferred_at: Instant::now(),
+                            trace_commit_versions: Vec::new(),
                             trace_queued_ms,
                             generation: 0,
                         },

@@ -9,8 +9,9 @@
         LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback,
         MAX_LIVE_SUBSCRIPTIONS,
         MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MY_MEMBERSHIPS_LIVE_FUNCTION, MaintenanceOperation,
-        PublicInspect, RetryEpisodeKey, RetryReservationKind, SnapbackError, SnapbackResult,
-        StagedMutationExecution, StagedNestedMutation, StagedRecordedMutation,
+        PendingLiveFanout, PendingLiveLane, PendingLiveScheduler, PendingLiveWork, PublicInspect,
+        RetryEpisodeKey, RetryReservationKind, SnapbackError, SnapbackResult, StagedMutationExecution,
+        StagedNestedMutation, StagedRecordedMutation,
         bounded_projection_result_contract, enforce_snapshot_batch_cursor_budget,
         next_secret_read_reset_generation, now_millis, order_field_bounds_from_functions,
         refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
@@ -67,6 +68,158 @@
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
     use std::time::{Duration, Instant};
+
+    fn pending_live_test_entry(
+        lane: PendingLiveLane,
+        work: PendingLiveWork,
+        first_deferred_at: Instant,
+        coverage_through: u64,
+        trace_commit_versions: Vec<u64>,
+        trace_queued_ms: Option<f64>,
+    ) -> PendingLiveFanout {
+        PendingLiveFanout {
+            lane,
+            work,
+            changes: Vec::new(),
+            force_replace: lane != PendingLiveLane::Data,
+            frames: 1,
+            coverage_through,
+            first_deferred_at,
+            trace_commit_versions,
+            trace_queued_ms,
+            generation: 0,
+        }
+    }
+
+    // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — a
+    // superseding refresh carries the oldest undelivered age and trace.
+    #[test]
+    fn pending_refresh_supersession_inherits_age_and_trace() {
+        let mut scheduler = PendingLiveScheduler::default();
+        let inherited_age = Instant::now()
+            .checked_sub(Duration::from_secs(2))
+            .expect("test age remains representable");
+        scheduler.push(
+            "sub-a".to_owned(),
+            pending_live_test_entry(
+                PendingLiveLane::Data,
+                PendingLiveWork::Data,
+                inherited_age,
+                41,
+                vec![41],
+                Some(4.0),
+            ),
+        );
+        scheduler.push(
+            "sub-a".to_owned(),
+            pending_live_test_entry(
+                PendingLiveLane::Refresh,
+                PendingLiveWork::Refresh,
+                Instant::now(),
+                42,
+                vec![42],
+                Some(8.0),
+            ),
+        );
+
+        let pending = scheduler.entries.get("sub-a").expect("latest refresh");
+        assert_eq!(pending.first_deferred_at, inherited_age);
+        assert_eq!(pending.trace_commit_versions, vec![41, 42]);
+        assert_eq!(pending.trace_queued_ms, Some(4.0));
+    }
+
+    // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — queue
+    // position cannot be reset by continuous same-lane supersession.
+    #[test]
+    fn pending_data_lane_serves_oldest_inherited_age_after_supersession() {
+        let mut scheduler = PendingLiveScheduler::default();
+        let now = Instant::now();
+        let older_age = now
+            .checked_sub(Duration::from_secs(2))
+            .expect("older test age remains representable");
+        let newer_age = now
+            .checked_sub(Duration::from_secs(1))
+            .expect("newer test age remains representable");
+        scheduler.push(
+            "older".to_owned(),
+            pending_live_test_entry(
+                PendingLiveLane::Data,
+                PendingLiveWork::Data,
+                older_age,
+                10,
+                vec![10],
+                Some(1.0),
+            ),
+        );
+        scheduler.push(
+            "newer".to_owned(),
+            pending_live_test_entry(
+                PendingLiveLane::Data,
+                PendingLiveWork::Data,
+                newer_age,
+                20,
+                vec![20],
+                Some(2.0),
+            ),
+        );
+        scheduler.push(
+            "older".to_owned(),
+            pending_live_test_entry(
+                PendingLiveLane::Data,
+                PendingLiveWork::Data,
+                now,
+                30,
+                vec![30],
+                Some(3.0),
+            ),
+        );
+
+        assert_eq!(scheduler.peek().as_deref(), Some("older"));
+        let served = scheduler.pop("older").expect("oldest inherited entry");
+        assert_eq!(served.coverage_through, 30);
+        assert_eq!(scheduler.peek().as_deref(), Some("newer"));
+    }
+
+    // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — only the
+    // latest generation can execute after queued work is superseded.
+    #[test]
+    fn pending_superseded_queued_evaluation_runs_latest_at_most_once() {
+        let mut scheduler = PendingLiveScheduler::default();
+        scheduler.push(
+            "sub-a".to_owned(),
+            pending_live_test_entry(
+                PendingLiveLane::Data,
+                PendingLiveWork::Data,
+                Instant::now(),
+                1,
+                vec![1],
+                Some(1.0),
+            ),
+        );
+        let replaced_generation = scheduler.entries["sub-a"].generation;
+        scheduler.push(
+            "sub-a".to_owned(),
+            pending_live_test_entry(
+                PendingLiveLane::Refresh,
+                PendingLiveWork::Refresh,
+                Instant::now(),
+                2,
+                vec![2],
+                Some(2.0),
+            ),
+        );
+        let latest_generation = scheduler.entries["sub-a"].generation;
+        assert_ne!(latest_generation, replaced_generation);
+        assert_eq!(scheduler.entries.len(), 1);
+
+        assert_eq!(scheduler.peek().as_deref(), Some("sub-a"));
+        let served = scheduler.pop("sub-a").expect("latest generation");
+        assert_eq!(served.generation, latest_generation);
+        assert_eq!(served.coverage_through, 2);
+        assert!(matches!(served.work, PendingLiveWork::Refresh));
+        assert!(scheduler.peek().is_none());
+        assert!(scheduler.pop("sub-a").is_none());
+    }
 
     fn target_descriptor(environment_id: &str) -> crate::deploy::TargetDescriptor {
         crate::deploy::TargetDescriptor {
