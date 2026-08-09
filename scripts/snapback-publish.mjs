@@ -22,6 +22,9 @@ import { fileURLToPath } from 'node:url';
 import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
 import {
   PACKAGE_DEPENDENCY_SECTIONS,
+  assertNoUndeclaredSymbolRemovals,
+  publishedSymbolsSnapshot,
+  registrySymbolIdentities,
   parseBoundedJsonBytes,
   readBoundedFileBytes,
   readBoundedJsonFile,
@@ -31,6 +34,8 @@ import {
   validateQualifiedStagingLedger,
   validateQualifiedTarballs,
   validateInternalDependencyClosure,
+  validatePublishedSymbolsSnapshot,
+  validateSymbolLifecycle,
 } from './snapback-publish-core.mjs';
 import { sha256TarEntry } from './snapback-tar-entry.mjs';
 import { enforceTelemetryCurrentGate } from './telemetry-release-gate.mjs';
@@ -38,6 +43,10 @@ import { verifyRuntimePackageSeal } from '../packages/snapback-cli/runtime-readi
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const publicRegistry = 'https://registry.npmjs.org';
+const symbolRegistryPath = join(root, 'guide/reference/registry.json');
+const symbolLifecyclePath = join(root, 'guide/reference/lifecycle.json');
+const symbolLifecycleSchemaPath = join(root, 'guide/reference/lifecycle.schema.json');
+const publishedSymbolsPath = join(root, 'guide/reference/published-symbols.json');
 const runtimePackages = new Map([
   ['darwin-arm64', 'snapback-runtime-darwin-arm64'],
   ['linux-x64', 'snapback-runtime-linux-x64'],
@@ -69,10 +78,10 @@ assembly supplies explicit runtime artifact paths to each platform package's
 prepare script. A real publication consumes, without restaging, one
 self-digested qualified ledger and clean staged receipts from both platforms.`;
 
-function fail(message, exitCode = 1) {
-  const code = exitCode === 2
+function fail(message, exitCode = 1, diagnosticCode = null) {
+  const code = diagnosticCode ?? (exitCode === 2
     ? 'SNAPBACK_PUBLISH_ARGUMENT_INVALID'
-    : 'SNAPBACK_PUBLISH_REFUSED';
+    : 'SNAPBACK_PUBLISH_REFUSED');
   console.error(JSON.stringify({
     ok: false,
     diagnostics: [{
@@ -197,6 +206,25 @@ function verifyPackedRuntimeSeal({ tarballPath, packageName, platformId }) {
 
 function sourceDirty() {
   return run('git', ['status', '--porcelain']).stdout.trim().length > 0;
+}
+
+function validateSymbolPublicationState() {
+  const registry = readBoundedJsonFile(symbolRegistryPath, 'current symbol registry');
+  const currentIdentities = registrySymbolIdentities(registry);
+  const lifecycle = validateSymbolLifecycle({
+    document: readBoundedJsonFile(symbolLifecyclePath, 'authored symbol lifecycle'),
+    schema: readBoundedJsonFile(symbolLifecycleSchemaPath, 'symbol lifecycle schema'),
+    currentIdentities,
+  });
+  const snapshot = validatePublishedSymbolsSnapshot(
+    readBoundedJsonFile(publishedSymbolsPath, 'published symbol snapshot'),
+  );
+  assertNoUndeclaredSymbolRemovals({
+    snapshot,
+    currentIdentities,
+    lifecycle,
+  });
+  return { registry, snapshot };
 }
 
 function versionExists(name, version) {
@@ -432,6 +460,22 @@ if (options.publish) {
     fail(`candidate tag must be ${expectedCandidateTag} for this exact version and source revision`);
   }
 }
+const qualifiedShape = !options.publish
+  && options.scopePreset === 'identity'
+  && options.runtimePlatforms.length === runtimePackages.size
+  && /^bakeoff-\d+-\d+-\d+-[0-9a-f]{12}$/.test(options.tag)
+  && options.tag === `bakeoff-${options.version.replaceAll('.', '-')}-${revision.slice(0, 12)}`;
+let symbolPublicationState = null;
+if (options.publish || qualifiedShape) {
+  try {
+    // @ref LLP 0194#amendment-2026-08-09-authored-symbol-lifecycle-facts —
+    // qualification and publication fail before registry effects when a
+    // previously published identity disappears without removedIn.
+    symbolPublicationState = validateSymbolPublicationState();
+  } catch (error) {
+    fail(error.message, 1, error.code);
+  }
+}
 let qualifiedLedger = null;
 let qualifiedPlatformReceipts = null;
 let qualifiedRoot = null;
@@ -492,11 +536,6 @@ if (options.publish) {
 } else {
   rows = stage(options);
 }
-const qualifiedShape = !options.publish
-  && options.scopePreset === 'identity'
-  && options.runtimePlatforms.length === runtimePackages.size
-  && /^bakeoff-\d+-\d+-\d+-[0-9a-f]{12}$/.test(options.tag)
-  && options.tag === `bakeoff-${options.version.replaceAll('.', '-')}-${revision.slice(0, 12)}`;
 const ledger = options.publish ? {
   schemaVersion: 'snapback.package-candidate-ledger.v1',
   mode: 'publish',
@@ -616,6 +655,23 @@ if (options.publish) {
   }
 }
 writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
+if (options.publish) {
+  try {
+    const refreshed = publishedSymbolsSnapshot({
+      previousSnapshot: symbolPublicationState.snapshot,
+      registry: symbolPublicationState.registry,
+      publishedVersion: options.version,
+      sourceRevision: revision,
+      candidateLedgerSha256: ledger.candidateLedgerSha256,
+      capturedAt: new Date().toISOString(),
+    });
+    // Refresh only after every registry artifact and the final candidate ledger
+    // have validated, so failed or partial publications cannot advance history.
+    writeFileSync(publishedSymbolsPath, `${JSON.stringify(refreshed, null, 2)}\n`);
+  } catch (error) {
+    fail(`publication completed but the symbol snapshot refresh failed: ${error.message}`, 1, error.code);
+  }
+}
 for (const row of rows) {
   console.log(`${row.status.padEnd(27)} ${row.name}@${row.version} ${row.tarball} ${row.sha256}`);
 }
