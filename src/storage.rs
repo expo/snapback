@@ -40,12 +40,18 @@ pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 #[path = "storage/auth.rs"]
 pub(crate) mod auth;
 mod connections;
-mod migration_scan;
 pub mod migration_executor;
+mod migration_scan;
 mod projection_rebuild;
 mod schema_transition;
 
+use connections::registered_writer_coverage_manifest;
 pub use connections::{PooledReader, ReaderPool};
+#[allow(unused_imports)] // Preserve the pre-split crate::storage surface.
+pub(crate) use connections::{
+    RegisteredSystemWriterPurposeV1, RegisteredSystemWriterV1, open_registered_system_writer_v1,
+};
+pub(crate) use migration_scan::migration_keyset_scan_batch_on;
 pub use migration_scan::{
     MIGRATION_SCAN_CHECKPOINT_VERSION, MIGRATION_SCAN_MAX_BATCH_BYTES,
     MIGRATION_SCAN_MAX_BATCH_MILLIS, MIGRATION_SCAN_MAX_BATCH_ROWS, MigrationKeysetScanBatch,
@@ -53,22 +59,16 @@ pub use migration_scan::{
     MigrationScanValidatorStateV1, MigrationScanValidatorV1,
 };
 pub use projection_rebuild::ProjectionRebuildReceipt;
+use projection_rebuild::{ProjectionEffectCeiling, maintain_projections_in_tx};
+#[cfg(test)]
+pub(crate) use schema_transition::publish_schema_transition_for_test;
 pub use schema_transition::{
     SCHEMA_TRANSITION_JOURNAL_TABLE, SchemaTransitionEventBodyV1, SchemaTransitionEventV1,
     SchemaTransitionKind,
 };
-#[allow(unused_imports)] // Preserve the pre-split crate::storage surface.
-pub(crate) use connections::{
-    RegisteredSystemWriterPurposeV1, RegisteredSystemWriterV1, open_registered_system_writer_v1,
-};
-use connections::registered_writer_coverage_manifest;
-pub(crate) use migration_scan::migration_keyset_scan_batch_on;
-use projection_rebuild::{ProjectionEffectCeiling, maintain_projections_in_tx};
 pub(crate) use schema_transition::{
     prove_retained_work_posture, record_schema_transition_event, schema_transition_events_on,
 };
-#[cfg(test)]
-pub(crate) use schema_transition::publish_schema_transition_for_test;
 
 #[cfg(test)]
 mod tests;
@@ -8107,7 +8107,6 @@ pub struct KeysetAfter {
     pub id: String,
 }
 
-
 /// Lower a keyset boundary to one WHERE clause selecting rows strictly after
 /// the boundary row under the plan's `(order…, _id ASC)` total order with
 /// Snapback's `NULLS LAST` rule. Emitted as a disjunction of prefix-equality
@@ -8253,7 +8252,6 @@ pub(crate) fn validate_standard_pattern_boundary(
     ensure_orderable_field(table, cursor_field)?;
     validate_query_filter_value(table, cursor_field, value)
 }
-
 
 // @ref LLP 0080#1-closed-relational-plan — runtime admission of the closed
 //   plan shape: exactly one joined table, 1..=4 equality pairs, take in
@@ -9384,7 +9382,6 @@ impl DbRead<'_> {
         crate::jobs::job_status_row(self.conn(), job_id)
     }
 }
-
 
 trait WithDetail {
     fn with_detail(self, key: &str, value: impl Into<Value>) -> Self;
@@ -17818,7 +17815,6 @@ fn get_document_from_tx(
     }
 }
 
-
 fn record_change(
     tx: &Transaction<'_>,
     version: u64,
@@ -18420,7 +18416,6 @@ fn ensure_orderable_field(table: &TableManifest, field: &str) -> SnapbackResult<
     }
     Ok(())
 }
-
 
 fn field_type<'a>(table: &'a TableManifest, field: &str) -> Option<&'a FieldType> {
     table.field(field).map(|field| &field.field_type)

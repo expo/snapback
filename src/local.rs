@@ -84,20 +84,20 @@ mod live_protocol;
 mod receipt_log;
 
 pub use config_types::*;
+pub(crate) use inspection::MaintenanceOperation;
 pub use inspection::{
     ForceLiveResyncReceipt, InspectState, LiveSubscriptionInfo, MaintenanceDiagnostics,
     PublicCronInspectState, PublicEphemeralDiagnostics, PublicIbexCliCapability,
-    PublicIbexSubmoduleCapability, PublicInspect, PublicRuntimeCapabilities,
-    PublicStorageInfo, PublicSubscriptionInfo,
+    PublicIbexSubmoduleCapability, PublicInspect, PublicRuntimeCapabilities, PublicStorageInfo,
+    PublicSubscriptionInfo,
 };
+pub(crate) use live_protocol::LiveTransportPublication;
 pub use live_protocol::{
     AuthorizationInvalidationAckInput, AuthorizationInvalidationAckOutput,
     AuthorizationInvalidationManualRetryInput, AuthorizationInvalidationManualRetryOutput,
     LiveResumeInput, LiveResumeOutput, LiveSubscribeInput, LiveSubscribeOutput,
     LiveSubscribeRequest, LiveUnsubscribeInput, LiveUnsubscribeOutput,
 };
-pub(crate) use inspection::MaintenanceOperation;
-pub(crate) use live_protocol::LiveTransportPublication;
 use receipt_log::ReceiptLog;
 
 const MAX_RECENT_DIAGNOSTICS: usize = 100;
@@ -9153,8 +9153,7 @@ impl LocalSnapback {
         use crate::assets;
         let now = now_millis();
         let mut publication = {
-            let mut record =
-                asset_planned_publication(app_id, "variant", &prepared.digest, now);
+            let mut record = asset_planned_publication(app_id, "variant", &prepared.digest, now);
             record.attempt_id = None;
             record
         };
@@ -9376,11 +9375,7 @@ impl LocalSnapback {
             Ok(prepared) => prepared,
             Err(assets::AssetFinalizePrepareError::Transient(error)) => return Err(error),
             Err(assets::AssetFinalizePrepareError::Refusal(failure)) => {
-                return self.asset_fail_attempt(
-                    &attempt,
-                    failure.asset_outcome,
-                    failure.refusal,
-                );
+                return self.asset_fail_attempt(&attempt, failure.asset_outcome, failure.refusal);
             }
         };
         let staged_digest = prepared.staged_digest;

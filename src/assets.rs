@@ -399,7 +399,11 @@ pub(crate) fn prepare_asset_finalize(
                 "assets",
                 format!(
                     "detected {detected} requires the deployed intent's {}.location policy; the image and video blocks do not alias",
-                    if detected_video_container { "video" } else { "image" },
+                    if detected_video_container {
+                        "video"
+                    } else {
+                        "image"
+                    },
                 ),
             ),
         ));

@@ -33,7 +33,10 @@ pub(super) fn require_tus_version(headers: &HeaderMap) -> Result<(), ApiError> {
     Ok(())
 }
 
-pub(super) fn tus_response_headers(response: &mut Response, attempt: &crate::assets::AssetAttemptRecordV1) {
+pub(super) fn tus_response_headers(
+    response: &mut Response,
+    attempt: &crate::assets::AssetAttemptRecordV1,
+) {
     let headers = response.headers_mut();
     headers.insert(
         HeaderName::from_static(TUS_RESUMABLE_HEADER),
