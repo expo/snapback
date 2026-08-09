@@ -105,7 +105,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | clients.react-expo | Expo provider + supervised no-URL simulator/emulator boot. The package-level web carrier ships; its end-to-end receipt remains open. Cold supervisor boot uses cached non-secret binding plus a digest-bound persisted receipt, never a bearer. Android USB `adb reverse` is proven; iOS USB, LAN/tunnel, and release remain unclaimed. | react native, expo, ios, android, expo web, react-native-web, bootstrap CORS, blob picker, physical device, USB device, snapback dev --expo, SnapbackExpoProvider, adb reverse, TCP/IP adb refused, ios udid, iproxy, 10.0.2.2, authority-required, restore lock, .snapback gitignore, copy project | local | shipped | `runExpoDev` in packages/snapback-cli/expo-dev.mjs + packages/snapback-cli/expo-bootstrap-exchange.test.mjs + packages/snapback-cli/expo-device-forwarding.test.mjs + simulator/emulator receipts | llp/0012, llp/0064, llp/0176, llp/0181 | clients/react-expo.md |
 | clients.compose-existing-app | Backend-only initialization and dependency composition for adding Snapback to an existing React/Expo app without scaffolding a second whole project | compose into existing app, add Snapback, snapback init, backend initializer, create-expo-app | none | design-only | packages/snapback-cli/index.mjs (`snapback new` creates whole projects; no backend-only initializer) | llp/0196, llp/0181 | GAP (owner: unassigned, review: 2026-09-12; issue: issues/20260808-guide-gap-compose-snapback-into-existing-app.md); clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
-| operating.instance-forks | Source-only finite-TTL derived-instance CLI; prior local publication withdrawn pending digest re-scope and requalification | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs | llp/0158, llp/0185 | GAP (fresh qualification/review/acceptance/publication; owner: Charlie, review: 2026-09-06; issue: issues/20260807-derived-fork-publication-wave-drift-requalification.md); operating/instance-forks.md |
+| operating.instance-forks | Partial contributor-source local finite-TTL derived-instance CLI with expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, diff, concurrency-safe cleanup, fork-per-worktree and parallel-suite guidance, and exact drop; published only for exactly `macos/aarch64` and `linux/x86_64`, with fail-closed `deny-all-v1`, non-promotable host-mediated isolation and no process containment; under LLP 0189 scoped-digest custody, post-C scoped source evolution remains visible as `requalificationDue` until the next natural cycle while frozen-chain inconsistency refuses; released-binary/npm parity, normal-installation, public-package, hosted/Cloudflare/remote, and merge-back support remain unclaimed | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | local | partial | src/local-agent-safe-derived-deployment-fork-publication.anchor.json → tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json | llp/0158, llp/0185, llp/0189 | operating/instance-forks.md |
 | operating.store-durable-state | Contributor-source declared registry of a file-backed store's complete durable state (database, folded WAL/SHM/journal, auth keyring, config, operation-detail and completeness-proof keyrings, asset blobs, admin token, console credentials, resume keyring, plus instance-local and refuse classes) via `snapback store describe`, and the WAL-consistent atomic `snapback store export` copy verb publishing a directly bootable directory plus a `store-export.json` manifest. Push-token bytes are scrubbed (LLP 0143); managed-branch and derived-fork stores refuse; not yet in a published closure | backup, restore, copy database, clone database, move store, snapshot, disaster recovery, cp app.sqlite3, sqlite backup, WAL, auth-keyring.json, missing keyring, SNAPBACK_AUTH_PROVIDER_UNAVAILABLE, store describe, store export, durable state, sidecar, sibling files | local | partial | `durable_state_members` in src/store_state.rs + `StoreCommand` in src/cli.rs | llp/0192, llp/0057, llp/0143 | operating/backup-and-copy.md |
 | operating.agent-safe-storage | Registered Experimental `agent_safe_storage_v1` identity for the `agentSafe.v1` extension/component-fact vocabulary; it is not the `AgentSafeV1` core aggregate and no target currently supports it | operation envelope, explanation, agent-safe storage, capability facts | none | partial | `AgentSafeCapabilityExtensionV1` in src/manifest.rs (Missing-only public projection) | llp/0162 | GAP (acceptance corpus, review, acceptance, and publication gates; all projections remain Missing; owner: Charlie, review: 2026-09-08; issue: issues/20260803-agent-safe-storage-acceptance-tail.md) |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI. The React/Vite starter path is published and G1-qualified in the public `@expo/snapback-*` closure (newest published and newest qualified versions recorded in guide/published-closure.json); publications newer than `newestQualified` are fast-path releases without a qualification-arm receipt of their own. | install, new app, create-snapback-app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
@@ -16031,20 +16031,22 @@ schema- or function-divergent development against realistic rows. The fork has
 the same logical `appId`, but fresh instance, authorization-stream,
 data-stream, admin-token, and resume-keyring identities.
 
-This is a **partial, unpublished surface**. A contributor-source local claim
-published on 2026-08-07, but its legacy qualification digest was unscoped —
-it covered wave-shared proof fixtures alongside the fork runtime — so
-ordinary wave landings rotated the digest and the claim was withdrawn. The
-source anchor is therefore withheld and the capability-index target is
-`none`; the
-[dated digest-bound receipt](repo:tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json)
-is retained as historical evidence, not a current claim. Republication
-follows LLP 0189 D-4: re-scope the digest (wave-shared files depart behind
-their own drift gates) first, then fresh qualification on `macos/aarch64`
-and `linux/x86_64`, fresh review heads, and named-author acceptance. The separate
+This is a **partial contributor-source local surface**, published for exactly
+the two measured release platforms, `macos/aarch64` and `linux/x86_64`, by the
+[source anchor](repo:src/local-agent-safe-derived-deployment-fork-publication.anchor.json)
+and its
+[dated digest-bound receipt](repo:tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json).
+The claim is a qualification-C snapshot under LLP 0189 scoped-digest custody:
+post-C evolution of scoped source stays explicit as
+`PUBLISHED_REQUALIFICATION_DUE` until the next natural cycle, while any
+inconsistency in the frozen scope, digest, evidence, review, or acceptance
+chain refuses publication. The separate
 `agent_safe_derived_deployment_fork_v1` target-manifest tuple remains wholly
-`Missing`. The guide teaches the implemented source workflow; it does not
-claim a packaged, hosted, promotable, or process-sandboxed capability.
+`Missing` by the author's ruling; the capability-index row is the narrow claim
+carrier. The guide teaches the implemented source-checkout workflow.
+Released-binary/npm parity and the Phase 6 normal-installation exit remain
+open. This claim includes no public package, hosted/Cloudflare/remote target,
+promotion or merge-back, or process sandbox.
 
 ## Give a worktree its own backend
 
@@ -16448,7 +16450,7 @@ OS/container/filesystem authority boundary for that threat.
   contract, released-binary/npm parity, normal-installation proof, or
   public-package claim. The withdrawn publication and required
   requalification are tracked in
-  [`issues/20260807-derived-fork-publication-wave-drift-requalification.md`](repo:issues/20260807-derived-fork-publication-wave-drift-requalification.md).
+  [`issues/closed/20260807-derived-fork-publication-wave-drift-requalification.md`](repo:issues/closed/20260807-derived-fork-publication-wave-drift-requalification.md).
 
 ## Anti-patterns
 
@@ -19613,7 +19615,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-diagnostics-registry.mjs. Never hand-edit. -->
@@ -22340,7 +22342,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -22348,7 +22350,7 @@ reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
 # Generated API reference
 
 One build-bound projection of 892 public symbols (370 runtime values and 522 explicit type-only symbols).
-Registry identity: `sha256:0309b9723ed29d31876828ad649cbb09be91251e06795d9507d94008190b4432`; source commit: `e3bfea5976fe217d8affb7b25fd7737a6c6b8646`.
+Registry identity: `sha256:0309b9723ed29d31876828ad649cbb09be91251e06795d9507d94008190b4432`; source commit: `a89511ab57c59292cd561c01e52cdf24e6df8639`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -22415,7 +22417,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -30877,7 +30879,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31402,7 +31404,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31636,7 +31638,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32076,7 +32078,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32183,7 +32185,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32638,7 +32640,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32777,7 +32779,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33139,7 +33141,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33230,7 +33232,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33599,7 +33601,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33749,7 +33751,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34252,7 +34254,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34753,7 +34755,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34987,7 +34989,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35350,7 +35352,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35464,7 +35466,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36062,7 +36064,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36367,7 +36369,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36814,7 +36816,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36940,7 +36942,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37112,7 +37114,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37517,7 +37519,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37984,7 +37986,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38241,7 +38243,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38631,7 +38633,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39251,7 +39253,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39399,7 +39401,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39607,7 +39609,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39800,7 +39802,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40053,7 +40055,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40638,7 +40640,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42349,7 +42351,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42462,7 +42464,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44958,7 +44960,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45240,7 +45242,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45364,7 +45366,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45519,7 +45521,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45643,7 +45645,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45813,7 +45815,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46189,7 +46191,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: e3bfea5976fe217d8affb7b25fd7737a6c6b8646
+reviewed-commit: a89511ab57c59292cd561c01e52cdf24e6df8639
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
