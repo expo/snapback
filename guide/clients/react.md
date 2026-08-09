@@ -299,6 +299,47 @@ over the same provider-owned command client. The hooks for asset-bearing
 commands (`useSnapbackCommand`) and whole-screen compositions (`useSurface`)
 live on [application surfaces](./surfaces.md).
 
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** This source checkout distinguishes a durably queued React
+> mutation from failure; the newest published package is `0.1.15`.
+
+The resolved value remains exclusively the generated mutation result. When a
+connectivity refusal has instead crossed the durable enqueue cut, the
+imperative client returns `{ queued: true, clientMutationId, sequence }`, but
+the React function rejects with the distinct `SnapbackQueuedMutationError`
+(`code === 'SNAPBACK_REACT_MUTATION_QUEUED'`). That rejection preserves the
+result-only return type; it means **pending settlement**, not server refusal,
+and it never carries `appCode`. Keep pending UI in that branch. Roll back only
+when the server returned a declared application refusal carrying an
+`appCode`:
+
+```ts fragment reason="mutation names, pending-state shape, and refusal copy come from the application"
+try {
+  const result = await saveTask(input);
+  clearPendingTask(input.intentKey, result);
+} catch (error) {
+  if ((error as { code?: string }).code === 'SNAPBACK_REACT_MUTATION_QUEUED') {
+    return; // durable replay owns settlement; keep the pending presentation
+  }
+  const appCode = (error as { diagnostic?: { details?: { appCode?: unknown } } })
+    .diagnostic?.details?.appCode;
+  if (typeof appCode === 'string') {
+    rollbackPendingTask(input.intentKey);
+    showDeclaredRefusal(appCode);
+    return;
+  }
+  throw error; // unknown/ambiguous is not permission to claim rollback
+}
+```
+
+In a positively identified development build, queueing also logs
+`SNAPBACK_REACT_MUTATION_QUEUED` with the mutation name and durable identity.
+If the queue head has not advanced after 30 seconds, it logs
+`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` naming the blocked mutation. These are
+diagnostics, not an automatic drain or a new queue-state hook; use
+`useSnapbackOutbox()` for the queue facts that ship today.
+
 For a mutation whose optimistic projection updates a currently authoritative
 live query, declare that projection beside the hook:
 
@@ -319,7 +360,7 @@ const toggleTask = useSnapbackMutation(api.toggleTask, {
 The optimistic layer is installed only over the provider's already-current
 authoritative query store and is validated against the generated result
 contract before network work. Overlapping attempts rebase in invocation order.
-Rejection removes only its own layer and recomputes over the newest
+Server rejection removes only its own layer and recomputes over the newest
 authoritative base. An HTTP response validates and settles the mutation
 promise, but is not itself live-query authority; `isAuthoritative`, when
 present, retires that layer only after a matching validated live delivery.
@@ -373,10 +414,20 @@ async function submit(title: string) {
   setPending((rows) => [...rows, { intentKey, title }]);
   try {
     await createTask({ title });
-  } finally {
-    // Success or rejection: remove exactly this pending item. The canonical
-    // row (with its server-minted ID) arrives by live delivery.
+    // Immediate success: the canonical row arrives by live delivery.
     setPending((rows) => rows.filter((row) => row.intentKey !== intentKey));
+  } catch (error) {
+    if ((error as { code?: string }).code === 'SNAPBACK_REACT_MUTATION_QUEUED') {
+      return; // replay is pending; do not erase the user's acknowledged intent
+    }
+    const appCode = (error as { diagnostic?: { details?: { appCode?: unknown } } })
+      .diagnostic?.details?.appCode;
+    if (typeof appCode === 'string') {
+      setPending((rows) => rows.filter((row) => row.intentKey !== intentKey));
+      showCreateRefusal(appCode);
+      return;
+    }
+    throw error;
   }
 }
 ```
@@ -386,11 +437,15 @@ web, but Hermes ships no `globalThis.crypto`
 ([React Expo crypto prerequisites](./react-expo.md#crypto-prerequisites-react-native-ships-no-webcrypto)),
 and a presentation-only key needs no unpredictability.
 
-Render the pending items beside the query rows, marked as unsettled. On
-rejection, only the corresponding pending item disappears; on success the
-authoritative row replaces it through the ordinary live update. This is the
+Render the pending items beside the query rows, marked as unsettled. A declared
+server refusal with `appCode` removes only the corresponding item; a queued or
+otherwise ambiguous outcome keeps it pending, and immediate success lets the
+authoritative row replace it through the ordinary live update. This is the
 smallest hook-native shape when a pending item does not need to participate in
-query filtering, ordering, counts, or relationships.
+query filtering, ordering, counts, or relationships. The hook's built-in
+`optimistic` query projection is process-local, not the durable outbox overlay;
+use this sidecar plus `useSnapbackOutbox()` for an action that must remain
+visible across queued replay.
 
 This is honestly less composable than a provider-owned optimistic insert: the
 pending row does not participate in the query store's filtering, sorting, or
@@ -485,6 +540,27 @@ entries only to their server-stamped monotonic expiry; predecessor authority
 entries are blanked. Presence is never persisted, hydrated, or counted as a
 durable mutation. This first-class surface is deliberately local-target only;
 a hosted binding returns `unsupported` without starting a room or socket.
+
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** This source checkout keys query arguments and presence
+> scope/value by canonical content. The newest published closure, 0.1.15,
+> still memoizes those hook inputs by object identity.
+
+## Use inline hook inputs without subscription churn
+
+Content-equal inline objects are safe on this source checkout:
+`useSnapbackQuery(ref, { label })` retains its descriptor and committed
+subscription across unrelated renders, while a fresh but content-equal
+`useSnapbackPresence` scope/value retains its room lease and managed publish
+intent. `skip` and development-generation handoff descriptors keep their
+existing behavior.
+
+On 0.1.15 and earlier, memoize or hoist **both** query args and presence
+scope/value. Do not treat the old identity churn as merely wasteful: combining
+fresh query args with a fresh managed presence value can form a
+render/resubscribe/publish loop that saturates the browser main thread until
+clicks stop landing, with no hook diagnostic identifying the storm.
 
 `observeSnapbackPresence(provider, reference, options, listener)` is the
 framework-neutral twin (the same pattern as `observeSnapbackOutbox` below).

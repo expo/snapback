@@ -442,4 +442,53 @@ function createOfflineFakeClient({ outbox = null } = {}) {
   await provider.dispose();
 }
 
+// ---------------------------------------------------------------------------
+// 6. A queued hook dispatch is loud in development, and a queue head that
+//    remains pending past the threshold warns again with the mutation name.
+// ---------------------------------------------------------------------------
+{
+  const priorNodeEnv = process.env.NODE_ENV;
+  const originalWarn = console.warn;
+  const warnings = [];
+  process.env.NODE_ENV = 'development';
+  console.warn = (...parts) => warnings.push(parts.join(' '));
+  let provider = null;
+  try {
+    const outbox = {
+      supported: true,
+      records: [{ id: 'queued-record-1', status: 'pending' }],
+    };
+    const fake = createOfflineFakeClient({ outbox });
+    fake.mutate = async () => ({
+      queued: true,
+      clientMutationId: 'queued-record-1',
+      sequence: 1,
+    });
+    const binding = await prepareReactBindingForClient(fake, { generatedManifest });
+    provider = createSnapbackReactProvider(binding, {
+      connectionId: 'offline-queued-warning',
+      __queuedMutationWedgeWarningMs: 5,
+    });
+
+    await assert.rejects(
+      invokeSnapbackMutation(provider, record, { value: 'offline' }),
+      (error) => error?.code === 'SNAPBACK_REACT_MUTATION_QUEUED',
+    );
+    assert.equal(warnings.length, 1, 'durable queueing warns at the call site');
+    assert.match(warnings[0], /SNAPBACK_REACT_MUTATION_QUEUED/);
+    assert.match(warnings[0], /mutation "record"/);
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(warnings.length, 2, 'the still-pending head warns after the threshold');
+    assert.match(warnings[1], /SNAPBACK_REACT_MUTATION_QUEUE_WEDGED/);
+    assert.match(warnings[1], /mutation "record"/);
+    assert.match(warnings[1], /queued-record-1/);
+  } finally {
+    if (provider !== null) await provider.dispose();
+    console.warn = originalWarn;
+    if (priorNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = priorNodeEnv;
+  }
+}
+
 console.log('offline.test.mjs: retained freshness, retention facts, outbox projection, and capability refusal pass');

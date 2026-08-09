@@ -85,7 +85,7 @@ claim. Register real acceptance profiles with the headless-first discipline in
 [acceptance testing](../../guide/testing/acceptance.md); the receipt contract
 is in [verify](../../guide/testing/verify.md).
 
-## Top traps (verified against main, 2026-08-08)
+## Top traps (verified against main, 2026-08-09)
 
 1. **No `v.array()` on table fields.** Stored arrays/unions are a named GAP
    (`backend.structured-stored-fields`, design-only). Use `v.json()` for
@@ -96,11 +96,12 @@ is in [verify](../../guide/testing/verify.md).
    `eq('ownerId', authUserId())` in the function is the security boundary —
    never a client-supplied owner argument
    ([sessions and principals](../../guide/auth/sessions-and-principals.md)).
-3. **Inline args objects churn `useSnapbackQuery`.** The descriptor memo keys
-   on `args` identity, so `useSnapbackQuery(ref, { label })` tears down and
-   re-establishes its subscription every render. Correct but wasteful —
-   memoize or hoist the args object
-   (`issues/20260806-usesnapbackquery-inline-args-resubscribe.md`).
+3. **Inline query/presence values before the content-keyed fix can saturate
+   the main thread.** On 0.1.15 and earlier, fresh `useSnapbackQuery` args
+   combined with a fresh managed `useSnapbackPresence` value can form a
+   zero-diagnostic render/resubscribe/publish loop until clicks stop landing;
+   memoize or hoist both inputs. Current source keys them by canonical content
+   (`issues/closed/20260806-usesnapbackquery-inline-args-resubscribe.md`).
 4. **A changed `seedVersion` never silently resets data.** Restarts and watch
    reloads require the exact installed seed identity; a change reports
    `SNAPBACK_SEED_MIGRATION_REQUIRED` until you choose migration or an

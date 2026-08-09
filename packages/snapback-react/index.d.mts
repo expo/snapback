@@ -50,6 +50,34 @@ export type {
 } from '@expo/snapback-client/commands';
 export type SnapbackDiagnostic = import('@expo/snapback-client').SnapbackDiagnostic;
 
+/** Distinct rejection from useSnapbackMutation after the headless client has
+ * durably queued the intent. This is pending settlement, not server refusal;
+ * keep pending UI and reserve rollback for a declared refusal with appCode. */
+export class SnapbackQueuedMutationError extends Error {
+  constructor(
+    mutation: string,
+    outcome: Readonly<{
+      clientMutationId: string;
+      sequence: number;
+    }>,
+  );
+  readonly name: 'SnapbackQueuedMutationError';
+  readonly code: 'SNAPBACK_REACT_MUTATION_QUEUED';
+  readonly queued: true;
+  readonly mutation: string;
+  readonly clientMutationId: string;
+  readonly sequence: number;
+  readonly diagnostic: SnapbackDiagnostic & Readonly<{
+    code: 'SNAPBACK_REACT_MUTATION_QUEUED';
+    details: Readonly<{
+      mutation: string;
+      queued: true;
+      clientMutationId: string;
+      sequence: number;
+    }>;
+  }>;
+}
+
 export type SnapbackConnection =
   | 'idle'
   | 'connecting'
@@ -436,6 +464,9 @@ export function projectRecordFields(
   isAuthoritative(current: ReadonlyArray<Record<string, unknown>>, result: unknown): boolean;
 }>;
 
+/** Resolves only with the generated mutation result. A durably queued
+ * dispatch rejects with SnapbackQueuedMutationError so it cannot masquerade
+ * as a commit or as a result-contract installation failure. */
 export function useSnapbackMutation<
   Ref extends MutationReference,
   Q extends QueryReference = never,

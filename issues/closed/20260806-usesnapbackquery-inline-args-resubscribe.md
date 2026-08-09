@@ -1,6 +1,6 @@
 # useSnapbackQuery resubscribes every render when callers pass inline args objects
 
-**Status:** Open
+**Status:** Resolved
 **Severity:** P2 (escalated 2026-08-09 from P3 — pilot evidence shows this is a hard main-thread-saturation failure with zero diagnostics, not a papercut)
 **Systems:** snapback-react, live queries, ephemeral presence
 **Date:** 2026-08-06
@@ -65,3 +65,32 @@ saying "wasteful" and name the saturation failure mode.
   content-equal inline args object does not release/re-establish the
   subscription (observable via registry inspection or a counting fake).
 - No behavior change for `skip` sentinel args or handoff descriptors.
+
+## Resolution
+
+Resolved 2026-08-09 with the preferred content-keyed fix. `useSnapbackQuery`
+now derives its descriptor memo dependency from `CanonicalClientValueV1`
+content (with `skip` preserved as the sentinel), so a fresh content-equal args
+object retains the existing descriptor and committed subscription.
+`useSnapbackPresence` applies the same treatment to `options.scope` and
+`options.value`, retaining the room lease and declarative publish intent when
+fresh objects have equal content.
+
+The package regression uses a counting provider to prove that an unrelated
+rerender with fresh equal query args and presence scope/value creates no new
+descriptor, subscription, release, or publish. It also covers changed content,
+stable `skip`, and a handoff-shaped query descriptor. The author guide now
+names the combined render/resubscribe/publish loop as a browser-main-thread
+saturation failure, not merely wasted work, and fences the fix as unreleased
+after 0.1.15.
+
+No storm detector shipped: the bounded canonical grammar already defines
+React/store identity, and no unacceptable hot-path cost was demonstrated that
+would justify replacing the direct correctness fix with a diagnostic fallback.
+
+Verification passed:
+
+- `bun run --cwd packages/snapback-react test`
+- `node scripts/check-guide.mjs` (pass with existing freshness warnings)
+- `node scripts/check-inventories.mjs`
+- `./ref-check --verbose`
