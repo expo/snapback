@@ -1,11 +1,11 @@
 //! The shared app-data result core (LLP 0024 amendment, LLP 0062 §2).
 //!
-//! One Rust-owned serialized core DTO carried byte-identically by HTTP
-//! consumers, the headless client, the app CLI, and the future MCP catalog.
-//! Projections (CLI text/JSON, MCP) consume this core and never re-derive
-//! outcome semantics. `appCliCallResult` is the engine's presentation
-//! wrapper AROUND this core, never a second envelope — the wrapper embeds
-//! the core verbatim (LLP 0062 §2 result contract).
+//! One Rust-owned normalization DTO shared by the headless client and app CLI.
+//! Raw HTTP routes retain their route-specific response envelopes; client
+//! consumers normalize those responses into this core before projections
+//! (CLI text/JSON, future MCP) consume it. `appCliCallResult` is the engine's
+//! presentation wrapper around the normalized core, never a second outcome
+//! taxonomy (LLP 0062 §2 result contract).
 //
 // @ref LLP 0024#dated-amendment-shared-app-data-result-core-2026-08-01 —
 // this module is the schema authority the amendment registers; the frozen

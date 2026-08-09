@@ -215,7 +215,7 @@ async function main() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ args: {} }),
     });
-    checkServed('kit-route error envelope serves the closed ErrorResponse',
+    checkServed('kit-route error envelope serves the versioned ErrorResponse',
       'error.response.schema.json', await failureResponse.text());
 
     socket.ws.close(1000, 'gate section 1 done');

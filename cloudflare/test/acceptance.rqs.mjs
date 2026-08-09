@@ -197,6 +197,31 @@ try {
     unmanifested.status === 200 && !unmanifestedHtml.includes('__snapback_boot'),
     String(unmanifested.status)
   );
+
+  // App-data namespaces are not web routes. Workers Assets may answer a miss
+  // with the SPA index and HTTP 200, so the gateway must detect that fallback
+  // across every reserved app-data prefix and return a typed target refusal.
+  const appDataPrefixes = [
+    '/auth', '/assets', '/ephemeral', '/push', '/app-api', '/client-mutations',
+    '/live', '/outbox', '/query', '/mutation', '/action', '/connection',
+  ];
+  const appDataFallbacks = [];
+  for (const prefix of appDataPrefixes) {
+    const response = await proof.raw(`${prefix}/unsupported/extra`, {
+      headers: { accept: 'text/html' },
+    });
+    const body = await response.json();
+    appDataFallbacks.push({ prefix, status: response.status, body });
+  }
+  check(
+    'every app-data-prefix SPA fallback becomes a versioned unsupported-target error',
+    appDataFallbacks.every(({ status, body }) =>
+      status === 501
+      && body.formatVersion === 'snapback.error-response.v1'
+      && body.diagnostic?.code === 'SNAPBACK_ROUTE_UNSUPPORTED_ON_TARGET'
+      && body.diagnostic?.details?.target === 'cloudflare'),
+    JSON.stringify(appDataFallbacks).slice(0, 1200),
+  );
   const nonHtml = await proof.raw('/board/b1', { headers: { accept: 'application/json' } });
   const nonHtmlText = await nonHtml.text();
   check(

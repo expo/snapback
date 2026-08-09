@@ -141,13 +141,13 @@ id: meta.index
 order: 1
 audience: agent-first
 capabilities: [operating.served-guide, operating.guide-mcp]
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0042-agent-mcp-surface.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/cli.rs, src/guide_mcp.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs]
+authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0042-agent-mcp-surface.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/server.rs, src/schema_export.rs, schemas/http.routes.v1.json, src/cli.rs, src/guide_mcp.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs]
 examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/partiful-matrix, demos/expo-golden-path-fixture]
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -174,9 +174,23 @@ guide bytes with a different server build. `GET /llms.txt` at the served root
 provides a convention-standard index, leading with the capability index
 (within its enforced budget) and listing the flat projection last as an
 explicit large-file fallback while it remains oversized
-(`issues/20260806-guide-flat-projection-oversize.md`). Building Snapback
+(`issues/20260806-guide-flat-projection-oversize.md`). The same local server
+serves `GET /_snapback/guide/http.routes.v1.json`, a generated build-bound
+join from the installed route registry to committed input/output schema
+references; a `null` schema reference means no route-specific schema is
+committed, not an unconstrained body. Building Snapback
 itself is a
 different job — that's `AGENTS.md` and the LLP corpus, not this guide.
+
+That served-discovery promise is for local/embedded server profiles. The
+derived hosted posture deliberately disables `operatorSurface`; on that
+profile `/llms.txt`, `/_snapback/guide*`,
+`/_snapback/api/control-catalog`, and host-operation discovery are not
+claimed. Depending on the target, those URLs may return a fixed empty 404, an
+asset fallback, or a target-specific refusal; none is evidence of a hosted
+discovery surface. Use the guide from the pinned checkout or published package
+when working against that profile; do not infer local discovery routes from a
+hosted app's root URL.
 
 ## Choose the MCP authority
 
@@ -12598,13 +12612,13 @@ id: deploying.cloudflare
 order: 2
 audience: agent-first
 capabilities: [deploy.cloudflare]
-authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0094-wire-envelope-contract.spec.md, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/coordinator.js, cloudflare/test/local-suite-manifest.mjs]
+authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0060-hosted-auth-security.rfc.md, llp/0094-wire-envelope-contract.spec.md, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/gateway.js, cloudflare/src/coordinator.js, src/server.rs, cloudflare/test/local-suite-manifest.mjs]
 examples: [demos/all-aboard, cloudflare/app/all-aboard.app.js]
 status: current
 targets: [cloudflare]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Deploying the Cloudflare proof
@@ -12784,7 +12798,18 @@ It explicitly does **not** claim:
 - calendar/Cron Trigger schedules;
 - R2 asset upload, notifications, Postgres, code hot-load, untrusted hosted
   tenant code, multiple apps per deployment, or a hosted marketplace;
+- the local served-discovery surface: `/llms.txt`, `/_snapback/guide*`,
+  `/_snapback/api/control-catalog`, and host-operation discovery are not
+  hosted claims when `operatorSurface` is disabled; use the pinned checkout
+  or published guide instead;
 - local pages whose `targets:` omit `cloudflare`.
+
+An unimplemented path inside a reserved app-data namespace must not be
+mistaken for a web page. When Workers Assets answers such a miss with its SPA
+`200 text/html` fallback, the gateway converts it to HTTP 501 with the
+versioned `SNAPBACK_ROUTE_UNSUPPORTED_ON_TARGET` JSON diagnostic. This is an
+honest target refusal, not evidence that the route is available under another
+hosted path.
 
 See [auth target honesty](../auth/targets.md) before exposing this deployment
 to users. The local bearer/dev identity posture is not production hosted auth.

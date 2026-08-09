@@ -61,6 +61,7 @@ const cliOnlyManifest = readJson(join(ROOT, 'control-catalog/cli-only-operations
 const overridesManifest = readJson(join(ROOT, 'control-catalog/operability-overrides.json'));
 const hostedManifest = readJson(join(ROOT, 'cloudflare/hosted-adapter-manifest.json'));
 const gatewayInventory = readJson(join(ROOT, 'cloudflare/gateway-paths.inventory.json'));
+const gatewaySource = readFileSync(join(ROOT, 'cloudflare/src/gateway.js'), 'utf8');
 
 // mcp-control.mjs exports CONTROL_TOOLS directly (LLP 0042's control-plane
 // tool declarations). Importing the real module — rather than parsing its
@@ -704,6 +705,7 @@ for (const resource of controlResources) {
 // --- Rule 11: hosted-adapter manifest vs audited fixture -------------------
 
 function checkHostedAdapter() {
+  checkGatewaySourceParity();
   const fixtureKeys = new Set(
     gatewayInventory.entries.map((e) => `${e.methods.join(',')}|${e.path}|${e.operation}`),
   );
@@ -799,6 +801,93 @@ function checkHostedAdapter() {
     };
     if (item.internalReason) entry.internalReason = item.internalReason;
     entries.push(entry);
+  }
+}
+
+function quotedStrings(source) {
+  return Array.from(source.matchAll(/(['"])(\/[^'"\\]*)\1/g), (match) => match[2]);
+}
+
+function arrayConstant(name, { set = false } = {}) {
+  const wrapperStart = set ? String.raw`new\s+Set\s*\(\s*\[` : String.raw`\[`;
+  const wrapperEnd = set ? String.raw`\]\s*\)` : String.raw`\]`;
+  const pattern = new RegExp(
+    String.raw`const\s+${name}\s*=\s*${wrapperStart}([\s\S]*?)${wrapperEnd}\s*;`,
+  );
+  const match = gatewaySource.match(pattern);
+  if (!match) {
+    completenessErrors.push(`gateway.js ${name} declaration could not be parsed by the parity gate.`);
+    return [];
+  }
+  return quotedStrings(match[1]);
+}
+
+function regexConstant(name) {
+  const match = gatewaySource.match(new RegExp(String.raw`const\s+${name}\s*=\s*(\/[^\n]+\/[a-z]*)\s*;`));
+  if (!match) {
+    completenessErrors.push(`gateway.js ${name} declaration could not be parsed by the parity gate.`);
+    return null;
+  }
+  return match[1];
+}
+
+function exactPathLiterals() {
+  return Array.from(
+    gatewaySource.matchAll(/\bpath\s*===\s*(['"])(\/[^'"]*)\1/g),
+    (match) => match[2],
+  ).sort();
+}
+
+function sameStringList(label, actual, expected) {
+  const actualSorted = [...new Set(actual)].sort();
+  const expectedSorted = [...new Set(expected ?? [])].sort();
+  if (JSON.stringify(actualSorted) !== JSON.stringify(expectedSorted)) {
+    completenessErrors.push(
+      `gateway.js ${label} literals are unlisted or stale in gateway-paths.inventory.json: ` +
+        `source=${JSON.stringify(actualSorted)} fixture=${JSON.stringify(expectedSorted)}.`,
+    );
+  }
+}
+
+// Bounded source extraction is deliberate: these four declarations and exact
+// `path ===` comparisons are the gateway's audited registration vocabulary.
+// An unparsable rewrite fails closed and requires the fixture/gate to evolve
+// in the same change; this is not a claim to parse arbitrary JavaScript.
+// @ref LLP 0184#3a-the-hosted-cloudflare-leg--a-fifth-domain-not-an-omission
+function checkGatewaySourceParity() {
+  const forwarded = arrayConstant('FORWARDED_JSON_PATHS', { set: true });
+  const appPrefixes = arrayConstant('APP_DATA_PREFIXES');
+  const kitRoute = regexConstant('KIT_ROUTE');
+  const kitStreamRoute = regexConstant('KIT_STREAM_ROUTE');
+  const literals = gatewayInventory.sourceLiterals ?? {};
+  sameStringList('FORWARDED_JSON_PATHS', forwarded, literals.FORWARDED_JSON_PATHS);
+  sameStringList('APP_DATA_PREFIXES', appPrefixes, literals.APP_DATA_PREFIXES);
+  sameStringList('exact path', exactPathLiterals(), literals.exactPaths);
+  if (kitRoute !== literals.KIT_ROUTE) {
+    completenessErrors.push(
+      `gateway.js KIT_ROUTE literal is unlisted or stale in gateway-paths.inventory.json: source=${kitRoute} fixture=${literals.KIT_ROUTE}.`,
+    );
+  }
+  if (kitStreamRoute !== literals.KIT_STREAM_ROUTE) {
+    completenessErrors.push(
+      `gateway.js KIT_STREAM_ROUTE literal is unlisted or stale in gateway-paths.inventory.json: source=${kitStreamRoute} fixture=${literals.KIT_STREAM_ROUTE}.`,
+    );
+  }
+  const appData = gatewayInventory.appDataPlane ?? {};
+  sameStringList(
+    'app-data exact-path inventory',
+    forwarded.filter((path) => !path.startsWith('/_snapback/')),
+    appData.forwardedExactPaths,
+  );
+  sameStringList(
+    'app-data SPA-fallback prefix inventory',
+    appPrefixes,
+    appData.unsupportedSpaFallbackPrefixes,
+  );
+  if (appData.kitRoute !== kitRoute || appData.kitStreamRoute !== kitStreamRoute) {
+    completenessErrors.push(
+      'gateway-paths.inventory.json appDataPlane regex literals do not match parsed KIT_ROUTE/KIT_STREAM_ROUTE.',
+    );
   }
 }
 checkHostedAdapter();

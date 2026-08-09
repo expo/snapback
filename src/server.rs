@@ -6969,9 +6969,32 @@ pub struct DiagnosticsResponse {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+pub const ERROR_RESPONSE_FORMAT_VERSION: &str = "snapback.error-response.v1";
+
+/// Must-understand version of the error-response envelope. Version 1 is
+/// forward-additive: receivers accept and ignore unknown top-level members,
+/// while rejecting an unknown `formatVersion`. This compatibility rule does
+/// not define a remediation carrier; LLP 0146 OQ6 remains open.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum ErrorResponseFormatVersion {
+    #[serde(rename = "snapback.error-response.v1")]
+    V1,
+}
+
+impl Default for ErrorResponseFormatVersion {
+    fn default() -> Self {
+        Self::V1
+    }
+}
+
+/// Versioned non-2xx HTTP error envelope. For the recognized v1 format,
+/// receivers MUST ignore unknown top-level members so additive metadata can
+/// cross mixed-version deployments. `formatVersion` itself is must-understand.
+/// No remediation member is defined here; LLP 0146 OQ6 remains unresolved.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
 pub struct ErrorResponse {
+    #[serde(rename = "formatVersion")]
+    pub format_version: ErrorResponseFormatVersion,
     pub diagnostic: Diagnostic,
     /// Present only when a mutation reached the provider receipt boundary.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -7999,6 +8022,8 @@ const fn served_guide_route(path: &'static str) -> RouteSpec {
 
 pub const GUIDE_CONTENT_HASH_HEADER: &str = "x-snapback-guide-content-sha256";
 pub const GUIDE_BUILD_COMMIT_HEADER: &str = "x-snapback-server-build-commit";
+pub const HTTP_ROUTES_PATH: &str = "/_snapback/guide/http.routes.v1.json";
+const HTTP_ROUTES_V1: &[u8] = include_bytes!("../schemas/http.routes.v1.json");
 
 // @ref LLP 0186#w2-context-injection-surface-owned-here — the convention
 // endpoint gives agent probes a short index into the build-bound guide.
@@ -8009,7 +8034,7 @@ pub const GUIDE_BUILD_COMMIT_HEADER: &str = "x-snapback-server-build-commit";
 // a large, explicit fallback rather than the first-offered link.
 // @ref LLP 0194#design — exact API discovery names both the compact human
 // index and canonical machine registry instead of hiding them in the flat file.
-const LLMS_TXT: &str = "# Snapback\n\n> Snapback is a local-first app backend. This server embeds its own authoring guide.\n\n## Docs\n\n- [Capability index](/_snapback/guide/capabilities.md) \u{2014} start here: the compact, capability-complete map.\n- [Guide index](/_snapback/guide)\n- [API reference index](/_snapback/guide/reference/index.md) \u{2014} compact package and module map.\n- [API symbol registry](/_snapback/guide/reference/registry.json) \u{2014} build-bound exact signatures and stable identities.\n- [Complete guide, single file](/_snapback/guide/flat.md) \u{2014} everything in one request; large and growing, prefer the capability index or a specific page first.\n";
+const LLMS_TXT: &str = "# Snapback\n\n> Snapback is a local-first app backend. This server embeds its own authoring guide.\n\n## Docs\n\n- [Capability index](/_snapback/guide/capabilities.md) \u{2014} start here: the compact, capability-complete map.\n- [Guide index](/_snapback/guide)\n- [HTTP route/schema catalog](/_snapback/guide/http.routes.v1.json) \u{2014} build-bound route policies joined to committed request and response schemas.\n- [API reference index](/_snapback/guide/reference/index.md) \u{2014} compact package and module map.\n- [API symbol registry](/_snapback/guide/reference/registry.json) \u{2014} build-bound exact signatures and stable identities.\n- [Complete guide, single file](/_snapback/guide/flat.md) \u{2014} everything in one request; large and growing, prefer the capability index or a specific page first.\n";
 
 fn guide_bound_response(body: &'static [u8], content_type: &'static str) -> Response {
     let mut response = Response::new(Body::from(body));
@@ -8054,6 +8079,19 @@ async fn served_guide_page(Path(path): Path<String>) -> Response {
 
 async fn served_llms_txt() -> Response {
     guide_bound_response(LLMS_TXT.as_bytes(), "text/markdown; charset=utf-8")
+}
+
+async fn served_http_routes() -> Response {
+    let mut response = Response::new(Body::from(HTTP_ROUTES_V1));
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json; charset=utf-8"),
+    );
+    response.headers_mut().insert(
+        HeaderName::from_static(GUIDE_BUILD_COMMIT_HEADER),
+        HeaderValue::from_static(option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")),
+    );
+    response
 }
 
 /// The app-data route registrations. Each handler literal appears only here;
@@ -8694,6 +8732,10 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
         RegisteredRoute::new(
             served_guide_route("/_snapback/guide/flat.md"),
             get(served_guide_flat),
+        ),
+        RegisteredRoute::new(
+            served_guide_route(HTTP_ROUTES_PATH),
+            get(served_http_routes),
         ),
         RegisteredRoute::new(
             served_guide_route("/_snapback/guide/{*path}"),
@@ -14641,8 +14683,37 @@ async fn telemetry_not_found(State(runtime): State<AppState>, request: Request<B
         None,
         Some(serde_json::json!({ "method": method, "rawPath": raw_path })),
     );
-    let response = StatusCode::NOT_FOUND.into_response();
-    span.finish(Some(i64::from(response.status().as_u16())), None, None);
+    // @ref LLP 0060#c2-defenses-that-do-not-change-the-boundary — an
+    // unregistered operator path must be indistinguishable from a registered
+    // one when hosted admission disables the entire operator surface. The
+    // authoring diagnostic below is intentionally a local-server affordance.
+    if runtime.hosted_serving.is_some()
+        && (raw_path == "/_snapback" || raw_path.starts_with("/_snapback/"))
+    {
+        let response = hosted_operator_surface_disabled_response();
+        span.finish(Some(i64::from(response.status().as_u16())), None, None);
+        return response;
+    }
+    let paths = route_registry()
+        .into_iter()
+        .map(|route| route.path)
+        .collect::<Vec<_>>();
+    let response = ApiError::from(
+        SnapbackError::error(
+            "SNAPBACK_ROUTE_UNKNOWN",
+            "server",
+            "the requested HTTP route is not registered",
+        )
+        .with_details(crate::authoring_suggestion::unknown_path_details(
+            &raw_path, &paths,
+        )),
+    )
+    .into_response();
+    span.finish(
+        Some(i64::from(response.status().as_u16())),
+        Some("SNAPBACK_ROUTE_UNKNOWN"),
+        None,
+    );
     response
 }
 
@@ -16265,6 +16336,9 @@ struct LinksStatus {
     admin_console: String,
     guide: String,
     flat_guide: String,
+    llms_txt: String,
+    app_api_current: String,
+    control_catalog: String,
     health_json: String,
     inspect_json: String,
 }
@@ -16351,6 +16425,9 @@ fn instance_status(inspect: &InspectState, ctx: &ServerContext) -> InstanceStatu
             admin_console: "/_snapback/admin".to_owned(),
             guide: "/_snapback/guide".to_owned(),
             flat_guide: "/_snapback/guide/flat.md".to_owned(),
+            llms_txt: "/llms.txt".to_owned(),
+            app_api_current: "/app-api/current".to_owned(),
+            control_catalog: "/_snapback/api/control-catalog".to_owned(),
             health_json: "/_snapback/api/health".to_owned(),
             inspect_json: "/_snapback/api/inspect".to_owned(),
         },
@@ -16461,6 +16538,18 @@ fn instance_home_yaml(status: &InstanceStatus) -> String {
         yaml_string(&status.links.flat_guide)
     ));
     out.push_str(&format!(
+        "  llmsTxt: {}\n",
+        yaml_string(&status.links.llms_txt)
+    ));
+    out.push_str(&format!(
+        "  appApiCurrent: {}\n",
+        yaml_string(&status.links.app_api_current)
+    ));
+    out.push_str(&format!(
+        "  controlCatalog: {}\n",
+        yaml_string(&status.links.control_catalog)
+    ));
+    out.push_str(&format!(
         "  healthJson: {}\n",
         yaml_string(&status.links.health_json)
     ));
@@ -16561,6 +16650,18 @@ fn instance_home_markdown(status: &InstanceStatus) -> String {
     out.push_str(&format!(
         "- [Flat Snapback Guide]({}) — the complete guide in one request for agent clients\n",
         status.links.flat_guide
+    ));
+    out.push_str(&format!(
+        "- [Agent discovery index]({})\n",
+        status.links.llms_txt
+    ));
+    out.push_str(&format!(
+        "- [Current app API envelope]({})\n",
+        status.links.app_api_current
+    ));
+    out.push_str(&format!(
+        "- [Control catalog]({})\n",
+        status.links.control_catalog
     ));
     out.push_str(&format!("- [Health JSON]({})\n", status.links.health_json));
     out.push_str(&format!(
@@ -25339,7 +25440,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         crate::network_profile::NETWORK_PROFILE_FORBIDDEN_CODE => StatusCode::FORBIDDEN,
         crate::network_profile::NETWORK_PROFILE_DELAY_CEILING_CODE
         | crate::network_profile::NETWORK_PROFILE_INVALID_CODE => StatusCode::BAD_REQUEST,
-        "SNAPBACK_BUNDLE_ROUTE_UNKNOWN" => StatusCode::NOT_FOUND,
+        "SNAPBACK_BUNDLE_ROUTE_UNKNOWN" | "SNAPBACK_ROUTE_UNKNOWN" => StatusCode::NOT_FOUND,
         "SNAPBACK_BUNDLE_NOT_PUBLIC"
         | "SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL"
         | "SNAPBACK_BUNDLE_IDEMPOTENCY_SENDER_MISMATCH" => StatusCode::FORBIDDEN,
@@ -26583,6 +26684,7 @@ impl IntoResponse for ApiError {
         let mut response = (
             status,
             Json(ErrorResponse {
+                format_version: ErrorResponseFormatVersion::V1,
                 diagnostic: self.0.diagnostic,
                 receipt: self.1,
                 attribution: self.3,
@@ -33152,6 +33254,7 @@ globalThis.__snapbackHandlers = {
             ("GET", "/_snapback/admin"),
             ("GET", "/_snapback/api/inspect"),
             ("POST", "/_snapback/api/schema/load"),
+            ("GET", "/_snapback/not-registered"),
         ] {
             let disabled = router
                 .clone()

@@ -17,6 +17,21 @@
 // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — served divergences are defects, not contract; the
 //   decided direction is to converge the emitters to the committed schemas.
 
+export const ERROR_RESPONSE_FORMAT_VERSION = 'snapback.error-response.v1';
+
+// The format version is must-understand; members added to a known version are
+// forward-compatible and receivers ignore ones they do not recognize. This is
+// deliberately only the ErrorResponse carrier: LLP 0146 OQ6 still owns the
+// unresolved question of whether/how typed remediations join the wire.
+// @ref LLP 0094#0c7-errorresponse-format-version-and-forward-skew-2026-08-08
+export function wireErrorResponse(diagnostic, members = {}) {
+  return {
+    formatVersion: ERROR_RESPONSE_FORMAT_VERSION,
+    diagnostic,
+    ...members,
+  };
+}
+
 const SUBSYSTEM_RULES = [
   // Connection grants, live subscriptions, sockets, and the bundle/RQS
   // surface: the local arm reports these as "realtime".

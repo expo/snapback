@@ -650,6 +650,26 @@ fn dk7_committed_public_instances_match_rust_types() {
             on_disk, schema,
             "{file} drifted from the Rust authority; regenerate with `cargo run --bin snapback-schemagen`"
         );
+        if file == "http.routes.v1.json" {
+            let routes = schema["routes"].as_array().expect("HTTP route rows");
+            assert_eq!(routes.len(), snapback::server::route_registry().len());
+            for route in routes {
+                for member in ["inputSchema", "outputSchema"] {
+                    let Some(reference) = route[member].get("$ref").and_then(Value::as_str) else {
+                        continue;
+                    };
+                    assert!(
+                        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                            .join("schemas")
+                            .join(reference)
+                            .is_file(),
+                        "{} {} references missing schema {reference}",
+                        route["method"],
+                        route["path"]
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -2752,7 +2772,8 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     use snapback::local::{LiveResumeOutput, LiveSubscribeOutput, LiveUnsubscribeOutput};
     use snapback::manifest::QueryOutput;
     use snapback::server::{
-        ConnectionGrant, ErrorResponse, MutationResponse, OpenConnectionRequest,
+        ConnectionGrant, ErrorResponse, ErrorResponseFormatVersion, MutationResponse,
+        OpenConnectionRequest,
     };
     use snapback::storage::SequenceAllocationFact;
 
@@ -3099,6 +3120,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     assert_validates(
         "error.response.schema.json",
         &serde_json::to_value(ErrorResponse {
+            format_version: ErrorResponseFormatVersion::V1,
             diagnostic: Diagnostic::error("SNAPBACK_TEST", "realtime", "boom"),
             receipt: None,
             attribution: None,
@@ -3106,9 +3128,29 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         })
         .unwrap(),
     );
+    let additive_error = json!({
+        "formatVersion": "snapback.error-response.v1",
+        "diagnostic": Diagnostic::error("SNAPBACK_TEST", "server", "forward additive"),
+        "futureMember": { "safeToIgnore": true },
+    });
+    assert_validates("error.response.schema.json", &additive_error);
+    assert!(
+        serde_json::from_value::<ErrorResponse>(additive_error).is_ok(),
+        "v1 receivers ignore unknown top-level members"
+    );
+    let unknown_version = json!({
+        "formatVersion": "snapback.error-response.v2",
+        "diagnostic": Diagnostic::error("SNAPBACK_TEST", "server", "unknown version"),
+    });
+    assert_rejects("error.response.schema.json", &unknown_version);
+    assert!(
+        serde_json::from_value::<ErrorResponse>(unknown_version).is_err(),
+        "formatVersion is must-understand"
+    );
     assert_validates(
         "error.response.schema.json",
         &serde_json::to_value(ErrorResponse {
+            format_version: ErrorResponseFormatVersion::V1,
             diagnostic: Diagnostic::error("SNAPBACK_REJECTED", "mutation", "rejected"),
             receipt: Some(Receipt::Mutation {
                 enqueues: Vec::new(),

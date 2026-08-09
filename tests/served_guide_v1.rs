@@ -9,8 +9,8 @@ use snapback::admin::AppState;
 use snapback::guide::{FLAT_PATH, GUIDE_CONTENT_SHA256, INDEX_PATH};
 use snapback::local::LocalSnapback;
 use snapback::server::{
-    GUIDE_BUILD_COMMIT_HEADER, GUIDE_CONTENT_HASH_HEADER, ResponseSensitivity, RouteClass,
-    RoutePolicy, app, route_registry,
+    GUIDE_BUILD_COMMIT_HEADER, GUIDE_CONTENT_HASH_HEADER, HTTP_ROUTES_PATH, ResponseSensitivity,
+    RouteClass, RoutePolicy, app, route_registry,
 };
 use std::collections::BTreeSet;
 use std::io::Read;
@@ -182,6 +182,41 @@ async fn memory_server_serves_root_llms_txt_with_guide_identity() {
     assert!(body.contains("/_snapback/guide/capabilities.md"));
     assert!(body.contains("/_snapback/guide/reference/index.md"));
     assert!(body.contains("/_snapback/guide/reference/registry.json"));
+    assert!(body.contains(HTTP_ROUTES_PATH));
+}
+
+#[tokio::test]
+async fn memory_server_serves_build_bound_http_route_schema_join() {
+    let response = get(HTTP_ROUTES_PATH).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers()[header::CONTENT_TYPE],
+        "application/json; charset=utf-8"
+    );
+    assert_eq!(
+        header(&response, GUIDE_BUILD_COMMIT_HEADER),
+        option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
+    );
+    let bytes = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read HTTP route catalog");
+    assert_eq!(
+        bytes.as_ref(),
+        include_bytes!("../schemas/http.routes.v1.json")
+    );
+    let value: Value = serde_json::from_slice(&bytes).expect("route catalog JSON");
+    assert_eq!(value["formatVersion"], "snapback.http-routes.v1");
+    let query = value["routes"]
+        .as_array()
+        .expect("route rows")
+        .iter()
+        .find(|route| route["method"] == "POST" && route["path"] == "/query/{name}")
+        .expect("query route row");
+    assert_eq!(query["class"], "AppData");
+    assert_eq!(query["path_policy"], "AppAuth");
+    assert_eq!(query["credential_resolution"], "LegacyBodyAuth");
+    assert_eq!(query["inputSchema"]["$ref"], "query.input.schema.json");
+    assert_eq!(query["outputSchema"]["$ref"], "query.output.schema.json");
 }
 
 #[tokio::test]

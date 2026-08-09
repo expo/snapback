@@ -213,7 +213,7 @@ try {
   };
 
   // Proof/system lanes keep the pinned {ok, code, message, diagnostic}
-  // refusal; kit routes serve the closed ErrorResponse with the fully-filled
+  // refusal; kit routes serve the versioned ErrorResponse with the fully-filled
   // committed Diagnostic (LLP 0094 §0C.6 item 7 convergence).
   const diagnostic = (status, diagnosticCode, message, details = null) => ({
     status,
@@ -231,6 +231,7 @@ try {
   const kitDiagnostic = (status, diagnosticCode, message, details = null) => ({
     status,
     body: {
+      formatVersion: 'snapback.error-response.v1',
       diagnostic: {
         code: diagnosticCode,
         severity: 'error',

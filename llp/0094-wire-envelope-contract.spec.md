@@ -5,7 +5,11 @@
 **Systems:** Wire Protocol, Realtime, Live Queries, Client SDK, HTTP surface, Cloudflare arm, Schema governance
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-08-04 (dated LLP 0157 finite-carrier amendment: optional
+**Revised:** 2026-08-08 (ErrorResponse v1 amendment: every HTTP error envelope
+now requires `formatVersion: "snapback.error-response.v1"`; receivers ignore
+unknown top-level members for forward-additive evolution while the version is
+must-understand. This does not resolve LLP 0146 OQ6 or add a remediation
+carrier). 2026-08-04 (dated LLP 0157 finite-carrier amendment: optional
 proof/witness members on ordinary query and authorized-lease responses, plus
 atomic snapshot-batch page-set-manifest delivery; see the dated section).
 2026-08-03, later (LLP 0109 acceptance reconciliation: the
@@ -737,7 +741,7 @@ clients are not proven tolerant needs capability gating or a new token
 | `RealtimeEnvelope` drain wrapper (`realtime.envelope.schema.json`) | closed | lane-P framing only |
 | `RealtimeEnvelope::EphemeralAck` | nominally closed variant with a flattened ack payload | deliberate unknown-field-detection exception: serde `flatten` consumes extra top-level members into the ack payload, so a generic closed-envelope decoder cannot distinguish a future wrapper field. Do not seed an unknown-field tolerance fixture for this variant until the payload is typed or flattening is removed |
 | `ConnectionGrant` (`connection.grant.schema.json`) | open object | the §0B.3 `wireVersion` echo lands here as the sanctioned additive member |
-| `ErrorResponse` (`error.response.schema.json`) | **closed** (`deny_unknown_fields`, `src/server.rs`) | `diagnostic` required; optional `receipt`/`attribution`; the inner `Diagnostic` requires `code`/`severity`/`subsystem`/`message`/`details` — the hosted arm fills it completely since the §0C.6 item-3 convergence (2026-07-27) |
+| `ErrorResponse` (`error.response.schema.json`) | **versioned, forward-additive v1** | required `formatVersion: "snapback.error-response.v1"` and `diagnostic`; optional `receipt`/`attribution`/`ephemeralAuthorityInstance`; receivers reject an unknown format version but ignore unknown top-level members of v1. The inner `Diagnostic` remains closed and requires `code`/`severity`/`subsystem`/`message`/`details` — see §0C.7 |
 | `MutationResponse` (`mutation.output.schema.json`) | **closed** | `attribution` is admitted explicitly since the §0C.6 item-4 convergence (2026-07-27): the type carries `Option<FunctionAttribution>` directly and the schema is regenerated from the served envelope |
 | `QueryOutput` / action output (`QueryOutput` in `src/manifest.rs`; the action route serves `FunctionResponse<FunctionRunResult>`, `src/local.rs`) | open | `query.output.schema.json` / `action.output.schema.json` (committed 2026-07-27); open families, so the served `FunctionResponse` attribution flatten validates |
 | `/app/ensure` outcomes (`EnsureAppAttestOutcome` / `EnsureAppProvisionOutcome` / legacy `EnsureAppOutcome`, `src/local.rs`) | **closed** (`deny_unknown_fields`; `additionalProperties: false` in `app.ensure.output.schema.json`) | closed-family rule: additions need gating or a new token (v0.2 misclassified this row open — corrected) |
@@ -745,6 +749,28 @@ clients are not proven tolerant needs capability gating or a new token
 | `AuthorizedLeaseQueryResponse` / lease envelope (`authorized-lease.*` schemas) | **closed** | exact-protocol surface; evolution under LLP 0043/0053, cited not restated |
 | client-mutation acknowledge output (`client-mutation.ack.output.schema.json`) | **closed** | stays closed |
 | ephemeral HTTP outcomes (`src/ephemeral.rs`) | open | `ephemeral.publish.output` (`PublishOutcome`) / `ephemeral.subscribe.output` (`EphemeralMessage`) / `ephemeral.delete.output` (nullable `EphemeralMessage`) schemas, committed 2026-07-27 |
+
+### 0C.7 ErrorResponse format version and forward skew (2026-08-08)
+
+Every non-2xx JSON `ErrorResponse` now carries the required exact member
+`formatVersion: "snapback.error-response.v1"`. The token is
+must-understand: a receiver that does not recognize it refuses the envelope
+rather than guessing its semantics. Within recognized v1, top-level evolution
+is additive: receivers **must ignore unknown top-level members** while still
+validating the known members they consume. The Rust decoder therefore no
+longer uses `deny_unknown_fields`, the generated schema admits additional
+members, the Swift `WireErrorResponse` decoder recognizes the v1 token while
+field-plucking known members, and the hosted gateway/coordinator/platform
+emitters all compose the same versioned envelope. Positive tolerance and
+unknown-version negative witnesses live in the schema drift and Swift client
+suites.
+
+This amendment changes only versioning/forward-skew mechanics. The known v1
+members are `diagnostic`, optional `receipt`, optional `attribution`, and
+optional `ephemeralAuthorityInstance`. It does **not** add or reserve a
+remediation member, select a remediation carrier, or otherwise decide LLP
+0146 OQ6; typed suggestions continue to ride only the already-governed
+diagnostic `details` allowlists until that separate question is decided.
 
 Socket server→client union rule: on the kit stream, durable-lane
 payloads arrive **unwrapped** — bare `LiveEnvelope` kinds
@@ -882,10 +908,10 @@ wire-version probes recorded in
    `live.kit-socket-reply.schema.json`, completing §0F item 2.
 7. **Hosted kit-route request-parse refusals** (`requestDiagnostic` via
    `parseJsonObjectRequest`, `coordinator.js`) emitted
-   `{ok, code, message, diagnostic}` — top-level members the closed
-   `ErrorResponse` does not admit, plus the under-filled inner
+   `{ok, code, message, diagnostic}` — top-level members the then-closed
+   `ErrorResponse` did not admit, plus the under-filled inner
    `Diagnostic` of item 3. **Converged 2026-07-27**: kit routes parse
-   with `errorDialect: 'kit'` and refuse with the closed ErrorResponse;
+   with `errorDialect: 'kit'` and refuse with the versioned ErrorResponse;
    the LLP 0040 proof and `/_snapback/*` system/testing lanes keep the
    pinned `{ok, code, message, diagnostic}` shape (outside the
    governance rule below, byte-pinned by the protocol-hardening suite).
@@ -917,7 +943,7 @@ that rule. The convergence also brought the previously-unenumerated
 kit-lane emitters under the rule: the `appBundle` failure helper, the
 action kind-mismatch 400, the coded-refusal catch
 (`SNAPBACK_CAPABILITY_UNSUPPORTED` et al.), and the stale-deployment 409
-now emit the closed envelope **on kit routes only** (proof/system lanes
+now emit the governed ErrorResponse **on kit routes only** (proof/system lanes
 keep their pinned shapes). The ledger enumerates **emitter functions**,
 not sampled responses; the executable audit the ticket owned is
 implemented in `cloudflare/test/acceptance.wire-shapes.mjs`: it

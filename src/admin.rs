@@ -4800,6 +4800,7 @@ fn diagnostic_response(status: StatusCode, error: SnapbackError) -> Response {
     (
         status,
         Json(crate::server::ErrorResponse {
+            format_version: crate::server::ErrorResponseFormatVersion::V1,
             diagnostic: error.diagnostic,
             receipt: None,
             attribution: None,

@@ -38,10 +38,10 @@ private final class ReservationStubProtocol: URLProtocol, @unchecked Sendable {
             body = Data(
                 (includeEffectFreeDetails
                     ? """
-                      {"diagnostic":{"code":"SNAPBACK_AUTH_RESERVATION_STALE","severity":"error","subsystem":"auth","message":"reservation stale","details":{"retryable":true,"retryStrategy":"short-jitter","effectCommitted":false}}}
+                      {"formatVersion":"snapback.error-response.v1","diagnostic":{"code":"SNAPBACK_AUTH_RESERVATION_STALE","severity":"error","subsystem":"auth","message":"reservation stale","details":{"retryable":true,"retryStrategy":"short-jitter","effectCommitted":false}}}
                       """
                     : """
-                      {"diagnostic":{"code":"SNAPBACK_AUTH_RESERVATION_STALE","severity":"error","subsystem":"auth","message":"reservation stale","details":{}}}
+                      {"formatVersion":"snapback.error-response.v1","diagnostic":{"code":"SNAPBACK_AUTH_RESERVATION_STALE","severity":"error","subsystem":"auth","message":"reservation stale","details":{}}}
                       """
                 ).data(using: .utf8)!
             )
@@ -189,7 +189,7 @@ private final class GrantRecoveryStubProtocol: URLProtocol, @unchecked Sendable 
         case 3:
             status = 403
             body = Data(
-                #"{"diagnostic":{"code":"SNAPBACK_CONNECTION_TOKEN_INVALID","severity":"error","subsystem":"connection","message":"idle reaper discarded grant","details":{}}}"#.utf8
+                #"{"formatVersion":"snapback.error-response.v1","diagnostic":{"code":"SNAPBACK_CONNECTION_TOKEN_INVALID","severity":"error","subsystem":"connection","message":"idle reaper discarded grant","details":{}}}"#.utf8
             )
         case 4:
             status = 200
@@ -697,6 +697,18 @@ private final class PhaseCollector: @unchecked Sendable {
 }
 
 final class ClientBehaviorTests: XCTestCase {
+    func testWireErrorResponseRequiresKnownVersionAndIgnoresAdditiveMembers() throws {
+        let v1 = try JSONValue.parse(
+            #"{"formatVersion":"snapback.error-response.v1","diagnostic":{"code":"SNAPBACK_TEST","severity":"error","subsystem":"test","message":"test","details":{}},"futureMember":{"ignored":true}}"#
+        )
+        XCTAssertEqual(WireErrorResponse.from(v1)?.code, "SNAPBACK_TEST")
+
+        let unknown = try JSONValue.parse(
+            #"{"formatVersion":"snapback.error-response.v2","diagnostic":{"code":"SNAPBACK_TEST","severity":"error","subsystem":"test","message":"test","details":{}}}"#
+        )
+        XCTAssertNil(WireErrorResponse.from(unknown))
+    }
+
     private func client(
         maxAttempts: Int,
         jitterMilliseconds: ClosedRange<UInt64> = 0...0
@@ -731,7 +743,7 @@ final class ClientBehaviorTests: XCTestCase {
             .init(
                 status: 400,
                 body:
-                    #"{"diagnostic":{"code":"SNAPBACK_REQUEST_JSON_INVALID","severity":"error","subsystem":"request","message":"request JSON did not match the closed input","details":{}}}"#
+                    #"{"formatVersion":"snapback.error-response.v1","diagnostic":{"code":"SNAPBACK_REQUEST_JSON_INVALID","severity":"error","subsystem":"request","message":"request JSON did not match the closed input","details":{}}}"#
             ),
             .init(status: 200, body: custodyGrant),
         ])
@@ -767,7 +779,7 @@ final class ClientBehaviorTests: XCTestCase {
                     status: refusal.status,
                     body:
                         """
-                        {"diagnostic":{"code":"\(refusal.code)","severity":"error","subsystem":"connection","message":"must surface without downgrade","details":{}}}
+                        {"formatVersion":"snapback.error-response.v1","diagnostic":{"code":"\(refusal.code)","severity":"error","subsystem":"connection","message":"must surface without downgrade","details":{}}}
                         """
                 ),
                 .init(status: 200, body: custodyGrant),
@@ -1021,7 +1033,7 @@ final class ClientBehaviorTests: XCTestCase {
                 status: 409,
                 body:
                     """
-                    {"diagnostic":{"code":"SNAPBACK_AUTH_INVALIDATION_PENDING","severity":"error","subsystem":"auth","message":"newer obligation pending","details":{}}}
+                    {"formatVersion":"snapback.error-response.v1","diagnostic":{"code":"SNAPBACK_AUTH_INVALIDATION_PENDING","severity":"error","subsystem":"auth","message":"newer obligation pending","details":{}}}
                     """
             ),
             .init(
@@ -1563,7 +1575,7 @@ final class ClientBehaviorTests: XCTestCase {
             .init(
                 status: 403,
                 body:
-                    #"{"diagnostic":{"code":"SNAPBACK_CONNECTION_TOKEN_INVALID","severity":"error","subsystem":"connection","message":"expired","details":{}}}"#
+                    #"{"formatVersion":"snapback.error-response.v1","diagnostic":{"code":"SNAPBACK_CONNECTION_TOKEN_INVALID","severity":"error","subsystem":"connection","message":"expired","details":{}}}"#
             ),
         ])
         let subject = responseQueueClient()

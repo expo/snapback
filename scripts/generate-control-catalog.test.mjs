@@ -30,6 +30,7 @@ function scratchRepo() {
     'control-catalog',
     'cloudflare/hosted-adapter-manifest.json',
     'cloudflare/gateway-paths.inventory.json',
+    'cloudflare/src/gateway.js',
     'guide/operating',
     'packages/snapback-cli',
     'node_modules/ajv',
@@ -346,6 +347,57 @@ test('rule 11 fails when an audited fixture entry has no manifest counterpart', 
     const result = runCompiler(dir);
     assert.equal(result.ok, false, 'compiler must fail when an audited fixture entry has no manifest entry');
     assert.match(result.output, /has no hosted-adapter-manifest\.json entry/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('gateway source parity fails on an unlisted forwarded app-data path', () => {
+  const dir = scratchRepo();
+  try {
+    const sourcePath = join(dir, 'cloudflare/src/gateway.js');
+    const source = readFileSync(sourcePath, 'utf8').replace(
+      "const FORWARDED_JSON_PATHS = new Set([",
+      "const FORWARDED_JSON_PATHS = new Set(['/new-app-data-route', ",
+    );
+    writeFileSync(sourcePath, source);
+    const result = runCompiler(dir);
+    assert.equal(result.ok, false);
+    assert.match(result.output, /FORWARDED_JSON_PATHS literals are unlisted/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('gateway source parity fails when KIT_ROUTE changes without the fixture', () => {
+  const dir = scratchRepo();
+  try {
+    const sourcePath = join(dir, 'cloudflare/src/gateway.js');
+    const source = readFileSync(sourcePath, 'utf8').replace(
+      '(?:query|mutation|action)',
+      '(?:query|mutation|action|command)',
+    );
+    writeFileSync(sourcePath, source);
+    const result = runCompiler(dir);
+    assert.equal(result.ok, false);
+    assert.match(result.output, /KIT_ROUTE literal is unlisted/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('gateway source parity fails on an unlisted exact path comparison', () => {
+  const dir = scratchRepo();
+  try {
+    const sourcePath = join(dir, 'cloudflare/src/gateway.js');
+    const source = readFileSync(sourcePath, 'utf8').replace(
+      "if (path === '/health')",
+      "if (path === '/new-exact') return json(200, {});\n    if (path === '/health')",
+    );
+    writeFileSync(sourcePath, source);
+    const result = runCompiler(dir);
+    assert.equal(result.ok, false);
+    assert.match(result.output, /exact path literals are unlisted/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -21,6 +21,7 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=HERMES_LIB_DIR");
     println!("cargo:rerun-if-changed=guide");
+    println!("cargo:rerun-if-changed=schemas/http.routes.v1.json");
 
     // @ref LLP 0061#4-distribution-and-discovery — served-guide §4a:
     // every binary carries the checked guide snapshot; eval evidence is not

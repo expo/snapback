@@ -794,8 +794,13 @@ public struct MutationResponse: Sendable {
     }
 }
 
-/// The standard refusal envelope (`error.response.schema.json`).
+/// The standard refusal envelope (`error.response.schema.json`). Version 1
+/// ignores additive top-level members but treats `formatVersion` as
+/// must-understand.
+/// @ref LLP 0094#0c7-errorresponse-format-version-and-forward-skew-2026-08-08
 public struct WireErrorResponse: Sendable {
+    public static let formatVersion = "snapback.error-response.v1"
+
     public var code: String
     public var severity: String
     public var subsystem: String
@@ -804,7 +809,8 @@ public struct WireErrorResponse: Sendable {
     public var receipt: JSONValue?
 
     public static func from(_ json: JSONValue) -> WireErrorResponse? {
-        guard let diagnostic = json["diagnostic"],
+        guard json["formatVersion"]?.stringValue == formatVersion,
+              let diagnostic = json["diagnostic"],
               let code = diagnostic["code"]?.stringValue,
               let severity = diagnostic["severity"]?.stringValue,
               let subsystem = diagnostic["subsystem"]?.stringValue,

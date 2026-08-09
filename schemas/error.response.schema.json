@@ -34,6 +34,13 @@
       ],
       "type": "string"
     },
+    "ErrorResponseFormatVersion": {
+      "description": "Must-understand version of the error-response envelope. Version 1 is\nforward-additive: receivers accept and ignore unknown top-level members,\nwhile rejecting an unknown `formatVersion`. This compatibility rule does\nnot define a remediation carrier; LLP 0146 OQ6 remains open.",
+      "enum": [
+        "snapback.error-response.v1"
+      ],
+      "type": "string"
+    },
     "FunctionAttribution": {
       "description": "Server-derived, bearer-free attribution for one app-data function\nresponse. Wrappers may copy this value, but cannot synthesize attribution\nauthority when the invocation gate did not produce it.\n\n@ref LLP 0055#audit — every resolved service-principal function response\ncarries the same actor/effective/grant attribution and v1 has no agent\ndry-run surface.",
       "properties": {
@@ -427,7 +434,7 @@
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/error.response.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
+  "description": "Versioned non-2xx HTTP error envelope. For the recognized v1 format,\nreceivers MUST ignore unknown top-level members so additive metadata can\ncross mixed-version deployments. `formatVersion` itself is must-understand.\nNo remediation member is defined here; LLP 0146 OQ6 remains unresolved.",
   "properties": {
     "attribution": {
       "anyOf": [
@@ -450,6 +457,9 @@
         "null"
       ]
     },
+    "formatVersion": {
+      "$ref": "#/$defs/ErrorResponseFormatVersion"
+    },
     "receipt": {
       "anyOf": [
         {
@@ -463,6 +473,7 @@
     }
   },
   "required": [
+    "formatVersion",
     "diagnostic"
   ],
   "title": "ErrorResponse",
