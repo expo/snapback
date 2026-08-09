@@ -88,6 +88,13 @@ tsconfig/metro alias for **`@expo/snapback-react`** — there is no published
 `@messenger/*` package. In your app, install and import
 `@expo/snapback-react`.)
 
+The example memoizes its scope for compatibility with published closure
+0.1.15. On affected versions, a per-render managed presence value combined
+with per-render query args can create a zero-diagnostic
+render/resubscribe/publish loop that saturates the browser main thread, not
+merely waste a subscription. Current source content-keys both inputs; see
+[Use inline hook inputs without subscription churn](../clients/react.md#use-inline-hook-inputs-without-subscription-churn).
+
 See [the React client](../clients/react.md#publish-and-observe-ephemeral-presence)
 for the hook's state and lifecycle contract. Reach for the lower-level
 `subscribeEphemeral` overlay below only in headless code or when you

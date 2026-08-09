@@ -2554,11 +2554,19 @@ function useProvider() {
   return assertProvider(useContext(providerContext));
 }
 
+// @ref LLP 0114#exact-identity-bytes-and-limits — hook dependency identity
+// follows the same canonical content grammar as registry store identity, so
+// fresh but equal inline values cannot rotate committed subscriptions.
+const canonicalHookInputKey = (value) => (
+  value === skip ? skip : canonicalizeClientValueV1(value)
+);
+
 export function useSnapbackQuery(reference, args) {
   const provider = useProvider();
+  const argsKey = canonicalHookInputKey(args);
   const descriptor = useMemo(
     () => provider.registry.descriptor(reference, args),
-    [provider, reference, args],
+    [provider, reference, argsKey],
   );
   const lease = useRef(null);
   const subscribe = useCallback((listener) => {
@@ -2587,6 +2595,8 @@ export function useSnapbackPresence(reference, options) {
   const tokenRef = useRef(null);
   if (tokenRef.current === null) tokenRef.current = provider.registry.createPresenceToken();
   const token = tokenRef.current;
+  const scopeKey = canonicalHookInputKey(options.scope);
+  const valueKey = canonicalHookInputKey(options.value);
   const descriptor = useMemo(
     () => provider.registry.presenceDescriptor(
       reference,
@@ -2594,7 +2604,7 @@ export function useSnapbackPresence(reference, options) {
       options.value,
       options.ttlMs,
     ),
-    [provider, reference, options.scope, options.value, options.ttlMs],
+    [provider, reference, scopeKey, valueKey, options.ttlMs],
   );
   const subscribe = useCallback((listener) => {
     const lease = provider.registry.subscribePresence(descriptor, token, listener);

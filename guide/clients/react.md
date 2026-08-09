@@ -486,6 +486,27 @@ entries are blanked. Presence is never persisted, hydrated, or counted as a
 durable mutation. This first-class surface is deliberately local-target only;
 a hosted binding returns `unsupported` without starting a room or socket.
 
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** This source checkout keys query arguments and presence
+> scope/value by canonical content. The newest published closure, 0.1.15,
+> still memoizes those hook inputs by object identity.
+
+## Use inline hook inputs without subscription churn
+
+Content-equal inline objects are safe on this source checkout:
+`useSnapbackQuery(ref, { label })` retains its descriptor and committed
+subscription across unrelated renders, while a fresh but content-equal
+`useSnapbackPresence` scope/value retains its room lease and managed publish
+intent. `skip` and development-generation handoff descriptors keep their
+existing behavior.
+
+On 0.1.15 and earlier, memoize or hoist **both** query args and presence
+scope/value. Do not treat the old identity churn as merely wasteful: combining
+fresh query args with a fresh managed presence value can form a
+render/resubscribe/publish loop that saturates the browser main thread until
+clicks stop landing, with no hook diagnostic identifying the storm.
+
 `observeSnapbackPresence(provider, reference, options, listener)` is the
 framework-neutral twin (the same pattern as `observeSnapbackOutbox` below).
 A component that actively produces an ephemeral value outside managed

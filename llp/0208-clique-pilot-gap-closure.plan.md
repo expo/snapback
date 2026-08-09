@@ -111,7 +111,7 @@ per LLP 0189, independent of this Plan's review state:
   `ctx.runtime.newId()` typo), the one 30-grade class beside the
   90-grade refusal surface; routed to LLP 0193's no-refusal failure
   layer.
-- `issues/20260806-usesnapbackquery-inline-args-resubscribe.md` —
+- `issues/closed/20260806-usesnapbackquery-inline-args-resubscribe.md` —
   pre-existing ticket escalated P3→P2 with the pilot's evidence
   (unmemoized hook args + per-render presence value saturated the main
   thread until clicks stopped landing; ~50 min of bisection, zero

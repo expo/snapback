@@ -15,6 +15,7 @@ import {
   skip,
   useSnapbackConnection,
   useSnapbackMutation,
+  useSnapbackPresence,
   useSnapbackQueries,
   useSnapbackQuery,
 } from './index.mjs';
@@ -448,6 +449,214 @@ assert.throws(
   })),
   (error) => error?.code === 'SNAPBACK_REACT_ARGS_INVALID',
 );
+
+// Inline query/presence inputs are the natural call shape. Content-equal
+// rerenders must retain the committed callbacks even when every object is
+// freshly allocated; the handoff-shaped query descriptor also pins that the
+// memo fix does not bypass descriptor handoff behavior.
+const inlineCounts = {
+  queryDescriptors: 0,
+  querySubscriptions: 0,
+  queryReleases: 0,
+  presenceDescriptors: 0,
+  presenceSubscriptions: 0,
+  presenceReleases: 0,
+  presencePublishes: 0,
+};
+const inlineQueryReady = Object.freeze({
+  status: 'ready',
+  data: Object.freeze([]),
+  error: null,
+  connection: 'live',
+  freshness: 'current',
+  retention: null,
+});
+const inlineQuerySkipped = Object.freeze({
+  status: 'skipped',
+  data: undefined,
+  error: null,
+  connection: 'idle',
+  freshness: 'unknown',
+  retention: null,
+});
+const inlinePresenceReady = Object.freeze({
+  status: 'ready',
+  entries: Object.freeze([]),
+  selfKey: 'inline-presence',
+  diagnostic: null,
+  connection: 'live',
+  publisher: Object.freeze({ status: 'published', diagnostic: null }),
+  publish: async () => {},
+  delete: async () => {},
+});
+const inlineRegistry = Object.freeze({
+  descriptor(queryReference, args) {
+    inlineCounts.queryDescriptors += 1;
+    return Object.freeze({
+      skipped: args === skip,
+      reference: queryReference,
+      args,
+      handoff: args === skip ? undefined : Object.freeze({ reference: queryReference, args }),
+    });
+  },
+  subscribe(_descriptor, _listener, _previousLease) {
+    inlineCounts.querySubscriptions += 1;
+    let released = false;
+    return Object.freeze({
+      release() {
+        if (released) return;
+        released = true;
+        inlineCounts.queryReleases += 1;
+      },
+    });
+  },
+  snapshot(descriptor) {
+    return descriptor.skipped ? inlineQuerySkipped : inlineQueryReady;
+  },
+  createPresenceToken() {
+    return Object.freeze({ id: 'inline-presence-token' });
+  },
+  presenceDescriptor(presenceReference, scope, value, ttlMs) {
+    inlineCounts.presenceDescriptors += 1;
+    return Object.freeze({
+      reference: presenceReference,
+      scope,
+      value,
+      ttlMs,
+      intent: value === skip ? null : Object.freeze({ value, ttlMs }),
+    });
+  },
+  subscribePresence(descriptor) {
+    inlineCounts.presenceSubscriptions += 1;
+    if (descriptor.intent !== null) inlineCounts.presencePublishes += 1;
+    let released = false;
+    return Object.freeze({
+      release() {
+        if (released) return;
+        released = true;
+        inlineCounts.presenceReleases += 1;
+      },
+    });
+  },
+  presenceSnapshot() {
+    return inlinePresenceReady;
+  },
+});
+const inlineProvider = Object.freeze({
+  kind: 'snapback.react-provider.v1',
+  providerInstanceId: 'inline-content-provider',
+  registry: inlineRegistry,
+  start() { return this; },
+});
+const inlineQueryReference = Object.freeze({ id: 'inline-query' });
+const inlinePresenceReference = Object.freeze({ id: 'inline-presence' });
+let inlineQueryState = null;
+function InlineContentProbe({ label, tick, querySkipped = false, presenceSkipped = false }) {
+  const queryArgs = tick % 2 === 0
+    ? { filter: { label }, page: [1, 2] }
+    : { page: [1, 2], filter: { label } };
+  const presenceScope = tick % 2 === 0
+    ? { roomId: 'inline-room', channel: 'main' }
+    : { channel: 'main', roomId: 'inline-room' };
+  const presenceValue = tick % 2 === 0
+    ? { label, typing: true }
+    : { typing: true, label };
+  inlineQueryState = useSnapbackQuery(
+    inlineQueryReference,
+    querySkipped ? skip : queryArgs,
+  );
+  useSnapbackPresence(inlinePresenceReference, {
+    scope: presenceScope,
+    value: presenceSkipped ? skip : presenceValue,
+    ttlMs: 1_000,
+  });
+  return null;
+}
+const renderInlineProbe = (props) => React.createElement(
+  SnapbackProvider,
+  { provider: inlineProvider },
+  React.createElement(InlineContentProbe, props),
+);
+let inlineRenderer;
+await act(async () => {
+  inlineRenderer = TestRenderer.create(renderInlineProbe({ label: 'one', tick: 0 }));
+  await flush();
+});
+assert.deepEqual(inlineCounts, {
+  queryDescriptors: 1,
+  querySubscriptions: 1,
+  queryReleases: 0,
+  presenceDescriptors: 1,
+  presenceSubscriptions: 1,
+  presenceReleases: 0,
+  presencePublishes: 1,
+});
+await act(async () => {
+  inlineRenderer.update(renderInlineProbe({ label: 'one', tick: 1 }));
+  await flush();
+});
+assert.deepEqual(
+  inlineCounts,
+  {
+    queryDescriptors: 1,
+    querySubscriptions: 1,
+    queryReleases: 0,
+    presenceDescriptors: 1,
+    presenceSubscriptions: 1,
+    presenceReleases: 0,
+    presencePublishes: 1,
+  },
+  'content-equal inline args/scope/value retain the handoff descriptor, leases, and publication',
+);
+await act(async () => {
+  inlineRenderer.update(renderInlineProbe({ label: 'two', tick: 2 }));
+  await flush();
+});
+assert.deepEqual(inlineCounts, {
+  queryDescriptors: 2,
+  querySubscriptions: 2,
+  queryReleases: 1,
+  presenceDescriptors: 2,
+  presenceSubscriptions: 2,
+  presenceReleases: 1,
+  presencePublishes: 2,
+});
+await act(async () => {
+  inlineRenderer.update(renderInlineProbe({
+    label: 'two',
+    tick: 3,
+    querySkipped: true,
+    presenceSkipped: true,
+  }));
+  await flush();
+});
+assert.equal(inlineQueryState.status, 'skipped');
+assert.deepEqual(inlineCounts, {
+  queryDescriptors: 3,
+  querySubscriptions: 3,
+  queryReleases: 2,
+  presenceDescriptors: 3,
+  presenceSubscriptions: 3,
+  presenceReleases: 2,
+  presencePublishes: 2,
+});
+await act(async () => {
+  inlineRenderer.update(renderInlineProbe({
+    label: 'two',
+    tick: 4,
+    querySkipped: true,
+    presenceSkipped: true,
+  }));
+  await flush();
+});
+assert.equal(inlineCounts.querySubscriptions, 3, 'stable skip does not resubscribe');
+assert.equal(inlineCounts.presencePublishes, 2, 'stable skip does not publish');
+await act(async () => {
+  inlineRenderer.unmount();
+  await flush();
+});
+assert.equal(inlineCounts.queryReleases, 3);
+assert.equal(inlineCounts.presenceReleases, 3);
 
 const provider = createSnapbackReactProvider(binding, { connectionId: 'react-package-test' });
 const siblingProvider = createSnapbackReactProvider(binding, { connectionId: 'react-package-test-2' });
