@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# The pinned celld tests require a `v0.5` version prefix, while the official
+# Litestream v0.5.11 release prints `0.5.11`. In shim mode this script adapts
+# only that probe; all real work is exec'd by the verified release binary.
+if [[ "${LTX_LITESTREAM_SHIM:-0}" == "1" ]]; then
+  : "${LTX_LITESTREAM_REAL:?LTX_G1_INTERNAL_SHIM_TARGET_MISSING}"
+  if [[ "$#" -eq 1 && "$1" == "version" ]]; then
+    printf 'v0.5.11\n'
+    exit 0
+  fi
+  exec "$LTX_LITESTREAM_REAL" "$@"
+fi
+
+script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/$(basename "${BASH_SOURCE[0]}")"
+readonly script_path
+repo_root="$(cd "$(dirname "$script_path")/.." && pwd -P)"
+readonly repo_root
+readonly manifest="$repo_root/vendor/celld-ltx/Cargo.toml"
+
+fail() {
+  printf '%s\n' "$*" >&2
+  exit 1
+}
+
+if [[ ! -f "$manifest" ]]; then
+  fail "LTX_G1_MANIFEST_MISSING: expected $manifest"
+fi
+
+if ! command -v cargo >/dev/null 2>&1; then
+  fail "LTX_G1_CARGO_MISSING: cargo is required to build the standalone vendored crate"
+fi
+
+if ! command -v sqlite3 >/dev/null 2>&1; then
+  fail "LTX_G1_SQLITE3_MISSING: sqlite3 is required by the differential database oracle"
+fi
+
+litestream_candidate=""
+if [[ -n "${LTX_LITESTREAM_BIN:-}" ]]; then
+  litestream_candidate="$LTX_LITESTREAM_BIN"
+elif [[ -n "${LITESTREAM_BIN:-}" ]]; then
+  litestream_candidate="$LITESTREAM_BIN"
+elif command -v litestream >/dev/null 2>&1; then
+  litestream_candidate="$(command -v litestream)"
+else
+  fail "LTX_G1_LITESTREAM_MISSING: set LTX_LITESTREAM_BIN to the Litestream v0.5.11 binary or put litestream on PATH; the differential leg may not skip"
+fi
+
+if [[ "$litestream_candidate" != */* ]]; then
+  litestream_candidate="$(command -v "$litestream_candidate" 2>/dev/null || true)"
+fi
+if [[ -z "$litestream_candidate" || ! -x "$litestream_candidate" ]]; then
+  fail "LTX_G1_LITESTREAM_NOT_EXECUTABLE: ${litestream_candidate:-<unresolved>}"
+fi
+
+litestream_dir="$(cd "$(dirname "$litestream_candidate")" && pwd -P)"
+readonly litestream_dir
+litestream_real="$litestream_dir/$(basename "$litestream_candidate")"
+readonly litestream_real
+
+if ! litestream_version_raw="$("$litestream_real" version 2>&1)"; then
+  fail "LTX_G1_LITESTREAM_VERSION_FAILED: could not run '$litestream_real version': $litestream_version_raw"
+fi
+litestream_version="$(printf '%s\n' "$litestream_version_raw" | sed -n '1p')"
+litestream_version="${litestream_version#v}"
+if [[ "$litestream_version" != "0.5.11" ]]; then
+  fail "LTX_G1_LITESTREAM_VERSION_MISMATCH: expected 0.5.11, got '$litestream_version_raw' from $litestream_real"
+fi
+
+core_log="$(mktemp "${TMPDIR:-/tmp}/ltx-core.XXXXXX")"
+readonly core_log
+differential_log="$(mktemp "${TMPDIR:-/tmp}/ltx-differential.XXXXXX")"
+readonly differential_log
+minio_log="$(mktemp "${TMPDIR:-/tmp}/ltx-minio.XXXXXX")"
+readonly minio_log
+cleanup() {
+  rm -f "$core_log" "$differential_log" "$minio_log"
+}
+trap cleanup EXIT
+
+export LTX_LITESTREAM_REAL="$litestream_real"
+export LTX_LITESTREAM_SHIM=1
+export LITESTREAM_BIN="$script_path"
+
+printf '[ltx-conformance] Litestream %s: %s\n' "$litestream_version" "$litestream_real"
+printf '[ltx-conformance] running standalone non-MinIO suites\n'
+
+cargo test --manifest-path "$manifest" \
+  --lib \
+  --test conformance \
+  --test faults_inject \
+  --test fuzz_parsers \
+  --test integration_file \
+  --test integration_resilience \
+  --test litestream_helpers \
+  --test property_roundtrip \
+  -- --nocapture 2>&1 | tee "$core_log"
+
+# @ref LLP 0188#7-honesty-and-qualification — required oracle legs never pass by
+# self-skipping, including integration_file's real-Litestream comparison.
+if grep -Eiq '(^|[[:space:]])skip(ping|ped)?([[:space:]:]|$)' "$core_log"; then
+  fail "LTX_G1_REQUIRED_TEST_SKIPPED: a required standalone suite reported a skip"
+fi
+
+printf '[ltx-conformance] running forced differential_xtool oracle\n'
+cargo test --manifest-path "$manifest" --test differential_xtool -- --nocapture \
+  2>&1 | tee "$differential_log"
+
+if grep -Eiq '(^|[[:space:]])skip(ping|ped)?([[:space:]:]|$)' "$differential_log"; then
+  fail "LTX_G1_DIFFERENTIAL_SKIPPED: differential_xtool reported a skip; G1 requires the real Litestream oracle"
+fi
+if ! grep -Fq 'running 5 tests' "$differential_log" || \
+   ! grep -Eq 'test result: ok\. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;' "$differential_log"; then
+  fail "LTX_G1_DIFFERENTIAL_EVIDENCE_MISSING: expected an executed 5/5 differential_xtool result"
+fi
+
+cargo test --manifest-path "$manifest" --doc
+
+if [[ "${LTX_RUN_MINIO:-0}" == "1" ]]; then
+  printf '[ltx-conformance] running explicitly requested MinIO integration suite\n'
+  cargo test --manifest-path "$manifest" --test integration_minio -- --nocapture \
+    2>&1 | tee "$minio_log"
+  if grep -Eiq '(^|[[:space:]])skip(ping|ped)?([[:space:]:]|$)' "$minio_log"; then
+    fail "LTX_G1_MINIO_SKIPPED: LTX_RUN_MINIO=1 requires a reachable, configured MinIO endpoint"
+  fi
+else
+  cargo test --manifest-path "$manifest" --test integration_minio --no-run
+  printf '[ltx-conformance] MinIO target compiled but not run; set LTX_RUN_MINIO=1 with a configured endpoint to opt in\n'
+fi
+
+printf '[ltx-conformance] differential_xtool executed: 5 passed, 0 failed, 0 ignored\n'
+printf '[ltx-conformance] G1 standalone conformance passed\n'

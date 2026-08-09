@@ -1,0 +1,84 @@
+name: ltx-conformance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'vendor/celld-ltx/**'
+      - 'scripts/check-ltx-conformance'
+      - '.github/workflows/ltx-conformance.yml'
+  pull_request:
+    paths:
+      - 'vendor/celld-ltx/**'
+      - 'scripts/check-ltx-conformance'
+      - '.github/workflows/ltx-conformance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Verify checkout credentials were removed
+        run: scripts/check-checkout-credentials
+
+      - name: Install the pinned Rust toolchain
+        run: |
+          rustup toolchain install
+          rustup show active-toolchain
+
+      - name: Install SQLite CLI on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y sqlite3
+
+      - name: Install Litestream v0.5.11
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${RUNNER_OS}/${RUNNER_ARCH}" in
+            macOS/ARM64)
+              asset='litestream-0.5.11-darwin-arm64.tar.gz'
+              checksum='ed96599f041b65d798b705c6029f7673e641df3bf6b9ea21d6ce536f44a2ff5a'
+              ;;
+            macOS/X64)
+              asset='litestream-0.5.11-darwin-x86_64.tar.gz'
+              checksum='7f42faf3a474b9d89f649a1f160b8c55a4d80e91849b1046b3276edd20696c9d'
+              ;;
+            Linux/ARM64)
+              asset='litestream-0.5.11-linux-arm64.tar.gz'
+              checksum='ba0fe964f77bfb96d3e34987522fd358ebb9270f71cc3d59ee735fb3d96e386f'
+              ;;
+            Linux/X64)
+              asset='litestream-0.5.11-linux-x86_64.tar.gz'
+              checksum='2f80fdb6b0a0ff7a116ee37adf02d3de8e977ef76e052b28a6690218f0f7ab55'
+              ;;
+            *)
+              echo "LTX_G1_UNSUPPORTED_RUNNER: ${RUNNER_OS}/${RUNNER_ARCH}" >&2
+              exit 1
+              ;;
+          esac
+          readonly asset checksum
+          readonly url="https://github.com/benbjohnson/litestream/releases/download/v0.5.11/${asset}"
+          curl --proto '=https' --tlsv1.2 -fsSLo "$RUNNER_TEMP/$asset" "$url"
+          printf '%s  %s\n' "$checksum" "$RUNNER_TEMP/$asset" | shasum -a 256 -c -
+          mkdir -p "$RUNNER_TEMP/litestream"
+          tar -xzf "$RUNNER_TEMP/$asset" -C "$RUNNER_TEMP/litestream" litestream
+          chmod +x "$RUNNER_TEMP/litestream/litestream"
+          echo "$RUNNER_TEMP/litestream" >> "$GITHUB_PATH"
+
+      # @ref LLP 0188#7-honesty-and-qualification — the wrapper requires the real
+      # v0.5.11 binary and rejects the upstream differential suite's skip path.
+      - name: Run standalone LTX conformance
+        run: scripts/check-ltx-conformance

@@ -42,3 +42,24 @@ against MinIO (needs the object-store protocol with CAS +
 per-credential immutability qualification — note `src/assets_s3.rs`
 implements only `If-None-Match: *` create-if-absent today); frontier +
 attach/succession runtime work; then the amendment-gated hosted lane.
+
+## Progress — 2026-08-09
+
+- Vendored celld's `crates/ltx` from commit
+  `553ae73f83c87c3f7c7a5f73c32c2211d9d7341f` under
+  `vendor/celld-ltx/`, preserving the pinned source, tests, fixtures,
+  references, Apache-2.0 license, and attribution README. Only the manifest's
+  workspace dependency inheritance and standalone-workspace attachment differ;
+  the complete inventory is in `VENDOR-RECEIPT.md`.
+- Kept the crate's existing `object_store`-based S3/R2/MinIO client after
+  inspecting the storage seam, as LLP 0188 §2 permits at vendoring time.
+- Added `scripts/check-ltx-conformance`. The local macOS run executed 172 tests:
+  167 non-MinIO tests plus all 5 `differential_xtool` cases, with no failures,
+  ignores, or self-skips. The separate missing-Litestream run failed before
+  Cargo with `LTX_G1_LITESTREAM_MISSING`, as required.
+- Added `.github/workflows/ltx-conformance.yml` for `macos-latest` and
+  `ubuntu-latest`, using checksum-pinned Litestream v0.5.11 release assets.
+  The cross-platform CI run can happen only after push and remains the final G1
+  evidence for the orchestrator to collect; this ticket therefore stays open.
+- G2, G2f, G3, runtime/storage integration, and capability claims remain outside
+  this increment and retain the follow-on scope above.

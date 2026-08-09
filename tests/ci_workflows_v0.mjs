@@ -14,6 +14,7 @@ assert.deepEqual(workflowNames, [
   'deployment-identity.yml',
   'linux-runtime-package.yml',
   'local-proof.yml',
+  'ltx-conformance.yml',
   'public-package-proof.yml',
   'ref-check.yml',
   'required-surface-builds.yml',
@@ -200,7 +201,8 @@ assert.equal(setupNodeCount, 9, 'the Node-using workflow inventory changed; revi
 // six pinned actions: checkout, Node, Bun, cache restore/save, and upload.
 // 38 -> 44 (2026-08-06): rolling telemetry evidence adds a coalesced Linux
 // producer with checkout, Node, Bun, Hermes/Cargo caches, and artifact upload.
-assert.equal(actionCount, 44, 'the reviewed workflow action inventory changed; review and update this count');
+// 44 -> 45 (2026-08-09): LLP 0188 G1 ltx-conformance adds one pinned checkout.
+assert.equal(actionCount, 45, 'the reviewed workflow action inventory changed; review and update this count');
 
 const telemetryLatestMain = readFileSync(
   join(workflowDir, 'telemetry-latest-main.yml'),
