@@ -419,6 +419,73 @@ void sameQuery; void sameMutation; void sameNamedQuery; void sameNamedMutation;
   ], { cwd: join(root, 'fixture'), encoding: 'utf8' });
   assert.equal(typecheck.status, 0, `${typecheck.stdout}\n${typecheck.stderr}`);
 
+  // @ref LLP 0210#d4--the-mapping-is-admitted-where-safe-the-remaining-refusal-teaches —
+  // a required command child may narrow an optional mutation argument without
+  // widening the mutation's directly callable contract.
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { arg, defineAssetUpload, defineCommand, defineMutation, insert, v } from '${defineUrl}';
+export const imageUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1024 },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+export const sendMessage = defineMutation({
+  auth: 'authenticated',
+  args: {
+    group: v.string(),
+    title: v.string(),
+    image: v.optional(v.assetRef({ upload: 'imageUpload' })),
+  },
+  plan: insert('items', { group: arg('group'), title: arg('title') }),
+});
+export const sendPhoto = defineCommand({
+  mutation: sendMessage,
+  assets: { image: { intent: imageUpload, mutationArg: 'image', optional: false } },
+});
+`);
+  const narrowedGeneration = await generate(backend);
+  assert.equal(narrowedGeneration.ok, true, JSON.stringify(narrowedGeneration.diagnostics));
+  const narrowedDescriptor = JSON.parse(readDescriptor());
+  assert.equal(narrowedDescriptor.commands.sendPhoto.asset.optional, false);
+  assert.equal(
+    narrowedDescriptor.api.mutations.sendMessage.argumentSchema.required.includes('image'),
+    false,
+  );
+  const narrowedAppTypes = readFileSync(join(backend, 'generated', 'app.d.ts'), 'utf8');
+  assert(narrowedAppTypes.includes(
+    'CommandDescriptor<GeneratedApi["sendMessage"], "image", "image", false, GeneratedApi["imageUpload"]>',
+  ));
+  const narrowedConsumer = join(root, 'fixture', 'narrowed-consumer.ts');
+  writeFileSync(narrowedConsumer, `
+import generatedApp, { sendMessage } from './snapback/generated/app';
+import type { FunctionArgs } from './snapback/generated/api';
+
+type SendPhotoInput = NonNullable<typeof generatedApp.commands.sendPhoto.__args>;
+const directMutationWithoutImage: FunctionArgs<typeof sendMessage> = {
+  group: 'typed',
+  title: 'typed',
+};
+const commandWithRequiredImage: SendPhotoInput = {
+  group: 'typed',
+  title: 'typed',
+  image: { uri: 'file:///tmp/photo.bin', mimeType: 'application/octet-stream' },
+};
+// @ts-expect-error the command narrows the optional mutation argument to a required asset input
+const commandWithoutImage: SendPhotoInput = { group: 'typed', title: 'typed' };
+void directMutationWithoutImage; void commandWithRequiredImage; void commandWithoutImage;
+`);
+  const narrowedTypecheck = spawnSync(join(repoRoot, 'node_modules', '.bin', 'tsc'), [
+    '--noEmit',
+    '--strict',
+    '--target', 'es2022',
+    '--module', 'esnext',
+    '--moduleResolution', 'bundler',
+    narrowedConsumer,
+  ], { cwd: join(root, 'fixture'), encoding: 'utf8' });
+  assert.equal(narrowedTypecheck.status, 0, `${narrowedTypecheck.stdout}\n${narrowedTypecheck.stderr}`);
+
   // Closed-document negative fixtures exercise the same validator codegen
   // invokes before publication.
   const wrongNamespaceKind = clone(descriptor);
@@ -458,6 +525,21 @@ void sameQuery; void sameMutation; void sameNamedQuery; void sameNamedMutation;
   malformedCommandInputs.identity.descriptor = appDescriptorDigestV1(malformedCommandInputs);
   assert(hasCode(
     validateAppDescriptorV1(malformedCommandInputs),
+    'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',
+  ));
+
+  const unsafeOptionalCommandDescriptor = clone(descriptor);
+  unsafeOptionalCommandDescriptor.api.mutations.createWithAttachment.argumentSchema.required.push(
+    'attachment',
+  );
+  unsafeOptionalCommandDescriptor.commands.send.mutation.argumentSchema.required.push(
+    'attachment',
+  );
+  unsafeOptionalCommandDescriptor.identity.descriptor = appDescriptorDigestV1(
+    unsafeOptionalCommandDescriptor,
+  );
+  assert(hasCode(
+    validateAppDescriptorV1(unsafeOptionalCommandDescriptor),
     'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',
   ));
 
@@ -662,6 +744,42 @@ export const send = defineCommand({
     'SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE',
     { onlyExpectedError: true },
   );
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { arg, defineAssetUpload, defineCommand, defineMutation, insert, v } from '${defineUrl}';
+export const imageUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1024 },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+export const sendMessage = defineMutation({
+  auth: 'authenticated',
+  args: { group: v.string(), title: v.string(), image: v.assetRef({ upload: 'imageUpload' }) },
+  plan: insert('items', { group: arg('group'), title: arg('title') }),
+});
+export const send = defineCommand({
+  mutation: sendMessage,
+  assets: { image: { intent: imageUpload, mutationArg: 'image', optional: true } },
+});
+`);
+  const unsafeOptionalChild = await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE',
+    { onlyExpectedError: true },
+  );
+  assert(unsafeOptionalChild.message.includes('make the child required'));
+  assert(unsafeOptionalChild.message.includes('make the argument optional'));
+  assert.deepEqual(unsafeOptionalChild.fixes, [
+    {
+      kind: 'make-command-asset-required',
+      description: 'Make the child required by setting assets.image.optional to false.',
+    },
+    {
+      kind: 'make-mutation-argument-optional',
+      description: 'Make the argument optional with v.optional(v.assetRef({ upload: "imageUpload" })).',
+    },
+  ]);
 
   writeValidSources();
   writeFileSync(join(backend, 'functions.mjs'), `

@@ -44,7 +44,7 @@
     "src/storage/write_authority.rs": "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/index.mjs": "sha256:9f6bc9134aabb9bb0634e120ab487e4d6588a1291f0801f09382757697d5de85"
+    "packages/snapback-codegen/index.mjs": "sha256:e7ae32006b09536fd9d11fd83df241c0d2f27a032ac2eea7c02457221978237b"
   },
   "clientSourceSha256": {
     "packages/snapback-client/local-read-admission.mjs": "sha256:703f293078782ab3d595d518925be5b299ed7e26e19edc8ecef8c29627cc7900",

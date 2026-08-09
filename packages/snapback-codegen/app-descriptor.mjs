@@ -402,14 +402,18 @@ function validateCommandDescriptor(command, path, problems, api = null) {
     ));
   }
   const required = command.mutation?.argumentSchema?.required;
+  // @ref LLP 0210#d4--the-mapping-is-admitted-where-safe-the-remaining-refusal-teaches —
+  // descriptor requiredness belongs to the command input. It may narrow an
+  // optional mutation argument; only the unsafe optional-child inverse fails.
   if (
     Array.isArray(required)
-    && command.asset.optional === required.includes(command.asset.mutationArg)
+    && command.asset.optional === true
+    && required.includes(command.asset.mutationArg)
   ) {
     problems.push(problem(
       'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',
       `${path}.asset.optional`,
-      `${path}.asset.optional does not match the mapped mutation argument`,
+      `${path}.asset cannot be optional when its mapped mutation argument is required`,
     ));
   }
 }

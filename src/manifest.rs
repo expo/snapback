@@ -11126,7 +11126,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:9f6bc9134aabb9bb0634e120ab487e4d6588a1291f0801f09382757697d5de85"
+                "sha256:e7ae32006b09536fd9d11fd83df241c0d2f27a032ac2eea7c02457221978237b"
                     .to_owned(),
             )])
         && carrier.client_source_sha256

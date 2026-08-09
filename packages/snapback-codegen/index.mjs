@@ -9705,12 +9705,37 @@ function buildGeneratedCommands({
         }
         const mutationArg = mutationDefinition.args?.[mapping.mutationArg];
         const upload = mutationArg?.fieldType?.AssetRef?.upload;
-        if (!mutationArg || upload !== intentName || mutationArg.optional !== mapping.optional) {
+        // @ref LLP 0210#d4--the-mapping-is-admitted-where-safe-the-remaining-refusal-teaches —
+        // a command may require an asset that its mutation accepts optionally,
+        // but an optional child cannot leave a required mutation argument empty.
+        if (!mutationArg || upload !== intentName) {
           report(
             'SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE',
             commandName,
-            `asset ${inputName} must map to a ${mapping.optional ? 'optional' : 'required'} v.assetRef({ upload: ${JSON.stringify(intentName)} }) mutation argument`,
+            `asset ${inputName} must map to a v.assetRef({ upload: ${JSON.stringify(intentName)} }) mutation argument`,
             { input: inputName, mutationArg: mapping.mutationArg, intent: intentName },
+          );
+          valid = false;
+        } else if (mapping.optional && mutationArg.optional !== true) {
+          report(
+            'SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE',
+            commandName,
+            `optional asset ${inputName} cannot map to required mutation argument ${mapping.mutationArg}; make the child required, or make the argument optional`,
+            {
+              input: inputName,
+              mutationArg: mapping.mutationArg,
+              intent: intentName,
+              fixes: [
+                {
+                  kind: 'make-command-asset-required',
+                  description: `Make the child required by setting assets.${inputName}.optional to false.`,
+                },
+                {
+                  kind: 'make-mutation-argument-optional',
+                  description: `Make the argument optional with v.optional(v.assetRef({ upload: ${JSON.stringify(intentName)} })).`,
+                },
+              ],
+            },
           );
           valid = false;
         }
