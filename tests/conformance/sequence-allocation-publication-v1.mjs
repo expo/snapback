@@ -55,7 +55,7 @@ assert.equal(
 <<<<<<< HEAD
   'sha256:3a7c59b5f7e5d0fdc62f3ac27cfd635ee78f62d54ee4ab1406016bc53cf429cc',
 =======
-  'sha256:a07afc53ca1993af8aa8c782dc22fefa473593dbf19d8ca1d23de3917c4a32e2',
+  'sha256:8f71cc55a4483d842fa18122cdc24c4269dd0d6a2a99b1b98c258cd563b8195a',
 >>>>>>> origin/main
 );
 for (const [source, expected] of Object.entries({
