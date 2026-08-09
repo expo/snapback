@@ -33,7 +33,10 @@ pub(super) fn require_tus_version(headers: &HeaderMap) -> Result<(), ApiError> {
     Ok(())
 }
 
-pub(super) fn tus_response_headers(response: &mut Response, attempt: &crate::assets::AssetAttemptRecordV1) {
+pub(super) fn tus_response_headers(
+    response: &mut Response,
+    attempt: &crate::assets::AssetAttemptRecordV1,
+) {
     let headers = response.headers_mut();
     headers.insert(
         HeaderName::from_static(TUS_RESUMABLE_HEADER),
@@ -304,10 +307,10 @@ pub(super) async fn asset_deliver_route(
 /// Shared byte-window → HTTP response tail for every delivery profile; the
 /// cache posture rides on the resolved delivery itself.
 pub(super) async fn stream_asset_delivery(
-    outcome: crate::local::AssetDeliveryOutcome,
+    outcome: crate::storage::AssetDeliveryOutcome,
 ) -> Result<Response, ApiError> {
     let delivery = match outcome {
-        crate::local::AssetDeliveryOutcome::Unsatisfiable { total_length } => {
+        crate::storage::AssetDeliveryOutcome::Unsatisfiable { total_length } => {
             let mut response = StatusCode::RANGE_NOT_SATISFIABLE.into_response();
             response.headers_mut().insert(
                 header::CONTENT_RANGE,
@@ -316,7 +319,7 @@ pub(super) async fn stream_asset_delivery(
             );
             return Ok(response);
         }
-        crate::local::AssetDeliveryOutcome::Content(delivery) => delivery,
+        crate::storage::AssetDeliveryOutcome::Content(delivery) => delivery,
     };
 
     // Store-agnostic streaming: bounded chunk reads through the AssetStore

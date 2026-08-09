@@ -189,7 +189,7 @@ fn asset_ceiling_error(what: &str, limit: u64, observed: u64) -> SnapbackError {
     .with_details(serde_json::json!({ "limit": limit, "observed": observed }))
 }
 
-fn asset_unknown(asset_id: &str) -> impl Fn() -> SnapbackError + '_ {
+pub(super) fn asset_unknown(asset_id: &str) -> impl Fn() -> SnapbackError + '_ {
     move || {
         SnapbackError::error(
             "SNAPBACK_ASSET_UNKNOWN",
@@ -233,6 +233,17 @@ impl LocalDatabase {
         let value = f(&tx)?;
         tx.commit()?;
         Ok(value)
+    }
+
+    pub(super) fn attempt_require_current(
+        &self,
+        attempt: &assets::AssetAttemptRecordV1,
+    ) -> SnapbackResult<()> {
+        if attempt.state.is_current() {
+            Ok(())
+        } else {
+            Err(asset_terminal_error(attempt))
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1427,6 +1438,13 @@ pub struct AssetAttemptsKernel<'a> {
 impl<'a> AssetAttemptsKernel<'a> {
     pub(super) fn new(db: &'a mut LocalDatabase) -> Self {
         Self { db }
+    }
+
+    pub fn attempt_require_current(
+        &self,
+        attempt: &assets::AssetAttemptRecordV1,
+    ) -> SnapbackResult<()> {
+        self.db.attempt_require_current(attempt)
     }
 
     #[allow(clippy::too_many_arguments)]
