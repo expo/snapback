@@ -190,3 +190,50 @@ specification; journal stands as the growth record).
 - Terminal conditions: no PRE-EXISTING MATERIAL from either family
   converges the loop; remaining IN-DELTA MATERIALs at budget exhaustion
   are dispositioned to the author per LLP 0010 §2.
+
+### Round 3 results
+
+- claude: **READY** — 0 MATERIAL, 5 DETAIL (all IN-DELTA), explicitly
+  no PRE-EXISTING MATERIAL; endorses all three r3 decision clusters.
+- gpt-5.6-sol: **NOT READY** — 2 MATERIAL IN-DELTA
+  (authority-replacement snapshot maps to no state in the five-state
+  union + denied-exit/eviction fixture coverage incomplete; quota
+  ceilings named without an acceptance oracle), 2 DETAIL IN-DELTA;
+  explicitly no PRE-EXISTING MATERIAL; answers (b) yes and (c)
+  "substantively yes" — the objections are completeness, not
+  contradiction of any decision.
+
+## Final report (loop terminal, 2026-08-09)
+
+- **Convergence:** the loop converges by the LLP 0010 §2 delta rule —
+  in both round 2 and round 3, **neither family reported a MATERIAL
+  concern in pre-existing text**. Round budget (3) exhausted.
+- **Final verdicts bind to r3**
+  (`21e33e4b87982317f06fc6f2a9436a2914f9bcb5a7781c8cfe1dcb3dd37e3d96`):
+  claude **READY**; gpt-5.6-sol **NOT READY** on in-delta completeness
+  only.
+- **Sustained asymmetry, disclosed:** claude READY on r2 and r3;
+  gpt-5.6-sol NOT READY on both. This is not a decision-level
+  contradiction — codex's round-3 answers endorse the D3 semantics
+  ("Yes") and the D5(b) model ("substantively yes"), and each round's
+  codex MATERIALs targeted newly added text, all of which were then
+  applied. The one genuine decision-level contradiction of the loop
+  (round-1 D4) was adjudicated by the reviser toward codex's position
+  and endorsed by both families' fresh reviewers in rounds 2 and 3.
+- **Unreviewed tail:** revision r4 applies codex round-3's 2 MATERIALs
+  and both families' remaining DETAILs (complete disposition ledger in
+  the r4 Revised entry — every concern applied, none summarized away);
+  the r4 delta is **label-unreviewed** per the delta rule's terminal
+  option. No further rounds run without author authorization.
+- **Recommendation to the author:** stay **Review**; accept when
+  satisfied (acceptance is the author's act, not the loop's). The
+  reviser's assessment: r4 leaves no concern from any round
+  unaddressed, and the unreviewed tail is fixture-coverage and wording
+  work in the platform's own idioms. If the author wants the tail
+  reviewed, one authorized delta round on r4 closes it.
+- **Downstream on acceptance:** dated outcome amendments in LLP 0044
+  (D4/D5 rulings + four G4 obligations) and LLP 0180 (D4 resolution);
+  LLP 0114 named-projection ledger entry (`useSnapbackAssetUrl`);
+  implementation per the G11/G4 tickets (D5(b) grant ops explicitly
+  author-gated on acceptance; D1–D4 + D5(a) recipe proceed as
+  fix-forward ticket work).

@@ -53,6 +53,18 @@ The security rationale for the closed membership machine is documented and
 not in question; per LLP 0208's non-goals this asks for a bridge, not a
 weakening.
 
+**Update 2026-08-09 (post super-refine):** LLP 0210 (Review) rules this
+ticket's ladder — (a) recipe now, (b) grant ops adopted as design with
+grantId identity, `pending|active` lifecycle, owner-mint /
+self-activate / self-revoke authorization, commit atomicity,
+admission-frozen `grants: true` opt-in, and quota ceilings; (c)
+deferred to the G4 membership program. This ticket now carries, on
+implementation: the four named LLP 0044 amendment obligations (0053
+invalidation projection, storage locus, reference-GC interaction,
+quota ceilings) and, if ever wanted, the operator-shaped migration op
+for pre-opt-in assets. Implementation is author-gated on LLP 0210's
+acceptance.
+
 ## Done when
 
 - The LLP 0044 owner records a dated ruling choosing a rung (or an ordered

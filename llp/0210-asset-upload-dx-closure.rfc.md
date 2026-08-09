@@ -6,7 +6,21 @@
 Code generation, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-09
-**Revised:** 2026-08-09, third same-day entry (round-2 revision, r3 —
+**Revised:** 2026-08-09, fourth same-day entry (post-budget fix
+revision, r4 — **UNREVIEWED delta**: applied codex round-3's 2 IN-DELTA
+MATERIALs (authority-handoff disposal defined outside the state union +
+full denied-exit/eviction fixture coverage; quota semantics with a
+complete acceptance oracle) and both rounds' remaining DETAILs
+(0114-linger eviction wording, snapshot-freeze scoping, typed
+not-retryable refusal, admission-time frozen-generation wording,
+revoke-vs-issuance oracle, migration-op routing to the G4 ticket). The
+loop converged at r3 by the delta rule — no family reported a
+PRE-EXISTING MATERIAL in rounds 2 or 3 — with round budget exhausted;
+final verdicts bind to r3
+(`21e33e4b87982317f06fc6f2a9436a2914f9bcb5a7781c8cfe1dcb3dd37e3d96`):
+claude READY, gpt-5.6-sol NOT READY on in-delta completeness only. This
+r4 delta is label-unreviewed per LLP 0010 §2; see the run journal's
+final report). Prior, same day: (round-2 revision, r3 —
 applied codex round-2's 5 IN-DELTA MATERIALs and claude round-2's 7
 DETAILs: `issuing` defined + `denied` re-entry paths (D1), last-
 unsubscribe fences in-flight issuance (D1), frozen terminal snapshots +
@@ -141,9 +155,13 @@ replacement or logout synchronously blanks every entry of the old
 authority and generation-fences late issuance responses. **Final
 unsubscribe** cancels the timer *and* generation-fences any issuance
 already in flight — a late response neither publishes nor schedules
-further work — and the entry is evicted once fenced (LLP 0114's
-final-unsubscribe discipline; fixture: unsubscribe before an in-flight
-issuance resolves proves zero residual work).
+further work — and the entry is then evicted per LLP 0114's
+linger/eviction discipline (the fence is synchronous; eviction timing
+is 0114's, so a Strict-Mode remount reattaches instead of restarting
+the issuance). Fixtures: unsubscribe before an in-flight issuance
+resolves proves zero residual work *and* asserts the entry's absence
+from the registry after eviction; resubscription after eviction gets a
+fresh generation.
 
 **React/Expo projection.** `useSnapbackAssetUrl(assetId, { variant?,
 widthPx? })` subscribes to that store — a named LLP 0114 projection
@@ -171,15 +189,22 @@ State algebra (normative; fixtures pin each transition):
   `url` blanks immediately (authority loss does not wait for TTL) and
   timer-driven retry stops.
 
-Every reachable condition maps to exactly one state. **Exit from
+Every reachable **entry** condition maps to exactly one state.
+Authority replacement and logout are not states: they **dispose** the
+old authority's entries (LLP 0114's handoff discipline — the blanked
+entry is removed, never republished), and the successor authority's
+first demand creates a fresh entry entering `issuing`. **Exit from
 `denied`:** timer retry stops, but authorization can return under the
 same authority (a D5 grant activated, a member re-added), so the
-controller re-enters `issuing` on any of: a fresh subscription to the
-key, an explicit `refresh()` affordance on the controller, or — when
-the controller composes with the asset-record live store — a witnessed
-authorization-invalidation signal for the asset. Fixtures pin the full
-loop both ways: pending-grant `denied` → activation → `refresh()` →
-`ready`, and `ready` → revocation → next refresh `denied`.
+controller re-enters `issuing` on either **guaranteed** trigger — a
+fresh subscription to the key, or an explicit `refresh()` affordance —
+and, best-effort, on a witnessed authorization-invalidation signal when
+the controller composes with the asset-record live store (a denied
+viewer may hold no live subscription, so the signal is never the only
+exit). Fixtures pin the full loop both ways and both guaranteed
+triggers: pending-grant `denied` → activation → `refresh()` → `ready`;
+the same recovery via unsubscribe + fresh subscription; and `ready` →
+revocation → next refresh `denied`.
 
 The existing asset renderer surface (LLP 0044 §Client upload surface)
 composes the same store rather than duplicating refresh logic.
@@ -246,16 +271,22 @@ the legibility finding). This RFC freezes that table as the raw
 snapshot at the **first** terminal status; `ready` is the only success;
 `rejected`/`cancelled`/`failed` each carry their structured diagnostic.
 
-**Terminal snapshots are frozen and `retry()` returns a successor.** A
-settled task never mutates: `retry()` on a terminal task follows LLP
+**Terminal snapshots are frozen and `retry()` returns a successor.**
+The settled snapshot and the `.done` value never mutate
+(post-settlement asset and rendition facts — optional renditions
+publishing after `ready` — belong to the live store and renderer
+surface, not the settled task). An **eligible** `retry()` follows LLP
 0044's successor-attempt rule (a new upload attempt for the **same
 asset id**) and yields a new task generation with its own independent
 `.done`; the predecessor's settled snapshot and promise are unchanged.
 Retry eligibility per terminal row: `ready` — never (a published asset
 admits no further attempts); `rejected` — never (durably rejected);
 `failed` / `cancelled` — eligible while the underlying asset remains
-`pending`-eligible, refused otherwise. Predecessor/successor settlement
-is fixture-tested alongside the table rows.
+`pending`-eligible. An **ineligible** `retry()` creates no successor
+and refuses with a typed not-retryable diagnostic (registry-reconciled
+spelling, OQ2) — never a bare error a caller could read as an ordinary
+failure. Predecessor/successor settlement and the ineligible refusal
+are fixture-tested alongside the table rows.
 
 `upload()` is defined mechanically over this table (resolve on `ready`,
 reject on each of the other three; it never retries) and is the
@@ -322,12 +353,15 @@ The ladder from LLP 0044's dated addition, resolved:
   refuses with a typed unknown-grant diagnostic. Grant edges are
   admitted only for assets whose upload intent opts in (`grants: true`
   on the intent declaration; exact spelling reconciled with LLP 0007's
-  vocabulary at implementation), and **grant eligibility is captured in
-  the asset's frozen intent-policy generation** at creation/finalization
-  (LLP 0044 §Generated upload intents): an asset created before the
-  opt-in refuses mint after a redeploy unless explicitly migrated, so
-  existing `owner-only` and `via-references` assets gain no authority
-  path retroactively.
+  vocabulary at implementation), and **grant eligibility is captured at
+  asset admission** in the frozen intent-policy generation the asset
+  records (LLP 0044 §Internal model); finalization and every later
+  grant operation read that stored generation. An asset admitted before
+  the opt-in refuses mint after a redeploy — existing `owner-only` and
+  `via-references` assets gain no authority path retroactively; a
+  migration op for old assets, if ever wanted, is G4-ticket-owned
+  operator work under LLP 0044's generation vocabulary, not part of
+  this design.
 
   **Atomicity.** `grant`/`activate`/`revoke` are staged in the calling
   mutation and commit atomically with its app-row writes, with their
@@ -337,6 +371,19 @@ The ladder from LLP 0044's dated addition, resolved:
   `open()` activates nothing, and activate-versus-owner-revoke and
   revoke-versus-issuance races settle under the same commit discipline;
   each is fixture-tested, along with rollback and idempotent re-run.
+  The revoke-versus-issuance oracle is exact: revoke committed first
+  denies issuance; issuance committed first may return a TTL-bounded
+  URL (unchanged `private-signed` semantics); no execution authorizes
+  from a stale post-revoke edge.
+
+  **Quota semantics.** Grant-count ceilings (per app, charged to the
+  minting owner — the only principal who can create the records) count
+  `pending` and `active` edges together; the ceiling is checked
+  atomically with mint and refuses with a typed quota diagnostic
+  (registry-reconciled, OQ2); revoke releases the count atomically with
+  its commit. Fixtures: at-limit mint succeeds, over-limit refuses
+  typed, concurrent mints at the boundary admit exactly one, and
+  revoke-then-remint succeeds.
 
   Authorization rules (closed, v1): **mint** requires caller = asset
   owner (the same rule `attach` enforces); **activate** requires
@@ -415,10 +462,14 @@ when D1 lands; the helper and settlement table get their own row).
   late-response fencing, final-unsubscribe timer cleanup; state-algebra
   negatives: transient issuance failure ≠ `denied`, expiry without
   refresh → `unavailable`, `denied` only on structured authorization
-  refusal; `denied` re-entry loop (pending-grant denial → activation →
-  `refresh()` → `ready`) and its inverse; unsubscribe before an
-  in-flight issuance resolves proves zero residual work;
-  headless-contract fixtures for the DTO obligations; the
+  refusal; `denied` re-entry via **both** guaranteed triggers
+  (`refresh()`, and unsubscribe + fresh subscription) and its inverse
+  (`ready` → revocation → `denied`); authority A→B and logout dispose
+  the old entries (asserted absent) and the successor authority's
+  demand starts a fresh `issuing` entry; unsubscribe before an
+  in-flight issuance resolves proves zero residual work and the entry
+  is absent post-eviction, with resubscription getting a fresh
+  generation; headless-contract fixtures for the DTO obligations; the
   LLP 0114 named-projection ledger entry recorded.
 - D2: empty-body issuance returns a primary-variant URL; unknown
   variant returns the typed enumeration refusal; no issuance-route
@@ -446,7 +497,9 @@ when D1 lands; the helper and settlement table get their own row).
   edge; activate-vs-owner-revoke and revoke-vs-issuance races;
   idempotent re-run); a pre-opt-in asset refuses mint after redeploy;
   operations on a removed `grantId` refuse with the typed
-  unknown-grant diagnostic; view-once pending-window retention
+  unknown-grant diagnostic; quota rows (at-limit success, over-limit
+  typed refusal, concurrent-mint boundary admits exactly one,
+  revoke-then-remint); view-once pending-window retention
   (activation after the GC grace boundary).
 - Each landing carries scoped evidence per LLP 0189; no claim binds to
   a complete proof at an exact commit.
