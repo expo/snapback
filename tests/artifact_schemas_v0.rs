@@ -2784,6 +2784,13 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             ],
             resume: None,
         },
+        LiveEnvelope::CurrentAsOf {
+            network_profile: None,
+            subscription_id: "sub_1".to_owned(),
+            function: "listTodos".to_owned(),
+            version: 9,
+            resume: None,
+        },
         LiveEnvelope::ResyncRequired {
             network_profile: None,
             reason: "outbox_overflow".to_owned(),

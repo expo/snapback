@@ -8842,7 +8842,7 @@ impl LocalSnapback {
         subscription: &LiveSubscription,
         admission: &AdmissionLease,
         frame_version: u64,
-    ) {
+    ) -> Option<bool> {
         let authority =
             match self.prepare_live_rerun_authority(&subscription.authority, admission.clone()) {
                 Ok(authority) => authority,
@@ -8854,7 +8854,7 @@ impl LocalSnapback {
                         Some(frame_version),
                         admission,
                     );
-                    return;
+                    return None;
                 }
             };
         let query = match self.reserved_live_invocation(
@@ -8871,7 +8871,7 @@ impl LocalSnapback {
                     Some(frame_version),
                     admission,
                 );
-                return;
+                return None;
             }
         };
         let moved = self
@@ -8881,7 +8881,7 @@ impl LocalSnapback {
         if !moved {
             self.live_delivery.total_skipped += 1;
             self.live_delivery.last_skipped += 1;
-            return;
+            return Some(false);
         }
         let payload = match serde_json::to_vec(&LiveEnvelope::LiveReplace {
             network_profile: None,
@@ -8905,7 +8905,7 @@ impl LocalSnapback {
                     Some(frame_version),
                     admission,
                 );
-                return;
+                return None;
             }
         };
         let _publication = match admission.effect_guard("live replacement publication") {
@@ -8918,7 +8918,7 @@ impl LocalSnapback {
                     Some(frame_version),
                     admission,
                 );
-                return;
+                return None;
             }
         };
         if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
@@ -8927,6 +8927,7 @@ impl LocalSnapback {
         self.enqueue_subscription_durable(subscription, payload);
         self.live_delivery.total_deliveries += 1;
         self.live_delivery.last_deliveries += 1;
+        Some(true)
     }
 
     /// The auth-scoped (sessions-mode) sibling of
@@ -8940,7 +8941,7 @@ impl LocalSnapback {
         subscription: &LiveSubscription,
         admission: &AdmissionLease,
         frame_version: u64,
-    ) {
+    ) -> Option<bool> {
         let authority =
             match self.prepare_live_rerun_authority(&subscription.authority, admission.clone()) {
                 Ok(authority) => authority,
@@ -8952,7 +8953,7 @@ impl LocalSnapback {
                         Some(frame_version),
                         admission,
                     );
-                    return;
+                    return None;
                 }
             };
         let probe = match self.reserved_live_invocation(
@@ -8969,7 +8970,7 @@ impl LocalSnapback {
                     Some(frame_version),
                     admission,
                 );
-                return;
+                return None;
             }
         };
         let moved = self
@@ -8979,7 +8980,7 @@ impl LocalSnapback {
         if !moved {
             self.live_delivery.total_skipped += 1;
             self.live_delivery.last_skipped += 1;
-            return;
+            return Some(false);
         }
         let Some(floor) = self
             .auth_invalidation
@@ -8997,7 +8998,7 @@ impl LocalSnapback {
                 Some(frame_version),
                 admission,
             );
-            return;
+            return None;
         };
         let query = match self.invoke_authorization_resolution(subscription, floor, admission) {
             Ok(query) => query,
@@ -9010,7 +9011,7 @@ impl LocalSnapback {
                     Some(frame_version),
                     admission,
                 );
-                return;
+                return None;
             }
         };
         let read_dependencies = query.read_dependencies.clone();
@@ -9021,15 +9022,19 @@ impl LocalSnapback {
                 }
                 self.live_delivery.total_deliveries += 1;
                 self.live_delivery.last_deliveries += 1;
+                Some(true)
             }
-            Ok(false) => {}
-            Err(error) => self.fail_subscription_fanout(
-                subscription,
-                "authorization_invalidation_failed",
-                error,
-                Some(frame_version),
-                admission,
-            ),
+            Ok(false) => None,
+            Err(error) => {
+                self.fail_subscription_fanout(
+                    subscription,
+                    "authorization_invalidation_failed",
+                    error,
+                    Some(frame_version),
+                    admission,
+                );
+                None
+            }
         }
     }
 
@@ -17369,9 +17374,11 @@ impl LocalSnapback {
                 subscription_id: subscription_id.clone(),
                 function: name.to_owned(),
                 version: head_version,
-                resume: fresh_resume
-                    .take()
-                    .expect("rung-1 admission requires a minted fresh token"),
+                resume: Some(
+                    fresh_resume
+                        .take()
+                        .expect("rung-1 admission requires a minted fresh token"),
+                ),
             };
             if let Ok(payload) = serde_json::to_vec(&envelope)
                 && let Some(subscription) = self.subscriptions.get(&subscription_id)
@@ -20649,11 +20656,57 @@ impl LocalSnapback {
         self.ephemeral.drain_outbox_for_send(connection_id)
     }
 
+    fn prepare_scheduler_live_delivery_enqueue(
+        &self,
+        subscription: &LiveSubscription,
+        payload: &[u8],
+    ) {
+        if self.live_coalescer.is_none() {
+            return;
+        }
+        let Ok(envelope) = serde_json::from_slice::<LiveEnvelope>(payload) else {
+            return;
+        };
+        let position = match envelope {
+            LiveEnvelope::LiveReplace {
+                subscription_id,
+                version,
+                ..
+            }
+            | LiveEnvelope::LiveDelta {
+                subscription_id,
+                version,
+                ..
+            }
+            | LiveEnvelope::CurrentAsOf {
+                subscription_id,
+                version,
+                ..
+            } => Some((subscription_id, version)),
+            LiveEnvelope::AuthorizationInvalidation {
+                snapshot: Some(snapshot),
+                ..
+            } => Some((snapshot.subscription_id, snapshot.version)),
+            LiveEnvelope::AuthorizationInvalidation { snapshot: None, .. }
+            | LiveEnvelope::ResyncRequired { .. } => None,
+        };
+        let Some((subscription_id, version)) = position else {
+            return;
+        };
+        debug_assert_eq!(subscription_id, subscription.id);
+        self.ephemeral.supersede_pending_live_watermarks(
+            &subscription.connection_id,
+            &subscription_id,
+            version,
+        );
+    }
+
     fn enqueue_subscription_durable(
         &self,
         subscription: &LiveSubscription,
         payload: Vec<u8>,
     ) -> crate::ephemeral::DurableEnqueueOutcome {
+        self.prepare_scheduler_live_delivery_enqueue(subscription, &payload);
         let network_egress = self.current_live_network_egress.clone().unwrap_or_else(|| {
             self.network_profiles.admit_result(
                 crate::network_profile::NetworkEgressLane::LiveDelta,
@@ -20681,6 +20734,7 @@ impl LocalSnapback {
         payload: Vec<u8>,
         authorization: crate::storage::AuthorizationVersion,
     ) -> crate::ephemeral::DurableEnqueueOutcome {
+        self.prepare_scheduler_live_delivery_enqueue(subscription, &payload);
         let network_egress = self.current_live_network_egress.clone().unwrap_or_else(|| {
             self.network_profiles.admit_result(
                 crate::network_profile::NetworkEgressLane::LiveDelta,
@@ -24504,7 +24558,9 @@ impl LocalSnapback {
         // path can honour (the matcher treats empty `changes` as affected).
         // Skipping the delta path here keeps seed delivering to HostPlan
         // subscribers (DK-3 review finding C).
+        let scheduler_watermarks = self.live_coalescer.is_some() && turn_control.is_some();
         let mut skipped = 0u64;
+        let mut watermark_skips = Vec::new();
         let mut affected: Vec<(LiveSubscription, Option<QueryPlan>)> = Vec::new();
         // Reserved asset-record projections re-run natively below. Every
         // non-empty frame includes them conservatively: the recompute is a
@@ -24540,6 +24596,9 @@ impl LocalSnapback {
                 changes,
             ) {
                 skipped += 1;
+                if scheduler_watermarks {
+                    watermark_skips.push(subscription.clone());
+                }
                 continue;
             }
             let delta_plan = match &function.runtime {
@@ -24597,6 +24656,24 @@ impl LocalSnapback {
         // D1: refresh overhead is per result-change, not per subscriber).
         let mut resume_mint_cache: HashMap<(String, String, u64, String), Option<ResumeWire>> =
             HashMap::new();
+        for subscription in watermark_skips {
+            let result = self.enqueue_convergence_watermark(
+                &subscription,
+                frame_version,
+                admission,
+                &mut resume_mint_cache,
+                turn_control.expect("scheduler watermark requires turn control"),
+            );
+            if let Err(error) = result {
+                self.fail_subscription_fanout(
+                    &subscription,
+                    "live_watermark_failed",
+                    error,
+                    Some(frame_version),
+                    admission,
+                );
+            }
+        }
         for (subscription, delta_plan) in affected {
             if let Err(error) =
                 self.prepare_live_rerun_authority(&subscription.authority, admission.clone())
@@ -24644,6 +24721,23 @@ impl LocalSnapback {
                     Some(DeltaFanout::NoChange) => {
                         self.live_delivery.total_skipped += 1;
                         self.live_delivery.last_skipped += 1;
+                        if scheduler_watermarks
+                            && let Err(error) = self.enqueue_convergence_watermark(
+                                &subscription,
+                                frame_version,
+                                admission,
+                                &mut resume_mint_cache,
+                                turn_control.expect("scheduler watermark requires turn control"),
+                            )
+                        {
+                            self.fail_subscription_fanout(
+                                &subscription,
+                                "live_watermark_failed",
+                                error,
+                                Some(frame_version),
+                                admission,
+                            );
+                        }
                         continue;
                     }
                     Some(DeltaFanout::Discarded) => continue,
@@ -24833,7 +24927,7 @@ impl LocalSnapback {
             if turn_control.is_some_and(|control| !control.begin_publication()) {
                 continue;
             }
-            if subscription.authorization.is_some() {
+            let disposition = if subscription.authorization.is_some() {
                 // Sessions-mode (auth-scoped) reserved subscriptions never
                 // receive a plain unwitnessed replace: recompute natively for
                 // the fingerprint check, then deliver through the witnessed
@@ -24843,29 +24937,116 @@ impl LocalSnapback {
                     &subscription,
                     admission,
                     frame_version,
-                );
+                )
             } else {
-                self.rerun_asset_record_subscription(&subscription, admission, frame_version);
+                self.rerun_asset_record_subscription(&subscription, admission, frame_version)
+            };
+            if disposition == Some(false)
+                && scheduler_watermarks
+                && let Err(error) = self.enqueue_convergence_watermark(
+                    &subscription,
+                    frame_version,
+                    admission,
+                    &mut resume_mint_cache,
+                    turn_control.expect("scheduler watermark requires turn control"),
+                )
+            {
+                self.fail_subscription_fanout(
+                    &subscription,
+                    "live_watermark_failed",
+                    error,
+                    Some(frame_version),
+                    admission,
+                );
             }
         }
         Ok(())
     }
 
-    /// Try the DK-3 op-log delta fast path for one affected subscription.
+    /// Publish the rowless disposition that advances one scheduler-backed
+    /// subscription through a matcher skip or evaluated no-change turn.
+    /// Publication rides the same per-subscription FIFO as content.
     ///
-    /// Returns `None` if the subscription is not delta-eligible (not a
-    /// `HostPlan` single-table query, no captured membership, or the query is
-    /// ordered/limited/un-analyzable so `compute_live_delta` yields `Replace`);
-    /// the caller then uses the re-query + `live_replace` path. Returns `Some`
-    /// once it has taken ownership of the subscription's delivery:
-    /// `Delivered` (a `live_delta` was enqueued and membership updated),
-    /// `NoChange` (the commit did not change this subscription's result), or
-    /// `Failed` (serialization error — reported as a fan-out failure).
-    ///
-    /// @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01
-    /// Mint (or reuse from the frame cache) the shared refreshed resume
-    /// token for one `(queryArtifact, argsHash, version, contentDigest)`
-    /// tuple (LLP 0091 §0A.5 refresh rule).
+    /// @ref LLP 0200#21-settlement-is-decoupled-from-subscriber-work — every
+    ///   served subscription advances its watermark on every frame disposition.
+    fn enqueue_convergence_watermark(
+        &mut self,
+        subscription: &LiveSubscription,
+        frame_version: u64,
+        admission: &AdmissionLease,
+        resume_mint_cache: &mut HashMap<(String, String, u64, String), Option<ResumeWire>>,
+        turn_control: &crate::live_coalesce::LiveEvaluationControl,
+    ) -> SnapbackResult<bool> {
+        debug_assert!(self.live_coalescer.is_some());
+        if !turn_control.begin_publication() {
+            return Ok(false);
+        }
+        let resolved_authorization = subscription.authorization.as_ref().map(|_| {
+            self.auth_invalidation
+                .as_ref()
+                .expect("auth-scoped watermark requires installed invalidation state")
+                .obligations
+                .expectation()
+                .authorization
+                .clone()
+        });
+        if resolved_authorization
+            .as_ref()
+            .is_some_and(|resolved| !self.authorize_live_delivery(subscription, resolved))
+        {
+            return Ok(false);
+        }
+        let resume_basis = subscription.rqs.as_ref().map(|state| {
+            (
+                state.query_artifact.clone(),
+                state.args_hash.clone(),
+                state.digest.kind,
+                state.digest.published(),
+            )
+        });
+        let resume =
+            resume_basis.and_then(|(query_artifact, args_hash, digest_kind, content_digest)| {
+                self.refreshed_resume(
+                    &query_artifact,
+                    &args_hash,
+                    frame_version,
+                    digest_kind,
+                    content_digest,
+                    resume_mint_cache,
+                )
+            });
+        let payload = serde_json::to_vec(&LiveEnvelope::CurrentAsOf {
+            network_profile: None,
+            subscription_id: subscription.id.clone(),
+            function: subscription.function.clone(),
+            version: frame_version,
+            resume,
+        })
+        .map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
+                "realtime",
+                "live convergence watermark could not be serialized",
+            )
+            .with_details(json!({ "error": error.to_string() }))
+        })?;
+        let _publication = admission.effect_guard("live convergence watermark publication")?;
+        let enqueue = if let Some(authorization) = resolved_authorization {
+            self.enqueue_subscription_authorized_durable(subscription, payload, authorization)
+        } else {
+            self.enqueue_subscription_durable(subscription, payload)
+        };
+        if enqueue.overflowed_now {
+            self.raise_connection_overflow(&subscription.connection_id, frame_version)?;
+        }
+        self.live_delivery.total_deliveries += 1;
+        self.live_delivery.last_deliveries += 1;
+        Ok(true)
+    }
+
+    /// Mint (or reuse from the frame cache) the shared refreshed resume token
+    /// for one `(queryArtifact, argsHash, version, contentDigest)` tuple (LLP
+    /// 0091 §0A.5 refresh rule).
     fn refreshed_resume(
         &mut self,
         query_artifact: &str,
@@ -24896,6 +25077,12 @@ impl LocalSnapback {
         minted
     }
 
+    /// Try the DK-3 op-log delta fast path for one affected subscription.
+    ///
+    /// Returns `None` if the subscription is not delta-eligible; otherwise the
+    /// returned disposition owns delivery (including an evaluated no-change).
+    ///
+    /// @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01
     fn try_live_delta_fanout(
         &mut self,
         subscription: &LiveSubscription,
@@ -44975,7 +45162,7 @@ globalThis.__snapbackHandlers = {
             subscribed.snapshot.expect("initial live snapshot").rows[0]["kind"],
             "visible"
         );
-        snapback
+        let live_commit = snapback
             .invoke_mutation(
                 "addChild",
                 HandlerInput {
@@ -44990,6 +45177,11 @@ globalThis.__snapbackHandlers = {
         let frames = rqs_drained_envelopes(&mut snapback, "conn-v2-batch");
         assert!(!frames.is_empty());
         assert!(frames.iter().all(|frame| frame["kind"] == "live_replace"));
+        assert!(
+            frames
+                .iter()
+                .all(|frame| frame["version"] == live_commit.version)
+        );
         let refusal = snapback
             .subscribe_live(
                 "mixedView",
@@ -45069,7 +45261,7 @@ globalThis.__snapbackHandlers = {
             subscribed.snapshot.expect("initial live snapshot").rows[0]["kind"],
             "visible"
         );
-        snapback
+        let live_commit = snapback
             .invoke_mutation(
                 "addBook",
                 HandlerInput {
@@ -45088,6 +45280,11 @@ globalThis.__snapbackHandlers = {
             "a relational-root-only commit must deliver live_replace"
         );
         assert!(frames.iter().all(|frame| frame["kind"] == "live_replace"));
+        assert!(
+            frames
+                .iter()
+                .all(|frame| frame["version"] == live_commit.version)
+        );
     }
 
     #[test]
@@ -46184,7 +46381,7 @@ globalThis.__snapbackHandlers = {
             )
             .expect("cursor-free composite live subscription");
         assert_eq!(subscribed.snapshot.unwrap().rows[0]["kind"], "visible");
-        snapback
+        let live_commit = snapback
             .invoke_mutation(
                 "addChild",
                 HandlerInput {
@@ -46199,6 +46396,15 @@ globalThis.__snapbackHandlers = {
         let frames = rqs_drained_envelopes(&mut snapback, "conn-snapshot-batch");
         assert!(!frames.is_empty());
         assert!(frames.iter().all(|frame| frame["kind"] == "live_replace"));
+        // LLP 0135's cursor-free composite first page already rides the
+        // ordinary replace publisher. Pin the audit finding: its additive
+        // version field is the exact authoritative snapshot/commit head, not
+        // an omitted or synthesized client value.
+        assert!(
+            frames
+                .iter()
+                .all(|frame| frame["version"] == live_commit.version)
+        );
         let live_cursor_refusal = snapback
             .subscribe_live(
                 "boardView",

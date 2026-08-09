@@ -2789,6 +2789,73 @@ impl OutboundQueue {
         QueueOverflow::default()
     }
 
+    /// Remove an unleased rowless watermark that the next frame for the same
+    /// subscription subsumes. Appending the successor after this preparation
+    /// preserves FIFO order with every older content frame; leased messages
+    /// are already owned by a transport handoff and cannot be retracted.
+    ///
+    /// @ref LLP 0200#21-settlement-is-decoupled-from-subscriber-work —
+    ///   consecutive watermarks collapse, and newer content intrinsically
+    ///   carries the watermark it supersedes.
+    fn supersede_pending_live_watermarks(&mut self, subscription_id: &str, next_version: u64) {
+        let mut removed = false;
+        self.durable.retain(|queued| {
+            let Ok(envelope) = serde_json::from_slice::<crate::live_wire::LiveEnvelope>(
+                &queued.message.payload,
+            ) else {
+                return true;
+            };
+            let position = match &envelope {
+                crate::live_wire::LiveEnvelope::LiveReplace {
+                    subscription_id,
+                    version,
+                    ..
+                }
+                | crate::live_wire::LiveEnvelope::LiveDelta {
+                    subscription_id,
+                    version,
+                    ..
+                }
+                | crate::live_wire::LiveEnvelope::CurrentAsOf {
+                    subscription_id,
+                    version,
+                    ..
+                } => Some((subscription_id.as_str(), *version)),
+                crate::live_wire::LiveEnvelope::AuthorizationInvalidation {
+                    snapshot: Some(snapshot),
+                    ..
+                } => Some((snapshot.subscription_id.as_str(), snapshot.version)),
+                crate::live_wire::LiveEnvelope::AuthorizationInvalidation {
+                    snapshot: None, ..
+                }
+                | crate::live_wire::LiveEnvelope::ResyncRequired { .. } => None,
+            };
+            if let Some((queued_subscription, queued_version)) = position
+                && queued_subscription == subscription_id
+            {
+                debug_assert!(
+                    queued_version <= next_version,
+                    "subscription {subscription_id} queued version {queued_version} before older version {next_version}",
+                );
+            }
+            let superseded = queued.lease_id.is_none()
+                && matches!(
+                    &envelope,
+                    crate::live_wire::LiveEnvelope::CurrentAsOf {
+                        subscription_id: queued_subscription,
+                        version,
+                        ..
+                    } if queued_subscription == subscription_id && *version <= next_version
+                );
+            removed |= superseded;
+            !superseded
+        });
+        if removed {
+            self.recompute_retained_bytes();
+            self.compact_lane_storage();
+        }
+    }
+
     /// Stamp the per-connection monotone deadline before the item enters the
     /// physical queue. This is preparation only; no timer or wait runs under
     /// the outbox lock.
@@ -6964,6 +7031,22 @@ impl LocalEphemeralBackend {
         payload: Vec<u8>,
     ) -> DurableEnqueueOutcome {
         self.enqueue_durable_message(connection_id, DurableMessage::new(payload))
+    }
+
+    /// Prepare one scheduler-backed subscription frame for ordered enqueue.
+    /// This is a no-op when the connection has no pending outbox. The Local
+    /// owner calls it only while the evaluation scheduler is installed; the
+    /// legacy inline lane never enters this coalescing path.
+    pub(crate) fn supersede_pending_live_watermarks(
+        &self,
+        connection_id: &str,
+        subscription_id: &str,
+        next_version: u64,
+    ) {
+        let outbox = lock(&self.shared.outboxes).get(connection_id).cloned();
+        if let Some(outbox) = outbox {
+            lock(&outbox).supersede_pending_live_watermarks(subscription_id, next_version);
+        }
     }
 
     pub(crate) fn enqueue_durable_with_network_egress(

@@ -144,7 +144,7 @@ fn current_as_of_envelope() -> LiveEnvelope {
         subscription_id: "sub_fixture_1".to_owned(),
         function: "listTodos".to_owned(),
         version: 43,
-        resume: resume_wire(43),
+        resume: Some(resume_wire(43)),
     }
 }
 

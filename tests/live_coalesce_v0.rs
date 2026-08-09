@@ -128,6 +128,142 @@ fn atomic_cut_never_stamps_ahead_of_coverage() {
     );
 }
 
+/// Matcher-disjoint and evaluated-no-change turns both publish the rowless
+/// subscription watermark that makes convergence observable after settlement.
+#[test]
+fn skip_and_no_change_advance_subscription_watermark() {
+    let mut snapback = configured();
+    install_deterministic_coalescer(&mut snapback);
+    snapback
+        .subscribe_live("listMine", sub_input("conn-watermark", "ada"))
+        .expect("subscribe");
+
+    let skipped_version = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "theirs", "userId": "bob" }), "bob"),
+        )
+        .expect("matcher-disjoint commit")
+        .version;
+    assert!(snapback.flush_pending_live_fanout());
+    let skipped = drain_json(&mut snapback, "conn-watermark");
+    assert_eq!(skipped.len(), 1);
+    assert_eq!(skipped[0]["kind"], "current_as_of");
+    assert_eq!(skipped[0]["version"], skipped_version);
+    assert!(skipped[0].get("resume").is_none());
+
+    let no_change_version = snapback
+        .invoke_mutation(
+            "createThenDelete",
+            input(json!({ "title": "transient", "userId": "ada" }), "ada"),
+        )
+        .expect("net-no-change commit")
+        .version;
+    assert!(snapback.flush_pending_live_fanout());
+    let no_change = drain_json(&mut snapback, "conn-watermark");
+    assert_eq!(no_change.len(), 1);
+    assert_eq!(no_change[0]["kind"], "current_as_of");
+    assert_eq!(no_change[0]["version"], no_change_version);
+}
+
+/// A watermark is appended behind older content for its subscription. The
+/// client can therefore never observe watermark V while content < V is still
+/// pending behind it.
+#[test]
+fn watermark_never_overtakes_undelivered_content() {
+    let mut snapback = configured();
+    install_deterministic_coalescer(&mut snapback);
+    snapback
+        .subscribe_live("listMine", sub_input("conn-order", "ada"))
+        .expect("subscribe");
+
+    let content_version = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "mine", "userId": "ada" }), "ada"),
+        )
+        .expect("content commit")
+        .version;
+    assert!(snapback.flush_pending_live_fanout());
+    let watermark_version = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "theirs", "userId": "bob" }), "bob"),
+        )
+        .expect("skip commit")
+        .version;
+    assert!(snapback.flush_pending_live_fanout());
+
+    let delivered = drain_json(&mut snapback, "conn-order");
+    assert_eq!(delivered.len(), 2);
+    assert_eq!(delivered[0]["kind"], "live_delta");
+    assert_eq!(delivered[0]["version"], content_version);
+    assert_eq!(delivered[1]["kind"], "current_as_of");
+    assert_eq!(delivered[1]["version"], watermark_version);
+    assert!(watermark_version > content_version);
+}
+
+/// Repeated skip turns collapse to one pending latest-value envelope, and a
+/// newer content frame removes a pending watermark because it carries the
+/// same version fact intrinsically.
+#[test]
+fn pending_watermarks_coalesce_and_newer_content_supersedes_them() {
+    let mut snapback = configured();
+    install_deterministic_coalescer(&mut snapback);
+    snapback
+        .subscribe_live("listMine", sub_input("conn-coalesce", "ada"))
+        .expect("subscribe");
+
+    let mut newest = 0;
+    for index in 0..6 {
+        newest = snapback
+            .invoke_mutation(
+                "createTodo",
+                input(
+                    json!({ "title": format!("theirs-{index}"), "userId": "bob" }),
+                    "bob",
+                ),
+            )
+            .expect("skip commit")
+            .version;
+        assert!(snapback.flush_pending_live_fanout());
+    }
+    let coalesced = drain_json(&mut snapback, "conn-coalesce");
+    assert_eq!(
+        coalesced.len(),
+        1,
+        "six pending skips collapse to one envelope"
+    );
+    assert_eq!(coalesced[0]["kind"], "current_as_of");
+    assert_eq!(coalesced[0]["version"], newest);
+
+    let watermark_version = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "still-theirs", "userId": "bob" }), "bob"),
+        )
+        .expect("pending watermark")
+        .version;
+    assert!(snapback.flush_pending_live_fanout());
+    let content_version = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "mine", "userId": "ada" }), "ada"),
+        )
+        .expect("newer content")
+        .version;
+    assert!(content_version > watermark_version);
+    assert!(snapback.flush_pending_live_fanout());
+    let superseding = drain_json(&mut snapback, "conn-coalesce");
+    assert_eq!(
+        superseding.len(),
+        1,
+        "content supersedes the pending watermark"
+    );
+    assert_eq!(superseding[0]["kind"], "live_delta");
+    assert_eq!(superseding[0]["version"], content_version);
+}
+
 /// (b) across mixed operations: create/update/leave/delete/create-then-delete
 /// merged into one frame still classifies to the exact final state (the delta
 /// classifier collapses to the last change per row id).
@@ -288,6 +424,26 @@ fn no_coalescing_without_installed_coalescer() {
         "one frame per commit without a coalescer"
     );
     assert_eq!(snapback.live_coalesce_stats().deferred_commits, 0);
+
+    snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "legacy-skip", "userId": "bob" }), "bob"),
+        )
+        .expect("legacy matcher-disjoint commit");
+    snapback
+        .invoke_mutation(
+            "createThenDelete",
+            input(
+                json!({ "title": "legacy-no-change", "userId": "ada" }),
+                "ada",
+            ),
+        )
+        .expect("legacy no-change commit");
+    assert!(
+        drain(&mut snapback, "conn").is_empty(),
+        "legacy skip and no-change dispositions remain byte-for-byte silent"
+    );
 }
 
 /// The backstop flusher task end to end: deferred commits are delivered
@@ -471,6 +627,18 @@ fn query_rows(rows: &[Value]) -> BTreeMap<String, Value> {
 
 fn drain(snapback: &mut LocalSnapback, connection: &str) -> Vec<RealtimeEnvelope> {
     snapback.drain_outbox(connection)
+}
+
+fn drain_json(snapback: &mut LocalSnapback, connection: &str) -> Vec<Value> {
+    drain(snapback, connection)
+        .into_iter()
+        .filter_map(|envelope| match envelope {
+            RealtimeEnvelope::Durable(message) => {
+                Some(serde_json::from_slice(&message.payload).expect("durable live JSON"))
+            }
+            RealtimeEnvelope::Ephemeral(_) => None,
+        })
+        .collect()
 }
 
 fn create(snapback: &mut LocalSnapback, title: &str, user: &str) -> String {

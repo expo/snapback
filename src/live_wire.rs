@@ -87,12 +87,13 @@ pub enum LiveEnvelope {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         resume: Option<ResumeWire>,
     },
-    /// Rung-1 answer to a `resumeFromToken` subscribe (LLP 0090 D1.3, LLP
-    /// 0091 §0B.2): "your held rows are current as of `version`". The client
-    /// adopts the mandatory fresh token and advances its version without
-    /// touching rows. Sent only to a subscriber that presented
-    /// `resumeFromToken`, so decode ability is implied by the request — no
-    /// capability negotiation.
+    /// Rowless acknowledgement that the subscription's held rows are current
+    /// as of `version`. The original rung-1 resume answer carries a fresh
+    /// token; scheduler convergence watermarks use the same additive envelope
+    /// without one.
+    ///
+    /// @ref LLP 0200#21-settlement-is-decoupled-from-subscriber-work — skip
+    ///   and no-change dispositions advance the per-subscription watermark.
     CurrentAsOf {
         /// Name of the immutable non-`normal` network profile snapshot that
         /// delayed this frame. Absent for the identity profile.
@@ -103,8 +104,9 @@ pub enum LiveEnvelope {
         function: String,
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         version: u64,
-        /// Fresh token minted at `version` — the variant exists to advance it.
-        resume: ResumeWire,
+        /// Fresh token minted at `version` for an RQS-capable subscription.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        resume: Option<ResumeWire>,
     },
     /// Level-triggered authorization invalidation for one auth-scoped live
     /// query. The optional snapshot and resolution are one atomic wire frame;
@@ -928,7 +930,7 @@ mod tests {
             subscription_id: "sub_1".into(),
             function: "listTodos".into(),
             version: 9,
-            resume: resume.clone(),
+            resume: Some(resume.clone()),
         };
         assert_eq!(
             serde_json::to_value(&current_as_of).unwrap(),
@@ -950,6 +952,19 @@ mod tests {
                     },
                 },
             })
+        );
+        let convergence_watermark = LiveEnvelope::CurrentAsOf {
+            network_profile: None,
+            subscription_id: "sub_1".into(),
+            function: "listTodos".into(),
+            version: 10,
+            resume: None,
+        };
+        let encoded = serde_json::to_value(&convergence_watermark).unwrap();
+        assert!(encoded.get("resume").is_none());
+        assert_eq!(
+            serde_json::from_value::<LiveEnvelope>(encoded).unwrap(),
+            convergence_watermark
         );
 
         // A refreshed-token replace round-trips, and a decoder without the
