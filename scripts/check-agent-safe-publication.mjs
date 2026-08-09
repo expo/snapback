@@ -174,6 +174,142 @@ const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
     }),
     regenerateCommand: 'node --test tests/local_proof_inventory_v0.mjs',
   }),
+  'local-store-publication': Object.freeze({
+    records: Object.freeze([
+      'src/local-persistent-store-publication.v1.json and src/local-persistent-store-publication.anchor.v1.json',
+    ]),
+    recordPaths: Object.freeze([
+      'src/local-persistent-store-publication.v1.json',
+      'src/local-persistent-store-publication.anchor.v1.json',
+    ]),
+    triggerRules: Object.freeze({
+      files: Object.freeze([
+        'packages/snapback-client/local-read-admission.mjs',
+        'packages/snapback-client/materialization-bridge.mjs',
+        'packages/snapback-client/materialization-store.mjs',
+        'packages/snapback-client/materialization-store-runtime.mjs',
+        'packages/snapback-client/rqs-preload-core.mjs',
+        'packages/snapback-client/store-runtime.mjs',
+        'packages/snapback-codegen/index.mjs',
+        'schemas/capability.manifest.local-dev-sqlite-ibex.json',
+        'src/local-persistent-store-publication.anchor.v1.json',
+        'src/local-persistent-store-publication.v1.json',
+        'src/local.rs',
+        'src/local/config_types.rs',
+        'src/local/inspection.rs',
+        'src/local/live_protocol.rs',
+        'src/local/receipt_log.rs',
+        'src/local/tests.rs',
+        'src/storage.rs',
+        'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+        'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json',
+        'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
+      ]),
+      prefixes: Object.freeze([
+        'scripts/finalize-local-persistent-store-publication',
+        'src/storage/',
+      ]),
+    }),
+    regenerateCommand: 'scripts/finalize-local-persistent-store-publication',
+  }),
+  'local-store-carrier-receipt': Object.freeze({
+    records: Object.freeze([
+      'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+      'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json',
+    ]),
+    recordPaths: Object.freeze([
+      'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+      'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json',
+    ]),
+    triggerRules: Object.freeze({
+      files: Object.freeze([
+        'demos/_kit/chrome-process.mjs',
+        'demos/triage-graph/demo.snapback.json',
+        'demos/triage-graph/snapback/functions.mjs',
+        'demos/triage-graph/snapback/schema.mjs',
+        'packages/snapback-client/answer-classes.mjs',
+        'packages/snapback-client/demand-broker.mjs',
+        'packages/snapback-client/evaluation-floor.mjs',
+        'packages/snapback-client/index.mjs',
+        'packages/snapback-client/lease-convergence.mjs',
+        'packages/snapback-client/materialization-bridge.mjs',
+        'packages/snapback-client/materialization-store.mjs',
+        'packages/snapback-client/materialization-store-runtime.mjs',
+        'packages/snapback-client/registration-ledger.mjs',
+        'packages/snapback-client/rqs-preload-core.mjs',
+        'packages/snapback-client/rqs-store.mjs',
+        'packages/snapback-client/rqs-store-file.mjs',
+        'packages/snapback-client/rqs-store-meta.mjs',
+        'packages/snapback-client/store-policy.mjs',
+        'packages/snapback-client/store-runtime.mjs',
+        'packages/snapback-contract/auth-coordinator.mjs',
+        'packages/snapback-contract/client-store.mjs',
+        'tests/acceptance/local-store-carrier-exit-v1.mjs',
+      ]),
+      prefixes: Object.freeze([
+        'tests/acceptance/fixtures/local-persistent-store/',
+        'tests/acceptance/fixtures/triage-graph/',
+      ]),
+    }),
+    regenerateCommand: 'node tests/acceptance/local-store-carrier-exit-v1.mjs',
+    requiredModules: Object.freeze(['esbuild']),
+  }),
+  'relation-activity-publication': Object.freeze({
+    records: Object.freeze([
+      'src/local-relation-activity-publication.v1.json and its pinned readers',
+    ]),
+    recordPaths: Object.freeze([
+      'src/local-relation-activity-publication.v1.json',
+      'tests/conformance/relation-activity-publication-v1.mjs',
+      'src/manifest.rs',
+    ]),
+    triggerRules: Object.freeze({
+      files: Object.freeze([
+        'packages/snapback-codegen/define.mjs',
+        'scripts/refresh-publication-carrier.mjs',
+        'src/local-relation-activity-publication.v1.json',
+        'src/local.rs',
+        'src/local/config_types.rs',
+        'src/local/inspection.rs',
+        'src/local/live_protocol.rs',
+        'src/local/receipt_log.rs',
+        'src/local/tests.rs',
+        'src/manifest.rs',
+        'src/storage.rs',
+        'tests/conformance/relation-activity-publication-v1.receipt.json',
+        'tests/conformance/relation-activity-publication-v1.mjs',
+      ]),
+      prefixes: Object.freeze(['src/storage/']),
+    }),
+    regenerateCommand: 'node scripts/refresh-publication-carrier.mjs',
+  }),
+  'sequence-allocation-publication': Object.freeze({
+    records: Object.freeze([
+      'src/local-sequence-allocation-publication.v1.json and its pinned readers',
+    ]),
+    recordPaths: Object.freeze([
+      'src/local-sequence-allocation-publication.v1.json',
+      'tests/conformance/sequence-allocation-publication-v1.mjs',
+      'tests/conformance/sequence-allocation-publication-v1.receipt.json',
+      'src/manifest.rs',
+    ]),
+    triggerRules: Object.freeze({
+      files: Object.freeze([
+        'packages/snapback-codegen/define.mjs',
+        'packages/snapback-contract/derived-overlay.mjs',
+        'packages/snapback-contract/index.mjs',
+        'scripts/refresh-publication-carrier.mjs',
+        'src/local-sequence-allocation-publication.v1.json',
+        'src/manifest.rs',
+        'src/runtime.rs',
+        'src/storage.rs',
+        'tests/conformance/sequence-allocation-publication-v1.mjs',
+        'tests/conformance/sequence-allocation-publication-v1.receipt.json',
+      ]),
+      prefixes: Object.freeze(['src/storage/']),
+    }),
+    regenerateCommand: 'node scripts/refresh-publication-carrier.mjs',
+  }),
 });
 
 // These are the exact nine leaves that rotated the 2026-08-07 withdrawn
@@ -210,6 +346,39 @@ export const DERIVED_FORK_COVERAGE_TRANSFERS = Object.freeze([
     gate: 'client-bundle-metrology',
   }),
   Object.freeze({ path: 'tests/local_proof_inventory_v0.mjs', gate: 'local-proof-inventory' }),
+]);
+
+// @ref LLP 0189#decision — D-4 sibling custody stays mechanically present even
+// while legitimate post-C regeneration is typed claim evolution.
+// Sibling publication-chain paths remain claim-scoped source, so they are not
+// departing coverage transfers. Their integrity custody is nevertheless bound
+// to qualification C by the same exact registry-admission checks. The
+// persistent-store receipt gate is a required chain owner even though the
+// publication gate is the direct recomputing owner for both source records.
+export const DERIVED_FORK_SIBLING_CUSTODY_GATES = Object.freeze([
+  'local-store-publication',
+  'local-store-carrier-receipt',
+  'relation-activity-publication',
+  'sequence-allocation-publication',
+]);
+
+export const DERIVED_FORK_SIBLING_CUSTODY_TRANSFERS = Object.freeze([
+  Object.freeze({
+    path: 'src/local-persistent-store-publication.v1.json',
+    gate: 'local-store-publication',
+  }),
+  Object.freeze({
+    path: 'src/local-persistent-store-publication.anchor.v1.json',
+    gate: 'local-store-publication',
+  }),
+  Object.freeze({
+    path: 'src/local-relation-activity-publication.v1.json',
+    gate: 'relation-activity-publication',
+  }),
+  Object.freeze({
+    path: 'src/local-sequence-allocation-publication.v1.json',
+    gate: 'sequence-allocation-publication',
+  }),
 ]);
 
 // Fable round-1 F3: the named author must acknowledge the residual v2 -> v3
@@ -731,6 +900,17 @@ function gateRecordsExistAtCommit(root, commit, metadata) {
   )));
 }
 
+function admittedCoverageGateAtCommit(root, recordCommit, driftProneGates, gate) {
+  const metadata = driftProneGates?.[gate];
+  const admitted = DERIVED_FORK_ADMITTED_COVERAGE_GATES[gate];
+  if (metadata === undefined || admitted === undefined
+      || !canonicallyEqual(metadata, admitted)
+      || !gateRecordsExistAtCommit(root, recordCommit, metadata)) {
+    return null;
+  }
+  return metadata;
+}
+
 // The caller supplies the reviewed previous-record departure set. Exact set
 // equality prevents a transfer annotation from covering only the convenient
 // subset, while the registry lookup proves that every named replacement is a
@@ -766,13 +946,51 @@ export function assertCoverageTransfers({
     if (implementationScopeCoversPath(scope, path)) {
       fail(`coverage transfer ${path} did not leave the claim scope`);
     }
-    const metadata = driftProneGates?.[gate];
-    const admitted = DERIVED_FORK_ADMITTED_COVERAGE_GATES[gate];
-    if (metadata === undefined || admitted === undefined
-        || !canonicallyEqual(metadata, admitted)
-        || !gateRecordsExistAtCommit(root, recordCommit, metadata)
+    const metadata = admittedCoverageGateAtCommit(
+      root,
+      recordCommit,
+      driftProneGates,
+      gate,
+    );
+    if (metadata === null
         || !gateTriggerMatchesPath(metadata, path)) {
       fail(`coverage transfer ${path} is not covered by registered drift gate ${gate}`);
+    }
+  }
+  return transfers;
+}
+
+function assertSiblingChainCustodyTransfers({
+  root,
+  recordCommit,
+  transfers,
+  driftProneGates,
+}) {
+  const expectedPaths = [...DERIVED_FORK_SIBLING_CHAIN_PATHS].sort(codePointOrder);
+  for (const transfer of transfers) {
+    exactKeys(transfer, ['path', 'gate'], 'sibling custody transfer');
+  }
+  const transferredPaths = transfers.map(({ path }) => path).sort(codePointOrder);
+  if (JSON.stringify(transferredPaths) !== JSON.stringify(expectedPaths)) {
+    const missing = expectedPaths.filter((path) => !transferredPaths.includes(path));
+    const extra = transferredPaths.filter((path) => !expectedPaths.includes(path));
+    fail(`sibling custody moved without a frozen-record gate; missing ${missing.join(',') || 'none'}; `
+      + `extra ${extra.join(',') || 'none'}`);
+  }
+  for (const { path, gate } of transfers) {
+    const metadata = driftProneGates?.[gate];
+    if (metadata === undefined || !gateTriggerMatchesPath(metadata, path)) {
+      fail(`sibling custody transfer ${path} is not covered by registered drift gate ${gate}`);
+    }
+  }
+  for (const gate of DERIVED_FORK_SIBLING_CUSTODY_GATES) {
+    if (admittedCoverageGateAtCommit(
+      root,
+      recordCommit,
+      driftProneGates,
+      gate,
+    ) === null) {
+      fail(`sibling custody gate ${gate} does not retain its exact registered definition`);
     }
   }
   return transfers;
@@ -808,7 +1026,7 @@ export function validateDerivedForkCoverageTransfers(
   } catch (error) {
     fail(`qualification-C selection policy is not valid JSON: ${error.message}`);
   }
-  return assertCoverageTransfers({
+  const coverageTransfers = assertCoverageTransfers({
     root,
     recordCommit: qualificationCommit,
     scope: DERIVED_FORK_IMPLEMENTATION_SCOPE,
@@ -816,6 +1034,13 @@ export function validateDerivedForkCoverageTransfers(
     transfers: DERIVED_FORK_COVERAGE_TRANSFERS,
     driftProneGates: policy.driftProneGates,
   });
+  assertSiblingChainCustodyTransfers({
+    root,
+    recordCommit: qualificationCommit,
+    transfers: DERIVED_FORK_SIBLING_CUSTODY_TRANSFERS,
+    driftProneGates: policy.driftProneGates,
+  });
+  return coverageTransfers;
 }
 
 function sha256(bytes) {

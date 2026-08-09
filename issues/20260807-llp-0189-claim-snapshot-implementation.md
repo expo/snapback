@@ -201,3 +201,33 @@ as published with typed due paths, and prove structural persistent-store
 carrier tampering selects and fails its own `local-store-publication`
 conformance gate. The storage transform tests and all existing fork-chain
 tamper negatives remain intact. Withheld behavior is unchanged.
+
+## 2026-08-09 mechanical sibling-custody closure
+
+The requalification review found that the preceding sibling-chain transfer was
+described in prose but absent from the qualification-C transfer validator. The
+oracle now carries a separate `DERIVED_FORK_SIBLING_CUSTODY_TRANSFERS` ledger
+because these four source records remain inside the D-4 claim scope rather than
+departing it. The persistent-store carrier and anchor map to their direct
+recomputing owner, `local-store-publication`; the relation/activity and
+sequence-allocation carriers map to their respective publication gates.
+
+All four named chain gates — `local-store-publication`,
+`local-store-carrier-receipt`, `relation-activity-publication`, and
+`sequence-allocation-publication` — now have their complete admitted
+record-path, trigger-rule, regeneration-command, and optional dependency
+definitions frozen inside `scripts/check-agent-safe-publication.mjs`. The
+receipt gate remains a required persistent-store chain owner without being
+misrepresented as the direct recomputing owner of the carrier or anchor.
+`validateDerivedForkCoverageTransfers` reads the policy bytes committed at C,
+requires every admitted gate and record to exist there with that exact
+definition, and separately requires each of the four sibling paths to match
+its mapped trigger. The original nine departing transfers use the same exact
+admission predicate.
+
+The checker fixtures now refuse a C-bound policy missing any one of the four
+required gates, refuse trigger removal for each mapped sibling path, and prove
+the real policy at HEAD passes. The gate-selection pin covers all four paths,
+closing Fable F-1. The storage claim's qualification-C transform, the fork
+chain's own frozen bindings, and both live records' `withheld` state remain
+unchanged.

@@ -23,6 +23,8 @@ import {
   DERIVED_FORK_COVERAGE_TRANSFERS,
   DERIVED_FORK_IMPLEMENTATION_SCOPE,
   DERIVED_FORK_SIBLING_CHAIN_PATHS,
+  DERIVED_FORK_SIBLING_CUSTODY_GATES,
+  DERIVED_FORK_SIBLING_CUSTODY_TRANSFERS,
   evaluateClaimSnapshot,
   exactCandidate,
   generatedPublicationPathsAt,
@@ -617,6 +619,7 @@ function publishedDerivedFixture({
   zeroAuthorDigest = false,
   mutateMacos,
   mutateAcceptance,
+  mutateQualificationPolicy,
   notReadyReview,
   malformedVerdict,
   mutateReceipt,
@@ -647,13 +650,28 @@ function publishedDerivedFixture({
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
     writeFileSync(join(scratch, path), readFileSync(join(root, path)));
   }
-  const qualificationContextPaths = [
+  const sourceSelectionPolicy = JSON.parse(readFileSync(
+    join(root, DERIVED_FORK_SELECTION_POLICY_PATH),
+    'utf8',
+  ));
+  const qualificationContextPaths = [...new Set([
     DERIVED_FORK_SELECTION_POLICY_PATH,
     ...DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path),
-  ];
+    ...DERIVED_FORK_SIBLING_CUSTODY_GATES.flatMap((gate) => (
+      sourceSelectionPolicy.driftProneGates[gate].recordPaths
+    )),
+  ])];
   for (const path of qualificationContextPaths) {
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
     writeFileSync(join(scratch, path), readFileSync(join(root, path)));
+  }
+  if (mutateQualificationPolicy !== undefined) {
+    const policy = JSON.parse(readFileSync(
+      join(scratch, DERIVED_FORK_SELECTION_POLICY_PATH),
+      'utf8',
+    ));
+    mutateQualificationPolicy(policy);
+    writeJson(scratch, DERIVED_FORK_SELECTION_POLICY_PATH, policy);
   }
   const preexistingDatedEvidencePath = fixtureEvidence.find(
     ([kind]) => kind === preexistingDatedEvidenceKind,
@@ -1923,12 +1941,7 @@ test('v3 binds the reviewed scope even when two scopes select the same leaves', 
   });
 });
 
-test('coverage transfer refuses any departing leaf without a registered frozen-record gate', () => {
-  const policy = JSON.parse(readFileSync(
-    join(root, DERIVED_FORK_SELECTION_POLICY_PATH),
-    'utf8',
-  ));
-  const departingPaths = DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path);
+test('current HEAD policy passes C-bound wave and sibling custody validation', () => {
   const qualificationCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
     cwd: root,
     encoding: 'utf8',
@@ -1938,6 +1951,14 @@ test('coverage transfer refuses any departing leaf without a registered frozen-r
     qualificationCommit,
     committedDigestAt(root, qualificationCommit, DERIVED_FORK_SELECTION_POLICY_PATH),
   ).length, 9);
+});
+
+test('coverage transfer refuses any departing leaf without a registered frozen-record gate', () => {
+  const policy = JSON.parse(readFileSync(
+    join(root, DERIVED_FORK_SELECTION_POLICY_PATH),
+    'utf8',
+  ));
+  const departingPaths = DERIVED_FORK_COVERAGE_TRANSFERS.map(({ path }) => path);
   assert.throws(
     () => assertCoverageTransfers({
       root,
@@ -1998,6 +2019,49 @@ test('coverage transfers require the exact admitted records, triggers, and regen
         driftProneGates: policy.driftProneGates,
       }),
       /is not covered by registered drift gate/u,
+    );
+  }
+});
+
+test('C-bound sibling custody refuses a policy missing any required gate', () => {
+  for (const gate of DERIVED_FORK_SIBLING_CUSTODY_GATES) {
+    const scratch = publishedDerivedFixture({
+      mutateQualificationPolicy: (policy) => {
+        delete policy.driftProneGates[gate];
+      },
+    });
+    assert.throws(
+      () => validatePublicationRecord(scratch, derived),
+      (error) => {
+        assert.match(
+          error.message,
+          /sibling custody (?:gate .* exact registered definition|transfer .* is not covered)/u,
+        );
+        assert.ok(error.message.includes(gate), error.message);
+        return true;
+      },
+      gate,
+    );
+  }
+});
+
+test('C-bound sibling custody refuses a trigger that no longer covers its mapped path', () => {
+  for (const { path, gate } of DERIVED_FORK_SIBLING_CUSTODY_TRANSFERS) {
+    const scratch = publishedDerivedFixture({
+      mutateQualificationPolicy: (policy) => {
+        const trigger = policy.driftProneGates[gate].triggerRules;
+        trigger.files = trigger.files.filter((candidate) => candidate !== path);
+      },
+    });
+    assert.throws(
+      () => validatePublicationRecord(scratch, derived),
+      (error) => {
+        assert.match(error.message, /sibling custody transfer .* is not covered/u);
+        assert.ok(error.message.includes(path), error.message);
+        assert.ok(error.message.includes(gate), error.message);
+        return true;
+      },
+      path,
     );
   }
 });
@@ -3107,8 +3171,10 @@ test('P-vs-C local-store transform rejects extra carrier or anchor edits', () =>
 
 test('structural store-carrier tampering belongs to its registered drift gate', () => {
   const carrierPath = LOCAL_STORE_PUBLICATION_TRANSFORM.carrier;
-  const selection = selectDriftProneGates([carrierPath], loadSelectionContext());
-  assert.ok(selection.selectedDriftProneGates.includes('local-store-publication'));
+  for (const { path, gate } of DERIVED_FORK_SIBLING_CUSTODY_TRANSFERS) {
+    const selection = selectDriftProneGates([path], loadSelectionContext());
+    assert.ok(selection.selectedDriftProneGates.includes(gate), `${path} -> ${gate}`);
+  }
 
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-local-store-own-gate-'));
   const carrier = JSON.parse(readFileSync(join(root, carrierPath), 'utf8'));

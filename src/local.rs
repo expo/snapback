@@ -63,9 +63,10 @@ use crate::runtime::{
 };
 use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit, NetworkSeedOutcome};
 use crate::storage::{
-    BufferedCommitPayload, CapturedReadDependency, CapturedReadKind, CapturedWriteDependency,
-    ChangedRow, ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
-    SettlementTimePolicy, ShutdownCheckpointReport, StorageInfo, TableScan,
+    AssetPreparedVariant, AssetPublishOutcome, BufferedCommitPayload, CapturedReadDependency,
+    CapturedReadKind, CapturedWriteDependency, ChangedRow, ClientMutationIdentity, DbRead,
+    LocalDatabase, MutationCommit, ReaderPool, SettlementTimePolicy, ShutdownCheckpointReport,
+    StorageInfo, TableScan,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -7314,198 +7315,20 @@ impl LocalSnapback {
                 format!("intent definition does not serialize for retention: {error}"),
             )
         })?;
-        let response = self.db.asset_transaction(|tx| {
-            let generation = assets::ensure_intent_generation(
-                tx,
-                &intent.id,
-                &intent.intent_policy_hash,
-                deployed_implementation_hash,
-                &intent_artifact_json,
-                now,
-            )?;
-            if generation.revoked {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_INTENT_REVOKED",
-                    "assets",
-                    "this intent's policy generation is revoked; nothing further finalizes under it",
-                ));
-            }
-
-            // Ceilings and logical quota, inside the reservation transaction
-            // so concurrent preflights cannot jointly overrun.
-            let accounting = assets::asset_accounting(tx, &app_id)?;
-            if accounting.open_attempts_app >= assets::ASSET_MAX_OPEN_ATTEMPTS_PER_APP {
-                return Err(asset_ceiling_error(
-                    "open attempts per app",
-                    assets::ASSET_MAX_OPEN_ATTEMPTS_PER_APP,
-                    accounting.open_attempts_app,
-                ));
-            }
-            if let Some(principal) = &caller {
-                let open = assets::open_attempts_for_principal(tx, &app_id, principal)?;
-                if open >= assets::ASSET_MAX_OPEN_ATTEMPTS_PER_PRINCIPAL {
-                    return Err(asset_ceiling_error(
-                        "open attempts per principal",
-                        assets::ASSET_MAX_OPEN_ATTEMPTS_PER_PRINCIPAL,
-                        open,
-                    ));
-                }
-            }
-            let reservation =
-                declared_length.max(assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES);
-            let in_use = accounting.reserved_bytes.saturating_add(accounting.settled_bytes);
-            if in_use.saturating_add(reservation) > app_quota {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_QUOTA_EXCEEDED",
-                    "assets",
-                    "the app's logical asset quota cannot cover this reservation",
-                )
-                .with_details(serde_json::json!({
-                    "limit": app_quota,
-                    "observed": in_use,
-                    "reservation": reservation,
-                })));
-            }
-
-            let lineage = crate::assets::AssetFsStore::new_opaque_key();
-            let (asset_id, lifecycle_generation, predecessor) = match &request.retry_of_asset_id {
-                None => {
-                    let asset = assets::AssetRecordV1 {
-                        asset_id: crate::assets::AssetFsStore::new_opaque_key(),
-                        app_id: app_id.clone(),
-                        intent_id: intent.id.clone(),
-                        intent_name: intent.name.clone(),
-                        intent_policy_hash: intent.intent_policy_hash.clone(),
-                        policy_generation: generation.generation,
-                        owner_principal: run.owner.clone(),
-                        delivery_profile: intent.delivery.kind,
-                        read_access: intent.access.read,
-                        availability: assets::AssetAvailability::Pending,
-                        primary_rendition_id: None,
-                        lifecycle_generation: 1,
-                        created_at_ms: now,
-                        updated_at_ms: now,
-                        deleted_at_ms: None,
-                    };
-                    assets::insert_asset(tx, &asset)?;
-                    assets::write_receipt(
-                        tx,
-                        &asset_receipt(
-                            &lineage,
-                            assets::AssetReceiptEventV1::AssetReserved,
-                            &asset.asset_id,
-                            None,
-                            now,
-                            serde_json::json!({
-                                "intentId": intent.id,
-                                "policyGeneration": generation.generation,
-                            }),
-                        ),
-                    )?;
-                    (asset.asset_id, asset.lifecycle_generation, None)
-                }
-                Some(asset_id) => {
-                    // Retry: the same-asset successor path. The asset must be
-                    // pending (ready/rejected/deleted admit no attempts), the
-                    // same intent, and the caller's fresh admission must
-                    // produce the same owner.
-                    let asset = assets::load_asset(tx, asset_id)?.ok_or_else(|| {
-                        SnapbackError::error(
-                            "SNAPBACK_ASSET_UNKNOWN",
-                            "assets",
-                            format!("unknown asset {asset_id}"),
-                        )
-                    })?;
-                    if asset.availability != assets::AssetAvailability::Pending {
-                        return Err(SnapbackError::error(
-                            "SNAPBACK_ASSET_ATTEMPT_TERMINAL",
-                            "assets",
-                            "attempts exist only for pending assets; replacement is a new asset",
-                        ));
-                    }
-                    if asset.intent_id != intent.id || asset.owner_principal != run.owner {
-                        return Err(SnapbackError::error(
-                            "SNAPBACK_ASSET_ATTACH_DENIED",
-                            "assets",
-                            "retry does not admit this caller for this asset",
-                        ));
-                    }
-                    let predecessor = match assets::current_attempt(tx, asset_id)? {
-                        Some(mut current) => {
-                            // Supersession: predecessor cancels in the same
-                            // transaction that opens the successor; its
-                            // staging object is fenced after commit (the key
-                            // is unique and never reused).
-                            assets::transition_attempt(
-                                tx,
-                                &mut current,
-                                assets::AssetAttemptState::Cancelled,
-                                now,
-                            )?;
-                            assets::write_receipt(
-                                tx,
-                                &asset_receipt(
-                                    &lineage,
-                                    assets::AssetReceiptEventV1::AttemptCancelled,
-                                    asset_id,
-                                    Some(&current.attempt_id),
-                                    now,
-                                    serde_json::json!({ "superseded": true }),
-                                ),
-                            )?;
-                            Some(current)
-                        }
-                        None => None,
-                    };
-                    (asset.asset_id.clone(), asset.lifecycle_generation, predecessor)
-                }
-            };
-
-            let attempt = assets::AssetAttemptRecordV1 {
-                attempt_id: crate::assets::AssetFsStore::new_opaque_key(),
-                predecessor_attempt_id: predecessor
-                    .as_ref()
-                    .map(|attempt| attempt.attempt_id.clone()),
-                asset_id: asset_id.clone(),
-                app_id: app_id.clone(),
-                intent_id: intent.id.clone(),
-                lifecycle_generation,
-                state: assets::AssetAttemptState::Open,
-                staging_key: crate::assets::AssetFsStore::new_opaque_key(),
-                declared_filename: request.declared_filename.clone(),
-                declared_length,
-                declared_content_type: request.declared_content_type.clone(),
-                acknowledged_offset: 0,
-                integrity_grade: assets::AssetIntegrityGrade::ReceivedBytesCanonical,
-                all_chunks_checksummed: true,
-                admission: assets::AssetAdmissionV1 {
-                    intent_policy_hash: intent.intent_policy_hash.clone(),
-                    implementation_hash: Some(deployed_implementation_hash.to_owned()),
-                    policy_generation: generation.generation,
-                    owner_principal: run.owner.clone(),
-                    auth: auth_pair.clone(),
-                    witness: witness.clone(),
-                    args: request.args.clone(),
-                },
-                expires_at_ms: now + assets::ASSET_ATTEMPT_TTL_MS,
-                created_at_ms: now,
-                updated_at_ms: now,
-                failure: None,
-            };
-            assets::insert_attempt(tx, &attempt)?;
-            assets::write_receipt(
-                tx,
-                &asset_receipt(
-                    &lineage,
-                    assets::AssetReceiptEventV1::AttemptCreated,
-                    &asset_id,
-                    Some(&attempt.attempt_id),
-                    now,
-                    serde_json::json!({ "declaredLength": declared_length }),
-                ),
-            )?;
-            Ok((attempt, predecessor))
-        })?;
+        let response = self.db.asset_attempts().attempt_create(
+            &intent,
+            deployed_implementation_hash,
+            &intent_artifact_json,
+            now,
+            &app_id,
+            app_quota,
+            &caller,
+            declared_length,
+            &request,
+            &run.owner,
+            &auth_pair,
+            &witness,
+        )?;
         let (attempt, predecessor) = response;
         if let Some(predecessor) = &predecessor {
             // Store-side fencing: the superseded attempt's staging object is
@@ -8479,7 +8302,8 @@ impl LocalSnapback {
             .collect::<String>();
         let lifecycle_generation = self
             .db
-            .asset_transaction(|tx| crate::assets::load_attempt(tx, &attempt_id))?
+            .asset_attempts()
+            .attempt_ingest_load(&attempt_id)?
             .ok_or_else(|| {
                 SnapbackError::error(
                     "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
@@ -8818,66 +8642,10 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         request: crate::assets::AssetAttemptCancelRequestV1,
     ) -> SnapbackResult<crate::assets::AssetTaskStateV1> {
-        use crate::assets;
         // Enforces caller lineage and lazy expiry before the cancel proper.
         self.asset_attempt_for_caller(authority, &request.attempt_id)?;
         let now = now_millis();
-        let (attempt, asset) = self.db.asset_transaction(|tx| {
-            let mut attempt = assets::load_attempt(tx, &request.attempt_id)?.ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
-                    "assets",
-                    format!("unknown attempt {}", request.attempt_id),
-                )
-            })?;
-            if attempt.lifecycle_generation != request.lifecycle_generation {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_GENERATION_STALE",
-                    "assets",
-                    "the request carries a stale lifecycle generation",
-                ));
-            }
-            let mut asset = assets::load_asset(tx, &attempt.asset_id)?;
-            if attempt.state.is_current() {
-                assets::transition_attempt(
-                    tx,
-                    &mut attempt,
-                    assets::AssetAttemptState::Cancelled,
-                    now,
-                )?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &attempt.attempt_id.clone(),
-                        assets::AssetReceiptEventV1::AttemptCancelled,
-                        &attempt.asset_id,
-                        Some(&attempt.attempt_id),
-                        now,
-                        serde_json::json!({ "discardAsset": request.discard_asset }),
-                    ),
-                )?;
-            }
-            if request.discard_asset
-                && let Some(record) = asset.as_mut()
-                && record.availability == assets::AssetAvailability::Pending
-            {
-                // Explicit cancel-and-discard: pending → deleted without
-                // waiting out the grace period (LLP 0044 §Deletion).
-                assets::transition_asset(tx, record, assets::AssetAvailability::Deleted, now)?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &attempt.attempt_id.clone(),
-                        assets::AssetReceiptEventV1::AssetDeleted,
-                        &attempt.asset_id,
-                        Some(&attempt.attempt_id),
-                        now,
-                        serde_json::json!({ "cause": "cancel-and-discard" }),
-                    ),
-                )?;
-            }
-            Ok((attempt, asset))
-        })?;
+        let (attempt, asset) = self.db.asset_attempts().attempt_cancel(&request, now)?;
         self.asset_store_obj()?
             .delete_staging_pair(&attempt.staging_key)?;
         Ok(asset_task_state(&attempt, asset.as_ref()))
@@ -8961,28 +8729,12 @@ impl LocalSnapback {
         store.append_staging(&attempt.staging_key, offset, chunk)?;
 
         let now = now_millis();
-        let attempt = self.db.asset_transaction(|tx| {
-            let mut attempt = assets::load_attempt(tx, attempt_id)?.ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
-                    "assets",
-                    format!("unknown attempt {attempt_id}"),
-                )
-            })?;
-            if attempt.state == assets::AssetAttemptState::Open {
-                assets::transition_attempt(
-                    tx,
-                    &mut attempt,
-                    assets::AssetAttemptState::Transferring,
-                    now,
-                )?;
-            }
-            attempt.acknowledged_offset = new_offset;
-            attempt.all_chunks_checksummed = all_checksummed;
-            attempt.updated_at_ms = now;
-            assets::store_attempt(tx, &attempt)?;
-            Ok(attempt)
-        })?;
+        let attempt = self.db.asset_attempts().attempt_tus_patch(
+            attempt_id,
+            new_offset,
+            all_checksummed,
+            now,
+        )?;
         Ok(attempt)
     }
 
@@ -9052,15 +8804,12 @@ impl LocalSnapback {
         app_id: &str,
         prepared: &crate::assets::AssetVariantPreparation,
     ) -> SnapbackResult<AssetPreparedVariant> {
-        use crate::assets;
         let now = now_millis();
-        let mut publication = {
-            let mut record = asset_planned_publication(app_id, "variant", &prepared.digest, now);
-            record.attempt_id = None;
-            record
-        };
-        self.db
-            .asset_transaction(|tx| assets::insert_publication(tx, &publication))?;
+        let mut publication = self.db.asset_attempts().stage_prepared_variant_plan(
+            app_id,
+            &prepared.digest,
+            now,
+        )?;
         store.put_blob_idempotent(&publication.planned_key, &prepared.rendered)?;
         let copied = store.hash(crate::assets_store::AssetObjectRef::Blob(
             &publication.planned_key,
@@ -9073,14 +8822,9 @@ impl LocalSnapback {
                 "the published variant object did not verify",
             ));
         }
-        self.db.asset_transaction(|tx| {
-            assets::transition_publication(
-                tx,
-                &mut publication,
-                assets::AssetPublicationState::Staged,
-                now_millis(),
-            )
-        })?;
+        self.db
+            .asset_attempts()
+            .stage_prepared_variant_commit_staged(&mut publication)?;
         Ok(AssetPreparedVariant {
             key: prepared.key.clone(),
             width: prepared.width,
@@ -9111,7 +8855,8 @@ impl LocalSnapback {
         if attempt.state == assets::AssetAttemptState::Complete {
             let asset = self
                 .db
-                .asset_transaction(|tx| assets::load_asset(tx, &attempt.asset_id))?;
+                .asset_attempts()
+                .attempt_finalize_load_asset(&attempt.asset_id)?;
             return Ok(crate::assets::AssetFinalizeResponseV1 {
                 task: asset_task_state(&attempt, asset.as_ref()),
             });
@@ -9181,13 +8926,11 @@ impl LocalSnapback {
                 intent.clone()
             } else {
                 self.db
-                    .asset_transaction(|tx| {
-                        assets::load_intent_artifact(
-                            tx,
-                            &attempt.intent_id,
-                            attempt.admission.policy_generation,
-                        )
-                    })?
+                    .asset_attempts()
+                    .attempt_finalize_load_intent_artifact(
+                        &attempt.intent_id,
+                        attempt.admission.policy_generation,
+                    )?
                     .and_then(|json| serde_json::from_str(&json).ok())
                     .filter(|retained: &crate::manifest::AssetUploadIntentDefinition| {
                         retained.intent_policy_hash == attempt.admission.intent_policy_hash
@@ -9213,21 +8956,10 @@ impl LocalSnapback {
         // fact the attempt finalizes under.
         let on_ready: Option<String> = frozen_intent.on.as_ref().and_then(|on| on.ready.clone());
 
-        let revoked = self.db.asset_transaction(|tx| {
-            use rusqlite::OptionalExtension as _;
-            let generation: Option<(u64, bool)> = tx
-                .query_row(
-                    "SELECT generation, revoked
-                     FROM _snapback_asset_intent_generations_v1 WHERE intent_id = ?1",
-                    [&attempt.intent_id],
-                    |row| Ok((row.get(0)?, row.get::<_, i64>(1)? != 0)),
-                )
-                .optional()?;
-            Ok(matches!(
-                generation,
-                Some((generation, true)) if generation == attempt.admission.policy_generation
-            ))
-        })?;
+        let revoked = self.db.asset_attempts().attempt_finalize_generation_revoked(
+            &attempt.intent_id,
+            attempt.admission.policy_generation,
+        )?;
         if revoked {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_INTENT_REVOKED",
@@ -9303,53 +9035,12 @@ impl LocalSnapback {
         let app_id = self.functions.app_id.clone();
         let attempt_id = attempt.attempt_id.clone();
         let digest = canonical.digest.clone();
-        let mut publication = self.db.asset_transaction(|tx| {
-            let mut record = assets::load_attempt(tx, &attempt_id)?.ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
-                    "assets",
-                    format!("unknown attempt {attempt_id}"),
-                )
-            })?;
-            if record.state != assets::AssetAttemptState::Finalizing {
-                assets::transition_attempt(
-                    tx,
-                    &mut record,
-                    assets::AssetAttemptState::Finalizing,
-                    now,
-                )?;
-            }
-            match assets::open_publication_for_attempt(tx, &attempt_id)? {
-                Some(existing) if existing.digest == digest => Ok(existing),
-                Some(mut divergent) => {
-                    // A re-drive can only carry the same staged bytes; a
-                    // divergent digest means the record belongs to bytes that
-                    // no longer exist. Condemn it and plan afresh.
-                    assets::transition_publication(
-                        tx,
-                        &mut divergent,
-                        assets::AssetPublicationState::Condemned,
-                        now,
-                    )?;
-                    assets::enqueue_work(
-                        tx,
-                        "condemned-object-cleanup",
-                        &record.asset_id,
-                        Some(&attempt_id),
-                        record.lifecycle_generation,
-                        now,
-                    )?;
-                    let planned = asset_planned_publication(&app_id, &attempt_id, &digest, now);
-                    assets::insert_publication(tx, &planned)?;
-                    Ok(planned)
-                }
-                None => {
-                    let planned = asset_planned_publication(&app_id, &attempt_id, &digest, now);
-                    assets::insert_publication(tx, &planned)?;
-                    Ok(planned)
-                }
-            }
-        })?;
+        let mut publication = self.db.asset_attempts().attempt_finalize_commit_plan(
+            &app_id,
+            &attempt_id,
+            &digest,
+            now,
+        )?;
         if crash_after == Some(AssetFinalizeCrashPoint::AfterPlanned) {
             return Err(asset_test_crash());
         }
@@ -9375,26 +9066,10 @@ impl LocalSnapback {
 
         // Phase C — the object write is acknowledged: `planned → staged`.
         if publication.state == assets::AssetPublicationState::Planned {
-            publication = self.db.asset_transaction(|tx| {
-                let mut record = assets::open_publication_for_attempt(tx, &attempt_id)?
-                    .filter(|record| record.publication_id == publication.publication_id)
-                    .ok_or_else(|| {
-                        SnapbackError::error(
-                            "SNAPBACK_ASSET_RECORD_INVALID",
-                            "assets",
-                            "the publication record disappeared mid-finalization",
-                        )
-                    })?;
-                if record.state == assets::AssetPublicationState::Planned {
-                    assets::transition_publication(
-                        tx,
-                        &mut record,
-                        assets::AssetPublicationState::Staged,
-                        now,
-                    )?;
-                }
-                Ok(record)
-            })?;
+            publication = self
+                .db
+                .asset_attempts()
+                .attempt_finalize_commit_staged(&attempt_id, &publication, now)?;
         }
         if crash_after == Some(AssetFinalizeCrashPoint::AfterStaged) {
             return Err(asset_test_crash());
@@ -9489,341 +9164,30 @@ impl LocalSnapback {
             let digest_value = digest.clone();
             let required_variants = prepared_required.clone();
             let optional_keys = optional_variants.clone();
-            let publish_attempt = self.db.asset_transaction(|tx| {
-                let mut record = assets::load_attempt(tx, &attempt_id)?.ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
-                        "assets",
-                        format!("unknown attempt {attempt_id}"),
-                    )
-                })?;
-                if record.state != assets::AssetAttemptState::Finalizing {
-                    return Err(asset_terminal_error(&record));
-                }
-                if !auth_moved {
-                    match crate::storage::validate_asset_witness(
-                        tx,
-                        &schema,
-                        &witness_input,
-                        &witness_snapshot,
-                    ) {
-                        Ok(()) => {}
-                        Err(error) if error.diagnostic.code == "SNAPBACK_MUTATION_CONFLICT" => {
-                            return Ok(AssetPublishOutcome::WitnessMoved);
-                        }
-                        Err(error) => return Err(error),
-                    }
-                } else {
-                    return Ok(AssetPublishOutcome::WitnessMoved);
-                }
-
-                let mut publication = assets::open_publication_for_attempt(tx, &attempt_id)?
-                    .filter(|found| found.publication_id == publication_id)
-                    .ok_or_else(|| {
-                        SnapbackError::error(
-                            "SNAPBACK_ASSET_RECORD_INVALID",
-                            "assets",
-                            "the publication record disappeared mid-finalization",
-                        )
-                    })?;
-
-                let blob_record = assets::AssetBlobRecordV1 {
-                    blob_id: assets::AssetFsStore::new_opaque_key(),
-                    app_id: app.clone(),
-                    store: assets::ASSET_STORE_LOCAL_FS.to_owned(),
-                    physical_key: publication.planned_key.clone(),
-                    byte_length: canonical_length,
-                    detected_content_type: detected_type.clone(),
-                    digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
-                    digest: digest_value.clone(),
-                    canonicalization_policy: canonical_policy.to_owned(),
-                    created_at_ms: now,
-                };
-                let (blob_id, reused) = match assets::insert_blob(tx, &blob_record, now) {
-                    Ok(assets::BlobInsertOutcome::Created) => {
-                        publication.blob_id = Some(blob_record.blob_id.clone());
-                        assets::transition_publication(
-                            tx,
-                            &mut publication,
-                            assets::AssetPublicationState::Committed,
-                            now,
-                        )?;
-                        (blob_record.blob_id.clone(), false)
-                    }
-                    Ok(assets::BlobInsertOutcome::ConvergedOnWinner { blob_id }) => {
-                        // Dedup or a lost uniqueness race: adopt the winner,
-                        // condemn our own record; its object is tracked
-                        // cleanup, never a silent orphan.
-                        assets::transition_publication(
-                            tx,
-                            &mut publication,
-                            assets::AssetPublicationState::Condemned,
-                            now,
-                        )?;
-                        assets::enqueue_work(
-                            tx,
-                            "condemned-object-cleanup",
-                            &record.asset_id,
-                            Some(&attempt_id),
-                            record.lifecycle_generation,
-                            now,
-                        )?;
-                        (blob_id, true)
-                    }
-                    Err(error) if error.diagnostic.code == "SNAPBACK_ASSET_BLOB_CONDEMNED_RACE" => {
-                        // The identity slot is held by a condemned row: the
-                        // retry-under-fresh-key path deletes it, records its
-                        // orphaned object as a condemned publication, and
-                        // publishes our own object.
-                        if let Some(orphan_key) = assets::resolve_condemned_identity(
-                            tx,
-                            &app,
-                            assets::ASSET_DIGEST_ALGORITHM_SHA256,
-                            &digest_value,
-                            canonical_policy,
-                        )? {
-                            let orphan = assets::AssetPublicationRecordV1 {
-                                publication_id: assets::AssetFsStore::new_opaque_key(),
-                                app_id: app.clone(),
-                                attempt_id: Some(attempt_id.clone()),
-                                planned_key: orphan_key,
-                                digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
-                                digest: digest_value.clone(),
-                                canonicalization_policy: canonical_policy.to_owned(),
-                                state: assets::AssetPublicationState::Condemned,
-                                generation: record.lifecycle_generation,
-                                blob_id: None,
-                                created_at_ms: now,
-                                updated_at_ms: now,
-                            };
-                            assets::insert_publication(tx, &orphan)?;
-                            assets::enqueue_work(
-                                tx,
-                                "condemned-object-cleanup",
-                                &record.asset_id,
-                                Some(&attempt_id),
-                                record.lifecycle_generation,
-                                now,
-                            )?;
-                        }
-                        match assets::insert_blob(tx, &blob_record, now)? {
-                            assets::BlobInsertOutcome::Created => {}
-                            assets::BlobInsertOutcome::ConvergedOnWinner { .. } => {
-                                return Err(SnapbackError::error(
-                                    "SNAPBACK_ASSET_BLOB_CONDEMNED_RACE",
-                                    "assets",
-                                    "blob identity remained contended after condemned-row \
-                                     resolution",
-                                ));
-                            }
-                        }
-                        publication.blob_id = Some(blob_record.blob_id.clone());
-                        assets::transition_publication(
-                            tx,
-                            &mut publication,
-                            assets::AssetPublicationState::Committed,
-                            now,
-                        )?;
-                        (blob_record.blob_id.clone(), false)
-                    }
-                    Err(error) => return Err(error),
-                };
-
-                // The primary rendition is the publication in v1; required
-                // renditions gate `ready`, and the primary is the only (and
-                // required) member until the image pipeline ships.
-                let rendition = assets::AssetRenditionRecordV1 {
-                    rendition_id: assets::AssetFsStore::new_opaque_key(),
-                    asset_id: record.asset_id.clone(),
-                    variant_key: assets::ASSET_RENDITION_PRIMARY.to_owned(),
-                    blob_id: blob_id.clone(),
-                    state: assets::AssetRenditionState::Ready,
-                    recipe: assets::ASSET_RENDITION_PRIMARY.to_owned(),
-                    recipe_version: 1,
-                    media_facts: Some({
-                        let mut facts = serde_json::json!({
-                            "contentType": detected_type,
-                            "byteLength": canonical_length,
-                            // Metadata only, sanitized here; never a
-                            // physical key.
-                            "filename": assets::sanitize_filename(
-                                attempt.declared_filename.as_deref(),
-                            ),
-                        });
-                        facts
-                            .as_object_mut()
-                            .expect("json object")
-                            .extend(image_facts.clone());
-                        facts
-                    }),
-                    created_at_ms: now,
-                    updated_at_ms: now,
-                    failure: None,
-                };
-                assets::insert_rendition(tx, &rendition)?;
-
-                let mut committed_variants: Vec<(String, String)> = Vec::new();
-                for prepared in &required_variants {
-                    match asset_commit_prepared_variant(
-                        tx,
-                        &app,
-                        &record.asset_id,
-                        prepared,
-                        app_quota,
-                        now,
-                    )? {
-                        AssetVariantCommit::Committed { rendition_id, .. } => {
-                            committed_variants.push((prepared.key.clone(), rendition_id));
-                        }
-                        AssetVariantCommit::AlreadyCurrent | AssetVariantCommit::StaleLost => {}
-                        AssetVariantCommit::QuotaRefused => {
-                            // Err aborts the transaction whole: required
-                            // renditions are part of the asset-ready
-                            // contract, so nothing publishes.
-                            return Err(SnapbackError::error(
-                                "SNAPBACK_ASSET_QUOTA_EXCEEDED",
-                                "assets",
-                                "a required rendition's settlement would exceed the app quota",
-                            )
-                            .with_details(serde_json::json!({
-                                "variantKey": prepared.key,
-                            })));
-                        }
-                    }
-                }
-
-                let mut asset = assets::load_asset(tx, &record.asset_id)?.ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_ASSET_UNKNOWN",
-                        "assets",
-                        format!("unknown asset {}", record.asset_id),
-                    )
-                })?;
-                asset.primary_rendition_id = Some(rendition.rendition_id.clone());
-                assets::transition_asset(tx, &mut asset, assets::AssetAvailability::Ready, now)?;
-                // A never-attached upload starts its reference-GC grace
-                // clock at publication; any attachment clears it.
-                assets::mark_unreferenced_if_edgeless(tx, &record.asset_id, now)?;
-                // The declared ready callback enqueues transactionally with
-                // the transition it observes (LLP 0044 §Processing runner:
-                // a row enqueues in the same transaction as the transition
-                // that requires it), under the frozen admitted policy.
-                if let Some(handler) = on_ready.as_deref() {
-                    assets::enqueue_work_with_params(
-                        tx,
-                        assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK,
-                        &record.asset_id,
-                        None,
-                        asset.lifecycle_generation,
-                        now,
-                        Some(serde_json::json!({
-                            "event": "ready",
-                            "handler": handler,
-                        })),
-                    )?;
-                }
-
-                // Optional variants enqueue transactionally with `ready`,
-                // carrying the post-transition generation so the runner's
-                // claim fence admits them.
-                for variant in &optional_keys {
-                    assets::enqueue_work_with_params(
-                        tx,
-                        assets::ASSET_WORK_KIND_IMAGE_VARIANT,
-                        &record.asset_id,
-                        None,
-                        asset.lifecycle_generation,
-                        now,
-                        Some(serde_json::json!({
-                            "key": variant.key,
-                            "width": variant.width,
-                            "recipeVersion": 1,
-                            "contentType": detected_type,
-                        })),
-                    )?;
-                }
-
-                record.integrity_grade = grade;
-                assets::transition_attempt(
-                    tx,
-                    &mut record,
-                    assets::AssetAttemptState::Complete,
+            let publish_attempt = self
+                .db
+                .asset_attempts()
+                .attempt_finalize_commit_completion(
+                    &attempt,
+                    attempt_id.clone(),
+                    publication_id,
+                    &schema,
+                    &witness_input,
+                    witness_snapshot,
+                    auth_moved,
+                    canonical_length,
+                    canonical_policy,
+                    image_facts,
+                    detected_type,
+                    app,
+                    digest_value,
+                    required_variants,
+                    optional_keys,
+                    app_quota,
+                    &on_ready,
+                    grade,
                     now,
-                )?;
-
-                let lineage = attempt_id.clone();
-                for (event, details) in [
-                    (
-                        assets::AssetReceiptEventV1::BytesVerified,
-                        serde_json::json!({
-                            "integrityGrade": grade,
-                            "detectedContentType": detected_type,
-                            "byteLength": canonical_length,
-                            "canonicalizationPolicy": canonical_policy,
-                        }),
-                    ),
-                    (
-                        if reused {
-                            assets::AssetReceiptEventV1::BlobReused
-                        } else {
-                            assets::AssetReceiptEventV1::BlobCreated
-                        },
-                        serde_json::json!({ "blobId": blob_id }),
-                    ),
-                    (
-                        assets::AssetReceiptEventV1::RenditionProduced,
-                        serde_json::json!({
-                            "renditionId": rendition.rendition_id,
-                            "variantKey": assets::ASSET_RENDITION_PRIMARY,
-                        }),
-                    ),
-                    (
-                        assets::AssetReceiptEventV1::AssetReady,
-                        serde_json::json!({
-                            "lifecycleGeneration": asset.lifecycle_generation,
-                            "locationPolicy": image_facts.get("locationPolicy"),
-                        }),
-                    ),
-                    (
-                        assets::AssetReceiptEventV1::AttemptCompleted,
-                        serde_json::json!({ "integrityGrade": grade }),
-                    ),
-                ] {
-                    assets::write_receipt(
-                        tx,
-                        &asset_receipt(
-                            &lineage,
-                            event,
-                            &record.asset_id,
-                            Some(&attempt_id),
-                            now,
-                            details,
-                        ),
-                    )?;
-                }
-                for (variant_key, rendition_id) in &committed_variants {
-                    assets::write_receipt(
-                        tx,
-                        &asset_receipt(
-                            &lineage,
-                            assets::AssetReceiptEventV1::RenditionProduced,
-                            &record.asset_id,
-                            Some(&attempt_id),
-                            now,
-                            serde_json::json!({
-                                "renditionId": rendition_id,
-                                "variantKey": variant_key,
-                                "required": true,
-                            }),
-                        ),
-                    )?;
-                }
-                Ok(AssetPublishOutcome::Published {
-                    attempt: Box::new(record),
-                    asset: Box::new(asset),
-                    reused,
-                })
-            });
+                );
             let result = match publish_attempt {
                 Ok(result) => result,
                 Err(error) if error.diagnostic.code == "SNAPBACK_ASSET_QUOTA_EXCEEDED" => {
@@ -9940,19 +9304,9 @@ impl LocalSnapback {
         }
         let attempt_ref = final_attempt.attempt_id.clone();
         let asset_ref = final_attempt.asset_id.clone();
-        self.db.asset_transaction(|tx| {
-            assets::write_receipt(
-                tx,
-                &asset_receipt(
-                    &attempt_ref,
-                    assets::AssetReceiptEventV1::StagingCleaned,
-                    &asset_ref,
-                    Some(&attempt_ref),
-                    now_millis(),
-                    serde_json::json!({}),
-                ),
-            )
-        })?;
+        self.db
+            .asset_attempts()
+            .attempt_finalize_commit_staging_cleaned(&attempt_ref, &asset_ref)?;
 
         Ok(crate::assets::AssetFinalizeResponseV1 {
             task: asset_task_state(&final_attempt, Some(&final_asset)),
@@ -9970,7 +9324,6 @@ impl LocalSnapback {
         asset_outcome: crate::assets::AssetAvailability,
         refusal: SnapbackError,
     ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
-        use crate::assets;
         let now = now_millis();
         let attempt_id = attempt.attempt_id.clone();
         // The rejected callback resolves from the deployed intent; a removed
@@ -9984,75 +9337,13 @@ impl LocalSnapback {
             "code": refusal.diagnostic.code,
             "message": refusal.diagnostic.message,
         });
-        let staging_key = self.db.asset_transaction(|tx| {
-            let mut record = assets::load_attempt(tx, &attempt_id)?.ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
-                    "assets",
-                    format!("unknown attempt {attempt_id}"),
-                )
-            })?;
-            record.failure = Some(refusal_facts.clone());
-            assets::transition_attempt(tx, &mut record, assets::AssetAttemptState::Failed, now)?;
-            assets::write_receipt(
-                tx,
-                &asset_receipt(
-                    &attempt_id,
-                    assets::AssetReceiptEventV1::BytesRejected,
-                    &record.asset_id,
-                    Some(&attempt_id),
-                    now,
-                    refusal_facts.clone(),
-                ),
-            )?;
-            assets::write_receipt(
-                tx,
-                &asset_receipt(
-                    &attempt_id,
-                    assets::AssetReceiptEventV1::AttemptFailed,
-                    &record.asset_id,
-                    Some(&attempt_id),
-                    now,
-                    refusal_facts.clone(),
-                ),
-            )?;
-            if asset_outcome == assets::AssetAvailability::Rejected {
-                let mut asset = assets::load_asset(tx, &record.asset_id)?.ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_ASSET_UNKNOWN",
-                        "assets",
-                        format!("unknown asset {}", record.asset_id),
-                    )
-                })?;
-                assets::transition_asset(tx, &mut asset, assets::AssetAvailability::Rejected, now)?;
-                assets::write_receipt(
-                    tx,
-                    &asset_receipt(
-                        &attempt_id,
-                        assets::AssetReceiptEventV1::AssetRejected,
-                        &record.asset_id,
-                        Some(&attempt_id),
-                        now,
-                        refusal_facts.clone(),
-                    ),
-                )?;
-                if let Some(handler) = on_rejected.as_deref() {
-                    assets::enqueue_work_with_params(
-                        tx,
-                        assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK,
-                        &record.asset_id,
-                        Some(&attempt_id),
-                        asset.lifecycle_generation,
-                        now,
-                        Some(serde_json::json!({
-                            "event": "rejected",
-                            "handler": handler,
-                        })),
-                    )?;
-                }
-            }
-            Ok(record.staging_key.clone())
-        })?;
+        let staging_key = self.db.asset_attempts().attempt_fail(
+            &attempt_id,
+            asset_outcome,
+            &refusal_facts,
+            on_rejected.as_deref(),
+            now,
+        )?;
         self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
         Err(refusal)
     }
@@ -10249,45 +9540,20 @@ impl LocalSnapback {
             ));
         };
         let key = format!("w{width}");
-        let already = self.db.asset_transaction(|tx| {
-            Ok(assets::load_rendition_by_variant(tx, asset_id, &key)?
-                .filter(|r| r.state == assets::AssetRenditionState::Ready)
-                .is_some())
-        })?;
+        let already = self
+            .db
+            .asset_attempts()
+            .resolve_width_variant_is_ready(asset_id, &key)?;
         if already {
             return Ok(key);
         }
         let app_id = self.functions.app_id.clone();
         let app_quota = self.asset_app_quota();
         let store = self.asset_store_obj()?;
-        let (primary_key, content_type) = self.db.asset_transaction(|tx| {
-            let asset = assets::load_asset(tx, asset_id)?.ok_or_else(asset_unknown(asset_id))?;
-            let rendition_id = asset.primary_rendition_id.as_deref().ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_NOT_READY",
-                    "assets",
-                    "the asset has no primary rendition to derive from",
-                )
-            })?;
-            let primary = assets::load_rendition(tx, rendition_id)?.ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_RECORD_INVALID",
-                    "assets",
-                    "the primary rendition record is missing",
-                )
-            })?;
-            let blob = assets::load_blob_live(tx, &primary.blob_id)?
-                .filter(|blob| !blob.condemned)
-                .map(|blob| blob.record)
-                .ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                        "assets",
-                        "the primary blob is not available",
-                    )
-                })?;
-            Ok((blob.physical_key, blob.detected_content_type))
-        })?;
+        let (primary_key, content_type) = self
+            .db
+            .asset_attempts()
+            .resolve_width_variant_primary(asset_id)?;
         let canonical_bytes =
             store.read(crate::assets_store::AssetObjectRef::Blob(&primary_key))?;
         let variant = crate::manifest::AssetImageVariant {
@@ -10304,37 +9570,13 @@ impl LocalSnapback {
             1,
         )?;
         let now_ms = now_millis();
-        self.db.asset_transaction(|tx| {
-            match asset_commit_prepared_variant(
-                tx, &app_id, asset_id, &prepared, app_quota, now_ms,
-            )? {
-                AssetVariantCommit::Committed { rendition_id, .. } => {
-                    assets::write_receipt(
-                        tx,
-                        &asset_receipt(
-                            asset_id,
-                            assets::AssetReceiptEventV1::RenditionProduced,
-                            asset_id,
-                            None,
-                            now_ms,
-                            serde_json::json!({
-                                "renditionId": rendition_id,
-                                "variantKey": prepared.key,
-                                "onDemand": true,
-                            }),
-                        ),
-                    )?;
-                    Ok(())
-                }
-                AssetVariantCommit::QuotaRefused => Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_QUOTA_EXCEEDED",
-                    "assets",
-                    "materializing the requested width would exceed the app quota",
-                )),
-                // Concurrent firsts converge on one winner.
-                AssetVariantCommit::AlreadyCurrent | AssetVariantCommit::StaleLost => Ok(()),
-            }
-        })?;
+        self.db.asset_attempts().resolve_width_variant_commit(
+            &app_id,
+            asset_id,
+            &prepared,
+            app_quota,
+            now_ms,
+        )?;
         Ok(key)
     }
 
@@ -11077,9 +10319,10 @@ impl LocalSnapback {
             // the same observation).
             assets::ASSET_WORK_KIND_CONDEMNED_CLEANUP => {
                 let store = self.asset_store_obj()?;
-                let condemned = self.db.asset_transaction(|tx| {
-                    assets::publications_in_state(tx, assets::AssetPublicationState::Condemned)
-                })?;
+                let condemned = self
+                    .db
+                    .asset_attempts()
+                    .work_condemned_publications()?;
                 for record in condemned
                     .iter()
                     .filter(|record| record.attempt_id.as_deref() == row.attempt_id.as_deref())
@@ -11125,17 +10368,10 @@ impl LocalSnapback {
                         "lifecycle-callback work carries no usable params",
                     ));
                 };
-                let (asset, renditions) = self.db.asset_transaction(|tx| {
-                    let asset = crate::assets::load_asset(tx, &row.asset_id)?.ok_or_else(|| {
-                        SnapbackError::error(
-                            "SNAPBACK_ASSET_UNKNOWN",
-                            "assets",
-                            format!("unknown asset {}", row.asset_id),
-                        )
-                    })?;
-                    let renditions = crate::assets::renditions_for_asset(tx, &row.asset_id)?;
-                    Ok((asset, renditions))
-                })?;
+                let (asset, renditions) = self
+                    .db
+                    .asset_attempts()
+                    .work_lifecycle_callback_facts(&row.asset_id)?;
                 let facts = serde_json::json!({
                     "intentId": asset.intent_id,
                     "availability": asset.availability,
@@ -11244,52 +10480,18 @@ impl LocalSnapback {
                 let store = self.asset_store_obj()?;
                 let asset_id = row.asset_id.clone();
 
-                let already = self.db.asset_transaction(|tx| {
-                    Ok(assets::load_rendition_by_variant(tx, &asset_id, &key)?
-                        .filter(|r| {
-                            r.state == assets::AssetRenditionState::Ready
-                                && r.recipe == assets::ASSET_RECIPE_IMAGE_VARIANT_V1
-                                && r.recipe_version >= recipe_version
-                        })
-                        .is_some())
-                })?;
+                let already = self.db.asset_attempts().work_image_variant_is_current(
+                    &asset_id,
+                    &key,
+                    recipe_version,
+                )?;
                 if already {
                     return Ok(None);
                 }
-                let primary_key = self.db.asset_transaction(|tx| {
-                    let asset = assets::load_asset(tx, &asset_id)?.ok_or_else(|| {
-                        SnapbackError::error(
-                            "SNAPBACK_ASSET_UNKNOWN",
-                            "assets",
-                            format!("unknown asset {asset_id}"),
-                        )
-                    })?;
-                    let rendition_id = asset.primary_rendition_id.as_deref().ok_or_else(|| {
-                        SnapbackError::error(
-                            "SNAPBACK_ASSET_NOT_READY",
-                            "assets",
-                            "the asset has no primary rendition to derive from",
-                        )
-                    })?;
-                    let primary = assets::load_rendition(tx, rendition_id)?.ok_or_else(|| {
-                        SnapbackError::error(
-                            "SNAPBACK_ASSET_RECORD_INVALID",
-                            "assets",
-                            "the primary rendition record is missing",
-                        )
-                    })?;
-                    let blob = assets::load_blob_live(tx, &primary.blob_id)?
-                        .filter(|blob| !blob.condemned)
-                        .map(|blob| blob.record)
-                        .ok_or_else(|| {
-                            SnapbackError::error(
-                                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                                "assets",
-                                "the primary blob is not available",
-                            )
-                        })?;
-                    Ok(blob.physical_key)
-                })?;
+                let primary_key = self
+                    .db
+                    .asset_attempts()
+                    .work_image_variant_primary_key(&asset_id)?;
                 let canonical_bytes =
                     store.read(crate::assets_store::AssetObjectRef::Blob(&primary_key))?;
                 let variant = crate::manifest::AssetImageVariant {
@@ -11311,82 +10513,26 @@ impl LocalSnapback {
                     // store errors surface for retry.
                     Err(error) if error.diagnostic.code != "SNAPBACK_ASSET_STORE_UNAVAILABLE" => {
                         let work_id = row.work_id.clone();
-                        self.db.asset_transaction(|tx| {
-                            assets::write_receipt(
-                                tx,
-                                &asset_receipt(
-                                    &work_id,
-                                    assets::AssetReceiptEventV1::RenditionFailed,
-                                    &asset_id,
-                                    None,
-                                    now_ms,
-                                    serde_json::json!({
-                                        "variantKey": key,
-                                        "failure": error.diagnostic.code,
-                                    }),
-                                ),
-                            )
-                        })?;
+                        self.db.asset_attempts().work_commit_rendition_failure(
+                            &work_id,
+                            &asset_id,
+                            &key,
+                            &error.diagnostic.code,
+                            now_ms,
+                        )?;
                         return Ok(None);
                     }
                     Err(error) => return Err(error),
                 };
                 let work_id = row.work_id.clone();
-                self.db.asset_transaction(|tx| {
-                    match asset_commit_prepared_variant(
-                        tx, &app_id, &asset_id, &prepared, app_quota, now_ms,
-                    )? {
-                        AssetVariantCommit::Committed { rendition_id, .. } => {
-                            assets::write_receipt(
-                                tx,
-                                &asset_receipt(
-                                    &work_id,
-                                    assets::AssetReceiptEventV1::RenditionProduced,
-                                    &asset_id,
-                                    None,
-                                    now_ms,
-                                    serde_json::json!({
-                                        "renditionId": rendition_id,
-                                        "variantKey": prepared.key,
-                                    }),
-                                ),
-                            )?;
-                        }
-                        AssetVariantCommit::QuotaRefused => {
-                            assets::write_receipt(
-                                tx,
-                                &asset_receipt(
-                                    &work_id,
-                                    assets::AssetReceiptEventV1::RenditionFailed,
-                                    &asset_id,
-                                    None,
-                                    now_ms,
-                                    serde_json::json!({
-                                        "variantKey": prepared.key,
-                                        "failure": "SNAPBACK_ASSET_QUOTA_EXCEEDED",
-                                    }),
-                                ),
-                            )?;
-                        }
-                        AssetVariantCommit::AlreadyCurrent | AssetVariantCommit::StaleLost => {
-                            assets::write_receipt(
-                                tx,
-                                &asset_receipt(
-                                    &work_id,
-                                    assets::AssetReceiptEventV1::RenditionSuperseded,
-                                    &asset_id,
-                                    None,
-                                    now_ms,
-                                    serde_json::json!({
-                                        "variantKey": prepared.key,
-                                        "outcome": "pointer-unchanged",
-                                    }),
-                                ),
-                            )?;
-                        }
-                    }
-                    Ok(())
-                })?;
+                self.db.asset_attempts().work_commit_prepared_variant(
+                    &work_id,
+                    &app_id,
+                    &asset_id,
+                    &prepared,
+                    app_quota,
+                    now_ms,
+                )?;
                 Ok(None)
             }
             #[cfg(test)]
@@ -30458,15 +29604,6 @@ fn asset_test_crash() -> SnapbackError {
     )
 }
 
-enum AssetPublishOutcome {
-    Published {
-        attempt: Box<crate::assets::AssetAttemptRecordV1>,
-        asset: Box<crate::assets::AssetRecordV1>,
-        reused: bool,
-    },
-    WitnessMoved,
-}
-
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
@@ -30709,169 +29846,6 @@ fn asset_delete_cascade(
     Ok(fenced_staging)
 }
 
-fn asset_planned_publication(
-    app_id: &str,
-    attempt_id: &str,
-    digest: &str,
-    now_ms: u64,
-) -> crate::assets::AssetPublicationRecordV1 {
-    crate::assets::AssetPublicationRecordV1 {
-        publication_id: crate::assets::AssetFsStore::new_opaque_key(),
-        app_id: app_id.to_owned(),
-        attempt_id: Some(attempt_id.to_owned()),
-        planned_key: crate::assets::AssetFsStore::new_opaque_key(),
-        digest_algorithm: crate::assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
-        digest: digest.to_owned(),
-        canonicalization_policy: crate::assets::ASSET_CANONICALIZATION_NONE.to_owned(),
-        state: crate::assets::AssetPublicationState::Planned,
-        generation: 1,
-        blob_id: None,
-        created_at_ms: now_ms,
-        updated_at_ms: now_ms,
-    }
-}
-
-/// A rendered variant staged through the write-ahead publication protocol:
-/// the object exists and verifies under a `staged` record; the commit half
-/// (`asset_commit_prepared_variant`) runs inside the publishing transaction.
-#[derive(Clone)]
-struct AssetPreparedVariant {
-    key: String,
-    width: u64,
-    publication: crate::assets::AssetPublicationRecordV1,
-    digest: String,
-    byte_length: u64,
-    content_type: String,
-    recipe_version: u64,
-}
-
-enum AssetVariantCommit {
-    Committed {
-        rendition_id: String,
-    },
-    /// An idempotent re-drive: a Ready same-lineage rendition already holds
-    /// the pointer; our duplicate publication condemns with tracked cleanup.
-    AlreadyCurrent,
-    /// Settlement would exceed the app quota: a structured rendition
-    /// failure, gating `ready` only when the variant is required.
-    QuotaRefused,
-    /// A newer recipe version holds the pointer; the stale run loses and
-    /// its publication condemns.
-    StaleLost,
-}
-
-fn asset_commit_prepared_variant(
-    tx: &rusqlite::Transaction<'_>,
-    app_id: &str,
-    asset_id: &str,
-    prepared: &AssetPreparedVariant,
-    app_quota: u64,
-    now: u64,
-) -> SnapbackResult<AssetVariantCommit> {
-    use crate::assets;
-    let mut publication = prepared.publication.clone();
-    let condemn = |tx: &rusqlite::Transaction<'_>,
-                   publication: &mut assets::AssetPublicationRecordV1|
-     -> SnapbackResult<()> {
-        assets::transition_publication(
-            tx,
-            publication,
-            assets::AssetPublicationState::Condemned,
-            now,
-        )?;
-        assets::enqueue_work(
-            tx,
-            assets::ASSET_WORK_KIND_CONDEMNED_CLEANUP,
-            asset_id,
-            None,
-            0,
-            now,
-        )?;
-        Ok(())
-    };
-
-    let accounting = assets::asset_accounting(tx, app_id)?;
-    let increment = prepared
-        .byte_length
-        .max(assets::ASSET_MIN_ACCOUNTING_UNIT_BYTES);
-    let in_use = accounting
-        .reserved_bytes
-        .saturating_add(accounting.settled_bytes);
-    if in_use.saturating_add(increment) > app_quota {
-        condemn(tx, &mut publication)?;
-        return Ok(AssetVariantCommit::QuotaRefused);
-    }
-
-    let blob_record = assets::AssetBlobRecordV1 {
-        blob_id: assets::AssetFsStore::new_opaque_key(),
-        app_id: app_id.to_owned(),
-        store: assets::ASSET_STORE_LOCAL_FS.to_owned(),
-        physical_key: publication.planned_key.clone(),
-        byte_length: prepared.byte_length,
-        detected_content_type: prepared.content_type.clone(),
-        digest_algorithm: assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
-        digest: prepared.digest.clone(),
-        canonicalization_policy: assets::ASSET_CANONICALIZATION_NONE.to_owned(),
-        created_at_ms: now,
-    };
-    let blob_id = match assets::insert_blob(tx, &blob_record, now)? {
-        assets::BlobInsertOutcome::Created => {
-            publication.blob_id = Some(blob_record.blob_id.clone());
-            assets::transition_publication(
-                tx,
-                &mut publication,
-                assets::AssetPublicationState::Committed,
-                now,
-            )?;
-            blob_record.blob_id.clone()
-        }
-        assets::BlobInsertOutcome::ConvergedOnWinner { blob_id } => {
-            condemn(tx, &mut publication)?;
-            blob_id
-        }
-    };
-
-    let rendition = assets::AssetRenditionRecordV1 {
-        rendition_id: assets::AssetFsStore::new_opaque_key(),
-        asset_id: asset_id.to_owned(),
-        variant_key: prepared.key.clone(),
-        blob_id: blob_id.clone(),
-        state: assets::AssetRenditionState::Ready,
-        recipe: assets::ASSET_RECIPE_IMAGE_VARIANT_V1.to_owned(),
-        recipe_version: prepared.recipe_version,
-        media_facts: Some(serde_json::json!({
-            "contentType": prepared.content_type,
-            "byteLength": prepared.byte_length,
-            "width": prepared.width,
-        })),
-        created_at_ms: now,
-        updated_at_ms: now,
-        failure: None,
-    };
-    match assets::switch_variant_pointer(tx, &rendition, now)? {
-        assets::AssetVariantSwitchOutcome::Installed => Ok(AssetVariantCommit::Committed {
-            rendition_id: rendition.rendition_id,
-        }),
-        outcome @ (assets::AssetVariantSwitchOutcome::AlreadyCurrent
-        | assets::AssetVariantSwitchOutcome::StaleLoses) => {
-            // No rendition row took our reference: whether the blob was
-            // freshly created (refcount 1) or converged onto the winner
-            // (incremented), the acquired reference releases here. A
-            // freshly created blob goes to zero references and blob GC
-            // condemns it through its ordinary transactional path — the
-            // committed publication record retires on retention, it does
-            // not condemn (its closed set has no committed → condemned).
-            assets::release_blob_reference(tx, &blob_id, now)?;
-            Ok(match outcome {
-                assets::AssetVariantSwitchOutcome::AlreadyCurrent => {
-                    AssetVariantCommit::AlreadyCurrent
-                }
-                _ => AssetVariantCommit::StaleLost,
-            })
-        }
-    }
-}
-
 fn asset_receipt(
     lineage: &str,
     event: crate::assets::AssetReceiptEventV1,
@@ -30909,15 +29883,6 @@ fn asset_task_state(
         primary_rendition_id: asset.and_then(|asset| asset.primary_rendition_id.clone()),
         diagnostic: attempt.failure.clone(),
     }
-}
-
-fn asset_ceiling_error(what: &str, limit: u64, observed: u64) -> SnapbackError {
-    SnapbackError::error(
-        "SNAPBACK_ASSET_CEILING_EXCEEDED",
-        "assets",
-        format!("the {what} ceiling is reached"),
-    )
-    .with_details(serde_json::json!({ "limit": limit, "observed": observed }))
 }
 
 fn asset_terminal_error(attempt: &crate::assets::AssetAttemptRecordV1) -> SnapbackError {
