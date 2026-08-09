@@ -44,3 +44,11 @@ Also: refresh the mixedModuleScopes prose for src/local.rs and
 src/manifest.rs (still describes pre-split scopes), and dedup the
 asset_delete_cascade/asset_receipt kernel copies when the delete/finalize
 slices drain the local.rs originals.
+
+**Growth 2026-08-09 (frozen at the slice-4 landing):** eaed8e784 (LLP 0204 S0
+agent registration, concurrent session) added four edges from
+src/storage/auth_agents.rs; two are upward and join item 3's burn-down:
+-> src/auth/provider.rs (StepUpConsumption/StepUpProof/step_up_required_error
+imports; kernel->sync) and -> src/admin.rs (kernel->transport). Inversion:
+move the step-up proof shapes to the leaf and pass the admin dependency down
+as a typed input.

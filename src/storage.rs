@@ -35,6 +35,7 @@ pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
 mod asset_attempts;
 mod asset_maintenance;
+mod asset_reads;
 // The item-3 provider integration consumes these crate-private seams after this
 // catalog lane lands; keep the catalog module narrow without making unfinished
 // provider routes part of the public storage API in this commit.
@@ -45,36 +46,39 @@ mod connections;
 mod jobs;
 pub mod migration_executor;
 mod migration_scan;
+mod membership_reads;
 mod projection_rebuild;
 mod schema_transition;
 
 pub use asset_attempts::{AssetAttemptsKernel, AssetPreparedVariant, AssetPublishOutcome};
 pub use asset_maintenance::AssetMaintenanceKernel;
-use connections::registered_writer_coverage_manifest;
+pub use asset_reads::{AssetDelivery, AssetDeliveryOutcome, AssetReadsKernel};
 pub use connections::{PooledReader, ReaderPool};
-#[allow(unused_imports)] // Preserve the pre-split crate::storage surface.
-pub(crate) use connections::{
-    RegisteredSystemWriterPurposeV1, RegisteredSystemWriterV1, open_registered_system_writer_v1,
-};
 pub use jobs::{JobsKernel, JobsReadKernel};
-pub(crate) use migration_scan::migration_keyset_scan_batch_on;
 pub use migration_scan::{
     MIGRATION_SCAN_CHECKPOINT_VERSION, MIGRATION_SCAN_MAX_BATCH_BYTES,
     MIGRATION_SCAN_MAX_BATCH_MILLIS, MIGRATION_SCAN_MAX_BATCH_ROWS, MigrationKeysetScanBatch,
     MigrationKeysetScanCheckpointV1, MigrationKeysetScanRequestV1, MigrationScanCeilingsV1,
     MigrationScanValidatorStateV1, MigrationScanValidatorV1,
 };
+pub use membership_reads::MembershipReadsKernel;
 pub use projection_rebuild::ProjectionRebuildReceipt;
-use projection_rebuild::{ProjectionEffectCeiling, maintain_projections_in_tx};
-#[cfg(test)]
-pub(crate) use schema_transition::publish_schema_transition_for_test;
 pub use schema_transition::{
     SCHEMA_TRANSITION_JOURNAL_TABLE, SchemaTransitionEventBodyV1, SchemaTransitionEventV1,
     SchemaTransitionKind,
 };
+#[allow(unused_imports)] // Preserve the pre-split crate::storage surface.
+pub(crate) use connections::{
+    RegisteredSystemWriterPurposeV1, RegisteredSystemWriterV1, open_registered_system_writer_v1,
+};
+use connections::registered_writer_coverage_manifest;
+pub(crate) use migration_scan::migration_keyset_scan_batch_on;
+use projection_rebuild::{ProjectionEffectCeiling, maintain_projections_in_tx};
 pub(crate) use schema_transition::{
     prove_retained_work_posture, record_schema_transition_event, schema_transition_events_on,
 };
+#[cfg(test)]
+pub(crate) use schema_transition::publish_schema_transition_for_test;
 
 #[cfg(test)]
 mod tests;
@@ -1945,6 +1949,14 @@ impl LocalDatabase {
         AssetMaintenanceKernel::new(self)
     }
 
+    pub fn asset_reads(&mut self) -> AssetReadsKernel<'_> {
+        AssetReadsKernel::new(self)
+    }
+
+    pub fn membership_reads(&mut self) -> MembershipReadsKernel<'_> {
+        MembershipReadsKernel::new(self)
+    }
+
     pub fn jobs(&mut self) -> JobsKernel<'_> {
         JobsKernel::new(self)
     }
@@ -2457,22 +2469,6 @@ impl LocalDatabase {
             )
         })?;
         crate::fork_promotion::drop_managed_in_app_branch(&mut self.conn, &path, branch_id, now_ms)
-    }
-
-    /// One immediate write transaction over the asset system tables (LLP
-    /// 0044). The closure sees the raw transaction because every asset write
-    /// goes through `crate::assets` helpers, which enforce the closed
-    /// transition tables; app data is never touched on this path.
-    pub(crate) fn asset_transaction<T>(
-        &mut self,
-        f: impl FnOnce(&rusqlite::Transaction<'_>) -> SnapbackResult<T>,
-    ) -> SnapbackResult<T> {
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let value = f(&tx)?;
-        tx.commit()?;
-        Ok(value)
     }
 
     /// Durably upsert host-owned `StreamAttemptV1` rows. The write-ahead
@@ -8009,6 +8005,7 @@ pub struct KeysetAfter {
     pub id: String,
 }
 
+
 /// Lower a keyset boundary to one WHERE clause selecting rows strictly after
 /// the boundary row under the plan's `(order…, _id ASC)` total order with
 /// Snapback's `NULLS LAST` rule. Emitted as a disjunction of prefix-equality
@@ -8154,6 +8151,7 @@ pub(crate) fn validate_standard_pattern_boundary(
     ensure_orderable_field(table, cursor_field)?;
     validate_query_filter_value(table, cursor_field, value)
 }
+
 
 // @ref LLP 0080#1-closed-relational-plan — runtime admission of the closed
 //   plan shape: exactly one joined table, 1..=4 equality pairs, take in
@@ -9284,6 +9282,7 @@ impl DbRead<'_> {
         crate::jobs::job_status_row(self.conn(), job_id)
     }
 }
+
 
 trait WithDetail {
     fn with_detail(self, key: &str, value: impl Into<Value>) -> Self;
@@ -17717,6 +17716,7 @@ fn get_document_from_tx(
     }
 }
 
+
 fn record_change(
     tx: &Transaction<'_>,
     version: u64,
@@ -18318,6 +18318,7 @@ fn ensure_orderable_field(table: &TableManifest, field: &str) -> SnapbackResult<
     }
     Ok(())
 }
+
 
 fn field_type<'a>(table: &'a TableManifest, field: &str) -> Option<&'a FieldType> {
     table.field(field).map(|field| &field.field_type)

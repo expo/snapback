@@ -135,7 +135,7 @@ impl LocalWriterLaneV1 {
             Self::ProjectionMaintenance => "storage::maintain_projections_in_tx",
             Self::AuthCatalog => "LocalDatabase::with_auth_transaction/attempt_auth_transaction",
             Self::AdminControl => "admin/local control-state transactions",
-            Self::AssetCatalog => "LocalDatabase::asset_transaction",
+            Self::AssetCatalog => "storage asset kernel typed operations",
             Self::SearchIndex => "search::sqlite",
             Self::VectorIndex => "vector::sqlite/vector::rebuild",
             Self::PushRegistry => "push registry/queue transactions",

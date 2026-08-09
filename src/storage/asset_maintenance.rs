@@ -22,10 +22,9 @@ pub(super) fn asset_receipt(
     }
 }
 
-/// The one-transaction deletion cascade (LLP 0044 §Lifecycle transitions).
-/// This maintenance-local copy preserves the later-slice callers of the
-/// shared `local.rs` helper without introducing an upward kernel dependency.
-fn asset_delete_cascade(
+/// The one-transaction deletion cascade (LLP 0044 §Lifecycle transitions),
+/// shared by maintenance and explicit-delete kernel operations.
+pub(super) fn asset_delete_cascade(
     tx: &rusqlite::Transaction<'_>,
     asset: &mut assets::AssetRecordV1,
     cause: &str,

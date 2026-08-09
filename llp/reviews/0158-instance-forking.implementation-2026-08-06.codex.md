@@ -1254,3 +1254,1108 @@ Keep the anchor and guide row withheld until the other required reviewer,
 lifecycle evidence, Charlie acceptance, and all P-time bindings name this
 exact C and implementation digest; then let the unchanged closed checker
 decide publication.
+# Independent implementation review: derived-fork requalification candidate
+
+## Provenance and reviewed claim
+
+- **Family:** codex
+- **Date:** 2026-08-07
+- **Qualification C:** `336a605bc808a340c71407c148af450789f420ad`
+- **Scoped implementation digest:** `sha256:c42666589ceea579e7ac6a635e3a4ef9b4f888a54b329c552929fff71c81ecf0`
+- **Digest contract:** `snapback:agent-safe-implementation-tree:v3`
+- **Declared scope:** `src/`; `.gitmodules`; `Cargo.lock`; `Cargo.toml`; `build.rs`; the `vendor/ibex` gitlink; `scripts/check-agent-safe-publication.mjs`; and `scripts/generated-artifact-policy.mjs`
+- **Claim reviewed:** the narrow contributor-source local derived-deployment-fork capability on exactly `macos/aarch64` and `linux/x86_64`: fail-closed `deny-all-v1`, finite TTL, non-promotable lineage, host-mediated isolation, and no process-containment, npm/public-package, hosted/remote, or merge-back claim.
+- **Independence:** I formed this review from the dispatched tree. I read the committed 2026-08-06 review history only as the requested historical baseline and did not seek, read, or reference any concurrent requalification review.
+
+I independently recomputed the declared digest at C and obtained the exact dispatched value. The runtime delta is generally strong, and the fork library tests remain green, but the new D-3/D-4 custody implementation has two fail-open scope defects. I also found a conflicting-first-writer race at the app-root identity call site of the new atomic JSON helper. Those three findings block the claim.
+
+## Findings
+
+### 1. Critical — a v3 publication receipt chooses its own scope; the checker never requires the reviewed derived-fork scope
+
+LLP 0189 D-3/D-4 requires the claim record to carry the semantically classified scope, requires the named author to accept that classification, and treats a later scope edit as an in-scope change. The implementation declares the intended derived-fork scope at `scripts/check-agent-safe-publication.mjs:64-79`, but the publication path does not bind a v3 receipt to that declaration:
+
+- `validateReceiptShape` checks only that `receipt.implementationScope` is a nonempty, sorted, portable scope (`:997-1025`; the permissive validator is at `:467-497`).
+- `implementationScopeForReceipt` returns that receipt-supplied scope unchanged (`:1049-1052`). The qualification digest, C-to-P drift check, claim snapshot, working-tree check, and author-evidence validation all then use it (`:1981-1986`, `:2045-2098`, `:2200-2205`).
+- `validateDerivedForkCoverageTransfers` validates the hard-coded intended scope separately (`:616-628`), but never compares it with the receipt scope.
+- The exact-key contract for derived-fork author acceptance has no `implementationScope` or scope digest (`:1877-1893`). Its implementation-tree digest cryptographically commits to an opaque scope preimage, but the record does not say which classification the named author accepted, contrary to D-4's explicit requirement.
+
+Concrete demonstration, using the checker exported at C without changing the tree:
+
+```text
+scope = {"schemaVersion":"snapback.agent-safe-implementation-scope.v1","roots":[],"files":["scripts/check-agent-safe-publication.mjs"]}
+implementationDigestAt(C, scope)
+= sha256:2e14fad65d24450a472cab5ec8b9cf556921109be708201a4301f7360d398d23
+```
+
+That scope passes `validateImplementationScope`. A freshly constructed v3 receipt, carrier, review history, and author-acceptance record can consistently bind this alternate digest, and `validatePublicationRecord` will use the one-file scope. Every runtime byte under `src/`, the Ibex gitlink, Cargo/build inputs, and the generated-artifact policy then becomes out-of-scope by construction. The fixture builder illustrates the permissiveness too: its synthetic derived record selects an arbitrary `src` + `vendor/ibex` scope rather than the declared production constant (`tests/agent_safe_publication_checker_v1.mjs:610-615`, `:716-729`).
+
+This is a direct mechanism for moving semantics-defining files out of the claim scope. The nine-file transfer assertion does not constrain it because that assertion is evaluated against the separate constant, not the receipt.
+
+**Required resolution:** for this capability, require canonical deep equality between the receipt scope and `DERIVED_FORK_IMPLEMENTATION_SCOPE` before using the receipt anywhere. Add the exact scope (or a separately domain-separated digest of its canonical bytes) to the named-author acceptance contract and compare it with the receipt. Add publication-record negatives that delete `src`, `vendor/ibex`, each explicit file, or substitute an otherwise valid nonempty scope; each must refuse before accepting reviews or evidence. Any future scope edit must therefore rotate C/reviews/author acceptance as LLP 0189 requires.
+
+### 2. High — the in-digest transfer checker has an out-of-scope, unpinned semantics-affecting input
+
+The checker is inside the declared digest, but `validateDerivedForkCoverageTransfers` reads `scripts/local-proof-selection-policy.v1.json` from the current working tree (`scripts/check-agent-safe-publication.mjs:616-627`). That policy decides whether each of the nine departing files has a registered replacement gate, including its record paths, trigger coverage, and regeneration command. The policy file is neither in `DERIVED_FORK_IMPLEMENTATION_SCOPE` nor content-pinned in the receipt or author acceptance.
+
+This violates LLP 0189 D-4's input-closure rule for semantics-affecting inputs of an in-digest checker. A later change to the policy is classified out of scope by `evaluateClaimSnapshot`, while the publication checker immediately trusts the changed policy. The structural check does not establish the stated gate-quality bar: `assertCoverageTransfers` requires only nonempty `records`, `recordPaths`, and `regenerateCommand`, plus a path match (`:561-610`). I supplied all four gate names with `records: ["not a frozen value"]`, `regenerateCommand: "true"`, and matching `recordPaths`; the function returned all `9` transfers as valid.
+
+At this C, I manually inspected and ran the transferred gates that this environment supports. The current registrations are substantive: the publication fixture suite recomputes checker behavior, the CI test checks workflows/toolchain pins, the local inventory checks the proof graph and versioned-seed carriers, and bundle metrology recomputes frozen bundle measurements. That current quality does not close future custody: the unpinned policy can redefine what the in-scope checker considers coverage without invalidating the claim. Separate scheduled drift handling is not a substitute for D-4's categorical input closure.
+
+**Required resolution:** include `scripts/local-proof-selection-policy.v1.json` in the derived-fork v3 scope, or pin its exact canonical content digest in the claim record and read the C-bound bytes. Add a post-C policy-tamper fixture proving that deleting a transferred gate, changing its record/trigger mapping, or replacing its regeneration command invalidates the claim. It would also be prudent for the transfer validator to recognize the exact admitted gate definitions rather than treating arbitrary nonempty prose and commands as proof of a frozen-record gate.
+
+### 3. High — atomic JSON replacement is byte-atomic, but first app-root identity publication is still last-writer-wins
+
+The filesystem durability repair itself is sound on the two claimed filesystems: `replace_bytes_sync` creates a unique same-directory temporary with `create_new`, writes and `sync_all`s it, renames it over the final path, and fsyncs the parent directory (`src/instance_fork.rs:1404-1440`). Same-directory rename gives atomic name visibility on the claimed macOS/Linux targets. The prior `write_json_sync` used `File::create`, so no caller actually inherited create-exclusive behavior from the old helper; existing overwrite call sites therefore did not lose such a guarantee.
+
+One call site nevertheless needs a stronger logical operation than replacement. `ensure_expected_app` reads the app-root identity, and on `NotFound` unconditionally calls `write_json_sync`, then returns its own opaque expectation (`src/instance_fork.rs:192-239`). Two first writers for different app IDs can both observe `NotFound`, publish separate complete temporaries, rename in either order, and both return success. The new 32-writer test covers only the same app ID (`:5160-5194`), so last-writer-wins happens to look idempotent.
+
+A deterministic refutation path is to reuse the existing pre-rename test hook with a two-party barrier: invoke `ensure_expected_app(root, "app-a")` and `ensure_expected_app(root, "app-b")`, hold both immediately before rename, then release both. Both calls return an `ExpectedForkAppV1`; only the last identity remains. The later root-wide creation-admission lock cannot serialize this because the CLI calls `ensure_expected_app` before `admit_creation` (`src/cli.rs:3462-3485`). A concrete harmful interleaving is:
+
+1. A and B both read `NotFound`.
+2. B installs identity B, obtains the admission lock, passes the one-time mint revalidation at `src/instance_fork.rs:2287-2319`, and starts publication.
+3. A replaces the identity with A while B still owns admission, then waits for admission.
+4. B completes its fork publication; A subsequently validates A and can publish too.
+
+B's later runtime-registry attachment revalidates against the now-A root and can fail at `src/cli.rs:3743-3748` after its detached server has already launched, leaving a fork/server that the final A identity cannot select normally. This is an ordinary competing-create race inside the cooperating local boundary, not malicious same-user file tampering. It cuts across the claimed app binding and exact reap/drop lifecycle.
+
+**Required resolution:** give immutable app-root identity a first-writer-wins compare-and-publish primitive. One portable approach on the claimed targets is a synced same-directory temporary followed by an atomic no-replace installation (for example a same-filesystem hard link), then read/compare the winner on `AlreadyExists`, remove the temporary, and fsync the directory. A lock-and-recheck design is also acceptable if its crash behavior is explicit. Add deterministic same-ID and conflicting-ID first-writer tests; conflicting writers must yield exactly one accepted identity and the loser must mint or launch nothing.
+
+### 4. Informational — the remaining atomic-publication argument and regression tests are convincing
+
+Outside Finding 3's immutable-identity requirement, I found no call site that depended on create-exclusive semantics. The helper now prevents readers from seeing truncated JSON, uses unique temporary names, cleans an unpublished temporary on failure, and reports directory-sync failure instead of claiming durability. The pre-rename hook test proves that the final path is absent while the complete synced temporary is visible (`src/instance_fork.rs:5126-5157`), and the 32-way identical-identity test proves the intended idempotent case. Both tests passed here. The complete `instance_fork::tests::` prefix also passed: 50 passed, 0 failed.
+
+### 5. Informational — the descriptor failure was a test artifact; the production sweep remains directly proven
+
+The production `configure_detached_child` path is unchanged: it snapshots a descriptor ceiling and, in child `pre_exec`, marks every non-stdio descriptor through that ceiling `FD_CLOEXEC` before `setsid` (`src/cli.rs:3383-3433`). The new isolated unit test atomically opens an `O_CLOEXEC` flock lease, deliberately duplicates it to descriptor 198, invokes the real production configurator on `/bin/sleep`, and proves after exec that the child no longer owns the lock (`src/cli.rs:9983-10051`). It passed here.
+
+The live integration replacement is also a valid refutation of the old fixture: opening the lease with `O_CLOEXEC` removes the process-wide `pipe()`-then-`F_SETFD` window, and `dup2` occurs only in the spawned CLI child's `pre_exec`; a nonblocking flock probe tests retention of the same open-file description. I agree with the conclusion “old failure was a test artifact; production sweep is correct” for the claimed CLI path. I found no production regression in this delta.
+
+### 6. Informational — review-prose and AgentSafe declaration hardening do not weaken custody
+
+The prose-history change is additive and fail-closed: it enumerates the legacy round heads, requires new rounds to declare `frozen-per-round`, and binds each round to the SHA-256 and length of the exact review prefix. Legacy current-artifact digest checks remain in force. I found no route for a new unbound round or retrospective prose rewrite.
+
+The declaration checker now inventories every `AgentSafe*` definition across four committed schemas, canonicalizes schema shape while excluding only descriptions, and requires exact TypeScript enum/object membership, required properties, and closed-object shape. `node scripts/check-agent-safe-publication.mjs --codegen-declarations-only` reported `ok (33 definitions, 4 schemas)`, and the 76-test publication-checker suite passed. These changes strengthen custody; they do not compensate for Findings 1-2.
+
+### 7. Informational — runtime spot-checks found no other regression in the narrow claim surface
+
+I compared the scoped delta from `ad0ad5874` through C and spot-checked the surviving LLP 0158 invariants. The 50 passing fork-library tests include finite maximum lifetime and renewal, deny-all coverage for classified and unknown egress families, disabled manual cron/provider paths, non-promotable minted identity, parent credential/cursor refusal, resource-admission boundaries, exact diff custody and work limits, evidence-bound registry/drop/reap behavior, expiry refusal, and publication/renewal crash matrices. The descriptor unit passed separately. The unrelated post-baseline auth-stream-reset carrier and local-store publication updates do not widen the fork claim. I found no new npm, hosted/remote, process-containment, or merge-back assertion.
+
+## Execution record and supplied-evidence reliance
+
+- Recomputed C's canonical v3 digest: exact match, `sha256:c42666589ceea579e7ac6a635e3a4ef9b4f888a54b329c552929fff71c81ecf0`.
+- `DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks cargo test --lib instance_fork::tests:: -- --nocapture`: 50 passed, 0 failed.
+- Focused detached-descriptor unit: 1 passed, 0 failed.
+- `node --test tests/agent_safe_publication_checker_v1.mjs`: 76 passed, 0 failed.
+- Full publication checker at the withdrawn tree state: clean exit; both agent-safe records correctly reported `withheld`.
+- Codegen declaration check: 33 definitions across 4 schemas, passed.
+- CI workflow fixture: passed, 9 workflows and 44 immutable action pins.
+- Local-proof inventory: 3 passed, 0 failed.
+- Client-bundle metrology failed closed before measurement because this shell is Node `v25.9.0`/zlib `1.2.12`, while the frozen method requires Node `v24.18.0`/zlib `1.3.1-e00f703`. I treat that as an environment mismatch and not as green evidence.
+- The focused live descriptor integration could not reach readiness. An independent loopback probe failed with `EPERM: operation not permitted 127.0.0.1`, confirming that this review sandbox cannot bind loopback. I therefore do not treat the integration attempt as a candidate failure or success.
+- As the dispatch permits, the platform-execution portion of this verdict relies on the supervisor-supplied live release-profile suites on exact C for `macos/aarch64` and `linux/x86_64`, plus the exact-C row-13 bench. That reliance cannot cure the static publication-custody or first-writer findings above.
+- The repository worktree remained clean. I modified no repository file.
+
+VERDICT: NOT READY — blocking findings 1, 2, and 3.
+# Independent implementation review: derived-fork requalification round 2
+
+## Provenance and disposition
+
+- **Reviewer family:** codex
+- **Date:** 2026-08-07
+- **Round-1 baseline:** `review-codex.requalification-2026-08-07.md`
+- **Qualification candidate C:** `622d61b9f29c18bdab3e4f0b23fa9de085eb3161`
+- **Scoped implementation digest:** `sha256:f4c68ebfc0209659da01c91b30b82d2d54004e746e6683530778dc4f5413d612`
+- **Digest contract:** `snapback:agent-safe-implementation-tree:v3`
+- **Canonical scope:** `src/`; `.gitmodules`; `Cargo.lock`; `Cargo.toml`; `build.rs`; `scripts/check-agent-safe-publication.mjs`; `scripts/generated-artifact-policy.mjs`; `scripts/local-proof-selection-policy.v1.json`; and the `vendor/ibex` gitlink.
+- **Reviewed delta:** the complete scoped delta `336a605bc808a340c71407c148af450789f420ad..622d61b9f29c18bdab3e4f0b23fa9de085eb3161`, plus the out-of-scope regression fixtures added for the fixes.
+- **Patch provenance:** I verified that `236545215` and `3fbbbed7d` have the same stable patch id, `19f499eb0bcfedaabc5a0cc8a68063a1cf8d1f00`; `ed21704ef` and `622d61b9f` have the same stable patch id, `9cda606046527584b09c98efc11f838bbfce0505`.
+- **Independence:** I did not open or consult any concurrent round-2 review.
+
+I independently recomputed the v3 digest at C and obtained the exact dispatched value. All three round-1 blocking findings are closed to the requested bar, and each demonstrated attack now refuses. The scoped-delta scan found one new blocking provenance defect in the v3 named-author-acceptance closure, however: the new-C acceptance is required at the retained 2026-08-06 locator and must falsely retain the 2026-08-06 acceptance line. The candidate is therefore not ready as the requalification C.
+
+## Round-1 finding closure
+
+### 1. CLOSED — an alternate-scope receipt refuses before review or evidence authority
+
+`DERIVED_FORK_IMPLEMENTATION_SCOPE` now includes the transfer policy and remains a closed, sorted scope (`scripts/check-agent-safe-publication.mjs:67-80`). For a v3 derived-fork receipt, `validateReceiptShape` validates the scope and then requires canonical deep equality with that constant (`:1121-1153`). `validatePublicationRecord` invokes that check at `:2165`, before carrier authority, review parsing, evidence semantics, or digest selection. The named-author v3 contract independently requires the acceptance scope to equal both the receipt and the canonical constant (`:1997-2028`).
+
+I reran the production-fixture substitution attack. All ten receipt cases refused with `receipt scope does not equal the canonical derived-fork scope`: deleting `src`, deleting each of the eight explicit files (including the newly scoped transfer policy and the Ibex gitlink), and substituting the otherwise valid one-file checker scope. The deliberately corrupted review/evidence binding in those fixtures never became authoritative. A separate acceptance-scope substitution also refused with `named-author/source/component acceptance drifted`. The targeted run passed 11/11.
+
+This meets the round-1 requirement: a receipt can no longer choose a narrower digest preimage, the author record states and binds the exact classification, and a future scope edit rotates C/review/acceptance.
+
+### 2. CLOSED — prose-only transfer metadata no longer qualifies as a frozen-record gate
+
+The semantics-affecting `scripts/local-proof-selection-policy.v1.json` is now an explicit v3 scope file (`scripts/check-agent-safe-publication.mjs:77`). The in-scope checker carries exact admitted definitions for the four transferred gates (`:82-160`). `assertCoverageTransfers` now requires canonical equality with that authority, tracked regular-blob record paths at `HEAD`, and actual trigger-rule coverage of each departing path (`:677-735`); record prose is no longer accepted as path coverage.
+
+I reconstructed my round-1 attack exactly in spirit: all four gate names were present, every transferred path appeared in `recordPaths` and `triggerRules.files`, but `records` was only `"not a frozen value"` and `regenerateCommand` was `"true"`. The checker refused immediately:
+
+```text
+REFUSED: agent-safe-publication: coverage transfer tests/agent_safe_publication_checker_v1.mjs is not covered by registered drift gate agent-safe-publication-fixtures
+```
+
+The fixture suite also proved deletion, record/trigger remapping, and command replacement refuse, and that a post-C policy edit invalidates the snapshot as `M:scripts/local-proof-selection-policy.v1.json`. This meets the input-closure and gate-quality bar from round 1.
+
+### 3. CLOSED — conflicting first writers now have one accepted app-root identity
+
+`ensure_expected_app` delegates first publication to `install_app_root_identity_sync` (`src/instance_fork.rs:192-239`). The helper writes and fsyncs a unique same-directory temporary, atomically installs the final name with a no-replace hard link, removes the temporary, and fsyncs the directory (`:1390-1473`). `AlreadyExists` reads and compares the complete winner: the same identity succeeds idempotently; a conflicting identity returns `SNAPBACK_FORK_APP_BINDING_MISMATCH`. A successful return cannot occur for both distinct identities.
+
+I reran the exact two-party pre-install barrier attack with `app-a` and `app-b`. It passed with one accepted identity, one mismatch refusal, `mint_attempts == 1`, `launch_attempts == 1`, one destination directory, and the final identity matching the accepted writer. The full 52-test `instance_fork::tests::` filter also passed, including the deterministic same-ID barrier and the original 32-writer case.
+
+The normal crash residue after a process dies between hard-link installation and temporary unlink is an extra complete same-inode temporary, not a second identity or partial final file; success still requires the directory fsync. I found no regression in the claimed macOS/APFS and Linux/local-filesystem operation.
+
+## New blocking finding
+
+### 4. High — the v3 closure backdates the fresh acceptance and requires replacing its retained historical artifact
+
+The fix changes the accepted shape at the fixed author-evidence locator from v2 to v3 and adds the new C/digest/scope bindings, but it leaves both the locator and the asserted author line frozen to the previous publication:
+
+- `DERIVED_FORK_EVIDENCE` still names `tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json` (`scripts/check-agent-safe-publication.mjs:26-40`).
+- `validateDerivedForkAuthorAcceptance` now requires `schemaVersion: snapback.derived-fork-author-acceptance.v3`, `qualifiedSourceCommit === C`, the v3 digest and scope, but also requires `authorLine === "Charlie Cheever — accepted 2026-08-06"` (`:1997-2028`).
+- Candidate C was created on 2026-08-07. The currently retained file at that locator is the historical v2 acceptance for `ad0ad58748981010204b61eb5002e35b887a5093` and the ambient v2 digest.
+
+Consequently there is no honest artifact that satisfies the checker and the requalification ticket at once. Preserving the historical bytes fails the new v3 contract. Replacing them with a v3 record for C violates the ticket's byte-retention/no-rewrite rule and represents acceptance of an August 7 commit as having happened on August 6. A truthful `accepted 2026-08-07` line is rejected. The synthetic published fixture masks this by constructing its new v3/new-C acceptance with the stale 2026-08-06 line (`tests/agent_safe_publication_checker_v1.mjs:692-718`), and the 90-test suite therefore accepts the impossible provenance.
+
+This is a blocking defect in the new acceptance closure, not a complaint about evidence that has not been collected yet. LLP 0189 D-3/D-4 and the requalification ticket require a **fresh named-author acceptance** binding the new scope, evidence, review heads, C, and digest. The checker must be capable of admitting that truthful fresh record without rewriting the historical acceptance.
+
+**Required resolution:** before selecting the next C, allocate a new dated v3 author-acceptance locator, preserve the 2026-08-06 v2 file byte-for-byte, and make the v3 contract carry a truthful fresh acceptance date/line. Update the synthetic publication fixture and add a negative proving that the historical locator cannot be substituted or rewritten as the new acceptance.
+
+Related but not counted as a second delta-introduced finding: the three platform/bounds locators at `scripts/check-agent-safe-publication.mjs:27-29` are likewise fixed to 2026-08-06, while this requalification requires fresh platform evidence. Candidate commit `622d61b9f` itself files `issues/20260807-lifecycle-bench-overwrites-dated-receipt.md`, records that the fresh run overwrote the dated macOS receipt, discards that overwrite, and says the emitter must mint a new dated path. That pre-existing evidence-emitter defect should be resolved in the same append-only locator pass; otherwise this C also cannot acquire the promised fresh lifecycle evidence without rewriting history.
+
+## Remaining scoped-delta scan
+
+The entire scoped delta contains only:
+
+1. the checker changes reviewed above;
+2. the app-root identity helper and tests reviewed above; and
+3. a comment-only clarification in `scripts/generated-artifact-policy.mjs` about exact enumeration versus content-addressed leaves.
+
+No Cargo/build input, Ibex gitlink, or other `src/` file changed in the scoped delta. I found no other semantic regression or claim widening. In particular, finite TTL, `deny-all-v1`, non-promotable lineage, host-mediated isolation, and the explicit exclusions for process containment, public packages, hosted/remote targets, and merge-back remain unchanged.
+
+## Execution record
+
+- Recomputed candidate C's canonical v3 digest: exact match, `sha256:f4c68ebfc0209659da01c91b30b82d2d54004e746e6683530778dc4f5413d612`.
+- Alternate-scope and author-scope targeted fixtures: 11 passed, 0 failed; every attack refused at the intended boundary.
+- Direct prose-only transfer-gate attack: refused at the first transferred leaf.
+- `node --test tests/agent_safe_publication_checker_v1.mjs`: 90 passed, 0 failed.
+- `DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks cargo test --lib instance_fork::tests:: -- --nocapture`: 52 passed, 0 failed.
+- Focused conflicting-ID barrier: 1 passed, 0 failed.
+- `cargo test --test instance_fork_cli_v1 --no-run`: compiled successfully. Per dispatch, I did not run loopback-dependent tests.
+- `node scripts/check-agent-safe-publication.mjs`: clean exit; both publication records correctly report `withheld`.
+- CI workflow fixture: passed, 9 workflows and 44 immutable action pins.
+- Local-proof inventory: 3 passed, 0 failed.
+- `./ref-check --verbose`: 190 LLP documents, 4,058 refs, 0 errors, 0 unchecked.
+- `git diff --check` for the scoped delta: clean.
+- `cargo fmt --check` reports existing formatting drift in files such as `src/admin.rs`, `src/cli.rs`, and `src/manifest.rs` that are unchanged by `336a605bc..622d61b9f`; I do not attribute that pre-existing main-tree condition to these fixes.
+- The worktree remained clean at detached candidate HEAD. I modified no repository file and did not push.
+
+VERDICT: NOT READY
+# Independent implementation review: derived-fork requalification round 3
+
+## Provenance and disposition
+
+- **Reviewer family:** codex
+- **Provider/runtime:** OpenAI Codex
+- **Date:** 2026-08-07
+- **Redacted:** no
+- **Method:** independent delta/source review, independent digest reconstruction,
+  adversarial fixture replay, and focused local verification
+- **Round-2 baseline:**
+  `review-codex.requalification-round2-2026-08-07.md`
+- **Qualification candidate C:**
+  `03f9d147cbf6798de2f74467cf5a2a3d8d3d756a`
+- **Candidate committer date:** `2026-08-07`
+  (`2026-08-07T18:01:25-07:00`)
+- **Scoped implementation digest:**
+  `sha256:582ed92c5aa69e1aac52a009e95680131de6f743b713035e29d2eec90602bed5`
+- **Digest contract:** `snapback:agent-safe-implementation-tree:v3`
+- **Canonical scope:** `src/`; `.gitmodules`; `Cargo.lock`; `Cargo.toml`;
+  `build.rs`; `scripts/check-agent-safe-publication.mjs`;
+  `scripts/generated-artifact-policy.mjs`;
+  `scripts/local-proof-selection-policy.v1.json`; and the `vendor/ibex`
+  gitlink, subject to the committed publication-cycle exclusions.
+- **Reviewed delta:** the complete canonical-scope delta
+  `622d61b9f29c18bdab3e4f0b23fa9de085eb3161..03f9d147cbf6798de2f74467cf5a2a3d8d3d756a`,
+  plus the finding-4 test, lifecycle-emitter, and ticket changes.
+- **Patch provenance:** `2d4d276d9` and its rebased candidate commit
+  `c24ee93e1` have stable patch id
+  `c48b246289a30706be158d936c0e63ab2ea88698`; `3c50c970e` and
+  candidate HEAD `03f9d147c` have stable patch id
+  `f9303a60d733beb70079429bb6b559014ee35323`.
+- **Independence:** I did not open or consult another concurrent round-3
+  review. This session did not author the candidate changes.
+
+Finding 4 is closed to the bar in my round-2 review. The acceptance contract
+can now admit a truthful fresh acceptance without replacing or backdating the
+retained v1 artifact; current dated evidence is add-only at publication; and
+the lifecycle emitter refuses a collision without changing the first bytes.
+The three round-1 closures remain intact, and I found no new blocking defect in
+the scoped delta. Candidate C is ready for the next qualification steps; this
+review does not itself publish the capability or stand in for the still-needed
+platform receipts, other-family review, or named-author acceptance.
+
+## Finding 4 closure
+
+### CLOSED — fresh acceptance is truthfully dated and cannot substitute the historical locator
+
+The checker retains the 2026-08-06 chain separately as
+`DERIVED_FORK_HISTORICAL_EVIDENCE` and admits a current v3 acceptance only at
+`tests/acceptance/fixtures/instance-forks/author-acceptance.<date>.v3.json`
+(`scripts/check-agent-safe-publication.mjs:30-55`). The locator date must be a
+real ISO calendar date, and every current dated lifecycle, bounds, and
+acceptance locator must be on or after qualification C's committer date and
+absent from C (`:1141-1163`, `:1236-1248`). The acceptance validator derives
+the required line from that locator and requires exactly
+`Charlie Cheever — accepted <same date>`, while retaining the v3 C, digest,
+scope, candidate, component, evidence-digest, and review-head bindings
+(`:2062-2111`). C's committer date is 2026-08-07, so a truthful 2026-08-07 or
+later record is admissible; a 2026-08-06 locator, a locator/line mismatch, or a
+path already present at C refuses.
+
+I re-attempted the round-2 substitution by making the current v3 receipt name
+the historical
+`author-acceptance.2026-08-06.v1.json` locator. The production validator
+refused at receipt shape with `evidence 12 drifted`. The focused fixture run
+also proved that a mismatched line date, pre-C acceptance, pre-C platform or
+bounds dates, and a current locator pre-existing at C all refuse. The positive
+synthetic v3 publication path, which uses the truthful 2026-08-07 locator and
+line, passes in the complete checker suite.
+
+I compared every one of the 13 retained historical evidence-chain files at
+round-2 C and round-3 C. All are byte-identical. In particular, the retained
+v1 acceptance remains
+`sha256:82dbbcebe055f602d46b5fe5c64efc30fa460f459929d93014adf050c65f9e8c`;
+the three 2026-08-06 lifecycle/bounds receipts remain respectively
+`sha256:47c20cd5b05b4bdd5158d6cb1e3a651fc94611293afcc38df9b14c112999c38d`,
+`sha256:e79d33fe1fdfe54aac823916145fad6528e5930c02a903dfbac0222ed12cdf1a`,
+and
+`sha256:bf73b3a6f09032fb166c25eea646c9f5170aab7301c43431ffe4eb21de886e4f`.
+
+### CLOSED — evidence locators are append-only at the publication boundary
+
+For the four dynamic current locator classes, `allowedPublicationPath`
+recognizes only the exact dated filename grammars and
+`allowedPublicationChange` accepts status `A` but rejects `M` (as well as all
+other non-add statuses) (`scripts/check-agent-safe-publication.mjs:393-396`,
+`:565-573`). The focused allowlist test exercised both results for both
+platform paths, bounds, and acceptance. Independently, published semantics
+require each selected current path not to exist at C, closing pre-existing-file
+reuse. Receipt-bound paths, rather than fixed globals, are used for bounds,
+platform, asset, review-history, and acceptance reads (`:1889-1904`,
+`:1930-2059`, `:2114-2197`). There is no rolling locator for a later
+requalification to overwrite.
+
+### CLOSED — the lifecycle emitter mints with exclusive create
+
+The bench now derives its filename date from UTC Unix days and opens the final
+path with `OpenOptions::create_new(true)`, then writes and `sync_all`s it
+(`tests/instance_fork_bench_v1.rs:103-136`, `:522-539`). The two focused Rust
+regressions pass: UTC day 0 and 2000-01-01 map correctly, and a second write to
+an existing dated path returns `AlreadyExists` while preserving the original
+bytes exactly.
+
+## Earlier closure regression check
+
+1. **Round-1 finding 1 remains closed.** The canonical derived-fork scope is
+   still closed and sorted; v3 receipt validation still requires canonical
+   deep equality before review/evidence authority; acceptance still binds the
+   same scope. The complete 95-test checker suite reran all ten noncanonical
+   receipt-scope attacks and the acceptance-scope attack successfully.
+2. **Round-1 finding 2 remains closed.** The transfer policy remains in scope,
+   and the exact admitted frozen-record definitions, tracked record paths,
+   trigger coverage, and regeneration commands are unchanged. The deletion,
+   remapping, command-replacement, and post-C policy-tampering negatives all
+   remain green in the complete checker suite.
+3. **Round-1 finding 3 remains closed.** `src/instance_fork.rs` did not change
+   in this delta. The full 52-test `instance_fork::tests::` filter passes,
+   including same-ID publication and
+   `conflicting_first_writers_accept_one_identity_before_mint_or_launch`.
+   Exactly one conflicting identity remains accepted before mint or launch.
+
+## Scoped-delta scan
+
+The hash-relevant canonical-scope changes from round-2 C are the acceptance /
+locator checker change and an unrelated one-line `src/manifest.rs` digest-pin
+refresh. The two local-persistent-store JSON leaves under `src/` also changed
+in ancestry but are committed publication-cycle exclusions; their carrier and
+anchor digests agree, and the affected local-persistent-store conformance proof
+reports published with `17 PASS / 0 GAP`, `8/8 PASS`, and `8/8 PASS`.
+
+The finding-4 support delta contains the synthetic publication-fixture
+updates, the UTC/exclusive-create lifecycle emitter, and the resolved
+filesystem ticket. I inspected the complete changes, including receipt-shape
+selection, date parsing/comparison, receipt-bound semantic reads, dynamic path
+classification, acceptance construction, and collision behavior. I found no
+claim widening, stale global-locator read, or new defect. The unrelated ambient
+ancestry changes outside this review's canonical/support scope were not used as
+evidence for the verdict.
+
+## Execution record
+
+- Independently reconstructed the v3 byte stream over 173 committed entries:
+  exact dispatched digest
+  `sha256:582ed92c5aa69e1aac52a009e95680131de6f743b713035e29d2eec90602bed5`.
+  The production digest function returned the same value.
+- Verified all 13 historical evidence-chain paths byte-for-byte between
+  `622d61b9f` and C.
+- Focused finding-4 fixture run: 6 passed, 0 failed (historical locator
+  substitution, line-date mismatch, pre-C acceptance, pre-existing current
+  acceptance, pre-C platform/bounds evidence, and A-versus-M allowlist).
+- `node --test tests/agent_safe_publication_checker_v1.mjs`: 95 passed, 0
+  failed.
+- `node scripts/check-agent-safe-publication.mjs`: clean exit; both live
+  records correctly report `withheld`.
+- `scripts/bootstrap-ibex-runtime`: exact-link, launch, and restricted
+  no-eval handler-VM qualification passed for C with a clean build stamp.
+- Focused lifecycle-emitter Rust filter: 2 passed, 0 failed.
+- `cargo test --lib instance_fork::tests:: -- --nocapture`: 52 passed, 0
+  failed.
+- Affected local-persistent-store publication conformance: passed.
+- JS syntax checks and focused Rust formatting check: passed.
+- `./ref-check --verbose`: 190 LLP documents, 4,059 refs, 0 errors, 0
+  unchecked.
+- `git diff --check 622d61b9f..03f9d147c`: clean.
+- The worktree remained clean at detached candidate HEAD. I modified no
+  repository file and did not push.
+
+VERDICT: READY
+# Codex-family final delta review — derived-fork requalification
+
+**Date:** 2026-08-09  
+**Reviewer:** Codex-family reviewer  
+**Candidate C:** `772c00649534d68b2ba63b98699e8ce2b2019057`  
+**Prior reviewed head:** round 3 READY at `03f9d147c`  
+**Policy-custody pivot:** `dcdcdc4be45f45fed622a90985097ed7b5d9f336`
+
+## Verdict
+
+I found no blocking regression in the final delta. The content-pin alternative now meets the bar stated in round-1 finding 2: post-C working-tree policy changes cannot change the transfer verdict or invalidate the scoped implementation digest, while a receipt pin that does not equal the qualification-C policy bytes is refused. The subsequent 144-commit fleet delta preserves the derived-fork invariants under review.
+
+This review is independent. I consulted only my own prior round-1 through round-3 review artifacts in `/Users/ccheever/projects/requal-reviews/`; I did not consult another concurrent final review.
+
+## Review basis
+
+I confirmed the checked-out Snapback `HEAD` is exactly C. The range `dcdcdc4be..C` contains 144 commits and changes 48 files in the canonical derived-fork implementation scope, with 8,692 insertions and 1,209 deletions. The largest fork-adjacent raw diffs are:
+
+| File | Raw delta | Classification after whitespace/semantic review |
+| --- | ---: | --- |
+| `src/cli.rs` | +746/-220 | Predominantly the `2844b8f75` repository-wide formatter sweep plus unrelated CLI fleet work; the relevant semantic change is constrained minted-token discovery. |
+| `src/instance_fork.rs` | +130/-95 | Predominantly formatting; semantic changes are ordinary-error staging cleanup, one copied custody table, enum field accounting, and request-local mutation-settlement admission. |
+| `src/fork_promotion.rs` | +60/-13 | Store-inventory visibility plus damaged-expired-branch reap self-healing. |
+| `src/instance_lock.rs` | +32/-1 | Owner-only, descriptor-relative creation of an absent ordinary-startup instance directory. |
+
+The governing constraints I used are LLP 0158's closed runtime plane and publication/lifecycle protocol, LLP 0164's strict fork-class separation and non-promotability, LLP 0165's authorizer-backed host-mediated isolation boundary, LLP 0185's finite managed lifecycle, and LLP 0189 D-3/D-4's claim-scoped and content-pinned qualification model.
+
+## 1. Content-pin custody versus round-1 finding 2
+
+### Recomputed identities
+
+Using `implementationDigestAt` from `scripts/check-agent-safe-publication.mjs` at C, I independently recomputed:
+
+`sha256:53e85a9f1958bcba44ceac12c24e70608b79ae9eeb47871bdd405fc6db796b75`
+
+This exactly matches the expected v3 scoped digest. The exact C bytes of `scripts/local-proof-selection-policy.v1.json` hash to:
+
+`sha256:405464036917695c3007f449d6e9f8272efa04822b0d62fa9b0f55b47b4e9c32`
+
+### Custody analysis
+
+The selection policy is deliberately outside `DERIVED_FORK_IMPLEMENTATION_SCOPE`, but is no longer ambient input:
+
+- A derived-fork v3 receipt has an exact `selectionPolicySha256` field (`scripts/check-agent-safe-publication.mjs:1192-1235`).
+- The named-author v3 acceptance has the same exact field and must equal the receipt (`:2100-2133`).
+- Transfer validation requires a 40-hex qualification C and a canonical SHA-256 pin, reads the policy with `git show C:path`, hashes those bytes, refuses a mismatch, parses only those C-bound bytes, and evaluates transfers with `recordCommit: C` (`:760-797`).
+- Published-record validation invokes that transfer validation using the carrier's qualified source commit and the receipt pin before accepting evidence (`:2261-2321`).
+- The in-checker admitted-gate mirror still prevents a shape-valid prose stub from impersonating a canonical frozen-record gate (`:99-103` and the associated gate validation).
+
+### Attack re-attempts
+
+I re-ran the attacks in disposable checker fixtures rather than modifying the Snapback checkout:
+
+1. Replacing the post-C working-tree policy with different valid policy bytes did not change the C-bound transfer result (`9` transfers), did not alter the scoped implementation digest, and did not invalidate the standing claim snapshot.
+2. Supplying a receipt pin of `sha256:` followed by 64 `e` characters was refused with the expected qualification-C digest-mismatch diagnostic; the checker reported the actual C digest above.
+3. The focused tests for C-bound validation, exact receipt/author pinning, and post-C out-of-scope policy evolution all passed.
+4. The complete publication-checker test file passed: 97 tests, 0 failures.
+
+This satisfies the alternative explicitly allowed by round-1 finding 2. Policy semantics are bound by content and source commit even though the selector file is not part of the implementation tree digest.
+
+## 2. Fork-surface fleet delta
+
+### Deny-all and host-mediated isolation
+
+The derived host-op classifier remains exhaustive and fail-closed: an unknown operation maps to `UnclassifiedHostOperation`. The only new locally admitted operation is `mutation.settlement` (`src/instance_fork.rs:2157-2189`). Its implementation is a read-only projection of the current mutation request's client mutation identity and settlement digest; it creates no external effect and is refused for query/action contexts. No new fetch, stream, push, job-enqueue, telemetry, asset-provider, or unclassified initiation path was added.
+
+The copied `_snapback_job_idempotency_tombstones_v1` custody row transfers durable state, not job authority; the fork runtime continues to deny job initiation. New store-export work refuses derived lineage rather than creating an escape. The admin-token discovery change accepts only the mechanically expected token path from a trusted readiness descriptor and reads only an owner-only regular file (`src/cli.rs:6589-6630`); it discovers an already minted fork-local credential and does not widen runtime authority.
+
+The real-VM integration `instance_fork_vm_egress_v1` passed, confirming JavaScript actions still cannot fetch or stream through the actual VM on a fork. This remains host-mediated registered-connection isolation, not a claim of process or OS containment, consistent with LLP 0165.
+
+### Finite TTL and non-promotability
+
+Finite expiry stamping, boot refusal at expiry, renewal ceilings, and the explicitly non-promotable lineage write remain intact. The fleet delta does not introduce a path that clears the TTL or promotes a derived deployment. The 52 focused `instance_fork::tests` and 38 focused `fork_promotion::tests` include the expiry, renewal, strict class, and promotion-refusal matrices and all passed.
+
+### First-writer-wins identity
+
+The round-2 repair remains semantically unchanged. `install_app_root_identity_sync` writes and syncs a unique temporary file, attempts a no-replace hard link, and makes a losing writer compare the already-published complete bytes (`src/instance_fork.rs:1396-1450`). The concurrent same-identity and conflicting-first-writer tests remain present and passed. I found no return to replace/last-writer-wins behavior before mint or launch.
+
+### Atomic evidence and publication
+
+The S0-S5 publication sequence remains ordered: staging sentinel, cloned/scrubbed state, durable mint evidence and private assets, registry intent, atomic directory rename, parent sync, registry finalization, then sentinel removal. Commit `a646bb71a` wraps publication in a result boundary and removes the staging directory on ordinary errors while preserving injected crash cuts (`src/instance_fork.rs:4631-4752`). This closes credential-bearing staging residue without erasing crash-recovery evidence. A new asset-copy failure test exercises that cleanup. It does not turn any partial state into a successful publication.
+
+### Exact reap/drop
+
+The derived-fork registry/path validation and exact drop protocol remain unchanged. The semantic reap change is in managed in-app branch custody: an expired row is selected from canonical custody, transitioned `active -> tearing_down` with an exact one-row check, and only the deterministic `managed_workspace_files` set is removed before `dropped` is recorded (`src/fork_promotion.rs:840-885,925-987`). Failure to reopen or inspect a damaged expired workspace now falls back to a custody-derived non-promotable receipt instead of aborting the entire sweep. The new damaged-plus-healthy test confirms both exact file sets are removed and both custody rows become dropped (`:6161-6195`). This is self-healing within the same bounded deletion authority, not a broadened recursive delete.
+
+### Directory-mode change
+
+The `a646bb71a` directory-mode change applies to ordinary startup when the reserved target instance directory is absent. On Apple/Linux it uses descriptor-relative `mkdirat(..., 0700)`, pins the directory with no-follow semantics, enforces effective-UID ownership and exact `0700`, syncs the parent, and removes only the just-created matching directory if validation fails (`src/instance_lock.rs:554-624`). It is adjacent hardening; it neither bypasses fork staging/rename nor alters fork authority. Its focused owner-only test passed.
+
+## 3. Survival of rounds 1-3 closures
+
+1. **Round-1 finding 1 — receipt-chosen scope:** Still closed. The checker owns the exact canonical scope; derived-fork v3 receipt scope must canonically equal it. The recomputed digest matches C, and the full 97-test checker matrix passed, including noncanonical-scope refusals.
+2. **Round-1 finding 2 — ambient selection policy:** Closed by the C-bound content pin described above. Both receipt and current named-author acceptance must bind the exact digest; post-C bytes are irrelevant; a wrong pin refuses.
+3. **Round-1 finding 3 — last-writer-wins app identity:** Still closed. The no-replace first-writer protocol and concurrent conflict tests survive the fleet delta.
+4. **Round-2 finding 4 — reused/backdated acceptance locator:** Still closed. The v3 dated-locator and freshness rules remain enforced, now with the policy digest added to the exact acceptance shape. All 13 historical evidence-chain files named by the checker are byte-identical between round-3 C `03f9d147c` and final C. The full checker suite's historical-locator, add-only, and fresh-current-acceptance cases passed.
+
+No prior closure depends on ambient `HEAD` policy bytes or on accepting a rewritten historical evidence file.
+
+## Verification record
+
+- Candidate identity: exact C confirmed.
+- Scoped v3 digest recomputation: exact expected digest.
+- Direct policy attacks: working-tree evolution ignored; bad pin refused.
+- `node --test tests/agent_safe_publication_checker_v1.mjs`: 97 passed, 0 failed.
+- `node scripts/check-agent-safe-publication.mjs`: passed; both capability records remain withheld pending an actual qualification publication.
+- `cargo test --lib instance_fork::tests:: -- --nocapture`: 52 passed, 0 failed.
+- `cargo test --lib fork_promotion::tests:: -- --nocapture`: 38 passed, 0 failed.
+- `cargo test --test instance_fork_vm_egress_v1 -- --nocapture`: 1 passed, 0 failed.
+- `cargo test --lib cli::tests::minted_token_discovery -- --nocapture`: 4 passed, 0 failed.
+- `cargo test --lib instance_lock::tests::startup_creates_reserved_target_instance_owner_only -- --nocapture`: 1 passed, 0 failed.
+- `rustfmt --edition 2024 --check` on `instance_fork.rs`, `fork_promotion.rs`, `cli.rs`, and `instance_lock.rs`: passed.
+- Scoped `git diff --check dcdcdc4be..C`: passed.
+- `./ref-check --verbose`: 203 LLP documents, 4,060 refs in 10,457 files, 0 errors, 0 unchecked.
+
+The repository-wide `cargo fmt --all --check` is not globally green: it reports formatting drift in other fleet-touched root files and also traverses the pre-existing dirty `vendor/ibex` checkout. The four fork-sensitive Rust files above pass a direct Rust 2024 formatter check, and the scoped textual diff check is clean. I treat the broader formatter result as nonblocking repository hygiene, not a derived-fork claim-invariant failure.
+
+Per the review assignment, I did not duplicate the supervisor's exact-C live suites or benchmark runs. This verdict covers the static delta, checker attacks, and local non-live/focused runtime tests; the supervisor retains custody of those live/platform measurements.
+
+The Snapback worktree began and ended with only the pre-existing `vendor/ibex` submodule modification. I did not modify a Snapback repository file, commit, or push.
+
+READY
+# Codex-family closing delta review — derived-fork requalification true C
+
+## Provenance
+
+- **Family:** codex
+- **Provider/runtime:** OpenAI Codex
+- **Date:** 2026-08-09
+- **Redacted:** no
+- **Method:** independent delta/source review, independent v3 digest reconstruction,
+  control-flow and trust-boundary audit, complete checker execution, and focused
+  adversarial fixture replay
+- **Prior Codex head:** READY at
+  `772c00649534d68b2ba63b98699e8ce2b2019057`
+- **Candidate C:**
+  `7b590a169b75839847c4755bbf0d4e7ae053cadd`
+- **Scoped v3 digest:**
+  `sha256:15db39c790471a1f0d6afcb447dd008662a0232cff3b1042e254fa798df75128`
+- **Digest contract:** `snapback:agent-safe-implementation-tree:v3`
+- **Independence:** I consulted only my four named prior Codex review heads. I
+  did not consult another concurrent review. This session did not author the
+  candidate changes.
+
+## Overall assessment
+
+I found no blocking regression in `772c00649..7b590a169`. The candidate
+implements the 2026-08-09 LLP 0189 D-3 clarification at the exact intended
+boundary: only an already-published derived-fork record may turn post-C scoped
+source evolution into a typed `requalificationDue` state. A qualification-C
+digest mismatch, noncanonical scope, receipt/carrier/anchor inconsistency,
+evidence mismatch, historical review-byte rewrite, named-author mismatch, or
+non-ancestor C still refuses. Withheld records and the storage claim do not
+receive the exception.
+
+The 26-commit total delta contains eight ordinary commits that touch the v3
+scope and the final D-3 commit. The ordinary changes rotate the scoped digest,
+as they should, but do not weaken the narrow derived-fork invariants. Candidate
+C is ready for the remaining qualification evidence and publication steps;
+this review is not itself a platform receipt, named-author acceptance, or
+publication action.
+
+## 1. Independent candidate and digest verification
+
+The checked-out detached `HEAD` is exactly candidate C. I independently
+reconstructed the v3 preimage rather than relying only on the checker export:
+
+1. enumerated the committed `src/` tree and the seven explicit scope files;
+2. removed the six exact publication-cycle leaves admitted by the checker;
+3. sorted the remaining 198 entries by repository-relative path;
+4. hashed the v3 domain line, exact canonical scope JSON, and each entry's
+   mode, type, path, big-endian byte length, and committed blob/gitlink bytes.
+
+That reconstruction produced
+`sha256:15db39c790471a1f0d6afcb447dd008662a0232cff3b1042e254fa798df75128`.
+The production `implementationDigestAt` function independently returned the
+same value.
+
+## 2. D-3 due-state trust boundary
+
+### Exactly scoped leniency
+
+`evaluateClaimSnapshot` creates `requalificationDue` only when the caller
+explicitly sets `allowRequalificationDue` and the C-to-P diff contains at least
+one claim-scoped change (`scripts/check-agent-safe-publication.mjs:676`).
+`validatePublicationRecord` supplies that flag only for capability id
+`agent_safe_derived_deployment_fork_v1`, and only after the anchor has been
+validated as `published`; the withheld branch returns before snapshot/digest
+evaluation (`:2272`, `:2347`, `:2353`). The storage record therefore retains
+strict generic custody.
+
+The resulting record remains `state: published`, its snapshot remains
+`state: stands`, and both carry the exact typed payload
+`{ scopedChanges, since: qualificationCommit }`. The CLI emits the exact
+`PUBLISHED_REQUALIFICATION_DUE` warning on stderr while retaining a successful
+exit (`:2496`).
+
+### Qualification identity cannot rotate to P
+
+`assertQualifiedImplementationDigestAtPublication` still requires the digest
+recomputed at C to equal the receipt unconditionally (`:1081`). It relaxes
+only the publication-P digest comparison, and only when the same C-to-P tree
+diff produced a nonempty due state. A receipt rotated to P cannot pass by
+claiming the newer digest, because the independent C comparison fails first.
+Mode-only changes, symlink/type swaps, additions/deletions, and the Ibex
+gitlink all appear in the scoped name-status set and remain visible.
+
+### Frozen-chain failures are not masked
+
+The production validation order remains fail-closed:
+
+1. canonical anchor/carrier/receipt parsing and exact shapes;
+2. anchor-to-carrier and carrier-to-receipt SHA-256 bindings;
+3. exact candidate, component, v3 digest-version, canonical scope, and
+   selection-policy bindings;
+4. every receipt evidence byte digest;
+5. C ancestry;
+6. qualification-C digest, followed by the narrowly relaxed P comparison;
+7. the complete platform/bounds/review/named-author semantic validation
+   (`validatePublishedEvidenceSemantics` is still called unconditionally at
+   `:2355`).
+
+Thus a pending due state cannot bypass a chain failure that occurs before it,
+and cannot short-circuit the semantic checks that follow it. The fully rebound
+historical-prose fixture remains important: even after review, verdict,
+acceptance, receipt, carrier, and anchor hashes are recomputed consistently,
+the per-round frozen-byte digest catches the rewrite. The new pending-due
+fixture separately proves direct historical evidence tampering still fails.
+
+The checker does not itself implement the scheduled ticket filer or four-run
+aging/escalation mechanism. LLP 0189's implementation ticket continues to
+track that repository-wide battery automation as open. I do not treat that as
+a defect in this candidate's narrower author-ruled contract, which is the
+typed visible state plus conspicuous warning consumed by that automation.
+
+## 3. Ordinary scoped fleet delta
+
+The eight pre-fix scoped commits are ownership/refactoring work:
+
+- storage, server, and local god-file splits move implementations and tests
+  into submodules; the relation-activity and sequence-allocation JSON records
+  refresh their exact source inventories for the storage split;
+- the asset-finalization prepare/commit seam moves database-free preparation
+  into `src/assets.rs` without changing the fork asset-copy authority or the
+  derived fork publication protocol;
+- the contract/type leaf moves dependency-free manifest DTOs without changing
+  their serde/wire shapes;
+- the realtime leaf moves fan-out state and stats without changing fork
+  runtime authority;
+- the `src/lib.rs` visibility tightening leaves `instance_fork` and
+  `fork_promotion` public as before and only demotes unrelated internal façade
+  modules;
+- the CLI split moves the fork command implementation to `src/cli/fork.rs`.
+  Comparing the complete old `fn fork_root` through pre-next-function region
+  against the new module, after normalizing only the deliberate `pub(crate)`
+  re-exports, was byte-identical except for one leading blank line.
+
+No ordinary commit in this range changes `src/instance_fork.rs`,
+`src/fork_promotion.rs`, or `src/instance_lock.rs`. I found no change to
+deny-all host-operation classification, finite TTL/renewal ceilings,
+non-promotable lineage, first-writer-wins app identity, host-mediated
+isolation, atomic publication ordering, or exact reap/drop authority.
+
+## Verification record
+
+- Candidate identity: exact C confirmed.
+- Independent 198-entry v3 digest reconstruction: exact expected digest.
+- Production digest recomputation: same exact digest.
+- `node --test tests/agent_safe_publication_checker_v1.mjs`: **99 passed, 0
+  failed**.
+- Focused boundary matrix: **10 passed, 0 failed**. It covered published
+  one-byte scoped evolution becoming due; historical evidence tamper while
+  due; withheld behavior; withheld anchor authority smuggling; noncanonical
+  receipt scope; named-author scope mismatch; historical-acceptance locator
+  reuse; invalid/uppercase/sibling ancestry; receipt rotation to P; and the
+  generic strict C-receipt/P-drift case.
+- `node scripts/check-agent-safe-publication.mjs`: clean exit; both current
+  live records correctly remain `withheld` before the fresh publication
+  ceremony.
+- JS syntax checks for checker and fixture: passed.
+- Exact D-3 commit `git diff --check`: passed.
+- Full `772c00649..C` `git diff --check` reports unrelated fleet whitespace
+  and blank-at-EOF findings; none is in the D-3 patch or changes a fork claim
+  invariant.
+- The repository worktree remained clean. I modified no repository file and
+  did not push.
+
+READY
+# Codex-family delta review — derived-fork publication C sibling-chain decoupling
+
+## Provenance and scope
+
+- **Reviewer family:** Codex
+- **Date:** 2026-08-09
+- **Prior Codex closing head:** READY at
+  `7b590a169b75839847c4755bbf0d4e7ae053cadd`
+- **Publication C / reviewed HEAD:**
+  `866f5d025645ce20a9149d8ea20032bd2f31c9b0`
+- **Target delta:** `866f5d025` (`fix(publication): decouple fork from
+  sibling carriers`)
+- **Complete ancestry range inspected:** `7b590a169..866f5d025` (32 commits,
+  including 6 merges)
+- **Scoped v3 digest:**
+  `sha256:98aa92d6651e405fda750d84bd510c4db6fcccd29213b13bb0436607a39a06d0`
+- **Method:** prior-chain review, commit/path census, source and control-flow
+  review, independent digest reconstruction, checker and sibling-gate
+  execution, direct carrier-tamper probes, and a disposable-repository
+  coverage-removal attack.
+- **Independence:** I read only the five prior Codex requalification artifacts
+  named by the dispatch. I did not open or consult the other-family review.
+  This session made no repository change and did not push.
+
+## Overall assessment
+
+The narrow code split itself is correctly placed. The storage publication
+record still receives the exact qualification-C local-store transform check;
+the derived-fork record alone stops borrowing that transform. The four sibling
+paths are made visible as typed `requalificationDue` evolution, and the fork's
+own anchor, carrier, receipt, evidence, canonical scope, qualification-C
+digest, named-author acceptance, review-history, and ancestry checks are not
+relaxed. The full checker suite and all three sibling conformance suites pass.
+
+One blocking custody defect remains. The implementation says integrity moves
+to four registered LLP 0175 gates, but the fork checker does not mechanically
+admit or preserve any of those four registrations. Its C-bound policy validator
+still checks only the earlier nine wave-leaf transfers. A policy that removes
+all four newly named sibling gates remains valid and is accepted by
+`validateDerivedForkCoverageTransfers`; after that removal, relation and
+sequence carrier changes no longer select their owning drift gates. Because
+post-C policy evolution is intentionally outside the fork scope and sibling
+carrier evolution intentionally leaves the fork published with
+`requalificationDue`, this creates the requested route for a tampered sibling
+carrier to persist under a published fork claim without its transferred gate
+running.
+
+## Blocking finding
+
+### High — the four sibling-gate custody transfers are prose-only, so coverage can vanish
+
+The target commit adds `DERIVED_FORK_SIBLING_CHAIN_PATHS` and passes it to the
+two snapshot/digest evaluations only for
+`agent_safe_derived_deployment_fork_v1`. It also replaces the unconditional
+local-store transform call with `validatePublishedResultCustody`, which calls
+that transform only for `agent_safe_storage_v1`. Those are the intended D-4
+state and storage boundaries.
+
+The claimed replacement custody is not closed, however:
+
+1. `DERIVED_FORK_ADMITTED_COVERAGE_GATES` contains only the four pre-existing
+   wave-transfer gate definitions: `agent-safe-publication-fixtures`,
+   `ci-workflow-fixtures`, `client-bundle-metrology`, and
+   `local-proof-inventory`.
+2. `DERIVED_FORK_COVERAGE_TRANSFERS` contains only the prior nine departed
+   leaves. None of the four sibling-chain paths or newly named gate ids is
+   represented.
+3. `validateDerivedForkCoverageTransfers` reads the selection policy at C and
+   calls `assertCoverageTransfers` only for those nine old transfers. It never
+   requires `local-store-publication`, `local-store-carrier-receipt`,
+   `relation-activity-publication`, or `sequence-allocation-publication` to
+   exist, retain their exact record/trigger/regeneration definitions, or cover
+   the four sibling paths.
+4. The selection policy is deliberately outside
+   `DERIVED_FORK_IMPLEMENTATION_SCOPE`; its old transfer meaning is content-
+   pinned at C. The earlier checker suite explicitly proves that a different
+   post-C policy is ignored by the standing fork claim. That is safe for the
+   nine mechanically admitted gates, but not for these four unadmitted ones.
+
+I re-attempted the attack in two stages.
+
+First, against the actual policy, selection is correct:
+
+| Changed path | Current selected drift custody |
+| --- | --- |
+| `src/local-persistent-store-publication.anchor.v1.json` | `guide`, `local-store-publication` |
+| `src/local-persistent-store-publication.v1.json` | `guide`, `local-store-publication` |
+| `src/local-relation-activity-publication.v1.json` | `guide`, `relation-activity-publication` |
+| `src/local-sequence-allocation-publication.v1.json` | `guide`, `sequence-allocation-publication` |
+
+Direct structural tampering of the relation and sequence carriers was refused
+by their current gates. The complete checker suite's new local-store probe also
+proved that a carrier-only structural edit selects and fails
+`local-store-publication`. Thus the current records are green and the current
+registrations work.
+
+Second, I cloned C into a disposable repository and removed the four sibling
+entries from `driftProneGates` and `driftFailClosedCoreGates`, without changing
+the target repository. The resulting policy passed `validateSelectionPolicy`.
+Calling `validateDerivedForkCoverageTransfers` with that commit and the exact
+SHA-256 of its weakened policy returned all 9 old transfers successfully; the
+weakened qualification commit was
+`a8abf380d5f50674ad03e26eaa82558199fcd8e2`. In the same valid weakened
+selection context, each sibling path selected only the unrelated `guide` drift
+gate; the relation and sequence publication gates were absent.
+
+This is not merely a hypothetical future-C issue. Starting from a correctly
+published current C, a later coherent policy edit can remove or weaken these
+four registrations without changing the fork snapshot, because policy
+evolution is out of scope and the checker continues to validate C's policy.
+A subsequent relation/sequence carrier tamper is then accepted by the new
+derived-fork rule as visible `requalificationDue`, while the current selector
+does not run the carrier's transferred gate. The due warning makes the source
+change visible, but it does not supply the integrity custody LLP 0189 D-4 says
+must never vanish.
+
+Required resolution:
+
+- Add an exact, in-checker admitted-custody definition for all four sibling
+  gates, including record paths, carrier/anchor triggers, and regeneration
+  commands.
+- Validate the custody rows that are authoritative for the publication being
+  checked. A post-C deletion, weakening, or trigger removal must not remain an
+  irrelevant policy edit; it must either refuse or name an exact replacement
+  gate in the same change.
+- Add negatives for each of the four paths covering gate deletion, trigger
+  removal/remapping, record substitution, and regeneration-command
+  substitution, including the two-step sequence “post-C policy weakening,
+  then carrier tamper.”
+- Preserve the current D-4 state boundary: legitimate carrier regeneration may
+  remain typed `requalificationDue`, but only while its mechanically validated
+  current custody gate exists.
+
+## Storage-record path and fork-chain bindings
+
+The storage-record path is behaviorally unchanged. Before this delta,
+`runChecker` called `validateLocalStorePublicationTransform(root,
+result.commit)` for each published result. After this delta it calls
+`validatePublishedResultCustody`; for a published `agent_safe_storage_v1`
+result that function calls the same transform with the same `result.commit`.
+The transform code itself is byte-identical. Its positive digest-only transform
+fixture and both carrier/anchor extra-edit negatives passed in the 101-test
+suite.
+
+The derived-fork chain remains fail-closed at the same points:
+
+- canonical anchor/carrier/receipt parsing and exact shapes;
+- anchor-to-carrier and carrier-to-receipt digests;
+- exact candidate facts, components, v3 digest version, and canonical scope;
+- qualification-C selection-policy pin for the original nine transfers;
+- every evidence byte digest;
+- C ancestry;
+- unconditional qualification-C implementation digest equality;
+- platform, bounds, review-history, and named-author semantics.
+
+`validatePublishedEvidenceSemantics` remains unconditional after snapshot and
+digest evaluation. The target patch does not edit any of those validators.
+The 101-test suite reran the noncanonical-scope, evidence tamper, historical
+rewrite, review-chain, acceptance, wrong/nonexistent/sibling ancestry,
+receipt-rotation, mode/type, gitlink, and withheld-authority negatives; all
+passed.
+
+## Fleet commit enumeration and review
+
+The range contains 32 commits. I enumerated all of them so ancestry presence is
+not confused with claim relevance.
+
+### Scoped non-merge fleet commits
+
+1. `5f7e262aa9` — route parity, server/schema error envelopes (`build.rs`,
+   server/admin/schema-export sources). No fork runtime or chain change.
+2. `8e369eaed6` — native CLI machine mode (`src/cli.rs`, `src/main.rs`). No
+   change survives in `src/cli/fork.rs`; the fork command is byte-identical to
+   the prior reviewed head.
+3. `682441b93f` — control catalog, host-op, and auth refusal acquisition paths.
+   No derived host-operation classifier or fork isolation change.
+4. `a827683d24` — diagnostics registry and exact-code lookup. It evolves the
+   fleet selection policy only for diagnostics; it does not alter the four
+   current sibling registrations.
+5. `591e7af32b` — MCP-control funnel changes in CLI/guide/server code. No fork
+   lifecycle or publication-chain change.
+6. `8489bdf1c0` — CLI/schema integration repairs. No fork-specific semantic
+   delta.
+7. `256e7404d5` — CLI review fixes plus `generation_activation`, `lib`, and
+   `local` maintenance. The only fork-adjacent net CLI line is import ordering;
+   no fork behavior changes.
+8. `b4aa0c498d` — restores an LLP 0199 `@ref` after module ordering; comment
+   only.
+9. `fdb0d9b04c` — regenerates all four sibling carrier/anchor files after the
+   god-file split and updates their manifest/test digest mirrors. This is the
+   motivating structural regeneration; no behavior source changes in the
+   commit. The three requested conformance suites are green at final C.
+10. `d9f3d40468` — extracts the jobs/cron storage kernel façade and regenerates
+    the same four carriers. The moved jobs bodies do not touch instance-fork
+    egress, TTL, non-promotability, identity, publication ordering, or exact
+    reap/drop authority. Final carrier source hashes and mirrors agree under
+    all three conformance gates.
+
+### Merge commits
+
+- `6314d0b1b1` — reintegrates the LLP 0199 god-file split.
+- `f2a6682804` — absorbs contract-types leaf and embedding visibility work.
+- `ac6a07ca39` — absorbs the realtime boundary.
+- `27cd852e44` — absorbs the already-reviewed derived-fork review artifacts.
+- `f6c87d299b` — reintegrates the `cli.rs` split.
+- `5d08a7a4cb` — absorbs the upstream carrier fix-forward.
+
+I inspected the combined critical-path diffs for all six. None has a combined
+diff in `src/instance_fork.rs`, `src/fork_promotion.rs`, `src/instance_lock.rs`,
+`src/cli/fork.rs`, the fork publication checker, or the sibling conformance
+gates. The final tree is exactly unchanged from `7b590a169` for the four fork
+runtime/lifecycle paths. `src/manifest.rs` has no added/removed AgentSafe or
+derived-fork definition in the range; its relevant changes are the regenerated
+sibling mirrors and jobs/types work.
+
+### Out-of-scope/support commits
+
+The remaining commits are `1cebcc51e2`, `35fc38e21b`, `2b12652c03`,
+`b76b72dd90`, `fce72f0819`, `8a82fc9275`, `fff7652231`, `5674a60266`,
+`d9f44dec55`, `c1177e8dca`, `340eaba743`, `510689ec14`, `daffecfb9b`,
+`7e1b2dd79a`, and `5df8206928`. They contain repository tooling, package/guide
+metadata, generated projections, acceptance-path repair, retained reviews,
+issue/LLP documentation, and Cloudflare deployment-identity refreshes. None
+changes the derived-fork v3 implementation scope or the target checker logic.
+
+The target commit `866f5d025` is reviewed separately above and is the only
+commit in the range that edits `scripts/check-agent-safe-publication.mjs`.
+
+## Digest and verification record
+
+- Independent v3 reconstruction over 199 committed entries produced
+  `sha256:98aa92d6651e405fda750d84bd510c4db6fcccd29213b13bb0436607a39a06d0`.
+- Production `implementationDigestAt` produced the same value.
+- `node --test tests/agent_safe_publication_checker_v1.mjs`: **101 passed, 0
+  failed**.
+- `node scripts/check-agent-safe-publication.mjs`: clean exit;
+  `agent_safe_storage_v1:withheld` and
+  `agent_safe_derived_deployment_fork_v1:withheld`.
+- `node tests/conformance/local-persistent-store-publication-v1.mjs`: passed;
+  published, `17 PASS / 0 GAP`, Triage `8/8`, Fleet `8/8`, carrier
+  `sha256:12948f3b8d7af14ff271026b369484a0bc5c377cb0cec1e950b7bc4ef676e7c5`.
+- `node tests/conformance/relation-activity-publication-v1.mjs`: passed;
+  carrier
+  `sha256:18ff723a6d443615e55396f01dfa86e3d35f4f9024127013a0d8afcbd50de77e`.
+- `node tests/conformance/sequence-allocation-publication-v1.mjs`: passed;
+  10 qualified cases, carrier
+  `sha256:3beb4f1fe134c79f043d6aa3e8e4b1f33a20be8811645c553a2a0ca17e8ac315`.
+- Direct disposable structural-tamper probes for relation and sequence: both
+  gates refused with nonzero status. The checker suite's corresponding
+  local-store tamper probe also refused.
+- Weakened-policy attack: `validateSelectionPolicy` passed, while
+  `validateDerivedForkCoverageTransfers` unexpectedly accepted all 9 old
+  transfers after all four sibling registrations were removed.
+- `git diff --check 7b590a169..866f5d025`: passed.
+- `./ref-check --verbose`: 207 LLP documents, 4,802 refs in 11,354 files, 0
+  errors, 0 unchecked.
+- Final target worktree status: clean detached HEAD. No repository file was
+  modified and no push was performed.
+
+NOT READY
+# Codex-family one-commit delta review — sibling-custody closure at publication C
+
+## Provenance and scope
+
+- **Reviewer family:** Codex
+- **Date:** 2026-08-09
+- **Prior Codex NOT READY head:**
+  `866f5d025645ce20a9149d8ea20032bd2f31c9b0`
+- **Candidate C / reviewed HEAD:**
+  `04332ab8b73799bd3279b3150dbd8598df275530`
+- **Target delta:** `04332ab8b` (`fix(publication): bind sibling custody
+  transfers`)
+- **Complete intervening range inspected:** `866f5d025..04332ab8b` (8
+  commits, 0 merges)
+- **Scoped v3 digest:**
+  `sha256:42d8fdccbe42ed3699da014f1c3ec68aa8fd05ca99de423310b6a6885190708f`
+- **Method:** prior-finding replay, one-commit source/control-flow review,
+  complete intervening commit/path census, independent scoped-digest
+  reconstruction, exact registry-definition review, checker and sibling-gate
+  execution, and independent disposable-repository policy attacks.
+- **Independence:** I consulted only my own prior Codex review at the path in
+  the dispatch. I did not open or consult any other review. The review-only
+  commit in the intervening range was enumerated by commit and path only. This
+  session made no repository change and did not push.
+
+## Overall assessment
+
+The blocking custody defect is closed. Candidate C admits all four sibling
+chain gates against exact definitions frozen in the claim-semantic checker,
+requires every declared frozen-record blob to exist at C, and separately
+requires each of the four sibling paths to match its mapped gate trigger. A
+shape-valid C policy with the four registrations removed still passes the
+generic selection-policy schema, but it now fails
+`validateDerivedForkCoverageTransfers`; record-path, regeneration-command,
+and mapped-trigger substitutions fail as well.
+
+The closure preserves the intended LLP 0189 D-3/D-4 boundary. The four
+sibling records remain visible as typed post-C `requalificationDue` evolution
+instead of being re-bound to fork C. The storage publication retains its own
+qualification-C transform. The fork anchor, carrier, receipt, evidence,
+canonical scope, digest, acceptance, review-history, and ancestry checks are
+unchanged. Integrity custody can no longer be removed from the C-bound policy
+without the mechanically frozen transfer validator refusing.
+
+The new real-HEAD positive supplies the current-policy half of the old
+two-step attack. A change to
+`scripts/local-proof-selection-policy.v1.json` classifies
+`FAIL_CLOSED_FULL` and selects both `agent-safe-publication` and
+`agent-safe-publication-fixtures`; therefore a post-C policy deletion reaches
+the positive that validates that HEAD as C and fails before a later sibling
+carrier change can inherit a green weakened policy. The four sibling paths
+continue to select their owning gates under the real policy.
+
+No blocking or material finding remains in this delta.
+
+## Closure of the prior blocking finding
+
+The implementation adds these exact claim-scoped authorities:
+
+1. `DERIVED_FORK_SIBLING_CUSTODY_GATES` requires
+   `local-store-publication`, `local-store-carrier-receipt`,
+   `relation-activity-publication`, and
+   `sequence-allocation-publication`.
+2. `DERIVED_FORK_SIBLING_CUSTODY_TRANSFERS` maps the persistent-store carrier
+   and anchor to `local-store-publication`, and maps the relation/activity and
+   sequence-allocation carriers to their respective publication gates.
+3. `DERIVED_FORK_ADMITTED_COVERAGE_GATES` freezes each gate's complete
+   `records`, `recordPaths`, `triggerRules`, regeneration command, and optional
+   dependency fields. Canonical equality rejects a prose stub or weakened
+   substitute.
+4. `admittedCoverageGateAtCommit` additionally proves every declared record
+   path resolves to a regular committed blob at qualification C.
+5. `assertSiblingChainCustodyTransfers` requires exact equality with the four
+   sibling paths, checks mapped trigger coverage, and admits all four gate
+   definitions before `validateDerivedForkCoverageTransfers` can return.
+6. The validator still reads the exact policy bytes at C and verifies their
+   SHA-256 binding before interpreting the registry.
+
+The receipt-only `local-store-carrier-receipt` gate is correctly required as a
+chain owner without being falsely mapped as the direct recomputing owner of
+the persistent carrier or anchor. The direct mappings remain with
+`local-store-publication`.
+
+## Independent attack replay
+
+I cloned C into a disposable local repository and constructed weakened C
+commits with Git plumbing, without editing the target worktree. Each mutated
+policy still passed `validateSelectionPolicy`, isolating the result to the new
+claim-specific checks.
+
+| Attack | Synthetic C | Result |
+| --- | --- | --- |
+| Delete all four sibling gates and remove them from the drift core | `9bba794322301939f937f5ee0a2f09956d07e5ee` | Refused: persistent-store carrier is not covered by `local-store-publication` |
+| Substitute the relation gate's record-path set | `78b0340472a603d432283ccb850f8925bc6d471e` | Refused: relation gate does not retain its exact registered definition |
+| Substitute the sequence gate's regeneration command | `7c32db75a5095e78ddacfd13da4b49be5baa9c49` | Refused: sequence gate does not retain its exact registered definition |
+| Remove the persistent-store anchor trigger | `6138c1b2cb86685b710f1e78cccdd7ed552b7b55` | Refused: anchor is not covered by `local-store-publication` |
+
+For the all-gates deletion, selecting the policy file itself produced
+`FAIL_CLOSED_FULL` and included both agent-safe checker gates. Thus the
+real-HEAD positive is not an inert test: the policy change's declared affected
+selection reaches it, and the same independent refusal above is its result.
+
+The requested direct attack therefore changed from the prior unexpected
+acceptance to a hard refusal.
+
+## One-commit code and test review
+
+The target changes only the implementation ticket, the publication checker,
+and its test corpus. The admission helper is shared with the original nine
+departing-leaf transfers, so the sibling closure and the earlier wave-transfer
+closure now use one exact-definition-and-record-existence predicate. The
+sibling check intentionally omits the original transfer rule that a path must
+leave the implementation scope: these four paths remain scoped evolution, as
+LLP 0189 requires.
+
+The added negatives cover deletion of each required gate and trigger removal
+for each mapped sibling path. The new real-HEAD test validates the complete
+current policy at the actual C. The fixture copies every sibling gate's record
+paths into its synthetic qualification repository, preventing the positive
+from succeeding merely because record existence was never exercised. Existing
+exact-definition tests continue to cover record, trigger, and regeneration
+substitutions for the shared admission predicate; the independent attacks
+above exercise those substitutions against sibling gates specifically.
+
+No fork publication-chain validator was relaxed. The only return-value change
+in `validateDerivedForkCoverageTransfers` is local: it retains the public
+nine-transfer return while requiring sibling custody as a side condition.
+
+## Intervening fleet commit enumeration and review
+
+I enumerated every commit in `866f5d025..04332ab8b` so ancestry presence is
+not confused with claim relevance.
+
+1. `f940bc62a` — LLP/issue documentation for the withdrawn 0207 program and
+   owner follow-ups. Outside the derived-fork D-4 scope.
+2. `96d50a742` — the only other commit that changes the derived-fork scoped
+   source tree. It moves asset publication maintenance, GC, and runner
+   transaction bodies from `src/local.rs` into the typed
+   `src/storage/asset_maintenance.rs` kernel, adds the façade in
+   `src/storage.rs`, and refreshes the four sibling carriers plus their
+   manifest/conformance digest mirrors. It does not change
+   `src/instance_fork.rs`, `src/fork_promotion.rs`, `src/instance_lock.rs`, or
+   `src/cli/fork.rs`. The `src/manifest.rs` diff is confined to refreshed
+   sibling carrier/source hashes. All three affected publication conformance
+   gates pass at final C.
+3. `2d6701196` — filesystem issue for the pre-existing asset-store environment
+   race. Documentation only and outside scope.
+4. `49c2ad3a` — ownership manifest/baseline assignment. Outside the exact
+   derived-fork scope.
+5. `147f4e2d4` — ownership-ratchet filesystem issue. Documentation only and
+   outside scope.
+6. `4050dc8da` — retained review artifacts only. Enumerated from commit/path
+   metadata; no review body was opened or consulted, per the dispatch.
+7. `9d83959b6` — authored-symbol lifecycle facts, generated reference material,
+   and publish-tooling enforcement. It does not touch `src`, the derived-fork
+   checker, the scoped generated-artifact policy, Cargo/build inputs, or the
+   Ibex gitlink, so it is outside this claim's exact D-4 digest.
+8. `04332ab8b` — the sibling-custody closure reviewed above. Its checker edit
+   is claim-semantic and is included in the recomputed v3 digest.
+
+There are no merge commits in the range. The final tree has no change from the
+prior NOT READY head in the four critical fork runtime/lifecycle paths named
+above.
+
+## Digest and verification record
+
+- Independent reconstruction over 200 committed scoped entries produced
+  `sha256:42d8fdccbe42ed3699da014f1c3ec68aa8fd05ca99de423310b6a6885190708f`.
+- Production `implementationDigestAt` produced the same value.
+- Qualification-C selection-policy bytes hash to
+  `sha256:9221291f95c690d455be3240b342010216b7e1b470cf21aba53104408a3f9075`.
+- `node --test tests/agent_safe_publication_checker_v1.mjs`: **104 passed, 0
+  failed**, including all new custody cases.
+- `node scripts/check-agent-safe-publication.mjs`: clean exit;
+  `agent_safe_storage_v1:withheld` and
+  `agent_safe_derived_deployment_fork_v1:withheld`.
+- `node tests/conformance/local-persistent-store-publication-v1.mjs`: passed;
+  published, `17 PASS / 0 GAP`, Triage `8/8`, Fleet `8/8`, carrier
+  `sha256:827f04914e509bca758b08e6762ad061b0d814f01ceed10933f25f7f113818db`.
+- `node tests/conformance/relation-activity-publication-v1.mjs`: passed;
+  carrier
+  `sha256:4a5084411c2f2c5f03bcdc50757ffe5c4cf94f4816a844b6634b41020df1b8a9`.
+- `node tests/conformance/sequence-allocation-publication-v1.mjs`: passed; 10
+  qualified cases, carrier
+  `sha256:46b0fa02b2b10239028db3b043584d9b05e1fc4070ebc9fe485463616ff88470`.
+- `./ref-check --verbose`: 208 LLP documents, 4,810 refs in 11,365 files, 0
+  errors, 0 unchecked.
+- `git diff --check 866f5d025..04332ab8b`: passed.
+- Final target worktree status: clean detached HEAD exactly at candidate C.
+  No repository file was modified and no push was performed.
+
+READY
