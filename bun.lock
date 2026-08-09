@@ -104,6 +104,9 @@
         "react-native-web",
       ],
     },
+    "packages/snapback-harness": {
+      "name": "@expo/snapback-harness",
+    },
     "packages/snapback-hosted-supervisor": {
       "name": "@expo/snapback-hosted-supervisor",
       "version": "0.1.0",
@@ -482,6 +485,8 @@
     "@expo/snapback-contract": ["@expo/snapback-contract@workspace:packages/snapback-contract"],
 
     "@expo/snapback-expo": ["@expo/snapback-expo@workspace:packages/snapback-expo"],
+
+    "@expo/snapback-harness": ["@expo/snapback-harness@workspace:packages/snapback-harness"],
 
     "@expo/snapback-hosted-supervisor": ["@expo/snapback-hosted-supervisor@workspace:packages/snapback-hosted-supervisor"],
 

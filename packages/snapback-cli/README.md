@@ -56,8 +56,8 @@ server and proves a real query and mutation before it succeeds.
 ## Documentation outside a checkout
 
 A running Snapback server serves the Guide compiled into that exact build.
-The URLs below use the first default development port; if another port was
-selected, use the origin printed by `snapback dev` or `snapback start`.
+These links use the first default development port; use the origin printed by
+`snapback dev` or `snapback start` if yours differs.
 
 - Start with the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md)
   so you do not rebuild a feature that already exists.

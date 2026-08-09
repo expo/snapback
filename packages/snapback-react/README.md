@@ -1,6 +1,10 @@
 # `@expo/snapback-react`
 
 First-class Online React and React Native bindings over `@expo/snapback-client`.
+Install this package when a React application needs Snapback hooks and provider
+ownership; install the headless client alone for non-React consumers. The full
+build-matched documentation becomes available after the Snapback development
+server is installed and running.
 
 The package exports:
 
@@ -81,9 +85,22 @@ bun run --cwd packages/snapback-react test
 ```
 
 The backend-bakeoff retains an exact ten-check React receipt at
-`demos/signal-desk/acceptance/results/react-presence.v1.json`. For
-consumer-facing documentation, see the served
-[React](http://127.0.0.1:4287/_snapback/guide/clients/react.md) and
-[React Expo](http://127.0.0.1:4287/_snapback/guide/clients/react-expo.md)
-Guide pages, or read the same build-bound corpus through `snapback mcp`.
-The governing design is in LLP 0064, LLP 0114, and LLP 0107.
+`demos/signal-desk/acceptance/results/react-presence.v1.json`. The governing
+design is in LLP 0064, LLP 0114, and LLP 0107.
+
+## Documentation outside a checkout
+
+A running Snapback server serves the Guide compiled into that exact build.
+These links use the first default development port; use the origin printed by
+`snapback dev` or `snapback start` if yours differs.
+
+- Read the [React client guide](http://127.0.0.1:4287/_snapback/guide/clients/react.md)
+  for the provider and hook lifecycle.
+- Read the [React and Expo client guide](http://127.0.0.1:4287/_snapback/guide/clients/react-expo.md)
+  for React Native and Expo composition.
+- Check the [capability index](http://127.0.0.1:4287/_snapback/guide/capabilities.md)
+  before assuming a target or lifecycle is supported.
+- Run `snapback guide` or `snapback guide <query>` to browse or search the
+  embedded Guide.
+- Run `snapback mcp` for the same build-bound corpus as read-only MCP
+  resources, starting at `snapback-guide://manifest`.

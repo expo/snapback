@@ -33,3 +33,17 @@ resources, semver tags), or (b) state the "in-repo proving client, not
 consumable as a dependency" boundary explicitly in `guide/clients/swift.md`
 and the capability row. Either way, add the missing dependency-declaration
 snippet (or its explicit non-claim) and a `clients/` README.
+
+## Resolution (2026-08-08)
+
+Implemented option (b) without creating an external repository or tags.
+`guide/clients/swift.md` now states that the nested SwiftPM package is an
+in-repository proving client, gives an explicit dependency-declaration
+non-claim where installation guidance would otherwise appear, and documents
+the repository-root `SNAPBACK_REPO_ROOT` test command. The `clients.swift`
+capability row now carries the same not-published/not-tagged/not-consumable
+boundary.
+
+Added `clients/README.md` to document the client-tree layout, the exact
+in-repository Swift test invocation and fixture-root requirement, and the
+external-distribution work that remains deliberately unclaimed.

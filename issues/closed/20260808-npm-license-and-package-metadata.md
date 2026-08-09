@@ -51,3 +51,29 @@ Root `LICENSE` (MIT) + `license`/`repository` (with `.directory`)/
 license field, the funnel block, and the port caveat; add the two READMEs'
 funnel blocks and the runtime/sidecar READMEs (or `private: true`);
 ledger-derived version stamp in the generated reference.
+
+## Resolution (2026-08-08)
+
+Added the ratified MIT license at the repository root with Expo repository
+ownership reflected as `650 Industries, Inc.`, and added `license`, repository
+directory, homepage, bugs, and keywords metadata to all 13 manifests that had
+claimed public publishability when this ticket was filed. The package README
+gate now discovers every non-private workspace manifest, cross-checks the main
+publication inventory, and requires the MIT field, checkout-independent Guide
+funnel, port caveat, and packed README.
+
+`@expo/snapback-client` and `@expo/snapback-react` now have stable pre-install
+orientation and complete served-Guide/MCP funnels. Both runtime packages now
+ship README funnels, and the other public READMEs carry the port caveat. The
+uninventoried `@expo/snapback-sidecar` manifest is now private and no longer
+claims public registry access; LLP 0129 calls the implementation
+"productized," so an author may later choose to promote it, but that must add
+an explicit inventory/capability/publication contract rather than relying on
+the old stray manifest. `packages/snapback-harness` now has a minimal private
+workspace manifest describing its in-repository role.
+
+Finally, `scripts/generate-symbol-registry.mjs` binds
+`buildIdentity.packageVersions` and `publishedClosureVersion` to
+`guide/published-closure.json`, while retaining separately labeled
+`sourceManifestVersions`. The generated registry and Guide projections were
+regenerated through their canonical scripts.

@@ -1,0 +1,6 @@
+{
+  "name": "@expo/snapback-harness",
+  "private": true,
+  "type": "module",
+  "description": "In-repository runtime assets for Snapback acceptance harnesses."
+}

@@ -3,6 +3,17 @@
   "version": "0.1.0",
   "type": "module",
   "description": "React external-store bindings for the Snapback app-data client.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "packages/snapback-react"
+  },
+  "homepage": "https://github.com/expo/snapback#readme",
+  "bugs": {
+    "url": "https://github.com/expo/snapback/issues"
+  },
+  "keywords": ["snapback", "backend", "react", "react-native"],
   "files": [
     "README.md",
     "index.d.mts",
