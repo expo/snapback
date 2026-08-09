@@ -16,6 +16,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import Ajv2020 from 'ajv/dist/2020.js';
 
 import {
   diagnosticError,
@@ -31,6 +32,33 @@ import { stopProcessGroup } from './process-teardown.mjs';
 
 const PROTOCOL_VERSION = '2025-06-18';
 const SCHEMA_VERSION = 'snapback.v0';
+const INPUT_SCHEMA_VALIDATOR = new Ajv2020({ allErrors: true, strict: false });
+// Every MCP tool returns the same structured host-operations envelope. Keep
+// one output schema object so pinned control tools and generated app-data
+// tools cannot drift into distinct result dialects.
+//
+// @ref LLP 0024#result-envelope — MCP structuredContent is the shared
+// hostOpsResult envelope, including understood ok:false outcomes.
+export const HOST_OPS_RESULT_OUTPUT_SCHEMA = {
+  type: 'object',
+  required: [
+    'schemaVersion', 'resultKind', 'requestId', 'operation', 'ok', 'target',
+    'authority', 'artifacts', 'data', 'diagnostics', 'next',
+  ],
+  properties: {
+    schemaVersion: { const: SCHEMA_VERSION },
+    resultKind: { const: 'hostOpsResult' },
+    requestId: { type: 'string' },
+    operation: { type: 'string' },
+    ok: { type: 'boolean' },
+    target: { type: 'object' },
+    authority: { type: ['object', 'null'] },
+    artifacts: { type: 'object' },
+    data: true,
+    diagnostics: { type: 'array', items: { type: 'object' } },
+    next: { type: 'array' },
+  },
+};
 // @ref LLP 0167#profile-model — MCP projects Rust's finite built-in
 // vocabulary and delay ceiling through a Rust-checked package artifact.
 const NETWORK_PROFILE_AUTHORITY = readJson(join(
@@ -262,8 +290,7 @@ export function buildAppDataCatalog(backendRoot) {
       description: `Generated ${kind} ${fn.id} (auth: ${fn.authRequirement}; `
         + `syncability: ${fn.syncabilityClass}; capabilities: ${requiredCapabilities.join(', ') || 'none'})`,
       inputSchema,
-      // The codegen artifacts carry no return-shape schema yet.
-      outputSchema: 'unknown',
+      outputSchema: HOST_OPS_RESULT_OUTPUT_SCHEMA,
       kind,
       requiredCapabilities,
       capabilityGaps: requiredCapabilities.filter((name) => gaps.has(name)),
@@ -274,15 +301,6 @@ export function buildAppDataCatalog(backendRoot) {
       dryRunSupported: false,
       sourceSpan: fn.sourceSpan ?? null,
       bundleHash: manifest.bundleHash ?? null,
-    });
-  }
-  if (entries.some((entry) => entry.outputSchema === 'unknown')) {
-    diagnostics.push({
-      ...diagnostic(
-        'SNAPBACK_MCP_OUTPUT_SCHEMA_UNKNOWN',
-        'generated artifacts declare no return shapes; catalog outputSchema is "unknown"',
-      ),
-      severity: 'note',
     });
   }
   return {
@@ -896,7 +914,7 @@ export const CONTROL_TOOLS = [
       type: 'object', additionalProperties: false, required: ['dir'],
       properties: { dir: { type: 'string', description: 'Absolute path of an empty (or absent) export directory, on the server host.' } },
     },
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   },
   {
     name: 'snapback_asset_import_cut',
@@ -913,6 +931,41 @@ export const CONTROL_TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
   },
 ];
+
+// This tool intentionally lives only on mcp-control. The Rust `snapback mcp`
+// server remains resource-only; the control server wraps the native CLI's
+// exact-symbol-first, Markdown-section-second Guide lookup.
+//
+// @ref LLP 0042#dated-amendment-network-profile-control-tools-2026-08-04-proposed —
+// the resource-first Guide server exposes no tools; tools belong here.
+export const GUIDE_SEARCH_TOOL = {
+  name: 'snapback_guide_search',
+  operation: 'guide.search',
+  title: 'Search the build-matched Snapback Guide',
+  description: 'Search exact API symbols first, then matching Guide sections, using the co-installed native binary.',
+  inputSchema: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['query'],
+    properties: {
+      query: { type: 'string', minLength: 1 },
+      slice: { type: 'integer', minimum: 1, default: 1 },
+    },
+  },
+  annotations: { readOnlyHint: true, openWorldHint: false },
+};
+
+function appDataToolInputSchema(entry) {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['args'],
+    properties: {
+      args: entry.inputSchema,
+      authority: AUTHORITY_INPUT_SCHEMA,
+    },
+  };
+}
 
 export function requireMatchingControlCatalogIdentity(catalog, instance) {
   const buildDigest = catalog?.catalogDigest;
@@ -945,10 +998,16 @@ export class McpControlServer {
     this.database = resolve(options.database ?? join(stateRoot, 'dev.sqlite3'));
     this.env = options.env;
     this.runtimeBinary = options.runtimeBinary;
+    this.spawnSync = options.spawnSync ?? spawnSync;
     this.runtime = null;
     this.child = null;
     this.managed = false;
     this.dataPatchTokens = new Map();
+    this.nativeCatalogCache = null;
+    this.nativeControlDescriptionCache = new Map();
+    this.nativeGuideCache = new Map();
+    this.nativeGuideSearchCache = new Map();
+    this.toolValidators = new Map();
     const { catalog, diagnostics } = buildAppDataCatalog(this.backendRoot);
     this.catalog = catalog;
     this.catalogDiagnostics = diagnostics;
@@ -994,6 +1053,7 @@ export class McpControlServer {
   }
 
   nativeControlCatalog() {
+    if (this.nativeCatalogCache !== null) return this.nativeCatalogCache;
     const output = this.runNativeJson(
       ['controls', 'list', '--json'],
       'SNAPBACK_MCP_CONTROL_CATALOG_UNAVAILABLE',
@@ -1008,21 +1068,39 @@ export class McpControlServer {
         {},
       );
     }
-    return output;
+    this.nativeCatalogCache = output;
+    return this.nativeCatalogCache;
   }
 
   nativeControlDescription(operation) {
-    return this.runNativeJson(
+    const catalogDigest = this.nativeControlCatalog().value.catalogDigest;
+    const cacheKey = `${catalogDigest}:${operation}`;
+    const cached = this.nativeControlDescriptionCache.get(cacheKey);
+    if (cached !== undefined) return cached;
+    const output = this.runNativeJson(
       ['controls', 'describe', operation, '--json'],
       'SNAPBACK_MCP_CONTROL_DESCRIPTION_UNAVAILABLE',
       `the co-installed native control row ${operation} could not be read`,
     );
+    if (output.value?.catalogDigest !== catalogDigest) {
+      throw diagnosticError(
+        'SNAPBACK_MCP_CONTROL_CATALOG_IDENTITY_MISMATCH',
+        `the co-installed native control row ${operation} does not match the cached build catalog`,
+        { buildDigest: catalogDigest, descriptionDigest: output.value?.catalogDigest ?? null },
+      );
+    }
+    this.nativeControlDescriptionCache.set(cacheKey, output);
+    return output;
   }
 
   nativeGuideRequest(method, params = {}) {
+    const catalogDigest = this.nativeControlCatalog().value.catalogDigest;
+    const cacheKey = `${catalogDigest}:${method}:${JSON.stringify(canonicalJson(params))}`;
+    const cached = this.nativeGuideCache.get(cacheKey);
+    if (cached !== undefined) return cached;
     const runtime = this.resolveRuntime();
     const request = { jsonrpc: '2.0', id: 1, method, params };
-    const result = spawnSync(runtime.binary, ['mcp'], {
+    const result = this.spawnSync(runtime.binary, ['mcp'], {
       cwd: this.projectRoot,
       env: runtimeSpawnEnvironment(runtime.binary, this.env),
       encoding: 'utf8',
@@ -1059,7 +1137,23 @@ export class McpControlServer {
         { nativeErrorCode: response.error.code },
       );
     }
-    return response?.result;
+    const output = response?.result;
+    this.nativeGuideCache.set(cacheKey, output);
+    return output;
+  }
+
+  nativeGuideSearch(query, slice) {
+    const catalogDigest = this.nativeControlCatalog().value.catalogDigest;
+    const cacheKey = `${catalogDigest}:${query}:${slice}`;
+    const cached = this.nativeGuideSearchCache.get(cacheKey);
+    if (cached !== undefined) return cached;
+    const output = this.runNativeJson(
+      ['guide', query, '--slice', String(slice), '--json'],
+      'SNAPBACK_MCP_GUIDE_SEARCH_UNAVAILABLE',
+      'the co-installed native Guide search could not run',
+    ).value;
+    this.nativeGuideSearchCache.set(cacheKey, output);
+    return output;
   }
 
   controlResourceCatalog(catalog) {
@@ -1089,7 +1183,7 @@ export class McpControlServer {
     ];
     for (const entry of catalog.entries) {
       resources.push({
-        uri: `${CONTROL_OPERATION_URI_PREFIX}${encodeURIComponent(entry.operation)}`,
+        uri: `${CONTROL_OPERATION_URI_PREFIX}${encodedAdminPathSegment(entry.operation, 'operation')}`,
         name: entry.operation,
         title: entry.title,
         description: `Complete control-catalog row for ${entry.operation}`,
@@ -1725,8 +1819,66 @@ export class McpControlServer {
     return { ...envelope, requestId: id };
   }
 
+  toolDefinition(name) {
+    const control = [...CONTROL_TOOLS, GUIDE_SEARCH_TOOL].find((tool) => tool.name === name);
+    if (control) return control;
+    const entry = (this.catalog?.entries ?? []).find((candidate) => candidate.toolName === name);
+    if (!entry) return null;
+    return {
+      name,
+      operation: 'function.run',
+      inputSchema: appDataToolInputSchema(entry),
+    };
+  }
+
+  invalidArgumentsResult(tool, operation, errors) {
+    const required = errors
+      .filter((error) => error.keyword === 'required')
+      .map((error) => error.params?.missingProperty)
+      .filter((field) => typeof field === 'string');
+    return this.toolResult(this.envelope(operation, {
+      diagnostics: [diagnostic(
+        'SNAPBACK_MCP_ARGUMENT_INVALID',
+        `${tool} arguments do not match its declared inputSchema`,
+        {
+          tool,
+          errors: errors.map((error) => ({
+            instancePath: error.instancePath,
+            keyword: error.keyword,
+            message: error.message,
+            params: error.keyword === 'required'
+              ? { missingProperty: error.params?.missingProperty }
+              : error.keyword === 'type'
+                ? { type: error.params?.type }
+                : {},
+          })),
+        },
+      )],
+      next: [{ kind: 'retryWithInput', tool, required }],
+    }));
+  }
+
+  validateToolArguments(definition, args) {
+    let validate = this.toolValidators.get(definition.name);
+    if (validate === undefined) {
+      validate = INPUT_SCHEMA_VALIDATOR.compile(definition.inputSchema);
+      this.toolValidators.set(definition.name, validate);
+    }
+    return validate(args)
+      ? null
+      : this.invalidArgumentsResult(
+        definition.name,
+        definition.operation,
+        validate.errors ?? [],
+      );
+  }
+
   async callTool(name, args) {
     const id = requestId();
+    const definition = this.toolDefinition(name);
+    if (definition === null) return null;
+    const invalid = this.validateToolArguments(definition, args);
+    if (invalid !== null) return invalid;
     switch (name) {
       case 'snapback_start':
         return this.toolResult(await this.startEnvelope(id));
@@ -1763,6 +1915,13 @@ export class McpControlServer {
             ? { userId: args.operatorPrincipal }
             : {}),
         });
+      case 'snapback_guide_search': {
+        const result = this.nativeGuideSearch(args.query, args.slice ?? 1);
+        return this.toolResult(this.envelope('guide.search', {
+          ok: true,
+          data: { guideSearch: result },
+        }));
+      }
       case 'snapback_telemetry_stats':
         return this.servedResult({ operation: 'telemetry.stats', input: args });
       case 'snapback_telemetry_events': {
@@ -1891,7 +2050,8 @@ export class McpControlServer {
         }));
       }
       case 'snapback_cron_run': {
-        const result = await this.postAdminRoute(`/_snapback/api/cron/${encodeURIComponent(args.name)}/run`, {});
+        const namePath = encodedAdminPathSegment(args.name, 'name');
+        const result = await this.postAdminRoute(`/_snapback/api/cron/${namePath}/run`, {});
         return this.toolResult(this.adminRouteEnvelope('cron.runOne', id, result));
       }
       case 'snapback_ephemeral_cleanup': {
@@ -1918,8 +2078,9 @@ export class McpControlServer {
         // tool's own receipt (§P2's "never presented as application
         // disconnect authority" — the server acknowledges only the
         // disconnect itself, not a reason).
+        const connectionPath = encodedAdminPathSegment(args.connectionId, 'connectionId');
         const result = await this.postAdminRoute(
-          `/_snapback/api/connections/${encodeURIComponent(args.connectionId)}/disconnect`,
+          `/_snapback/api/connections/${connectionPath}/disconnect`,
           { reason: args.reason },
         );
         return this.toolResult(this.adminRouteEnvelope('connection.disconnect', id, {
@@ -2122,11 +2283,14 @@ export class McpControlServer {
   }
 
   listTools() {
-    const control = CONTROL_TOOLS.map(({ name, title, description, inputSchema, annotations, operation }) => ({
+    const control = [...CONTROL_TOOLS, GUIDE_SEARCH_TOOL].map(({
+      name, title, description, inputSchema, annotations, operation,
+    }) => ({
       name,
       title,
       description,
       inputSchema,
+      outputSchema: HOST_OPS_RESULT_OUTPUT_SCHEMA,
       annotations,
       _meta: { 'snapback/operation': operation },
     }));
@@ -2134,13 +2298,18 @@ export class McpControlServer {
       name: entry.toolName,
       title: entry.title,
       description: entry.description,
-      inputSchema: entry.inputSchema,
+      inputSchema: appDataToolInputSchema(entry),
+      outputSchema: entry.outputSchema,
       annotations: {
         readOnlyHint: entry.kind === 'query',
         destructiveHint: entry.kind !== 'query',
         openWorldHint: false,
       },
-      _meta: { 'snapback/catalogEntry': entry },
+      _meta: {
+        functionId: entry.functionId,
+        capabilityGaps: entry.capabilityGaps,
+        syncabilityClass: entry.syncabilityClass,
+      },
     }));
     return {
       tools: [...control, ...appData],
@@ -2228,9 +2397,11 @@ export class McpControlServer {
           instructions: 'Control-plane tools project LLP 0024 host operations; '
             + 'snapback_fn_* tools are the generated app-data catalog. Every result '
             + 'is the shared hostOpsResult envelope; ok:false envelopes are '
-            + 'app-level failures, not tool errors. Read snapback-controls://catalog '
-            + 'to search the build catalog and snapback-guide://manifest for the '
-            + 'Guide; both are supplied by the co-installed native binary.',
+            + 'app-level failures, not tool errors. Start Guide discovery at '
+            + 'snapback-guide://page/meta.capabilities, then read '
+            + 'snapback-guide://manifest for the identity handshake. Use '
+            + 'snapback-controls://catalog for operating controls; all are supplied '
+            + 'by the co-installed native binary.',
         });
       case 'ping':
         return success({});
@@ -2257,14 +2428,15 @@ export class McpControlServer {
           if (result === null) return failure(-32602, `Unknown tool: ${request.params?.name}`);
           return success(result);
         } catch (error) {
-          // Transport-level failure: no envelope could be produced.
+          // Transport-level failure: preserve isError while keeping declared
+          // structuredContent in the shared hostOpsResult shape.
           const detail = error?.diagnostic
             ?? diagnostic(error?.code ?? 'SNAPBACK_MCP_TOOL_FAILED', error?.message ?? String(error));
-          return success({
-            content: [{ type: 'text', text: JSON.stringify({ diagnostics: [detail] }) }],
-            structuredContent: { diagnostics: [detail] },
-            isError: true,
+          const definition = this.toolDefinition(request.params?.name);
+          const envelope = this.envelope(definition?.operation ?? request.params?.name ?? 'unknown', {
+            diagnostics: [detail],
           });
+          return success(this.toolResult(envelope, { isError: true }));
         }
       }
       default:

@@ -727,12 +727,14 @@ impl Default for Args {
 /// The `snapback` CLI (LLP 0024 first slice, built by LLP 0032 P6). Bare
 /// invocation is discovery-safe and prints this root help; `snapback start`
 /// explicitly owns foreground serving.
+// @ref LLP 0184#4-agent-discovery-and-setup — native help names both MCP
+// authority postures and the explicit control registration preview.
 #[derive(Debug, Parser)]
 #[command(
     name = "snapback",
     about = "Snapback local server, host operations, and embedded Guide",
     version = env!("CARGO_PKG_VERSION"),
-    after_help = "Documentation:\n  snapback guide [QUERY]  Browse or search the build-bound Snapback Guide\n  snapback mcp            Serve the same Guide as read-only MCP resources\n\nServer environment:\n  SNAPBACK_NETWORK_PROFILE=<profile>\n  SNAPBACK_CRON_DISABLED=1\n  SNAPBACK_JOBS_DISABLED=1\n  SNAPBACK_ASSET_RUNNER_DISABLED=1\n  SNAPBACK_LIVE_COALESCE_DISABLED=1\n  SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS=<ms>"
+    after_help = "Documentation:\n  snapback guide [QUERY]  Browse or search the build-bound Snapback Guide\n  snapback mcp            Serve the same Guide as read-only MCP resources\n\nOperate it:\n  snapback mcp serves read-only Guide resources; snapback mcp-control adds typed control tools with local admin authority.\n  Preview with: snapback agent setup --print <client> --server mcp-control\n\nServer environment:\n  SNAPBACK_NETWORK_PROFILE=<profile>\n  SNAPBACK_CRON_DISABLED=1\n  SNAPBACK_JOBS_DISABLED=1\n  SNAPBACK_ASSET_RUNNER_DISABLED=1\n  SNAPBACK_LIVE_COALESCE_DISABLED=1\n  SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS=<ms>"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -2190,7 +2192,11 @@ fn render_guide_command(
              Flat agent projection:         {DEFAULT_SERVED_GUIDE_URL}/flat.md\n\
              Exact symbol or Guide search:  snapback guide <query> [--slice <n>]\n\
              Read through MCP:              snapback mcp\n\
-             MCP entry resource:            snapback-guide://manifest\n"
+             MCP entry resource:            snapback-guide://manifest\n\
+             \n\
+             Operate it:\n\
+             snapback mcp serves read-only Guide resources; snapback mcp-control adds typed control tools with local admin authority.\n\
+             Preview with: snapback agent setup --print <client> --server mcp-control\n"
         ));
     }
 
@@ -2248,8 +2254,48 @@ fn render_guide_command(
         );
     }
     if matches.is_empty() {
+        if json_output {
+            return Ok(format!(
+                "{}\n",
+                serde_json::to_string_pretty(&json!({
+                    "schemaVersion": "snapback.guide-search.v1",
+                    "query": query,
+                    "match": "none",
+                    "matches": [],
+                    "count": 0,
+                    "capabilityIndex": format!("{DEFAULT_SERVED_GUIDE_URL}/capabilities.md"),
+                }))?
+            ));
+        }
         return Ok(format!(
             "No embedded Guide sections matched {query:?}.\nStart with the capability index: {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n"
+        ));
+    }
+
+    if json_output {
+        let matches = matches
+            .iter()
+            .map(|matched| {
+                json!({
+                    "path": matched.path,
+                    "heading": matched.heading,
+                    "anchor": matched.anchor,
+                    "servedUrl": format!(
+                        "{DEFAULT_SERVED_GUIDE_URL}/{}#{}",
+                        matched.path, matched.anchor
+                    ),
+                })
+            })
+            .collect::<Vec<_>>();
+        return Ok(format!(
+            "{}\n",
+            serde_json::to_string_pretty(&json!({
+                "schemaVersion": "snapback.guide-search.v1",
+                "query": query,
+                "match": "sections",
+                "count": matches.len(),
+                "matches": matches,
+            }))?
         ));
     }
 
@@ -10566,6 +10612,11 @@ mod tests {
             help.contains("SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS"),
             "{help}"
         );
+        assert!(help.contains("snapback mcp-control"), "{help}");
+        assert!(
+            help.contains("snapback agent setup --print <client> --server mcp-control"),
+            "{help}"
+        );
     }
 
     #[test]
@@ -10632,6 +10683,22 @@ mod tests {
     }
 
     #[test]
+    fn guide_section_search_json_exposes_the_control_tool_shape() {
+        let output =
+            render_guide_command(&["network condition profiles".to_owned()], 1, true).unwrap();
+        let result: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(result["schemaVersion"], "snapback.guide-search.v1");
+        assert_eq!(result["match"], "sections");
+        assert!(result["count"].as_u64().unwrap() > 0);
+        assert!(
+            result["matches"][0]["servedUrl"]
+                .as_str()
+                .unwrap()
+                .starts_with(super::DEFAULT_SERVED_GUIDE_URL)
+        );
+    }
+
+    #[test]
     fn guide_channel_output_starts_with_capabilities_and_names_flat_and_mcp() {
         let output = render_guide_command(&[], 1, false).unwrap();
         let capability = output.find("/capabilities.md").unwrap();
@@ -10651,6 +10718,11 @@ mod tests {
             "{output}"
         );
         assert!(output.contains("snapback mcp"), "{output}");
+        assert!(output.contains("snapback mcp-control"), "{output}");
+        assert!(
+            output.contains("snapback agent setup --print <client> --server mcp-control"),
+            "{output}"
+        );
     }
 
     #[test]

@@ -35,6 +35,36 @@ struct GuideResource {
     mime_type: String,
 }
 
+fn page_description(page: &Value) -> anyhow::Result<String> {
+    let status = page
+        .get("status")
+        .and_then(Value::as_str)
+        .context("guide manifest page has no status")?;
+    let maturity = page
+        .get("maturity")
+        .and_then(Value::as_str)
+        .context("guide manifest page has no maturity")?;
+    let capabilities = page
+        .get("capabilities")
+        .and_then(Value::as_array)
+        .context("guide manifest page capabilities is not an array")?
+        .iter()
+        .map(|capability| {
+            capability
+                .as_str()
+                .context("guide manifest page capability is not a string")
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    Ok(format!(
+        "Status: {status}; maturity: {maturity}; capabilities: {}.",
+        if capabilities.is_empty() {
+            "none".to_owned()
+        } else {
+            capabilities.join(", ")
+        }
+    ))
+}
+
 fn embedded_manifest() -> anyhow::Result<Value> {
     let file = guide::file("guide-manifest.generated.json")
         .context("embedded Snapback Guide manifest is missing")?;
@@ -123,7 +153,7 @@ fn resource_catalog(manifest: &Value) -> anyhow::Result<Vec<GuideResource>> {
             uri: format!("{PAGE_URI_PREFIX}{id}"),
             name: id.clone(),
             title: title.to_owned(),
-            description: format!("Snapback Guide page {path}"),
+            description: page_description(page)?,
             embedded_path: embedded_path.to_owned(),
             mime_type: "text/markdown; charset=utf-8".to_owned(),
         });
@@ -318,7 +348,7 @@ fn handle_request(request: Value) -> Option<Value> {
                     "resources": { "subscribe": false, "listChanged": false }
                 },
                 "serverInfo": { "name": "snapback-guide", "version": env!("CARGO_PKG_VERSION") },
-                "instructions": "Read the manifest first and compare its guide hash/build commit with every cached resource before combining content.",
+                "instructions": "Start with snapback-guide://page/meta.capabilities to route by intent. Then read snapback-guide://manifest and compare its guide hash/build commit with every cached resource before combining content.",
             }),
         )),
         "ping" => Some(success(id, json!({}))),
@@ -486,6 +516,22 @@ mod tests {
         assert_eq!(actual, expected);
         assert!(actual.contains(&"snapback-guide://reference/registry".to_owned()));
         assert!(actual.contains(&"snapback-guide://reference/diagnostics".to_owned()));
+        let capabilities = resources
+            .iter()
+            .find(|resource| resource["uri"] == "snapback-guide://page/meta.capabilities")
+            .expect("capability-index resource");
+        assert_eq!(
+            capabilities["description"],
+            "Status: current; maturity: shipped; capabilities: none."
+        );
+        let agent_principals = resources
+            .iter()
+            .find(|resource| resource["uri"] == "snapback-guide://page/auth.agent-principals")
+            .expect("capability-bearing resource");
+        assert_eq!(
+            agent_principals["description"],
+            "Status: current; maturity: shipped; capabilities: auth.agent-principals."
+        );
         let identity = guide_identity(&manifest).unwrap();
         assert!(resources.iter().all(|resource| {
             resource["_meta"]["snapback/guideContentHash"] == identity.content_hash
@@ -559,6 +605,13 @@ mod tests {
     fn protocol_surface_is_read_only_and_closed() {
         let initialize = request(1, "initialize", json!({}));
         assert_eq!(initialize["result"]["protocolVersion"], PROTOCOL_VERSION);
+        let instructions = initialize["result"]["instructions"].as_str().unwrap();
+        assert!(
+            instructions
+                .find("snapback-guide://page/meta.capabilities")
+                .unwrap()
+                < instructions.find("snapback-guide://manifest").unwrap()
+        );
         assert!(initialize["result"]["capabilities"].get("tools").is_none());
         assert_eq!(
             request(

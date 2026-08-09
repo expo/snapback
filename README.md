@@ -50,6 +50,11 @@ feature. The canonical edit → regenerate → acceptance → inspect loop is
 Building Snapback itself is a different job: see
 [`AGENTS.md`](./AGENTS.md) and "Current code" below.
 
+## Operate it
+
+`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds typed control tools with local admin authority.
+Preview control setup with `snapback agent setup --print <client> --server mcp-control`.
+
 ## What it is
 
 Snapback aims to be everything you need behind an app, under one roof, with the

@@ -110,7 +110,8 @@
     "@expo/snapback-client": "workspace:*",
     "@expo/snapback-codegen": "workspace:*",
     "@expo/snapback-contract": "workspace:*",
-    "@expo/snapback-react": "workspace:*"
+    "@expo/snapback-react": "workspace:*",
+    "ajv": "^8.20.0"
   },
   "optionalDependencies": {
     "@expo/snapback-runtime-darwin-arm64": "workspace:*",

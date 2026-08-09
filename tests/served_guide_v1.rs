@@ -186,6 +186,9 @@ async fn memory_server_serves_root_llms_txt_with_guide_identity() {
     assert!(body.contains(HTTP_ROUTES_PATH));
     assert!(body.contains("/_snapback/guide/reference/diagnostics.md"));
     assert!(body.contains("/_snapback/guide/reference/diagnostics-registry.json"));
+    assert!(body.contains("`snapback mcp`"));
+    assert!(body.contains("`snapback mcp-control`"));
+    assert!(body.contains("snapback agent setup --print <client> --server mcp-control"));
 }
 
 #[tokio::test]

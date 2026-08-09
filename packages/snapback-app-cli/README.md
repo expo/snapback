@@ -65,3 +65,8 @@ These links use the first default development port; use the origin printed by
   embedded Guide.
 - Run `snapback mcp` for the same build-bound corpus as read-only MCP
   resources, starting at `snapback-guide://manifest`.
+
+## Operate it
+
+`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds typed control tools with local admin authority.
+Preview control setup with `snapback agent setup --print <client> --server mcp-control`.

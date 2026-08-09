@@ -419,6 +419,17 @@ composition, packaged codegen, and existing-app composition.
     Route terms: "existing standalone Expo", "backend-only initializer",
     "sibling directory", "compose into existing app".
 
+Case 40 absorbs the control-MCP cold-discovery miss recorded in
+`issues/closed/20260808-mcp-control-funnel-invisible.md` and LLP 0202 theme 3.
+
+40. **Agent control MCP setup:** "Give my coding agent access to Snapback's
+    local control tools over MCP, and preview the project configuration before
+    installing it." The run fails if it discovers only the resource-only
+    Guide server, omits the control server's local-admin authority, or edits a
+    harness configuration without first using the setup preview.
+    Expected pages: `operating/agent-controls.md`.
+    Route terms: "mcp-control", "control mcp", "agent setup", "control tools".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

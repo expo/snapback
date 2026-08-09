@@ -3083,7 +3083,7 @@ export const PACKAGED_CLI_SUBCOMMANDS = Object.freeze([
   nestedCliHelp(
     ['agent', 'setup'],
     'snapback agent setup <--print <client>|--install <client>|--uninstall <client>> [--server mcp|mcp-control] [--receipt <file>] [--json]',
-    'Configure project-scoped MCP for Codex, Claude, Cursor, or a generic client.',
+    'Configure project-scoped MCP for Codex, Claude, Cursor, VS Code, or a generic client.',
     [
       '--print defaults to both servers; --install and --uninstall require an explicit --server.',
       'generic emits adaptable JSON with --print and has no install target.',
