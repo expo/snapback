@@ -558,4 +558,3 @@ pub(crate) fn migrate_command(command: MigrateCommand, json_only: bool) -> anyho
         ),
     }
 }
-

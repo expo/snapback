@@ -578,7 +578,10 @@ fn remove_ready_after_process_gone(ready_file: &Path) -> anyhow::Result<()> {
     }
 }
 
-pub(crate) fn quiet_stop_fork(ready_file: &Path, expected_database: &Path) -> anyhow::Result<Option<u32>> {
+pub(crate) fn quiet_stop_fork(
+    ready_file: &Path,
+    expected_database: &Path,
+) -> anyhow::Result<Option<u32>> {
     if !ready_file.exists() {
         anyhow::bail!(
             "SNAPBACK_FORK_STOP_UNVERIFIED: readiness descriptor is missing, so process absence cannot be proved"
@@ -1390,4 +1393,3 @@ where
         }
     }
 }
-

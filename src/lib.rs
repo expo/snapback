@@ -72,6 +72,7 @@ pub(crate) mod contract_exact;
 // @ref LLP 0199#target-ownership-map — owner 1: crate-private generation
 // activation coordinator.
 pub(crate) mod generation_activation;
+pub(crate) mod spike_trace;
 // @ref LLP 0199#target-ownership-map — dependency-free shared contract/types
 // leaf consumed downward by Rust owners and generated-artifact producers.
 #[doc(hidden)]

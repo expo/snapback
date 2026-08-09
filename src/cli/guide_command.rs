@@ -1,7 +1,6 @@
 use super::*;
 
-pub(crate) const DEFAULT_SERVED_GUIDE_URL: &str =
-    "http://127.0.0.1:4287/_snapback/guide";
+pub(crate) const DEFAULT_SERVED_GUIDE_URL: &str = "http://127.0.0.1:4287/_snapback/guide";
 
 pub(crate) fn parse_guide_slice(value: &str) -> Result<usize, String> {
     value
@@ -10,7 +9,6 @@ pub(crate) fn parse_guide_slice(value: &str) -> Result<usize, String> {
         .filter(|slice| *slice > 0)
         .ok_or_else(|| "--slice must be a positive integer".to_owned())
 }
-
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct GuideSectionMatch {
@@ -270,4 +268,3 @@ pub(crate) fn guide_command(query: &[String], slice: usize, json: bool) -> anyho
         .write_all(render_guide_command(query, slice, json)?.as_bytes())
         .context("failed to write Guide output")
 }
-

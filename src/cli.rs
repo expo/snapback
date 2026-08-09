@@ -2010,12 +2010,12 @@ impl std::fmt::Debug for TargetArgs {
 }
 
 mod guide_command;
-pub(crate) use guide_command::{guide_command, parse_guide_slice};
 #[cfg(test)]
 pub(crate) use guide_command::{
-    DEFAULT_SERVED_GUIDE_URL, GUIDE_SEARCH_SCHEMA_VERSION, GuideSectionMatch,
-    render_guide_command, search_guide_sections_in,
+    DEFAULT_SERVED_GUIDE_URL, GUIDE_SEARCH_SCHEMA_VERSION, GuideSectionMatch, render_guide_command,
+    search_guide_sections_in,
 };
+pub(crate) use guide_command::{guide_command, parse_guide_slice};
 
 // @ref LLP 0024#dated-amendment-native-machine-mode-2026-08-08 — the packaged
 // root help consumes a structured projection of Clap's authoritative tree.
@@ -2976,14 +2976,14 @@ fn auth_restore(backup_directory: &Path, target_database: &Path) -> anyhow::Resu
 }
 
 mod fork;
-pub(crate) use fork::{fork_command, process_is_proven_gone, wait_for_derived_fork_expiry};
+#[cfg(unix)]
+pub(crate) use fork::configure_detached_child;
+use fork::now_ms;
 #[cfg(test)]
 pub(crate) use fork::{
     automatic_reap_before_create, fork_secret_disposition, parse_fork_ttl, quiet_stop_fork,
 };
-use fork::now_ms;
-#[cfg(unix)]
-pub(crate) use fork::configure_detached_child;
+pub(crate) use fork::{fork_command, process_is_proven_gone, wait_for_derived_fork_expiry};
 
 fn reject_misdirected_serve_flags(cli: &Cli) -> anyhow::Result<()> {
     if cli.serve != Args::default() {
