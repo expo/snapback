@@ -176,3 +176,28 @@ and a companion fixture proves that publication-chain tampering still refuses
 while that state is pending. Qualification-C digest and scope mismatches,
 acceptance/receipt/evidence binding failures, artifact or historical-byte
 tampering, and C-not-ancestor remain fatal. Withheld records are unchanged.
+
+## 2026-08-09 D-4 final sibling-chain custody decoupling
+
+Charlie Cheever ruled in session that the published derived-fork path must no
+longer validate the local persistent-store carrier/anchor as a mechanical
+transform of the fork's qualification C. The store chain belongs to the
+separate local-store capability, and the god-file-split carrier regeneration
+demonstrated that its structural evolution cannot honestly be reduced to the
+old single-digest-substitution exception.
+
+The oracle now applies `validateLocalStorePublicationTransform` only to a
+published `agent_safe_storage_v1` result. For a published derived-fork result,
+post-C changes to the persistent-store carrier/anchor and the relation/activity
+and sequence-allocation carriers are ordinary scoped evolution: the claim
+remains published with all changed carrier paths named in `requalificationDue`.
+Integrity custody remains with the already-registered LLP 0175 frozen-record
+gates `local-store-publication`, `local-store-carrier-receipt`,
+`relation-activity-publication`, and `sequence-allocation-publication`, so
+coverage moves and does not vanish.
+
+Fixtures prove a structural four-file carrier regeneration validates the fork
+as published with typed due paths, and prove structural persistent-store
+carrier tampering selects and fails its own `local-store-publication`
+conformance gate. The storage transform tests and all existing fork-chain
+tamper negatives remain intact. Withheld behavior is unchanged.

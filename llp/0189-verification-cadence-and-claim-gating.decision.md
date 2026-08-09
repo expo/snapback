@@ -24,6 +24,11 @@ piece 3, remains open.)
 post-qualification evolution of a published derived-fork claim's scoped source
 is a typed requalification-due state that stands until the next natural cycle;
 publication-chain inconsistency remains a hard refusal.)
+**Revised:** 2026-08-09 (author clarification, Charlie Cheever in session:
+the derived-fork validator no longer borrows qualification-C custody of the
+local persistent-store, relation/activity, or sequence-allocation publication
+chains; their registered LLP 0175 drift gates retain integrity custody, while
+post-C carrier regeneration is reported as ordinary scoped evolution.)
 **Related:** LLP 0005, LLP 0010, LLP 0061, LLP 0154, LLP 0158, LLP 0162, LLP
 0175, LLP 0185,
 issues/20260807-derived-fork-publication-wave-drift-requalification.md,
@@ -150,6 +155,19 @@ part of the claim record the named author accepts. A replacement drift gate
 must meet LLP 0175's admission bar — a genuinely recomputed value compared
 against a committed frozen record; a content-hash pin regenerated alongside
 any edit is presence, not coverage, and does not satisfy this rule.
+
+**D-4 custody clarification — 2026-08-09 (author ruling, Charlie Cheever in
+session).** The published derived-fork validator does not bind sibling
+capability publication chains to the fork's qualification C. Post-C changes to
+the local persistent-store carrier/anchor and the relation/activity and
+sequence-allocation carriers are ordinary scoped evolution and therefore
+appear in the fork claim's `requalificationDue` report. Their integrity is
+owned by the registered LLP 0175 `local-store-publication`,
+`local-store-carrier-receipt`, `relation-activity-publication`, and
+`sequence-allocation-publication` frozen-record gates. Coverage moves; it never
+vanishes. The storage record's own transform validation and every fork-chain
+anchor, carrier, receipt, evidence, scope, acceptance, and ancestry binding
+remain unchanged.
 
 **D-5 — Reviews bind content, not HEAD.** This generalizes the 2026-08-06
 landing-discipline ruling repo-wide: mutually blind dual-READY verdicts on a
