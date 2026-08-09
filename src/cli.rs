@@ -5710,16 +5710,7 @@ fn controls_command(command: ControlsCommand) -> anyhow::Result<()> {
             }
             let digest = crate::control_catalog::catalog_digest(&catalog).unwrap_or("unknown");
             println!("Build control catalog {digest}");
-            println!("OPERATION\tSURFACE\tOPERABILITY\tSTATUS");
-            for entry in catalog["entries"].as_array().into_iter().flatten() {
-                println!(
-                    "{}\t{}\t{}\t{}",
-                    entry["operation"].as_str().unwrap_or(""),
-                    entry["surfaceAccess"].as_str().unwrap_or(""),
-                    entry["operability"].as_str().unwrap_or(""),
-                    entry["status"].as_str().unwrap_or(""),
-                );
-            }
+            print!("{}", controls_list_text(&catalog));
             Ok(())
         }
         ControlsCommand::Describe { operation, json } => {
@@ -5746,6 +5737,25 @@ fn controls_command(command: ControlsCommand) -> anyhow::Result<()> {
             Ok(())
         }
     }
+}
+
+fn controls_list_text(catalog: &Value) -> String {
+    let mut output = String::from("OPERATION\tTITLE\tSURFACE\tOPERABILITY\tSTATUS\tCLI\n");
+    for entry in catalog["entries"].as_array().into_iter().flatten() {
+        output.push_str(&format!(
+            "{}\t{}\t{}\t{}\t{}\t{}\n",
+            entry["operation"].as_str().unwrap_or(""),
+            entry["title"].as_str().unwrap_or(""),
+            entry["surfaceAccess"].as_str().unwrap_or(""),
+            entry["operability"].as_str().unwrap_or(""),
+            entry["status"].as_str().unwrap_or(""),
+            entry
+                .pointer("/projections/cli")
+                .and_then(Value::as_str)
+                .unwrap_or("—"),
+        ));
+    }
+    output
 }
 
 const MAX_CONFIG_CLI_VALUE_BYTES: u64 = 1024 * 1024;
@@ -7342,7 +7352,7 @@ fn host_stop_result(ready_file: &Path, request_id: &str) -> anyhow::Result<HostO
             artifacts: HostOpsArtifacts::default(),
             data,
             diagnostics,
-            next: Vec::new(),
+            next: crate::control_catalog::result_next(ok, "host.stop"),
             secret_read_tables: Vec::new(),
             secret_read_rows: 0,
             secret_read_query: false,
@@ -7566,7 +7576,7 @@ fn lifecycle_result(
         artifacts: HostOpsArtifacts::default(),
         data,
         diagnostics,
-        next: Vec::new(),
+        next: crate::control_catalog::result_next(ok, operation),
         secret_read_tables: Vec::new(),
         secret_read_rows: 0,
         secret_read_query: false,
@@ -7582,12 +7592,13 @@ fn compose_restart_result(
 ) -> HostOpsResult {
     let mut diagnostics = previous.diagnostics.clone();
     diagnostics.extend(current.diagnostics.clone());
+    let ok = previous.ok && current.ok;
     HostOpsResult {
         schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
         result_kind: HOST_OPS_RESULT_KIND.to_owned(),
         request_id: request_id.to_owned(),
         operation: "host.restart".to_owned(),
-        ok: previous.ok && current.ok,
+        ok,
         target: current.target.clone(),
         authority: None,
         artifacts: current.artifacts.clone(),
@@ -7597,7 +7608,7 @@ fn compose_restart_result(
             "current": current.data,
         }),
         diagnostics,
-        next: Vec::new(),
+        next: crate::control_catalog::result_next(ok, "host.restart"),
         secret_read_tables: Vec::new(),
         secret_read_rows: 0,
         secret_read_query: false,
@@ -7774,7 +7785,7 @@ async fn restart_start_result(
             "runtimeState": inspect.pointer("/data/runtimeState").cloned().unwrap_or(Value::Null),
         }),
         diagnostics,
-        next: Vec::new(),
+        next: crate::control_catalog::result_next(ok, "host.start"),
         secret_read_tables: Vec::new(),
         secret_read_rows: 0,
         secret_read_query: false,
@@ -10479,8 +10490,8 @@ mod tests {
         HostCommand, JobsCommand, ManagedPath, NetworkProfileCommand, ReadyFileTarget,
         ResolvedHttpTarget, SessionCommand, StoreCommand, TargetArgs, TelemetryCommand,
         automatic_reap_before_create, bind_first_available, bind_listener,
-        console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
-        managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
+        console_claim_fragment_url, console_fragment_url, controls_list_text,
+        fork_secret_disposition, managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl,
         parse_network_profile_selection, parse_run_args, path_segment_escape,
         prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
         reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
@@ -10741,6 +10752,16 @@ mod tests {
                 command: ControlsCommand::Describe { operation, json: true }
             }) if operation == "debug.networkProfileSet"
         ));
+    }
+
+    #[test]
+    fn controls_list_text_includes_discovery_title_and_cli_projection() {
+        let output = controls_list_text(crate::control_catalog::build_catalog());
+        assert!(output.starts_with("OPERATION\tTITLE\tSURFACE\tOPERABILITY\tSTATUS\tCLI\n"));
+        assert!(output.lines().any(|line| {
+            line.starts_with("host.restart\tRestart the local Snapback server\t")
+                && line.ends_with("\tsnapback restart --ready-file <path>")
+        }));
     }
 
     #[test]
@@ -15475,7 +15496,7 @@ fn migrate_envelope(
         artifacts: HostOpsArtifacts::default(),
         data,
         diagnostics,
-        next: Vec::new(),
+        next: crate::control_catalog::result_next(ok, operation),
         secret_read_tables: Vec::new(),
         secret_read_rows: 0,
         secret_read_query: false,

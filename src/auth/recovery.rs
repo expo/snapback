@@ -346,6 +346,7 @@ fn recovery_result(
     data: Value,
     diagnostics: Vec<Diagnostic>,
 ) -> HostOpsResult {
+    let next = crate::control_catalog::result_next(ok, &operation);
     HostOpsResult {
         schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
         result_kind: HOST_OPS_RESULT_KIND.to_owned(),
@@ -378,7 +379,7 @@ fn recovery_result(
         artifacts: HostOpsArtifacts::default(),
         data,
         diagnostics,
-        next: Vec::new(),
+        next,
         secret_read_tables: Vec::new(),
         secret_read_rows: 0,
         secret_read_query: false,

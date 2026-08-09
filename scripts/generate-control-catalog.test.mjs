@@ -7,10 +7,11 @@
 // cleanly, so a change to the checker itself cannot silently go permissive
 // without a test noticing.
 //
-// @ref LLP 0184#3-completeness-and-parity-rules — rules exercised: rule 8
-//   (destructive requires approvalPosture), rule 6 (mediated handoff custody),
-//   rule 5 (cliOnly requires mcpDeferralReason), and rule 11 (hosted-adapter
-//   manifest vs the audited gateway-paths.inventory.json fixture).
+// @ref LLP 0184#3-completeness-and-parity-rules — rules exercised: rule 3
+//   (packaged command coverage), rule 4 (task discovery metadata and Guide
+//   anchors), rule 5 (deferral/recipe completeness), rule 6 (mediated handoff
+//   custody), rule 8 (destructive approvalPosture), and rule 11
+//   (hosted-adapter manifest vs the audited gateway fixture).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,7 +32,7 @@ function scratchRepo() {
     'cloudflare/hosted-adapter-manifest.json',
     'cloudflare/gateway-paths.inventory.json',
     'cloudflare/src/gateway.js',
-    'guide/operating',
+    'guide',
     'packages/snapback-cli',
     'node_modules/ajv',
   ]) {
@@ -277,6 +278,87 @@ test('rule 5 fails when a cliOnly row loses its mcpDeferralReason', () => {
     const result = runCompiler(dir);
     assert.equal(result.ok, false, 'compiler must fail when a cliOnly row has no mcpDeferralReason');
     assert.match(result.output, /surfaceAccess cliOnly requires mcpDeferralReason/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('rule 4 fails when authored task intents are empty', () => {
+  const dir = scratchRepo();
+  try {
+    const manifestPath = join(dir, 'control-catalog/operability-overrides.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    manifest.discovery['host.restart'].intents = [];
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+    const result = runCompiler(dir);
+    assert.equal(result.ok, false);
+    assert.match(result.output, /host\.restart: non-empty authored intents are required \(rule 4\)/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('rule 4 fails when a title repeats the operation identity', () => {
+  const dir = scratchRepo();
+  try {
+    const manifestPath = join(dir, 'control-catalog/operability-overrides.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    manifest.discovery['host.restart'].title = 'host.restart';
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+    const result = runCompiler(dir);
+    assert.equal(result.ok, false);
+    assert.match(result.output, /host\.restart: title must differ from operation \(rule 4\)/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('rule 4 mechanically rejects a missing Guide heading', () => {
+  const dir = scratchRepo();
+  try {
+    const manifestPath = join(dir, 'control-catalog/operability-overrides.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    manifest.discovery['host.restart'].guide = 'operating/host-ops.md#not-a-real-heading';
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+    const result = runCompiler(dir);
+    assert.equal(result.ok, false);
+    assert.match(result.output, /host\.restart: native requires a Guide path\/anchor that exists/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('rule 5 requires an apiOnly recipe heading or explicit CLI deferral', () => {
+  const dir = scratchRepo();
+  try {
+    const manifestPath = join(dir, 'control-catalog/operability-overrides.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    manifest.discovery['auth.rescueCollidingTable'].guide = 'auth/sessions-and-principals.md';
+    delete manifest.discovery['auth.rescueCollidingTable'].cliDeferralReason;
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+    const result = runCompiler(dir);
+    assert.equal(result.ok, false);
+    assert.match(result.output, /auth\.rescueCollidingTable: apiOnly requires an authored Guide recipe anchor or cliDeferralReason/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('rule 3 requires every packaged CLI root verb to have a row or deferral', () => {
+  const dir = scratchRepo();
+  try {
+    const manifestPath = join(dir, 'control-catalog/cli-only-operations.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    manifest.entries = manifest.entries.filter((entry) => entry.packagedCommand !== 'verify');
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+    const result = runCompiler(dir);
+    assert.equal(result.ok, false);
+    assert.match(result.output, /packaged CLI command 'snapback verify' has no .* row or declared deferral/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -772,6 +772,25 @@ fn p6_unserved_ops_fail_closed_with_structured_envelopes() {
         cli_only["diagnostics"][0]["code"],
         json!("SNAPBACK_HOST_OP_CLI_ONLY")
     );
+    assert!(
+        cli_only["diagnostics"][0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("snapback start")
+    );
+    assert_eq!(
+        cli_only["next"],
+        json!([
+            {
+                "guide": "operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1",
+                "reason": "read the operation's build-bound Guide acquisition path"
+            },
+            {
+                "command": "snapback start",
+                "reason": "retry through the operation's shipped CLI projection"
+            }
+        ])
+    );
 
     let missing_input = envelope(&mut snapback, json!({ "operation": "schema.load" }));
     assert_eq!(missing_input["ok"], json!(false));

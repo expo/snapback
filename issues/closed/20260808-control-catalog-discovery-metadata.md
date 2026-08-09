@@ -64,3 +64,13 @@ Measured against `control-catalog/generated/control-catalog.v1.json`:
 
 Record the rule-4 enforcement decision as a dated amendment to LLP 0184 when
 this lands (LLP 0189 landing discipline).
+
+## Resolution (2026-08-08)
+
+Resolved by backfilling authored discovery metadata in
+`control-catalog/operability-overrides.json`, enforcing rule 4 and packaged
+CLI completeness in the generator and schema, inventorying every packaged
+root verb, correcting `acceptance.run` to the shipped `snapback verify`
+oracle, and adding TITLE and CLI to `snapback controls list`. The catalog and
+Guide derivatives were regenerated, generator regression tests cover the new
+gates, and LLP 0184 records the enforcement decision.

@@ -86,17 +86,8 @@ pub const SERVED_HOST_OPS: [&str; 40] = [
     "debug.live.forceResync",
 ];
 
-/// Pinned by LLP 0024 but process-lifecycle verbs: `host.start`/`host.stop`
-/// are CLI-owned today (a running server cannot start itself over its own
-/// HTTP surface). `host.restart` has no CLI command today; its only current
-/// projection is the composed `snapback_restart` MCP tool
-/// (`packages/snapback-cli/mcp-control.mjs`'s `snapback_restart` case),
-/// which spawns `host.stop` then `host.start` under one request id. All
-/// three still refuse over this HTTP surface with
-/// `SNAPBACK_HOST_OP_CLI_ONLY`; only `host.start`/`host.stop` name an actual
-/// CLI command in that refusal today. A `snapback restart` CLI command is
-/// planned (LLP 0184 Phase 2) but does not exist yet — do not describe one
-/// as shipped.
+// @ref LLP 0024#core-operation-ids — process lifecycle is CLI-owned because a
+// running server cannot start, stop, or restart its own host process.
 pub const CLI_ONLY_HOST_OPS: [&str; 3] = ["host.start", "host.stop", "host.restart"];
 
 /// Pinned by LLP 0024, not yet built anywhere. Requests return a structured
@@ -735,6 +726,11 @@ fn host_ops_result(
             None
         }
     };
+    let next = if ok {
+        Vec::new()
+    } else {
+        crate::control_catalog::refusal_next(&operation)
+    };
     HostOpsResult {
         schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
         result_kind: HOST_OPS_RESULT_KIND.to_owned(),
@@ -758,7 +754,7 @@ fn host_ops_result(
         },
         data,
         diagnostics,
-        next: Vec::new(),
+        next,
         secret_read_tables: Vec::new(),
         secret_read_rows: 0,
         secret_read_query: false,
@@ -1957,28 +1953,20 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
                 "the injected auth operator service is unavailable",
             )],
         ),
-        "host.restart" => envelope(
-            snapback,
-            false,
-            authority_none(),
-            Value::Object(Default::default()),
-            vec![host_op_diagnostic(
-                "SNAPBACK_HOST_OP_CLI_ONLY",
-                &operation,
-                "this operation manages the host process; a running server cannot restart itself over its own HTTP surface. There is no `snapback restart` CLI command yet — use the composed `snapback_restart` MCP tool, which spawns host.stop then host.start under one request id",
-            )],
-        ),
-        cli_only if CLI_ONLY_HOST_OPS.contains(&cli_only) => envelope(
-            snapback,
-            false,
-            authority_none(),
-            Value::Object(Default::default()),
-            vec![host_op_diagnostic(
-                "SNAPBACK_HOST_OP_CLI_ONLY",
-                &operation,
-                "this operation manages the host process; use the snapback CLI (a running server cannot start or stop itself over its own HTTP surface)",
-            )],
-        ),
+        cli_only if CLI_ONLY_HOST_OPS.contains(&cli_only) => {
+            let message = cli_only_host_op_message(cli_only);
+            envelope(
+                snapback,
+                false,
+                authority_none(),
+                Value::Object(Default::default()),
+                vec![host_op_diagnostic(
+                    "SNAPBACK_HOST_OP_CLI_ONLY",
+                    &operation,
+                    &message,
+                )],
+            )
+        }
         pinned if PINNED_UNBUILT_HOST_OPS.contains(&pinned) => envelope(
             snapback,
             false,
@@ -2617,9 +2605,54 @@ pub(crate) fn host_op_diagnostic(code: &str, operation: &str, message: &str) -> 
     Diagnostic::error(code, "host-ops", message).with_details(json!({ "operation": operation }))
 }
 
+fn cli_only_host_op_command(operation: &str) -> String {
+    crate::control_catalog::cli_projection(operation)
+        .map(str::to_owned)
+        .unwrap_or_else(|| match operation {
+            "host.restart" => "snapback restart --ready-file <path>".to_owned(),
+            other => format!("snapback {}", other.strip_prefix("host.").unwrap_or(other)),
+        })
+}
+
+fn cli_only_host_op_message(operation: &str) -> String {
+    let command = cli_only_host_op_command(operation);
+    format!(
+        "this operation manages the host process; a running server cannot perform it over its own HTTP surface. Use `{command}`"
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cli_only_refusals_name_the_catalog_cli_projection() {
+        for operation in CLI_ONLY_HOST_OPS {
+            let catalog_command = crate::control_catalog::cli_projection(operation)
+                .unwrap_or_else(|| panic!("{operation} must have a catalog CLI projection"));
+            assert_eq!(cli_only_host_op_command(operation), catalog_command);
+
+            let message = cli_only_host_op_message(operation);
+            assert!(message.contains(catalog_command));
+        }
+
+        for entry in crate::control_catalog::build_catalog()["entries"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|entry| entry["domain"] == "hostOps")
+            .filter(|entry| entry["status"] == "shipped")
+            .filter(|entry| matches!(entry["surfaceAccess"].as_str(), Some("native" | "cliOnly")))
+        {
+            assert!(
+                entry
+                    .pointer("/projections/cli")
+                    .is_some_and(Value::is_string),
+                "{} is a shipped CLI-reachable host op without projections.cli",
+                entry["operation"]
+            );
+        }
+    }
 
     #[test]
     fn recent_invocation_ring_is_bounded_and_most_recent_first() {

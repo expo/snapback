@@ -660,6 +660,40 @@ async fn non_loopback_with_token_allows_admin_reads() {
     assert_eq!(denied.status(), StatusCode::UNAUTHORIZED);
     let body = json(denied).await;
     assert_eq!(body["diagnostic"]["code"], "SNAPBACK_ADMIN_TOKEN_REQUIRED");
+    assert_eq!(body["diagnostic"]["details"]["presented"], false);
+    assert_eq!(
+        body["diagnostic"]["details"]["header"],
+        "x-snapback-admin-token"
+    );
+    assert_eq!(
+        body["diagnostic"]["details"]["envVar"],
+        "SNAPBACK_ADMIN_TOKEN"
+    );
+    assert_eq!(
+        body["diagnostic"]["details"]["tokenFileConvention"],
+        "<ready-file>.admin-token"
+    );
+
+    let wrong = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/_snapback/api/inspect")
+                .header("x-snapback-admin-token", "wrong")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(wrong.status(), StatusCode::UNAUTHORIZED);
+    let wrong = json(wrong).await;
+    assert_eq!(wrong["diagnostic"]["details"]["presented"], true);
+    assert!(
+        wrong["diagnostic"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("did not match")
+    );
 
     let allowed = app
         .oneshot(

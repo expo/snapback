@@ -54,3 +54,12 @@ guide anchor. The envelope has the carrier; almost nothing uses it:
 The remediation-carrier shape (details.remediations vs next[]) is the open
 author ruling in `issues/20260806-llp0146-oq6-remediation-carrier-decision.md`
 — these repairs should adopt whatever that ruling picks.
+
+## Resolution (2026-08-08)
+
+Resolved by deriving failed host-operation `next[]` entries mechanically from
+the catalog and repairing the admin-token, impersonation, session-mode,
+grant-scope, and transport diagnostics in their owning Rust modules. Invalid
+impersonation files now have a dedicated diagnostic code. The open OQ6 ticket
+records that this landing intentionally uses the existing `next[]` carrier and
+does not introduce `details.remediations`; the author ruling remains open.

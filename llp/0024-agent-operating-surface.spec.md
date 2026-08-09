@@ -8,7 +8,10 @@
 **Revised:** 2026-08-08 (native machine-mode amendment: the native CLI adopts
 the frozen app-data exit taxonomy, makes requested JSON failure-safe through
 `hostOpsResult`, makes bare invocation discovery-only, and exports versioned
-Guide search and command-inventory projections); 2026-08-06 (LLP 0184 Phase 2 residue: `host.restart` is built as
+Guide search and command-inventory projections); 2026-08-08 (catalog projection repair: `host.restart` names the
+ready-file-bearing CLI spelling, `auth.mintSession` records its shipped
+session-mint CLI projection, and failed host-operation envelopes acquire
+catalog-derived Guide/CLI `next[]` entries); 2026-08-06 (LLP 0184 Phase 2 residue: `host.restart` is built as
 the native `snapback restart` CLI plus the existing `snapback_restart` MCP
 composition; both prove a concrete admin credential through the live
 AdminRead host-ops route before the nonce-verified stop and return one request
@@ -753,6 +756,21 @@ CLI-only offline/store/auth and build/runtime probes either use
 explicit family `schemaVersion`. Admin console/link JSON likewise preserves
 the fragment-bearing URL; attached links may publish an owner-only readiness
 record that is removed when their observation lifecycle ends.
+## Dated amendment: catalog-bound CLI and refusal acquisition paths (2026-08-08)
+
+The built lifecycle and auth projections are recorded exactly as
+`snapback restart --ready-file <path>` and `snapback session mint --email
+<address>`. The latter remains CLI-only because its successful result is a
+session credential; no ordinary MCP result projection is implied. A
+`SNAPBACK_HOST_OP_CLI_ONLY` diagnostic obtains its command from the embedded
+ControlCatalog row (with the ready-file spelling as the restart fallback), so
+refusal prose cannot drift from the command the build advertises.
+
+For any `ok: false` `hostOpsResult`, `next[]` contains the operation's
+catalog-owned Guide acquisition path and, when non-null, its exact CLI
+projection. This is the existing LLP 0024 result carrier used for contextual
+next actions, not a new diagnostic `details.remediations` shape; the broader
+LLP 0146 OQ6 ruling remains open.
 
 ## Status
 

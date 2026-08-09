@@ -10,7 +10,11 @@ Host operations, HTTP API, Guide, Auth, Security, Diagnostics, Testing
 extracts the named forwarded-path Set, kit regex constants, app-data fallback
 prefix list, and exact `path ===` literals from `gateway.js`; unlisted changes
 fail CI. Rule 11's catalog join remains system/control-scoped while the fixture
-now also covers the app-data plane). 2026-08-06 (program completion — see "Delivery record
+now also covers the app-data plane). 2026-08-08 (post-program catalog hardening: the catalog records
+the shipped `snapback restart --ready-file <path>` and `snapback session mint
+--email <address>` projections; Rule 4 discovery metadata is compiler-enforced;
+all packaged root CLI verbs are inventoried; catalog-derived Guide/CLI recovery
+steps populate failed host-operation `next[]`). 2026-08-06 (program completion — see "Delivery record
 (2026-08-06)" at the end of this document: Phases 0–5 landed on main by two
 coordinated orchestrator sessions; both cold-agent evaluation legs passed
 against a packaged npm-installed build; acceptance criteria audited with
@@ -1464,3 +1468,35 @@ codes) was classified at `ec5859b7b`.
 and data-only draft kind registry landed; this catalog's `remediation` field
 remains `null`/absent until the LLP 0094/0095-owned carrier and registry
 question is ruled.
+
+## Dated amendment: discovery completeness and projection repair (2026-08-08)
+
+The Rule 3–5 completeness bar now applies to the catalog compiler itself, not
+only to review prose. Every invocable row must carry a non-operation title,
+non-empty agent-task intents, and a Guide path or heading that exists in the
+checked `guide/` tree. An `apiOnly` row must additionally name a complete Guide
+recipe heading or an explicit authored CLI deferral. The worked-example task
+phrases “slow network,” “upload,” “reset the database,” and “mint session” are
+all retrieval fixtures in the authored discovery backfill.
+
+The packaged wrapper's `PACKAGED_CLI_COMMANDS` registry is a Rule 3 owner too.
+Every packaged root verb must have a `cli-only-operations.json` row or an
+explicit authored deferral, and the generator rejects either an uncovered verb
+or a declaration for a verb the package no longer ships. `acceptance.run`
+remains an honestly unbuilt host-op pin; its discovery metadata points to the
+actually shipped `snapback verify` done oracle rather than presenting the pin
+as an executable command.
+
+Two stale CLI facts are repaired. `host.restart` projects `snapback restart
+--ready-file <path>`, and HTTP refusal prose derives that spelling from the
+embedded catalog instead of maintaining a second copy. `auth.mintSession`
+projects `snapback session mint --email <address>` as `cliOnly`: the session
+credential may reach the operator's terminal, while the ordinary MCP result
+channel remains explicitly deferred as a secret carrier. Both rows carry
+agent-task intents and the host-operations Guide acquisition path.
+
+Failed `hostOpsResult` envelopes now populate the existing `next[]` carrier
+mechanically from the same row's Guide anchor and non-null CLI projection. This
+is an acquisition-path projection only; it creates no authority and does not
+rule LLP 0146 OQ6's separate question about contextual, machine-applicable
+remediation objects.

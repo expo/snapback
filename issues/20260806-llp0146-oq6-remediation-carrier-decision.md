@@ -199,3 +199,12 @@ at the authorization-aware construction site without a second lookup race.
 - [ ] Disclosure behavior stated across CLI, HTTP, MCP, and hosted projection.
 - [ ] Stale-artifact refusal code/consumer ownership assigned.
 - [ ] Fixture corpus and generated-client migration assigned to LLP 0095.
+
+## Implementation boundary note (2026-08-08)
+
+The catalog-refusal repair intentionally reused LLP 0024's existing
+`hostOpsResult.next[]` for catalog-derived Guide and CLI acquisition paths. It
+did **not** introduce `details.remediations`, populate ControlCatalog's reserved
+`remediation` projection, or otherwise select among this ticket's A/B/C
+options. Those contextual machine-applicable remediation questions and the
+author checklist above remain open.

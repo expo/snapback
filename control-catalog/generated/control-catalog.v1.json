@@ -1,16 +1,20 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:5a78cfa1c449bf635339d43458d5b819a4f697914c566f56a3c799314882fb51",
+  "catalogDigest": "sha256:bd90c1ca415499f9bb6c92692be400db62113538624bb24a2016f20a465b6701",
   "buildIdentity": {
-    "sourceCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
+    "sourceCommit": "772c00649534d68b2ba63b98699e8ce2b2019057",
     "dirty": true
   },
-  "generatedAtCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
+  "generatedAtCommit": "772c00649534d68b2ba63b98699e8ce2b2019057",
   "entries": [
     {
       "operation": "acceptance.run",
-      "title": "Run the local acceptance suite (unbuilt)",
-      "intents": [],
+      "title": "Run the declared app verification suite",
+      "intents": [
+        "verify the app",
+        "run acceptance tests",
+        "check the done oracle"
+      ],
       "status": "unbuilt",
       "domain": "hostOps",
       "hostOpsDisposition": "pinnedUnbuilt",
@@ -52,7 +56,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "testing/verify.md#author-snapbackverifyconfigmjs",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -60,12 +64,15 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "Not yet classified."
+      "cliDeferralReason": "The host-op spelling is pinned but unbuilt; the shipped done-oracle command is snapback verify."
     },
     {
       "operation": "admin.link.exchange",
-      "title": "admin.link.exchange",
-      "intents": [],
+      "title": "Exchange a one-time admin-console claim",
+      "intents": [
+        "redeem an admin link",
+        "exchange a console claim"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "cliOnly",
@@ -98,7 +105,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -119,7 +126,7 @@
     },
     {
       "operation": "admin.link.mint",
-      "title": "admin.link.mint",
+      "title": "Mint a one-time admin-console link",
       "intents": [
         "open admin console for a human",
         "mint one-time operator link",
@@ -181,8 +188,11 @@
     },
     {
       "operation": "admin.link.revoke",
-      "title": "admin.link.revoke",
-      "intents": [],
+      "title": "Revoke a one-time admin-console claim",
+      "intents": [
+        "revoke an admin link",
+        "cancel a console claim"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "cliOnly",
@@ -215,7 +225,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -236,8 +246,11 @@
     },
     {
       "operation": "admin.link.status",
-      "title": "admin.link.status",
-      "intents": [],
+      "title": "Read a one-time admin-console claim status",
+      "intents": [
+        "check an admin link",
+        "resume a console handoff"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "cliOnly",
@@ -270,7 +283,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -291,8 +304,11 @@
     },
     {
       "operation": "app.ensure.provision",
-      "title": "app.ensure.provision",
-      "intents": [],
+      "title": "Provision an app store through app ensure",
+      "intents": [
+        "provision the app",
+        "ensure the app store exists"
+      ],
       "status": "shipped",
       "domain": "appEnsureProvisionException",
       "surfaceAccess": "apiOnly",
@@ -326,18 +342,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs operation_registry()"
-      ]
+      ],
+      "cliDeferralReason": "Provisioning is dispatched through POST /app/ensure; no direct CLI wrapper ships."
     },
     {
       "operation": "app.inspect",
       "title": "Inspect the running app",
-      "intents": [],
+      "intents": [
+        "inspect the app",
+        "check backend readiness",
+        "read the running build identity"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -374,7 +395,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": "operating/host-ops.md",
+      "guide": "operating/host-ops.md#served-request-operations",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -386,7 +407,11 @@
     {
       "operation": "app.reset",
       "title": "Reset local app state",
-      "intents": [],
+      "intents": [
+        "reset the database",
+        "clear local app data",
+        "restore the seed state"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -428,7 +453,7 @@
         "console": null,
         "hostedAdapter": "app.reset"
       },
-      "guide": null,
+      "guide": "backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -440,8 +465,11 @@
     },
     {
       "operation": "app.seed.clear.v1",
-      "title": "app.seed.clear.v1",
-      "intents": [],
+      "title": "Clear the versioned seed installation",
+      "intents": [
+        "clear the seed",
+        "remove installed seed rows"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -478,19 +506,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/versioned-seeds.md#use-the-generated-lifecycle",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API."
     },
     {
       "operation": "app.seed.ensure.v1",
-      "title": "app.seed.ensure.v1",
-      "intents": [],
+      "title": "Ensure the versioned seed installation",
+      "intents": [
+        "install the seed",
+        "ensure seed data"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -527,19 +559,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/versioned-seeds.md#use-the-generated-lifecycle",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API."
     },
     {
       "operation": "app.seed.preview.v1",
-      "title": "app.seed.preview.v1",
-      "intents": [],
+      "title": "Preview a versioned seed installation",
+      "intents": [
+        "preview the seed",
+        "inspect seed changes"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -576,19 +612,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/versioned-seeds.md#use-the-generated-lifecycle",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API."
     },
     {
       "operation": "app.seed.reset-install.v1",
-      "title": "app.seed.reset-install.v1",
-      "intents": [],
+      "title": "Reset and install the versioned seed",
+      "intents": [
+        "reset to seed data",
+        "reinstall the seed"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -625,19 +665,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/versioned-seeds.md#use-the-generated-lifecycle",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API."
     },
     {
       "operation": "asset.delete",
       "title": "Delete one asset",
-      "intents": [],
+      "intents": [
+        "delete an asset",
+        "remove an upload"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -674,7 +718,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/assets.md#operate",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -685,8 +729,11 @@
     },
     {
       "operation": "asset.ensureSeedFixture",
-      "title": "asset.ensureSeedFixture",
-      "intents": [],
+      "title": "Ensure the asset seed fixture",
+      "intents": [
+        "seed an asset fixture",
+        "ensure sample uploads"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -723,7 +770,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/assets.md#operate",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -736,7 +783,10 @@
     {
       "operation": "asset.exportCut",
       "title": "Export a consistent asset cut",
-      "intents": [],
+      "intents": [
+        "export assets",
+        "back up uploaded files"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -773,7 +823,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/assets.md#export-the-asset-component-of-a-logical-backup",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -784,8 +834,11 @@
     },
     {
       "operation": "asset.gcSweep",
-      "title": "Run asset reclamation and publication maintenance",
-      "intents": [],
+      "title": "Sweep reclaimable asset storage",
+      "intents": [
+        "garbage collect assets",
+        "reclaim upload storage"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -822,7 +875,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/assets.md#operate",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -833,8 +886,11 @@
     },
     {
       "operation": "asset.importCut",
-      "title": "Validate or apply an exported asset cut",
-      "intents": [],
+      "title": "Import a consistent asset cut",
+      "intents": [
+        "import assets",
+        "restore uploaded files"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -871,7 +927,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/assets.md#validate-the-complete-cut-before-restore",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -883,7 +939,10 @@
     {
       "operation": "asset.inspect",
       "title": "Inspect one asset",
-      "intents": [],
+      "intents": [
+        "inspect an asset",
+        "check an upload"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -920,7 +979,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/assets.md#operate",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -931,8 +990,11 @@
     },
     {
       "operation": "asset.list",
-      "title": "List assets by availability state",
-      "intents": [],
+      "title": "List assets by availability",
+      "intents": [
+        "list assets",
+        "find uploads"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -969,7 +1031,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/assets.md#operate",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -980,8 +1042,12 @@
     },
     {
       "operation": "asset.put",
-      "title": "asset.put",
-      "intents": [],
+      "title": "Upload one asset",
+      "intents": [
+        "upload",
+        "put an asset",
+        "store a file"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -1018,7 +1084,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/assets.md#upload-and-attach",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -1030,8 +1096,11 @@
     },
     {
       "operation": "asset.retry",
-      "title": "Re-drive pending asset work",
-      "intents": [],
+      "title": "Retry pending asset work",
+      "intents": [
+        "retry an asset",
+        "re-drive an upload"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -1068,7 +1137,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/assets.md#operate",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -1080,7 +1149,10 @@
     {
       "operation": "asset.rotateSigningKey",
       "title": "Rotate the asset delivery signing key",
-      "intents": [],
+      "intents": [
+        "rotate the asset signing key",
+        "invalidate signed asset URLs"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -1117,7 +1189,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/assets.md#invalidate-every-outstanding-signed-url",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -1128,8 +1200,11 @@
     },
     {
       "operation": "auth.mailbox.read",
-      "title": "Read the dev-mailbox capture (operator only)",
-      "intents": [],
+      "title": "Read the local authentication mailbox",
+      "intents": [
+        "read login mail",
+        "find a local auth code"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -1162,7 +1237,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "auth/sessions-and-principals.md#mint-test-personas-the-complete-local-recipe",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -1170,19 +1245,24 @@
         "src/server.rs route_registry()"
       ],
       "pinned": true,
-      "pinReason": "responseSensitivity CredentialSecret: usage-evidence promotion to native/cliOnly/mcpOnly is refused outright regardless of call volume (§Product contract's promotion-refusal rule). This row stays apiOnly until an authored override passes the same secret-carrier review config.set requires."
+      "pinReason": "responseSensitivity CredentialSecret: usage-evidence promotion to native/cliOnly/mcpOnly is refused outright regardless of call volume (§Product contract's promotion-refusal rule). This row stays apiOnly until an authored override passes the same secret-carrier review config.set requires.",
+      "cliDeferralReason": "The mailbox returns credential secrets and remains an explicitly API-only operator path."
     },
     {
       "operation": "auth.mintSession",
-      "title": "auth.mintSession",
-      "intents": [],
+      "title": "Mint a local test session",
+      "intents": [
+        "mint session",
+        "create a test login",
+        "sign in a test persona"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
       "registeredOperations": [
         "host_ops.auth.mintSession"
       ],
-      "surfaceAccess": "apiOnly",
+      "surfaceAccess": "cliOnly",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -1205,26 +1285,30 @@
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": null,
+        "cli": "snapback session mint --email <address>",
         "mcp": null,
         "hostOps": "auth.mintSession",
         "http": "POST /_snapback/api/host-ops",
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#served-request-operations",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "mcpDeferralReason": "Session credentials are returned only to the operator's CLI terminal; the ordinary MCP result channel must not carry them."
     },
     {
       "operation": "auth.rescueCollidingTable",
-      "title": "auth.rescueCollidingTable",
-      "intents": [],
+      "title": "Rescue a table colliding with sessions mode",
+      "intents": [
+        "rescue a colliding auth table",
+        "repair sessions-mode data"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -1261,19 +1345,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "The rescue is a specialist host-ops API operation with no CLI projection."
     },
     {
       "operation": "branch.create.v1",
-      "title": "branch.create.v1",
-      "intents": [],
+      "title": "Create a backend branch",
+      "intents": [
+        "create a branch",
+        "fork backend state"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -1310,19 +1398,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/instance-forks.md#give-a-worktree-its-own-backend",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow."
     },
     {
       "operation": "branch.drop.v1",
-      "title": "branch.drop.v1",
-      "intents": [],
+      "title": "Drop a backend branch",
+      "intents": [
+        "drop a branch",
+        "delete forked backend state"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -1359,19 +1451,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/instance-forks.md#inspect-review-and-dispose-forks",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow."
     },
     {
       "operation": "branch.execute.v1",
-      "title": "branch.execute.v1",
-      "intents": [],
+      "title": "Execute against a backend branch",
+      "intents": [
+        "run against a branch",
+        "execute in forked state"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -1408,19 +1504,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/instance-forks.md#own-forks-per-worktree-per-agent-run-and-per-suite-lane",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow."
     },
     {
       "operation": "branch.inspect.v1",
-      "title": "branch.inspect.v1",
-      "intents": [],
+      "title": "Inspect a backend branch",
+      "intents": [
+        "inspect a branch",
+        "check forked backend state"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -1457,19 +1557,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/instance-forks.md#inspect-review-and-dispose-forks",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow."
     },
     {
       "operation": "branch.list.v1",
-      "title": "branch.list.v1",
-      "intents": [],
+      "title": "List backend branches",
+      "intents": [
+        "list branches",
+        "find backend forks"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -1506,19 +1610,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/instance-forks.md#inspect-review-and-dispose-forks",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow."
     },
     {
       "operation": "branch.reap.v1",
-      "title": "branch.reap.v1",
-      "intents": [],
+      "title": "Reap expired backend branches",
+      "intents": [
+        "reap branches",
+        "clean up expired forks"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -1555,22 +1663,22 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/instance-forks.md#inspect-review-and-dispose-forks",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow."
     },
     {
       "operation": "capability.manifest.read",
-      "title": "Read the app's capability manifest (hosted)",
+      "title": "Read the hosted capability manifest",
       "intents": [
-        "what does this app support",
-        "capability manifest",
-        "hosted capability report"
+        "inspect hosted capabilities",
+        "check adapter support"
       ],
       "status": "shipped",
       "domain": "hostedAdapter",
@@ -1607,20 +1715,21 @@
         "console": null,
         "hostedAdapter": "capability.manifest.read"
       },
-      "guide": null,
+      "guide": "deploying/cloudflare.md#exact-supported-subset-and-non-claims",
       "authorities": [
         "llp/0184-agent-accessible-control-plane §Design/3a"
       ],
       "sources": [
         "cloudflare/src/gateway.js:102"
-      ]
+      ],
+      "cliDeferralReason": "The manifest is read from a deployed hosted adapter; no local CLI verb projects it."
     },
     {
       "operation": "cli.auth.backup",
       "title": "Create an offline physical auth backup",
       "intents": [
         "back up auth keys",
-        "offline auth backup"
+        "make an offline auth backup"
       ],
       "status": "shipped",
       "domain": "cliOnlyDeclared",
@@ -1653,7 +1762,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/backup-and-copy.md#recover-from-a-disaster",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -1667,7 +1776,7 @@
       "title": "Restore an offline physical auth backup",
       "intents": [
         "restore auth keys",
-        "restore from backup"
+        "recover auth from backup"
       ],
       "status": "shipped",
       "domain": "cliOnlyDeclared",
@@ -1700,7 +1809,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/backup-and-copy.md#recover-from-a-disaster",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -1710,11 +1819,10 @@
     },
     {
       "operation": "cli.buildIdentity",
-      "title": "Print this executable's independently stamped build identity",
+      "title": "Print the executable build identity",
       "intents": [
-        "what build is this",
-        "build identity",
-        "version and commit"
+        "check the binary version",
+        "read the build commit"
       ],
       "status": "shipped",
       "domain": "cliOnlyDeclared",
@@ -1747,7 +1855,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/diagnostics.md#report-the-runtimes-own-readiness-identity",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -1760,9 +1868,7 @@
       "title": "Create a finite-TTL derived deployment",
       "intents": [
         "fork the database",
-        "derived instance",
-        "ephemeral copy of the app",
-        "scratch database for testing"
+        "create a scratch backend"
       ],
       "status": "shipped",
       "domain": "cliOnlyDeclared",
@@ -1795,7 +1901,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/instance-forks.md#give-a-worktree-its-own-backend",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -1806,10 +1912,10 @@
     },
     {
       "operation": "cli.fork.diff",
-      "title": "Render a fork's app-row-only post-fork journal receipt",
+      "title": "Show a fork journal diff",
       "intents": [
         "diff a fork",
-        "what changed in this fork"
+        "review fork changes"
       ],
       "status": "shipped",
       "domain": "cliOnlyDeclared",
@@ -1842,7 +1948,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/instance-forks.md#read-the-diff-at-its-real-boundary",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -1852,7 +1958,7 @@
     },
     {
       "operation": "cli.fork.drop",
-      "title": "Stop and delete one registry-bound fork",
+      "title": "Delete one registry-bound fork",
       "intents": [
         "delete a fork",
         "tear down a derived deployment"
@@ -1888,7 +1994,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/instance-forks.md#inspect-review-and-dispose-forks",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -1898,10 +2004,10 @@
     },
     {
       "operation": "cli.fork.list",
-      "title": "List derived-deployment lifecycle records",
+      "title": "List derived deployments",
       "intents": [
         "list forks",
-        "show derived deployments"
+        "find derived deployments"
       ],
       "status": "shipped",
       "domain": "cliOnlyDeclared",
@@ -1934,7 +2040,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/instance-forks.md#inspect-review-and-dispose-forks",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -1944,10 +2050,10 @@
     },
     {
       "operation": "cli.fork.reap",
-      "title": "Stop and delete every fork expired at a supplied clock",
+      "title": "Delete expired forks",
       "intents": [
-        "clean up expired forks",
-        "reap forks"
+        "reap forks",
+        "clean up expired derived deployments"
       ],
       "status": "shipped",
       "domain": "cliOnlyDeclared",
@@ -1980,7 +2086,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/instance-forks.md#inspect-review-and-dispose-forks",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -2313,12 +2419,895 @@
       ]
     },
     {
-      "operation": "cli.telemetry.query",
-      "title": "Local-only read-only SQL over telemetry visibility views",
+      "operation": "cli.packaged.accept",
+      "title": "Run a comparator acceptance profile",
       "intents": [
-        "run SQL against telemetry",
+        "run comparator acceptance",
+        "verify a comparator receipt"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Comparator acceptance executes a local declared profile and remains a packaged CLI workflow.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": true,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback accept",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "testing/acceptance.md#the-backend-comparator-profile",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.accept"
+      ]
+    },
+    {
+      "operation": "cli.packaged.agent",
+      "title": "Configure an agent MCP client",
+      "intents": [
+        "set up an agent",
+        "install MCP configuration",
+        "remove MCP configuration"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Agent setup writes project-scoped client configuration before connecting to MCP.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "none",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback agent",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/agent-controls.md#native-resource-availability",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.agent"
+      ]
+    },
+    {
+      "operation": "cli.packaged.audit",
+      "title": "Verify the control audit ledger",
+      "intents": [
+        "verify the audit ledger",
+        "check control integrity"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Audit verification reads the local control-root ledger and has no MCP filesystem carrier.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback audit",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "deploying/releases.md#verify-the-control-audit-chain",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.audit"
+      ]
+    },
+    {
+      "operation": "cli.packaged.backup",
+      "title": "Manage deployment backups",
+      "intents": [
+        "create a backup",
+        "list backups",
+        "verify a backup"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Backup custody uses target adapters and local plan/receipt artifacts; no MCP carrier is declared.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "provisioning",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": true,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback backup",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "deploying/releases.md#inspect-retained-backups",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.backup"
+      ]
+    },
+    {
+      "operation": "cli.packaged.deploy",
+      "title": "Build and operate deployment plans",
+      "intents": [
+        "deploy an app",
+        "build a release",
+        "roll back code"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Deployment uses exact local plan/receipt artifacts and confirmation tokens; no MCP carrier is declared.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "provisioning",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "humanApprovalRequired",
+        "idempotent": false,
+        "openWorld": true,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback deploy",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "deploying/releases.md#build-and-verify-the-release-closure",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.deploy"
+      ]
+    },
+    {
+      "operation": "cli.packaged.dev",
+      "title": "Run the supervised authoring loop",
+      "intents": [
+        "start the dev loop",
+        "watch backend changes",
+        "run an Expo app"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "The long-running local supervisor and optional client process remain a terminal-owned CLI workflow.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "provisioning",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": true,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback dev",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "getting-started/the-authoring-loop.md",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.dev"
+      ]
+    },
+    {
+      "operation": "cli.packaged.doctor",
+      "title": "Diagnose the packaged runtime",
+      "intents": [
+        "diagnose Snapback",
+        "check local prerequisites",
+        "repair runtime setup"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Doctor diagnoses the local package/runtime installation before an MCP server is available.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "none",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback doctor",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/diagnostics.md#diagnose-the-vendored-ibex-runtime-first",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.doctor"
+      ]
+    },
+    {
+      "operation": "cli.packaged.generate",
+      "title": "Generate reviewable app artifacts",
+      "intents": [
+        "generate backend code",
+        "refresh generated artifacts"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Generation writes repository files and remains a local CLI workflow.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "none",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback generate",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "getting-started/the-authoring-loop.md#2-regenerate",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.generate"
+      ]
+    },
+    {
+      "operation": "cli.packaged.guide",
+      "title": "Look up an exact Guide symbol",
+      "intents": [
+        "look up an API symbol",
+        "search the Snapback guide"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "The MCP server already publishes bounded Guide resources; this packaged CLI lookup remains a local projection.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "none",
+        "effect": "none",
+        "responseSensitivity": "PublicProjection"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback guide",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "index.md",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.guide"
+      ]
+    },
+    {
+      "operation": "cli.packaged.hosted",
+      "title": "Operate the hosted control profile",
+      "intents": [
+        "plan hosted operations",
+        "inspect a hosted app",
+        "request hosted lifecycle work"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "The hosted control profile is a local credential/custody workflow and has no MCP projection.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "provisioning",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "humanApprovalRequired",
+        "idempotent": false,
+        "openWorld": true,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback hosted",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "deploying/releases.md#qualify-an-adapter-and-prepare-a-release",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.hosted"
+      ]
+    },
+    {
+      "operation": "cli.packaged.inspect",
+      "title": "Inspect a registered deployment target",
+      "intents": [
+        "inspect a deployment target",
+        "read target health"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Target inspection uses local target descriptors and credentials; no MCP projection is declared.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": true,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback inspect",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "deploying/releases.md#query-bounded-logs-and-authenticated-inspection",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.inspect"
+      ]
+    },
+    {
+      "operation": "cli.packaged.logs",
+      "title": "Read bounded deployment logs",
+      "intents": [
+        "read deployment logs",
+        "inspect target output"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Log reads use local target descriptors and credentials; no MCP projection is declared.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": true,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback logs",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "deploying/releases.md#query-bounded-logs-and-authenticated-inspection",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.logs"
+      ]
+    },
+    {
+      "operation": "cli.packaged.mcpControl",
+      "title": "Serve the control-plane MCP protocol",
+      "intents": [
+        "start the control MCP server",
+        "connect an agent to Snapback controls"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "This CLI verb is the stdio MCP server bootstrap, not an operation projected through itself.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": true,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback mcp-control",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/agent-controls.md#native-resource-availability",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.mcp-control"
+      ]
+    },
+    {
+      "operation": "cli.packaged.new",
+      "title": "Scaffold a Snapback app",
+      "intents": [
+        "create a Snapback app",
+        "scaffold a new backend"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Scaffolding writes a caller-selected local directory and has no MCP filesystem-custody contract.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "none",
+        "effect": "provisioning",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback new",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "getting-started/the-authoring-loop.md",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.new"
+      ]
+    },
+    {
+      "operation": "cli.packaged.reset",
+      "title": "Reset a managed development target",
+      "intents": [
+        "reset the database",
+        "start from fresh dev state",
+        "remint a test session"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "The packaged dev-fresh orchestration owns local files and supervisor state; MCP exposes narrower controls.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback reset",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.reset"
+      ]
+    },
+    {
+      "operation": "cli.packaged.restore",
+      "title": "Plan and apply deployment restores",
+      "intents": [
+        "restore a backup",
+        "verify a restore",
+        "activate restored data"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Restore uses exact local plan/receipt artifacts and confirmation tokens; no MCP carrier is declared.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "provisioning",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": true,
+        "approvalPosture": "humanApprovalRequired",
+        "idempotent": false,
+        "openWorld": true,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback restore",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "deploying/releases.md#restore-into-an-isolated-destination-then-activate-explicitly",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.restore"
+      ]
+    },
+    {
+      "operation": "cli.packaged.runtimeQualify",
+      "title": "Qualify the packaged native runtime",
+      "intents": [
+        "qualify the runtime",
+        "verify the runtime receipt"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Runtime qualification is a prerequisite for starting the MCP control process itself.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "none",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback runtime-qualify",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/diagnostics.md#report-the-runtimes-own-readiness-identity",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.runtime-qualify"
+      ]
+    },
+    {
+      "operation": "cli.packaged.target",
+      "title": "Manage immutable deployment targets",
+      "intents": [
+        "register a deployment target",
+        "inspect a target descriptor",
+        "diagnose a target"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Target registration owns local control-root state and has no MCP filesystem carrier.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "effect": "provisioning",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": true,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback target",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "deploying/releases.md#register-one-exact-containervm-target",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.target"
+      ]
+    },
+    {
+      "operation": "cli.packaged.verify",
+      "title": "Run the declared app done oracle",
+      "intents": [
+        "verify the app",
+        "run the done oracle",
+        "check app completeness"
+      ],
+      "status": "shipped",
+      "domain": "cliOnlyDeclared",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "mcpDeferralReason": "Verification executes repository-declared local stages and emits an identity-bound receipt; no MCP orchestration projects that workflow.",
+      "availability": {
+        "targets": [
+          "local"
+        ]
+      },
+      "policy": {
+        "authority": "none",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": true,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback verify",
+        "mcp": null,
+        "hostOps": null,
+        "http": null,
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "testing/verify.md#author-snapbackverifyconfigmjs",
+      "authorities": [
+        "llp/0184-agent-accessible-control-plane"
+      ],
+      "sources": [
+        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.verify"
+      ]
+    },
+    {
+      "operation": "cli.telemetry.query",
+      "title": "Run bounded local telemetry SQL",
+      "intents": [
         "query telemetry with SQL",
-        "custom telemetry query"
+        "investigate telemetry locally"
       ],
       "status": "shipped",
       "domain": "cliOnlyDeclared",
@@ -2351,7 +3340,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/observability.md#use-the-local-sql-hatch-for-bounded-investigations",
       "authorities": [
         "llp/0184-agent-accessible-control-plane"
       ],
@@ -2362,8 +3351,11 @@
     },
     {
       "operation": "client-mutations.purge",
-      "title": "client-mutations.purge",
-      "intents": [],
+      "title": "Purge retained client mutation records",
+      "intents": [
+        "purge client mutations",
+        "clear mutation deduplication records"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -2396,19 +3388,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "sync/offline-and-retention.md#replay-and-settle-without-guessing",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs route_registry()"
       ],
+      "cliDeferralReason": "This internal maintenance route has no supported CLI projection.",
       "internalReason": "Internal client-mutation-log retention maintenance; not an author/operator-invoked action today."
     },
     {
       "operation": "config.plan",
-      "title": "Dry-run a config entry write",
-      "intents": [],
+      "title": "Plan a config entry write",
+      "intents": [
+        "plan a config change",
+        "preview a secret update"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -2451,7 +3447,7 @@
     },
     {
       "operation": "config.set",
-      "title": "config.set",
+      "title": "Set a config entry from a protected carrier",
       "intents": [
         "set config",
         "set secret",
@@ -2554,7 +3550,10 @@
     {
       "operation": "config.status",
       "title": "Read config status",
-      "intents": [],
+      "intents": [
+        "check config status",
+        "list configured entries"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -2604,7 +3603,10 @@
     {
       "operation": "config.unset",
       "title": "Unset a config entry",
-      "intents": [],
+      "intents": [
+        "remove a config value",
+        "unset a secret"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -2637,7 +3639,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/secrets-and-config.md#set-and-inspect-config",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -2648,7 +3650,10 @@
     {
       "operation": "config.verify",
       "title": "Verify one config entry",
-      "intents": [],
+      "intents": [
+        "verify a config value",
+        "check a secret fingerprint"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -2691,8 +3696,11 @@
     },
     {
       "operation": "connection.disconnect",
-      "title": "Force-disconnect one live connection (debug perturbation)",
-      "intents": [],
+      "title": "Disconnect one live client",
+      "intents": [
+        "disconnect a client",
+        "test reconnect behavior"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -2725,7 +3733,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#controlled-mutations-config-cron-jobs-connections",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -2735,8 +3743,11 @@
     },
     {
       "operation": "console.approval.approve",
-      "title": "console.approval.approve",
-      "intents": [],
+      "title": "Approve a console action",
+      "intents": [
+        "approve a console action",
+        "complete a human approval"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "cliOnly",
@@ -2769,7 +3780,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/admin-console.md#authenticate-the-operator-surface",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -2790,8 +3801,11 @@
     },
     {
       "operation": "console.approval.poll",
-      "title": "console.approval.poll",
-      "intents": [],
+      "title": "Poll a console approval",
+      "intents": [
+        "check an approval",
+        "wait for operator approval"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "cliOnly",
@@ -2824,7 +3838,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/admin-console.md#authenticate-the-operator-surface",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -2845,8 +3859,11 @@
     },
     {
       "operation": "console.approval.request",
-      "title": "console.approval.request",
-      "intents": [],
+      "title": "Request a console approval",
+      "intents": [
+        "request operator approval",
+        "start an approval handoff"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "cliOnly",
@@ -2879,7 +3896,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/admin-console.md#authenticate-the-operator-surface",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -2900,8 +3917,11 @@
     },
     {
       "operation": "console.credential",
-      "title": "console.credential",
-      "intents": [],
+      "title": "Manage an internal console credential",
+      "intents": [
+        "renew a console credential",
+        "revoke a console credential"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -2934,19 +3954,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/admin-console.md#authenticate-the-operator-surface",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs route_registry()"
       ],
+      "cliDeferralReason": "Console credential lifecycle is internal to the browser handoff; use snapback admin link.",
       "internalReason": "Browser-console session-credential bootstrap machinery consumed by AdminClient's own private #restoreReachabilityCredential/#renewConsoleCredential methods, not an author/operator action a client invokes directly."
     },
     {
       "operation": "console.reachability.bind",
-      "title": "console.reachability.bind",
-      "intents": [],
+      "title": "Bind a console reachability declaration",
+      "intents": [
+        "bind console reachability",
+        "publish a console route"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -2979,19 +4003,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/admin-console.md#open-a-phone-console-on-the-local-network",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs route_registry()"
       ],
+      "cliDeferralReason": "Reachability records are managed by the admin-link workflow rather than a standalone CLI verb.",
       "internalReason": "Console session-bootstrap plumbing; see console.credential."
     },
     {
       "operation": "console.reachability.drop",
-      "title": "console.reachability.drop",
-      "intents": [],
+      "title": "Drop a console reachability declaration",
+      "intents": [
+        "drop console reachability",
+        "remove a console route"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -3024,19 +4052,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/admin-console.md#open-a-phone-console-on-the-local-network",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs route_registry()"
       ],
+      "cliDeferralReason": "Reachability records are managed by the admin-link workflow rather than a standalone CLI verb.",
       "internalReason": "Console session-bootstrap plumbing; see console.credential."
     },
     {
       "operation": "console.reachability.register",
-      "title": "console.reachability.register",
-      "intents": [],
+      "title": "Register console reachability",
+      "intents": [
+        "register console reachability",
+        "advertise a console route"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -3069,19 +4101,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/admin-console.md#open-a-phone-console-on-the-local-network",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs route_registry()"
       ],
+      "cliDeferralReason": "Reachability records are managed by the admin-link workflow rather than a standalone CLI verb.",
       "internalReason": "Console session-bootstrap plumbing; see console.credential."
     },
     {
       "operation": "console.reachability.renew",
-      "title": "console.reachability.renew",
-      "intents": [],
+      "title": "Renew console reachability",
+      "intents": [
+        "renew console reachability",
+        "keep a console route alive"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -3114,19 +4150,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/admin-console.md#open-a-phone-console-on-the-local-network",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs route_registry()"
       ],
+      "cliDeferralReason": "Reachability records are managed by the admin-link workflow rather than a standalone CLI verb.",
       "internalReason": "Console session-bootstrap plumbing; see console.credential."
     },
     {
       "operation": "control.catalog.describe",
-      "title": "Describe one Snapback control operation",
-      "intents": [],
+      "title": "Describe one control operation",
+      "intents": [
+        "describe a control",
+        "inspect operation policy"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -3169,8 +4209,11 @@
     },
     {
       "operation": "control.catalog.instance.read",
-      "title": "Running Snapback instance availability snapshot",
-      "intents": [],
+      "title": "Read running-instance control availability",
+      "intents": [
+        "check instance controls",
+        "compare build and instance availability"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "mcpOnly",
@@ -3214,8 +4257,12 @@
     },
     {
       "operation": "control.catalog.read",
-      "title": "Snapback control catalog — searchable index",
-      "intents": [],
+      "title": "Search the control catalog",
+      "intents": [
+        "find a control",
+        "list available operations",
+        "search by task"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -3259,7 +4306,10 @@
     {
       "operation": "cron.list",
       "title": "List cron jobs",
-      "intents": [],
+      "intents": [
+        "list scheduled jobs",
+        "inspect cron"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -3307,8 +4357,11 @@
     },
     {
       "operation": "cron.runOne",
-      "title": "Force-run one named cron job",
-      "intents": [],
+      "title": "Run one named cron job",
+      "intents": [
+        "run a cron job",
+        "trigger a scheduled job"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -3341,7 +4394,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/cron.md#test-deterministically",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -3351,11 +4404,10 @@
     },
     {
       "operation": "cron.status.read",
-      "title": "Read cron ledger/activation status (hosted)",
+      "title": "Read hosted cron status",
       "intents": [
-        "cron status",
-        "is cron running",
-        "hosted cron ledger"
+        "check hosted cron",
+        "inspect scheduler status"
       ],
       "status": "shipped",
       "domain": "hostedAdapter",
@@ -3390,18 +4442,22 @@
         "console": null,
         "hostedAdapter": "cron.status.read"
       },
-      "guide": null,
+      "guide": "backend/cron.md#inspect-declared-jobs-and-runtime-posture",
       "authorities": [
         "llp/0184-agent-accessible-control-plane §Design/3a"
       ],
       "sources": [
         "cloudflare/src/gateway.js:134"
-      ]
+      ],
+      "cliDeferralReason": "Hosted cron status is exposed by the deployed adapter rather than a local CLI command."
     },
     {
       "operation": "cron.tick",
-      "title": "Force-claim and run every due cron job",
-      "intents": [],
+      "title": "Run every due cron job",
+      "intents": [
+        "tick cron",
+        "run due scheduled jobs"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -3439,7 +4495,7 @@
         "console": null,
         "hostedAdapter": "cron.run.trigger"
       },
-      "guide": null,
+      "guide": "backend/cron.md#test-deterministically",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -3450,8 +4506,11 @@
     },
     {
       "operation": "data.patch.apply",
-      "title": "Apply one previewed bounded direct row patch",
-      "intents": [],
+      "title": "Apply a bounded row patch",
+      "intents": [
+        "apply a data patch",
+        "edit a row directly"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -3502,8 +4561,11 @@
     },
     {
       "operation": "data.patch.preview",
-      "title": "Preview one bounded direct row patch",
-      "intents": [],
+      "title": "Preview a bounded row patch",
+      "intents": [
+        "preview a data patch",
+        "validate a row edit"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -3554,8 +4616,11 @@
     },
     {
       "operation": "data.scan",
-      "title": "Bounded read-only table scan",
-      "intents": [],
+      "title": "Scan a table with bounded output",
+      "intents": [
+        "scan a table",
+        "inspect database rows"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -3598,8 +4663,11 @@
     },
     {
       "operation": "debug.live.forceResync",
-      "title": "Force one live subscription to resync (debug perturbation)",
-      "intents": [],
+      "title": "Force a live subscription resync",
+      "intents": [
+        "force a live resync",
+        "test subscription recovery"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -3646,8 +4714,11 @@
     },
     {
       "operation": "debug.networkProfileGet",
-      "title": "Read the active network condition profile",
-      "intents": [],
+      "title": "Read the active network profile",
+      "intents": [
+        "check the network profile",
+        "inspect simulated network conditions"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -3688,7 +4759,7 @@
         "console": null,
         "hostedAdapter": "debug.networkProfile.read"
       },
-      "guide": "operating/network-profiles.md#read-the-active-profile",
+      "guide": "operating/network-profiles.md#set-or-inspect-a-profile-from-the-cli",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -3700,8 +4771,12 @@
     },
     {
       "operation": "debug.networkProfileSet",
-      "title": "Set the active network condition profile",
-      "intents": [],
+      "title": "Set a simulated network profile",
+      "intents": [
+        "slow network",
+        "simulate latency",
+        "change network conditions"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -3742,7 +4817,7 @@
         "console": null,
         "hostedAdapter": "debug.networkProfile.write"
       },
-      "guide": "operating/network-profiles.md#set-a-profile",
+      "guide": "operating/network-profiles.md#set-or-inspect-a-profile-from-the-cli",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -3754,8 +4829,11 @@
     },
     {
       "operation": "direct_runner.action",
-      "title": "direct_runner.action",
-      "intents": [],
+      "title": "Invoke an action through the direct runner",
+      "intents": [
+        "run an action",
+        "call a generated action"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -3789,18 +4867,22 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#send-one-operation-receive-one-envelope",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs operation_registry()"
-      ]
+      ],
+      "cliDeferralReason": "Direct-runner dispatch is an internal API primitive; use the generated client or snapback run."
     },
     {
       "operation": "direct_runner.mutation",
-      "title": "direct_runner.mutation",
-      "intents": [],
+      "title": "Invoke a mutation through the direct runner",
+      "intents": [
+        "run a mutation",
+        "call a generated mutation"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -3834,18 +4916,22 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#send-one-operation-receive-one-envelope",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs operation_registry()"
-      ]
+      ],
+      "cliDeferralReason": "Direct-runner dispatch is an internal API primitive; use the generated client or snapback run."
     },
     {
       "operation": "direct_runner.query",
-      "title": "direct_runner.query",
-      "intents": [],
+      "title": "Invoke a query through the direct runner",
+      "intents": [
+        "run a query",
+        "call a generated query"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -3879,18 +4965,21 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#send-one-operation-receive-one-envelope",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs operation_registry()"
-      ]
+      ],
+      "cliDeferralReason": "Direct-runner dispatch is an internal API primitive; use the generated client or snapback run."
     },
     {
       "operation": "direct_runner.unknown",
-      "title": "direct_runner.unknown",
-      "intents": [],
+      "title": "Refuse an unknown direct-runner function kind",
+      "intents": [
+        "diagnose an unknown function kind"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -3929,18 +5018,22 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/diagnostics.md#assert-on-codes-not-prose",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs operation_registry()"
-      ]
+      ],
+      "cliDeferralReason": "This is a refusal identity, not an invocable CLI operation."
     },
     {
       "operation": "ephemeral.cleanup",
-      "title": "Preview or apply bounded ephemeral expiry cleanup",
-      "intents": [],
+      "title": "Clean up expired ephemeral entries",
+      "intents": [
+        "clean up ephemeral state",
+        "expire realtime entries"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -3983,8 +5076,11 @@
     },
     {
       "operation": "ephemeral.operatorDelete",
-      "title": "Operator-bypass delete of one ephemeral entry (debug/repair)",
-      "intents": [],
+      "title": "Delete one ephemeral entry as operator",
+      "intents": [
+        "delete ephemeral state",
+        "repair a realtime entry"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -4027,7 +5123,10 @@
     {
       "operation": "errors.issue",
       "title": "Inspect one error issue",
-      "intents": [],
+      "intents": [
+        "inspect an error issue",
+        "diagnose one failure group"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -4064,7 +5163,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": "operating/host-ops.md",
+      "guide": "operating/host-ops.md#served-request-operations",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -4076,7 +5175,10 @@
     {
       "operation": "errors.issues",
       "title": "List error issues",
-      "intents": [],
+      "intents": [
+        "list error issues",
+        "find recent failures"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -4113,7 +5215,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": "operating/host-ops.md",
+      "guide": "operating/host-ops.md#served-request-operations",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -4124,8 +5226,11 @@
     },
     {
       "operation": "errors.transition",
-      "title": "Transition error issue state",
-      "intents": [],
+      "title": "Transition an error issue",
+      "intents": [
+        "resolve an error issue",
+        "change issue state"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -4162,7 +5267,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": "operating/host-ops.md",
+      "guide": "operating/host-ops.md#served-request-operations",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -4173,8 +5278,11 @@
     },
     {
       "operation": "function.explain",
-      "title": "function.explain",
-      "intents": [],
+      "title": "Explain a generated function",
+      "intents": [
+        "explain a function",
+        "inspect function policy"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -4212,19 +5320,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#send-one-operation-receive-one-envelope",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "Function explanation is exposed through the specialist host-ops API."
     },
     {
       "operation": "function.run",
       "title": "Run one generated function",
-      "intents": [],
+      "intents": [
+        "run a function",
+        "invoke backend code"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -4265,7 +5377,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#served-request-operations",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -4277,7 +5389,10 @@
     {
       "operation": "functions.load",
       "title": "Load the generated function manifest",
-      "intents": [],
+      "intents": [
+        "load functions",
+        "install generated backend functions"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -4314,7 +5429,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "getting-started/the-authoring-loop.md#2-regenerate",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -4325,8 +5440,11 @@
     },
     {
       "operation": "functions.reload",
-      "title": "functions.reload",
-      "intents": [],
+      "title": "Reload generated functions",
+      "intents": [
+        "reload functions",
+        "refresh backend code"
+      ],
       "status": "unbuilt",
       "domain": "hostOps",
       "hostOpsDisposition": "pinnedUnbuilt",
@@ -4368,19 +5486,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "getting-started/the-authoring-loop.md#2-regenerate",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "This LLP 0024 spelling is pinned but not yet implemented."
     },
     {
       "operation": "health",
-      "title": "health",
-      "intents": [],
+      "title": "Read local coordinator health",
+      "intents": [
+        "check backend health",
+        "probe readiness"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -4413,21 +5535,21 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/observability.md#check-health-and-recent-logs-in-the-console",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "cliDeferralReason": "The raw health route is API-only; use snapback inspect for the CLI projection."
     },
     {
       "operation": "health.read",
-      "title": "Coordinator health/build-identity check (hosted)",
+      "title": "Read hosted coordinator health",
       "intents": [
-        "is the hosted server healthy",
-        "hosted build identity",
-        "health check"
+        "check hosted health",
+        "probe hosted readiness"
       ],
       "status": "shipped",
       "domain": "hostedAdapter",
@@ -4461,18 +5583,22 @@
         "console": null,
         "hostedAdapter": "health.read"
       },
-      "guide": null,
+      "guide": "deploying/cloudflare.md#run-the-remote-proof",
       "authorities": [
         "llp/0184-agent-accessible-control-plane §Design/3a"
       ],
       "sources": [
         "cloudflare/src/gateway.js:122"
-      ]
+      ],
+      "cliDeferralReason": "Hosted health is read from the deployed adapter, not a local CLI verb."
     },
     {
       "operation": "host.restart",
       "title": "Restart the local Snapback server",
-      "intents": [],
+      "intents": [
+        "restart snapback",
+        "restart the backend"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "cliOnly",
@@ -4507,7 +5633,7 @@
         "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": "snapback restart",
+        "cli": "snapback restart --ready-file <path>",
         "mcp": "snapback_restart",
         "hostOps": "host.restart",
         "http": "POST /_snapback/api/host-ops",
@@ -4530,7 +5656,10 @@
     {
       "operation": "host.start",
       "title": "Start or attach to the local Snapback server",
-      "intents": [],
+      "intents": [
+        "start snapback",
+        "start the backend"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "cliOnly",
@@ -4567,7 +5696,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -4580,7 +5709,10 @@
     {
       "operation": "host.stop",
       "title": "Stop the local Snapback server",
-      "intents": [],
+      "intents": [
+        "stop snapback",
+        "stop the backend"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "cliOnly",
@@ -4617,7 +5749,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -4629,8 +5761,10 @@
     },
     {
       "operation": "hostCall.dispatch",
-      "title": "Re-entrant handler-isolate host call (internal)",
-      "intents": [],
+      "title": "Dispatch an internal handler host call",
+      "intents": [
+        "dispatch an internal host call"
+      ],
       "status": "shipped",
       "domain": "hostedAdapter",
       "surfaceAccess": "none",
@@ -4674,8 +5808,11 @@
     },
     {
       "operation": "inspect",
-      "title": "inspect",
-      "intents": [],
+      "title": "Read the local inspect snapshot",
+      "intents": [
+        "inspect the backend",
+        "read coordinator metadata"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -4708,18 +5845,22 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/observability.md#query-the-typed-operations-from-the-cli",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "cliDeferralReason": "The raw inspect route is API-only; use snapback inspect for the CLI projection."
     },
     {
       "operation": "jobs.drain",
       "title": "Drain due one-off jobs",
-      "intents": [],
+      "intents": [
+        "drain jobs",
+        "run due background work"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -4752,7 +5893,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/host-ops.md#controlled-mutations-config-cron-jobs-connections",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
@@ -4763,7 +5904,10 @@
     {
       "operation": "jobs.list",
       "title": "List one-off jobs",
-      "intents": [],
+      "intents": [
+        "list jobs",
+        "inspect background work"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -4806,8 +5950,11 @@
     },
     {
       "operation": "jobs.show",
-      "title": "Show one job",
-      "intents": [],
+      "title": "Show one one-off job",
+      "intents": [
+        "show a job",
+        "inspect one background task"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "native",
@@ -4850,10 +5997,10 @@
     },
     {
       "operation": "object.evict",
-      "title": "Evict a hosted durable object",
+      "title": "Evict one hosted durable object",
       "intents": [
-        "evict hosted object",
-        "force reload hosted durable object"
+        "evict a hosted object",
+        "restart a hosted coordinator"
       ],
       "status": "shipped",
       "domain": "hostedAdapter",
@@ -4888,18 +6035,22 @@
         "console": null,
         "hostedAdapter": "object.evict"
       },
-      "guide": null,
+      "guide": "deploying/cloudflare.md#hibernation-reconnect-and-idle-to-zero",
       "authorities": [
         "llp/0184-agent-accessible-control-plane §Design/3a"
       ],
       "sources": [
         "cloudflare/src/gateway.js:172"
-      ]
+      ],
+      "cliDeferralReason": "Object eviction is a hosted-adapter API operation with no local CLI projection."
     },
     {
       "operation": "operations.explain",
-      "title": "operations.explain",
-      "intents": [],
+      "title": "Explain registered operation policy",
+      "intents": [
+        "explain an operation",
+        "inspect operation authority"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -4932,18 +6083,22 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/agent-controls.md#describe-one-operation",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "cliDeferralReason": "The raw explanation route is API-only; use snapback controls describe for catalog entries."
     },
     {
       "operation": "push.maintenance",
-      "title": "push.maintenance",
-      "intents": [],
+      "title": "Run push-notification maintenance",
+      "intents": [
+        "maintain push registrations",
+        "clean up push installations"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -4976,19 +6131,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "backend/expo-push.md#register-the-current-installation",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs route_registry()"
       ],
+      "cliDeferralReason": "Push maintenance is an internal API operation with no CLI projection.",
       "internalReason": "Push-notification maintenance sweep; internal scheduled/system maintenance, not an author/operator-invoked action today."
     },
     {
       "operation": "receipts",
-      "title": "receipts",
-      "intents": [],
+      "title": "Read operation receipts",
+      "intents": [
+        "inspect receipts",
+        "verify an operation result"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "apiOnly",
@@ -5021,18 +6180,21 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/diagnostics.md#consume-the-diagnostic-shape",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "cliDeferralReason": "The receipt collection is exposed through the API and typed operation responses, not a standalone CLI verb."
     },
     {
       "operation": "route.unknown.refuse",
-      "title": "Unrecognized reserved-namespace root (refusal)",
-      "intents": [],
+      "title": "Refuse an unknown reserved route",
+      "intents": [
+        "diagnose an unknown reserved route"
+      ],
       "status": "shipped",
       "domain": "hostedAdapter",
       "surfaceAccess": "none",
@@ -5080,7 +6242,10 @@
     {
       "operation": "schema.load",
       "title": "Load the generated schema manifest",
-      "intents": [],
+      "intents": [
+        "load the schema",
+        "install generated tables"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -5117,7 +6282,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "getting-started/the-authoring-loop.md#2-regenerate",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -5128,8 +6293,11 @@
     },
     {
       "operation": "schema.reload",
-      "title": "schema.reload",
-      "intents": [],
+      "title": "Reload the generated schema",
+      "intents": [
+        "reload the schema",
+        "refresh table definitions"
+      ],
       "status": "unbuilt",
       "domain": "hostOps",
       "hostOpsDisposition": "pinnedUnbuilt",
@@ -5171,19 +6339,23 @@
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "getting-started/the-authoring-loop.md#2-regenerate",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "cliDeferralReason": "This LLP 0024 spelling is pinned but not yet implemented."
     },
     {
       "operation": "secretRead.mint",
-      "title": "secretRead.mint",
-      "intents": [],
+      "title": "Mint a scoped secret-read lease",
+      "intents": [
+        "mint a secret-read lease",
+        "authorize one secret read"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "cliOnly",
@@ -5227,7 +6399,7 @@
     },
     {
       "operation": "storage.operation-coverage.activate",
-      "title": "storage.operation-coverage.activate",
+      "title": "Activate operation-coverage writer admission",
       "intents": [
         "activate operation coverage",
         "commit envelope writer manifest",
@@ -5271,11 +6443,12 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "cliDeferralReason": "This specialist storage API intentionally has no general CLI projection."
     },
     {
       "operation": "storage.protected-erasure",
-      "title": "storage.protected-erasure",
+      "title": "Erase one protected storage row",
       "intents": [
         "protected erasure",
         "permanently erase one row",
@@ -5321,12 +6494,16 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "cliDeferralReason": "This specialist storage API intentionally has no general CLI projection."
     },
     {
       "operation": "telemetry.events",
       "title": "Read a bounded telemetry event page",
-      "intents": [],
+      "intents": [
+        "read telemetry events",
+        "inspect recent backend activity"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -5363,7 +6540,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": "operating/host-ops.md",
+      "guide": "operating/observability.md#query-the-typed-operations-from-the-cli",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -5374,8 +6551,11 @@
     },
     {
       "operation": "telemetry.export",
-      "title": "Export one bounded telemetry page",
-      "intents": [],
+      "title": "Export bounded telemetry",
+      "intents": [
+        "export telemetry",
+        "save backend diagnostics"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -5412,7 +6592,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": "operating/host-ops.md",
+      "guide": "operating/observability.md#query-the-typed-operations-from-the-cli",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -5424,7 +6604,10 @@
     {
       "operation": "telemetry.stats",
       "title": "Read aggregate telemetry health",
-      "intents": [],
+      "intents": [
+        "check telemetry stats",
+        "inspect backend health metrics"
+      ],
       "status": "shipped",
       "domain": "hostOps",
       "hostOpsDisposition": "served",
@@ -5461,7 +6644,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": "operating/host-ops.md",
+      "guide": "operating/observability.md#query-the-typed-operations-from-the-cli",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -5472,8 +6655,10 @@
     },
     {
       "operation": "test.<subpath-determined-by-coordinator>",
-      "title": "Testing-only generic seam prefix",
-      "intents": [],
+      "title": "Dispatch a testing-only coordinator seam",
+      "intents": [
+        "exercise a testing seam"
+      ],
       "status": "shipped",
       "domain": "hostedAdapter",
       "surfaceAccess": "none",
@@ -5517,8 +6702,10 @@
     },
     {
       "operation": "test.corruptMeta",
-      "title": "Testing-only startup metadata corruption seam",
-      "intents": [],
+      "title": "Corrupt startup metadata in a test",
+      "intents": [
+        "test corrupt metadata handling"
+      ],
       "status": "shipped",
       "domain": "hostedAdapter",
       "surfaceAccess": "none",

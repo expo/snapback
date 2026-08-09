@@ -86,62 +86,62 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **114 operations** at digest `sha256:5a78cfa1c449bf635339d43458d5b819a4f697914c566f56a3c799314882fb51`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **133 operations** at digest `sha256:bd90c1ca415499f9bb6c92692be400db62113538624bb24a2016f20a465b6701`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
-| surfaceAccess | `apiOnly` | 38 |
-| surfaceAccess | `cliOnly` | 29 |
+| surfaceAccess | `apiOnly` | 37 |
+| surfaceAccess | `cliOnly` | 49 |
 | surfaceAccess | `mcpOnly` | 2 |
 | surfaceAccess | `native` | 41 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 91 |
+| operability | `direct` | 110 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 5 |
 
 | Operation | Surface | Operability | Status | CLI | MCP | Guide |
 | --- | --- | --- | --- | --- | --- | --- |
-| `acceptance.run` | `mcpOnly` | `unavailable` | `unbuilt` | — | snapback_acceptance_run | — |
-| `admin.link.exchange` | `cliOnly` | `mediated` | `shipped` | snapback admin link | — | — |
+| `acceptance.run` | `mcpOnly` | `unavailable` | `unbuilt` | — | snapback_acceptance_run | testing/verify.md#author-snapbackverifyconfigmjs |
+| `admin.link.exchange` | `cliOnly` | `mediated` | `shipped` | snapback admin link | — | operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser |
 | `admin.link.mint` | `cliOnly` | `mediated` | `shipped` | snapback admin link | — | operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser |
-| `admin.link.revoke` | `cliOnly` | `mediated` | `shipped` | snapback admin link --revoke <claim> | — | — |
-| `admin.link.status` | `cliOnly` | `mediated` | `shipped` | snapback admin link --status <claim> | — | — |
-| `app.ensure.provision` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `app.inspect` | `native` | `direct` | `shipped` | snapback inspect | snapback_inspect | operating/host-ops.md |
-| `app.reset` | `native` | `direct` | `shipped` | snapback reset | snapback_reset | — |
-| `app.seed.clear.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `app.seed.ensure.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `app.seed.preview.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `app.seed.reset-install.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `asset.delete` | `native` | `direct` | `shipped` | snapback assets delete | snapback_asset_delete | — |
-| `asset.ensureSeedFixture` | `cliOnly` | `direct` | `shipped` | snapback assets ensure-seed-fixture | — | — |
-| `asset.exportCut` | `native` | `direct` | `shipped` | snapback assets export-cut | snapback_asset_export_cut | — |
-| `asset.gcSweep` | `native` | `direct` | `shipped` | snapback assets gc-sweep | snapback_asset_gc_sweep | — |
-| `asset.importCut` | `native` | `direct` | `shipped` | snapback assets import-cut | snapback_asset_import_cut | — |
-| `asset.inspect` | `native` | `direct` | `shipped` | snapback assets inspect | snapback_asset_inspect | — |
-| `asset.list` | `native` | `direct` | `shipped` | snapback assets list | snapback_asset_list | — |
-| `asset.put` | `cliOnly` | `direct` | `shipped` | snapback assets put | — | — |
-| `asset.retry` | `native` | `direct` | `shipped` | snapback assets retry | snapback_asset_retry | — |
-| `asset.rotateSigningKey` | `native` | `direct` | `shipped` | snapback assets rotate-signing-key | snapback_asset_rotate_signing_key | — |
-| `auth.mailbox.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `auth.mintSession` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `auth.rescueCollidingTable` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `branch.create.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `branch.drop.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `branch.execute.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `branch.inspect.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `branch.list.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `branch.reap.v1` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `capability.manifest.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `cli.auth.backup` | `cliOnly` | `direct` | `shipped` | snapback auth backup | — | — |
-| `cli.auth.restore` | `cliOnly` | `direct` | `shipped` | snapback auth restore | — | — |
-| `cli.buildIdentity` | `cliOnly` | `direct` | `shipped` | snapback build-identity | — | — |
-| `cli.fork.create` | `cliOnly` | `direct` | `shipped` | snapback fork create | — | — |
-| `cli.fork.diff` | `cliOnly` | `direct` | `shipped` | snapback fork diff | — | — |
-| `cli.fork.drop` | `cliOnly` | `direct` | `shipped` | snapback fork drop | — | — |
-| `cli.fork.list` | `cliOnly` | `direct` | `shipped` | snapback fork list | — | — |
-| `cli.fork.reap` | `cliOnly` | `direct` | `shipped` | snapback fork reap | — | — |
+| `admin.link.revoke` | `cliOnly` | `mediated` | `shipped` | snapback admin link --revoke <claim> | — | operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser |
+| `admin.link.status` | `cliOnly` | `mediated` | `shipped` | snapback admin link --status <claim> | — | operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser |
+| `app.ensure.provision` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly |
+| `app.inspect` | `native` | `direct` | `shipped` | snapback inspect | snapback_inspect | operating/host-ops.md#served-request-operations |
+| `app.reset` | `native` | `direct` | `shipped` | snapback reset | snapback_reset | backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients |
+| `app.seed.clear.v1` | `apiOnly` | `direct` | `shipped` | — | — | backend/versioned-seeds.md#use-the-generated-lifecycle |
+| `app.seed.ensure.v1` | `apiOnly` | `direct` | `shipped` | — | — | backend/versioned-seeds.md#use-the-generated-lifecycle |
+| `app.seed.preview.v1` | `apiOnly` | `direct` | `shipped` | — | — | backend/versioned-seeds.md#use-the-generated-lifecycle |
+| `app.seed.reset-install.v1` | `apiOnly` | `direct` | `shipped` | — | — | backend/versioned-seeds.md#use-the-generated-lifecycle |
+| `asset.delete` | `native` | `direct` | `shipped` | snapback assets delete | snapback_asset_delete | backend/assets.md#operate |
+| `asset.ensureSeedFixture` | `cliOnly` | `direct` | `shipped` | snapback assets ensure-seed-fixture | — | backend/assets.md#operate |
+| `asset.exportCut` | `native` | `direct` | `shipped` | snapback assets export-cut | snapback_asset_export_cut | backend/assets.md#export-the-asset-component-of-a-logical-backup |
+| `asset.gcSweep` | `native` | `direct` | `shipped` | snapback assets gc-sweep | snapback_asset_gc_sweep | backend/assets.md#operate |
+| `asset.importCut` | `native` | `direct` | `shipped` | snapback assets import-cut | snapback_asset_import_cut | backend/assets.md#validate-the-complete-cut-before-restore |
+| `asset.inspect` | `native` | `direct` | `shipped` | snapback assets inspect | snapback_asset_inspect | backend/assets.md#operate |
+| `asset.list` | `native` | `direct` | `shipped` | snapback assets list | snapback_asset_list | backend/assets.md#operate |
+| `asset.put` | `cliOnly` | `direct` | `shipped` | snapback assets put | — | backend/assets.md#upload-and-attach |
+| `asset.retry` | `native` | `direct` | `shipped` | snapback assets retry | snapback_asset_retry | backend/assets.md#operate |
+| `asset.rotateSigningKey` | `native` | `direct` | `shipped` | snapback assets rotate-signing-key | snapback_asset_rotate_signing_key | backend/assets.md#invalidate-every-outstanding-signed-url |
+| `auth.mailbox.read` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#mint-test-personas-the-complete-local-recipe |
+| `auth.mintSession` | `cliOnly` | `direct` | `shipped` | snapback session mint --email <address> | — | operating/host-ops.md#served-request-operations |
+| `auth.rescueCollidingTable` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly |
+| `branch.create.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#give-a-worktree-its-own-backend |
+| `branch.drop.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#inspect-review-and-dispose-forks |
+| `branch.execute.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#own-forks-per-worktree-per-agent-run-and-per-suite-lane |
+| `branch.inspect.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#inspect-review-and-dispose-forks |
+| `branch.list.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#inspect-review-and-dispose-forks |
+| `branch.reap.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#inspect-review-and-dispose-forks |
+| `capability.manifest.read` | `apiOnly` | `direct` | `shipped` | — | — | deploying/cloudflare.md#exact-supported-subset-and-non-claims |
+| `cli.auth.backup` | `cliOnly` | `direct` | `shipped` | snapback auth backup | — | operating/backup-and-copy.md#recover-from-a-disaster |
+| `cli.auth.restore` | `cliOnly` | `direct` | `shipped` | snapback auth restore | — | operating/backup-and-copy.md#recover-from-a-disaster |
+| `cli.buildIdentity` | `cliOnly` | `direct` | `shipped` | snapback build-identity | — | operating/diagnostics.md#report-the-runtimes-own-readiness-identity |
+| `cli.fork.create` | `cliOnly` | `direct` | `shipped` | snapback fork create | — | operating/instance-forks.md#give-a-worktree-its-own-backend |
+| `cli.fork.diff` | `cliOnly` | `direct` | `shipped` | snapback fork diff | — | operating/instance-forks.md#read-the-diff-at-its-real-boundary |
+| `cli.fork.drop` | `cliOnly` | `direct` | `shipped` | snapback fork drop | — | operating/instance-forks.md#inspect-review-and-dispose-forks |
+| `cli.fork.list` | `cliOnly` | `direct` | `shipped` | snapback fork list | — | operating/instance-forks.md#inspect-review-and-dispose-forks |
+| `cli.fork.reap` | `cliOnly` | `direct` | `shipped` | snapback fork reap | — | operating/instance-forks.md#inspect-review-and-dispose-forks |
 | `cli.migrate.apply` | `cliOnly` | `direct` | `shipped` | snapback migrate apply | — | backend/migrations.md#run-the-reviewed-loop |
 | `cli.migrate.approve` | `cliOnly` | `direct` | `shipped` | snapback migrate approve | — | backend/migrations.md#run-the-reviewed-loop |
 | `cli.migrate.cancel` | `cliOnly` | `direct` | `shipped` | snapback migrate cancel | — | backend/migrations.md#run-the-reviewed-loop |
@@ -149,71 +149,90 @@ The embedded build catalog contains **114 operations** at digest `sha256:5a78cfa
 | `cli.migrate.rehearse` | `cliOnly` | `direct` | `shipped` | snapback migrate rehearse | — | backend/migrations.md#run-the-reviewed-loop |
 | `cli.migrate.rollback` | `cliOnly` | `unavailable` | `unbuilt` | snapback migrate rollback | — | backend/migrations.md#verify-cancel-and-the-unbuilt-rollback |
 | `cli.migrate.verify` | `cliOnly` | `direct` | `shipped` | snapback migrate verify | — | backend/migrations.md#run-the-reviewed-loop |
-| `cli.telemetry.query` | `cliOnly` | `direct` | `shipped` | snapback telemetry query | — | — |
-| `client-mutations.purge` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `cli.packaged.accept` | `cliOnly` | `direct` | `shipped` | snapback accept | — | testing/acceptance.md#the-backend-comparator-profile |
+| `cli.packaged.agent` | `cliOnly` | `direct` | `shipped` | snapback agent | — | operating/agent-controls.md#native-resource-availability |
+| `cli.packaged.audit` | `cliOnly` | `direct` | `shipped` | snapback audit | — | deploying/releases.md#verify-the-control-audit-chain |
+| `cli.packaged.backup` | `cliOnly` | `direct` | `shipped` | snapback backup | — | deploying/releases.md#inspect-retained-backups |
+| `cli.packaged.deploy` | `cliOnly` | `direct` | `shipped` | snapback deploy | — | deploying/releases.md#build-and-verify-the-release-closure |
+| `cli.packaged.dev` | `cliOnly` | `direct` | `shipped` | snapback dev | — | getting-started/the-authoring-loop.md |
+| `cli.packaged.doctor` | `cliOnly` | `direct` | `shipped` | snapback doctor | — | operating/diagnostics.md#diagnose-the-vendored-ibex-runtime-first |
+| `cli.packaged.generate` | `cliOnly` | `direct` | `shipped` | snapback generate | — | getting-started/the-authoring-loop.md#2-regenerate |
+| `cli.packaged.guide` | `cliOnly` | `direct` | `shipped` | snapback guide | — | index.md |
+| `cli.packaged.hosted` | `cliOnly` | `direct` | `shipped` | snapback hosted | — | deploying/releases.md#qualify-an-adapter-and-prepare-a-release |
+| `cli.packaged.inspect` | `cliOnly` | `direct` | `shipped` | snapback inspect | — | deploying/releases.md#query-bounded-logs-and-authenticated-inspection |
+| `cli.packaged.logs` | `cliOnly` | `direct` | `shipped` | snapback logs | — | deploying/releases.md#query-bounded-logs-and-authenticated-inspection |
+| `cli.packaged.mcpControl` | `cliOnly` | `direct` | `shipped` | snapback mcp-control | — | operating/agent-controls.md#native-resource-availability |
+| `cli.packaged.new` | `cliOnly` | `direct` | `shipped` | snapback new | — | getting-started/the-authoring-loop.md |
+| `cli.packaged.reset` | `cliOnly` | `direct` | `shipped` | snapback reset | — | backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients |
+| `cli.packaged.restore` | `cliOnly` | `direct` | `shipped` | snapback restore | — | deploying/releases.md#restore-into-an-isolated-destination-then-activate-explicitly |
+| `cli.packaged.runtimeQualify` | `cliOnly` | `direct` | `shipped` | snapback runtime-qualify | — | operating/diagnostics.md#report-the-runtimes-own-readiness-identity |
+| `cli.packaged.target` | `cliOnly` | `direct` | `shipped` | snapback target | — | deploying/releases.md#register-one-exact-containervm-target |
+| `cli.packaged.verify` | `cliOnly` | `direct` | `shipped` | snapback verify | — | testing/verify.md#author-snapbackverifyconfigmjs |
+| `cli.telemetry.query` | `cliOnly` | `direct` | `shipped` | snapback telemetry query | — | operating/observability.md#use-the-local-sql-hatch-for-bounded-investigations |
+| `client-mutations.purge` | `apiOnly` | `internal` | `shipped` | — | — | sync/offline-and-retention.md#replay-and-settle-without-guessing |
 | `config.plan` | `native` | `direct` | `shipped` | snapback config plan | snapback_config_plan | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
 | `config.set` | `cliOnly` | `direct` | `shipped` | snapback config set --entry <name> (--value-stdin\|--value-fd N) | — | operating/secrets-and-config.md#set-an-agent-held-value-without-exposing-it |
 | `config.status` | `native` | `direct` | `shipped` | snapback config status | snapback_config_status | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
-| `config.unset` | `native` | `direct` | `shipped` | snapback config unset | snapback_config_unset | — |
+| `config.unset` | `native` | `direct` | `shipped` | snapback config unset | snapback_config_unset | operating/secrets-and-config.md#set-and-inspect-config |
 | `config.verify` | `native` | `direct` | `shipped` | snapback config verify <entry> | snapback_config_verify | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
-| `connection.disconnect` | `native` | `direct` | `shipped` | snapback connections disconnect | snapback_connection_disconnect | — |
-| `console.approval.approve` | `cliOnly` | `mediated` | `shipped` | snapback admin approve | — | — |
-| `console.approval.poll` | `cliOnly` | `mediated` | `shipped` | snapback admin approve | — | — |
-| `console.approval.request` | `cliOnly` | `mediated` | `shipped` | snapback admin approve | — | — |
-| `console.credential` | `apiOnly` | `internal` | `shipped` | — | — | — |
-| `console.reachability.bind` | `apiOnly` | `internal` | `shipped` | — | — | — |
-| `console.reachability.drop` | `apiOnly` | `internal` | `shipped` | — | — | — |
-| `console.reachability.register` | `apiOnly` | `internal` | `shipped` | — | — | — |
-| `console.reachability.renew` | `apiOnly` | `internal` | `shipped` | — | — | — |
+| `connection.disconnect` | `native` | `direct` | `shipped` | snapback connections disconnect | snapback_connection_disconnect | operating/host-ops.md#controlled-mutations-config-cron-jobs-connections |
+| `console.approval.approve` | `cliOnly` | `mediated` | `shipped` | snapback admin approve | — | operating/admin-console.md#authenticate-the-operator-surface |
+| `console.approval.poll` | `cliOnly` | `mediated` | `shipped` | snapback admin approve | — | operating/admin-console.md#authenticate-the-operator-surface |
+| `console.approval.request` | `cliOnly` | `mediated` | `shipped` | snapback admin approve | — | operating/admin-console.md#authenticate-the-operator-surface |
+| `console.credential` | `apiOnly` | `internal` | `shipped` | — | — | operating/admin-console.md#authenticate-the-operator-surface |
+| `console.reachability.bind` | `apiOnly` | `internal` | `shipped` | — | — | operating/admin-console.md#open-a-phone-console-on-the-local-network |
+| `console.reachability.drop` | `apiOnly` | `internal` | `shipped` | — | — | operating/admin-console.md#open-a-phone-console-on-the-local-network |
+| `console.reachability.register` | `apiOnly` | `internal` | `shipped` | — | — | operating/admin-console.md#open-a-phone-console-on-the-local-network |
+| `console.reachability.renew` | `apiOnly` | `internal` | `shipped` | — | — | operating/admin-console.md#open-a-phone-console-on-the-local-network |
 | `control.catalog.describe` | `native` | `direct` | `shipped` | snapback controls describe <operation> | snapback-controls://operation/{operation} | operating/agent-controls.md#describe-one-operation |
 | `control.catalog.instance.read` | `mcpOnly` | `direct` | `shipped` | — | snapback-controls://instance | operating/agent-controls.md#build-versus-instance-identity |
 | `control.catalog.read` | `native` | `direct` | `shipped` | snapback controls list | snapback-controls://catalog | operating/agent-controls.md#search-the-build-catalog |
 | `cron.list` | `native` | `direct` | `shipped` | snapback cron list | snapback_cron_list | backend/cron.md#inspect-declared-jobs-and-runtime-posture |
-| `cron.runOne` | `native` | `direct` | `shipped` | snapback cron run | snapback_cron_run | — |
-| `cron.status.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `cron.tick` | `native` | `direct` | `shipped` | snapback cron tick | snapback_cron_tick | — |
+| `cron.runOne` | `native` | `direct` | `shipped` | snapback cron run | snapback_cron_run | backend/cron.md#test-deterministically |
+| `cron.status.read` | `apiOnly` | `direct` | `shipped` | — | — | backend/cron.md#inspect-declared-jobs-and-runtime-posture |
+| `cron.tick` | `native` | `direct` | `shipped` | snapback cron tick | snapback_cron_tick | backend/cron.md#test-deterministically |
 | `data.patch.apply` | `native` | `direct` | `shipped` | snapback data patch --apply --input <file\|-> | snapback_data_patch_apply | operating/data-patch.md#apply |
 | `data.patch.preview` | `native` | `direct` | `shipped` | snapback data patch --preview --input <file\|-> | snapback_data_patch_preview | operating/data-patch.md#preview |
 | `data.scan` | `native` | `direct` | `shipped` | snapback data scan <table> | snapback_data_scan | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `debug.live.forceResync` | `native` | `direct` | `shipped` | snapback debug force-resync | snapback_live_force_resync | operating/host-ops.md#served-request-operations |
-| `debug.networkProfileGet` | `native` | `direct` | `shipped` | snapback network-profile get | snapback_network_profile_get | operating/network-profiles.md#read-the-active-profile |
-| `debug.networkProfileSet` | `native` | `direct` | `shipped` | snapback network-profile set | snapback_network_profile_set | operating/network-profiles.md#set-a-profile |
-| `direct_runner.action` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `direct_runner.mutation` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `direct_runner.query` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `direct_runner.unknown` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
+| `debug.networkProfileGet` | `native` | `direct` | `shipped` | snapback network-profile get | snapback_network_profile_get | operating/network-profiles.md#set-or-inspect-a-profile-from-the-cli |
+| `debug.networkProfileSet` | `native` | `direct` | `shipped` | snapback network-profile set | snapback_network_profile_set | operating/network-profiles.md#set-or-inspect-a-profile-from-the-cli |
+| `direct_runner.action` | `apiOnly` | `direct` | `shipped` | — | — | operating/host-ops.md#send-one-operation-receive-one-envelope |
+| `direct_runner.mutation` | `apiOnly` | `direct` | `shipped` | — | — | operating/host-ops.md#send-one-operation-receive-one-envelope |
+| `direct_runner.query` | `apiOnly` | `direct` | `shipped` | — | — | operating/host-ops.md#send-one-operation-receive-one-envelope |
+| `direct_runner.unknown` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/diagnostics.md#assert-on-codes-not-prose |
 | `ephemeral.cleanup` | `native` | `direct` | `shipped` | snapback ephemeral cleanup | snapback_ephemeral_cleanup | realtime/ephemeral-state.md#clean-up-expired-entries-operationally |
 | `ephemeral.operatorDelete` | `native` | `direct` | `shipped` | snapback ephemeral operator-delete | snapback_ephemeral_operator_delete | realtime/ephemeral-state.md#delete-one-entry-as-an-operator |
-| `errors.issue` | `native` | `direct` | `shipped` | snapback errors issue | snapback_errors_issue | operating/host-ops.md |
-| `errors.issues` | `native` | `direct` | `shipped` | snapback errors issues | snapback_errors_issues | operating/host-ops.md |
-| `errors.transition` | `native` | `direct` | `shipped` | snapback errors transition | snapback_errors_transition | operating/host-ops.md |
-| `function.explain` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `function.run` | `native` | `direct` | `shipped` | snapback run | snapback_run_function | — |
-| `functions.load` | `native` | `direct` | `shipped` | snapback load --functions <path> | snapback_load_functions | — |
-| `functions.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
-| `health` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `health.read` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `host.restart` | `native` | `direct` | `shipped` | snapback restart | snapback_restart | operating/host-ops.md#restart-with-one-credential-bound-receipt |
-| `host.start` | `cliOnly` | `direct` | `shipped` | snapback start | snapback_start | — |
-| `host.stop` | `cliOnly` | `direct` | `shipped` | snapback stop | snapback_stop | — |
+| `errors.issue` | `native` | `direct` | `shipped` | snapback errors issue | snapback_errors_issue | operating/host-ops.md#served-request-operations |
+| `errors.issues` | `native` | `direct` | `shipped` | snapback errors issues | snapback_errors_issues | operating/host-ops.md#served-request-operations |
+| `errors.transition` | `native` | `direct` | `shipped` | snapback errors transition | snapback_errors_transition | operating/host-ops.md#served-request-operations |
+| `function.explain` | `apiOnly` | `direct` | `shipped` | — | — | operating/host-ops.md#send-one-operation-receive-one-envelope |
+| `function.run` | `native` | `direct` | `shipped` | snapback run | snapback_run_function | operating/host-ops.md#served-request-operations |
+| `functions.load` | `native` | `direct` | `shipped` | snapback load --functions <path> | snapback_load_functions | getting-started/the-authoring-loop.md#2-regenerate |
+| `functions.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | getting-started/the-authoring-loop.md#2-regenerate |
+| `health` | `apiOnly` | `direct` | `shipped` | — | — | operating/observability.md#check-health-and-recent-logs-in-the-console |
+| `health.read` | `apiOnly` | `direct` | `shipped` | — | — | deploying/cloudflare.md#run-the-remote-proof |
+| `host.restart` | `native` | `direct` | `shipped` | snapback restart --ready-file <path> | snapback_restart | operating/host-ops.md#restart-with-one-credential-bound-receipt |
+| `host.start` | `cliOnly` | `direct` | `shipped` | snapback start | snapback_start | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `host.stop` | `cliOnly` | `direct` | `shipped` | snapback stop | snapback_stop | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `hostCall.dispatch` | `none` | `internal` | `shipped` | — | — | — |
-| `inspect` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `jobs.drain` | `native` | `direct` | `shipped` | snapback jobs drain | snapback_jobs_drain | — |
+| `inspect` | `apiOnly` | `direct` | `shipped` | — | — | operating/observability.md#query-the-typed-operations-from-the-cli |
+| `jobs.drain` | `native` | `direct` | `shipped` | snapback jobs drain | snapback_jobs_drain | operating/host-ops.md#controlled-mutations-config-cron-jobs-connections |
 | `jobs.list` | `native` | `direct` | `shipped` | snapback jobs list | snapback_jobs_list | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `jobs.show` | `native` | `direct` | `shipped` | snapback jobs show <id> | snapback_jobs_show | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
-| `object.evict` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `operations.explain` | `apiOnly` | `direct` | `shipped` | — | — | — |
-| `push.maintenance` | `apiOnly` | `internal` | `shipped` | — | — | — |
-| `receipts` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `object.evict` | `apiOnly` | `direct` | `shipped` | — | — | deploying/cloudflare.md#hibernation-reconnect-and-idle-to-zero |
+| `operations.explain` | `apiOnly` | `direct` | `shipped` | — | — | operating/agent-controls.md#describe-one-operation |
+| `push.maintenance` | `apiOnly` | `internal` | `shipped` | — | — | backend/expo-push.md#register-the-current-installation |
+| `receipts` | `apiOnly` | `direct` | `shipped` | — | — | operating/diagnostics.md#consume-the-diagnostic-shape |
 | `route.unknown.refuse` | `none` | `internal` | `shipped` | — | — | — |
-| `schema.load` | `native` | `direct` | `shipped` | snapback load --schema <path> | snapback_load_schema | — |
-| `schema.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | — |
+| `schema.load` | `native` | `direct` | `shipped` | snapback load --schema <path> | snapback_load_schema | getting-started/the-authoring-loop.md#2-regenerate |
+| `schema.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | getting-started/the-authoring-loop.md#2-regenerate |
 | `secretRead.mint` | `cliOnly` | `direct` | `shipped` | snapback secret-read-mint | — | operating/host-ops.md#mint-a-scoped-secret-read-lease |
 | `storage.operation-coverage.activate` | `apiOnly` | `direct` | `shipped` | — | — | operating/agent-controls.md#specialist-api-operations-apionly |
 | `storage.protected-erasure` | `apiOnly` | `direct` | `shipped` | — | — | operating/agent-controls.md#specialist-api-operations-apionly |
-| `telemetry.events` | `native` | `direct` | `shipped` | snapback telemetry events | snapback_telemetry_events | operating/host-ops.md |
-| `telemetry.export` | `native` | `direct` | `shipped` | snapback telemetry export | snapback_telemetry_export | operating/host-ops.md |
-| `telemetry.stats` | `native` | `direct` | `shipped` | snapback telemetry stats | snapback_telemetry_stats | operating/host-ops.md |
+| `telemetry.events` | `native` | `direct` | `shipped` | snapback telemetry events | snapback_telemetry_events | operating/observability.md#query-the-typed-operations-from-the-cli |
+| `telemetry.export` | `native` | `direct` | `shipped` | snapback telemetry export | snapback_telemetry_export | operating/observability.md#query-the-typed-operations-from-the-cli |
+| `telemetry.stats` | `native` | `direct` | `shipped` | snapback telemetry stats | snapback_telemetry_stats | operating/observability.md#query-the-typed-operations-from-the-cli |
 | `test.<subpath-determined-by-coordinator>` | `none` | `internal` | `shipped` | — | — | — |
 | `test.corruptMeta` | `none` | `internal` | `shipped` | — | — | — |
 <!-- END GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->

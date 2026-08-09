@@ -38,6 +38,7 @@ use axum::routing::{get, post, put};
 use base64::Engine as _;
 use futures_util::StreamExt as _;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsString;
@@ -137,15 +138,25 @@ pub(crate) fn validate_plaintext_auth_transport(
         return Err(SnapbackError::error(
             "SNAPBACK_AUTH_TRANSPORT_INSECURE",
             "auth-mode",
-            "desired or active sessions cannot serve app data on a plaintext non-loopback bind",
-        ));
+            "desired or active sessions cannot serve app data on a plaintext non-loopback bind; select the intended non-production environment with SNAPBACK_PROFILE and terminate TLS before the listener (the dev override never bypasses sessions transport policy)",
+        )
+        .with_details(json!({
+            "profileEnvVar": "SNAPBACK_PROFILE",
+            "requiredTransport": "TLS",
+            "overrideAppliesToSessions": false,
+        })));
     }
     if profile == ServerProfile::Prod || !allow_insecure_dev_auth {
         return Err(SnapbackError::error(
             "SNAPBACK_AUTH_TRANSPORT_INSECURE",
             "auth-mode",
-            "dev auth on a non-loopback listener requires the explicit non-production override",
-        ));
+            "dev auth on a plaintext non-loopback listener requires SNAPBACK_PROFILE=dev|demo|test and the explicit --allow-insecure-dev-auth override",
+        )
+        .with_details(json!({
+            "profileEnvVar": "SNAPBACK_PROFILE",
+            "allowedProfiles": ["dev", "demo", "test"],
+            "requiredFlag": "--allow-insecure-dev-auth",
+        })));
     }
     Ok(())
 }
@@ -3804,12 +3815,9 @@ fn authorize_admin_access(
             "admin API is disabled on this non-loopback bind without a valid admin token",
         )
         .into()),
-        AdminAccess::TokenRequired => Err(SnapbackError::error(
-            "SNAPBACK_ADMIN_TOKEN_REQUIRED",
-            "admin",
-            "this admin write requires the configured admin token",
-        )
-        .into()),
+        AdminAccess::TokenRequired => {
+            Err(admin_token_required(ctx, provided.is_some(), "this admin write").into())
+        }
     }
 }
 
@@ -3835,13 +3843,28 @@ fn authorize_master(
             "admin API is disabled on this non-loopback bind without a valid admin token",
         )
         .into()),
-        _ => Err(SnapbackError::error(
-            "SNAPBACK_ADMIN_TOKEN_REQUIRED",
-            "admin",
-            "minting a console credential requires the configured master admin token",
-        )
-        .into()),
+        _ => Err(
+            admin_token_required(ctx, provided.is_some(), "minting a console credential").into(),
+        ),
     }
+}
+
+fn admin_token_required(ctx: &ServerContext, presented: bool, purpose: &str) -> SnapbackError {
+    let acquisition = "send x-snapback-admin-token, set SNAPBACK_ADMIN_TOKEN for the CLI, or read the owner-only <ready-file>.admin-token sibling";
+    let message = if presented {
+        format!(
+            "the admin token presented for {purpose} did not match the configured token; {acquisition}"
+        )
+    } else {
+        format!("no admin token was presented for {purpose}; {acquisition}")
+    };
+    SnapbackError::error("SNAPBACK_ADMIN_TOKEN_REQUIRED", "admin", message).with_details(json!({
+        "presented": presented,
+        "header": "x-snapback-admin-token",
+        "envVar": "SNAPBACK_ADMIN_TOKEN",
+        "tokenFile": ctx.admin_token_file.as_ref().map(|path| path.display().to_string()),
+        "tokenFileConvention": "<ready-file>.admin-token",
+    }))
 }
 
 fn provided_console_credential(headers: &HeaderMap) -> Option<&str> {

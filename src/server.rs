@@ -9454,8 +9454,12 @@ fn auth_app_data_refusal(spec: RouteSpec, runtime: &AppState) -> Option<Snapback
                 return Some(SnapbackError::error(
                     "SNAPBACK_AUTH_TRANSPORT_INSECURE",
                     "auth",
-                    "desired or active sessions require listener-owned loopback transport evidence",
-                ));
+                    "desired or active sessions require listener-owned loopback or TLS transport evidence; select the intended environment with SNAPBACK_PROFILE",
+                )
+                .with_details(json!({
+                    "profileEnvVar": "SNAPBACK_PROFILE",
+                    "requiredTransport": "loopback or TLS",
+                })));
             }
             None => runtime.server.loopback,
         };
@@ -11976,12 +11980,18 @@ async fn enforce_registered_route_policy(
         selected_policy
     };
     let authorization = if selected_policy.effect_policy == EffectPolicy::Unavailable {
-        Err(SnapbackError::error(
-            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-            "auth",
-            "this operation is unavailable under the active auth policy",
-        )
-        .into())
+        let error = if selected_operation
+            .is_some_and(|(operation, _)| operation.operation == "host_ops.auth.mintSession")
+        {
+            auth_mint_session_mode_unavailable(&runtime)
+        } else {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "this operation is unavailable under the active auth policy",
+            )
+        };
+        Err(error.into())
     } else if operation_deferred {
         operation_authorization
     } else {
@@ -18051,6 +18061,26 @@ async fn auth_host_result(
     .await
 }
 
+fn auth_mint_session_mode_unavailable(runtime: &AppState) -> SnapbackError {
+    // @ref LLP 0184#dated-amendment-discovery-completeness-and-projection-repair-2026-08-08 —
+    //   policy middleware and the handler backstop expose the same actionable
+    //   observed-mode refusal instead of losing it at the earlier gate.
+    let mode = runtime.auth_mode_state();
+    SnapbackError::error(
+        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+        "auth",
+        "auth.mintSession requires settled and available sessions mode; call ensureApp({requestedMode:'sessions'}), then restart when the transition reports pendingRestart",
+    )
+    .with_details(json!({
+        "observed": {
+            "active": mode.active,
+            "desired": mode.desired,
+            "modeState": mode.mode_state,
+            "appDataAvailability": mode.app_data_availability,
+        },
+    }))
+}
+
 /// Auth host operations acquire provider coordination before the outer
 /// app-instance lock. The handler repeats the selected-operation gate as a
 /// backstop so a direct invocation cannot substitute an admin, console,
@@ -18088,12 +18118,7 @@ async fn execute_auth_host_operation(
             || mode.mode_state != crate::auth::mode::AuthModeStatus::Settled
             || mode.app_data_availability != crate::auth::mode::AppDataAvailability::Available
         {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                "auth",
-                "auth.mintSession requires settled and available sessions mode",
-            )
-            .into());
+            return Err(auth_mint_session_mode_unavailable(runtime).into());
         }
         if !runtime.auth_catalog_ready
             || runtime
@@ -25799,6 +25824,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ERROR_ISSUE_ID_INVALID"
         | "SNAPBACK_ERROR_RELEASE_UNKNOWN_OR_PRUNED"
         | "SNAPBACK_ERROR_TRANSITION_INVALID"
+        | "SNAPBACK_AUTH_IMPERSONATION_FILE_INVALID"
         | "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
         | "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED"
@@ -32906,8 +32932,9 @@ globalThis.__snapbackHandlers = {
         .await
         .unwrap();
         assert_eq!(unavailable.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let unavailable = response_json(unavailable).await;
         assert_eq!(
-            response_json(unavailable).await["diagnostic"]["code"],
+            unavailable["diagnostic"]["code"],
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
         );
 
@@ -32981,9 +33008,20 @@ globalThis.__snapbackHandlers = {
             .await
             .unwrap();
         assert_eq!(refused.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let refused = response_json(refused).await;
         assert_eq!(
-            response_json(refused).await["diagnostic"]["code"],
+            refused["diagnostic"]["code"],
             "SNAPBACK_AUTH_TRANSPORT_INSECURE"
+        );
+        assert!(
+            refused["diagnostic"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("SNAPBACK_PROFILE")
+        );
+        assert_eq!(
+            refused["diagnostic"]["details"]["profileEnvVar"],
+            "SNAPBACK_PROFILE"
         );
         let health = router
             .oneshot(
@@ -33039,9 +33077,20 @@ globalThis.__snapbackHandlers = {
             .await
             .unwrap();
         assert_eq!(refused.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let refused = response_json(refused).await;
         assert_eq!(
-            response_json(refused).await["diagnostic"]["code"],
+            refused["diagnostic"]["code"],
             "SNAPBACK_AUTH_TRANSPORT_INSECURE"
+        );
+        assert!(
+            refused["diagnostic"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("SNAPBACK_PROFILE")
+        );
+        assert_eq!(
+            refused["diagnostic"]["details"]["overrideAppliesToSessions"],
+            false
         );
     }
 
@@ -36054,6 +36103,18 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             denied["diagnostic"]["code"],
             "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
+        );
+        assert_eq!(
+            denied["diagnostic"]["details"]["functionId"],
+            "fn:not-granted"
+        );
+        assert_eq!(
+            denied["diagnostic"]["details"]["missingScope"]["kind"],
+            "query"
+        );
+        assert_eq!(
+            denied["diagnostic"]["details"]["missingScope"]["functionId"],
+            "fn:not-granted"
         );
         assert_eq!(denied["attribution"], projection["attribution"]);
 
@@ -40379,9 +40440,31 @@ globalThis.__snapbackHandlers = {
             .await
             .expect("dev mint activation fence");
         assert_eq!(unavailable.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let unavailable = response_json(unavailable).await;
         assert_eq!(
-            response_json(unavailable).await["diagnostic"]["code"],
+            unavailable["diagnostic"]["code"],
             "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+        assert_eq!(
+            unavailable["diagnostic"]["details"]["observed"]["active"],
+            "dev"
+        );
+        assert_eq!(
+            unavailable["diagnostic"]["details"]["observed"]["desired"],
+            "dev"
+        );
+        assert_eq!(
+            unavailable["diagnostic"]["details"]["observed"]["modeState"],
+            "settled"
+        );
+        assert_eq!(
+            unavailable["diagnostic"]["details"]["observed"]["appDataAvailability"],
+            "available"
+        );
+        let message = unavailable["diagnostic"]["message"].as_str().unwrap();
+        assert!(
+            message.contains("ensureApp({requestedMode:'sessions'})")
+                && message.contains("restart")
         );
     }
 
@@ -40435,6 +40518,11 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             missing_admin.0.diagnostic.code,
             "SNAPBACK_ADMIN_TOKEN_REQUIRED"
+        );
+        assert_eq!(missing_admin.0.diagnostic.details["presented"], false);
+        assert_eq!(
+            missing_admin.0.diagnostic.details["header"],
+            "x-snapback-admin-token"
         );
     }
 
@@ -41256,6 +41344,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_BRANCH_OPERATION_INVALID",
         "SNAPBACK_BRANCH_SCHEMA_VERSION_UNSUPPORTED",
         "SNAPBACK_BRANCH_STREAM_MISMATCH",
+        "SNAPBACK_AUTH_IMPERSONATION_FILE_INVALID",
         "SNAPBACK_CHECKPOINT_DESTINATION_INVALID",
         "SNAPBACK_CHECKPOINT_ERASURE_REQUEST_INVALID",
         "SNAPBACK_CHECKPOINT_REQUEST_INVALID",

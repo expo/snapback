@@ -102,6 +102,7 @@
         "policy",
         "behavior",
         "projections",
+        "guide",
         "sources"
       ],
       "properties": {
@@ -114,8 +115,8 @@
         "intents": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
-          "minItems": 0,
-          "description": "Intent keywords for `controls list --intent`. Required (non-empty) for every surfaceAccess other than `none` (rule 4/5)."
+          "minItems": 1,
+          "description": "Authored, agent-phrased task words for `controls list --intent`. Required non-empty on every catalog row (rule 4/5)."
         },
         "status": { "enum": ["shipped", "unbuilt"] },
         "domain": { "$ref": "#/$defs/RouteClassDomain" },
