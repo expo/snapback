@@ -162,10 +162,12 @@ pub(crate) fn render_guide_command(
                 json!([]),
                 json!({
                     "capabilityIndex": format!("{DEFAULT_SERVED_GUIDE_URL}/capabilities.md"),
+                    "surfaceMap": format!("{DEFAULT_SERVED_GUIDE_URL}/surface-map.md"),
                     "guide": DEFAULT_SERVED_GUIDE_URL,
                     "referenceIndex": format!("{DEFAULT_SERVED_GUIDE_URL}/reference/index.md"),
                     "symbolRegistry": format!("{DEFAULT_SERVED_GUIDE_URL}/reference/registry.json"),
-                    "flat": format!("{DEFAULT_SERVED_GUIDE_URL}/flat.md"),
+                    "sectionProjections": format!("{DEFAULT_SERVED_GUIDE_URL}/guide-flat.<section>.generated.md"),
+                    "wholeCorpusFlat": format!("{DEFAULT_SERVED_GUIDE_URL}/flat.md"),
                     "mcpResource": "snapback-guide://manifest",
                 }),
             );
@@ -176,11 +178,13 @@ pub(crate) fn render_guide_command(
              The URLs below use the first default dev port. If Snapback selected another port, replace the origin with the one printed by snapback dev or snapback start.\n\
              \n\
              Start with the capability index: {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n\
+             Then read the surface map:       {DEFAULT_SERVED_GUIDE_URL}/surface-map.md\n\
              Browse the Guide:             {DEFAULT_SERVED_GUIDE_URL}\n\
              API reference index:           {DEFAULT_SERVED_GUIDE_URL}/reference/index.md\n\
              API symbol registry:           {DEFAULT_SERVED_GUIDE_URL}/reference/registry.json\n\
              Diagnostic code registry:      {DEFAULT_SERVED_GUIDE_URL}/reference/diagnostics.md\n\
-             Flat agent projection:         {DEFAULT_SERVED_GUIDE_URL}/flat.md\n\
+             Section projection pattern:    {DEFAULT_SERVED_GUIDE_URL}/guide-flat.<section>.generated.md\n\
+             Whole-corpus bulk export:       {DEFAULT_SERVED_GUIDE_URL}/flat.md (about 2.5 MiB; prefer the tiers above)\n\
              Exact symbol or Guide search:  snapback guide <query> [--slice <n>]\n\
              Read through MCP:              snapback mcp\n\
              MCP entry resource:            snapback-guide://manifest\n\

@@ -175,7 +175,7 @@ function guideAnchors() {
   const anchors = new Map();
   const paths = walk(join(root, 'guide'), (path) => (
     path.endsWith('.md')
-    && path !== 'guide/guide-flat.generated.md'
+    && !/^guide\/guide-flat(?:\.[a-z0-9-]+)?\.generated\.md$/.test(path)
     && !path.startsWith('guide/reference/')
   ));
   for (const path of paths) {
@@ -297,7 +297,7 @@ const inputPaths = [
   ...productionPaths,
   ...walk(join(root, 'guide'), (path) => (
     path.endsWith('.md')
-    && path !== 'guide/guide-flat.generated.md'
+    && !/^guide\/guide-flat(?:\.[a-z0-9-]+)?\.generated\.md$/.test(path)
     && !path.startsWith('guide/reference/')
   )),
 ].sort();

@@ -501,7 +501,7 @@ fn instance_home_markdown(status: &InstanceStatus) -> String {
         status.links.guide
     ));
     out.push_str(&format!(
-        "- [Flat Snapback Guide]({}) — the complete guide in one request for agent clients\n",
+        "- [Flat Snapback Guide]({}) — the complete bulk export (about 2.5 MiB); context-limited agents should use the Guide index or /llms.txt tiers\n",
         status.links.flat_guide
     ));
     out.push_str(&format!(
@@ -558,7 +558,7 @@ fn instance_home_html(status: &InstanceStatus) -> String {
 /// checkout-independent guide discovery and distribution channel.
 fn instance_home_guide_note(status: &InstanceStatus) -> String {
     format!(
-        "<strong>Building on Snapback?</strong> Read the <a href=\"{}\">Snapback Guide</a>. Agent clients can load the <a href=\"{}\">complete flat guide</a> in one request.",
+        "<strong>Building on Snapback?</strong> Read the <a href=\"{}\">Snapback Guide</a>. The <a href=\"{}\">complete flat guide</a> is a roughly 2.5 MiB bulk export; context-limited agents should follow the tiered /llms.txt index.",
         html_escape(&status.links.guide),
         html_escape(&status.links.flat_guide)
     )

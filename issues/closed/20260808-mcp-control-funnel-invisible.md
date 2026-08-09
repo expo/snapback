@@ -26,7 +26,7 @@ read-only `snapback mcp` guide server" — still true at every entry point:
 - The guide MCP's own `instructions` (`src/guide_mcp.rs:321`) steer agents to
   read the 229 KB manifest first, and its largest resource
   (`snapback-guide://flat`) has grown to ~1.83 MB — 2.5× since
-  `issues/20260806-guide-flat-projection-oversize.md` measured it — instead
+  `issues/closed/20260806-guide-flat-projection-oversize.md` measured it — instead
   of starting at the 50 KB capability index.
 - `snapback agent setup` covers four harnesses
   (`packages/snapback-cli/agent-setup.mjs:72-82`); no VS Code

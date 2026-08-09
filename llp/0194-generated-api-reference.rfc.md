@@ -9,6 +9,8 @@
 gains `replaces`/`removedIn`/replacement-identity fields authored at the
 change site, and publication refuses an undeclared removal; see the
 dated amendment. Adopted from the LLP 0207 dissolution.)
+**Revised:** 2026-08-09 (reconciled the reference carrier with LLP 0061's
+tiered projections and the closed oversize disposition.)
 **Revised:** 2026-08-08 (Accepted by Charlie Cheever — author ruling in session; final review binding per llp/reviews/0193-*.run.md close-out: 0194 dual-READY at r8, the others accepted with the enumerated r9 tail.) 2026-08-08 (r8, round-6 fixes: export parity split value-space vs type-space (non-runtime registry kinds exempt from the runtime check); acceptance 2 requires bootstrap removal/conversion + CI duplicate-ownership rejection once the ctx declaration lands.) 2026-08-08 (r7, author-merge: Charlie's action-economy revision
 — a canonical machine-readable symbol registry becomes the authority behind
 Markdown, CLI, and MCP projections; a published `ctx` declaration source is
@@ -65,9 +67,10 @@ broad retrieval.
 5. **Serving:** the Markdown, compact index, and registry resources join
    the guide manifest — served under `/_snapback/guide/reference/`,
    indexed by `snapback guide <query>` and MCP, and listed in
-   `/llms.txt`. The oversized flat projection remains an explicit
-   fallback, not the primary reference carrier
-   (`issues/20260806-guide-flat-projection-oversize.md`).
+   `/llms.txt`. The roughly 2.5 MiB whole-corpus flat remains an explicit
+   bulk fallback after the bounded entry artifacts and per-section flats, not
+   the primary reference carrier
+   (`issues/closed/20260806-guide-flat-projection-oversize.md`).
 6. **Joins:** intent pages link into reference anchors ("full signature:
    reference/…#liveQuery"); diagnostics and D7 remediations (LLP 0193)
    may cite reference or exact-symbol targets as their fix pointer.

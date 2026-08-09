@@ -12,6 +12,6 @@ The golden path is: edit `snapback/schema.mjs` and
 `snapback/functions.mjs` → `bun run generate` → `bun run dev` → exercise the
 generated client or `snapback run` → `bun run test`.
 
-Use `snapback guide` for the served Guide, flat projection, and MCP entry
+Use `snapback guide` for the served Guide, tiered section projections, and MCP entry
 points. Load the relevant Guide page before using a feature area; do not infer
 that a capability is missing until you have checked the capability index.

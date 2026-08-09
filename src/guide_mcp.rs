@@ -99,26 +99,90 @@ fn resource_catalog(manifest: &Value) -> anyhow::Result<Vec<GuideResource>> {
         .get("pages")
         .and_then(Value::as_object)
         .context("embedded guide manifest pages is not an object")?;
-    let mut resources = vec![
-        GuideResource {
-            uri: MANIFEST_URI.to_owned(),
-            name: "manifest".to_owned(),
-            title: "Snapback Guide manifest".to_owned(),
-            description: "Navigation, capability, verification, and build identity registry."
-                .to_owned(),
-            embedded_path: "guide-manifest.generated.json".to_owned(),
-            mime_type: "application/json".to_owned(),
-        },
-        GuideResource {
-            uri: FLAT_URI.to_owned(),
-            name: "flat".to_owned(),
-            title: "Snapback Guide — flat projection".to_owned(),
-            description: "Capability index and every guide page in one agent-oriented document."
-                .to_owned(),
-            embedded_path: guide::FLAT_PATH.to_owned(),
+    let mut resources = vec![GuideResource {
+        uri: MANIFEST_URI.to_owned(),
+        name: "manifest".to_owned(),
+        title: "Snapback Guide manifest".to_owned(),
+        description: "Navigation, capability, verification, and build identity registry."
+            .to_owned(),
+        embedded_path: "guide-manifest.generated.json".to_owned(),
+        mime_type: "application/json".to_owned(),
+    }];
+    let flat_projections = manifest
+        .get("flatProjections")
+        .and_then(Value::as_object)
+        .context("embedded guide manifest flatProjections is not an object")?;
+    let section_projections = flat_projections
+        .get("sections")
+        .and_then(Value::as_object)
+        .context("embedded guide manifest flatProjections.sections is not an object")?;
+    let mut section_entries = section_projections.iter().collect::<Vec<_>>();
+    section_entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+    for (section, projection) in section_entries {
+        let path = projection
+            .get("path")
+            .and_then(Value::as_str)
+            .context("guide section flat projection has no path")?;
+        let embedded_path = path
+            .strip_prefix("guide/")
+            .context("guide section flat projection path is outside guide/")?;
+        anyhow::ensure!(
+            guide::file(embedded_path).is_some(),
+            "embedded guide section flat {path} is missing"
+        );
+        let uri = projection
+            .get("uri")
+            .and_then(Value::as_str)
+            .context("guide section flat projection has no URI")?;
+        anyhow::ensure!(
+            uri == format!("{FLAT_URI}/{section}"),
+            "guide section flat projection {section} has an invalid URI"
+        );
+        let bytes = projection
+            .get("bytes")
+            .and_then(Value::as_u64)
+            .context("guide section flat projection has no byte count")?;
+        resources.push(GuideResource {
+            uri: uri.to_owned(),
+            name: format!("flat.{section}"),
+            title: format!("Snapback Guide — {section} section"),
+            description: format!(
+                "Context-bounded {section} section projection ({}).",
+                approximate_size(bytes)
+            ),
+            embedded_path: embedded_path.to_owned(),
             mime_type: "text/markdown; charset=utf-8".to_owned(),
-        },
-    ];
+        });
+    }
+    let whole_flat = flat_projections
+        .get("whole")
+        .and_then(Value::as_object)
+        .context("embedded guide manifest flatProjections.whole is not an object")?;
+    let whole_path = whole_flat
+        .get("path")
+        .and_then(Value::as_str)
+        .context("guide whole flat projection has no path")?;
+    anyhow::ensure!(whole_path == "guide/guide-flat.generated.md");
+    let whole_uri = whole_flat
+        .get("uri")
+        .and_then(Value::as_str)
+        .context("guide whole flat projection has no URI")?;
+    anyhow::ensure!(whole_uri == FLAT_URI);
+    let whole_bytes = whole_flat
+        .get("bytes")
+        .and_then(Value::as_u64)
+        .context("guide whole flat projection has no byte count")?;
+    resources.push(GuideResource {
+        uri: FLAT_URI.to_owned(),
+        name: "flat".to_owned(),
+        title: "Snapback Guide — whole-corpus flat projection".to_owned(),
+        description: format!(
+            "Bulk export ({}); context-limited readers should start with capabilities, surface map, or a section projection.",
+            approximate_size(whole_bytes)
+        ),
+        embedded_path: guide::FLAT_PATH.to_owned(),
+        mime_type: "text/markdown; charset=utf-8".to_owned(),
+    });
     let mut page_entries = pages.iter().collect::<Vec<_>>();
     page_entries.sort_by(|(left_id, left), (right_id, right)| {
         let left_order = left
@@ -209,6 +273,14 @@ fn resource_catalog(manifest: &Value) -> anyhow::Result<Vec<GuideResource>> {
         });
     }
     Ok(resources)
+}
+
+fn approximate_size(bytes: u64) -> String {
+    if bytes >= 1024 * 1024 {
+        format!("about {:.1} MiB", bytes as f64 / (1024.0 * 1024.0))
+    } else {
+        format!("about {} KiB", (bytes + 512) / 1024)
+    }
 }
 
 // @ref LLP 0194#design — the registry flag enables both its static MCP
@@ -486,6 +558,14 @@ mod tests {
         let resources = listed["result"]["resources"].as_array().unwrap();
         let mut expected = vec![MANIFEST_URI.to_owned(), FLAT_URI.to_owned()];
         expected.extend(
+            manifest["flatProjections"]["sections"]
+                .as_object()
+                .unwrap()
+                .values()
+                .filter_map(|projection| projection.get("uri").and_then(Value::as_str))
+                .map(str::to_owned),
+        );
+        expected.extend(
             manifest["pages"]
                 .as_object()
                 .unwrap()
@@ -543,6 +623,7 @@ mod tests {
     fn manifest_pages_and_manifest_resources_return_exact_embedded_bytes() {
         for uri in [
             MANIFEST_URI,
+            "snapback-guide://flat/backend",
             "snapback-guide://page/auth.protecting-data",
             "snapback-guide://reference/registry",
         ] {

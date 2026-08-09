@@ -32,15 +32,19 @@ the same command for exact lookup before prose search.
 **Audience:** agents (primarily) and humans (secondarily) building on
 Snapback. In a checkout, read this corpus directly. Outside a checkout, a
 running Snapback server exposes the same build-bound corpus at
-`GET /_snapback/guide`, individual paths below that prefix, and the complete
-single-request projection at `GET /_snapback/guide/flat.md`. Those responses
+`GET /_snapback/guide` and individual paths below that prefix. Context-limited
+readers should load the one-request entry tier first: the
+[capability index](./capabilities.md) (about 50 KiB under its current enforced
+budget) and [surface map](./surface-map.md) (about 12 KiB under a 16 KiB
+budget). Generated `guide-flat.<section>.generated.md` files provide the next
+tier, one per top-level section. The complete bulk projection remains at
+`GET /_snapback/guide/flat.md`, but is about 2.5 MiB and growing. Those responses
 carry `x-snapback-guide-content-sha256` and
 `x-snapback-server-build-commit`, so a consumer can refuse to combine cached
 guide bytes with a different server build. `GET /llms.txt` at the served root
-provides a convention-standard index, leading with the capability index
-(within its enforced budget) and listing the flat projection last as an
-explicit large-file fallback while it remains oversized
-(`issues/20260806-guide-flat-projection-oversize.md`). The same local server
+provides a convention-standard index in that recommended order, with
+approximate sizes, and lists the whole-corpus projection last as an explicit
+bulk fallback. The same local server
 serves `GET /_snapback/guide/http.routes.v1.json`, a generated build-bound
 join from the installed route registry to committed input/output schema
 references; a `null` schema reference means no route-specific schema is
@@ -65,7 +69,7 @@ postures visible when you configure an agent:
 
 | Server | What it exposes | Authority consequence |
 | --- | --- | --- |
-| `snapback mcp` | The native Rust binary's resource-only Guide server. It reads the compile-time-embedded Guide corpus and exposes the manifest, flat projection, and manifest-named pages at stable `snapback-guide://` URIs. It has no mutation or host-operation tools. | Least authority: safe to wire into any agent, with no additional authority grant. |
+| `snapback mcp` | The native Rust binary's resource-only Guide server. It reads the compile-time-embedded Guide corpus and exposes the manifest, per-section flats, the roughly 2.5 MiB whole-corpus bulk flat, and manifest-named pages at stable `snapback-guide://` URIs. Context-limited readers should prefer the capability/surface entry tier or a section. It has no mutation or host-operation tools. | Least authority: safe to wire into any agent, with no additional authority grant. |
 | `snapback mcp-control` | The explicit JS control-plane server shipped by `@expo/snapback-cli`: typed control tools, the generated app-data catalog, `snapback-controls://catalog` plus per-operation/instance resources, and the native Guide resources. It invokes the co-installed native runtime for both embedded Guide and build-catalog bytes; the npm package carries no second snapshot. If that binary is unavailable, resource listing reports `SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE` and lists no pretend Guide/catalog resources. | Standing local admin: it authenticates with the auto-minted local admin token, so the wired-in client has admin authority over the local Snapback instance. |
 
 The split makes documentation safe by default while keeping a capable operating

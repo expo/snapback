@@ -9,6 +9,8 @@ import { dirname, join, relative, resolve } from 'node:path';
 export const GUIDE_DIR = 'guide';
 export const MANIFEST_PATH = join(GUIDE_DIR, 'guide-manifest.generated.json');
 export const FLAT_PATH = join(GUIDE_DIR, 'guide-flat.generated.md');
+export const FLAT_SECTION_PREFIX = join(GUIDE_DIR, 'guide-flat.');
+export const FLAT_SECTION_SUFFIX = '.generated.md';
 export const CAPABILITIES_PATH = join(GUIDE_DIR, 'capabilities.md');
 export const SURFACE_MAP_PATH = join(GUIDE_DIR, 'surface-map.md');
 export const INDEX_PATH = join(GUIDE_DIR, 'index.md');
@@ -17,6 +19,7 @@ export const SYMBOL_REGISTRY_PATH = join(GUIDE_DIR, 'reference', 'registry.json'
 export const DIAGNOSTICS_REGISTRY_PATH = join(GUIDE_DIR, 'reference', 'diagnostics-registry.json');
 export const GUIDE_MCP_MANIFEST_URI = 'snapback-guide://manifest';
 export const GUIDE_MCP_FLAT_URI = 'snapback-guide://flat';
+export const GUIDE_MCP_FLAT_SECTION_URI_PREFIX = 'snapback-guide://flat/';
 export const GUIDE_MCP_PAGE_URI_PREFIX = 'snapback-guide://page/';
 const CLASSED_LANGS = new Set(['js', 'mjs', 'ts', 'tsx', 'json', 'contract']);
 const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
@@ -50,10 +53,44 @@ export function repoRoot() {
 // verifies stable URI uniqueness, manifest membership, and exact page hashes
 // without introducing a second generated resource registry.
 export function checkGuideMcpProjection(root, manifest, errors) {
+  const wholeFlat = manifest?.flatProjections?.whole;
   const resources = [
     { uri: GUIDE_MCP_MANIFEST_URI, path: MANIFEST_PATH },
-    { uri: GUIDE_MCP_FLAT_URI, path: FLAT_PATH },
+    {
+      uri: wholeFlat?.uri ?? GUIDE_MCP_FLAT_URI,
+      path: wholeFlat?.path ?? FLAT_PATH,
+      sha256: wholeFlat?.sha256,
+      bytes: wholeFlat?.bytes,
+    },
   ];
+  if (wholeFlat?.path !== FLAT_PATH || wholeFlat?.uri !== GUIDE_MCP_FLAT_URI) {
+    errors.push('guide manifest whole flat projection has an invalid path or MCP URI');
+  }
+  const sectionFlats = Object.entries(manifest?.flatProjections?.sections ?? {})
+    .sort(([left], [right]) => left.localeCompare(right));
+  if (sectionFlats.length !== Object.keys(manifest?.nav ?? {}).length) {
+    errors.push('guide manifest section flat projection count does not match top-level nav sections');
+  }
+  const expectedSections = new Set(Object.keys(manifest?.nav ?? {}).map(flatSectionName));
+  for (const [section, projection] of sectionFlats) {
+    const expectedPath = flatSectionPath(section);
+    const expectedUri = `${GUIDE_MCP_FLAT_SECTION_URI_PREFIX}${section}`;
+    if (projection.path !== expectedPath || projection.uri !== expectedUri) {
+      errors.push(`guide manifest section flat projection '${section}' has an invalid path or MCP URI`);
+    }
+    if (!expectedSections.delete(section)) {
+      errors.push(`guide manifest has an unexpected section flat projection '${section}'`);
+    }
+    resources.push({
+      uri: projection.uri,
+      path: projection.path,
+      sha256: projection.sha256,
+      bytes: projection.bytes,
+    });
+  }
+  for (const section of expectedSections) {
+    errors.push(`guide manifest is missing section flat projection '${section}'`);
+  }
   const pages = Object.entries(manifest?.pages ?? {}).sort(([leftId, left], [rightId, right]) =>
     Number(left.order ?? Number.MAX_SAFE_INTEGER) - Number(right.order ?? Number.MAX_SAFE_INTEGER) ||
     leftId.localeCompare(rightId),
@@ -76,9 +113,13 @@ export function checkGuideMcpProjection(root, manifest, errors) {
       continue;
     }
     if (resource.sha256) {
-      const actual = createHash('sha256').update(readFileSync(absolute)).digest('hex');
+      const bytes = readFileSync(absolute);
+      const actual = createHash('sha256').update(bytes).digest('hex');
       if (actual !== resource.sha256) {
         errors.push(`guide MCP resource ${resource.uri} does not match manifest sha256`);
+      }
+      if (resource.bytes !== undefined && bytes.byteLength !== resource.bytes) {
+        errors.push(`guide MCP resource ${resource.uri} does not match manifest byte count`);
       }
     }
   }
@@ -108,12 +149,35 @@ export function listGuidePages(root) {
         if (entry !== 'eval-runs') walk(path);
       } else if (entry.endsWith('.md')) {
         const repoPath = relative(root, path);
-        if (repoPath !== FLAT_PATH) pages.push(repoPath);
+        if (!isFlatProjectionPath(repoPath)) pages.push(repoPath);
       }
     }
   };
   walk(join(root, GUIDE_DIR));
   return pages;
+}
+
+export function flatSectionName(navSection) {
+  return navSection === '.' ? 'meta' : navSection;
+}
+
+export function flatSectionPath(section) {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(section)) {
+    throw new Error(`invalid guide flat section '${section}'`);
+  }
+  return `${FLAT_SECTION_PREFIX}${section}${FLAT_SECTION_SUFFIX}`;
+}
+
+export function isFlatProjectionPath(path) {
+  return path === FLAT_PATH
+    || (path.startsWith(FLAT_SECTION_PREFIX) && path.endsWith(FLAT_SECTION_SUFFIX));
+}
+
+export function listFlatSectionPaths(root) {
+  return readdirSync(join(root, GUIDE_DIR))
+    .map((name) => join(GUIDE_DIR, name))
+    .filter((path) => path !== FLAT_PATH && isFlatProjectionPath(path))
+    .sort();
 }
 
 // Frontmatter uses the flat subset only: `key: value` scalars and inline
@@ -758,8 +822,28 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
     capabilities: { covered: covered.sort(), gaps: gaps.sort() },
     surfaces,
   };
+  const wholeFlat = buildFlatGuide(root, manifest, pageInfo);
+  const sectionFlats = buildSectionFlatGuides(root, manifest, pageInfo);
+  manifest.flatProjections = {
+    whole: {
+      path: FLAT_PATH,
+      servedPath: '/_snapback/guide/flat.md',
+      uri: GUIDE_MCP_FLAT_URI,
+      bytes: Buffer.byteLength(wholeFlat),
+      sha256: createHash('sha256').update(wholeFlat).digest('hex'),
+    },
+    sections: Object.fromEntries(
+      [...sectionFlats.entries()].map(([section, projection]) => [section, {
+        path: projection.path,
+        servedPath: `/_snapback/guide/${projection.path.slice(`${GUIDE_DIR}/`.length)}`,
+        uri: `${GUIDE_MCP_FLAT_SECTION_URI_PREFIX}${section}`,
+        bytes: Buffer.byteLength(projection.content),
+        sha256: createHash('sha256').update(projection.content).digest('hex'),
+      }]),
+    ),
+  };
   manifest.contentHash = createHash('sha256')
-    .update(buildFlatGuide(root, manifest, pageInfo))
+    .update(wholeFlat)
     .update('\0guide-resource\0')
     .update(SYMBOL_REGISTRY_PATH)
     .update('\0')
@@ -778,24 +862,51 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
 ///
 /// @ref LLP 0061#4-distribution-and-discovery — served-guide §4a:
 /// capability index first, then every guide page in manifest nav order.
-export function buildFlatGuide(root, manifest, pageInfo) {
+function renderFlatGuide(pageIds, pageInfo, label) {
   const byId = new Map(
     [...pageInfo.entries()].map(([path, info]) => [info.frontmatter?.id, { path, raw: info.raw }]),
   );
-  const navIds = Object.values(manifest.nav).flat().map((entry) => entry.id);
-  const orderedIds = [
-    'meta.capabilities',
-    ...navIds.filter((id) => id !== 'meta.capabilities'),
-  ];
   const sections = [
-    '<!-- Generated by scripts/generate-guide-manifest.mjs. Never hand-edit. -->',
+    `<!-- Generated ${label} by scripts/generate-guide-manifest.mjs. Never hand-edit. -->`,
   ];
-  for (const id of orderedIds) {
+  for (const id of pageIds) {
     const page = byId.get(id);
     if (!page) throw new Error(`manifest nav refers to missing guide page id '${id}'`);
     sections.push(`<!-- snapback-guide-source: ${page.path} -->\n${page.raw.trimEnd()}`);
   }
   return `${sections.join('\n\n---\n\n')}\n`;
+}
+
+export function buildFlatGuide(root, manifest, pageInfo) {
+  const navIds = Object.values(manifest.nav).flat().map((entry) => entry.id);
+  const orderedIds = [
+    'meta.capabilities',
+    ...navIds.filter((id) => id !== 'meta.capabilities'),
+  ];
+  return renderFlatGuide(orderedIds, pageInfo, 'whole-corpus flat projection');
+}
+
+/// Build one bounded projection for every top-level manifest navigation
+/// section. The manifest supplies both membership and order; `meta` is the
+/// stable public name for the root (`.`) section.
+///
+/// @ref LLP 0061#4-distribution-and-discovery — context-limited readers use
+/// section flats while every carrier preserves the common Guide identity.
+export function buildSectionFlatGuides(root, manifest, pageInfo) {
+  const projections = new Map();
+  for (const [navSection, entries] of Object.entries(manifest.nav)) {
+    const section = flatSectionName(navSection);
+    if (projections.has(section)) throw new Error(`duplicate guide flat section '${section}'`);
+    projections.set(section, {
+      path: flatSectionPath(section),
+      content: renderFlatGuide(
+        entries.map((entry) => entry.id),
+        pageInfo,
+        `${section} section flat projection`,
+      ),
+    });
+  }
+  return projections;
 }
 
 export function loadCorpus(root) {
@@ -822,7 +933,7 @@ export function loadCorpus(root) {
   return { errors, warnings, infos, pagePaths, pageInfo, pageBodies };
 }
 
-// Rebuild the two committed guide projections in memory. This is the cheap,
+// Rebuild the committed guide projections in memory. This is the cheap,
 // read-only inventory seam: no generated files are written and no snippets are
 // executed (transclusions are compared as bytes only).
 export function auditGuideManifestInventory({
@@ -857,6 +968,7 @@ export function auditGuideManifestInventory({
 
   const expected = buildManifest(root, pageInfo, snippetRecords, index, surfaces);
   const expectedFlat = buildFlatGuide(root, expected, pageInfo);
+  const expectedSectionFlats = buildSectionFlatGuides(root, expected, pageInfo);
   const stale = [];
   try {
     const actual = JSON.parse(readGeneratedFile(MANIFEST_PATH));
@@ -872,6 +984,19 @@ export function auditGuideManifestInventory({
     if (readGeneratedFile(FLAT_PATH) !== expectedFlat) stale.push(FLAT_PATH);
   } catch {
     stale.push(FLAT_PATH);
+  }
+  for (const { path, content } of expectedSectionFlats.values()) {
+    try {
+      if (readGeneratedFile(path) !== content) stale.push(path);
+    } catch {
+      stale.push(path);
+    }
+  }
+  const expectedSectionPaths = new Set(
+    [...expectedSectionFlats.values()].map(({ path }) => path),
+  );
+  for (const path of listFlatSectionPaths(root)) {
+    if (!expectedSectionPaths.has(path)) stale.push(path);
   }
   return {
     errors,

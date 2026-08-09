@@ -21,6 +21,9 @@ orchestrator.)
 **Revised:** 2026-08-09 (m — failure-to-recovery trace amendment: W1 lane
 reports gain a per-episode carrier-class trace; see the dated amendment.
 Adopted from the LLP 0207 dissolution.)
+**Revised:** 2026-08-09 (n — reconciled W2 with LLP 0061's implemented
+tiered-projection disposition: bounded entry artifacts first, per-section
+flats next, and the roughly 2.5 MiB whole-corpus export last.)
 **Related:** LLP 0061 (agent-first guide), LLP 0130 (Convex parity standing
 decisions), LLP 0146 (agentic authoring affordances), LLP 0176 (Expo
 messaging golden-path program), LLP 0178 (generate-time authoring
@@ -332,13 +335,12 @@ internal LLP tooling only), and no competitor-vocabulary indexing.
   Snapback's own vocabulary splits, and the initial eval cases land once,
   here.
 - **`/llms.txt`** served beside the guide endpoints, so agents that probe
-  the convention find the corpus instead of nothing. Two stages:
-  an index-only `/llms.txt` (pointing at the capability index, which
-  holds 0061's enforced 40 KiB budget) ships right after W0; pointing at
-  a whole-surface flat projection waits on LLP 0061's diet/tier
-  amendment, because `guide/guide-flat.generated.md` (~727 KB at this
-  writing, and growing) has outgrown 0061's one-request reading premise
-  (`issues/20260806-guide-flat-projection-oversize.md`).
+  the convention find the corpus instead of nothing. The implemented LLP 0061
+  disposition lists the capability index (about 50 KiB under its current
+  enforced 51 KiB budget) and surface map (about 12 KiB under 16 KiB) first,
+  then per-section flat projections, and the roughly 2.5 MiB whole-corpus flat
+  last as an explicit bulk export
+  (`issues/closed/20260806-guide-flat-projection-oversize.md`).
 - **Golden-path scaffold:** a `create-snapback-app` template carrying the
   LLP 0176 conversation surface as runnable, CI-verified code. Agents are
   far cheaper editing a working example than composing from prose, and
@@ -817,15 +819,15 @@ written — the Plan's text was stale, not the repository. The shipped version, 
 match this Plan's own phasing: it listed the complete flat single-file projection
 (`/_snapback/guide/flat.md`, 857 KB and growing) as its *first* link, ahead of the capability
 index, exactly the "pull the whole oversized corpus first" behavior W2's two-stage design exists
-to prevent — `issues/20260806-guide-flat-projection-oversize.md` is still open, so the oversize
-condition this ordering risked is real, not historical. Corrected in `src/server.rs`'s `LLMS_TXT`
+to prevent — `issues/closed/20260806-guide-flat-projection-oversize.md` was then open, so the
+oversize condition this ordering risked was real. Corrected in `src/server.rs`'s `LLMS_TXT`
 constant to lead with the capability index and list the flat projection last, labeled as a large
 explicit fallback; `guide/index.md`'s description updated to match. The existing test only asserts
 substring presence of both links, not order, so no test needed to change; both still pass.
-**Residual:** the full-projection stage described in W2 ("the full-projection `/llms.txt`
-completes when 0061's projection lands") is therefore not a future addition but a present
-ordering fix plus a still-open size problem — the flat projection itself still needs LLP 0061's
-diet/tier amendment before pointing agents at it first is honest.
+**Projection tiering completed (2026-08-09):** LLP 0061 now makes the bounded
+capability-index + surface-map pair the honest one-request entry tier, offers
+one generated flat per top-level section, and retains the roughly 2.5 MiB
+whole-corpus flat as a labeled bulk export. `/llms.txt` advertises that order.
 
 **Golden-path scaffold: shipped v1 (2026-08-07).** With its stated gate satisfied (LLP 0176
 G2+G3 completed 2026-08-06; LLP 0179 S1 shipped), the scaffold landed as a third template in the

@@ -30,7 +30,7 @@ capture. Both start with the registered `prove` command and write director
 artifacts under `.snapback/carriers/`; they add no receipt format.
 `npm run carry:self-check` validates the kit without starting a server.
 
-Use `snapback guide` for the served Guide, flat projection, and MCP entry
+Use `snapback guide` for the served Guide, tiered section projections, and MCP entry
 points. Load the relevant Guide page before using a feature area; do not infer
 that a capability is missing until you have checked the capability index.
 

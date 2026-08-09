@@ -49,5 +49,9 @@ mod tests {
                 .iter()
                 .all(|entry| !entry.path.starts_with("eval-runs/"))
         );
+        assert!(!SECTION_FLAT_PATHS.is_empty());
+        for path in SECTION_FLAT_PATHS {
+            assert!(file(path).is_some(), "missing embedded section flat {path}");
+        }
     }
 }

@@ -78,6 +78,14 @@ fn cli_mcp_serves_manifest_derived_read_only_resources_with_one_identity() {
         "snapback-guide://flat".to_owned(),
     ];
     expected_uris.extend(
+        manifest["flatProjections"]["sections"]
+            .as_object()
+            .expect("embedded guide manifest section projections")
+            .values()
+            .filter_map(|projection| projection.get("uri").and_then(Value::as_str))
+            .map(str::to_owned),
+    );
+    expected_uris.extend(
         manifest["pages"]
             .as_object()
             .expect("embedded guide manifest pages")

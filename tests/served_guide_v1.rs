@@ -6,7 +6,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
 use snapback::admin::AppState;
-use snapback::guide::{FLAT_PATH, GUIDE_CONTENT_SHA256, INDEX_PATH};
+use snapback::guide::{FLAT_PATH, GUIDE_CONTENT_SHA256, INDEX_PATH, SECTION_FLAT_PATHS};
 use snapback::local::LocalSnapback;
 use snapback::server::{
     GUIDE_BUILD_COMMIT_HEADER, GUIDE_CONTENT_HASH_HEADER, HTTP_ROUTES_PATH, ResponseSensitivity,
@@ -125,7 +125,7 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
 }
 
 /// @ref LLP 0061#4-distribution-and-discovery — served-guide §4a:
-/// one request returns the manifest-ordered corpus and its build binding.
+/// The bulk route returns the manifest-ordered corpus and its build binding.
 #[tokio::test]
 async fn memory_server_serves_flat_projection_with_manifest_identity() {
     let response = get("/_snapback/guide/flat.md").await;
@@ -159,6 +159,27 @@ async fn memory_server_serves_flat_projection_with_manifest_identity() {
 }
 
 #[tokio::test]
+async fn memory_server_serves_every_section_projection_with_manifest_identity() {
+    assert!(!SECTION_FLAT_PATHS.is_empty());
+    for path in SECTION_FLAT_PATHS {
+        let response = get(&format!("/_snapback/guide/{path}")).await;
+        assert_eq!(response.status(), StatusCode::OK, "section flat {path}");
+        assert_eq!(
+            header(&response, GUIDE_CONTENT_HASH_HEADER),
+            GUIDE_CONTENT_SHA256
+        );
+        assert_eq!(
+            header(&response, GUIDE_BUILD_COMMIT_HEADER),
+            option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
+        );
+        let bytes = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read embedded section flat");
+        assert_eq!(bytes.as_ref(), snapback::guide::file(path).unwrap().bytes);
+    }
+}
+
+#[tokio::test]
 async fn memory_server_serves_root_llms_txt_with_guide_identity() {
     let response = get("/llms.txt").await;
     assert_eq!(response.status(), StatusCode::OK);
@@ -181,6 +202,20 @@ async fn memory_server_serves_root_llms_txt_with_guide_identity() {
     let body = std::str::from_utf8(&body).expect("UTF-8 llms.txt index");
     assert!(body.contains("/_snapback/guide/flat.md"));
     assert!(body.contains("/_snapback/guide/capabilities.md"));
+    assert!(body.contains("/_snapback/guide/surface-map.md"));
+    assert!(body.contains("/_snapback/guide/guide-flat.backend.generated.md"));
+    assert!(body.contains("about 2.5 MiB"));
+    assert!(
+        body.find("/_snapback/guide/capabilities.md").unwrap()
+            < body
+                .find("/_snapback/guide/guide-flat.backend.generated.md")
+                .unwrap()
+    );
+    assert!(
+        body.find("/_snapback/guide/guide-flat.backend.generated.md")
+            .unwrap()
+            < body.find("/_snapback/guide/flat.md").unwrap()
+    );
     assert!(body.contains("/_snapback/guide/reference/index.md"));
     assert!(body.contains("/_snapback/guide/reference/registry.json"));
     assert!(body.contains(HTTP_ROUTES_PATH));
@@ -363,6 +398,9 @@ fn served_guide_routes_are_registered_system_static_public_projections() {
         snapback::guide::file(FLAT_PATH).unwrap().bytes,
         include_bytes!("../guide/guide-flat.generated.md")
     );
+    for path in SECTION_FLAT_PATHS {
+        assert!(snapback::guide::file(path).is_some());
+    }
     assert!(snapback::guide::file("capabilities.md").is_some());
     assert!(snapback::guide::file("reference/index.md").is_some());
     assert!(snapback::guide::file("reference/registry.json").is_some());

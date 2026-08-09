@@ -5,7 +5,7 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
-**Revised:** 2026-08-08 (served-guide witness names the explicit `snapback start` server projection); 2026-08-06 (LLP 0187 T4 installed the first out-of-repo discovery funnel over the existing build-bound projections: published-package orientation uses served URLs plus `snapback mcp`; the native `snapback guide [query]` carrier lists channels and searches embedded sections; and every current `snapback new` template carries a short consumer AGENTS.md. This records source-current carrier behavior without claiming that an npm closure containing it has been promoted). 2026-08-06 (routing conventions amendment from accepted LLP 0187 T1: paved-alternative links at the point of choice, the alias column's grep-vocabulary charter — workload terms, plausible wrong-guess symbol names, and LLP 0186 W2's competitor rosetta rows — schema-side/client-side vocabulary splits classified as guide defects, and LLP 0187 T7's standing rule that every replicated discoverability miss produces a retrieval-eval seed case when fixed; recorded in §Design 1 with the executable forms in `guide/conventions.md` and `guide/retrieval-eval.md`). 2026-08-03 (the 40 KiB trigger fired while classifying LLP 0017's claim-link routes; implemented the recorded split of the mechanical route/host-op surface map into `guide/surface-map.md` with its own 16 KiB budget while preserving the closed checker join). 2026-07-16 (r10 — ENG-25111 implemented Phase 2b as the resource-first `snapback mcp` stdio server: manifest, flat guide, and every manifest-named page are build-bound read-only resources; each carries the same guide hash/build commit; the consistency check validates exact resource membership and page hashes; host-operation tools remain explicitly absent). 2026-07-16 (r9 — ENG-25113 completed the reciprocal Exact seam: both corpora use `repo(<repository>):<path>`, Exact's `data.snapback` external-authority row points back to this guide without a fake local witness, and Snapback's checker now validates the generic form.) 2026-07-16 (r8 — ENG-25112 implemented optional Phase 3: the Contract admin console has a Docs tab whose navigation comes from the served generated manifest, whose page reads must match the manifest response's content-hash/build-commit identity, and whose console-owned Markdown block renderer emits text leaves only. The conditional dependency check found `@exact/markdown` source in the sibling Exact workspace but no supported published dependency in the admin package set, so this uses the RFC's pattern-reuse branch rather than creating a source-tree dependency.) 2026-07-15 (r7 — the public, content-negotiated instance home at `/` now advertises the guide index to humans and the one-request flat projection in its HTML and machine-readable renderings.) 2026-07-15 (r6 — ENG-25102 implemented Phase 2a: the generator emits and hash-stamps the capability-first flat projection; `build.rs` embeds the checked corpus with eval evidence excluded; the LLP 0031 registry serves index, files, and `flat.md` with content-hash/build-commit headers; memory-server acceptance pins the bytes and identity; and the capability row is shipped for out-of-repo readers.) 2026-07-15 (r5 — implementation program filed: ENG-25100
+**Revised:** 2026-08-09 (tiered projection amendment: implements the disposition of `issues/closed/20260806-guide-flat-projection-oversize.md`, raised by LLP 0187 OQ4 and decided by the program orchestrator on 2026-08-09. The honest one-request claim now belongs to the budgeted capability-index + surface-map entry tier; the generator emits and checks one flat per top-level section; the roughly 2.5 MiB whole-corpus flat remains a labeled bulk export; and HTTP, MCP, `/llms.txt`, Guide, README, CLI, and instance-home discovery preserve one hash/build identity while recommending the bounded tiers. The disposition named a 40 KiB capability budget; the implementation reports about 50 KiB because the enforced budget had deliberately advanced to 51 KiB as capability rows landed, while the surface-map budget remains 16 KiB.) 2026-08-08 (served-guide witness names the explicit `snapback start` server projection); 2026-08-06 (LLP 0187 T4 installed the first out-of-repo discovery funnel over the existing build-bound projections: published-package orientation uses served URLs plus `snapback mcp`; the native `snapback guide [query]` carrier lists channels and searches embedded sections; and every current `snapback new` template carries a short consumer AGENTS.md. This records source-current carrier behavior without claiming that an npm closure containing it has been promoted). 2026-08-06 (routing conventions amendment from accepted LLP 0187 T1: paved-alternative links at the point of choice, the alias column's grep-vocabulary charter — workload terms, plausible wrong-guess symbol names, and LLP 0186 W2's competitor rosetta rows — schema-side/client-side vocabulary splits classified as guide defects, and LLP 0187 T7's standing rule that every replicated discoverability miss produces a retrieval-eval seed case when fixed; recorded in §Design 1 with the executable forms in `guide/conventions.md` and `guide/retrieval-eval.md`). 2026-08-03 (the 40 KiB trigger fired while classifying LLP 0017's claim-link routes; implemented the recorded split of the mechanical route/host-op surface map into `guide/surface-map.md` with its own 16 KiB budget while preserving the closed checker join). 2026-07-16 (r10 — ENG-25111 implemented Phase 2b as the resource-first `snapback mcp` stdio server: manifest, flat guide, and every manifest-named page are build-bound read-only resources; each carries the same guide hash/build commit; the consistency check validates exact resource membership and page hashes; host-operation tools remain explicitly absent). 2026-07-16 (r9 — ENG-25113 completed the reciprocal Exact seam: both corpora use `repo(<repository>):<path>`, Exact's `data.snapback` external-authority row points back to this guide without a fake local witness, and Snapback's checker now validates the generic form.) 2026-07-16 (r8 — ENG-25112 implemented optional Phase 3: the Contract admin console has a Docs tab whose navigation comes from the served generated manifest, whose page reads must match the manifest response's content-hash/build-commit identity, and whose console-owned Markdown block renderer emits text leaves only. The conditional dependency check found `@exact/markdown` source in the sibling Exact workspace but no supported published dependency in the admin package set, so this uses the RFC's pattern-reuse branch rather than creating a source-tree dependency.) 2026-07-15 (r7 — the public, content-negotiated instance home at `/` now advertises the guide index to humans and the one-request flat projection in its HTML and machine-readable renderings.) 2026-07-15 (r6 — ENG-25102 implemented Phase 2a: the generator emits and hash-stamps the capability-first flat projection; `build.rs` embeds the checked corpus with eval evidence excluded; the LLP 0031 registry serves index, files, and `flat.md` with content-hash/build-commit headers; memory-server acceptance pins the bytes and identity; and the capability row is shipped for out-of-repo readers.) 2026-07-15 (r5 — implementation program filed: ENG-25100
 (umbrella) + ENG-25101 (eval intents 2–3, the formal Phase 1 exit),
 ENG-25102 (Phase 2a served guide), ENG-25103–25110 (the eight GAP-page
 issues), ENG-25111 (Phase 2b MCP, blocked on ENG-25102 + the LLP 0042
@@ -104,9 +104,9 @@ Two things are Snapback-shaped rather than copied:
    Phase 1 is therefore honest about its audience: the
    corpus serves authors working in or adjacent to a Snapback checkout;
    the first out-of-repo channel is the **served guide** (§Design 4a, r4):
-   every server build embeds the corpus and serves it — pages plus a
-   flattened single-file projection — with the version binding structural
-   because the server is the version authority. A Phase 1 generated
+   every server build embeds the corpus and serves it — pages, one generated
+   flat per top-level section, and a whole-corpus bulk flat — with the version
+   binding structural because the server is the version authority. A Phase 1 generated
    **guide manifest** is the single interface every projection consumes.
 
 Governance is proportionate to Snapback's stage: an authored capability index
@@ -508,21 +508,26 @@ projections share one shape and one version stamp.
 **4a. The served guide (r4; resolves former open question 3).** Every
 Snapback server build **embeds the guide corpus and serves it**:
 
-- **Embedding:** `build.rs` packs `guide/**` (pages, `capabilities.md`,
-  the manifest, and the flattened projection below; `eval-runs/` excluded)
-  into the binary — the admin console's built-snapshot pattern applied to
-  markdown. The corpus is ~130KB; the cost is negligible on every target
-  including the Cloudflare worker bundle.
+- **Embedding:** `build.rs` packs `guide/**` (pages, `capabilities.md`, the
+  manifest, every generated flat below, and build-bound reference resources;
+  `eval-runs/` excluded) into the binary — the admin console's built-snapshot
+  pattern applied to markdown. The original ~130 KiB corpus has grown well
+  beyond that historical size; embedding remains the chosen version-authority
+  mechanism, while retrieval is budgeted by the tiers below.
 - **Routes** (registered in the LLP 0031 registry as system-static,
   public read-only — documentation is a public projection):
   `GET /_snapback/guide` (the index), `GET /_snapback/guide/{*path}`
-  (pages, served as markdown), and `GET /_snapback/guide/flat.md` — a
-  **flattened single-file projection** (capability index first, then pages
-  in nav order) generated from the manifest at
-  `guide/guide-flat.generated.md`, checked for staleness like the manifest.
-  One request gives an agent the entire authoring surface; this is the
-  Exact 0365 "llms.txt" idea with the server, not a file host, as the
-  channel.
+  (pages and generated section flats, served as markdown), and
+  `GET /_snapback/guide/flat.md` — the **whole-corpus bulk projection**
+  (capability index first, then pages in nav order), generated at
+  `guide/guide-flat.generated.md`. The honest one-request reading claim is the
+  entry tier: `capabilities.md` (about 50 KiB under the current enforced
+  budget) plus `surface-map.md` (about 12 KiB under its 16 KiB budget).
+  `guide-flat.<section>.generated.md` is the next tier, one file per top-level
+  manifest section. The whole flat remains available at roughly 2.5 MiB for
+  consumers that deliberately want the full corpus. The generator and checker
+  record and validate every flat's path, byte count, SHA-256, served path, and
+  MCP URI through the same manifest machinery.
 - **Identity:** responses carry the guide content hash and the server
   build identity (both already stamped in the manifest), so a consumer can
   detect a mismatch between the docs it cached and the server it is
@@ -535,9 +540,9 @@ Snapback server build **embeds the guide corpus and serves it**:
   capability-index surface map via the §3 join — the guide must document
   the routes that serve the guide.
 - The shipped surface carries an acceptance witness: the suite asserts the
-  flat projection, manifest identity, and hash header against the real
-  `snapback start --memory` serve path; `operating.served-guide` is therefore
-  classified as shipped.
+  whole and section projections, manifest identity, and hash header against
+  the real `snapback start --memory` serve path; `operating.served-guide` is
+  therefore classified as shipped.
 
 Discovery wiring, in order of leverage:
 
@@ -551,8 +556,9 @@ Discovery wiring, in order of leverage:
 3. **`demos/_kit` README** — created in Phase 1 (the kit has none today)
    with a pointer, since every demo author lands there.
 4. **The instance home (`GET /`).** Every negotiated rendering advertises the
-   guide index and flat projection; browsers get an explicit human/agent note,
-   while YAML/JSON/Markdown clients get the same URLs in the public `links`
+   guide index and labels the roughly 2.5 MiB whole flat as a bulk projection;
+   browsers direct context-limited agents to the tiered `/llms.txt` index,
+   while YAML/JSON/Markdown clients keep the same URLs in the public `links`
    projection.
 5. **The served guide (§4a)** — the always-available channel: any running
    server hands an agent the corpus, version-matched to the build.
@@ -641,8 +647,9 @@ standing rule, adopted here as the standing rule for any future
 author-facing doc a guide page replaces).
 
 **Phase 2a — the served guide (§Design 4a; r4) — implemented 2026-07-15 (ENG-25102).**
-`generate-guide-manifest.mjs` emits `guide/guide-flat.generated.md`
-(staleness-checked like the manifest); `build.rs` embeds the corpus and
+`generate-guide-manifest.mjs` emits `guide/guide-flat.generated.md` plus one
+`guide-flat.<section>.generated.md` per top-level manifest section (all
+staleness-checked like the manifest); `build.rs` embeds the corpus and
 restamps the embedded manifest to the exact server build; the
 three `/_snapback/guide` routes carry their LLP 0031 registration and
 hash/build-identity response headers; memory-server acceptance witnesses
@@ -651,8 +658,9 @@ three routes classified in the surface map. This slice remains independent
 of LLP 0042.
 
 **Phase 2b — MCP projection — implemented 2026-07-16 (ENG-25111).**
-`snapback mcp` re-serves the §4a embedded manifest, flat corpus, and every
-manifest-named page as versioned read-only resources over stdio. Resource
+`snapback mcp` re-serves the §4a embedded manifest, section flats,
+whole-corpus bulk flat, and every manifest-named page as versioned read-only
+resources over stdio. Resource
 metadata repeats the guide hash and build commit, and `guide-consistency`
 verifies the exact projection membership and page hashes against the manifest.
 The server advertises no tools; LLP 0042's host-operation projection remains a

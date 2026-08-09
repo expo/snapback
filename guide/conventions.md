@@ -209,12 +209,26 @@ build identity the corpus was verified against. Never hand-edit it; every
 later projection (MCP, admin console, CLI) consumes the manifest rather than
 re-parsing the tree.
 
-The same command emits [`guide-flat.generated.md`](./guide-flat.generated.md):
-the capability index first, then every page exactly once in manifest nav
-order. Its SHA-256 is the manifest's `contentHash`. The guide checker rejects
-either generated file when stale. At server compile time, `build.rs` restamps
-the embedded manifest's `buildIdentity.commit` to the exact binary build; the
-checked source manifest remains the corpus-generation record.
+The same command emits [`guide-flat.generated.md`](./guide-flat.generated.md),
+the whole-corpus bulk export (currently about 2.5 MiB), plus one
+`guide-flat.<section>.generated.md` projection for every top-level manifest
+navigation section. The whole export places the capability index first and
+then includes every page exactly once in manifest order; each section export
+contains only that section's pages in manifest order. The manifest's
+`flatProjections` records their paths, served paths, MCP URIs, byte counts, and
+SHA-256 digests. The guide checker rejects the manifest, whole flat, or any
+section flat when stale.
+
+For a context-limited one-request read, start with the budgeted entry tier:
+[`capabilities.md`](./capabilities.md) (about 50 KiB under its current enforced
+budget) plus [`surface-map.md`](./surface-map.md) (about 12 KiB under its 16 KiB
+budget). Then choose a section flat or specific page. The whole export remains
+available for bulk consumers, but is not the default reading recommendation.
+At server compile time, `build.rs` restamps the embedded manifest's
+`buildIdentity.commit` to the exact binary build; HTTP headers and MCP metadata
+therefore give every whole or section projection the same guide content hash
+and exact build commit. The checked source manifest remains the
+corpus-generation record.
 
 ## Running the checks in a fresh tree
 

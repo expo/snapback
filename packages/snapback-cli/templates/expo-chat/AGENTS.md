@@ -58,7 +58,7 @@ and in-app image upload work out of the box. The root
 `registerExpoFileSystemRqsFiles` registration in `App.tsx` gives retained
 offline rendering on native; web uses the browser persistence arm.
 
-Use `snapback guide` for the served Guide, flat projection, and MCP entry
+Use `snapback guide` for the served Guide, tiered section projections, and MCP entry
 points. Load the relevant Guide page before using a feature area; do not infer
 that a capability is missing until you have checked the capability index.
 

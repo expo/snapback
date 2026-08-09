@@ -4,17 +4,19 @@
 // the tree. Never hand-edit the output.
 // @ref LLP 0061#4-distribution-and-discovery — the guide manifest.
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   FLAT_PATH,
   MANIFEST_PATH,
   buildFlatGuide,
   buildManifest,
+  buildSectionFlatGuides,
   checkCapabilityIndex,
   checkPublishedClosure,
   checkSnippets,
   loadCorpus,
+  listFlatSectionPaths,
   parseCapabilityIndex,
   repoRoot,
 } from './guide-lib.mjs';
@@ -43,7 +45,16 @@ if (errors.length > 0) {
 }
 const manifest = buildManifest(root, pageInfo, snippetRecords, index, surfaces);
 const flat = buildFlatGuide(root, manifest, pageInfo);
+const sectionFlats = buildSectionFlatGuides(root, manifest, pageInfo);
+const expectedSectionPaths = new Set([...sectionFlats.values()].map(({ path }) => path));
+for (const path of listFlatSectionPaths(root)) {
+  if (!expectedSectionPaths.has(path)) unlinkSync(join(root, path));
+}
 writeFileSync(join(root, MANIFEST_PATH), `${JSON.stringify(manifest, null, 2)}\n`);
 writeFileSync(join(root, FLAT_PATH), flat);
+for (const { path, content } of sectionFlats.values()) writeFileSync(join(root, path), content);
 console.log(`[guide-manifest] wrote ${MANIFEST_PATH} (${Object.keys(manifest.pages).length} pages)`);
 console.log(`[guide-manifest] wrote ${FLAT_PATH} (${Buffer.byteLength(flat)} bytes)`);
+for (const [section, { path, content }] of sectionFlats) {
+  console.log(`[guide-manifest] wrote ${path} (${section}; ${Buffer.byteLength(content)} bytes)`);
+}

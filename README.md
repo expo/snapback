@@ -286,7 +286,11 @@ deterministic fixtures and bring-up.
 **Building an app on Snapback starts at [`guide/`](./guide/)** — the
 agent-first authoring guide (intent-indexed pages, a capability index with
 explicit gaps, CI-verified snippets; LLP 0061). The demos below are the full
-working applications the guide distills.
+working applications the guide distills. Context-limited readers should start
+with the roughly 50 KiB [capability index](./guide/capabilities.md) and 12 KiB
+[surface map](./guide/surface-map.md), then load a generated per-section flat
+or specific page. The complete [flat guide](./guide/guide-flat.generated.md) is
+a roughly 2.5 MiB bulk export, not the recommended first read.
 
 Runnable reference apps live under [`demos/`](./demos) — a metadata-declared
 portfolio of about forty applications. Each demo carries a

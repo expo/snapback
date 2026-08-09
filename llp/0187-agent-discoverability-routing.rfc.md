@@ -14,6 +14,9 @@ funnel test in the local proof; the plain-join advisory was ticketed rather
 than shipped after a 112-source falsification pass met OQ3's fear —
 `issues/20260806-plain-join-advisory-detector.md`. The T4 funnel trio for
 the CLI itself had landed earlier at `11fe8342c`.) 2026-08-06 (e — Accepted by author ruling at revision (d); the super-refine run record in llp/reviews/0186-agent-authoring-efficiency-program.run.md holds the verdict history, incl. that revision (d) was unreviewed)
+**Revised:** 2026-08-09 (g — OQ4 resolved by LLP 0061's tiered-projection
+amendment: bounded entry artifacts, per-section flats, and a labeled roughly
+2.5 MiB whole-corpus bulk export.)
 **Related:** LLP 0016, LLP 0061, LLP 0146, LLP 0176, LLP 0177, LLP 0178, LLP
 0179, LLP 0184, LLP 0186
 
@@ -425,16 +428,15 @@ Once T4's external fixture exists, each seed runs in both fixtures
    the "this JS handler is a plain join" heuristic be before it ships as an
    advisory? (LLP 0178's lanes bound the blast radius — advisories never
    change admission — but a noisy advisory burns trust.)
-4. **Does `guide-flat.generated.md` need a diet or a tier?** It measures
-   ~727 KB / ~14,100 lines (2026-08-06, and growing between commits)
-   against the ~130 KB corpus
-   size LLP 0061 cited — a then-current fact rather than a formal budget;
-   0061's enforced budgets are 40 KiB (capability index) and 16 KiB
-   (surface map). At 5.5x the premise, the "read the whole surface in one
-   request" channel is quietly broken for context-limited agents. Split
-   projection (index + per-section flats)? Ticketed per this OQ's own
-   disposition: `issues/20260806-guide-flat-projection-oversize.md`,
-   design owned by 0061; LLP 0186 W2's `/llms.txt` consumes the result.
+4. **Does `guide-flat.generated.md` need a diet or a tier? Resolved
+   2026-08-09: tier.** It had already outgrown LLP 0061's one-request premise
+   on 2026-08-06 and is now roughly 2.5 MiB. LLP 0061 makes the capability
+   index (about 50 KiB under its current enforced 51 KiB budget) plus surface
+   map (about 12 KiB under 16 KiB) the bounded entry tier, generates one flat
+   per top-level section, and keeps the whole-corpus flat as a labeled bulk
+   export. Disposition and resolution:
+   `issues/closed/20260806-guide-flat-projection-oversize.md`; LLP 0186 W2's
+   `/llms.txt` consumes the result.
 5. **Is a passive-channel audit worth it?** The admin-console banner
    evidence suggests auditing other print-and-hope channels (boot output,
    scaffold success payloads) and either upgrading them to interrupting

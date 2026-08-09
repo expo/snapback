@@ -14,6 +14,7 @@ import {
   MANIFEST_PATH,
   buildFlatGuide,
   buildManifest,
+  buildSectionFlatGuides,
   checkCapabilityIndex,
   checkFreshness,
   checkGuideMcpProjection,
@@ -22,6 +23,7 @@ import {
   checkReachability,
   checkSnippets,
   loadCorpus,
+  listFlatSectionPaths,
   parseCapabilityIndex,
   repoRoot,
 } from './guide-lib.mjs';
@@ -122,6 +124,7 @@ if (runAll || flags.has('--consistency')) {
 if (runAll && index && preflightErrors.length === 0) {
   const expected = buildManifest(root, pageInfo, snippetRecords, index, surfaces);
   const expectedFlat = buildFlatGuide(root, expected, pageInfo);
+  const expectedSectionFlats = buildSectionFlatGuides(root, expected, pageInfo);
   let manifestStale = false;
   try {
     const actual = JSON.parse(readFileSync(join(root, MANIFEST_PATH), 'utf8'));
@@ -139,6 +142,23 @@ if (runAll && index && preflightErrors.length === 0) {
     flatStale = true;
   }
   if (flatStale) errors.push(`${FLAT_PATH}: stale or missing — run node scripts/generate-guide-manifest.mjs`);
+  for (const { path, content } of expectedSectionFlats.values()) {
+    let stale = false;
+    try {
+      stale = readFileSync(join(root, path), 'utf8') !== content;
+    } catch {
+      stale = true;
+    }
+    if (stale) errors.push(`${path}: stale or missing — run node scripts/generate-guide-manifest.mjs`);
+  }
+  const expectedSectionPaths = new Set(
+    [...expectedSectionFlats.values()].map(({ path }) => path),
+  );
+  for (const path of listFlatSectionPaths(root)) {
+    if (!expectedSectionPaths.has(path)) {
+      errors.push(`${path}: orphaned section flat — run node scripts/generate-guide-manifest.mjs`);
+    }
+  }
 }
 
 for (const line of infos) console.log(`[guide-check] info: ${line}`);

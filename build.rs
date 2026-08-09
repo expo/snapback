@@ -109,6 +109,19 @@ fn emit_embedded_guide() {
     let mut files = Vec::new();
     collect_guide_files(&guide_dir, &guide_dir, &mut files).expect("walk the checked guide corpus");
     files.sort();
+    let section_flat_paths = files
+        .iter()
+        .filter(|path| {
+            path.as_str() != "guide-flat.generated.md"
+                && path.starts_with("guide-flat.")
+                && path.ends_with(".generated.md")
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    assert!(
+        !section_flat_paths.is_empty(),
+        "served guide is missing generated section flat projections"
+    );
 
     for required in [
         "index.md",
@@ -186,6 +199,12 @@ fn emit_embedded_guide() {
         }
     }
     writeln!(output, "];").expect("finish embedded guide table");
+    writeln!(output, "pub static SECTION_FLAT_PATHS: &[&str] = &[")
+        .expect("start embedded guide section path table");
+    for path in section_flat_paths {
+        writeln!(output, "    {path:?},").expect("write embedded guide section path");
+    }
+    writeln!(output, "];").expect("finish embedded guide section path table");
 }
 
 fn collect_guide_files(root: &Path, dir: &Path, files: &mut Vec<String>) -> std::io::Result<()> {

@@ -8167,17 +8167,56 @@ pub const HTTP_ROUTES_PATH: &str = "/_snapback/guide/http.routes.v1.json";
 const HTTP_ROUTES_V1: &[u8] = include_bytes!("../schemas/http.routes.v1.json");
 
 // @ref LLP 0186#w2--context-injection-surface-owned-here — the convention
-// endpoint gives agent probes a short index into the build-bound guide.
-// Index-first, matching W2's phased design: the capability index carries
-// 0061's enforced ~40 KiB budget and is the intended default read; the
-// flat single-file projection has outgrown that budget (issues/20260806-
-// guide-flat-projection-oversize.md is still open) and is listed last, as
-// a large, explicit fallback rather than the first-offered link.
+// endpoint gives agent probes a size-labeled index into the build-bound guide.
+// The budgeted capability/surface pair is the one-request entry tier; generated
+// section flats are the next tier; the whole-corpus export stays last.
 // @ref LLP 0194#design — exact API discovery names both the compact human
 // index and canonical machine registry instead of hiding them in the flat file.
 // @ref LLP 0184#4-agent-discovery-and-setup — every cold-agent funnel names
 // both authority postures and the explicit control-server setup preview.
-const LLMS_TXT: &str = "# Snapback\n\n> Snapback is a local-first app backend. This server embeds its own authoring guide.\n\n## Docs\n\n- [Capability index](/_snapback/guide/capabilities.md) \u{2014} start here: the compact, capability-complete map.\n- [Guide index](/_snapback/guide)\n- [HTTP route/schema catalog](/_snapback/guide/http.routes.v1.json) \u{2014} build-bound route policies joined to committed request and response schemas.\n- [API reference index](/_snapback/guide/reference/index.md) \u{2014} compact package and module map.\n- [API symbol registry](/_snapback/guide/reference/registry.json) \u{2014} build-bound exact signatures and stable identities.\n- [Diagnostic code registry](/_snapback/guide/reference/diagnostics.md) \u{2014} every production SNAPBACK_* code with source and HTTP routing.\n- [Diagnostic registry JSON](/_snapback/guide/reference/diagnostics-registry.json) \u{2014} exact build-bound diagnostic lookup data.\n- [Complete guide, single file](/_snapback/guide/flat.md) \u{2014} everything in one request; large and growing, prefer the capability index or a specific page first.\n\n## Operate it\n\n`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds typed control tools with local admin authority.\nPreview control setup with `snapback agent setup --print <client> --server mcp-control`.\n";
+const LLMS_TXT: &str = r#"# Snapback
+
+> Snapback is a local-first app backend. This server embeds its own authoring guide.
+
+## Read first — one-request entry tier
+
+- [Capability index](/_snapback/guide/capabilities.md) — about 50 KiB; capability-complete and budgeted.
+- [Surface map](/_snapback/guide/surface-map.md) — about 12 KiB; route and host-operation map within a 16 KiB budget.
+- [Guide index](/_snapback/guide) — choose a specific page when you know the topic.
+
+## Section projections — choose only what you need
+
+- [Getting started](/_snapback/guide/guide-flat.getting-started.generated.md) — about 45 KiB.
+- [Backend](/_snapback/guide/guide-flat.backend.generated.md) — about 275 KiB.
+- [Realtime](/_snapback/guide/guide-flat.realtime.generated.md) — about 40 KiB.
+- [Clients](/_snapback/guide/guide-flat.clients.generated.md) — about 200 KiB.
+- [Auth](/_snapback/guide/guide-flat.auth.generated.md) — about 85 KiB.
+- [Operating](/_snapback/guide/guide-flat.operating.generated.md) — about 150 KiB.
+- [Deploying](/_snapback/guide/guide-flat.deploying.generated.md) — about 45 KiB.
+- [Protocol](/_snapback/guide/guide-flat.protocol.generated.md) — about 8 KiB.
+- [Recipes](/_snapback/guide/guide-flat.recipes.generated.md) — about 80 KiB.
+- [Sync](/_snapback/guide/guide-flat.sync.generated.md) — about 50 KiB.
+- [Testing](/_snapback/guide/guide-flat.testing.generated.md) — about 40 KiB.
+- [Guide metadata](/_snapback/guide/guide-flat.meta.generated.md) — about 120 KiB.
+- [Generated reference](/_snapback/guide/guide-flat.reference.generated.md) — about 1.4 MiB; prefer the API reference index or exact lookup below.
+
+## Exact and machine-readable lookup
+
+- [HTTP route/schema catalog](/_snapback/guide/http.routes.v1.json) — build-bound route policies joined to committed request and response schemas.
+- [API reference index](/_snapback/guide/reference/index.md) — compact package and module map.
+- [API symbol registry](/_snapback/guide/reference/registry.json) — build-bound exact signatures and stable identities.
+- [Diagnostic code registry](/_snapback/guide/reference/diagnostics.md) — every production SNAPBACK_* code with source and HTTP routing.
+- [Diagnostic registry JSON](/_snapback/guide/reference/diagnostics-registry.json) — exact build-bound diagnostic lookup data.
+
+## Bulk export
+
+- [Complete guide, single file](/_snapback/guide/flat.md) — about 2.5 MiB and growing; use only when you want the whole corpus, and prefer the entry or section tiers for context-limited readers.
+
+## Operate it
+
+`snapback mcp` serves read-only Guide resources; `snapback mcp-control` adds typed control tools with local admin authority.
+Preview control setup with `snapback agent setup --print <client> --server mcp-control`.
+"#;
 
 fn guide_bound_response(body: &'static [u8], content_type: &'static str) -> Response {
     let mut response = Response::new(Body::from(body));
