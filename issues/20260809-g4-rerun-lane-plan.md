@@ -36,9 +36,8 @@ This lane owns:
 
 - the stale-ticket sweep into `issues/closed/`;
 - the guide's published-boundary refresh; and
-- the irreplaceable-evidence archive of the 0.1.11 G4 quarry (its path,
-  digest, and inclusion list are recorded in this ticket by the lane's final
-  commit).
+- the irreplaceable-evidence archive of the 0.1.11 G4 quarry, recorded
+  below.
 
 ### 2. 0.1.16 qualified cut
 
@@ -186,6 +185,56 @@ This claim lapses if no commit referencing this ticket lands on `main` within
 about a day of the filing date, 2026-08-09. A later session finding the claim
 stale should treat all three lanes as unclaimed, note the lapse in this file,
 and proceed.
+
+## 0.1.11 quarry evidence archive
+
+**Source:** `/Users/ccheever/projects/snapback-g4-external` — a Git repository
+with **zero commits**. All G4 0.1.11 evidence lived there as untracked
+working-tree files and was therefore unrecoverable off that one machine.
+
+**Archive:**
+`~/snapback-release-ledgers/g4-external-0111-quarry-20260809.tar.gz`
+
+**Size:** 20,783,500 bytes (19.8 MiB)
+
+**sha256:**
+`2459d0c03c2fcdeff542943b6385d8e017b7f3fefdfbbfd5125ac369087b0798`
+
+**Command:**
+
+```sh
+tar czf ~/snapback-release-ledgers/g4-external-0111-quarry-20260809.tar.gz --exclude=node_modules -C /Users/ccheever/projects/snapback-g4-external .
+```
+
+**Included (194 entries):** `G4-ACTION-LEDGER.md` (the frozen OQ5 action
+ledger); `evidence/` (the three iOS Maestro flow YAMLs, the two supervisor
+JSONL streams, the two startup-failure PNGs, the
+`adb-selected-device-compat` wrapper, and `diagnosis-probe.mjs`); all four
+`dist-g4-{android,ios,closure-android,closure-ios}-0111` Hermes exports; the
+three earlier `dist-{android,ios,inspect}` exports; `.snapback/`; the
+host-pinned `.snapback.snapback.restore.lock` that the residue ticket is about;
+`app.json`; `App.tsx`; `eas.json`; `.easignore`; `.gitignore`; `package.json`;
+`package-lock.json`; `tsconfig.json`; `index.ts`; `snapback/`; `assets/`;
+`.expo/`; `.claude/`; `AGENTS.md`; `CLAUDE.md`; `LICENSE`; and the commitless
+`.git/`.
+
+**Excluded:** `node_modules/` only (460 MB, fully reconstructible from the
+retained `package-lock.json` against the published registry). Nothing else was
+excluded. The untarred payload is about 52 MB, so no size ceiling was hit and
+the `dist-*` HBC bundles were kept; they are the substrate for the
+release-vocabulary strings scan.
+
+The source directory was **not modified**. The archive is a read-only copy.
+
+The archive is a durability measure, not evidence promotion. The retained,
+tracked 0.1.11 receipts remain the citable record: the
+[combined verdict](../demos/expo-golden-path-fixture/receipts/20260806-g4-external-0111-summary.md),
+[iOS simulator](../demos/expo-golden-path-fixture/receipts/20260806-g4-external-0111-ios-simulator.md),
+[Android emulator](../demos/expo-golden-path-fixture/receipts/20260806-g4-external-0111-android-emulator.md),
+and
+[closure/EAS/diagnosis](../demos/expo-golden-path-fixture/receipts/20260806-g4-external-0111-closure-diagnosis-eas.md)
+receipts under
+`demos/expo-golden-path-fixture/receipts/20260806-g4-external-0111-*`.
 
 ## Closure boundary
 
