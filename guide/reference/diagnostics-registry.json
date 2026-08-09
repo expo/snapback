@@ -2,16 +2,16 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "fe0fd7c8c18f7f60682858a3af7550e66f6c98e5",
-    "sourceDigest": "sha256:20f40cde7f08bc372b886d9ba1bd42cc6757b41f58f7d157b738bbd9fb148218"
+    "commit": "c1177e8dcac7e7d011e81edafbf4c0978737741b",
+    "sourceDigest": "sha256:2874a0213e02b1d4b60fd4c0d1c8213c7472540b8872deb2e4ce2b826d9f49f7"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 2689,
-    "sourceFiles": 358,
-    "emittingSites": 9006,
+    "codes": 2685,
+    "sourceFiles": 362,
+    "emittingSites": 8961,
     "httpClassified": 760,
     "guideAnchored": 307
   },
@@ -1856,12 +1856,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6975,
+          "line": 5143,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 6980,
+          "line": 5148,
           "column": 10
         }
       ],
@@ -1896,7 +1896,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7173,
+          "line": 5341,
           "column": 18
         }
       ],
@@ -1911,7 +1911,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7161,
+          "line": 5329,
           "column": 10
         }
       ],
@@ -1926,7 +1926,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6774,
+          "line": 4942,
           "column": 10
         }
       ],
@@ -2026,12 +2026,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6552,
+          "line": 4720,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 6559,
+          "line": 4727,
           "column": 10
         }
       ],
@@ -2066,12 +2066,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6475,
+          "line": 4643,
           "column": 30
         },
         {
           "file": "src/cli.rs",
-          "line": 6791,
+          "line": 4959,
           "column": 14
         }
       ],
@@ -2116,22 +2116,22 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6857,
+          "line": 5025,
           "column": 10
         },
         {
           "file": "src/cli.rs",
-          "line": 6861,
+          "line": 5029,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 6867,
+          "line": 5035,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 6876,
+          "line": 5044,
           "column": 10
         }
       ],
@@ -2291,27 +2291,27 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6546,
+          "line": 4714,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 6587,
+          "line": 4755,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 6785,
+          "line": 4953,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 6912,
+          "line": 5080,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 6969,
+          "line": 5137,
           "column": 18
         }
       ],
@@ -2326,12 +2326,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6918,
+          "line": 5086,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 6924,
+          "line": 5092,
           "column": 10
         }
       ],
@@ -2581,7 +2581,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7140,
+          "line": 5308,
           "column": 21
         }
       ],
@@ -2611,7 +2611,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6300,
+          "line": 4468,
           "column": 22
         }
       ],
@@ -2701,7 +2701,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 6415,
+          "line": 4583,
           "column": 36
         }
       ],
@@ -2761,7 +2761,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6252,
+          "line": 4420,
           "column": 10
         }
       ],
@@ -2776,7 +2776,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6262,
+          "line": 4430,
           "column": 10
         }
       ],
@@ -2791,7 +2791,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6248,
+          "line": 4416,
           "column": 10
         }
       ],
@@ -2806,7 +2806,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6266,
+          "line": 4434,
           "column": 10
         }
       ],
@@ -2836,7 +2836,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6387,
+          "line": 4555,
           "column": 18
         }
       ],
@@ -2926,12 +2926,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7048,
+          "line": 5216,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 7054,
+          "line": 5222,
           "column": 14
         }
       ],
@@ -2946,7 +2946,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7029,
+          "line": 5197,
           "column": 10
         }
       ],
@@ -2961,12 +2961,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7033,
+          "line": 5201,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 7042,
+          "line": 5210,
           "column": 18
         }
       ],
@@ -3176,12 +3176,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6593,
+          "line": 4761,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 6612,
+          "line": 4780,
           "column": 10
         }
       ],
@@ -3780,13 +3780,8 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7300,
+          "line": 5468,
           "column": 10
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 13579,
-          "column": 28
         }
       ],
       "httpStatus": null,
@@ -3840,7 +3835,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 6660,
+          "line": 4828,
           "column": 26
         }
       ],
@@ -4085,7 +4080,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 6312,
+          "line": 4480,
           "column": 30
         }
       ],
@@ -4195,87 +4190,72 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 4103,
-          "column": 30
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 5202,
+          "line": 3560,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 5268,
+          "line": 3626,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 5475,
+          "line": 3833,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 5660,
+          "line": 4018,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 5691,
+          "line": 4049,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 5883,
+          "line": 5185,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 7017,
-          "column": 36
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 7021,
+          "line": 5189,
           "column": 74
         },
         {
           "file": "src/cli.rs",
-          "line": 7264,
+          "line": 5432,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 8705,
+          "line": 6873,
           "column": 62
         },
         {
           "file": "src/cli.rs",
-          "line": 8711,
+          "line": 6879,
           "column": 71
         },
         {
           "file": "src/cli.rs",
-          "line": 8719,
+          "line": 6887,
           "column": 41
         },
         {
           "file": "src/cli.rs",
-          "line": 9080,
+          "line": 7248,
           "column": 49
         },
         {
-          "file": "src/cli.rs",
-          "line": 12838,
-          "column": 51
+          "file": "src/cli/config_command.rs",
+          "line": 118,
+          "column": 36
         },
         {
-          "file": "src/cli.rs",
-          "line": 14734,
-          "column": 48
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 14742,
+          "file": "src/cli/fork.rs",
+          "line": 867,
           "column": 30
         },
         {
@@ -4381,12 +4361,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7021,
+          "line": 5189,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 7065,
+          "line": 5233,
           "column": 14
         }
       ],
@@ -9204,13 +9184,13 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 4102,
-          "column": 23
+          "line": 6940,
+          "column": 40
         },
         {
-          "file": "src/cli.rs",
-          "line": 8772,
-          "column": 40
+          "file": "src/cli/fork.rs",
+          "line": 866,
+          "column": 23
         },
         {
           "file": "src/server.rs",
@@ -11146,7 +11126,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 2389,
+          "line": 2128,
           "column": 66
         }
       ],
@@ -11761,37 +11741,37 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 3008,
+          "line": 2747,
           "column": 26
         },
         {
           "file": "src/cli.rs",
-          "line": 3043,
+          "line": 2782,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 3212,
+          "line": 2951,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 7983,
+          "line": 6151,
           "column": 10
         },
         {
           "file": "src/cli.rs",
-          "line": 8171,
+          "line": 6339,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 8204,
+          "line": 6372,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 10416,
+          "line": 8584,
           "column": 14
         },
         {
@@ -13028,11 +13008,6 @@
           "file": "src/cli.rs",
           "line": 473,
           "column": 39
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 11778,
-          "column": 28
         },
         {
           "file": "src/server/api_error.rs",
@@ -15889,16 +15864,6 @@
           "column": 10
         },
         {
-          "file": "src/cli.rs",
-          "line": 11920,
-          "column": 19
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 11994,
-          "column": 23
-        },
-        {
           "file": "src/host_ops.rs",
           "line": 1047,
           "column": 14
@@ -16343,13 +16308,8 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 8815,
+          "line": 6983,
           "column": 22
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 12021,
-          "column": 48
         },
         {
           "file": "src/ephemeral.rs",
@@ -18147,16 +18107,6 @@
           "column": 14
         },
         {
-          "file": "src/cli.rs",
-          "line": 10710,
-          "column": 37
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 10712,
-          "column": 33
-        },
-        {
           "file": "src/guide_reference.rs",
           "line": 719,
           "column": 30
@@ -18400,21 +18350,6 @@
           "column": 22
         },
         {
-          "file": "src/cli.rs",
-          "line": 11813,
-          "column": 28
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 11823,
-          "column": 28
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 12136,
-          "column": 14
-        },
-        {
           "file": "src/embed.rs",
           "line": 99,
           "column": 10
@@ -18455,11 +18390,6 @@
           "file": "src/cli.rs",
           "line": 150,
           "column": 54
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 12205,
-          "column": 19
         },
         {
           "file": "src/server/api_error.rs",
@@ -18674,7 +18604,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 8959,
+          "line": 7127,
           "column": 10
         },
         {
@@ -18881,26 +18811,6 @@
           "file": "src/admin.rs",
           "line": 151,
           "column": 14
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 11577,
-          "column": 25
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 12234,
-          "column": 46
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 12251,
-          "column": 46
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 12258,
-          "column": 46
         },
         {
           "file": "src/server.rs",
@@ -25167,17 +25077,17 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 2387,
+          "line": 2126,
           "column": 17
         },
         {
           "file": "src/cli.rs",
-          "line": 2506,
+          "line": 2245,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 4633,
+          "line": 2991,
           "column": 14
         },
         {
@@ -25222,7 +25132,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 2442,
+          "line": 2181,
           "column": 25
         }
       ],
@@ -27577,8 +27487,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 5861,
+          "file": "src/cli/config_command.rs",
+          "line": 96,
           "column": 29
         }
       ],
@@ -27592,8 +27502,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 5907,
+          "file": "src/cli/config_command.rs",
+          "line": 142,
           "column": 14
         }
       ],
@@ -27607,8 +27517,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 5900,
+          "file": "src/cli/config_command.rs",
+          "line": 135,
           "column": 18
         }
       ],
@@ -27623,12 +27533,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 2490,
+          "line": 2229,
           "column": 18
         },
         {
-          "file": "src/cli.rs",
-          "line": 5816,
+          "file": "src/cli/config_command.rs",
+          "line": 51,
           "column": 10
         }
       ],
@@ -27824,13 +27734,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 5824,
+          "file": "src/cli/config_command.rs",
+          "line": 59,
           "column": 18
         },
         {
-          "file": "src/cli.rs",
-          "line": 5833,
+          "file": "src/cli/config_command.rs",
+          "line": 68,
           "column": 18
         }
       ],
@@ -27844,8 +27754,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 5845,
+          "file": "src/cli/config_command.rs",
+          "line": 80,
           "column": 14
         }
       ],
@@ -27859,8 +27769,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 5802,
+          "file": "src/cli/config_command.rs",
+          "line": 37,
           "column": 18
         },
         {
@@ -27906,8 +27816,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 5788,
+          "file": "src/cli/config_command.rs",
+          "line": 23,
           "column": 18
         }
       ],
@@ -27921,8 +27831,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 5793,
+          "file": "src/cli/config_command.rs",
+          "line": 28,
           "column": 14
         }
       ],
@@ -29052,7 +28962,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5726,
+          "line": 4084,
           "column": 22
         }
       ],
@@ -29199,12 +29109,12 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 8744,
+          "line": 6912,
           "column": 58
         },
         {
           "file": "src/cli.rs",
-          "line": 8749,
+          "line": 6917,
           "column": 52
         },
         {
@@ -32616,17 +32526,17 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5055,
+          "line": 3413,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 5059,
+          "line": 3417,
           "column": 10
         },
         {
           "file": "src/cli.rs",
-          "line": 5079,
+          "line": 3437,
           "column": 10
         }
       ],
@@ -35239,8 +35149,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 3350,
+          "file": "src/cli/fork.rs",
+          "line": 114,
           "column": 34
         },
         {
@@ -35259,8 +35169,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 3956,
+          "file": "src/cli/fork.rs",
+          "line": 720,
           "column": 26
         },
         {
@@ -35363,23 +35273,23 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 4058,
+          "file": "src/cli/fork.rs",
+          "line": 822,
           "column": 26
         },
         {
-          "file": "src/cli.rs",
-          "line": 4064,
+          "file": "src/cli/fork.rs",
+          "line": 828,
           "column": 26
         },
         {
-          "file": "src/cli.rs",
-          "line": 4123,
+          "file": "src/cli/fork.rs",
+          "line": 887,
           "column": 27
         },
         {
-          "file": "src/cli.rs",
-          "line": 4137,
+          "file": "src/cli/fork.rs",
+          "line": 901,
           "column": 26
         },
         {
@@ -35398,8 +35308,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 4144,
+          "file": "src/cli/fork.rs",
+          "line": 908,
           "column": 26
         },
         {
@@ -35710,8 +35620,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 4587,
+          "file": "src/cli/fork.rs",
+          "line": 1351,
           "column": 30
         },
         {
@@ -35880,14 +35790,9 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 3626,
+          "file": "src/cli/fork.rs",
+          "line": 390,
           "column": 18
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 10996,
-          "column": 28
         },
         {
           "file": "src/server/api_error.rs",
@@ -36021,53 +35926,53 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 4023,
+          "line": 6518,
+          "column": 45
+        },
+        {
+          "file": "src/cli/fork.rs",
+          "line": 787,
           "column": 30
         },
         {
-          "file": "src/cli.rs",
-          "line": 4030,
+          "file": "src/cli/fork.rs",
+          "line": 794,
           "column": 26
         },
         {
-          "file": "src/cli.rs",
-          "line": 4037,
+          "file": "src/cli/fork.rs",
+          "line": 801,
           "column": 30
         },
         {
-          "file": "src/cli.rs",
-          "line": 4044,
+          "file": "src/cli/fork.rs",
+          "line": 808,
           "column": 26
         },
         {
-          "file": "src/cli.rs",
-          "line": 4129,
+          "file": "src/cli/fork.rs",
+          "line": 893,
           "column": 60
         },
         {
-          "file": "src/cli.rs",
-          "line": 4132,
+          "file": "src/cli/fork.rs",
+          "line": 896,
           "column": 30
         },
         {
-          "file": "src/cli.rs",
-          "line": 4219,
+          "file": "src/cli/fork.rs",
+          "line": 983,
           "column": 48
         },
         {
-          "file": "src/cli.rs",
-          "line": 4226,
+          "file": "src/cli/fork.rs",
+          "line": 990,
           "column": 48
         },
         {
-          "file": "src/cli.rs",
-          "line": 4231,
+          "file": "src/cli/fork.rs",
+          "line": 995,
           "column": 44
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 8350,
-          "column": 45
         },
         {
           "file": "src/server/api_error.rs",
@@ -36132,13 +36037,13 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 3591,
+          "file": "src/cli/fork.rs",
+          "line": 355,
           "column": 53
         },
         {
-          "file": "src/cli.rs",
-          "line": 4302,
+          "file": "src/cli/fork.rs",
+          "line": 1066,
           "column": 61
         },
         {
@@ -36189,23 +36094,23 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 3537,
+          "file": "src/cli/fork.rs",
+          "line": 301,
           "column": 19
         },
         {
-          "file": "src/cli.rs",
-          "line": 3540,
+          "file": "src/cli/fork.rs",
+          "line": 304,
           "column": 10
         },
         {
-          "file": "src/cli.rs",
-          "line": 3544,
+          "file": "src/cli/fork.rs",
+          "line": 308,
           "column": 10
         },
         {
-          "file": "src/cli.rs",
-          "line": 4008,
+          "file": "src/cli/fork.rs",
+          "line": 772,
           "column": 18
         },
         {
@@ -36249,8 +36154,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 3523,
+          "file": "src/cli/fork.rs",
+          "line": 287,
           "column": 10
         },
         {
@@ -36323,74 +36228,69 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 3687,
+          "file": "src/cli/fork.rs",
+          "line": 451,
           "column": 26
         },
         {
-          "file": "src/cli.rs",
-          "line": 3707,
+          "file": "src/cli/fork.rs",
+          "line": 471,
           "column": 22
         },
         {
-          "file": "src/cli.rs",
-          "line": 3798,
+          "file": "src/cli/fork.rs",
+          "line": 562,
           "column": 19
         },
         {
-          "file": "src/cli.rs",
-          "line": 3800,
+          "file": "src/cli/fork.rs",
+          "line": 564,
           "column": 19
         },
         {
-          "file": "src/cli.rs",
-          "line": 3803,
+          "file": "src/cli/fork.rs",
+          "line": 567,
           "column": 10
         },
         {
-          "file": "src/cli.rs",
-          "line": 3813,
+          "file": "src/cli/fork.rs",
+          "line": 577,
           "column": 23
         },
         {
-          "file": "src/cli.rs",
-          "line": 3825,
+          "file": "src/cli/fork.rs",
+          "line": 589,
           "column": 26
         },
         {
-          "file": "src/cli.rs",
-          "line": 4079,
+          "file": "src/cli/fork.rs",
+          "line": 843,
           "column": 27
         },
         {
-          "file": "src/cli.rs",
-          "line": 4082,
+          "file": "src/cli/fork.rs",
+          "line": 846,
           "column": 18
         },
         {
-          "file": "src/cli.rs",
-          "line": 4152,
+          "file": "src/cli/fork.rs",
+          "line": 916,
           "column": 34
         },
         {
-          "file": "src/cli.rs",
-          "line": 4156,
+          "file": "src/cli/fork.rs",
+          "line": 920,
           "column": 18
         },
         {
-          "file": "src/cli.rs",
-          "line": 4188,
+          "file": "src/cli/fork.rs",
+          "line": 952,
           "column": 27
         },
         {
-          "file": "src/cli.rs",
-          "line": 4191,
+          "file": "src/cli/fork.rs",
+          "line": 955,
           "column": 18
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 11005,
-          "column": 54
         },
         {
           "file": "src/instance_fork.rs",
@@ -36448,8 +36348,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 4540,
+          "file": "src/cli/fork.rs",
+          "line": 1304,
           "column": 18
         },
         {
@@ -36478,8 +36378,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 4590,
+          "file": "src/cli/fork.rs",
+          "line": 1354,
           "column": 27
         },
         {
@@ -36643,18 +36543,18 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 3605,
+          "file": "src/cli/fork.rs",
+          "line": 369,
           "column": 53
         },
         {
-          "file": "src/cli.rs",
-          "line": 3663,
+          "file": "src/cli/fork.rs",
+          "line": 427,
           "column": 22
         },
         {
-          "file": "src/cli.rs",
-          "line": 3741,
+          "file": "src/cli/fork.rs",
+          "line": 505,
           "column": 22
         },
         {
@@ -36864,23 +36764,23 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 3376,
+          "file": "src/cli/fork.rs",
+          "line": 140,
           "column": 23
         },
         {
-          "file": "src/cli.rs",
-          "line": 3379,
+          "file": "src/cli/fork.rs",
+          "line": 143,
           "column": 18
         },
         {
-          "file": "src/cli.rs",
-          "line": 3391,
+          "file": "src/cli/fork.rs",
+          "line": 155,
           "column": 14
         },
         {
-          "file": "src/cli.rs",
-          "line": 3397,
+          "file": "src/cli/fork.rs",
+          "line": 161,
           "column": 10
         },
         {
@@ -36899,8 +36799,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 3854,
+          "file": "src/cli/fork.rs",
+          "line": 618,
           "column": 24
         },
         {
@@ -36919,8 +36819,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 3870,
+          "file": "src/cli/fork.rs",
+          "line": 634,
           "column": 10
         },
         {
@@ -36939,29 +36839,24 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 3759,
+          "file": "src/cli/fork.rs",
+          "line": 523,
           "column": 22
         },
         {
-          "file": "src/cli.rs",
-          "line": 3779,
+          "file": "src/cli/fork.rs",
+          "line": 543,
           "column": 14
         },
         {
-          "file": "src/cli.rs",
-          "line": 3820,
+          "file": "src/cli/fork.rs",
+          "line": 584,
           "column": 14
         },
         {
-          "file": "src/cli.rs",
-          "line": 3835,
+          "file": "src/cli/fork.rs",
+          "line": 599,
           "column": 14
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 11050,
-          "column": 45
         },
         {
           "file": "src/server/api_error.rs",
@@ -37026,33 +36921,33 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 3259,
+          "file": "src/cli/fork.rs",
+          "line": 23,
           "column": 24
         },
         {
-          "file": "src/cli.rs",
-          "line": 3263,
+          "file": "src/cli/fork.rs",
+          "line": 27,
           "column": 19
         },
         {
-          "file": "src/cli.rs",
-          "line": 3266,
+          "file": "src/cli/fork.rs",
+          "line": 30,
           "column": 19
         },
         {
-          "file": "src/cli.rs",
-          "line": 3269,
+          "file": "src/cli/fork.rs",
+          "line": 33,
           "column": 10
         },
         {
-          "file": "src/cli.rs",
-          "line": 3983,
+          "file": "src/cli/fork.rs",
+          "line": 747,
           "column": 27
         },
         {
-          "file": "src/cli.rs",
-          "line": 3986,
+          "file": "src/cli/fork.rs",
+          "line": 750,
           "column": 18
         },
         {
@@ -37129,8 +37024,8 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 4173,
+          "file": "src/cli/fork.rs",
+          "line": 937,
           "column": 30
         },
         {
@@ -40263,7 +40158,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 2968,
+          "line": 2707,
           "column": 24
         }
       ],
@@ -41813,12 +41708,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7436,
+          "line": 5604,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 7469,
+          "line": 5637,
           "column": 22
         }
       ],
@@ -41833,22 +41728,22 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7660,
+          "line": 5828,
           "column": 41
         },
         {
           "file": "src/cli.rs",
-          "line": 7705,
+          "line": 5873,
           "column": 26
         },
         {
           "file": "src/cli.rs",
-          "line": 7715,
+          "line": 5883,
           "column": 26
         },
         {
           "file": "src/cli.rs",
-          "line": 7753,
+          "line": 5921,
           "column": 14
         }
       ],
@@ -41863,27 +41758,27 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7666,
+          "line": 5834,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 7692,
+          "line": 5860,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 7724,
+          "line": 5892,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 7730,
+          "line": 5898,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 7763,
+          "line": 5931,
           "column": 18
         }
       ],
@@ -41898,7 +41793,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7739,
+          "line": 5907,
           "column": 18
         }
       ],
@@ -41913,7 +41808,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7511,
+          "line": 5679,
           "column": 18
         }
       ],
@@ -41928,28 +41823,13 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7884,
+          "line": 6052,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 7902,
+          "line": 6070,
           "column": 14
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 11481,
-          "column": 38
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 11490,
-          "column": 38
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 13743,
-          "column": 28
         }
       ],
       "httpStatus": null,
@@ -41963,23 +41843,13 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7874,
+          "line": 6042,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 7910,
+          "line": 6078,
           "column": 14
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 11499,
-          "column": 38
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 11507,
-          "column": 38
         }
       ],
       "httpStatus": null,
@@ -43422,18 +43292,18 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 4101,
-          "column": 23
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 8757,
+          "line": 6925,
           "column": 9
         },
         {
           "file": "src/cli.rs",
-          "line": 8761,
+          "line": 6929,
           "column": 58
+        },
+        {
+          "file": "src/cli/fork.rs",
+          "line": 865,
+          "column": 23
         },
         {
           "file": "src/server.rs",
@@ -43972,7 +43842,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 8785,
+          "line": 6953,
           "column": 28
         },
         {
@@ -48419,13 +48289,8 @@
       "subsystem": "migrations",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 15319,
-          "column": 18
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 15679,
+          "file": "src/cli/migration.rs",
+          "line": 156,
           "column": 10
         },
         {
@@ -48721,8 +48586,8 @@
       "subsystem": "migrations",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 15591,
+          "file": "src/cli/migration.rs",
+          "line": 68,
           "column": 26
         },
         {
@@ -49019,11 +48884,6 @@
           "file": "src/cli.rs",
           "line": 1622,
           "column": 32
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 15500,
-          "column": 18
         },
         {
           "file": "src/local.rs",
@@ -49503,18 +49363,13 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 8467,
+          "line": 6635,
           "column": 60
         },
         {
           "file": "src/cli.rs",
-          "line": 8474,
+          "line": 6642,
           "column": 18
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 10570,
-          "column": 32
         },
         {
           "file": "src/network_profile.rs",
@@ -53141,7 +52996,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 4691,
+          "line": 3049,
           "column": 33
         }
       ],
@@ -53156,7 +53011,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 4689,
+          "line": 3047,
           "column": 34
         }
       ],
@@ -53241,7 +53096,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 4690,
+          "line": 3048,
           "column": 31
         }
       ],
@@ -59385,13 +59240,8 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 4918,
+          "line": 3276,
           "column": 10
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 11613,
-          "column": 44
         },
         {
           "file": "src/main.rs",
@@ -59412,38 +59262,8 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 9300,
+          "line": 7468,
           "column": 22
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 14011,
-          "column": 32
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 14032,
-          "column": 32
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 14050,
-          "column": 28
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 14085,
-          "column": 28
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 14096,
-          "column": 28
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 15178,
-          "column": 28
         }
       ],
       "httpStatus": null,
@@ -63619,52 +63439,47 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 2455,
+          "line": 2194,
           "column": 26
         },
         {
           "file": "src/cli.rs",
-          "line": 3432,
-          "column": 25
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 7352,
+          "line": 5520,
           "column": 29
         },
         {
           "file": "src/cli.rs",
-          "line": 7576,
+          "line": 5744,
           "column": 25
         },
         {
           "file": "src/cli.rs",
-          "line": 7604,
+          "line": 5772,
           "column": 25
         },
         {
           "file": "src/cli.rs",
-          "line": 7777,
+          "line": 5945,
           "column": 25
         },
         {
           "file": "src/cli.rs",
-          "line": 8639,
+          "line": 6807,
           "column": 29
         },
         {
           "file": "src/cli.rs",
-          "line": 9007,
+          "line": 7175,
           "column": 29
         },
         {
-          "file": "src/cli.rs",
-          "line": 11392,
-          "column": 46
+          "file": "src/cli/fork.rs",
+          "line": 196,
+          "column": 25
         },
         {
-          "file": "src/cli.rs",
-          "line": 15537,
+          "file": "src/cli/migration.rs",
+          "line": 14,
           "column": 25
         },
         {
@@ -65769,21 +65584,6 @@
       "subsystem": "server",
       "sites": [
         {
-          "file": "src/cli.rs",
-          "line": 11839,
-          "column": 55
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 11848,
-          "column": 29
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 11859,
-          "column": 29
-        },
-        {
           "file": "src/host_ops.rs",
           "line": 2824,
           "column": 46
@@ -65880,18 +65680,13 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 8848,
+          "line": 7016,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 8850,
+          "line": 7018,
           "column": 43
-        },
-        {
-          "file": "src/cli.rs",
-          "line": 10572,
-          "column": 28
         },
         {
           "file": "src/server/api_error.rs",
@@ -65910,12 +65705,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 8863,
+          "line": 7031,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 8869,
+          "line": 7037,
           "column": 14
         },
         {
@@ -67576,12 +67371,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 3133,
+          "line": 2872,
           "column": 26
         },
         {
           "file": "src/cli.rs",
-          "line": 3168,
+          "line": 2907,
           "column": 14
         },
         {
@@ -70557,21 +70352,6 @@
       "guideAnchor": null,
       "guideAnchors": []
     },
-    "SNAPBACK_TEST_DETACHED_CHILD_FD_CHILD": {
-      "code": "SNAPBACK_TEST_DETACHED_CHILD_FD_CHILD",
-      "subsystem": "server",
-      "sites": [
-        {
-          "file": "src/cli.rs",
-          "line": 10898,
-          "column": 34
-        }
-      ],
-      "httpStatus": null,
-      "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
-    },
     "SNAPBACK_TEST_FAILURE": {
       "code": "SNAPBACK_TEST_FAILURE",
       "subsystem": "server",
@@ -70630,51 +70410,6 @@
           "file": "src/storage.rs",
           "line": 192,
           "column": 14
-        }
-      ],
-      "httpStatus": null,
-      "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
-    },
-    "SNAPBACK_TEST_READY_FILE_RESTRICTIVE_UMASK_CHILD": {
-      "code": "SNAPBACK_TEST_READY_FILE_RESTRICTIVE_UMASK_CHILD",
-      "subsystem": "server",
-      "sites": [
-        {
-          "file": "src/cli.rs",
-          "line": 14507,
-          "column": 34
-        }
-      ],
-      "httpStatus": null,
-      "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
-    },
-    "SNAPBACK_TEST_READY_FILE_ZERO_UMASK_CHILD": {
-      "code": "SNAPBACK_TEST_READY_FILE_ZERO_UMASK_CHILD",
-      "subsystem": "server",
-      "sites": [
-        {
-          "file": "src/cli.rs",
-          "line": 14462,
-          "column": 34
-        }
-      ],
-      "httpStatus": null,
-      "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
-    },
-    "SNAPBACK_TEST_REMOTE_TOKEN_EXFIL_CHILD": {
-      "code": "SNAPBACK_TEST_REMOTE_TOKEN_EXFIL_CHILD",
-      "subsystem": "server",
-      "sites": [
-        {
-          "file": "src/cli.rs",
-          "line": 14730,
-          "column": 34
         }
       ],
       "httpStatus": null,

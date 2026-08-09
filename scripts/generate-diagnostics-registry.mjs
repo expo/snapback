@@ -47,7 +47,7 @@ function walk(directory, accept) {
 const productionPaths = [
   // @ref LLP 0199#sequencing-guidance-not-a-schedule — these files inherit
   // `#[cfg(test)]` from their parent modules; a filesystem walk does not.
-  ...walk(join(root, 'src'), (path) => path.endsWith('.rs') && !/^src\/(?:local|server|storage)\/tests\.rs$/u.test(path)),
+  ...walk(join(root, 'src'), (path) => path.endsWith('.rs') && !/^src\/(?:cli|local|server|storage)\/tests\.rs$/u.test(path)),
   ...walk(join(root, 'packages'), (path) => (
     path.endsWith('.mjs')
     && !/(?:^|\.)test\.mjs$/u.test(path)

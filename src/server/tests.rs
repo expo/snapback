@@ -14047,8 +14047,9 @@ globalThis.__snapbackHandlers = {
                 // @ref LLP 0199#sequencing-guidance-not-a-schedule — the
                 // cosmetic hub splits preserve `#[cfg(test)]` on each parent
                 // module, but a standalone AST parse cannot see that parent
-                // cfg and must exclude the three extracted test bodies.
+                // cfg and must exclude the four extracted test bodies.
                 if [
+                    "src/cli/tests.rs",
                     "src/local/tests.rs",
                     "src/server/tests.rs",
                     "src/storage/tests.rs",
