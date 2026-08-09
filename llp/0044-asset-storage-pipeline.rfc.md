@@ -948,7 +948,8 @@ Attachment verifies, under the mutation's server-derived authority:
 - target capability and schema-field compatibility.
 
 **Enforcement lives at the storage commit boundary, not in the helper.**
-Every `v.assetRef` field — scalar, optional, or array element, on every
+Every `v.assetRef` field — scalar or optional (the array placement was
+withdrawn by the 2026-07-31 ruling; this clause predated it), on every
 write path: Ibex handler, host plan, seed, import, migration, and admin
 edit — is validated when the changeset commits. `ctx.assets.attach` is the
 ergonomic authorized admission; the commit hook is the authority. A raw

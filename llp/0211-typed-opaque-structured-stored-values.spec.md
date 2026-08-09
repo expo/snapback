@@ -5,14 +5,23 @@
 **Systems:** Schema, Application data API, Storage, Code generation, Client SDK
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-09
-**Revised:** 2026-08-09, round-1 revision (both families NOT READY at
-`0d951fa69`, artifacts in `llp/reviews/0211-*`; every MATERIAL and
-DETAIL concern addressed in place — closed dispatch/leaf tables,
-0131-ruling pins, 0081-only conversion route, encoding-identity carrier,
-complete observation matrix with aggregate byte bound, LLP 0134
-publication contract, LLP 0044 clarification landed). Prior: 2026-08-09
-(pre-loop codex adjudication absorbed; the stored-`v.object`
-silent-degrade defect it found is
+**Revised:** 2026-08-09, round-2 revision (delta round at `bf5cfa214`:
+fable one MATERIAL / codex four MATERIAL, all IN-DELTA, zero
+PRE-EXISTING across both families — delta-convergence conditions hold on
+pre-existing text; fixes: frame-fit claim restated as bounded structured
+contribution with delivery-posture parity; dispatch closed over every
+builder form incl. the four numeric spellings (codex's "v.number is not
+a builder" claim refuted against define.mjs:407) and a nullable-scalar
+teaching hint; `StoredStructuredContractV1` carrier fully specified
+(persisted descriptor, domain-separated hash, load-time recompute,
+encoding-id in storage-generation identity, goldens + planner fixture);
+local support = plain registered boolean per LLP 0134 §1, hosted
+claim-family home corrected to LLP 0113 §4, client support-false =
+cannot-settle; migration case 4 (degraded installed manifests);
+search/vector storedFields exclusion disclosed as new refusal; LLP 0044
+enforcement-paragraph drift reconciled). Prior: 2026-08-09, round-1
+revision (dual NOT READY at `0d951fa69`; all eight MATERIAL fixed).
+Prior: 2026-08-09 (pre-loop codex adjudication absorbed; defect ticket
 `issues/20260809-stored-vobject-silent-json-degrade.md`).
 **Related:** LLP 0115 (CV-4b commission this slice is carved from), LLP 0004
 (application data API; portability rules), LLP 0007 (storage portability),
@@ -135,15 +144,25 @@ to column nullability as today) — a closed table, not an inference:
 | union of string literals **outside** the Enum bounds (>7 variants or >64-byte literal) | **stays refused in v1**, unchanged — it does not fall through to the structured path, preserving the Enum evolution bound |
 | `v.object(...)`, `v.array(...)`, any other `v.union(...)` | **`FieldType::Structured`** — this Spec |
 | `v.json(...)` | unchanged — existing opaque `Json` field (with its existing degraded-contract diagnostics) |
+| bare `v.literal(...)`, bare `v.null()`, `v.tuple(...)`, and every other builder form not named above | **stays refused in v1**, exactly as today's closed map refuses it — no fall-through to the structured path |
+
+One authoring hint rides the dispatch (teaching-diagnostics posture): a
+top-level `v.union([<scalar>, v.null()])` becomes a `Structured` field —
+canonical-JSON-encoded, no predicates, no index eligibility — which is
+rarely what a nullable scalar column wants; the schema compiler's
+diagnostic on such a union names `v.optional(<scalar>)` as the likely
+intent.
 
 **Interior leaf set** (inside a `Structured` value) — closed, enumerated;
 everything not listed refuses fail-closed at schema compile with a named
 diagnostic pointing at this Spec:
 
-- **Admitted:** `v.string()`, `v.boolean()`, `v.number()` (Integer/Real),
-  `v.literal(...)`, `v.null()` (as a union variant), `v.object(...)`,
-  `v.array(...)`, `v.union(...)`, and `v.optional(...)` at object-member
-  position only.
+- **Admitted** (by authored builder spelling, enumerated — all four
+  numeric builders are distinct spellings and all are admitted):
+  `v.string()`, `v.boolean()`, `v.integer()`, `v.real()`,
+  `v.finiteReal()`, `v.number()`, `v.literal(...)`, `v.null()` (as a
+  union variant), `v.object(...)`, `v.array(...)`, `v.union(...)`, and
+  `v.optional(...)` at object-member position only.
 - **Refused, each with its reason recorded:** `v.assetRef` (the prior
   ruling; authority machinery needs addressable rows); `v.id` / relation
   references / `v.relationIncarnationOf` (referential integrity, cascade,
@@ -185,14 +204,25 @@ values only — never raw stored bytes — so a future encoding
 (`jsonb`-backed, projection-augmented, child-row) is a new encoding
 version behind the same logical contract, not a public schema break.
 
-**The encoding identity has an authoritative carrier.** The field's
-manifest entry records `field_type: Structured` with the hashed logical
-contract **and** the encoding id (`canonical-json-text.v1`); the encoding
-id participates in the storage-generation identity LLP 0081's planner
-derives its plans from (predecessor/successor manifests and hashes). A
-future encoding change is therefore a visible, plannable, provable
-migration — it cannot slide behind an unchanged logical hash. This is the
-single-sourced physical mapping LLP 0007 requires, versioned.
+**The encoding identity has an authoritative carrier — specified, not
+gestured.** The field's manifest entry carries a
+**`StoredStructuredContractV1`** record: the **complete recursive
+descriptor** (the validator shape itself — persisted, because runtime
+validation executes from the descriptor; a hash alone cannot validate),
+the descriptor's contract hash under its **own domain-separated preimage**
+(`snapback:stored-structured-contract:v1`, deliberately not LLP 0131's
+`FunctionArgsContractV1` root — different root type, different domain),
+and the encoding id (`canonical-json-text.v1`). The wire shape is frozen
+at introduction; consumers **recompute the hash from the persisted
+descriptor at load** and refuse on mismatch. Both the contract hash and
+the encoding id participate in the storage-generation identity LLP
+0081's planner derives plans from (predecessor/successor manifests), so
+an **encoding-id-only change yields a successor generation** — a visible,
+plannable, provable migration that cannot slide behind an unchanged
+logical hash. This is the single-sourced physical mapping LLP 0007
+requires, versioned. Acceptance pins it with cross-language goldens
+(Rust/JS agree on descriptor bytes and hash) and a planner fixture
+proving the encoding-id-only successor generation.
 
 `canonical-json-text.v1` is one `TEXT` column per structured field,
 holding **RFC 8785 canonical bytes**. Deliberately `TEXT` on every target
@@ -218,12 +248,19 @@ Bounds, fail-closed at write (numbers provisional per open question 3;
 the **mechanism** is pinned): per-value ceilings — 32 KiB canonical
 bytes, depth 16, 1,024 elements per array (matching the existing contract
 bounds and the portable collect cap) — **plus a per-row aggregate ceiling
-on total structured bytes (proposed 48 KiB)** chosen so a whole-row
-snapshot always fits the repository's 64 KiB live-frame profile.
-Enforcement is admission-time only: an oversized write refuses with a
-named code; delivery therefore never meets an oversized row and never
-fragments, truncates, or drops in v1. Oversized values refuse; they do
-not truncate.
+on total structured bytes (proposed 48 KiB)**. What the aggregate ceiling
+delivers is stated exactly: it bounds the **structured contribution** to
+any row, journal entry, or delta envelope. It does not — and cannot —
+guarantee whole-envelope fit under the 64 KiB live-frame profile, because
+other field families (`v.string()`, `v.json()`) carry no byte ceiling
+today and multi-row deltas aggregate rows regardless; the claim is
+**delivery-posture parity**: a row with structured fields behaves under
+delivery exactly as an equally sized row of string/Json fields does
+today, with the structured share provably bounded. Oversized-envelope
+behavior therefore remains the live-delivery machinery's existing
+contract, untouched by this Spec. Enforcement is admission-time only: an
+oversized structured write refuses with a named code; values never
+truncate.
 
 ### Read path, types, and egress
 
@@ -258,12 +295,18 @@ enumerated here; anything unlisted is a defect:
   here.
 - **Bounded-children / relational / maintained projections** — structured
   fields are not projectable leaves; the existing portable-scalar-leaf
-  admission already excludes them, and acceptance pins that exclusion so
-  it cannot regress silently.
+  admission already excludes them there, and acceptance pins the
+  exclusion so it cannot regress. **Search and vector `storedFields` are
+  different**: current code applies no stored-field type restriction
+  (vector rejects only `Vector`), so excluding structured fields from
+  search/vector stored-field lists is a **new refusal** this Spec adds,
+  acceptance-pinned like the index-declaration refusal.
 - **Change journal and live deltas** — carry whole-row logical snapshots
-  exactly as today; the §Representation aggregate byte ceiling guarantees
-  every such envelope fits the live-frame profile, so no journal or
-  delta surface needs structure-aware behavior.
+  exactly as today; the §Representation aggregate ceiling bounds the
+  structured contribution, so these surfaces keep exact parity with
+  today's string/Json delivery posture and need no structure-aware
+  behavior. (Whole-envelope fit was never guaranteed before this Spec
+  and is not claimed by it.)
 - **Read-your-writes overlays, retained/local client stores** — carry
   logical values (never raw bytes); the server remains the sole
   validation authority, and client lanes neither re-validate nor
@@ -311,6 +354,15 @@ honestly:
    already the complete document), **operationally O(N)** with the same
    shadow/backfill/publish/retire shape. Recorded so nobody later calls
    it free.
+4. **Installed manifests carrying the degraded half-state** — a schema
+   authored with stored `v.object({...})` before this Spec carries
+   `FieldType::Json` in its installed manifest (the silent-degrade
+   defect). When the dispatch flips, regenerating the same source emits
+   `Structured`; the conservative applier refuses that as a type change —
+   correctly fail-closed. The affected app chooses: rewrite the source to
+   `v.json()` (stay degraded, explicit now) or take case 2's staged
+   conversion. Priced here so the flip's deployment consequence is named
+   even under the no-current-users posture.
 
 The conservative applier admits no narrowing between structured and any
 other field type in v1 (evolve by new field plus backfill, the existing
@@ -329,18 +381,31 @@ contract, per LLP 0134/0113 rather than by gesture:
 
 - it enters the closed capability registries as **experimental** with the
   **same-commit introduction record** LLP 0134 requires;
-- **local/package support** is the standard support-fact carrier with the
-  acceptance corpus below as its predicate — a green corpus is necessary
-  evidence, and the support flip is a distinct act on that carrier, never
-  implied by green tests;
-- **hosted support is not minted**: no hosted claim-family kind exists
-  for stored-field capabilities here, and per LLP 0134 creating one
-  requires its own dated governing amendment when hosted work is actually
-  pursued — until then hosted lanes are support-false by absence;
+- **local support authority, named exactly** (LLP 0134 §1's non-inference
+  rule bars "the standard carrier" by gesture: `LocalCapabilityPublicationV1`
+  and `PackageCapabilityAttestationV1` bind only the relation/activity
+  pair): `structured_stored_value_v1` takes the **plain registered
+  local-support boolean** route 0134 §1 names for other local
+  capabilities. The flip is a distinct, reviewed act landing only after
+  the acceptance corpus is green — green tests are necessary evidence,
+  never the flip itself. **No package attestation carrier is minted** in
+  v1; published-package support claims wait for whatever attestation
+  design covers non-relation capabilities, and until then packages carry
+  no claim;
+- **hosted support is not minted**: no claim-family kind exists for
+  stored-field capabilities in LLP 0113 §4's closed union, and adding one
+  is a **dated LLP 0113 amendment** (per 0134's rule locating the act
+  there) when hosted work is actually pursued — until then hosted lanes
+  are support-false by absence;
 - **per-writer scope**: any target or write lane that does not carry the
   central validate-normalize-canonicalize seam (non-local targets,
   client-local write lanes) stays support-false — a hosted lane can never
-  silently accept structured fields without canonical bytes;
+  silently accept structured fields without canonical bytes. For client
+  lanes, support-false means **cannot settle** — clients buffer and
+  display logical values (§Observation) but hold no durable-admission
+  authority; it does not mean a client must refuse an app declaring
+  structured fields. Required-capability propagation binds the **serving
+  runtime**, not the client;
 - **required-capability propagation**: an app schema declaring a
   structured field emits `structured_stored_value_v1` as a required
   capability, so an older runtime refuses the app coherently instead of
@@ -387,14 +452,19 @@ tier, because a stable, named refusal covering the complete
    write provably writes nothing.
 3. Canonical-bytes stability: the CV-10 insert/seed fixture class extended
    to structured fields — interior integral-Real spelling agrees between
-   in-memory and reloaded values on every write route (insert, patch,
-   seed, buffered); digests stable across write/reload/patch.
+   in-memory and reloaded values on **every** write route (insert, patch,
+   seed, buffered, import, migration copy); digests stable across
+   write/reload/patch. Carrier goldens: Rust and JS agree on
+   `StoredStructuredContractV1` descriptor bytes and hash; a planner
+   fixture proves an encoding-id-only change yields a successor
+   generation.
 4. Observation-surface refusals and exclusions: index declaration,
-   filter, order, search membership, and matcher use against a structured
-   column each refuse with the named teaching code on both the SQLite
-   target and the schema compiler; bounded/relational/maintained
-   projections provably exclude structured leaves (a declaration
-   attempting one refuses, pinned so the exclusion cannot regress).
+   filter, order, matcher use, search-index membership, and
+   search/vector `storedFields` inclusion of a structured column each
+   refuse with the named teaching code on both the SQLite target and the
+   schema compiler; bounded/relational/maintained projections provably
+   exclude structured leaves (a declaration attempting one refuses,
+   pinned so the exclusion cannot regress).
 5. Round-trip parity: a read-your-writes overlay and a retained/local
    client store each round-trip a structured value logically intact
    through offline/reconnect; when a Postgres adapter exists, a
@@ -440,12 +510,14 @@ tier, because a stable, named refusal covering the complete
    ship with no predicates at all (the current text)? Lean: no predicates;
    add equality only with a demand instance.
 3. **Ceiling numbers.** The mechanism is pinned (§Representation:
-   admission-time enforcement, per-value plus per-row aggregate, sized to
-   the 64 KiB live-frame profile); the specific numbers (32 KiB value /
-   48 KiB row / depth 16 / 1,024 elements) are provisional until the
-   implementation verifies them against the live-frame profile with a
-   fixture. Freezing the numbers is an implementation-time act with a
-   bench receipt, not a design change.
+   admission-time enforcement, per-value plus per-row aggregate bounding
+   the structured contribution with delivery-posture parity); the
+   numbers (32 KiB value / 48 KiB row aggregate / depth 16 / 1,024
+   elements) are provisional until the implementation fixture verifies
+   the bounds are enforced on every write route and measures the
+   structured contribution against realistic delta envelopes. Freezing
+   the numbers is an implementation-time act with a bench receipt, not a
+   design change.
 4. **Nested optionality semantics — RULED (round 1).** Pinned in
    §Declaration by adopting LLP 0131's landed ruling: omission-not-null,
    object-member position only, explicit null via `v.null()` union

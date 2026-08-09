@@ -38,3 +38,37 @@ Blindness self-attestation: I did not read review artifacts, journals, or the ot
 ## Verdict
 NOT READY — binding to revision 0d951fa69 (sha256 7ea0615b656e3166)
 The core carve-out—typed atomic values, canonical portable TEXT, no interior predicates, no element identity, and no raw-byte exposure—is coherent and preserves the proposed future representation options. However, the revision still leaves the executable grammar, optional/object semantics, lawful migration path, physical-encoding identity, delivery/sync bounds and refusal matrix, and capability-publication authority unresolved. Those are implementation-governing decisions rather than implementation details, so the document is not ready at this revision.
+
+## Round 2 — 2026-08-09 (delta round)
+
+**Provenance.** Reviewer: codex exec, model gpt-5.6-sol,
+model_reasoning_effort=xhigh, read-only sandbox, repo-local capsule at
+`bf5cfa214`. Blindness: instruction-based, self-attested. Reviser:
+orchestrator, did not review. Revision under review: `bf5cfa214` (file
+sha256 prefix `cad95f0810919c00`). Delta round (round2-instructions.md).
+Verdict: **NOT READY — four MATERIAL, all IN-DELTA; zero PRE-EXISTING
+MATERIAL.**
+
+**Verbatim review body follows.**
+
+---
+
+Blindness self-attestation: I did not read review artifacts, journals, or the other family's output.
+
+## Concerns
+1. [MATERIAL][IN-DELTA] The closed declaration is not closed over the actual validator grammar — The top-level table gives no fate for public forms including `v.null()`, `v.literal(...)`, and `v.tuple(...)`; these are distinct builders whose current `fieldType: Json` does not make them `v.json()`. The interior inventory similarly names only `v.number() (Integer/Real)`, although `define.mjs` exposes distinct `v.integer()`, `v.real()`, and `v.finiteReal()` spellings. Under “everything not listed refuses,” those numeric forms would be rejected, contrary to the parenthetical and grammar-reuse claim. Acceptance covers neither ambiguity. The Spec must enumerate each fate explicitly.
+
+2. [MATERIAL][IN-DELTA] A per-row structured-byte ceiling cannot guarantee the 64 KiB live-frame claim — `LiveEnvelope::LiveReplace` contains `rows: Vec<Value>` and `LiveDelta` contains multiple row-bearing operations; one mutation may affect far more than one row. Two individually valid rows whose structured values are 32,748 bytes each serialize to a minimal `live_delta` of 65,772 bytes, already exceeding 65,536 bytes. Other scalar fields and envelope metadata can also push even one row over the limit. The mechanism must bound complete serialized envelopes/rows or specify chunking, resync, or another delivery behavior; the proposed per-row structured aggregate does not establish the claimed invariant.
+
+3. [MATERIAL][IN-DELTA] The new manifest identity carrier is not specified sufficiently to be authoritative — At this revision `FieldManifest` contains only `{name, field_type, optional}`. LLP 0211 says the new entry carries `Structured`, a logical-contract hash, and an encoding id, but does not normatively require the recursive descriptor itself, freeze its wire shape, define the field-root hash domain/preimage, require load-time recomputation, or define exactly how the encoding id enters storage-generation identity. “Hashed as contracts are” is insufficient because LLP 0131’s formula is for a different `FunctionArgsContractV1` root. Acceptance also lacks cross-language carrier/hash goldens and a planner fixture proving an encoding-id-only change creates a successor generation. A hash alone cannot drive runtime validation, and divergent implementations could produce incompatible migration identities.
+
+4. [MATERIAL][IN-DELTA] The local/package support authority is unnamed and conflicts with LLP 0134’s non-inference rule — LLP 0134 §1 says `LocalCapabilityPublicationV1` and `PackageCapabilityAttestationV1` bind only the relation/activity pair and generalize to nothing else; other local capabilities use plain registered booleans, while any new source-owned carrier requires an explicit governing design. LLP 0211 instead invokes “the standard support-fact carrier” without choosing the plain-boolean route or defining a new carrier and its package trust predicate. Consequently, the distinct support flip has no executable authority. The Spec must name the exact local and public-package support predicate/carrier.
+
+5. [DETAIL][IN-DELTA] Acceptance does not fully pin the newly claimed matrices — The write-path contract includes imports and migrations, but canonical stability is required only for insert, patch, seed, and buffered routes. Also, the claim that existing maintained-projection admission excludes structured leaves is not true for search/vector `storedFields`: current search code applies no stored-field type restriction, while vector code rejects only `Vector`. Add explicit import/migration seam evidence and search/vector stored-field refusals, or identify a structural test proving those routes share the authoritative gates.
+
+6. [DETAIL][PRE-EXISTING] LLP 0044 still contains stale array-element enforcement text — Its latest header and §Typed references withdraw asset-reference arrays, but the enforcement paragraph still says every `v.assetRef` field includes an “array element.” The latest ruling is clear, so this is non-blocking corpus drift, but the paragraph should be reconciled.
+
+## Verdict
+NOT READY — binding to revision bf5cfa214 (sha256 cad95f0810919c00)
+
+The revision has four unresolved MATERIAL concerns, all IN-DELTA: an incomplete declaration dispatch, an invalid live-frame bound, an under-specified persistent identity carrier, and an undefined capability-support authority. No MATERIAL concern is PRE-EXISTING; the only PRE-EXISTING concern reported is detail-level LLP 0044 drift.
