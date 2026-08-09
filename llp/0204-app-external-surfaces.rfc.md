@@ -6,16 +6,13 @@
 Hosted platform, Developer experience, Docs
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (v0.5 — author-authorized post-terminal
-revision applying the round-3 six-item material ledger: D7 lifecycle
-restated against LLP 0055's actual verbs (rotation grant-preserving;
-owner re-credential + step-up as the global kill; integration
-retirement verb and approver-as-owner exemption commissioned;
-delegation-only made a commissioned registration class), external
-anonymous set given its own commissioned LLP 0031/0071 admission
-contract, dev discovery reverted to LLP 0062's local-artifact path,
-`ask` acceptance made read-only in v1, plus round-3 minors. See
-Revision history.)
+**Revised:** 2026-08-08 (v0.6 — decision-sitting propagation: all
+eleven OQs ruled at the author sitting of 2026-08-08 and recorded in
+place; propagated text changes: declared-tier `contact` required (OQ8),
+integration streaming committed as a v2 roadmap deliverable (OQ6),
+watch-anchoring grant amendment commissioned (OQ11). Post-convergence
+edit: the super-refine dual-READY verdicts bind v0.5 = 310745d3d; this
+revision is unreviewed. See Revision history.)
 **Related:** LLP 0004 (application data API — deferred "REST auto-generation,
 public endpoint routing"), LLP 0009 (code execution security —
 comprehensive preemption as the untrusted-code prerequisite), LLP 0019
@@ -563,9 +560,11 @@ The thin new identity object between "agent principal" and "OAuth client":
     contract (D1), keyed on network evidence. The hard floor; nothing
     weakens it.
   - **Declared** — auth-free but *identified*: the caller self-chooses a
-    client id (no registration round trip, no secret — a header such as
-    `Snapback-Client-Id: <id>; contact=<email-or-url>`) and the server
-    auto-creates a usage ledger row on first sight. Declaration conveys
+    client id and names a contact (no registration round trip, no
+    secret — a header such as
+    `Snapback-Client-Id: <id>; contact=<email-or-url>`, contact
+    **required** per the OQ8 ruling) and the server auto-creates a
+    usage ledger row on first sight. Declaration conveys
     **zero authority** — the reachable set is exactly the external
     anonymous set (D1) — but buys the cooperative treatment: a stable,
     more generous budget, per-id attribution in the owner's console, a
@@ -813,37 +812,53 @@ variation ("fetch the latest message of a named conversation using only
 
 ## Open questions
 
+All eleven questions were ruled at the author sitting of 2026-08-08;
+each entry keeps the question and records the ruling.
+
 - **OQ1 — Default disclosure for `api.enabled` apps.** This RFC proposes
   `exposed-only`, which inverts the decided anonymous-full-inventory
-  posture of `/inspect` for such apps. Confirm the inversion, or keep
-  `full` as default and make curation opt-in.
+  posture of `/inspect` for such apps. **Ruled (author, 2026-08-08):
+  `exposed-only` is the default for api-enabled apps; `disclosure:
+  "full"` stays as the explicit opt-in.**
 - **OQ2 — Where integration records live.** Proposed: app-owned rows +
   host-owned ceremony (mirroring LLP 0055's policy/mechanism split). The
   alternative — platform-level records with cross-app identity and a
   shared consent UX — changes the product (an "app store of integrations")
-  and is deliberately not proposed here.
+  and is deliberately not proposed here. **Ruled (author, 2026-08-08):
+  app-owned rows + host-owned ceremony, as proposed; a platform registry
+  may be layered later without unwinding this.**
 - **OQ3 — Scope vocabulary for the facade.** Map OAuth scopes 1:1 to
   LLP 0055 canonical scopes (exact but ugly), or define coarse named
   bundles per app (`read`, `write`, per-system groups) compiled to scope
   sets? Proposed: bundles declared in the `api` block, compiled at
   activation, since third-party consent screens need human-sized nouns.
+  **Ruled (author, 2026-08-08): named bundles, as proposed.**
 - **OQ4 — Versioning mechanics.** Is `v1` additive-only with per-function
   deprecation windows enough, or do exposed functions need per-function
   `since`/`until` version stamps surfaced in the envelope? (Proposed:
   start additive-only; add stamps when the first real deprecation forces
-  the question.)
+  the question.) **Ruled (author, 2026-08-08): additive-only now, as
+  proposed.**
 - **OQ5 — `ask` result contract.** Free-form text + receipts, or
   caller-supplied JSON Schema the agent must satisfy (retry-until-valid)?
   Proposed: both, schema optional — but the schema path is what makes
   `ask` composable by other programs, so it should not slip past v1.
+  **Ruled (author, 2026-08-08): both in v1, schema optional, as
+  proposed.**
 - **OQ6 — Streaming for third parties.** How far can the poll/lease loop
   carry external integrations before connection-grant streaming (and its
-  lifecycle obligations) must be opened to them? Needs traffic evidence,
-  not speculation.
+  lifecycle obligations) must be opened to them? **Ruled (author,
+  2026-08-08): connection-grant streaming for integrations is a
+  committed v2 deliverable on the roadmap — not evidence-gated — 
+  scheduled after the hosted gates and the S5 cluster; polling remains
+  the documented v1 story.**
 - **OQ7 — Abuse posture for `ask` under caller-key billing.** With the
   caller paying model costs, the residual risk is data exfiltration rate,
   not spend; does the read-budget admission suffice, or does `ask` need
-  its own result-volume ceiling?
+  its own result-volume ceiling? **Ruled (author, 2026-08-08): `ask`
+  carries its own result-volume ceiling (bytes/rows per request and per
+  principal-day) on top of read budgets; the refusal carries the
+  escalation path.**
 - **OQ8 — Declared-tier mechanics.** Minimum id entropy and format
   (proposed: free-form string ≥ 16 chars, prefix-namespaced like LLP 0148
   ids only when server-suggested); is `contact` required or merely
@@ -851,7 +866,10 @@ variation ("fetch the latest message of a named conversation using only
   the aging curve for fresh ids. Also whether the declared tier applies
   to `ask` at all (proposed: no — `ask` always requires at least a
   granted principal or caller-key billing, because compute is not a
-  cooperative resource).
+  cooperative resource). **Ruled (author, 2026-08-08): as proposed
+  with one strengthening — `contact` is required for the declared
+  tier, not merely rewarded; ≥16-char free-form ids, age-up curve, and
+  the `ask` exclusion stand.**
 - **OQ9 — Capability-link bearer posture.** Default and maximum expiry;
   whether mutating links exist at all without an approval gate
   (proposed: a mutating link is always approval-gated or single-use);
@@ -859,17 +877,26 @@ variation ("fetch the latest message of a named conversation using only
   yes — minting a link consumes the minter's authority, so a revoked
   minter's links die with the grant); and whose approval a
   possessor-initiated anonymous-set mutating link solicits (minter vs
-  record owner).
+  record owner). **Ruled (2026-08-08, author-delegated,
+  orchestrator-selected): the proposed package — short default and
+  bounded maximum expiry; mutating links always approval-gated or
+  single-use; minting is a scoped grant operation; the minter is the
+  approver for possessor-initiated mutating links.**
 - **OQ10 — Watch storm control.** Debounce/coalescing policy, per-watch
   and per-owner firing budgets, and the refusal shape when a watch
   exhausts its budget mid-storm (proposed: suspend + notify owner with
-  the escalation pattern, never silent drop).
+  the escalation pattern, never silent drop). **Ruled (author,
+  2026-08-08): as proposed.**
 - **OQ11 — Watch authority lifetime.** Integration-owned watches under
   `capturedGrant` die with LLP 0055's ≤90-day grant maximum; is a
   standing-automation renewal ceremony acceptable UX, or does 0055 need
   a named amendment for watch-anchoring grants (longer-lived,
   narrower)? User-owned watches under `revalidatePrincipal` need a
-  stated policy for suspended/deleted principals.
+  stated policy for suspended/deleted principals. **Ruled (author,
+  2026-08-08): commission the named LLP 0055 amendment for
+  watch-anchoring grants — longer-lived, strictly narrower (exactly
+  the watch's query + reaction scope), instantly user-revocable; a
+  suspended or deleted principal kills the watch.**
 
 ## Revision history
 
@@ -976,3 +1003,13 @@ variation ("fetch the latest message of a named conversation using only
   disclose model identity and data egress; OQ9 gains the
   approver-identity question; server-side checker noted as S4
   machinery.
+- 2026-08-08 — v0.6. Decision-sitting propagation (author sitting
+  2026-08-08): OQ1 exposed-only default confirmed; OQ2 app-owned
+  records; OQ3 named scope bundles; OQ4 additive-only; OQ5 optional
+  schema in v1; OQ6 integration connection-grant streaming committed
+  as a v2 roadmap deliverable (author override of the evidence-gated
+  proposal); OQ7 `ask` result-volume ceiling; OQ8 as proposed but
+  `contact` required (author strengthening); OQ9 proposed package with
+  minter-approves (author-delegated); OQ10 as proposed; OQ11
+  watch-anchoring grant amendment commissioned. Unreviewed relative to
+  the converged v0.5 (310745d3d).
