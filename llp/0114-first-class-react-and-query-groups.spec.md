@@ -5,7 +5,7 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-06 (descriptor-mode cold retained boot: the existing
+**Revised:** 2026-08-09 (LLP 0210 §D1 registers `useSnapbackAssetUrl` as a named projection over the framework-neutral issued-URL store; no React-owned refresh state); 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-06 (descriptor-mode cold retained boot: the existing
 binding receipt now carries a compact admitted deployment projection for an
 exact AppDescriptor, so descriptor preparation reuses the same process-cold
 receipt/RQS machinery and same typed mismatch refusal; no surface cache,
@@ -668,6 +668,12 @@ new React state rules.
   Spec requires of `useSnapbackMutation`; its child asset/mutation facts
   and residue vocabulary belong to LLP 0180. It never merges into the
   ordinary mutation return type.
+- **`useSnapbackAssetUrl` (LLP 0210 §D1, Review — dual-family loop converged 2026-08-09).** An issued
+  URL hook is a content-keyed `useSyncExternalStore` projection over the
+  framework-neutral asset client's shared issued-URL store. The neutral
+  store owns issuance, TTL refresh, retry, denial recovery, authority
+  fencing, and final-unsubscribe cleanup; React adds no timer, fetch, cache,
+  or state machine.
 
 ## External-store composition and cleanup
 

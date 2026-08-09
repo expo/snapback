@@ -2576,6 +2576,7 @@ export function createSnapbackReactProvider(binding, options = {}) {
       if (registry === null) return Promise.resolve();
       disposePromise ??= (async () => {
         await disposeCommandClientFor(provider);
+        await disposeAssetRegistryFor(provider);
         await registry.dispose();
       })();
       return disposePromise;
@@ -3649,7 +3650,15 @@ function assetRegistryFor(provider) {
   const client = preparedReactBindingClient(provider.binding);
   const assets = provider.assets ?? createAssetClient(client);
   const stores = new Set();
+  const issuedUrlGenerationListeners = new Set();
   let generation = 0;
+  let issuedUrlGeneration = 0;
+  const advanceIssuedUrlGeneration = () => {
+    issuedUrlGeneration += 1;
+    for (const listener of [...issuedUrlGenerationListeners]) {
+      try { listener(); } catch { /* observational */ }
+    }
+  };
   const participant = {
     name: `snapback-react-assets:${provider.providerInstanceId}`,
     async quiesce() {},
@@ -3659,20 +3668,86 @@ function assetRegistryFor(provider) {
     },
     clearMemory() {},
     async commitDurable() {},
-    async resume() {},
+    async resume() { advanceIssuedUrlGeneration(); },
   };
   const unregister = typeof client.registerAuthBarrierParticipant === 'function'
     ? client.registerAuthBarrierParticipant(participant)
+    : () => {};
+  // External-bearer custody uses the client's materialization cut rather
+  // than the coordinator participant above. Wait for that transition to
+  // settle before asking the asset client for the successor authority's
+  // store; lookup during the synchronous blank would recapture the
+  // predecessor.
+  const unregisterIssuedUrlMaterialization = typeof client.registerAuthMaterialization === 'function'
+    ? client.registerAuthMaterialization({
+        capture: () => null,
+        blank() {
+          const transition = client.__externalBearerTransition;
+          if (transition && typeof transition.then === 'function') {
+            const advanceAfterTransition = () => queueMicrotask(advanceIssuedUrlGeneration);
+            void transition.then(advanceAfterTransition, advanceAfterTransition);
+          }
+        },
+      })
     : () => {};
   registry = {
     assets,
     stores,
     warnedStrictDeliveryAssetIds: new Set(),
     get generation() { return generation; },
-    dispose: unregister,
+    getIssuedUrlGeneration: () => issuedUrlGeneration,
+    subscribeIssuedUrlGeneration(listener) {
+      issuedUrlGenerationListeners.add(listener);
+      return () => issuedUrlGenerationListeners.delete(listener);
+    },
+    async dispose() {
+      unregisterIssuedUrlMaterialization();
+      issuedUrlGenerationListeners.clear();
+      await unregister();
+    },
   };
   assetRegistries.set(provider, registry);
   return registry;
+}
+
+async function disposeAssetRegistryFor(provider) {
+  const assetRegistry = assetRegistries?.get(provider);
+  if (!assetRegistry) return;
+  assetRegistries.delete(provider);
+  await assetRegistry.dispose();
+}
+
+/**
+ * Project the framework-neutral issued-URL controller into React. The asset
+ * client owns issuance, refresh/retry timers, authority fencing, and keyed
+ * sharing; React owns only subscription and render identity.
+ *
+ * @ref LLP 0210#d1--client-arm-signed-issuance-and-ttl-refresh-projection —
+ * the hook is a content-keyed external-store projection, not a second URL
+ * cache or refresh state machine.
+ */
+export function useSnapbackAssetUrl(assetId, options = {}) {
+  const provider = useProvider();
+  const registry = assetRegistryFor(provider);
+  const optionsKey = canonicalHookInputKey(options);
+  const authorityGeneration = useSyncExternalStore(
+    registry.subscribeIssuedUrlGeneration,
+    registry.getIssuedUrlGeneration,
+    registry.getIssuedUrlGeneration,
+  );
+  const store = useMemo(
+    () => registry.assets.issuedUrlStore(assetId, options),
+    [registry, assetId, optionsKey, authorityGeneration],
+  );
+  const subscribe = useCallback(
+    (listener) => store.subscribe(listener),
+    [store],
+  );
+  const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
+  const getServerSnapshot = useCallback(() => store.getServerSnapshot(), [store]);
+  const refresh = useCallback(() => store.refresh(), [store]);
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  return useMemo(() => Object.freeze({ ...snapshot, refresh }), [snapshot, refresh]);
 }
 
 function createAssetUploadStore(registry, upload) {
