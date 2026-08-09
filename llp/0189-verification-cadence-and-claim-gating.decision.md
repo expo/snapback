@@ -20,6 +20,10 @@ repair, legacy-digest temporary-scope fallback.) 2026-08-07
 transfer to registered canonical gates, and stands/invalid snapshot
 classification — see the implementation ticket; battery-red automation,
 piece 3, remains open.)
+**Revised:** 2026-08-09 (author clarification, Charlie Cheever in session:
+post-qualification evolution of a published derived-fork claim's scoped source
+is a typed requalification-due state that stands until the next natural cycle;
+publication-chain inconsistency remains a hard refusal.)
 **Related:** LLP 0005, LLP 0010, LLP 0061, LLP 0154, LLP 0158, LLP 0162, LLP
 0175, LLP 0185,
 issues/20260807-derived-fork-publication-wave-drift-requalification.md,
@@ -115,6 +119,18 @@ scoped-surface change: a re-scope takes effect only with requalification or
 fresh named-author acceptance binding the new scope. Requalification then happens
 on the next natural cycle — the claim's normal qualification protocol at the
 next scheduled opportunity — not as an emergency that races the fleet.
+
+**D-3 clarifying amendment — 2026-08-09 (author ruling, Charlie Cheever in
+session).** For an already **PUBLISHED** derived-fork record, post-C evolution
+of the bound scoped source does not itself refuse or withdraw the publication.
+The publication oracle reports the record as published with
+`requalificationDue: { scopedChanges, since: C }`, emits a conspicuous warning,
+and exits successfully so the drift-backstop pattern can ticket the next
+natural requalification cycle. This applies only to post-C evolution. Any
+inconsistency in the frozen claim chain — including digest, scope, acceptance,
+receipt, or evidence binding mismatch; artifact tampering; historical-byte
+rewrite; or C not being an ancestor — remains a hard refusal exactly as before.
+Withheld-record behavior is unchanged.
 
 **D-4 — Qualification digests are scoped to the claim.** A qualification
 digest covers the claim-relevant surface only: the runtime/implementation of
