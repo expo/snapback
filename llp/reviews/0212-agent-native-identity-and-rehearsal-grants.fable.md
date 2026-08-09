@@ -83,3 +83,27 @@ The leak-controls paragraph claims: "finite budgets, TTL, revocation, and concur
 All four material findings are recording/specification repairs; none requires relitigating a ruled decision.
 
 VERDICT: NOT READY
+
+## Round 2 — 2026-08-09 (delta round)
+
+**Round record (persisted before launch):**
+
+- Round: 2 (delta round per LLP 0010 §2 addendum — every concern
+  classified IN-DELTA vs PRE-EXISTING)
+- Target revision under review: v0.2,
+  `6686052997b3f7999595cedd0486d900fe904fec3cf1b965f295cdc0c7923e0d`
+  (commit 0f76b1ac7)
+- Topology: single target, independent dual-family round, mutually blind
+- Capsule: `capsule-0212-r2` (v0.2 target + same context set as round 1),
+  aggregate hash
+  `85c8591f31898dbf8714c8a1237f09f2879cf4fe1ac4aec955195ba4439b24cf`
+- Instructions hash (delta enumeration included):
+  `30d396812e7d116263109ec2a9162976ebe9d9738de905588b0f7d82b257f353`
+- Growth disclosure: v0.2 is ~31% net over v0.1, above the ~20% advisory
+  budget; disclosed to reviewers as a legitimate finding surface
+- Blindness: instruction-based, self-attested, as in round 1
+- Reviewer: fresh Claude (Fable 5) session via general-purpose subagent
+
+**Review body (verbatim):**
+
+_pending — appended on receipt_
