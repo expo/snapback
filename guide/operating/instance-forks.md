@@ -25,20 +25,22 @@ schema- or function-divergent development against realistic rows. The fork has
 the same logical `appId`, but fresh instance, authorization-stream,
 data-stream, admin-token, and resume-keyring identities.
 
-This is a **partial, unpublished surface**. A contributor-source local claim
-published on 2026-08-07, but its legacy qualification digest was unscoped —
-it covered wave-shared proof fixtures alongside the fork runtime — so
-ordinary wave landings rotated the digest and the claim was withdrawn. The
-source anchor is therefore withheld and the capability-index target is
-`none`; the
-[dated digest-bound receipt](repo:tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json)
-is retained as historical evidence, not a current claim. Republication
-follows LLP 0189 D-4: re-scope the digest (wave-shared files depart behind
-their own drift gates) first, then fresh qualification on `macos/aarch64`
-and `linux/x86_64`, fresh review heads, and named-author acceptance. The separate
+This is a **partial contributor-source local surface**, published for exactly
+the two measured release platforms, `macos/aarch64` and `linux/x86_64`, by the
+[source anchor](repo:src/local-agent-safe-derived-deployment-fork-publication.anchor.json)
+and its
+[dated digest-bound receipt](repo:tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json).
+The claim is a qualification-C snapshot under LLP 0189 scoped-digest custody:
+post-C evolution of scoped source stays explicit as
+`PUBLISHED_REQUALIFICATION_DUE` until the next natural cycle, while any
+inconsistency in the frozen scope, digest, evidence, review, or acceptance
+chain refuses publication. The separate
 `agent_safe_derived_deployment_fork_v1` target-manifest tuple remains wholly
-`Missing`. The guide teaches the implemented source workflow; it does not
-claim a packaged, hosted, promotable, or process-sandboxed capability.
+`Missing` by the author's ruling; the capability-index row is the narrow claim
+carrier. The guide teaches the implemented source-checkout workflow.
+Released-binary/npm parity and the Phase 6 normal-installation exit remain
+open. This claim includes no public package, hosted/Cloudflare/remote target,
+promotion or merge-back, or process sandbox.
 
 ## Give a worktree its own backend
 
@@ -442,7 +444,7 @@ OS/container/filesystem authority boundary for that threat.
   contract, released-binary/npm parity, normal-installation proof, or
   public-package claim. The withdrawn publication and required
   requalification are tracked in
-  [`issues/20260807-derived-fork-publication-wave-drift-requalification.md`](repo:issues/20260807-derived-fork-publication-wave-drift-requalification.md).
+  [`issues/closed/20260807-derived-fork-publication-wave-drift-requalification.md`](repo:issues/closed/20260807-derived-fork-publication-wave-drift-requalification.md).
 
 ## Anti-patterns
 
