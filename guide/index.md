@@ -279,11 +279,16 @@ you never build around a feature because you didn't know it existed.
   release-aware issue state from the console, CLI, or MCP.
 
 ### Deploying
+- [Deployment posture](./deploying/index.md) — the aggregate truth: where
+  local, Fly, Cloudflare, and hosted lifecycle paths stop today, with their
+  tracking tickets.
 - [Immutable releases and deploy plans](./deploying/releases.md) — build the
   target-neutral release, register an exact VM/container target, inspect its
   provider identity, and retain a GAP-fenced content-addressed plan.
 - [Cloudflare proof](./deploying/cloudflare.md) — deploy and verify All
   Aboard on the honest partial hosted profile; explicit supported subset and gaps.
+- [Hosted control](./deploying/hosted-control.md) — the package-owned read
+  surface, all 17 closed lifecycle verbs, and the carrier/custody refusal.
 
 ### Recipes
 - [Browser sign-in and reload custody](./recipes/browser-auth.md) — verified

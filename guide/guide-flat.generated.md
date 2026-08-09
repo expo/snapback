@@ -415,11 +415,16 @@ you never build around a feature because you didn't know it existed.
   release-aware issue state from the console, CLI, or MCP.
 
 ### Deploying
+- [Deployment posture](./deploying/index.md) — the aggregate truth: where
+  local, Fly, Cloudflare, and hosted lifecycle paths stop today, with their
+  tracking tickets.
 - [Immutable releases and deploy plans](./deploying/releases.md) — build the
   target-neutral release, register an exact VM/container target, inspect its
   provider identity, and retain a GAP-fenced content-addressed plan.
 - [Cloudflare proof](./deploying/cloudflare.md) — deploy and verify All
   Aboard on the honest partial hosted profile; explicit supported subset and gaps.
+- [Hosted control](./deploying/hosted-control.md) — the package-owned read
+  surface, all 17 closed lifecycle verbs, and the carrier/custody refusal.
 
 ### Recipes
 - [Browser sign-in and reload custody](./recipes/browser-auth.md) — verified
@@ -11927,6 +11932,72 @@ row update does not establish a useful binding.
 
 ---
 
+<!-- snapback-guide-source: guide/deploying/index.md -->
+---
+title: Deployment posture
+id: deploying.index
+order: 0
+audience: agent-first
+capabilities: [deploy.release-build, deploy.target-control, deploy.cloudflare]
+authorities: [llp/0002-canonical-local-target.decision.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0111-fly-completion-and-hosted-ephemeral.plan.md, llp/0202-agentic-surface-audit-20260808.research.md, packages/snapback-cli/index.mjs, packages/snapback-cli/deployment-control.mjs, packages/snapback-cli/hosted-control.mjs, cloudflare/deploy.sh, issues/20260726-0072-fly-adapter-remaining-surface.md, issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md]
+examples: []
+status: current
+targets: [all]
+maturity: partial
+reviewed: 2026-08-08
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+---
+
+# Deployment posture
+
+**Snapback does not currently offer an end-to-end path that deploys an
+arbitrary user application to any hosted target.** The local target runs an
+app for development and testing, the Fly control plane stops behind evidence
+and lifecycle gates, and the Cloudflare workflow deploys only two checked-in
+proof apps. Treat those as three different boundaries, not partial steps of one
+working product journey.
+
+## Check where each path stops
+
+| Target or surface | What works now | Exact stopping point | Tracking ticket |
+| --- | --- | --- | --- |
+| Local | `snapback dev` runs the canonical local dev/test target. `snapback deploy build` can create and verify a target-neutral immutable release closure. | Every release built by that command has `activationEligible: false` and blocking `gaps`; the command does not upload, provision, activate, or host it. Local is not a hosting adapter. | The selected first complete hosted path, rather than a local-hosting adapter, is tracked by [the Fly adapter remaining-surface ticket](repo:issues/20260726-0072-fly-adapter-remaining-surface.md). |
+| Fly.io | Exact target registration, observation/doctoring, content-addressed planning, and the target-neutral lifecycle engine exist. Some Fly observation, backup primitive, supervisor, and custody evidence has also been retained. | Ordinary `deploy plan` output remains blocked, and `deploy apply` cannot obtain the zero-GAP adapter qualification and prepared release backed by the complete remote product journey. Upload, provision, activation, served inspection, migration, rollback, restore activation, and the final packed receipt remain open. | [Fly adapter remaining surface](repo:issues/20260726-0072-fly-adapter-remaining-surface.md). |
+| Cloudflare | `cloudflare/deploy.sh` can build, deploy, activate, health-probe, and emit an exact-version receipt for the checked-in `notes` or `all-aboard` proof from a Snapback source checkout. | `SNAPBACK_CF_APP` is a closed `notes | all-aboard` selector. The script is not wired to `snapback deploy build`, does not consume an arbitrary generated application, and is explicitly not a general Cloudflare hosting product. | The current product path to arbitrary app deployment is the [Fly adapter remaining-surface ticket](repo:issues/20260726-0072-fly-adapter-remaining-surface.md); the Cloudflare profile remains deliberately narrow under LLP 0040. |
+| Hosted lifecycle CLI | `snapback hosted plan`, `inspect`, and `logs` expose package-owned planning/read surfaces and the package publishes the exact lifecycle vocabulary. | Every one of the 17 `snapback hosted lifecycle` verbs returns `SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE` before credential resolution or provider I/O. | [Hosted lifecycle carrier and custody GAP](repo:issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md). |
+
+The Fly tracker appears for both the local and Cloudflare rows deliberately:
+the project selected Fly as the first complete hosted product journey. There
+is no separate commitment to turn the local target into a host or generalize
+the Cloudflare proof before that work.
+
+## Choose the honest path today
+
+- For development and acceptance, use the local authoring loop; do not call it
+  a deployment.
+- To exercise the retained release and planning contracts, follow [immutable
+  releases and deploy plans](./releases.md) and expect the documented GAP
+  refusals.
+- To redeploy one of the two repository proofs, follow [the Cloudflare proof](./cloudflare.md).
+- To inspect the disabled hosted command surface, read [hosted control](./hosted-control.md).
+- If the task requires an arbitrary user app at a public hosted origin, stop
+  and report the relevant open ticket instead of assembling a private path
+  around the gates.
+
+## Anti-patterns
+
+- **Do not describe `deploy build` as deployment.** It produces no provider
+  effect or traffic activation.
+- **Do not treat a deterministic lifecycle-harness receipt as remote
+  evidence.** Its explicit GAP is the point of the harness.
+- **Do not substitute `cloudflare/deploy.sh` for a general app adapter.** Its
+  two proof apps and source-checkout inputs are closed.
+- **Do not bypass a hosted lifecycle refusal with direct Fly or Tigris
+  credentials.** The missing carrier and custody closure is an authority
+  boundary, not a CLI inconvenience.
+
+---
+
 <!-- snapback-guide-source: guide/deploying/releases.md -->
 ---
 title: Build and plan an immutable release
@@ -12471,13 +12542,13 @@ id: deploying.cloudflare
 order: 2
 audience: agent-first
 capabilities: [deploy.cloudflare]
-authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0094-wire-envelope-contract.spec.md, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/coordinator.js, cloudflare/test/local-suite-manifest.mjs]
+authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0094-wire-envelope-contract.spec.md, schemas/cloudflare.deploy-receipt-v1.schema.json, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/coordinator.js, cloudflare/test/local-suite-manifest.mjs]
 examples: [demos/all-aboard, cloudflare/app/all-aboard.app.js]
 status: current
 targets: [cloudflare]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Deploying the Cloudflare proof
@@ -12549,6 +12620,13 @@ repo-local Wrangler and locks, deploys handler dependencies before the gateway,
 attests the exact active Worker version, and performs the final gateway deploy
 after secret changes. On a partial failure it attempts to restore previously
 active Worker versions; ambiguous account/API state fails closed.
+
+On success, the script emits exactly one JSON line with
+`schemaVersion: snapback.cloudflare-deploy-receipt.v1`. The receipt names each
+Worker and its exact activated version, the probe URL, final health code, and
+the actions this run took. Validate or retain it using
+`schemas/cloudflare.deploy-receipt-v1.schema.json`; ordinary progress lines are
+not deployment evidence.
 
 An absent local `SNAPBACK_ADMIN_TOKEN` is not evidence that the remote secret
 is absent. Deployment reports absent, present-and-preserved, or unknown; only
@@ -12672,6 +12750,106 @@ to users. The local bearer/dev identity posture is not production hosted auth.
   the one demand-armed alarm dispatcher.
 - **Do not infer a successful local suite proves billing or eviction.** Run the
   remote evidence lane.
+
+---
+
+<!-- snapback-guide-source: guide/deploying/hosted-control.md -->
+---
+title: Inspect hosted control
+id: deploying.hosted-control
+order: 3
+audience: agent-first
+capabilities: [deploy.target-control]
+authorities: [llp/0111-fly-completion-and-hosted-ephemeral.plan.md, packages/snapback-cli/hosted-control.mjs, packages/snapback-cli/index.mjs, issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md]
+examples: []
+status: current
+targets: [all]
+maturity: partial
+reviewed: 2026-08-08
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+---
+
+# Inspect hosted control
+
+The packaged `snapback hosted` surface is present, but its provider-mutating
+lifecycle is intentionally disabled. Planning and bounded reads work against
+the retained control-plane contracts; lifecycle commands publish the exact
+future vocabulary while refusing every effect before credentials or provider
+I/O.
+
+## Use the available read surface
+
+The closed command registry begins with three non-lifecycle entries:
+
+- `snapback hosted plan [--target <id>]` renders the package-owned driver,
+  schema identities, availability, required evidence, and complete command
+  inventory.
+- `snapback hosted inspect --target <id>` reads bounded authenticated target
+  inspection through the existing control plane.
+- `snapback hosted logs --target <id>` reads bounded retained logs and supports
+  the documented time, limit, and cursor bounds.
+
+`snapback hosted operator-request` is the separate signed, certificate-pinned
+supervisor transport command. Its existence does not enable lifecycle effects:
+the lifecycle gate returns before transport submission.
+
+## Read the complete lifecycle registry
+
+`snapback hosted lifecycle --help` lists all 17 closed verbs. They are:
+
+1. `acquire-lease`
+2. `renew-lease`
+3. `upload-immutable-release`
+4. `provision-inactive`
+5. `compatibility-preflight`
+6. `create-verified-backup`
+7. `stage-release`
+8. `activate-generation`
+9. `verify-served-path`
+10. `rollback`
+11. `fence-external-effects`
+12. `restore-backup-inactive`
+13. `verify-restored-components`
+14. `verify-restored-application`
+15. `activate-restored-generation`
+16. `reconcile-effect`
+17. `release-lease`
+
+Unknown verbs fail as `SNAPBACK_HOSTED_LIFECYCLE_VERB_UNKNOWN`; a valid verb
+with a valid V2 request returns the structured
+`snapback.hosted-lifecycle-refusal.v1` envelope with
+`SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE`. Its `recommendedNext` uses the
+catalog refusal shape—`owner`, `ticketOrDesignPointer`, and `note`—and points
+to the [hosted lifecycle carrier and custody GAP](repo:issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md).
+
+## Understand what must land before enablement
+
+The blocker is not merely a missing executor. The current V2 carrier cannot
+express the operation-specific authority and recovery facts required for safe
+effects, and `releaseLease` is not an exception. Enablement requires all of:
+
+- a separately reviewed closed per-operation carrier;
+- Rust-owned schemas with exhaustive registry and unknown-field tests;
+- supervisor-only opaque lease custody bound to expiry, provider version,
+  supervisor generation, and control head;
+- bootstrap, purpose-key custody, public mTLS listener, and wrong-role proofs;
+  and
+- a packed live Fly/Tigris journey covering reservation, interruption,
+  recovery, head CAS, and zero premature capability advertisement.
+
+Until the tracking ticket meets those criteria, availability stays `disabled`
+for every lifecycle entry.
+
+## Anti-patterns
+
+- **Do not infer a listed lifecycle verb is usable.** Registry membership
+  preserves vocabulary; `availability: disabled` is authoritative.
+- **Do not special-case `release-lease`.** It shares the same carrier and
+  opaque-custody blocker as the other 16 operations.
+- **Do not supply provider credentials directly to the CLI.** Fly and Tigris
+  authority belongs behind the supervisor/adapter boundary.
+- **Do not call `hosted plan` a deployment plan.** It describes the closed
+  hosted command surface; it performs no provider mutation.
 
 ---
 

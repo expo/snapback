@@ -88,6 +88,11 @@ const LIFECYCLE_REQUEST_KEYS = Object.freeze([
   'schemaVersion',
   'targetBinding',
 ]);
+const HOSTED_LIFECYCLE_RECOMMENDED_NEXT = Object.freeze({
+  owner: 'Snapback hosted control plane',
+  ticketOrDesignPointer: 'issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md',
+  note: 'Complete the reviewed per-operation carrier, supervisor-only lease custody, bootstrap/listener proof, and live Fly/Tigris journey before enabling lifecycle effects.',
+});
 
 function lifecycleEntry(operation) {
   return Object.freeze({
@@ -657,6 +662,7 @@ export async function invokeHostedLifecycle(verb, {
     operationId: request.operationId,
     code: 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
     requestFileSha256: sha256(requestFile.bytes),
+    recommendedNext: HOSTED_LIFECYCLE_RECOMMENDED_NEXT,
     diagnostics: [{
       code: 'SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE',
       severity: 'error',
