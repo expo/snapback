@@ -227,10 +227,7 @@ proof of the same contracts. The headless witness proves:
 
 ### Keep a queued React mutation pending
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** This source checkout distinguishes a durably queued React
-> mutation from failure; the newest published package is `0.1.15`.
+<!-- since: 0.1.16 -->
 
 The headless client resolves a durably enqueued dispatch with
 `{ queued: true, clientMutationId, sequence }`. `useSnapbackMutation` keeps its

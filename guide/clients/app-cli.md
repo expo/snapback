@@ -120,11 +120,7 @@ The only client-side authorization predictions are target capability and
 anonymous-to-`authenticated`. Every role, grant scope, optional-user rule, and
 application refusal remains server-authoritative.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** CLI URL discovery and OAuth login are newer than the newest
-> published closure, 0.1.15. Use a contributor-source build until a later
-> package closure publishes them.
+<!-- since: 0.1.16 -->
 
 ## Log in through the external OAuth facade
 

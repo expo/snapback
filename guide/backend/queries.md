@@ -138,11 +138,7 @@ details name the `minItems`/`maxItems` constraint — the same closed
 constraint vocabulary [mutations](./mutations.md#consume-the-structured-result)
 documents.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** Stored enum fields are newer than the newest published
-> closure, 0.1.15; until the next closure publishes, they are available on
-> contributor-source builds of the local target only.
+<!-- since: 0.1.16 -->
 
 A field declared as a **closed string domain (stored enum)** —
 `v.union([v.literal('crew'), v.literal('user')])` on a stored field — stays

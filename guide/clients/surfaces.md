@@ -59,11 +59,7 @@ The composed mutation is still the sole application-row and asset-attachment
 commit. The command adds no server endpoint or transaction, and it does not
 change the upload intent's policy or ownership rules.
 
-<!-- since: 0.1.16 unreleased -->
-
-> **Unreleased.** The command-mapping rules below are newer than the newest
-> published closure, 0.1.15. Use a source checkout until a later closure
-> publishes them.
+<!-- since: 0.1.16 -->
 
 ### Map required and optional assets safely
 

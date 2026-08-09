@@ -5,6 +5,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     "commit": "d6a6fb6dabda406871fbb7c64ab24967ba1f01ac"
 =======
     "commit": "918022c8d9a620e40e86b03c0a9cd6d326203794"
@@ -15,10 +16,13 @@
 =======
     "commit": "5dd2505412c128ab0eeceb52724e9136f98ad86d"
 >>>>>>> origin/main
+=======
+    "commit": "96059e6ed126c9551139245ec03e7c6a52401b43"
+>>>>>>> origin/main
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
-    "newestPublished": "0.1.15"
+    "newestPublished": "0.1.16"
   },
   "nav": {
     ".": [
@@ -1159,7 +1163,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "effa2773760fd0d740c49f06990b3fde5e82a66b",
-      "sha256": "28ba6eca2533bd4c24aa29d43eea35259b279a9e567889f93767a26e7c84dc53",
+      "sha256": "26c337de560e6dd6eab25b744a4ba8d165b6d31002dfd3bbe230a20a212eaee5",
       "snippets": [
         {
           "lang": "js",
@@ -1480,7 +1484,7 @@
       ],
       "reviewed": "2026-08-09",
       "reviewedCommit": "339e9fed3500daece2ad90de0d21018e1b00a314",
-      "sha256": "053caa101f3835e0b0914996e3d963f07687ea1d6129e5c1f6818c2fd0f89279",
+      "sha256": "08764bad2aae4eedea63b16b50b331a2ff96373342a90341913cea4e3dfb20a4",
       "snippets": [
         {
           "lang": "js",
@@ -1622,7 +1626,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78",
-      "sha256": "55d81cb0feef9d4224a408f60bdd8b350225b3e699ad5f454847de5b7dfcddc6",
+      "sha256": "cb86a2050082ed07dc119aee274b25a7045fb4bfdb4687758f7295e70b7ca61f",
       "snippets": [
         {
           "lang": "js",
@@ -1710,7 +1714,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "772c00649534d68b2ba63b98699e8ce2b2019057",
-      "sha256": "028c32935997929bc40915e8231e03b818a8296f607565077a89193c19667d8b",
+      "sha256": "3f253d792d79e4c2b006172a216bd329796a53803222ea43abcf7473d5bf73dd",
       "snippets": [
         {
           "lang": "js",
@@ -2207,7 +2211,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-      "sha256": "479d3866c85614be3c570bb68456d1a47811e512ed5682e8a1ae58870161dc19",
+      "sha256": "70c620f2369d4344e5da869ed7d3f02cba3e8faa7baf3926b18d15091b1ef92e",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -2539,7 +2543,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "772c006495",
-      "sha256": "77b038a19e8780ae4cb71bb3152f5fdc5af598288b09f2f88ac4cfc6e426b807",
+      "sha256": "850d2810e018e68200dd820baad6dabee43b89b8d667b48c96bfd0ac2f9c62fb",
       "snippets": [
         {
           "lang": "ts",
@@ -2632,7 +2636,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "eac098a99fb89b07e67cb72430106117b7fee86b",
-      "sha256": "f311ce9bac4151b82b4e3ac51dcfc592d25ed5aa4c30b9150b8fef9e0570e373",
+      "sha256": "6948ef38ca84f8eee95359c1fb60e5e4ed3e674a8a1eaa72363d0aa9fbf756f3",
       "snippets": [
         {
           "lang": "js",
@@ -2992,7 +2996,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "772c00649534d68b2ba63b98699e8ce2b2019057",
-      "sha256": "9171a79383dca13a4d295467b0a53d18bcc725ef85f1a9af92a4f1d73c9e0bae",
+      "sha256": "a4a97bfc1520a25a4d3b59440c0fca31c84642d696c87a3fac37c0f24fa03792",
       "snippets": [
         {
           "lang": "js",
@@ -3679,7 +3683,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78",
-      "sha256": "6d33ca2baf454be7de2acc5d7d3ef8cc99baf0974f8151e3b775be0a6494bd9f",
+      "sha256": "ce9e37ace4e6176cf1aaca72202e893799949ff98750e747888f66d2c3df3335",
       "snippets": [
         {
           "lang": "js",
@@ -4189,6 +4193,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "d6a6fb6dabda406871fbb7c64ab24967ba1f01ac",
       "sha256": "7a1a23c6be19d6f23ef7c94e934b2a46b03cd54048666a65f4110d22a1779a27",
 =======
@@ -4202,6 +4207,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "c151b12005221f5d6f2e0cfdfa5f3e2e96d6eba62e2d7f1edb41bd13914dfb2b",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "1d8b83a024e82d00de7dd767460f78eb71b0da48a1f8ab30472a371a606bca4c",
 >>>>>>> origin/main
       "snippets": []
     },
@@ -4226,6 +4235,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "c729c4657b1cc1cc29d565693f307c807978d6939dcebff2637f9531bb90460a",
 =======
@@ -4239,6 +4249,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "96eb199f3962c0ab868590d06fb576d57b988a7d28650089aebb55c24356795f",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "2862f0ab1aa69b950e9b351d8852fe8e474f12b0e6eaf558abf50317d5da5b8f",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -4352,6 +4366,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "17452727878509921fa28f883c3f8ddfa9c7d98a81e236f40596c22fd5cea80b",
 =======
@@ -4365,6 +4380,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "42d1c8a3eff327be4e6c0c24282ddfe42449b18f5bc20c10156dff930da5856c",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "53ebd5eae0b888861c4d4ecc9cf00604f9808331d44400c3de6c8990e228cc7d",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -4458,6 +4477,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "bb6b48dfc224272dd827ff11ddfba616135763fd820bf03a7495c5f0e7514752",
 =======
@@ -4471,6 +4491,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "4b0f089ec80f687e10bbda053c3e7ad7742aec322869a8c555b4e8d736eae61d",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "0bc5de4ed6a0f052b0cbf7a123ee08ed02720ae1e991e9c4fb3424d7277a8332",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -4532,6 +4556,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "7fefcf3db980627240a6b0ac4a488bb03523d65a1b6855d6fb1df357fdfbdac5",
 =======
@@ -4545,6 +4570,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "1754fbe2577635cafc5d6bb2329ae728ccd0e967fe5a5cf49b19fa836becd0d1",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "11fe4b5b87be9ead32fecf1609c4de78357c2282fcd44c9ebee8bdbafd71f936",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -4674,6 +4703,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "87445992defa06e34a5cc2722a05be429df9307b9522f8c67674dea8941d61bc",
 =======
@@ -4687,6 +4717,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "6266797d84694b166e14fdcf533d50eb541ea9cacb927091699ee4d656816d80",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "bd6df47fd92b76abec45889a024488ca8778253388d4b02dd41e7432f23fe953",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -4728,6 +4762,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "395c997bd046eedd51626ffb2ea0d80329dbc18ea49c40bd00c451bc08aec597",
 =======
@@ -4741,6 +4776,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "053159a638792d07ab8d3a6851711a2b0432a8fe421bf3d75a7a4c58edb11ae5",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "29d4b185355c793d8e2442ee16be002411d15efdd2d5269bc62d630cc661a659",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -4842,6 +4881,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "102f4b1551c02be0a1476df668b5a6de576507149f374eb9339fe16518f8f3c4",
 =======
@@ -4855,6 +4895,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "318ea8e8e3e7f945a61fa0146fad82083861d3f98bb254bb6ea75a72c77cf241",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "dc7dcf9e64136cb4fe6cf498588209737a33e2b82b03459f5779b117c2f03ad2",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -4904,6 +4948,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "1b02bc31f87522d198ce1edfeb2c336945ff77f1953edf205c730308539cd34b",
 =======
@@ -4917,6 +4962,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "02d0edbebb8dde814ab8964f3a073b712c25679673de6c4b3bc199ce4276732f",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "853068962a94ff86a99c90afbd4bf5a292819c6fe1480971426bad921a3cfdf1",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -5002,6 +5051,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "c05af9866b0edae43331ef2e3be72f137f9d21dc95cec00abbc7aab985d9d2cf",
 =======
@@ -5015,6 +5065,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "4c0d33443d1b07287334301fece023d706833bb73c2db63036cb8c918a736ba7",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "b46bc724b888957d94459fd1981531608b5ba39aba042673641579a86d998012",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -5048,6 +5102,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "70e405adc2a03945254d1c1642de35fd58002407ef4fe89c06891c641c7e7200",
 =======
@@ -5061,6 +5116,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "041b613fe60aec9d637a16593cbe689c3c60ca5cb2b6c46c645ff6db5a1ee469",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "1d570e5c9f056d87d6bf5bdd1ddbbad8c9716c19bdf81270dde8533f7862bca9",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -5154,6 +5213,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "b9c720352d20f584adc3f9bd4fda091cff42f60a49a220ba98b05b7be98ebd42",
 =======
@@ -5167,6 +5227,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "9b0ae7324c3507a1eab06fa56231698e07f8ca838062f138325037eb9bd9f87d",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "38e7f1050419428590e207e961977497e4b9891fef3cda992f85c1aedf79190e",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -5216,6 +5280,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "b1133088071886d0d95edd9fb8017f7c08df8b06797f429d070377cc862074f8",
 =======
@@ -5229,6 +5294,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "5a408cddcadf0de954ac23a4c2a3fea1f81a71e19fd9bc712b6d0be4254b6b6f",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "0c76262fd7c4eac5432cefb9baedc6c150600ab257fa922a516ae38b18d66f98",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -5334,6 +5403,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "c65c9de2fb407d6098c29e44a2296b1af89f8ad7d22ae69a6d33b856c4d56450",
 =======
@@ -5347,6 +5417,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "ebd1def9711d35162791621afb947216e5de6ced1ba1278f2fe3cd86dcf42da6",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "4c133ee37576900234c34930c02cbfb9ba715ad039d0aaa702f3fa8798f453d7",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -5468,6 +5542,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "538856a58263e7cef3b754ad8de27324d8813a432dcd66f4d97a427d49a31ace",
 =======
@@ -5481,6 +5556,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "82e64aa30d1a5530bd8e550ac1bed8750a3c0fb0034f985db94aa2df78f3827b",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "f03b3c26cccb4c394d2a6efaae65584d984521787d674592d73048ecfa714d1d",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -5570,6 +5649,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "9433a4b265f9d07af122ce6cbce8f7be2c3d19c1cbe0344edfbf194db9d888b3",
 =======
@@ -5583,6 +5663,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "452390c7fb64c4808fa97b80c3dcc7f75c2ad066b157bf2fbf18dd7fac56a14b",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "9cec0b1e6f5e79c04d313dc5864ee78a52e2ee127ea6b019d053b400782b6ad4",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -5624,6 +5708,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "2a0229a779cbbcd697919dd02d998f023dbbf0b2abb2d3a7dc4201cddb38dabf",
 =======
@@ -5637,6 +5722,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "171afd8e08ab5f13ad26b95ad9e931d19e668914e430c190effa6f8a4ebf2c0d",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "a5505fe9dba2bbff569aa68a335ca8bd7c1f2951050accd47f998fa665e6b9a3",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -5698,6 +5787,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "40ac9eaa434fa354de682df2897ed9404aa73d80ed2b5c48b35e2bf8e802ab19",
 =======
@@ -5711,6 +5801,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "91ad6862b640edd6c591ca56e54a556c7d5198a8c19f7ba91eedcf9ca74efaa5",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "f5628e864aad9e058af1a0d38e2f7f7ff0b4a1765d3143660252dbc513bedf8d",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -5752,6 +5846,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "b64dbe16497327077c92b1e8dc81c4483d905bcf111bd61e064e338091df2e6e",
 =======
@@ -5765,6 +5860,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "a1f639eef84aee1ae1cfdbbbfdfd15b8780851735c055b1acca256b06e07a391",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "5b8c9f88c7305f3f9055712fb5456501ad065f27df88fd66562559558fb65a44",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -5834,6 +5933,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "72f82a70d1b8c57ca46052116477b72a9f9b72c0ebac21697852da1030a21133",
 =======
@@ -5847,6 +5947,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "6524fb69eb7da621c4b3eb1a9da467e8171a259724c8a7c5310c9da751abadf1",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "4ffc6f33c7286d06d4423abaed984da3ff6dabf4b1df04c6b9e0fee660db377f",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -5968,6 +6072,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "c8179aa1c0f3a9e0cc6295747f6e42db4ca9e94e4ae75aee80bd1e2f7f78f2b0",
 =======
@@ -5981,6 +6086,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "abfeb4b66b4b1adcdb4a6a10eb36ab0df406341c3bb3f3523ae7b82c693698ab",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "49750fc35cd260e51705b57177fc410be0f55ee38374b2b4cce7d1a6d9be5a9f",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -6022,6 +6131,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "3970d881eaf42fbd25d9b40f2a78095014b8c380ed25555a77a80dd2212d747b",
 =======
@@ -6035,6 +6145,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "c671edc259bc48b9f5b9cc0340a42f1fdff7c2c10b606be4a42b767b9c077a89",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "f49d65100f1bbb4840ac4c2d27a1a1736c0147810f20cad485c9d22842fab67d",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -6088,6 +6202,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "0e3698f2b08891794de62cbbf756e9c8fb6dfc4cf0c7c6680d6a8a1b7aeea8a6",
 =======
@@ -6101,6 +6216,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "84e91c5037094c189de5921465f1315207300686b9cc9962afbfc2509ee4be4d",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "4e39e5baa32805de8599c5feffad36cefa9d12d4215fad0c6c73976e93a14aca",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -6214,6 +6333,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "0607c828b700c886441bedc72fc6123e0ced3c681eac11845b3f1417c1091c7d",
 =======
@@ -6227,6 +6347,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "fd312f8f114bce600d404bb011a797432c5aa25e98e55f86ae790c730887d7d3",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "0fc063c187edf47eaa60ca3fc8c18d6b47bf5bf72924ef17d27226b40ded2bb2",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -6296,6 +6420,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "0dd1ce5d7b2b4008f4e9099108ecf32bac1756f52024f03f1f20d4a2b7da1439",
 =======
@@ -6309,6 +6434,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "79418f6b82592f932792c64493e0ad614d97cddc982949781f460cb7527d2209",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "2618a11bbb87f8dffe574ae2550288234896451f08c4746d9860d772eee7db0b",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -6394,6 +6523,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "0c2cd57d7f8021cfad9608db41127c1b146f6940df9daa2f5f8884fbea00d28e",
 =======
@@ -6407,6 +6537,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "7adc6897f2ba98292dce581a89c05b575ba2e58519169d44a0297f2964f0408f",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "01b9685dcc70adb18799981f7be3c7965c3c0c1d1fa91d368b3295f82d98da33",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -6456,6 +6590,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "8d328befdfcf5c12175b628dad4cb9f50fef1bfa4e690119c89b93472055a83b",
 =======
@@ -6469,6 +6604,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "7e8ff87e9d7d23ee4acb8f7aa74a5757591e7d9616a90eedd92adb1d7a99a448",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "c32905db8b93e9281361c61cdf942dedb48b2ceb1d179401fba488800bfd9ad4",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -6522,6 +6661,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "24680a0cf9ac818af4876484ac478cc98909944aaf53fbd7fd7f66f08be88ea2",
 =======
@@ -6535,6 +6675,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "a72fb79dd645bbc7427f5728b92404c5ead1c533cbff308e8828bf52354b1fa4",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "dcdfdbf4b9fd7496d6e889dad0c343d6bf435d9f74adc22edb179ab33e5e069d",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -6592,6 +6736,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "e52c29136145fd730ad498755275f17259b9eff4b162479cecbdcbefec000464",
 =======
@@ -6605,6 +6750,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "e6edf22b829e49e36215241f90165957d8c175454de52aea1469ddd95a6b6c09",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "2bac32d5fdb1e746bff55fa7ccc74345a7a19b5c85118b5d8d1fc39340ea4b9d",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -6722,6 +6871,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "8fd4b4d0322d3fd9a6676502cc12ec5acb6ece8d826b0f83ffb2d8f80503e201",
 =======
@@ -6735,6 +6885,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "f3d6b15d6e946e01f9c0b2252fa11c599ec6cea1d5902b073dc68b0472d37b64",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "54d737aa2e0048773d82757d8504a07eb3a34f04ed69978fb27821f7eaeb4c35",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -6876,6 +7030,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "52151f29e109eaffa6a1ab56e4edb4607b74f1c1b27f919d0000e0aac5152e45",
 =======
@@ -6889,6 +7044,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "5a230b11c5fb0fb0c7a08de06e0ffbaaa327a0e4cbc2103c6b0b7f19453408e2",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "98fd14fb2df17f0adcdd102f14c95c9323b20c356d68e69953bfe52d306923ce",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -6958,6 +7117,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "fb5ba77ba81e4fb99d5a556a3291250cb90e8fea6b79e7d3ab13f6ec7cff8e8d",
 =======
@@ -6971,6 +7131,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "4338ed4d44d88e04ffb424ddcf81c9c4db2aae295754649c56e9a4137b5ae4c4",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "e39534e2e6b1c943afd715975576db42f32e96710e6579945f3c3cfb03a6af8d",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -7016,6 +7180,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "262feee2e14def28e269c5e6e7477402527662037598c9e455d82771dee7a566",
 =======
@@ -7029,6 +7194,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "63cbfec774a0fa8e927de9ad1a7963615660a4958730278dd345caa7018c1b4f",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "4a5c1c2f6c254788bc2849a25c7457f2bc57e0394e10cde08535c9d5d4568422",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -7934,6 +8103,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "697767944ac94d6798e4cf87b87d9e3f644a1e6c9f1e65f7b75b9052088eb642",
 =======
@@ -7947,6 +8117,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "b4af270af6e1833a9c279883344b3ecd7317685f45c945c33b4d1c64bbc10f09",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "d110134aa59f8af707b036e8a04b11c634673731cc956b7591cbe0daaa2c1dfc",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -8124,6 +8298,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "8e05c76b944d049683862b81c946544bac52d0fd5c17cbc40250419fb110ed61",
 =======
@@ -8137,6 +8312,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "c748ca0e89c0ae4f06f7371a38b19d034ce62fa69bdc23c9d58c674d28d49153",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "274361922a9b93c5223a6c17c2651af40b7f23519a7b72aaa0598a3733aa2443",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -8210,6 +8389,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "47c6e82af973b12dadd6403d510f253182c3669d5fb4486fcb2bf0142ea322d9",
 =======
@@ -8223,6 +8403,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "e4c3f620615f5309593f347fbe196c85772b866c4edf130856fa9cb36ac94cbd",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "9f3a7731ecf4bf3ce8aba856b0eb49da5e6aa3572beb9e71563e673aeffe37c2",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -8272,6 +8456,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "b256757627f2fe64e27f5a72a07a49ad6bbf52b49509e87060348ebe863b9c12",
 =======
@@ -8285,6 +8470,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "58af8b9f4c53da73ea092ec6c119a5764013ae67e7a0935b3ae11d48fe188898",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "56e687f39d5bc88510fa0bf77f4840ebb3c0d538ddb9a035a354e7e07d787c33",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -8338,6 +8527,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "55599f03331c7154499a6dc06c4051c6e85119557a37135606f5882a501cdf43",
 =======
@@ -8351,6 +8541,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "df164037377d79dd682f303a5b9f3671e995d1ca8332cfdb0524e11897d2dc8f",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "aa0007f568425143ffb5c403af8e34129c50cf93482cc1a7385d3218f3789ec9",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -8400,6 +8594,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "64627d0269daf1890f79566a9e608c303fc1ccc965020726123e69bde4994b36",
 =======
@@ -8413,6 +8608,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "2aaee80dba7a8c06055e398dd8056061cc8c57b851b8d27371e52522c5304ad7",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "6f7aa37e3ba5e070a83c02d15fdd769d03d7ac4df22f774ba2668d39217f9959",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -8470,6 +8669,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "0ebf670c3267878211e64d89ac4b3c0e906e4b062a50ca6c8b536bff178746fe",
 =======
@@ -8483,6 +8683,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "5a99cdda19e329b382ed21a7a55baeb82877a69a2e2e6b74226668735c7dfc98",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "4431f44cc253465a97bbed96c021a8328af316f37f06c399ba271030bfe6f0a1",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -9004,6 +9208,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "73aaf6dfc698b67230eb1ea8a0418556580eaf89b9a1aaeb92bc6fbb37bd53ea",
 =======
@@ -9017,6 +9222,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "b26c7c709ecb7872b3acc6d6f689e55feb4d29faf36abf35c6fca37e38a2cfeb",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "96e51a66b8e85785ffbfa3272a23a7076de519d119874f342558690562e14f73",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -9062,6 +9271,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "a0bd224eb0dcbbe79444b09307ee829beda87536d0d0b56dcb6a6bfa2f9c9e0a",
 =======
@@ -9075,6 +9285,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "d5c9ae83d97d0056fe8f62b6e19304e4254062643334a146e1b0e7bb1e778aff",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "e1aa3a573f1e1cb35108dbc15be0125ba5759ffc41af617accf78d4b4cd52e20",
 >>>>>>> origin/main
       "snippets": [
         {
@@ -9437,6 +9651,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       "reviewedCommit": "f0eaae6b7b4ddb83e525e97168d9f42ff6657044",
       "sha256": "4c7f63ca24c829819c94b0c6deba0343ef63577a2656f1023f01a1b894720510",
 =======
@@ -9450,6 +9665,10 @@
 =======
       "reviewedCommit": "5dd2505412c128ab0eeceb52724e9136f98ad86d",
       "sha256": "44adbf87672dbc9b5127d3d7829ae74bef7329bc0e601934bc37a56356b27d45",
+>>>>>>> origin/main
+=======
+      "reviewedCommit": "96059e6ed126c9551139245ec03e7c6a52401b43",
+      "sha256": "be763284c5e0f31fd2b229729ebfa7ca89583170cc091451d90bf15543b7cabb",
 >>>>>>> origin/main
       "snippets": []
     },
@@ -9554,7 +9773,11 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedCommit": "98257903f5b726e1e19fe9ac3132ea3ed83ecd78",
+<<<<<<< HEAD
       "sha256": "6e27540e426fd80c090f0ac96e97f82c3d63287857a580fbae8cc4265459892b",
+=======
+      "sha256": "b9c5d45014fd57bd0c52cae595d3c67a1f869714cba1b2c47647d03b7a321dc8",
+>>>>>>> origin/main
       "snippets": [
         {
           "lang": "ts",
@@ -9808,7 +10031,11 @@
 >>>>>>> origin/main
 =======
       "bytes": 3339822,
+<<<<<<< HEAD
       "sha256": "62b5c5fd32aa2edfedd0b2dfa9572a98642662bd4116b05ad1f207800b1c7b55",
+>>>>>>> origin/main
+=======
+      "sha256": "2a4b284a96d6880e65f3497dde445e8750e4e9e21ef598a349c76d624f5c56eb",
 >>>>>>> origin/main
       "uri": "snapback-guide://reference/registry",
       "servedPath": "/_snapback/guide/reference/registry.json",
@@ -9818,7 +10045,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-symbol-registry.v1",
-      "sourceDigest": "sha256:a1b36e00ec85f267d0a31021f8f70facbf9532433d8d12802cff08177bd74bb3",
+      "sourceDigest": "sha256:1b66aabcbdf3707295a521a56c97984fdbffb2ade8c3f210af9aa0d2779e7964",
       "modules": 41,
       "symbols": 913
     },
@@ -9840,7 +10067,11 @@
 >>>>>>> origin/main
 =======
       "bytes": 1910147,
+<<<<<<< HEAD
       "sha256": "a4dbdcb3e3f52036cd5705d584bd2e56e8c9057b623e31ed4fdd18e3d1f3eec9",
+>>>>>>> origin/main
+=======
+      "sha256": "dcbee23c943521112a9a3a88b48197dd09a45a5d11900122a5c9ddcf6c5b6354",
 >>>>>>> origin/main
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
@@ -9850,6 +10081,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -9866,6 +10098,9 @@
 >>>>>>> origin/main
 =======
       "sourceDigest": "sha256:34454d605261dce3fa069b025a3ba156154a59dbd1606c04e31054b08b703add",
+=======
+      "sourceDigest": "sha256:0b382762a71003011bdd91b9ae79c7f8c366b5cb1dc8d3ea30b7dace277776be",
+>>>>>>> origin/main
       "codes": 2778,
       "emittingSites": 9333
 >>>>>>> origin/main
@@ -9983,6 +10218,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
   "flatProjections": {
     "whole": {
       "path": "guide/guide-flat.generated.md",
@@ -10094,5 +10330,8 @@
 >>>>>>> origin/main
 =======
   "contentHash": "94ec9453a4a52ce8f5a8756047d1d2e10e487e69734d004a72bb356b34222745"
+>>>>>>> origin/main
+=======
+  "contentHash": "ab618ac27370d19cbc9146774c00d36054946e7fc70a42995b577d1c68abf54f"
 >>>>>>> origin/main
 }

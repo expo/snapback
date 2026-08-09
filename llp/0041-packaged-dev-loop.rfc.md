@@ -1206,6 +1206,43 @@ the latter now closed by the bootstrap-lineage decision below) are
 untouched by this decision and still gate the ceremony machinery whenever
 it next runs.
 
+### 0.1.16 (2026-08-09) — first cut under the rapid-publication ruling
+
+The eleven-package closure published fast-path to `latest` from clean main
+`ee21fa4a82c5486e1e4abf48e67a1745e7316e83`; retained ledger
+`~/snapback-release-ledgers/fastpath-ledger-0.1.16-ee21fa4a82.json`
+(SHA-256 `b448829da9654e4deceda58076bcfae01eb240eea053cdd2e30e1e296bac5182`,
+written **before** the first `npm publish`, closing the 0.1.14 bookkeeping
+gap). Both runtimes carry the clean `public-package`/`release` identity at
+that exact commit — darwin-arm64 built locally, linux-x64 built and attested
+on `expo-build-1000` and transported under
+`snapback.runtime-artifact-attestation.v1` with all four artifact digests
+re-verified after transfer. All eleven registry tarballs re-downloaded and
+found byte-identical to the staged SHA-256 vector, and `latest` resolves to
+`0.1.16` on all eleven names.
+
+The candidate is one commit ahead of the `main` tip that opened the lane
+because qualification found two **published-bytes** defects and the lane
+repaired them first (`ee21fa4a8`): the CLI's packaged comparator and
+push-seam fixtures had drifted from the codegen shipping beside them, and
+the packaged copy of the authoring skill had drifted from its canonical
+source. Both ship inside `@expo/snapback-cli`.
+
+Per LLP 0189 D-6 this cut names its reds rather than claiming a green
+battery. Claim-relevant gates re-run locally at the candidate and green:
+`guide`, `client-bundle-metrology` (56 profiles), `snapback-codegen-package`,
+the full `snapback-cli` suite, `package-test-inventory`, and
+`agent-safe-publication`. Red and ticketed, none of them published bytes:
+`generated-artifacts` and `required-surface-builds` (committed demo
+artifacts stale — 29 of 33 backends regenerate clean, the other four are the
+signed trusted-composition-activation demos that need a signed re-mint) and
+`package-export-types` (two independent declaration-only causes). The
+published closure still cannot serve the admin console
+(`issues/20260809-published-runtime-omits-admin-console-bundle.md`), and the
+Linux runtime still carries the ICU soname dependency
+(`issues/20260808-linux-runtime-icu-dynamic-link-portability.md`); both
+predate this cut and neither was repaired by it.
+
 ## First-publication `latest` bootstrap lineage (2026-08-01)
 
 Author decision (Charlie, 2026-08-01): **record and move on.** No bootstrap
