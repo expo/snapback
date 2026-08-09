@@ -307,13 +307,17 @@ function searchReferenceInvalid(message, details = {}) {
 }
 
 // @ref LLP 0073#rust-owned-artifacts-and-operation-carrier — every generated
-// v1 search operation has the same closed request contract. Its digest is the
-// runtime discriminator that keeps client.search off arbitrary query refs;
-// the operation-specific result digest remains intentionally variable.
+// v1 search operation carries the same closed SearchRequestV1 contract. Its
+// dedicated digest is the runtime discriminator that keeps client.search off
+// arbitrary query refs; the complete args and operation-specific result
+// digests remain intentionally variable.
 // @ref LLP 0131#identity-and-hashing — cascade item 2: the pin is a
 // generated artifact from the descriptor pipeline (regenerate, never
 // hand-keep), and version skew refuses with the coded diagnostic naming the
 // expected and carried contract generations instead of an uncoded TypeError.
+// @ref LLP 0131#amendment-2026-08-09-typed-search-selector-witness-for-resource-scoped-references
+// — resource-scoped search refs bind the unchanged request grammar separately
+// from their additional required resource argument.
 function assertSearchFunctionReferenceV1(ref) {
   const requiredStrings = [
     'schemaVersion',
@@ -331,12 +335,18 @@ function assertSearchFunctionReferenceV1(ref) {
     || ref.artifactKind !== 'functionReference'
     || ref.kind !== 'Query'
     || requiredStrings.some((key) => typeof ref[key] !== 'string' || ref[key].length === 0)
+    || typeof ref.searchRequestContractHash !== 'string'
+    || ref.searchRequestContractHash.length === 0
+    || !(
+      ref.searchResourceArg === null
+      || (typeof ref.searchResourceArg === 'string' && ref.searchResourceArg.length > 0)
+    )
   ) {
     throw searchReferenceInvalid(
       'Snapback search requires a generated Query reference for SearchRequestV1',
     );
   }
-  if (ref.argsContractHash !== SEARCH_REQUEST_ARGS_CONTRACT_HASH) {
+  if (ref.searchRequestContractHash !== SEARCH_REQUEST_ARGS_CONTRACT_HASH) {
     throw searchReferenceInvalid(
       `search reference carries a different contract generation than this client expects `
         + `(expected ${SEARCH_REQUEST_ARGS_CONTRACT_GENERATION} ${SEARCH_REQUEST_ARGS_CONTRACT_HASH}); `
@@ -344,11 +354,16 @@ function assertSearchFunctionReferenceV1(ref) {
         + 'share one contract generation',
       {
         expectedGeneration: SEARCH_REQUEST_ARGS_CONTRACT_GENERATION,
+        expectedSearchRequestContractHash: SEARCH_REQUEST_ARGS_CONTRACT_HASH,
+        carriedSearchRequestContractHash: ref.searchRequestContractHash,
+        // Compatibility aliases retained for consumers of the original
+        // diagnostic shape; these now name the dedicated request witness.
         expectedArgsContractHash: SEARCH_REQUEST_ARGS_CONTRACT_HASH,
-        carriedArgsContractHash: ref.argsContractHash,
+        carriedArgsContractHash: ref.searchRequestContractHash,
       },
     );
   }
+  return ref.searchResourceArg;
 }
 
 function assertSearchQueryOutputV1(output) {
@@ -5600,15 +5615,16 @@ export class SnapbackClient {
     });
   }
 
-  async search(ref, {
-    query,
-    limit,
-    after,
-    userId,
-    readSet = [],
-    authorityCapture = null,
-  } = {}) {
-    assertSearchFunctionReferenceV1(ref);
+  async search(ref, options = {}) {
+    const resourceArg = assertSearchFunctionReferenceV1(ref);
+    const {
+      query,
+      limit,
+      after,
+      userId,
+      readSet = [],
+      authorityCapture = null,
+    } = options;
     if (!query || typeof query !== 'object' || !Array.isArray(query.all)) {
       throw new TypeError('Snapback search requires a structured SearchQueryAstV1');
     }
@@ -5622,12 +5638,13 @@ export class SnapbackClient {
       query,
       ...(limit !== undefined ? { limit } : {}),
       ...(after !== undefined ? { after } : {}),
+      ...(resourceArg === null ? {} : { [resourceArg]: options[resourceArg] }),
     };
     const output = await this.query(ref, {
       args,
-      userId,
-      readSet,
-      authorityCapture,
+      userId: resourceArg === 'userId' ? undefined : userId,
+      readSet: resourceArg === 'readSet' ? [] : readSet,
+      authorityCapture: resourceArg === 'authorityCapture' ? null : authorityCapture,
     });
     assertSearchQueryOutputV1(output);
     const cursor = output?.cursor ?? null;

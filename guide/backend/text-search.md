@@ -129,6 +129,14 @@ the source table, so consumers neither cast stored values nor treat arbitrary
 keys as present. Optional stored source fields are materialized as present
 `null` values and therefore generate `T | null`, matching runtime storage.
 
+For a membership-visible index, pass its generated `resourceArg` beside
+`query` in the same options object, for example
+`client.search(api.searchMessages, { roomId, query })`. The generated type
+requires that resource key. The reference binds the shared search-request
+grammar separately from the complete operation arguments, so the typed
+wrapper accepts same-generation plain and resource-scoped references while
+the ordinary closed argument validator still checks the resource value.
+
 ```ts source=demos/signal-desk/src/backends/snapback.ts
   async searchIncidents(term: string) {
     const result = await this.client.search(api.searchIncidents, {
