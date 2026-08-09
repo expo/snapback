@@ -2833,6 +2833,7 @@ mod tests {
             app_id: "host-op-sessions".to_owned(),
             auth: Some(crate::manifest::AuthManifest {
                 mode: crate::manifest::AuthMode::Sessions,
+                agents: None,
             }),
             required_capabilities: vec![
                 crate::manifest::TargetCapabilityId::AuthSessionsV1.to_string(),

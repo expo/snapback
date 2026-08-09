@@ -786,11 +786,29 @@
     },
     {
       "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/agent-invitations",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
       "credential_resolution": "AgentCredentialBody",
       "inputSchema": null,
       "method": "POST",
       "outputSchema": null,
       "path": "/auth/agents/pair",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "CreationInvitationBody",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/auth/agents/register",
       "path_policy": "Public"
     },
     {

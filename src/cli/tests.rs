@@ -1360,6 +1360,7 @@
             app_id: "startup-auth-test".to_owned(),
             auth: Some(AuthManifest {
                 mode: AuthMode::Sessions,
+                agents: None,
             }),
             required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
             schema_hash: Some(digest(SCHEMA_V1_PREFIX, 'a')),

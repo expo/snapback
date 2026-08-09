@@ -530,7 +530,7 @@ mod tests {
             .expect("capability-bearing resource");
         assert_eq!(
             agent_principals["description"],
-            "Status: current; maturity: shipped; capabilities: auth.agent-principals."
+            "Status: current; maturity: shipped; capabilities: auth.agent-principals, auth.agent-registration."
         );
         let identity = guide_identity(&manifest).unwrap();
         assert!(resources.iter().all(|resource| {

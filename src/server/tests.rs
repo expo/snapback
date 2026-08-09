@@ -351,11 +351,11 @@
         EnsureAppMode, LiveInvalidationAdmission, LiveSubscribeInput, LocalSnapback, StagedAction,
     };
     use crate::manifest::{
-        ActionPlan, ActionReturnValue, ActionStep, AuthInput, AuthManifest, AuthMode,
+        ActionPlan, ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, AuthInput, AuthManifest, AuthMode,
         AuthRequirement, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
         CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, FieldManifest, FieldType,
         FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
-        HandlerInput, HandlerPlan, IbexModule, MutationAcknowledgementRequest, MutationPlan,
+        HandlerInput, HandlerPlan, IbexModule, InvitedBy, MutationAcknowledgementRequest, MutationPlan,
         MutationStep, QueryPlan, ReturnValue, SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest,
         SeedData, TableManifest, TargetCapabilityId, ValueExpr,
     };
@@ -1587,6 +1587,7 @@
             app_id: "auth-http-fixture".to_owned(),
             auth: Some(AuthManifest {
                 mode: AuthMode::Sessions,
+                agents: None,
             }),
             required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
             schema_hash: Some(format!("{SCHEMA_V1_PREFIX}{}", "1".repeat(64))),
@@ -2488,6 +2489,14 @@ globalThis.__snapbackHandlers = {
         predecessor_functions: FunctionManifest,
         clock: Option<Arc<ManualServerAuthClock>>,
     ) -> AppState {
+        sessions_activation_server_fixture_with_agents(predecessor_functions, clock, None)
+    }
+
+    fn sessions_activation_server_fixture_with_agents(
+        predecessor_functions: FunctionManifest,
+        clock: Option<Arc<ManualServerAuthClock>>,
+        agents: Option<AgentsManifest>,
+    ) -> AppState {
         let activation_now_ms = clock
             .as_ref()
             .map_or_else(super::now_millis, |clock| clock.epoch_ms());
@@ -2497,6 +2506,7 @@ globalThis.__snapbackHandlers = {
             app_id: "auth-activation-fixture".to_owned(),
             auth: Some(AuthManifest {
                 mode: AuthMode::Sessions,
+                agents,
             }),
             required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
             schema_hash: Some(format!("{SCHEMA_V1_PREFIX}{}", "1".repeat(64))),
@@ -2567,6 +2577,9 @@ globalThis.__snapbackHandlers = {
             )),
             "activation functions must publish: {diagnostics:?}"
         );
+        // Scope bases are left to the caller to reconcile (matching
+        // finite_authority_matrix_fixture): tests that seed `_auth_scope_bases`
+        // directly must start from an empty table.
         activate_catalog(
             snapback.auth_database_mut(),
             keyring.as_ref(),
@@ -2603,7 +2616,11 @@ globalThis.__snapbackHandlers = {
             .install_auth_invalidation(issuer.clone(), authorization, version_stream)
             .expect("install activation invalidation state");
 
-        let mut context = bound_loopback_context();
+        // This fixture exercises the in-process Router and never opens a socket.
+        // Record the listener-owned posture directly so it remains runnable in
+        // hermetic test sandboxes that deny bind(2).
+        let mut context = ServerContext::new("127.0.0.1", 43_621, true);
+        context.record_bound_address("127.0.0.1:43621".parse().unwrap());
         context.profile = ServerProfile::Test;
         context.admin_token = Some("auth-http-admin".to_owned());
         AppState::from_snapback(snapback, context)
@@ -2624,6 +2641,19 @@ globalThis.__snapbackHandlers = {
         })
         .await
         .expect("construct activation fixture off the async workers")
+    }
+
+    async fn sessions_activation_server_fixture_with_agents_async(agents: AgentsManifest) -> AppState {
+        tokio::task::spawn_blocking(move || {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            sessions_activation_server_fixture_with_agents(
+                activation_functions('2', false),
+                None,
+                Some(agents),
+            )
+        })
+        .await
+        .expect("construct agent-registration fixture off the async workers")
     }
 
     fn finite_authority_matrix_functions() -> FunctionManifest {
@@ -4145,6 +4175,78 @@ globalThis.__snapbackHandlers = {
 
     fn session_auth_http_request(uri: &str, body: Vec<u8>, bearer: &str) -> Request<Body> {
         let mut request = auth_http_request("POST", uri, body, true, None, None);
+        offer_auth_client_protocol(&mut request);
+        request.headers_mut().insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {bearer}")).expect("bearer header"),
+        );
+        request
+    }
+
+    fn agent_registration_http_request(body: Value) -> Request<Body> {
+        let mut request = auth_http_request(
+            "POST",
+            "/auth/agents/register",
+            serde_json::to_vec(&body).expect("agent registration body"),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut request);
+        request
+    }
+
+    fn agent_policy(mode: AgentsMode, invited_by: InvitedBy) -> AgentsManifest {
+        AgentsManifest { mode, invited_by }
+    }
+
+    async fn mint_user_agent_invitation(state: &AppState, router: &SnapbackApp, bearer: &str) -> Value {
+        let challenge = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/step-up/request",
+                serde_json::to_vec(&json!({ "operation": "agentInvitation" })).unwrap(),
+                bearer,
+            ))
+            .await
+            .expect("request agent-invitation step-up");
+        assert_eq!(challenge.status(), StatusCode::OK);
+        let challenge = response_json(challenge).await;
+        let challenge_id = challenge["challengeId"]
+            .as_str()
+            .expect("agent-invitation challenge id")
+            .to_owned();
+        let provider = state.auth_provider.as_ref().expect("test auth provider");
+        let mailbox = serde_json::to_value(
+            provider
+                .mailbox_entry(&challenge_id)
+                .await
+                .expect("agent-invitation mailbox entry"),
+        )
+        .unwrap();
+        let code = mailbox["code"]
+            .as_str()
+            .expect("agent-invitation step-up code");
+        let minted = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/agent-invitations",
+                serde_json::to_vec(&json!({
+                    "stepUp": { "challengeId": challenge_id, "code": code }
+                }))
+                .unwrap(),
+                bearer,
+            ))
+            .await
+            .expect("mint user agent invitation");
+        let status = minted.status();
+        let minted = response_json(minted).await;
+        assert_eq!(status, StatusCode::OK, "{minted}");
+        minted
+    }
+
+    fn session_auth_get_request(uri: &str, bearer: &str) -> Request<Body> {
+        let mut request = auth_http_request("GET", uri, Vec::new(), false, None, None);
         offer_auth_client_protocol(&mut request);
         request.headers_mut().insert(
             header::AUTHORIZATION,
@@ -7282,7 +7384,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
         // Rotates with the embedded todo demo's generated artifacts; the
         // stored-enum codegen change is the 2026-08-08 rotation.
-        assert_eq!(details["artifactHash"], "sha256:5cd154d7fce7fe93");
+        assert_eq!(details["artifactHash"], "sha256:f43d03078fc90366");
         assert!(
             details["localMissSummary"]["sameMissCount"]
                 .as_u64()
@@ -10914,6 +11016,491 @@ globalThis.__snapbackHandlers = {
         assert_eq!(inspection.live_tokens, 0);
         assert_eq!(inspection.retirement_reasons["session-ended"], 1);
         assert!(bytes.is_empty());
+    }
+
+    #[tokio::test]
+    async fn open_registration_mints_exactly_one_credential_and_a_kind_agent_principal() {
+        let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
+            AgentsMode::Open,
+            InvitedBy::Operators,
+        ))
+        .await;
+        let router = app(state.clone());
+        let response = router
+            .oneshot(agent_registration_http_request(json!({
+                "displayName": "Open Agent",
+                "operatorContact": "ops@example.com",
+            })))
+            .await
+            .expect("open registration response");
+        let status = response.status();
+        let registered = response_json(response).await;
+        assert_eq!(status, StatusCode::OK, "{registered}");
+        let user_id = registered["userId"].as_str().unwrap().to_owned();
+        let credential_id = registered["credentialId"].as_str().unwrap().to_owned();
+        assert!(crate::ids::looks_like(crate::ids::Kind::User, &user_id));
+        assert!(crate::ids::looks_like(
+            crate::ids::Kind::AgentCredential,
+            &credential_id,
+        ));
+        assert_eq!(registered["generation"], 1);
+        assert!(
+            registered["credential"]
+                .as_str()
+                .unwrap()
+                .starts_with("sbac_")
+        );
+
+        let inspected = with_snapback(&state.snapback, move |snapback| {
+            snapback.auth_database_mut().with_auth_read(|connection| {
+                let principal: (String, Option<String>, String) = connection.query_row(
+                    "SELECT kind, owner_user_id, registration_provenance
+                         FROM _auth_users WHERE id = ?1",
+                    rusqlite::params![user_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )?;
+                let credentials: i64 = connection.query_row(
+                    "SELECT COUNT(*) FROM _auth_agent_credentials WHERE user_id = ?1",
+                    rusqlite::params![user_id],
+                    |row| row.get(0),
+                )?;
+                let identities: i64 = connection.query_row(
+                    "SELECT COUNT(*) FROM _auth_identities
+                         WHERE user_id = ?1 AND provider = 'agent-credential'",
+                    rusqlite::params![user_id],
+                    |row| row.get(0),
+                )?;
+                Ok::<_, SnapbackError>((principal, credentials, identities))
+            })
+        })
+        .await
+        .unwrap();
+        assert_eq!(inspected.0.0, "agent");
+        assert_eq!(inspected.0.1, None);
+        let provenance = serde_json::from_str::<Value>(&inspected.0.2).unwrap();
+        assert_eq!(provenance["source"], "self-register");
+        assert_eq!(provenance["mode"], "open");
+        assert_eq!(provenance["profile"], "test");
+        assert!(
+            provenance["createdAtMs"]
+                .as_u64()
+                .is_some_and(|value| value > 0)
+        );
+        assert_eq!((inspected.1, inspected.2), (1, 1));
+    }
+
+    #[tokio::test]
+    async fn registration_refuses_under_disabled_and_dev_modes() {
+        let disabled_state = sessions_activation_server_fixture_async().await;
+        let disabled = app(disabled_state)
+            .oneshot(agent_registration_http_request(json!({})))
+            .await
+            .unwrap();
+        assert_eq!(
+            response_json(disabled).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED"
+        );
+
+        let dev_state = AppState::detached(LocalSnapback::memory().expect("dev registration"));
+        let dev = app(dev_state)
+            .oneshot(agent_registration_http_request(json!({})))
+            .await
+            .unwrap();
+        assert_eq!(
+            response_json(dev).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
+        );
+    }
+
+    #[tokio::test]
+    async fn registration_route_rejects_an_authorization_header_and_owns_an_exact_throttle_budget()
+    {
+        assert_eq!(
+            super::agent_route_throttle_limit("/auth/agents/register"),
+            Some(10)
+        );
+        let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
+            AgentsMode::Open,
+            InvitedBy::Operators,
+        ))
+        .await;
+        let mut request = agent_registration_http_request(json!({}));
+        request.headers_mut().insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer sbac_not-accepted-here"),
+        );
+        let response = app(state).oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response_json(response).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_REQUEST_INVALID"
+        );
+    }
+
+    #[tokio::test]
+    async fn user_minted_invitation_requires_step_up_and_is_single_use() {
+        let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
+            AgentsMode::Invited,
+            InvitedBy::Users,
+        ))
+        .await;
+        let owner = mint_test_credential(&state, "agent-owner@example.com").await;
+        let owner_id = owner["session"]["userId"].as_str().unwrap().to_owned();
+        let bearer = owner["token"].as_str().unwrap().to_owned();
+        let router = app(state.clone());
+        let bare = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/agent-invitations",
+                br#"{}"#.to_vec(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(
+            response_json(bare).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_STEP_UP_REQUIRED"
+        );
+
+        let invitation = mint_user_agent_invitation(&state, &router, &bearer).await;
+        let invitation_id = invitation["invitationId"].as_str().unwrap().to_owned();
+        let secret = invitation["invitation"].as_str().unwrap().to_owned();
+        assert!(secret.starts_with("sbagi_"));
+        let first = router
+            .clone()
+            .oneshot(agent_registration_http_request(
+                json!({ "invitation": secret }),
+            ))
+            .await
+            .unwrap();
+        let first_status = first.status();
+        let first = response_json(first).await;
+        assert_eq!(first_status, StatusCode::OK, "{first}");
+        let agent_id = first["userId"].as_str().unwrap().to_owned();
+
+        let second = router
+            .clone()
+            .oneshot(agent_registration_http_request(
+                json!({ "invitation": secret }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(
+            response_json(second).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_AGENT_INVITATION_INVALID"
+        );
+        let invitation_row = with_snapback(&state.snapback, move |snapback| {
+            snapback.auth_database_mut().with_auth_read(|connection| {
+                connection
+                    .query_row(
+                        "SELECT created_by, consumed_by FROM _auth_agent_invitations WHERE id = ?1",
+                        rusqlite::params![invitation_id],
+                        |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
+                    )
+                    .map_err(SnapbackError::from)
+            })
+        })
+        .await
+        .unwrap();
+        assert_eq!(invitation_row, (owner_id, Some(agent_id)));
+    }
+
+    #[tokio::test]
+    async fn invited_registration_records_the_minting_user_as_owner() {
+        let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
+            AgentsMode::Invited,
+            InvitedBy::Users,
+        ))
+        .await;
+        // This test pairs the registered agent under the Query tier; seed the
+        // scope bases the fixture leaves to its caller.
+        with_snapback(&state.snapback, |snapback| {
+            snapback
+                .auth_database_mut()
+                .reconcile_auth_scope_bases(&activation_functions('2', false))
+        })
+        .await
+        .unwrap();
+        let owner = mint_test_credential(&state, "owned-agent@example.com").await;
+        let owner_id = owner["session"]["userId"].as_str().unwrap().to_owned();
+        let bearer = owner["token"].as_str().unwrap().to_owned();
+        let router = app(state.clone());
+        let invitation = mint_user_agent_invitation(&state, &router, &bearer).await;
+        let registered = router
+            .clone()
+            .oneshot(agent_registration_http_request(json!({
+                "invitation": invitation["invitation"],
+            })))
+            .await
+            .unwrap();
+        let registered = response_json(registered).await;
+        let agent_id = registered["userId"].as_str().unwrap().to_owned();
+        let credential = registered["credential"].as_str().unwrap().to_owned();
+        let owner_recorded = with_snapback(&state.snapback, {
+            let agent_id = agent_id.clone();
+            move |snapback| snapback.auth_database_mut().agent_owner(&agent_id)
+        })
+        .await
+        .unwrap();
+        assert_eq!(owner_recorded, Some(owner_id));
+
+        let pairing = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/pairing-codes",
+                br#"{}"#.to_vec(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        let pairing = response_json(pairing).await;
+        let mut pair_request = auth_http_request(
+            "POST",
+            "/auth/agents/pair",
+            serde_json::to_vec(&json!({
+                "credential": credential,
+                "pairingRequestId": pairing["pairingRequestId"],
+                "pairingCode": pairing["pairingCode"],
+                "requestedScopes": [{ "tier": "query" }],
+            }))
+            .unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut pair_request);
+        let paired = router.clone().oneshot(pair_request).await.unwrap();
+        let paired_status = paired.status();
+        let paired = response_json(paired).await;
+        assert_eq!(paired_status, StatusCode::OK, "{paired}");
+        let listed = router
+            .oneshot(session_auth_get_request("/auth/grant-requests", &bearer))
+            .await
+            .unwrap();
+        let listed = response_json(listed).await;
+        assert_eq!(listed.as_array().unwrap().len(), 1);
+        assert_eq!(listed[0]["agentUserId"], agent_id);
+        assert_eq!(listed[0]["ownerAssumption"], "ownedByGrantor");
+    }
+
+    #[tokio::test]
+    async fn a_wrong_class_secret_is_a_typed_mismatch_at_registration() {
+        let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
+            AgentsMode::Invited,
+            InvitedBy::Users,
+        ))
+        .await;
+        let router = app(state);
+        let recovery = crate::auth::crypto::RecoveryInvitation::generate(&OsRandom)
+            .unwrap()
+            .expose_secret()
+            .to_owned();
+        let credential = AgentCredential::generate(&OsRandom)
+            .unwrap()
+            .expose_secret()
+            .to_owned();
+        for wrong in [recovery, credential] {
+            let response = router
+                .clone()
+                .oneshot(agent_registration_http_request(
+                    json!({ "invitation": wrong }),
+                ))
+                .await
+                .unwrap();
+            assert_eq!(
+                response_json(response).await["diagnostic"]["code"],
+                "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn registered_agent_completes_the_full_pairing_journey() {
+        let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
+            AgentsMode::Open,
+            InvitedBy::Operators,
+        ))
+        .await;
+        // The pairing journey requests the Query tier and expects it to expand to
+        // the activation function set (asserted as fn:listItems below); seed the
+        // scope bases the fixture now leaves to its caller.
+        with_snapback(&state.snapback, |snapback| {
+            snapback
+                .auth_database_mut()
+                .reconcile_auth_scope_bases(&activation_functions('2', false))
+        })
+        .await
+        .unwrap();
+        let owner = mint_test_credential(&state, "pairing-owner@example.com").await;
+        let bearer = owner["token"].as_str().unwrap().to_owned();
+        let router = app(state.clone());
+        let registered = router
+            .clone()
+            .oneshot(agent_registration_http_request(
+                json!({ "displayName": "Journey Agent" }),
+            ))
+            .await
+            .unwrap();
+        let registered = response_json(registered).await;
+        let agent_id = registered["userId"].as_str().unwrap().to_owned();
+        let credential = registered["credential"].as_str().unwrap().to_owned();
+        let pairing = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/auth/pairing-codes",
+                br#"{}"#.to_vec(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        let pairing = response_json(pairing).await;
+        let pairing_request_id = pairing["pairingRequestId"].as_str().unwrap().to_owned();
+        let mut pair_request = auth_http_request(
+            "POST",
+            "/auth/agents/pair",
+            serde_json::to_vec(&json!({
+                "credential": credential,
+                "pairingRequestId": pairing_request_id,
+                "pairingCode": pairing["pairingCode"],
+                "requestedScopes": [{ "tier": "query" }],
+            }))
+            .unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut pair_request);
+        let paired = router.clone().oneshot(pair_request).await.unwrap();
+        let paired_status = paired.status();
+        let paired = response_json(paired).await;
+        assert_eq!(paired_status, StatusCode::OK, "{paired}");
+        assert_eq!(paired["agentUserId"], agent_id);
+
+        let listed = router
+            .clone()
+            .oneshot(session_auth_get_request("/auth/grant-requests", &bearer))
+            .await
+            .unwrap();
+        let listed = response_json(listed).await;
+        assert_eq!(listed[0]["requestId"], pairing_request_id);
+        let approved = router
+            .clone()
+            .oneshot(session_auth_http_request(
+                &format!("/auth/grant-requests/{pairing_request_id}/approve"),
+                br#"{}"#.to_vec(),
+                &bearer,
+            ))
+            .await
+            .unwrap();
+        let approved_status = approved.status();
+        let approved = response_json(approved).await;
+        assert_eq!(approved_status, StatusCode::OK, "{approved}");
+        let grant_id = approved["grantId"].as_str().unwrap().to_owned();
+
+        let mut token_request = auth_http_request(
+            "POST",
+            "/auth/agents/token",
+            serde_json::to_vec(&json!({
+                "credential": credential,
+                "grantId": grant_id,
+            }))
+            .unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut token_request);
+        let token = router.clone().oneshot(token_request).await.unwrap();
+        let token_status = token.status();
+        let token = response_json(token).await;
+        assert_eq!(token_status, StatusCode::OK, "{token}");
+        assert!(token["token"].as_str().unwrap().starts_with("sbagt_"));
+        assert_eq!(token["actorUserId"], agent_id);
+        assert_eq!(token["effectiveUserId"], owner["session"]["userId"]);
+        assert_eq!(token["scopes"][0]["fn"], "fn:listItems");
+        let scoped_token = token["token"].as_str().unwrap().to_owned();
+
+        let query = Request::builder()
+            .method("POST")
+            .uri("/query/listItems")
+            .header(header::CONTENT_TYPE, "application/json")
+            .header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
+            .header("x-snapback-auth-client-protocol", "1")
+            .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+            .body(Body::from(r#"{"args":{}}"#))
+            .unwrap();
+        let query = router.clone().oneshot(query).await.unwrap();
+        assert_eq!(query.status(), StatusCode::OK);
+
+        let mut release = auth_http_request(
+            "POST",
+            "/auth/agents/token/release",
+            serde_json::to_vec(&json!({ "token": scoped_token })).unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut release);
+        assert_eq!(
+            router.oneshot(release).await.unwrap().status(),
+            StatusCode::NO_CONTENT
+        );
+    }
+
+    #[tokio::test]
+    async fn deactivated_agent_cannot_re_register_or_reuse_its_credential() {
+        let state = sessions_activation_server_fixture_with_agents_async(agent_policy(
+            AgentsMode::Open,
+            InvitedBy::Operators,
+        ))
+        .await;
+        let router = app(state.clone());
+        let registered = router
+            .clone()
+            .oneshot(agent_registration_http_request(json!({})))
+            .await
+            .unwrap();
+        let registered = response_json(registered).await;
+        let agent_id = registered["userId"].as_str().unwrap().to_owned();
+        let credential = registered["credential"].as_str().unwrap().to_owned();
+        let now_ms = state.auth_provider.as_ref().unwrap().now_ms();
+        with_snapback(&state.snapback, {
+            let agent_id = agent_id.clone();
+            move |snapback| {
+                let manifest = snapback.auth_database_mut().schema().clone();
+                snapback
+                    .auth_database_mut()
+                    .deactivate_agent(&agent_id, now_ms, &manifest)
+            }
+        })
+        .await
+        .unwrap();
+
+        let mut re_register = agent_registration_http_request(json!({}));
+        re_register.headers_mut().insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {credential}")).unwrap(),
+        );
+        let re_register = router.clone().oneshot(re_register).await.unwrap();
+        assert_eq!(
+            response_json(re_register).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_REQUEST_INVALID"
+        );
+
+        let mut rotate = auth_http_request(
+            "POST",
+            "/auth/agents/rotate",
+            serde_json::to_vec(&json!({ "credential": credential })).unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut rotate);
+        let rotate = router.oneshot(rotate).await.unwrap();
+        assert_eq!(
+            response_json(rotate).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_AGENT_DEACTIVATED"
+        );
     }
 
     #[tokio::test]
@@ -14626,6 +15213,12 @@ globalThis.__snapbackHandlers = {
     ];
 
     const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
+        // LLP 0204 S0 agent registration/invitation — malformed or ill-formed
+        // request inputs (bad/expired invitation, wrong mode, invalid manifest).
+        "SNAPBACK_AUTH_AGENT_INVITATION_INVALID",
+        "SNAPBACK_AUTH_AGENT_INVITATION_REQUIRED",
+        "SNAPBACK_AUTH_AGENT_INVITATION_UNEXPECTED",
+        "SNAPBACK_AUTH_AGENT_POLICY_MODE_INVALID",
         // LLP 0158/0163/0164/0165 experimental control-plane request shapes.
         "SNAPBACK_BRANCH_NESTING_UNSUPPORTED",
         "SNAPBACK_BRANCH_OPERATION_KIND_UNSUPPORTED",
@@ -15076,6 +15669,12 @@ globalThis.__snapbackHandlers = {
     ];
 
     const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
+        // LLP 0204 S0 agent registration/invitation — policy refusals: the
+        // surface is off, the caller may not mint, or the invitation is fenced.
+        "SNAPBACK_AUTH_AGENT_INVITATIONS_DISABLED",
+        "SNAPBACK_AUTH_AGENT_INVITATION_PROFILE_MISMATCH",
+        "SNAPBACK_AUTH_AGENT_INVITATION_USER_INVALID",
+        "SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED",
         // LLP 0158/0163/0164 authorization and sealed-authority refusals.
         "SNAPBACK_BRANCH_AUTHORITY_DENIED",
         "SNAPBACK_BRANCH_EGRESS_DENIED",
@@ -15364,6 +15963,8 @@ globalThis.__snapbackHandlers = {
     ];
 
     const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
+        // LLP 0204 S0 — per-user live-invitation cap (a quota, not a fault).
+        "SNAPBACK_AUTH_AGENT_INVITATION_CAP",
         // Live-object, concurrent-WAL, finite-range, and contention capacity.
         "SNAPBACK_BRANCH_LIVE_LIMIT_EXCEEDED",
         "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED",
@@ -15905,6 +16506,13 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
         "SNAPBACK_MAINTENANCE_JOURNAL_PRUNE_FAILED",
         "SNAPBACK_MAINTENANCE_PERMISSION_RESOLUTION_FAILED",
+        // Genuine server-side faults / non-served advisories keep the fail-safe
+        // 500 (LLP 0032 S5.D10). Client-fault registration/invitation codes are
+        // allow-listed to 4xx below in their own families.
+        "SNAPBACK_AUTH_AGENT_INVITATION_COMMIT_UNCERTAIN",
+        "SNAPBACK_AUTH_AGENT_INVITATION_SECRET_UNAVAILABLE",
+        "SNAPBACK_AUTH_AGENT_ONBOARDING_PROD_UNAVAILABLE",
+        "SNAPBACK_AUTH_AGENT_REGISTRATION_COMMIT_UNCERTAIN",
         "SNAPBACK_AUTH_AGENT_CREDENTIAL_STATE_CORRUPT",
         "SNAPBACK_MEMBERSHIP_FINAL_STATE_SCHEMA_INVALID",
         "SNAPBACK_MEMBERSHIP_PROVENANCE_ROW_INVALID",
@@ -19729,7 +20337,9 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             agent_paths.keys().copied().collect::<Vec<_>>(),
             vec![
+                "/auth/agent-invitations",
                 "/auth/agents/pair",
+                "/auth/agents/register",
                 "/auth/agents/revoke-self",
                 "/auth/agents/rotate",
                 "/auth/agents/token",
@@ -19745,6 +20355,8 @@ globalThis.__snapbackHandlers = {
         );
         assert_eq!(agent_paths["/auth/agents/token"], 600);
         assert_eq!(agent_paths["/auth/agents/token/release"], 240);
+        assert_eq!(agent_paths["/auth/agents/register"], 10);
+        assert_eq!(agent_paths["/auth/agent-invitations"], 10);
 
         let mut state = ConnectionRegistryState::default();
         let start = Instant::now();

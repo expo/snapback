@@ -45,6 +45,8 @@ const isUserIdentifier = (value) => {
   return folded !== '_auth' && !folded.startsWith('_auth_');
 };
 const AUTH_MODES = new Set(['dev', 'sessions']);
+const AGENT_REGISTRATION_MODES = new Set(['disabled', 'invited', 'open']);
+const AGENT_INVITERS = new Set(['operators', 'users']);
 const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
 const AUTHORIZATION_DIMENSIONS = new Set([
   'userId',
@@ -1386,9 +1388,22 @@ export function defineSchema(tables, options = {}) {
   // unknown members on the otherwise additive schema authoring object.
   if (options.auth !== undefined) {
     assert(options.auth && typeof options.auth === 'object' && !Array.isArray(options.auth), 'defineSchema option "auth" must be an object');
-    assert(Object.keys(options.auth).length === 1 && Object.hasOwn(options.auth, 'mode'), 'defineSchema option "auth" accepts only mode');
+    exactObject(options.auth, 'defineSchema auth', new Set(['mode', 'agents']));
+    assert(Object.hasOwn(options.auth, 'mode'), 'defineSchema option "auth" requires mode');
     assert(AUTH_MODES.has(options.auth.mode), 'defineSchema auth.mode must be dev or sessions');
-    auth = { mode: options.auth.mode };
+    let agents;
+    if (options.auth.agents !== undefined) {
+      assert(options.auth.mode === 'sessions', 'defineSchema auth.agents requires auth.mode sessions');
+      exactObject(options.auth.agents, 'defineSchema auth.agents', new Set(['mode', 'invitedBy']));
+      const mode = options.auth.agents.mode ?? 'disabled';
+      const invitedBy = options.auth.agents.invitedBy ?? 'operators';
+      assert(AGENT_REGISTRATION_MODES.has(mode), 'defineSchema auth.agents.mode must be disabled, invited, or open');
+      assert(AGENT_INVITERS.has(invitedBy), 'defineSchema auth.agents.invitedBy must be operators or users');
+      agents = { mode, invitedBy };
+    }
+    // @ref LLP 0055#registration — authoring preserves an explicit closed
+    // sessions-only registration policy; omission remains disabled.
+    auth = { mode: options.auth.mode, ...(agents ? { agents } : {}) };
   }
   if (options.requiredCapabilities !== undefined) {
     assert(Array.isArray(options.requiredCapabilities), 'defineSchema requiredCapabilities must be an array');

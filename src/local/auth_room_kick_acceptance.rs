@@ -974,6 +974,7 @@ fn game_schema() -> SchemaManifest {
         app_id: APP_ID.to_owned(),
         auth: Some(AuthManifest {
             mode: AuthMode::Sessions,
+            agents: None,
         }),
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
         schema_hash: Some(game_schema_hash()),

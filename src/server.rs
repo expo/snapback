@@ -9,7 +9,7 @@ use crate::auth::coordinator::{
     ConnectionSessionThrottleKey, IssuanceFinish, RevocationFinish, RotationFinish,
 };
 use crate::auth::crypto::{
-    AgentCredential, CredentialClass, PairingCode, ScopedToken, SessionBearer, classify_credential,
+    AgentCredential, CreationInvitation, CredentialClass, PairingCode, ScopedToken, SessionBearer, classify_credential,
     dispatch_credential_class,
 };
 use crate::auth::descriptor::descriptor_for_resolved_authority;
@@ -69,7 +69,7 @@ use crate::local::{
     StagedNestedMutation, live_stream_text, live_stream_text_with_server_observed,
 };
 use crate::manifest::{
-    ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode, AuthRequirement,
+    ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ArtifactGeneration, AuthInput, AuthMode, AuthRequirement,
     AuthorityDescriptor, CtxAnswerLedger, FiniteQueryOutput, FiniteQueryRequest,
     FunctionCallRequest, FunctionInvocationFacts, FunctionKind, FunctionManifest, FunctionResponse,
     FunctionRuntime, HandlerInput, MutationAcknowledgementRequest, MutationAcknowledgementResponse,
@@ -6597,6 +6597,8 @@ const AGENT_ROUTE_THROTTLE_SOURCE_CAP: usize = 4_096;
 /// throttle budget, independent of its credential class.
 fn agent_route_throttle_limit(path: &str) -> Option<usize> {
     match path {
+        "/auth/agents/register" => Some(10),
+        "/auth/agent-invitations" => Some(10),
         "/auth/pairing-codes" => Some(20),
         "/auth/agents/pair" => Some(60),
         "/auth/grant-requests" => Some(120),
@@ -6997,6 +6999,7 @@ pub enum CredentialResolution {
     /// A closed email-code challenge body proves authority only to exchange
     /// that challenge for a fresh credential; it is never a caller identity.
     ChallengeProof,
+    CreationInvitationBody,
     AgentCredentialBody,
     AgentFamilySecretBody,
     /// An exact scoped token carried in a closed destroy-only request body.
@@ -7383,6 +7386,7 @@ impl RouteSpec {
                 self.credential_resolution,
                 CredentialResolution::None
                     | CredentialResolution::ChallengeProof
+                    | CredentialResolution::CreationInvitationBody
                     | CredentialResolution::AgentCredentialBody
                     | CredentialResolution::AgentFamilySecretBody
                     | CredentialResolution::ScopedTokenReleaseBody
@@ -7457,6 +7461,15 @@ impl RouteSpec {
         {
             return fail(
                 "agent credential body must be public, install no caller, and return only a credential-secret response",
+            );
+        }
+        if self.credential_resolution == CredentialResolution::CreationInvitationBody
+            && (self.path_policy != RoutePolicy::Public
+                || self.invocation_authority != InvocationAuthority::None
+                || self.response_sensitivity != ResponseSensitivity::CredentialSecret)
+        {
+            return fail(
+                "creation invitation body must be public, install no caller, and return only a credential-secret response",
             );
         }
         if self.credential_resolution == CredentialResolution::AgentFamilySecretBody
@@ -7572,6 +7585,7 @@ impl RouteSpec {
                 sessions.credential_resolution,
                 CredentialResolution::None
                     | CredentialResolution::ChallengeProof
+                    | CredentialResolution::CreationInvitationBody
                     | CredentialResolution::AgentCredentialBody
                     | CredentialResolution::AgentFamilySecretBody
                     | CredentialResolution::ScopedTokenReleaseBody
@@ -8012,6 +8026,22 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             ),
             post(auth_step_up_request).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
+        // @ref LLP 0055#routes-and-credential-classes — the owner invitation
+        // minter is session-only, step-up-bound in its handler, and returns a
+        // one-time secret under its own route budget.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/agent-invitations",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_agent_invitation).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
         RegisteredRoute::new(
             RouteSpec::new(
                 "POST",
@@ -8037,6 +8067,19 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::CredentialSecret,
             ),
             post(auth_agent_pair).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/auth/agents/register",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::CreationInvitationBody,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(auth_agent_register).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             RouteSpec::new(
@@ -9434,6 +9477,7 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
             Some(InvocationSource::PushTokenRegistry)
         }
         "/auth/step-up/request"
+        | "/auth/agent-invitations"
         | "/auth/pairing-codes"
         | "/auth/grant-requests"
         | "/auth/grant-requests/{id}/approve"
@@ -11096,14 +11140,23 @@ async fn enforce_registered_route_policy(
         && spec.path.starts_with("/auth/")
         && spec.path != "/auth/session"
     {
+        // @ref LLP 0055#registration — the sessions-only registration surface
+        // has one stable policy-unavailable refusal when the app is in dev;
+        // it must not be confused with a malformed or disabled agents policy.
+        let (code, message) = if spec.path == "/auth/agents/register" {
+            (
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "agent credential routes require active sessions mode",
+            )
+        } else {
+            (
+                "SNAPBACK_AUTH_MODE_DEV",
+                "the session provider is unavailable while auth mode is dev",
+            )
+        };
         return apply_registered_response_controls(
             effective,
-            ApiError::from(SnapbackError::error(
-                "SNAPBACK_AUTH_MODE_DEV",
-                "auth",
-                "the session provider is unavailable while auth mode is dev",
-            ))
-            .into_response(),
+            ApiError::from(SnapbackError::error(code, "auth", message)).into_response(),
         );
     }
     let mut route_admission = match acquire_registered_route_admission(spec, &runtime) {
@@ -12207,6 +12260,20 @@ struct AgentPairRequest {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AgentRegistrationRequest {
+    display_name: Option<String>,
+    operator_contact: Option<String>,
+    invitation: Option<SecretInput>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AgentInvitationRequest {
+    step_up: Option<StepUpProofRequest>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct GrantApprovalRequest {
     requested_ttl_ms: Option<u64>,
     step_up: Option<StepUpProofRequest>,
@@ -12226,6 +12293,7 @@ enum StepUpRequest {
         #[serde(rename = "requestId")]
         request_id: String,
     },
+    AgentInvitation {},
 }
 
 struct PairingCodeSecretResponse {
@@ -12264,6 +12332,25 @@ impl Serialize for AgentCredentialSecretResponse {
         state.serialize_field("userId", &self.user_id)?;
         state.serialize_field("generation", &self.generation)?;
         state.serialize_field("credential", self.credential.expose_secret())?;
+        state.end()
+    }
+}
+
+struct AgentInvitationSecretResponse {
+    invitation_id: String,
+    expires_at_ms: u64,
+    invitation: CreationInvitation,
+}
+
+impl Serialize for AgentInvitationSecretResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("AgentInvitationResponse", 3)?;
+        state.serialize_field("invitationId", &self.invitation_id)?;
+        state.serialize_field("expiresAtMs", &self.expires_at_ms)?;
+        state.serialize_field("invitation", self.invitation.expose_secret())?;
         state.end()
     }
 }
@@ -12315,6 +12402,18 @@ fn parse_agent_credential(input: &SecretInput) -> Result<AgentCredential, ApiErr
     })
 }
 
+fn parse_creation_invitation(input: &SecretInput) -> Result<CreationInvitation, ApiError> {
+    dispatch_credential_class(input.as_str(), CredentialClass::CreationInvitation)
+        .map_err(|error| ApiError::from(error.into_snapback_error()))?;
+    CreationInvitation::parse(input.as_str()).map_err(|_| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_AGENT_INVITATION_INVALID",
+            "auth",
+            "agent creation invitation is invalid",
+        ))
+    })
+}
+
 fn parse_pairing_code(input: &SecretInput) -> Result<PairingCode, ApiError> {
     dispatch_credential_class(input.as_str(), CredentialClass::PairingCode)
         .map_err(|error| ApiError::from(error.into_snapback_error()))?;
@@ -12344,6 +12443,20 @@ fn require_agent_routes_available(runtime: &AppState) -> Result<Arc<AuthProvider
         .into());
     }
     installed_auth_provider(runtime)
+}
+
+async fn require_agent_registration_mode(
+    runtime: &AppState,
+) -> Result<(Arc<AuthProvider>, AgentsManifest), ApiError> {
+    let provider = require_agent_routes_available(runtime)?;
+    let policy = with_snapback(&runtime.snapback, |snapback| {
+        snapback
+            .auth_database_mut()
+            .schema()
+            .effective_agents_manifest()
+    })
+    .await;
+    Ok((provider, policy))
 }
 
 fn require_grant_session(authority: &PreparedAuthority) -> Result<(String, String), ApiError> {
@@ -12383,6 +12496,28 @@ fn grant_step_up_binding(
     ))
 }
 
+fn agent_invitation_step_up_binding(
+    authority: &PreparedAuthority,
+) -> Result<StepUpBinding, ApiError> {
+    require_provider_session_authority(authority, InvocationSource::AgentGrantManagement)?;
+    let ResolvedAppAuthority::Session {
+        user_id,
+        session_id,
+        generation,
+        authority_instance_id,
+        ..
+    } = authority.resolved()
+    else {
+        unreachable!("grant-management source requires session authority");
+    };
+    Ok(StepUpBinding::agent_invitation(
+        user_id.clone(),
+        session_id.clone(),
+        *generation,
+        authority_instance_id.clone(),
+    ))
+}
+
 /// Fresh-authentication requests derive their human address from the exact
 /// live session. The wire chooses only a closed operation and target; it can
 /// neither redirect delivery nor mint an unbound proof.
@@ -12401,6 +12536,7 @@ async fn auth_step_up_request(
         StepUpRequest::GrantApproval { request_id } => {
             grant_step_up_binding(&authority, request_id)?
         }
+        StepUpRequest::AgentInvitation {} => agent_invitation_step_up_binding(&authority)?,
     };
     let admission = provider.admit().await;
     let now_ms = provider.now_ms();
@@ -12426,6 +12562,68 @@ async fn auth_step_up_request(
     .await
     .map_err(map_provider_error)?;
     Ok(Json(response))
+}
+
+/// Mint a user-owned single-use creation invitation. Proof verification and
+/// invitation insertion share the storage transaction; the bearer itself is
+/// never sufficient.
+///
+/// @ref LLP 0055#registration — only `invitedBy: users` enables this route,
+/// with ten live invitations per user.
+async fn auth_agent_invitation(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<AgentInvitationSecretResponse>, ApiError> {
+    let (user_id, _) = require_grant_session(&authority)?;
+    let (provider, policy) = require_agent_registration_mode(&runtime).await?;
+    if policy.mode != AgentsMode::Invited || policy.invited_by != crate::manifest::InvitedBy::Users
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_AGENT_INVITATIONS_DISABLED",
+            "auth",
+            "user-minted agent invitations are not enabled by the active schema manifest",
+        )
+        .into());
+    }
+    let request: AgentInvitationRequest = parse_auth_json(&headers, body)?;
+    let step_up = request
+        .step_up
+        .ok_or_else(|| ApiError::from(crate::auth::provider::step_up_required_error()))?;
+    let binding = agent_invitation_step_up_binding(&authority)?;
+    let admission = provider.admit().await;
+    let challenge_id = step_up.challenge_id.clone();
+    let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
+        let coordination =
+            admission.step_up_coordination(snapback.auth_database_mut(), &challenge_id);
+        (admission, coordination)
+    })
+    .await;
+    let coordination = coordination.map_err(map_provider_error)?;
+    let proof = admission
+        .for_step_up(coordination, binding, step_up.code.as_str())
+        .await
+        .map_err(map_provider_error)?;
+    let effect_authority = authority.clone();
+    let effect_provider = provider.clone();
+    let profile = runtime.server.profile;
+    let invitation = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("agent invitation mint transaction")?;
+        snapback.auth_database_mut().mint_agent_invitation(
+            &user_id,
+            profile,
+            proof.proof(),
+            effect_provider.now_ms(),
+            effect_provider.agent_random_source(),
+        )
+    })
+    .await?;
+    Ok(Json(AgentInvitationSecretResponse {
+        invitation_id: invitation.invitation_id,
+        expires_at_ms: invitation.expires_at_ms,
+        invitation: invitation.secret,
+    }))
 }
 
 async fn auth_pairing_code(
@@ -12481,6 +12679,47 @@ async fn auth_agent_pair(
     Ok(Json(match presentation {
         crate::storage::auth_grants::PairingPresentation::Created(request)
         | crate::storage::auth_grants::PairingPresentation::Existing(request) => request,
+    }))
+}
+
+/// Public principal creation. The active manifest decides whether the body is
+/// credential-free (`open`) or must consume one `sbagi_` (`invited`).
+///
+/// @ref LLP 0204#sequencing — S0 opens only the issuance prerequisite; API,
+/// OAuth, approval-link, template, recovery, and operator twins stay absent.
+async fn auth_agent_register(
+    State(runtime): State<AppState>,
+    Extension(route_admission): Extension<AdmissionLease>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<AgentCredentialSecretResponse>, ApiError> {
+    reject_agent_route_authorization_header(&headers)?;
+    let (provider, policy) = require_agent_registration_mode(&runtime).await?;
+    let request: AgentRegistrationRequest = parse_auth_json(&headers, body)?;
+    let invitation = request
+        .invitation
+        .as_ref()
+        .map(parse_creation_invitation)
+        .transpose()?;
+    let profile = runtime.server.profile;
+    let issued = with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = route_admission.effect_guard("agent registration transaction")?;
+        snapback.auth_database_mut().register_agent_principal(
+            policy.mode,
+            invitation.as_ref(),
+            request.display_name,
+            request.operator_contact,
+            profile,
+            provider.now_ms(),
+            provider.agent_random_source(),
+        )
+    })
+    .await?;
+    Ok(Json(AgentCredentialSecretResponse {
+        credential_id: issued.credential_id,
+        user_id: issued.user_id,
+        generation: issued.generation,
+        credential: issued.secret,
     }))
 }
 

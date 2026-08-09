@@ -184,6 +184,59 @@ assert.throws(
   assert.deepEqual(result.summary.implicitAuthRequirements, []);
 }
 
+// @ref LLP 0055#registration — codegen preserves the closed sessions-only
+// registration policy, defaults its nested fields, and makes the unserviced
+// operator-invitation posture visible without refusing the artifact.
+{
+  const invitedSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'invited' } },
+});
+`;
+  const dir = backend(invitedSchema, ordinaryFunctions);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  assert.deepEqual(readJson(join(dir, 'generated', 'schema.manifest.json')).auth, {
+    mode: 'sessions',
+    agents: { mode: 'invited', invitedBy: 'operators' },
+  });
+  assert(result.diagnostics.some(
+    ({ code, severity }) => code === 'SNAPBACK_AUTH_AGENT_ONBOARDING_PROD_UNAVAILABLE'
+      && severity === 'warning',
+  ));
+}
+
+{
+  const openSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'open', invitedBy: 'users' } },
+});
+`;
+  const dir = backend(openSchema, ordinaryFunctions);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  assert.deepEqual(readJson(join(dir, 'generated', 'schema.manifest.json')).auth.agents, {
+    mode: 'open',
+    invitedBy: 'users',
+  });
+}
+
+{
+  const devAgentsSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'dev', agents: { mode: 'open' } },
+});
+`;
+  const dir = backend(devAgentsSchema, ordinaryFunctions);
+  const result = await generate(dir);
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some(({ message }) => /auth\.agents requires auth\.mode sessions/u.test(message)));
+  assert.equal(existsSync(join(dir, 'generated')), false);
+}
+
 // @ref LLP 0172#3-compatibility-phases — Phase W preserves the legacy
 // optional-user result while making each sessions-mode omission visible.
 // JavaScript and TypeScript handler bodies share the same function-definition

@@ -106,7 +106,9 @@ here (or listed here but gone from the code).
 | /assets/records/{id}/signed-url | backend.assets |
 | /assets/signed/{id}/{variant} | backend.assets |
 | /assets/tus/{id} | backend.assets |
+| /auth/agent-invitations | auth.agent-registration |
 | /auth/agents/pair | auth.agent-principals |
+| /auth/agents/register | auth.agent-registration |
 | /auth/agents/revoke-self | auth.agent-principals |
 | /auth/agents/rotate | auth.agent-principals |
 | /auth/agents/token | auth.agent-principals |

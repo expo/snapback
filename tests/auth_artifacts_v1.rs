@@ -3,9 +3,9 @@
 
 use serde_json::json;
 use snapback::manifest::{
-    AuthManifest, AuthMode, AuthRequirement, CapabilityManifest, CapabilityMaturity,
+    AgentsManifest, AgentsMode, AuthManifest, AuthMode, AuthRequirement, CapabilityManifest, CapabilityMaturity,
     CronJobDefinition, FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest,
-    FunctionRuntime, HandlerPlan, IbexModule, QueryPlan, SNAPBACK_SCHEMA_VERSION,
+    FunctionRuntime, HandlerPlan, IbexModule, InvitedBy, QueryPlan, SNAPBACK_SCHEMA_VERSION,
     SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, TargetCapabilityId, ValueExpr,
 };
 
@@ -24,11 +24,53 @@ fn host_query(name: &str) -> FunctionDefinition {
     )
 }
 
+#[test]
+fn agent_registration_policy_is_sessions_only_closed_and_defaults_disabled() {
+    let defaults: AuthManifest = serde_json::from_value(json!({ "mode": "sessions" }))
+        .expect("sessions auth without agent policy");
+    assert_eq!(defaults.agents, None);
+
+    let closed: AuthManifest = serde_json::from_value(json!({
+        "mode": "sessions",
+        "agents": {}
+    }))
+    .expect("closed agent defaults");
+    assert_eq!(closed.agents, Some(AgentsManifest::default()));
+    assert_eq!(closed.agents.unwrap().mode, AgentsMode::Disabled);
+    assert_eq!(closed.agents.unwrap().invited_by, InvitedBy::Operators);
+
+    let dev_agents = SchemaManifest {
+        auth: Some(AuthManifest {
+            mode: AuthMode::Dev,
+            agents: Some(AgentsManifest {
+                mode: AgentsMode::Open,
+                invited_by: InvitedBy::Operators,
+            }),
+        }),
+        ..SchemaManifest::default()
+    };
+    assert_eq!(
+        dev_agents.validate_artifact().unwrap_err().diagnostic.code,
+        "SNAPBACK_AUTH_AGENT_POLICY_MODE_INVALID"
+    );
+
+    let mut operator_invited = sessions_schema();
+    operator_invited.auth.as_mut().unwrap().agents = Some(AgentsManifest {
+        mode: AgentsMode::Invited,
+        invited_by: InvitedBy::Operators,
+    });
+    assert_eq!(
+        operator_invited.agent_registration_diagnostics()[0].code,
+        "SNAPBACK_AUTH_AGENT_ONBOARDING_PROD_UNAVAILABLE"
+    );
+}
+
 fn sessions_schema() -> SchemaManifest {
     SchemaManifest {
         schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
         auth: Some(AuthManifest {
             mode: AuthMode::Sessions,
+            agents: None,
         }),
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
         ..SchemaManifest::default()
@@ -79,6 +121,7 @@ fn schema_version_and_auth_mode_form_a_closed_pair() {
     v1_dev.schema_version = SNAPBACK_SCHEMA_VERSION.to_owned();
     v1_dev.auth = Some(AuthManifest {
         mode: AuthMode::Sessions,
+        agents: None,
     });
     assert_eq!(
         v1_dev.validate_artifact().unwrap_err().diagnostic.code,

@@ -12,10 +12,10 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 
 pub use crate::contract_types::{
-    AppIdentity, AuthManifest, AuthMode, AuthRequirement, BoundedParentVisibility,
+    AgentsManifest, AgentsMode, AppIdentity, AuthManifest, AuthMode, AuthRequirement, BoundedParentVisibility,
     BoundedProjectionField, DependencySummary, EffectCeiling, EffectCeilingRead,
     EffectCeilingWrite, FieldManifest, FieldType, FunctionArgsContract, FunctionKind,
-    FunctionResultContract, IbexModule, IndexManifest, JoinEquality, JoinKind,
+    FunctionResultContract, IbexModule, IndexManifest, InvitedBy, JoinEquality, JoinKind,
     PermissionScopeExpr, ProjectionLeaf, ProjectionOutputKey, ProjectionSource,
     ProjectionVisibility, ResultObjectFieldContract, ResultRowsBound, ResultValueContract,
     SchemaRefAuthority, SequenceDeclaration, SequenceExistingOwnerAccess, SequenceScopeAccess,
@@ -449,6 +449,23 @@ impl SchemaManifest {
         self.auth.map(|auth| auth.mode).unwrap_or(AuthMode::Dev)
     }
 
+    pub fn effective_agents_manifest(&self) -> AgentsManifest {
+        self.auth.and_then(|auth| auth.agents).unwrap_or_default()
+    }
+
+    pub fn agent_registration_diagnostics(&self) -> Vec<Diagnostic> {
+        let agents = self.effective_agents_manifest();
+        if agents.mode == AgentsMode::Invited && agents.invited_by == InvitedBy::Operators {
+            vec![Diagnostic::warning(
+                "SNAPBACK_AUTH_AGENT_ONBOARDING_PROD_UNAVAILABLE",
+                "auth",
+                "auth.agents invitedBy operators has no production onboarding path; use invitedBy users or open registration",
+            )]
+        } else {
+            Vec::new()
+        }
+    }
+
     pub fn validate_artifact(&self) -> SnapbackResult<()> {
         validate_artifact_header(
             "schema",
@@ -460,6 +477,16 @@ impl SchemaManifest {
         )?;
 
         let mode = self.effective_auth_mode();
+        if self.auth.is_some_and(|auth| auth.agents.is_some()) && mode != AuthMode::Sessions {
+            // @ref LLP 0055#registration — auth.agents changes abuse posture
+            // only inside the sessions authority model; dev declarations are
+            // rejected instead of being silently dormant.
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_AGENT_POLICY_MODE_INVALID",
+                "auth",
+                "auth.agents is meaningful only when auth.mode is sessions",
+            ));
+        }
         let tuple_supported = matches!(
             (self.schema_version.as_str(), mode),
             (SNAPBACK_SCHEMA_VERSION, AuthMode::Dev)

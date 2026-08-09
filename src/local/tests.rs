@@ -1232,6 +1232,7 @@
                     "snapback.v1".to_owned(),
                     Some(AuthManifest {
                         mode: AuthMode::Sessions,
+                        agents: None,
                     }),
                     format!(
                         "{}{}",
@@ -22345,6 +22346,7 @@ globalThis.__snapbackHandlers = {
             app_id: "lease-app".to_owned(),
             auth: Some(AuthManifest {
                 mode: AuthMode::Sessions,
+                agents: None,
             }),
             schema_hash: Some(deployment.schema_hash.clone()),
             inputs_hash: Some(deployment.inputs_hash.clone()),

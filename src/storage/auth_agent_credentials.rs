@@ -131,30 +131,14 @@ impl LocalDatabase {
         let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentIdentity);
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction(|tx| {
-            require_agent_active_on(tx, user_id)?;
-            require_agent_clock_on(tx, now_ms)?;
-            let secret = generate_unique_agent_credential_on(tx, random)?;
-            let hash = secret.token_hash();
-            tx.execute(
-                "INSERT INTO _auth_agent_credentials(
-                   id, user_id, secret_hash, generation, created_at_ms,
-                   rotated_at_ms, last_used_at_ms, revoked_at_ms
-                 ) VALUES(?1, ?2, ?3, 1, ?4, ?4, ?4, NULL)",
-                params![credential_id, user_id, hash.as_bytes(), now_ms as i64],
-            )
-            .map_err(map_live_credential_constraint)?;
-            tx.execute(
-                "INSERT INTO _auth_identities(
-                   id, user_id, provider, subject, verified_at_ms
-                 ) VALUES(?1, ?2, 'agent-credential', ?3, ?4)",
-                params![identity_id, user_id, credential_id, now_ms as i64],
-            )?;
-            body_outcome = Some(IssuedAgentCredential {
-                credential_id: credential_id.clone(),
-                user_id: user_id.to_owned(),
-                generation: 1,
-                secret,
-            });
+            body_outcome = Some(issue_initial_agent_credential_on(
+                tx,
+                user_id,
+                now_ms,
+                random,
+                &credential_id,
+                &identity_id,
+            )?);
             Ok(())
         });
         let attempt =
@@ -1054,6 +1038,45 @@ impl LocalDatabase {
     }
 }
 
+/// Transactional primitive shared with registration so the principal, stable
+/// identity, and first credential cannot commit independently.
+///
+/// @ref LLP 0055#registration — registration publishes exactly one live
+/// credential and its `agent-credential` identity in the principal commit.
+pub(super) fn issue_initial_agent_credential_on(
+    tx: &Transaction<'_>,
+    user_id: &str,
+    now_ms: u64,
+    random: &dyn RandomSource,
+    credential_id: &str,
+    identity_id: &str,
+) -> SnapbackResult<IssuedAgentCredential> {
+    require_agent_active_on(tx, user_id)?;
+    require_agent_clock_on(tx, now_ms)?;
+    let secret = generate_unique_agent_credential_on(tx, random)?;
+    let hash = secret.token_hash();
+    tx.execute(
+        "INSERT INTO _auth_agent_credentials(
+           id, user_id, secret_hash, generation, created_at_ms,
+           rotated_at_ms, last_used_at_ms, revoked_at_ms
+         ) VALUES(?1, ?2, ?3, 1, ?4, ?4, ?4, NULL)",
+        params![credential_id, user_id, hash.as_bytes(), now_ms as i64],
+    )
+    .map_err(map_live_credential_constraint)?;
+    tx.execute(
+        "INSERT INTO _auth_identities(
+           id, user_id, provider, subject, verified_at_ms
+         ) VALUES(?1, ?2, 'agent-credential', ?3, ?4)",
+        params![identity_id, user_id, credential_id, now_ms as i64],
+    )?;
+    Ok(IssuedAgentCredential {
+        credential_id: credential_id.to_owned(),
+        user_id: user_id.to_owned(),
+        generation: 1,
+        secret,
+    })
+}
+
 #[derive(Debug)]
 struct CredentialRow {
     id: String,
@@ -1065,7 +1088,7 @@ struct CredentialRow {
     revoked_at_ms: Option<u64>,
 }
 
-fn advance_agent_clock_on(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<()> {
+pub(super) fn advance_agent_clock_on(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<()> {
     if now_ms > MAX_AUTHORIZATION_EPOCH {
         return Err(auth_clock_rollback());
     }
@@ -1476,7 +1499,7 @@ fn collect_token_ids<P: rusqlite::Params>(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-fn reconcile_issued_agent_credential(
+pub(super) fn reconcile_issued_agent_credential(
     connection: &Connection,
     expected: &IssuedAgentCredential,
 ) -> SnapbackResult<()> {

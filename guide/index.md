@@ -221,9 +221,9 @@ you never build around a feature because you didn't know it existed.
   connection grants, invalidation obligations, recovery, and authorized leases.
 - [Scoped roles and memberships](./auth/scoped-roles.md) — declare app-wide or
   per-resource roles; gate queries; check and change membership safely.
-- [Agent principals](./auth/agent-principals.md) — pair a provisioned agent,
-  mint scoped tokens, fence custody, revoke, and verify an agent journey
-  (agent creation has no user-reachable surface yet).
+- [Agent principals](./auth/agent-principals.md) — register an open or
+  user-invited agent, pair it, mint scoped tokens, fence custody, revoke, and
+  verify the complete agent journey.
 - [Targets — what each one claims](./auth/targets.md) — local vs hosted
   honesty; how to check the server instead of trusting prose.
 
