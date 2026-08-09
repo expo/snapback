@@ -81,3 +81,58 @@ The header says **Status: Review** (with the Draft → Review transition recorde
 Two unresolved MATERIAL concerns: D5(b)'s internal contradiction (C1) and D1's denial-conflating status union (C2). Both are repairable with bounded edits; everything else is implementation-phase material.
 
 VERDICT: NOT READY
+
+## Round 2 (delta round) — 2026-08-09
+
+- Reviewer: fresh Claude subagent (model `claude-fable-5`), mutually
+  blind, capsule-only, no round-1 knowledge.
+- Target revision r2 sha256:
+  `b2acd19612ce69514143a7e1568bb4e66bb7868f3793090574b9cffe4b73f9d6`
+- Capsule sha256:
+  `43830f12a58647d700c798abc4b90518c96602107e315f57e68bd6ffc273184b`
+- Instructions sha256:
+  `a8f82bfea5b6bcb9f402a1dc8f71486fae4fb1c5ec2d5e55ff4e67bbed2dd90d`
+- Received: complete, well-formed. Verdict: **READY** (0 MATERIAL;
+  7 DETAIL — 6 in-delta, 1 pre-existing).
+
+### Review body (verbatim)
+
+# Review — LLP 0210 (Asset upload and delivery DX closure), super-refine round 2 (delta round)
+
+Reviewer: Claude family, mutually blind, round 2. Worked solely from the review capsule. Target: `llp/0210-asset-upload-dx-closure.rfc.md` at r2.
+
+## Delta assessment
+
+The r2 decisions cohere with the document and the accepted context: the issued-URL controller lands refresh exactly where LLP 0044's "projections over the framework-neutral asset client and live store" rule and LLP 0114's external-store discipline demand it, the frozen D3 terminal table matches the shipped client's ground truth verbatim (`TERMINAL = ['ready', 'rejected', 'cancelled', 'failed']`, `packages-excerpts/asset-client-custody-excerpt.txt`), and the D4 flip and D5(b) grant machine both resolve their commissioning dated notes (LLP 0180 2026-08-09; LLP 0044 §Clique-pilot delivery and grant DX closure item 4) in the direction the pilot evidence actually supports. The revision's factual claims check out against the capsule's primary evidence — the hand-rolled issuance fetch and 30-second cache (`pilot-record/data.ts`), the defensive nonexistent-`finalized` branch (`pilot-record/posts.tsx` line 129), the required `variant: String` field (`packages-excerpts/assets-rs-signed-url-request.txt`), and the 403/200/403 view-once probes (run-log M4/M5, scores B5). I find no MATERIAL concern, in the delta or in pre-existing text; the remaining findings are precision details.
+
+## Concerns
+
+**1. DETAIL / IN-DELTA — §D1 (state algebra): `issuing` is the one state without a normative definition, and one reachable condition has no assigned state.** The normative bullet list defines `ready`, `refreshing`, `unavailable`, and `denied` but never `issuing`. Consequently the condition "held URL has expired and a re-issuance is in flight but has not yet failed" is unassigned: it is not `refreshing` (requires a still-valid held URL), not `unavailable` (requires that re-issuance "is failing"), and `issuing` is undefined. Since the algebra is declared normative with "fixtures pin each transition," this is exactly the seam a fixture author will trip on. Resolution: add one definition line — `issuing` = issuance in flight with no valid held URL (both the initial issuance and the post-expiry re-issuance case) — so every reachable condition maps to exactly one state.
+
+**2. DETAIL / IN-DELTA — §D1 + OQ4: no defined exit from `denied` short of authority replacement.** OQ4 pins that retry continues in `unavailable` and stops in `denied`, and authority replacement blanks entries — but a server-side re-grant under the *same* authority (a D5 grant re-activated, a viewer re-added to a chat) leaves the entry parked in `denied` with no specified recovery. Resolution: pin the re-entry path in the fixtures (e.g., a fresh subscribe on the same key attempts one new issuance, or an explicit refresh affordance on the controller); one sentence in D1 or OQ4 suffices.
+
+**3. DETAIL / IN-DELTA — §D5(b): revoke's effect on the grant record is unspecified.** The lifecycle union is closed at `pending | active` and revoke is "one edge, by identity," but the text never says whether revoke deletes the record or moves it to a terminal state. This matters for fixtures (what does a second `revoke(grantId)` or an `activate` after revoke refuse with?), for the provenance/audit story the system-record framing promises, and for the reference-GC obligation (which names `active` and `pending` but not revoked residue). Resolution: state it — e.g., revoke removes the edge and the lifecycle receipt is the durable audit evidence — so the "two independent grants survive one revoke" acceptance row is unambiguous about post-revoke observability.
+
+**4. DETAIL / IN-DELTA — §D5(b): grant records are a new durable, principal-mintable record class; the named G4 obligations omit LLP 0044's bounded-counts obligation.** LLP 0044 §Deduplication/quotas requires per-app and per-principal ceilings on every durable record class precisely so no workload grows state without a declared limit; per-recipient minting at send is exactly such a workload (N grants per message). The blanket 0044 rule arguably governs automatically, but the RFC enumerates three named obligations for the dated 0044 amendment and this fourth one is the same kind. Resolution: add the count-ceiling/quota line to the G4 obligation list.
+
+**5. DETAIL / IN-DELTA — §D5(b): the view-once composition constraint is implicit.** The 403-before-open guarantee holds only when the grant edge is the *sole* authority path — i.e., the intent's declared read policy must not independently admit the recipient (a `via-references` intent whose asset is referenced from a recipient-visible message row would grant read regardless of the pending grant). The design is sound (`grants: true` on an `owner-only` intent gives exactly the pilot's semantics), but the constraint is never stated. Resolution: one sentence in (b) or an explicit note that the guide recipe pins the composition (owner-only + `grants: true` for view-once).
+
+**6. DETAIL / IN-DELTA — §D1 (controller keying): "partitioned by the prepared binding's authority identity" is binding-flavored wording for a framework-neutral store.** OQ1's resolution says non-React consumers use the controller directly, including external-bearer custody with no prepared binding. The shipped neutral idiom already exists — `taskStoreKey` partitions by app (base URL) + authority identity (`packages-excerpts/asset-client-custody-excerpt.txt`, line 55–58). Resolution: word the partition as "the same app and authority identity as the persisted task facts," which covers both custody modes and matches the shipped client.
+
+**7. DETAIL / PRE-EXISTING — §D5(a): the recipe's post-(b) fate is unstated.** (a) blesses the transfer-at-open field-patch idiom as a CI-verified recipe while (b) exists specifically to retire that idiom; the document says the recipe is "the supported path until [(b)] ships" but not what happens to the published recipe page afterward. Resolution: note that on (b)'s landing the recipe page gains the grant-ops spelling as primary with the row-composition kept as the portable fallback (or is superseded outright) — guide-obligation bookkeeping, one line.
+
+No MATERIAL concerns found, in-delta or pre-existing.
+
+## Answers to the three decision questions
+
+**(a) Is the D5(b) grant machine sound, and honest in its no-ambient-widening claim?** Yes. The authorization rules are genuinely closed: mint requires caller = owner (the same rule `attach` already enforces per the G4 ticket's `SNAPBACK_ASSET_FORBIDDEN` evidence), activate requires caller = the grant's principal on a `pending` edge, revoke requires owner or principal. Every `active` edge therefore traces to an owner mint by construction — activation only converts owner-minted latent authority and revocation only narrows, so "a viewer can accept and relinquish authority the owner minted, never originate it" is an accurate statement, and the intent-level `grants: true` opt-in plus untouched `owner-only`/`via-references` policies makes "no new authority path on any existing asset" true as well. View-once is fully expressible with no field-patch idiom — mint-pending at send confers nothing (403), self-activate at open (200), self-revoke at close (403) — reproducing the pilot's hostile-probe sequence exactly (run-log M4/M5, scores B5). Revoke-by-`grantId` gives genuine one-edge independence. The soundness gaps that remain are the details above (revoked-record fate, ceilings, the sole-authority composition constraint), none of which undermines the machine's decisions.
+
+**(b) Is D4's admission ruling correct as specified?** Yes. Admitting the required-child → optional-argument mapping is the right call and correctly reasoned: a command is a narrower generated entry point over a more general mutation, and narrowing at the client boundary leaves the mutation's contract untouched — other callers keep the text-only branch, and the document is properly honest that descriptor requiredness is a generation/client-side authoring guarantee, never a server contract the handler may rely on. This is what the pilot actually wanted and approximated with a weaker contract (`optional: true` + handler validation, run-log M4). The inverse (optional child over required argument) is genuinely unsafe — the text-only branch would invoke a mutation missing a required input — and keeping it refused while teaching both fixes at the point of denial matches LLP 0180's existing refusal table and the LLP 0193 refusals-as-docs posture. The fixture pair (mutation callable without the argument; command not) pins the asymmetry correctly, and the descriptor shape stays unchanged as LLP 0180's dated note requires.
+
+**(c) Is the D1 controller + state algebra complete enough to fixture?** Substantially yes, with the two definitional gaps in concerns 1 and 2. The controller's obligations are concretely fixturable as written: keyed sharing (one loop for N consumers), refresh-before-expiry, synchronous authority blanking with generation-fencing of late responses, final-unsubscribe timer cleanup — each has a matching acceptance row. The five-state union with `denied` reserved for structured authorization refusals is the right decomposition, and the stated negatives (transient failure ≠ `denied`; failed refresh does not leave `ready` while the URL is valid; offline lands in `unavailable`) pin the discriminating transitions. What a fixture author still cannot derive from the text is the normative meaning of `issuing`, the state assignment for expired-URL-with-in-flight-reissuance, and the exit from `denied` after a same-authority re-grant. All three are one-line definitional fixes, not design changes, so they do not make the item unfixturable — but they should land before the fixtures do.
+
+## Verdict
+
+The r2 delta resolves its round-1 commissions coherently against LLP 0044, 0180, 0114, 0012, and the pilot record's ground truth; every factual platform claim I could check against the capsule's primary evidence held. The remaining concerns are precision details that identify no defective decision, and under the altitude rule they are not grounds for NOT READY.
+
+VERDICT: READY
