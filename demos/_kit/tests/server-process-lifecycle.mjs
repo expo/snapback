@@ -27,11 +27,11 @@ const { spawn } = require('node:child_process');
 const { writeFileSync, renameSync } = require('node:fs');
 const { createServer } = require('node:http');
 // Positional (legacy launchSpec style: <readyFile> [port]) or flag style
-// (real server-arg style: --ready-file F --port N), so the same fixture can
-// stand in for a prebuilt/configured binary on the LLP 0030 ladder rungs.
+// (real server-arg style: start --ready-file F --port N), so the same fixture
+// can stand in for a prebuilt/configured binary on the LLP 0030 ladder rungs.
 let readyFile = process.argv[2];
 let bindPort = Number(process.argv[3] || 0);
-if (typeof readyFile === 'string' && readyFile.startsWith('--')) {
+if (process.argv.includes('--ready-file')) {
   const flag = (name) => {
     const at = process.argv.indexOf(name);
     return at === -1 ? null : process.argv[at + 1];

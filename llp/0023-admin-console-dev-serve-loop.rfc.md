@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Contract/Exact, Tooling, Testing
 **Author:** Claude (Opus 4.8)
 **Date:** 2026-06-27
-**Revised:** 2026-07-01 (status → Accepted, ratified in the LLP 0032 R1 batch: the dev-serve loop and built-dist serving shipped; 2026-06-27 review passes: GPT-5 clarified HMR verification, loopback proxy defaults, structured proxy failures, generated-binding lifecycle, and shared compile config; Claude hardened API-target resolution, non-fatal startup preflight, same-machine proxy risks, env naming, and Exact/bun prerequisites; GPT-5 re-review corrected memory-server port discovery and separated SSE from WebSocket proxy requirements; 2026-06-27 corrected the layout-bug characterization — a Contract `dom-mirror` `flex-shrink` default mismatch, not a kernel measurement bug — and recorded its upstream Exact fix, ENG-22199, verified under ENG-22214); 2026-07-03 (ENG-22600: fixed the dev-serve React 19 CJS/ESM interop crash — `resolve.dedupe` is now conditional on app-root resolvability; see "Shared Vite config")
+**Revised:** 2026-08-08 (native server examples use the explicit `snapback start` spelling); 2026-07-01 (status → Accepted, ratified in the LLP 0032 R1 batch: the dev-serve loop and built-dist serving shipped; 2026-06-27 review passes: GPT-5 clarified HMR verification, loopback proxy defaults, structured proxy failures, generated-binding lifecycle, and shared compile config; Claude hardened API-target resolution, non-fatal startup preflight, same-machine proxy risks, env naming, and Exact/bun prerequisites; GPT-5 re-review corrected memory-server port discovery and separated SSE from WebSocket proxy requirements; 2026-06-27 corrected the layout-bug characterization — a Contract `dom-mirror` `flex-shrink` default mismatch, not a kernel measurement bug — and recorded its upstream Exact fix, ENG-22199, verified under ENG-22214); 2026-07-03 (ENG-22600: fixed the dev-serve React 19 CJS/ESM interop crash — `resolve.dedupe` is now conditional on app-root resolvability; see "Shared Vite config")
 **Related:** LLP 0017 (admin console; Serving Model), LLP 0021 (Contract/Exact integration hardening; the build preset), [diary 0005](../diaries/0005-admin-console-redesign.diary.md); Exact LLP 0268 (static platform manifests)
 
 ## Summary
@@ -136,7 +136,7 @@ The developer loop is two terminals:
 
 ```sh
 # 1. a normal Snapback server (the source of truth)
-snapback --memory --port 4287
+snapback start --memory --port 4287
 # 2. the admin UI with HMR, proxying the API to it
 cd admin-ui && SNAPBACK_ADMIN_DEV_API=http://127.0.0.1:4287 bun run dev
 # open the Vite URL; edit app.contract / theme.ts for hot update or fast reload
@@ -147,7 +147,7 @@ browser same-origin (matching production's single-origin model).
 
 **Resolving the API target.** The `127.0.0.1:4287` default is correct only when
 the Snapback server is *pinned* to that port (as the example does with
-`--port 4287`). A bare `snapback --memory` auto-scans `4287-4387` and may bind a
+`--port 4287`). `snapback start --memory` auto-scans `4287-4387` and may bind a
 different port. Snapback prints the chosen URL (`snapback listening on http://…`),
 but memory servers do **not** write database instance-lock metadata because there
 is no database file to lock. File-backed servers do record the chosen `port`/`url`

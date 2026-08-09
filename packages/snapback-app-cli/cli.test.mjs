@@ -102,6 +102,22 @@ const run = async (args, { stdin = '' } = {}) => {
 };
 
 try {
+  const packageVersion = JSON.parse(await readFile(join(process.cwd(), 'package.json'), 'utf8')).version;
+  const version = await run(['--version']);
+  assert.equal(version.code, 0, version.stderr);
+  assert.equal(version.stdout.trim(), `snapback-app ${packageVersion}`);
+
+  const subscribeHelp = await run(['subscribe', '--help']);
+  assert.equal(subscribeHelp.code, 0, subscribeHelp.stderr);
+  for (const flag of ['--watch', '--first-change', '--timeout-ms', '--args-json']) {
+    assert.match(subscribeHelp.stdout, new RegExp(flag), `subscribe help omits ${flag}`);
+  }
+  const pairHelp = await run(['pair', '--help']);
+  assert.equal(pairHelp.code, 0, pairHelp.stderr);
+  for (const flag of ['--server', '--request', '--pairing-code-file', '--profile-out', '--credential-file', '--credential-env', '--scopes-json']) {
+    assert.match(pairHelp.stdout, new RegExp(flag), `pair help omits ${flag}`);
+  }
+
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const base = ['--server', origin, '--artifacts', generated, '--json'];

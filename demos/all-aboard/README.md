@@ -120,7 +120,7 @@ bun install --cwd demos/all-aboard/surfaces/contract
 #    SNAPBACK_OUTBOUND_ACTIONS=1 is what allows live 511/directions fetches;
 #    the persistent --db is what lets keys set in the setup page survive a
 #    server restart (with --memory the config store is in-memory too).
-SNAPBACK_OUTBOUND_ACTIONS=1 cargo run -- --port 4420 --db .snapback/all-aboard.sqlite3
+SNAPBACK_OUTBOUND_ACTIONS=1 cargo run -- start --port 4420 --db .snapback/all-aboard.sqlite3
 
 # 2. Vite dev server (separate terminal):
 bun run --cwd demos/all-aboard/surfaces/contract dev

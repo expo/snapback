@@ -5,7 +5,7 @@
 **Systems:** Security, Runtime, API, Developer experience, Tooling, Deployment, Admin console, Demo apps
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-02
-**Revised:** 2026-07-12 (ENG-24338/ENG-24346: trusted local token discovery and fail-closed owner-only capability/config file handling; ENG-24344/ENG-24362/ENG-24363/ENG-24366: Cloudflare grants use immutable invocation-scoped opaque capability ids, full config status requires admin auth, pooled secrets enter only through stdin with requested member-state and generation attestation, and reversible encoded secret forms—including partial or mixed-case JSON Unicode escapes for BMP and astral values—are scrubbed at host fetch; earlier: 2026-07-07 ENG-23629 / LLP 0049 Phase 1: the first
+**Revised:** 2026-08-08 (native server examples use the explicit `snapback start` spelling); 2026-07-12 (ENG-24338/ENG-24346: trusted local token discovery and fail-closed owner-only capability/config file handling; ENG-24344/ENG-24362/ENG-24363/ENG-24366: Cloudflare grants use immutable invocation-scoped opaque capability ids, full config status requires admin auth, pooled secrets enter only through stdin with requested member-state and generation attestation, and reversible encoded secret forms—including partial or mixed-case JSON Unicode escapes for BMP and astral values—are scrubbed at host fetch; earlier: 2026-07-07 ENG-23629 / LLP 0049 Phase 1: the first
 `deploy-time-binding` backend landed on the Cloudflare proof target —
 descriptor-only action grants (values never enter the handler isolate),
 profile-scoped fail-closed `expose()`/`asBearer()` with
@@ -482,7 +482,7 @@ keeps its own format.
 
 **Store path override.** A `--config-file <path>` flag sets the store's path
 explicitly, independent of `--memory` and `--db`.
-`snapback --memory --config-file .snapback/secrets.json` gives an ephemeral
+`snapback start --memory --config-file .snapback/secrets.json` gives an ephemeral
 database with a durable secrets store: `config.set`/wizard writes round-trip to
 the file, verification state persists, and the next run reads them back.
 Mechanically this is small — the store is already a separate sibling file, so

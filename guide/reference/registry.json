@@ -2,17 +2,9 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "commit": "5f7e262aa99318e1424678fae4366606e448bc22",
-    "sourceDigest": "sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a",
-    "publishedClosureVersion": "0.1.15",
+    "commit": "772c00649534d68b2ba63b98699e8ce2b2019057",
+    "sourceDigest": "sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34",
     "packageVersions": {
-      "@expo/snapback-cli": "0.1.15",
-      "@expo/snapback-client": "0.1.15",
-      "@expo/snapback-codegen": "0.1.15",
-      "@expo/snapback-expo": "0.1.15",
-      "@expo/snapback-react": "0.1.15"
-    },
-    "sourceManifestVersions": {
       "@expo/snapback-cli": "0.1.0",
       "@expo/snapback-client": "0.1.0",
       "@expo/snapback-codegen": "0.1.0",
@@ -1761,9 +1753,11 @@
       "page": "guide/reference/expo-snapback-cli--verify.md",
       "symbolIds": [
         "npm:@expo/snapback-cli/verify#aggregateConformance",
+        "npm:@expo/snapback-cli/verify#DEFAULT_VERIFY_PROFILE_TIMEOUT_MS",
         "npm:@expo/snapback-cli/verify#defaultVerifyConfig",
         "npm:@expo/snapback-cli/verify#defineStarterVerifyProfile",
         "npm:@expo/snapback-cli/verify#defineVerifyConfig",
+        "npm:@expo/snapback-cli/verify#discoverVerifyConfig",
         "npm:@expo/snapback-cli/verify#loadVerifyConfig",
         "npm:@expo/snapback-cli/verify#probeAdmission",
         "npm:@expo/snapback-cli/verify#probeArtifactFreshness",
@@ -1771,6 +1765,7 @@
         "npm:@expo/snapback-cli/verify#runVerify",
         "npm:@expo/snapback-cli/verify#StarterVerifyProfileOptions",
         "npm:@expo/snapback-cli/verify#validateVerifyReceipt",
+        "npm:@expo/snapback-cli/verify#VERIFY_CONFIG_CONVENTION",
         "npm:@expo/snapback-cli/verify#VERIFY_CONFIG_SCHEMA_VERSION",
         "npm:@expo/snapback-cli/verify#VERIFY_RECEIPT_SCHEMA_VERSION",
         "npm:@expo/snapback-cli/verify#VERIFY_STAGE_IDS",
@@ -76769,21 +76764,69 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 64,
+        "line": 68,
         "column": 1,
-        "endLine": 64
+        "endLine": 68
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 64,
+          "line": 68,
           "column": 1,
-          "endLine": 64
+          "endLine": 68
         }
       ],
       "publicDeclaration": {
         "file": "packages/snapback-cli/verify.d.mts",
         "exportName": "aggregateConformance"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-cli/verify#DEFAULT_VERIFY_PROFILE_TIMEOUT_MS",
+      "originIdentity": "packages/snapback-cli/verify.d.mts#DEFAULT_VERIFY_PROFILE_TIMEOUT_MS",
+      "anchor": "symbol-default-verify-profile-timeout-ms-eb38f305fd",
+      "name": "DEFAULT_VERIFY_PROFILE_TIMEOUT_MS",
+      "package": "@expo/snapback-cli",
+      "module": "@expo/snapback-cli/verify",
+      "moduleSubpath": "./verify",
+      "kind": "runtime-constant",
+      "runtime": {
+        "kind": "value",
+        "exportNames": [
+          "DEFAULT_VERIFY_PROFILE_TIMEOUT_MS"
+        ],
+        "conditions": [
+          "default"
+        ]
+      },
+      "signature": "DEFAULT_VERIFY_PROFILE_TIMEOUT_MS: 300000",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-cli/verify.d.mts",
+        "line": 58,
+        "column": 14,
+        "endLine": 58
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-cli/verify.d.mts",
+          "line": 58,
+          "column": 14,
+          "endLine": 58
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-cli/verify.d.mts",
+        "exportName": "DEFAULT_VERIFY_PROFILE_TIMEOUT_MS"
       },
       "closure": {
         "status": "build-bound",
@@ -76817,16 +76860,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 60,
+        "line": 64,
         "column": 1,
-        "endLine": 60
+        "endLine": 64
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 60,
+          "line": 64,
           "column": 1,
-          "endLine": 60
+          "endLine": 64
         }
       ],
       "publicDeclaration": {
@@ -76865,16 +76908,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 58,
+        "line": 61,
         "column": 1,
-        "endLine": 58
+        "endLine": 61
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 58,
+          "line": 61,
           "column": 1,
-          "endLine": 58
+          "endLine": 61
         }
       ],
       "publicDeclaration": {
@@ -76913,21 +76956,69 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 57,
+        "line": 60,
         "column": 1,
-        "endLine": 57
+        "endLine": 60
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 57,
+          "line": 60,
           "column": 1,
-          "endLine": 57
+          "endLine": 60
         }
       ],
       "publicDeclaration": {
         "file": "packages/snapback-cli/verify.d.mts",
         "exportName": "defineVerifyConfig"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-cli/verify#discoverVerifyConfig",
+      "originIdentity": "packages/snapback-cli/verify.d.mts#discoverVerifyConfig",
+      "anchor": "symbol-discoververifyconfig-06fc1d556d",
+      "name": "discoverVerifyConfig",
+      "package": "@expo/snapback-cli",
+      "module": "@expo/snapback-cli/verify",
+      "moduleSubpath": "./verify",
+      "kind": "runtime-function",
+      "runtime": {
+        "kind": "value",
+        "exportNames": [
+          "discoverVerifyConfig"
+        ],
+        "conditions": [
+          "default"
+        ]
+      },
+      "signature": "export function discoverVerifyConfig(directory?: string): string | null;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-cli/verify.d.mts",
+        "line": 63,
+        "column": 1,
+        "endLine": 63
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-cli/verify.d.mts",
+          "line": 63,
+          "column": 1,
+          "endLine": 63
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-cli/verify.d.mts",
+        "exportName": "discoverVerifyConfig"
       },
       "closure": {
         "status": "build-bound",
@@ -76961,16 +77052,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 59,
+        "line": 62,
         "column": 1,
-        "endLine": 59
+        "endLine": 62
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 59,
+          "line": 62,
           "column": 1,
-          "endLine": 59
+          "endLine": 62
         }
       ],
       "publicDeclaration": {
@@ -77009,16 +77100,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 62,
+        "line": 66,
         "column": 1,
-        "endLine": 62
+        "endLine": 66
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 62,
+          "line": 66,
           "column": 1,
-          "endLine": 62
+          "endLine": 66
         }
       ],
       "publicDeclaration": {
@@ -77057,16 +77148,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 61,
+        "line": 65,
         "column": 1,
-        "endLine": 61
+        "endLine": 65
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 61,
+          "line": 65,
           "column": 1,
-          "endLine": 61
+          "endLine": 65
         }
       ],
       "publicDeclaration": {
@@ -77105,16 +77196,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 63,
+        "line": 67,
         "column": 1,
-        "endLine": 63
+        "endLine": 67
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 63,
+          "line": 67,
           "column": 1,
-          "endLine": 63
+          "endLine": 67
         }
       ],
       "publicDeclaration": {
@@ -77153,16 +77244,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 65,
+        "line": 69,
         "column": 1,
-        "endLine": 65
+        "endLine": 69
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 65,
+          "line": 69,
           "column": 1,
-          "endLine": 65
+          "endLine": 69
         }
       ],
       "publicDeclaration": {
@@ -77204,9 +77295,9 @@
           "sources": [
             {
               "file": "packages/snapback-cli/verify.d.mts",
-              "line": 40,
+              "line": 41,
               "column": 3,
-              "endLine": 40
+              "endLine": 41
             }
           ]
         },
@@ -77223,9 +77314,9 @@
           "sources": [
             {
               "file": "packages/snapback-cli/verify.d.mts",
-              "line": 41,
+              "line": 42,
               "column": 3,
-              "endLine": 41
+              "endLine": 42
             }
           ]
         },
@@ -77242,9 +77333,9 @@
           "sources": [
             {
               "file": "packages/snapback-cli/verify.d.mts",
-              "line": 42,
+              "line": 43,
               "column": 3,
-              "endLine": 42
+              "endLine": 43
             }
           ]
         },
@@ -77261,9 +77352,9 @@
           "sources": [
             {
               "file": "packages/snapback-cli/verify.d.mts",
-              "line": 43,
+              "line": 44,
               "column": 3,
-              "endLine": 43
+              "endLine": 44
             }
           ]
         },
@@ -77280,9 +77371,9 @@
           "sources": [
             {
               "file": "packages/snapback-cli/verify.d.mts",
-              "line": 44,
+              "line": 45,
               "column": 3,
-              "endLine": 44
+              "endLine": 45
             }
           ]
         },
@@ -77299,9 +77390,9 @@
           "sources": [
             {
               "file": "packages/snapback-cli/verify.d.mts",
-              "line": 45,
+              "line": 46,
               "column": 3,
-              "endLine": 50
+              "endLine": 51
             }
           ]
         },
@@ -77318,9 +77409,9 @@
           "sources": [
             {
               "file": "packages/snapback-cli/verify.d.mts",
-              "line": 51,
+              "line": 52,
               "column": 3,
-              "endLine": 51
+              "endLine": 52
             }
           ]
         }
@@ -77331,16 +77422,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 39,
+        "line": 40,
         "column": 1,
-        "endLine": 52
+        "endLine": 53
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 39,
+          "line": 40,
           "column": 1,
-          "endLine": 52
+          "endLine": 53
         }
       ],
       "publicDeclaration": {
@@ -77379,21 +77470,69 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 66,
+        "line": 70,
         "column": 1,
-        "endLine": 66
+        "endLine": 70
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 66,
+          "line": 70,
           "column": 1,
-          "endLine": 66
+          "endLine": 70
         }
       ],
       "publicDeclaration": {
         "file": "packages/snapback-cli/verify.d.mts",
         "exportName": "validateVerifyReceipt"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-cli/verify#VERIFY_CONFIG_CONVENTION",
+      "originIdentity": "packages/snapback-cli/verify.d.mts#VERIFY_CONFIG_CONVENTION",
+      "anchor": "symbol-verify-config-convention-9342a6a064",
+      "name": "VERIFY_CONFIG_CONVENTION",
+      "package": "@expo/snapback-cli",
+      "module": "@expo/snapback-cli/verify",
+      "moduleSubpath": "./verify",
+      "kind": "runtime-constant",
+      "runtime": {
+        "kind": "value",
+        "exportNames": [
+          "VERIFY_CONFIG_CONVENTION"
+        ],
+        "conditions": [
+          "default"
+        ]
+      },
+      "signature": "VERIFY_CONFIG_CONVENTION: 'snapback.verify.config.mjs'",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-cli/verify.d.mts",
+        "line": 57,
+        "column": 14,
+        "endLine": 57
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-cli/verify.d.mts",
+          "line": 57,
+          "column": 14,
+          "endLine": 57
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-cli/verify.d.mts",
+        "exportName": "VERIFY_CONFIG_CONVENTION"
       },
       "closure": {
         "status": "build-bound",
@@ -77427,16 +77566,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 54,
+        "line": 55,
         "column": 14,
-        "endLine": 54
+        "endLine": 55
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 54,
+          "line": 55,
           "column": 14,
-          "endLine": 54
+          "endLine": 55
         }
       ],
       "publicDeclaration": {
@@ -77475,16 +77614,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 55,
+        "line": 56,
         "column": 14,
-        "endLine": 55
+        "endLine": 56
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 55,
+          "line": 56,
           "column": 14,
-          "endLine": 55
+          "endLine": 56
         }
       ],
       "publicDeclaration": {
@@ -77523,16 +77662,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 56,
+        "line": 59,
         "column": 14,
-        "endLine": 56
+        "endLine": 59
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 56,
+          "line": 59,
           "column": 14,
-          "endLine": 56
+          "endLine": 59
         }
       ],
       "publicDeclaration": {
@@ -77558,7 +77697,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export interface VerifyConfig {\n  readonly schemaVersion: 'snapback.verify-config.v1';\n  readonly backendDirectory?: string;\n  readonly generatedDirectory?: string;\n  readonly context?: Partial<VerifyIdentityContext>;\n  readonly profiles?: readonly {\n    readonly id: string;\n    readonly title?: string;\n    readonly testFiles?: readonly string[];\n    readonly requiredCapabilities?: readonly string[];\n    readonly paths?: readonly {\n      readonly id: string;\n      readonly kind: VerifyPathKind;\n      readonly targetProfileId: string;\n      readonly functionId?: string | null;\n    }[];\n    run(context: Readonly<Record<string, unknown>>): Promise<Readonly<Record<string, unknown>>>;\n  }[];\n}",
+      "signature": "export interface VerifyConfig {\n  readonly schemaVersion: 'snapback.verify-config.v1';\n  readonly backendDirectory?: string;\n  readonly generatedDirectory?: string;\n  readonly context?: Partial<VerifyIdentityContext>;\n  readonly profiles?: readonly {\n    readonly id: string;\n    readonly title?: string;\n    readonly timeoutMs?: number;\n    readonly testFiles?: readonly string[];\n    readonly requiredCapabilities?: readonly string[];\n    readonly paths?: readonly {\n      readonly id: string;\n      readonly kind: VerifyPathKind;\n      readonly targetProfileId: string;\n      readonly functionId?: string | null;\n    }[];\n    run(context: Readonly<Record<string, unknown>>): Promise<Readonly<Record<string, unknown>>>;\n  }[];\n}",
       "overloads": [],
       "members": [
         {
@@ -77641,7 +77780,7 @@
           "identity": "npm:@expo/snapback-cli/verify#VerifyConfig.profiles",
           "name": "profiles",
           "kind": "property",
-          "signature": "readonly profiles?: readonly {\n    readonly id: string;\n    readonly title?: string;\n    readonly testFiles?: readonly string[];\n    readonly requiredCapabilities?: readonly string[];\n    readonly paths?: readonly {\n      readonly id: string;\n      readonly kind: VerifyPathKind;\n      readonly targetProfileId: string;\n      readonly functionId?: string | null;\n    }[];\n    run(context: Readonly<Record<string, unknown>>): Promise<Readonly<Record<string, unknown>>>;\n  }[];",
+          "signature": "readonly profiles?: readonly {\n    readonly id: string;\n    readonly title?: string;\n    readonly timeoutMs?: number;\n    readonly testFiles?: readonly string[];\n    readonly requiredCapabilities?: readonly string[];\n    readonly paths?: readonly {\n      readonly id: string;\n      readonly kind: VerifyPathKind;\n      readonly targetProfileId: string;\n      readonly functionId?: string | null;\n    }[];\n    run(context: Readonly<Record<string, unknown>>): Promise<Readonly<Record<string, unknown>>>;\n  }[];",
           "overloads": [],
           "documentation": {
             "text": "",
@@ -77652,7 +77791,7 @@
               "file": "packages/snapback-cli/verify.d.mts",
               "line": 24,
               "column": 3,
-              "endLine": 36
+              "endLine": 37
             }
           ]
         }
@@ -77665,14 +77804,14 @@
         "file": "packages/snapback-cli/verify.d.mts",
         "line": 19,
         "column": 1,
-        "endLine": 37
+        "endLine": 38
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
           "line": 19,
           "column": 1,
-          "endLine": 37
+          "endLine": 38
         }
       ],
       "publicDeclaration": {
@@ -78035,16 +78174,16 @@
       },
       "source": {
         "file": "packages/snapback-cli/verify.d.mts",
-        "line": 67,
+        "line": 71,
         "column": 1,
-        "endLine": 67
+        "endLine": 71
       },
       "sources": [
         {
           "file": "packages/snapback-cli/verify.d.mts",
-          "line": 67,
+          "line": 71,
           "column": 1,
-          "endLine": 67
+          "endLine": 71
         }
       ],
       "publicDeclaration": {
@@ -87611,6 +87750,9 @@
       "aggregateConformance": [
         "npm:@expo/snapback-cli/verify#aggregateConformance"
       ],
+      "DEFAULT_VERIFY_PROFILE_TIMEOUT_MS": [
+        "npm:@expo/snapback-cli/verify#DEFAULT_VERIFY_PROFILE_TIMEOUT_MS"
+      ],
       "defaultVerifyConfig": [
         "npm:@expo/snapback-cli/verify#defaultVerifyConfig"
       ],
@@ -87619,6 +87761,9 @@
       ],
       "defineVerifyConfig": [
         "npm:@expo/snapback-cli/verify#defineVerifyConfig"
+      ],
+      "discoverVerifyConfig": [
+        "npm:@expo/snapback-cli/verify#discoverVerifyConfig"
       ],
       "loadVerifyConfig": [
         "npm:@expo/snapback-cli/verify#loadVerifyConfig"
@@ -87661,6 +87806,9 @@
       ],
       "validateVerifyReceipt": [
         "npm:@expo/snapback-cli/verify#validateVerifyReceipt"
+      ],
+      "VERIFY_CONFIG_CONVENTION": [
+        "npm:@expo/snapback-cli/verify#VERIFY_CONFIG_CONVENTION"
       ],
       "VERIFY_CONFIG_SCHEMA_VERSION": [
         "npm:@expo/snapback-cli/verify#VERIFY_CONFIG_SCHEMA_VERSION"

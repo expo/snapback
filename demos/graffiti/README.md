@@ -54,7 +54,7 @@ bun install --cwd demos/graffiti/surfaces/contract
 bun demos/graffiti/tests/acceptance/contract.mjs
 
 # 4. The live multiplayer wall in the browser.
-cargo run -- --port 4431 --memory
+cargo run -- start --port 4431 --memory
 SNAPBACK_GRAFFITI_API=http://127.0.0.1:4431 \
   bun run --cwd demos/graffiti/surfaces/contract dev
 #   then open http://127.0.0.1:5179/ in two browser windows and paint.

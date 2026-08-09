@@ -47,7 +47,7 @@ const ready = boot().catch((error) => {
   console.error('[shindig react] boot failed', error);
   const container = document.getElementById('root');
   if (container) {
-    container.innerHTML = '<p style="padding:2rem;font-size:14px">Could not reach the Snapback server. Start one with <code>cargo run -- --port 4431 --memory</code> and reload.</p>';
+    container.innerHTML = '<p style="padding:2rem;font-size:14px">Could not reach the Snapback server. Start one with <code>cargo run -- start --port 4431 --memory</code> and reload.</p>';
   }
   throw error;
 });

@@ -82,6 +82,7 @@ fn planted_claim_link_redeems_once_and_attached_cli_reports_it() {
     let ready_file = temp.path().join("ready.json");
     let mut server = snapback()
         .args([
+            "start",
             "--port",
             "0",
             "--memory",

@@ -37,7 +37,7 @@ node demos/shindig/tests/acceptance/contract-browser.mjs          # Contract bro
 Interactive (one server feeds both arms):
 
 ```sh
-cargo run -- --port 4431 --memory                                  # terminal 1
+cargo run -- start --port 4431 --memory                            # terminal 1
 cd demos/shindig/surfaces/react && bun install && bun run dev      # terminal 2 → :5187
 cd demos/shindig/surfaces/contract && bun install && bun run dev   # terminal 3 → :5188
 ```

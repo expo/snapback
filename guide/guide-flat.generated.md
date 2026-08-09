@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
 ---
 
 # Capability index
@@ -31,9 +31,9 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | id | What | Aliases | Targets | Maturity | Witness | Authorities | Page |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | backend.schema | Declare tables, fields, indexes, sync | schema, tables, model, field validators, v.json | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
-| backend.structured-stored-fields | Native stored arrays/objects with write-time element validation, portable indexing, sync semantics | table array, array field, v.array table field, structured storage, stored arrays | none | design-only | llp/0115-convex-parity-course-corrections.plan.md (CV-4b; no shipped witness) | llp/0115 | GAP (owner: LLP 0115 CV-4b, review: 2026-08-18; issue: issues/20260727-backend-bakeoff-improvement-program.md); getting-started/your-first-backend.md |
+| backend.structured-stored-fields | Native stored arrays/objects with write-time element validation, portable indexing, sync semantics | table array, array field, v.array table field, structured storage, stored arrays | none | design-only | llp/0115-convex-parity-course-corrections.plan.md (CV-4b; no shipped witness) | llp/0115 | GAP (owner: LLP 0115 CV-4b, review: 2026-08-31); getting-started/your-first-backend.md |
 | backend.stored-enums | Closed string domains on stored fields: 2–7 literals, fail-closed at every writer, literal-union types, scanned narrowing | enum, stored enum, literal union field, closed domain, role enum, varchar enum, v.union table field | local | shipped | packages/snapback-codegen/stored-enum-authoring.test.mjs | llp/0004, llp/0007 | getting-started/your-first-backend.md |
-| backend.identity-columns | Server-owned monotonic numeric/default columns (SQL IDENTITY, SERIAL) declared on a field | identity column, serial, autoincrement, sequence column, default value, GENERATED AS IDENTITY | none | design-only | llp/0191-scale-architecture-revisits.research.md (§3; no shipped witness) | llp/0191, llp/0007 | GAP (owner: LLP 0191 identity Decision, review: 2026-09-15; issue: issues/20260808-numeric-identity-default-columns.md); getting-started/your-first-backend.md |
+| backend.identity-columns | Server-owned monotonic numeric/default columns (SQL IDENTITY, SERIAL) declared on a field | identity column, serial, autoincrement, sequence column, default value, GENERATED AS IDENTITY | none | design-only | llp/0191-scale-architecture-revisits.research.md (§3; no shipped witness) | llp/0191, llp/0007 | GAP (owner: LLP 0191 identity Decision, review: 2026-09-15); getting-started/your-first-backend.md |
 | backend.migrations | Reviewed destructive schema evolution (LLP 0081): explicit intents, deterministic preview + digested observation, digest-acknowledged approval, restore-derived rehearsal, apply with consumed rehearsal receipt, receipt-vs-journal verify; `rollback` declared-but-unbuilt | migration, schema migration, alter column, rename column, drop field, backfill, snapback migrate | local | shipped | `MigrateCommand` in src/cli.rs | llp/0081 | backend/migrations.md |
 | backend.record-history | Bounded per-record version retention: `defineTable(...).history({ retainMs, maxVersionsPerRecord })` (≤ 30 days, 1–1,000 versions), captured at committed writes, consumed by host proof machinery; no author-facing read query | history, record history, version history, audit trail, time travel, retainMs, maxVersionsPerRecord | local | shipped | `history(` in packages/snapback-codegen/define.mjs | llp/0162 | backend/mutations.md |
 | backend.functions | Queries, live queries, mutations, and actions; declarative plans or colocated JS handlers with same-file helpers; explicit document/record/value result contracts including result-side `v.doc(table)` schema references; manifest-derived handler/helper `ctx.db` types with a query-read/mutation-write split; generated exact client references and runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records, v.doc, GeneratedHandler, GeneratedQueryDatabase, ctx.refuse, refusals, application error code, domain error, app refusal, mutationPlan, letBind, insertEach, return binding, declarative mutation | local | shipped | packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101, llp/0108, llp/0127 | backend/queries.md |
@@ -41,10 +41,10 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.mutation-settlement-identity | Mutation-only client identity and server-namespaced digest for replay-stable effects; genuine re-entry preserves it, while hosted returns null. | ctx.mutation.settlement, settlementId, replay-stable effect, provider idempotency key, effect dedupe | local | shipped | `recordEffectIntent` in tests/mutation_settlement_identity_v0.rs | llp/0043 | backend/mutations.md |
 | backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views, conversation membership, message sender, chat joins, defineRelationalQuery, defineMaintainedProjection, Convex joins, Supabase joins | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
-| backend.bounded-children-v1 | Experimental bounded child pages with protected relation incarnations; contributor-source local only, with public/hosted publication GAPs | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public/hosted publication; owner: Charlie, review: 2026-08-20; issue: issues/20260727-backend-bakeoff-improvement-program.md) |
+| backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.snapshot-batch-v1 | Experimental local composition of 2–8 complete `bounded-children.v1` and (v2, 2026-08-06) `relational-query.v1` join nodes: one pinned authoritative snapshot per invocation, structural parent-authorization dedup, an all-or-nothing tuple sealed only through bounded-child parents, one LLP 0157 `sbsb1`/`sbsb2` continuation, cursor-free-first-page `live_replace`, and `retention:"none"`; hosted and public-package publication remain nonclaims | snapshot batch, mixed snapshot batch, board view, join plus child lists, multiple child lists, one snapshot, composite query, defineSnapshotBatchQuery | local | shipped | `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in src/local.rs + schemas/capability.manifest.local-dev-sqlite-ibex.json (`snapshot_batch_v1`, `snapshot_batch_v2`) | llp/0135, llp/0157, llp/0080, llp/0113 | backend/snapshot-batches.md |
 | backend.single-table-v1 | Experimental host-derived `single_table_v1@1` for an exact public, authority-independent declarative live query over one table. It is single-node-only, never author-assertable, uses the class-scoped 1,024 examined-entry QMK-establishment refusal, preserves whole-result/no-cursor semantics, delivers ordered/limited results by `live_replace`, and retains through Arm A `rqs-authority-independent-snapshot-v1` with no `AuthorizedLease`. Contributor-source builds advertise it via the store publication carrier; the 2026-08-06 LLP 0110/0166 amendment admits clean-release public-package builds with a packaged-closure qualification receipt, shipped inside the runtime packages since 0.1.11. Remote/hosted remain GAPs. | single table, rqsEligible, qmk1, authority-independent retention, single node | local | shipped | src/local-persistent-store-publication.v1.json + schemas/capability.manifest.local-dev-sqlite-ibex.json (`single_table_v1`) | llp/0157, llp/0166, llp/0110, llp/0113 | sync/offline-and-retention.md |
-| backend.write-activity-v1 | Experimental atomic source write + provenance-bearing activity insert; contributor-source local only, with public/hosted publication GAPs | audit log, activity feed, transactional activity, write receipt | local | partial | tests/conformance/relation-activity-publication-v1.receipt.json | llp/0104, llp/0108, llp/0043, llp/0101 | GAP (public/hosted publication; owner: Charlie, review: 2026-08-22; issue: issues/20260727-backend-bakeoff-improvement-program.md) |
+| backend.write-activity-v1 | Experimental closed source-write plus one provenance-bearing activity insert with exact source-effect assertion and LLP 0043/0101 settlement; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | audit log, activity feed, transactional activity, write receipt | local | partial | tests/conformance/relation-activity-publication-v1.receipt.json | llp/0104, llp/0108, llp/0043, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.text-search | Portable term, phrase, prefix, exclusion, and equality-filter search with deterministic ranking, bounded highlights, public/owner/membership (seat-per-resource) visibility, and AEAD keyset cursors | full text, text index, phrase, prefix, highlights | local | shipped | `defineSearchQuery` in packages/snapback-codegen/define.mjs | llp/0073, llp/0065, llp/0100 | backend/text-search.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
@@ -52,16 +52,16 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
 | backend.codegen | Generate a digest-verified review manifest, input-hash cache, client API, and Contract bindings with deterministic human/JSON summaries | codegen, generate, artifacts, cache, custody, review manifest | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
-| backend.sequences | Experimental incarnation-scoped dense `ctx.sequence.allocate` with replay/contention/exhaustion evidence; contributor-source local only | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public/hosted qualification; owner: Charlie, review: 2026-09-30; issue: issues/20260808-main-drift-sequence-allocation-publication.md); backend/sequences.md |
+| backend.sequences | Experimental incarnation-scoped dense sequences through handler `ctx.sequence.allocate(counterName, scopeId)` and generated `AllocateSequence`, with abort-disclosure, commit-order/contention, exact replay, incarnation restart, exhaustion, Relay, Campfire, and mutation-atomic lane-Q qualification. Only the exact contributor-source local target publishes `sequence_allocation_v1`; public packages and hosted targets remain structured GAPs | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json + tests/conformance/sequence-allocation-publication-v1.receipt.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public-package attestation and hosted target qualification/publication; owner: Charlie, review: 2026-09-30); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
 | backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, object storage, media, browser upload, native upload, SVG, image/svg+xml, Expo ImagePicker, expo/fetch, useSnapbackAssetUpload, useSnapbackAssetImage, render image, strict delivery URL, empty image, session mint, vite relay, asset export, logical backup, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (browser relay path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Shipped local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, structured `notifications.expoPushSeam` facts, and a retained physical-device `ok` receipt witness. The complete hosted conjunction remains a GAP; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs + LLP 0143 implementation record (2026-08-03 physical-device witness) | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
-| backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-24; issue: issues/closed/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
+| backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
 | backend.error-tracking-v1 | Local Phase E0/E1 backend failure classification, deterministic grouping (including first-ordered authority plus full raw carrier facts for multiple unhandled rejections), retained raw exemplars, release-aware issue lifecycle, typed CLI/MCP operations, and Errors/Health console projections; hosted grouping, E2 alerts, and E3 client ingest remain unbuilt | error tracking, issues, fingerprints, exceptions, failures | local | partial | route /_snapback/api/errors/issues | llp/0156, llp/0154, llp/0108 | operating/error-tracking.md |
 | backend.vector-search | Experimental bounded exact k-NN over declared fixed-width binary64 vector fields, with pinned `dot`/`l2sq` arithmetic, public/owner visibility partitions, exact equality filters, stored fields, synchronous SQLite maintenance, and digest-recheck quarantine; ANN, embedding computation, live/paginated/offline search, hosted targets, PostgreSQL, and sensitive fields remain nonclaims | vector, embeddings, similarity, semantic search, RAG, exact k-NN | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.json (`vector_search_v1` + `vectorSearch`) + `defineVectorQuery` in packages/snapback-codegen/define.mjs | llp/0132, llp/0073 | backend/vector-search.md |
 | backend.cron | Scheduled execution | schedule, cron list, cron status, cron tick, run cron now, force tick | local | shipped | route /_snapback/api/cron | llp/0028 | backend/cron.md |
-| backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query, the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 remains pre-Accepted (in Review since 2026-08-03) | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, job status, retryable by design, dead-letter, DLQ, succeeded after retry, secret-read lease, job drain, drain jobs | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
+| backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query, the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 remains pre-Accepted (in Review since 2026-08-03) | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, job status, secret-read lease, job drain, drain jobs | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state, connection disconnect, disconnect client, force disconnect | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms plus the scoped React presence hook: presence, typing indicators, cursors, TTL | presence, cursors, rooms, ephemeral, React ephemeral hook, useSnapbackPresence, useSnapbackEphemeral, typing indicator, ephemeral cleanup, cleanup stale entries, expire ephemeral, Supabase Presence, Supabase Broadcast | local | shipped | route /ephemeral/publish + `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0013, llp/0107, llp/0114 | realtime/ephemeral-state.md |
@@ -70,8 +70,8 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | sync.offline-js-arm | Experimental JS/React offline substrate: default IndexedDB + Web Locks in browsers, durable file storage on Node, and in-memory fallback; declared public authority-independent retained queries; durable M2 outbox with exact ordered replay and pending-intent projection. LLP 0090 grandfathers legacy RQS entries: adoption is connected-only prove-or-fresh into QMK custody, one atomic transaction, never relabeling bytes or dropping pending outbox intent. Node/file and React-stub tests pass, and LLP 0155 proves real-Chrome `SIGKILL` persistence plus two-tab lock refusal/takeover. The 2026-08-07 browser public witness proves the end-to-end browser facts (labeling, resync/replay, settlement, convergence, SPA reload, protected refusal). Authenticated retention stays with the lease-custody ticket; no local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (browser substrate) + packages/snapback-client/rqs-resume.test.mjs (auth-scoped refusal receipt) + `demos/browser-local-first/tests/acceptance/browser-public-witness.mjs` | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166 | sync/offline-and-retention.md |
 | sync.offline-js-arm-sessions | JS-arm offline queue under browser-session and agent custody (LLP 0043 §Auth posture, ratified 2026-08-04, implemented 2026-08-06): capture-at-enqueue authority descriptor + principal scope + durable custody lineage; same-principal replacement sessions strand rerecordable work for explicit read/discard/re-record-as-new-`clientMutationId`; principal change privacy-deletes predecessor queue bytes with a diagnostic count before successor observation; `SNAPBACK_AUTH_STALE_RESULT` replay refusals strand terminally while content refusals stay failed; v1 is server-refusal-only (no LLP 0053 queue-obligation port — named Contract-arm asymmetry) | sessions custody, agent custody offline, strand, re-record, cross-principal delete, offline auth queue | local | shipped | demos/card-game/tests/acceptance/offline-sessions-custody.mjs + packages/snapback-client/outbox-custody.test.mjs | llp/0043, llp/0053, llp/0129 | sync/offline-and-retention.md |
 | sync.local-persistent-store | LLP 0166 store + hydration bridge: one v3 store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof plus applicable lease validation before page commit, public programmatic and manifest-derived preload registrations, and proof-revalidated relaunch answers. Writer maintenance derives custody from registrations: active demand is restart-volatile, durable programmatic demand survives, `none` release compacts immediately, and every retained address exposes one StorePolicyInspectionV1 reason. The D7 result-transform gate is fired on durable IndexedDB and Node/file; memory and Expo report volatile and refuse durable fragments with a structured GAP. Authority-independent `single_table_v1@1` needs no lease but keeps every proof/fence check. The contributor-source local manifest publishes the experimental class from a retained 2026-08-06 carrier exit at 17 PASS / 0 GAP / 0 skipped plus Triage and Fleet at 8/8 each; remote-service and Cloudflare manifests remain nonclaims | retained render, materialization, completeness proof, qmk1, hydration bridge, programmatic registration, preload, maintenance, custody inspection, relaunch, result transform, answer class, carrier honesty | local | partial | src/local-persistent-store-publication.v1.json + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json + tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json + tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json (56/56 Rust/JavaScript, two claiming + two refusing carriers) | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094 | sync/offline-and-retention.md |
-| sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-26; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
-| sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-28; issue: issues/20260802-0133-receipt-wire-coordination.md) |
+| sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
+| sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-31) |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session, principal binding, app user table, identityBinding | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.external-identity-broker | Local bridges: adopted bearer for headless/native, or trusted-server one-use exchange into browser coordinator custody; mint/capture remain dev/test/demo only | native login, external identity, broker, adopted bearer, browser external sign-in, signed assertion, issuer subject | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0024, llp/0057, llp/0096, llp/0151 | recipes/browser-auth.md |
 | auth.browser-session-custody | Bearer-v1 custody through AuthCoordinator + IndexedDB/Web Locks, with reload restoration and logout replacement; XSS-readable and not sender-constrained | durable browser auth, browser auth reload, IndexedDB auth custody, createIndexedDbAuthCustodyStorage, reload session, persistent login | local | shipped | `createIndexedDbAuthCustodyStorage` in packages/snapback-contract/auth-custody-indexeddb.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0059, llp/0060 | recipes/browser-auth.md |
@@ -81,14 +81,14 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | auth.target-honesty | Per-target auth claims and non-claims; readiness reporting | hosted auth, production auth | all | shipped | `AuthProgramReadiness` in src/auth/mode.rs | llp/0060 | auth/targets.md |
 | auth.sender-constrained-browser | Hosted-only non-extractable browser custody, HTTP/WebSocket sender proofs, nonce rotation, and replay refusal; no current adapter has positive admission | DPoP, browser key, credential theft, hosted sessions | single-instance-container-vm | partial | `HostedBrowserSnapbackClient` in packages/snapback-client/hosted-browser.mjs | llp/0077, llp/0060 | auth/targets.md |
 | auth.agent-principals | Agent principals and scoped grants | agent auth, grants, pairing | local | shipped | route /auth/agents/pair | llp/0055 | auth/agent-principals.md |
-| auth.agent-registration | Register an agent and issue its initial `sbac_`; currently test/internal only | register agent, create agent, invite agent, agent credential | none | design-only | src/server.rs (`issue_initial_agent_credential`; no route) | llp/0055 | GAP (owner: Charlie, review: 2026-09-30; issue: issues/20260808-wave4-identity-program.md); auth/agent-principals.md |
+| auth.agent-registration | Creating an agent principal and issuing its initial `sbac_` credential; no user-reachable surface exists today — credentials come from harness/test-lane provisioning | register agent, create agent, invite agent, agent credential | none | design-only | src/server.rs (`create_agent_principal`/`issue_initial_agent_credential`: test/internal call sites only; no route) | llp/0055 | GAP (owner: Charlie, review: 2026-09-30); auth/agent-principals.md |
 | auth.scoped-roles | Scoped roles and memberships | roles, membership, kick, removePrincipal | local | shipped | `membership(spec)` in packages/snapback-codegen/define.mjs | llp/0056, llp/0100 | auth/scoped-roles.md |
 | clients.headless | The framework-neutral client (SnapbackClient) | http client, node client, sdk | local | shipped | `SnapbackClient` in packages/snapback-client/index.mjs | llp/0012 | clients/headless.md |
 | clients.micro | Compiled Micro profile: capability-minimal published client entrypoints (`./micro`, `./micro/core`, `./micro/live`) — core-only generated entries keep live/outbox code unreachable; `./micro/live` is the smallest grant-owned polling live composition | micro client, microclient, compiled client, minimal client, small bundle, micro live | local | shipped | `createMicroCoreRuntime` in packages/snapback-client/micro-core.mjs | llp/0147 | clients/headless.md |
 | clients.protocol | Versioned route/envelope/lifecycle contract and language-neutral conformance corpus | wire protocol, native client, conformance, snapback.v1 | local | shipped | `ClientStateMachine` in clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift | llp/0093, llp/0094, llp/0095, llp/0096 | protocol/client-protocol.md |
-| clients.swift | In-repository SwiftPM proving client for iOS/macOS: poll/local and live/local with session auth; not published, tagged, or consumable through a dependency declaration | swift, swiftui, ios, macos, SwiftPM dependency, package URL, proving client | local | partial | `SnapbackClient` in clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift | llp/0064, llp/0093 | clients/swift.md |
-| clients.non-js | Kotlin and Dart clients do not exist yet — an aspirational gap. The current non-JS surface is the Swift client (clients.swift) plus the versioned client protocol and language-neutral conformance corpus (clients.protocol), the intended base for future Kotlin/Dart arms | kotlin, compose, dart, flutter | none | design-only | llp/0093-client-protocol-and-native-clients.rfc.md (protocol + conformance corpus; no shipped Kotlin/Dart witness) | llp/0093, llp/0064 | GAP (owner: Charlie, review: 2026-09-02; issue: issues/20260808-swift-arm-not-consumable.md) |
-| clients.poll-hosted | Socketless hosted demand ownership and poll delivery | hosted polling, poll hosted | cloudflare | partial | cloudflare/src/coordinator.js | llp/0093, llp/0095 | GAP (owner: Charlie, review: 2026-09-04; issue: issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md) |
+| clients.swift | SwiftPM protocol client for iOS/macOS; poll/local and live/local with session auth | swift, swiftui, ios, macos | local | partial | `SnapbackClient` in clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift | llp/0064, llp/0093 | clients/swift.md |
+| clients.non-js | Kotlin and Dart clients do not exist yet — an aspirational gap. The current non-JS surface is the Swift client (clients.swift) plus the versioned client protocol and language-neutral conformance corpus (clients.protocol), the intended base for future Kotlin/Dart arms | kotlin, compose, dart, flutter | none | design-only | llp/0093-client-protocol-and-native-clients.rfc.md (protocol + conformance corpus; no shipped Kotlin/Dart witness) | llp/0093, llp/0064 | GAP (owner: Charlie, review: 2026-08-31) |
+| clients.poll-hosted | Socketless hosted demand ownership and poll delivery | hosted polling, poll hosted | cloudflare | partial | cloudflare/src/coordinator.js | llp/0093, llp/0095 | GAP (owner: Charlie, review: 2026-08-31) |
 | clients.external-store | Shared current-value/subscription store | external store | local | shipped | `createExternalQueryStoreRegistry` in packages/snapback-client/external-store.mjs | llp/0012, llp/0064 | clients/headless.md |
 | clients.framework-bindings | React/Contract bindings | bindings | local | partial | `SNAPBACK_EXTERNAL_STORE_PROTOCOL` in packages/snapback-client/external-store.mjs | llp/0012, llp/0034, llp/0064 | clients/framework-bindings.md |
 | clients.app-cli | Local artifact/served-envelope app CLI, brokered code mode, stable two-section `agentDigest.v1` introspection, and an experimental app-bound Ibex one-file build qualified on macOS arm64 and Linux x86_64 GLIBC 2.35. Public inspection still lacks row-count magnitudes and D1 verdicts; hosted targets remain a GAP. | app cli, code mode, introspect, agent digest, changed since, digest cursor, one-file executable | local | partial | `buildAgentDigest` in packages/snapback-app-cli/digest.mjs + scripts/build-app-bound-executable + packages/snapback-app-cli/code-mode-ibex.test.mjs + GitHub Actions run 30999145126 | llp/0062, llp/0146 | clients/app-cli.md |
@@ -103,11 +103,10 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | clients.optimistic-create | First-class React-provider optimistic insert directly in a canonical `useSnapbackQuery` store; lower-level substrate ships separately | React optimistic create, useSnapbackMutation insert, optimistic insert hook, provider provisional row, pending row, intent id, temporary id | none | design-only | issues/20260808-first-class-react-optimistic-create.md (no provider/hook witness) | llp/0107, llp/0133, llp/0155 | GAP (owner: ccheever, review: 2026-09-30; issue: issues/20260808-first-class-react-optimistic-create.md); recipes/optimistic-create.md |
 | clients.surfaces | Generated application surfaces bind one screen/resource's reads, ordinary mutations, asset-bearing commands, raw assets, and presence around shared params; React and headless projections share canonical owners. The closed command task composes zero/one asset child with one ordinary mutation and reports truthful failure, ambiguity, and residue provenance. | defineSurface, useSurface, observeSnapbackSurface, application surface, screen surface, one hook for a screen, bind query and mutation, surface presence, conversation surface, useSnapbackSurface, defineCommand, useSnapbackCommand, image send, upload then mutate, command task | local | partial | `useSnapbackCommand` in packages/snapback-react/index.d.mts | llp/0179, llp/0180, llp/0114, llp/0176 | clients/surfaces.md |
 | clients.react-expo | Expo provider + supervised no-URL simulator/emulator boot. The package-level web carrier ships; its end-to-end receipt remains open. Cold supervisor boot uses cached non-secret binding plus a digest-bound persisted receipt, never a bearer. Android USB `adb reverse` is proven; iOS USB, LAN/tunnel, and release remain unclaimed. | react native, expo, ios, android, expo web, react-native-web, bootstrap CORS, blob picker, physical device, USB device, snapback dev --expo, SnapbackExpoProvider, adb reverse, TCP/IP adb refused, ios udid, iproxy, 10.0.2.2, authority-required, restore lock, .snapback gitignore, copy project | local | shipped | `runExpoDev` in packages/snapback-cli/expo-dev.mjs + packages/snapback-cli/expo-bootstrap-exchange.test.mjs + packages/snapback-cli/expo-device-forwarding.test.mjs + simulator/emulator receipts | llp/0012, llp/0064, llp/0176, llp/0181 | clients/react-expo.md |
-| clients.compose-existing-app | Backend-only initialization and dependency composition for adding Snapback to an existing React/Expo app without scaffolding a second whole project | compose into existing app, add Snapback, snapback init, backend initializer, create-expo-app | none | design-only | packages/snapback-cli/index.mjs (`snapback new` creates whole projects; no backend-only initializer) | llp/0196, llp/0181 | GAP (owner: unassigned, review: 2026-09-12; issue: issues/20260808-guide-gap-compose-snapback-into-existing-app.md); clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
-| operating.instance-forks | Source-only finite-TTL derived-instance CLI; prior local publication withdrawn pending digest re-scope and requalification | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs | llp/0158, llp/0185 | GAP (fresh qualification/review/acceptance/publication; owner: Charlie, review: 2026-09-06; issue: issues/20260807-derived-fork-publication-wave-drift-requalification.md); operating/instance-forks.md |
+| operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with expiry enforcement, bounded renewal, resource-limit admission, recovery, bounded inspection, diff, concurrency-safe cleanup, fork-per-worktree and parallel-suite guidance, and exact drop; the 2026-08-07 local publication is withdrawn pending the LLP 0189 D-4 digest re-scope and requalification; the retained historical evidence is not a current claim | fork, derived instance, fork per worktree, parallel suite, inspect, status, recover, renew, diff, automatic reap, resource limits | none | partial | `ForkCommand` in src/cli.rs + tests/instance_fork_cli_v1.rs + tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json (historical evidence only; public tuple Missing) | llp/0158, llp/0185 | GAP (fresh dual-platform qualification, review heads, named-author acceptance, and publication are required; owner: Charlie, review: 2026-08-31; see issues/20260807-derived-fork-publication-wave-drift-requalification.md and operating/instance-forks.md) |
 | operating.store-durable-state | Contributor-source declared registry of a file-backed store's complete durable state (database, folded WAL/SHM/journal, auth keyring, config, operation-detail and completeness-proof keyrings, asset blobs, admin token, console credentials, resume keyring, plus instance-local and refuse classes) via `snapback store describe`, and the WAL-consistent atomic `snapback store export` copy verb publishing a directly bootable directory plus a `store-export.json` manifest. Push-token bytes are scrubbed (LLP 0143); managed-branch and derived-fork stores refuse; not yet in a published closure | backup, restore, copy database, clone database, move store, snapshot, disaster recovery, cp app.sqlite3, sqlite backup, WAL, auth-keyring.json, missing keyring, SNAPBACK_AUTH_PROVIDER_UNAVAILABLE, store describe, store export, durable state, sidecar, sibling files | local | partial | `durable_state_members` in src/store_state.rs + `StoreCommand` in src/cli.rs | llp/0192, llp/0057, llp/0143 | operating/backup-and-copy.md |
-| operating.agent-safe-storage | Registered Experimental `agent_safe_storage_v1` identity for the `agentSafe.v1` extension/component-fact vocabulary; it is not the `AgentSafeV1` core aggregate and no target currently supports it | operation envelope, explanation, agent-safe storage, capability facts | none | partial | `AgentSafeCapabilityExtensionV1` in src/manifest.rs (Missing-only public projection) | llp/0162 | GAP (acceptance corpus, review, acceptance, and publication gates; all projections remain Missing; owner: Charlie, review: 2026-09-08; issue: issues/20260803-agent-safe-storage-acceptance-tail.md) |
+| operating.agent-safe-storage | Registered Experimental `agent_safe_storage_v1` identity for the `agentSafe.v1` extension/component-fact vocabulary; it is not the `AgentSafeV1` core aggregate and no target currently supports it | operation envelope, explanation, agent-safe storage, capability facts | none | partial | `AgentSafeCapabilityExtensionV1` in src/manifest.rs (Missing-only public projection) | llp/0162 | GAP (acceptance corpus, review, acceptance, and publication gates; all projections remain Missing; owner: Charlie, review: 2026-08-31) |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI. The React/Vite starter path is published and G1-qualified in the public `@expo/snapback-*` closure (newest published and newest qualified versions recorded in guide/published-closure.json); publications newer than `newestQualified` are fast-path releases without a qualification-arm receipt of their own. | install, new app, create-snapback-app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health/inspect projections | status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys, config verification, verify config, config verify | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
@@ -117,7 +116,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | operating.agent-controls | Build/instance control discovery | controls list, controls describe, catalog | local | shipped | route /_snapback/api/control-catalog | llp/0184 | operating/agent-controls.md |
 | operating.data-patch | Preview/apply one validated existing-row correction with per-row CAS, a single-use token, normal live notification, and explicit dev authority | data patch, direct edit, patch row, correct row, expected version, row version, apply token, devUser, devAdminBypass | local | shipped | tests/data_patch_v1.rs | llp/0184, llp/0024, llp/0017 | operating/data-patch.md |
 | operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor; local served-generation candidates and bounded repeated-miss hints for unknown operations/functions/fields and wrong argument shapes (suggestion only—no remediation carrier or automatic apply while LLP 0146 OQ6 is open) | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery, did you mean, candidate fields, candidate functions, repeated miss, wrong argument shape | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs + `unknown_function_details` in src/authoring_suggestion.rs + tests/host_ops_v0.rs | llp/0010, llp/0031, llp/0041, llp/0074, llp/0146 | operating/diagnostics.md |
-| operating.declaration-conformance | Declared-vs-captured read/write reports, local strict opt-in, and registered-path verify aggregation; discovery, complete provenance, and Cloudflare capture remain GAPs | declaration drift, undeclared read, undeclared write, strict declarations, conformance, coverage, missingReads, read set, write set | local | partial | `aggregateConformance` in packages/snapback-cli/verify.mjs | llp/0146, llp/0127, llp/0010 | GAP (guide + remaining capture; owner: ccheever, review: 2026-09-10; issue: issues/20260803-0146-d1-d3-tranche.md) |
+| operating.declaration-conformance | Per-invocation declared-vs-captured read/write report and local strict opt-in, plus `snapback verify` aggregation over explicitly registered acceptance paths: authoritative under-declarations and missing reports fail, universally extra declarations warn, and observed incomplete/unsupported provenance stays an explicit partial rather than a verdict. The Cloudflare target refuses `strictDeclarations: true` at compiled-schema load and `/app/ensure` with `SNAPBACK_STRICT_DECLARATIONS_TARGET_UNSUPPORTED`; it never admits the flag unenforced. Automatic discovery of every repository acceptance path, app-data-plane ring wiring, complete mutation-envelope provenance, and authoritative Cloudflare capture/reporting remain GAPs | declaration drift, undeclared read, undeclared write, strict declarations, conformance, coverage, missingReads, read set, write set | local | partial | `aggregateConformance` in packages/snapback-cli/verify.mjs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
 | operating.verify | Five-stage CLI done-oracle with source-regenerated artifact identity, digest-bound runtime readiness, local admission plus registered-path D1 aggregation, generated capability resolution, registered acceptance execution, identity/test-byte-bound receipt, ordered next actions, and mechanically unique recommendation. Live-target admission, automatic acceptance-path discovery, `acceptance.run`, product-completeness claims, and CV-14 semantic-review custody are explicit nonclaims | verify, done oracle, receipt, recommended next, test bytes, readiness | local | partial | `runVerify` in packages/snapback-cli/verify.mjs | llp/0146, llp/0010 | testing/verify.md |
 | operating.served-guide | Server embeds guide pages + hash-bound flat.md and serves the root /llms.txt index | docs endpoint, llms.txt, served docs | all | shipped | route /llms.txt | llp/0061 | index.md |
 | operating.guide-mcp | Read-only MCP resources for the build-bound guide corpus | mcp docs, guide resources | all | shipped | `run_stdio` in src/guide_mcp.rs | llp/0061 | index.md |
@@ -141,13 +140,13 @@ id: meta.index
 order: 1
 audience: agent-first
 capabilities: [operating.served-guide, operating.guide-mcp]
-authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0042-agent-mcp-surface.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/server.rs, src/schema_export.rs, schemas/http.routes.v1.json, src/cli.rs, src/guide_mcp.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs]
+authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0042-agent-mcp-surface.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/cli.rs, src/guide_mcp.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs]
 examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/partiful-matrix, demos/expo-golden-path-fixture]
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -174,23 +173,9 @@ guide bytes with a different server build. `GET /llms.txt` at the served root
 provides a convention-standard index, leading with the capability index
 (within its enforced budget) and listing the flat projection last as an
 explicit large-file fallback while it remains oversized
-(`issues/20260806-guide-flat-projection-oversize.md`). The same local server
-serves `GET /_snapback/guide/http.routes.v1.json`, a generated build-bound
-join from the installed route registry to committed input/output schema
-references; a `null` schema reference means no route-specific schema is
-committed, not an unconstrained body. Building Snapback
+(`issues/20260806-guide-flat-projection-oversize.md`). Building Snapback
 itself is a
 different job — that's `AGENTS.md` and the LLP corpus, not this guide.
-
-That served-discovery promise is for local/embedded server profiles. The
-derived hosted posture deliberately disables `operatorSurface`; on that
-profile `/llms.txt`, `/_snapback/guide*`,
-`/_snapback/api/control-catalog`, and host-operation discovery are not
-claimed. Depending on the target, those URLs may return a fixed empty 404, an
-asset fallback, or a target-specific refusal; none is evidence of a hosted
-discovery surface. Use the guide from the pinned checkout or published package
-when working against that profile; do not infer local discovery routes from a
-hosted app's root URL.
 
 ## Choose the MCP authority
 
@@ -430,16 +415,11 @@ you never build around a feature because you didn't know it existed.
   release-aware issue state from the console, CLI, or MCP.
 
 ### Deploying
-- [Deployment posture](./deploying/index.md) — the aggregate truth: where
-  local, Fly, Cloudflare, and hosted lifecycle paths stop today, with their
-  tracking tickets.
 - [Immutable releases and deploy plans](./deploying/releases.md) — build the
   target-neutral release, register an exact VM/container target, inspect its
   provider identity, and retain a GAP-fenced content-addressed plan.
 - [Cloudflare proof](./deploying/cloudflare.md) — deploy and verify All
   Aboard on the honest partial hosted profile; explicit supported subset and gaps.
-- [Hosted control](./deploying/hosted-control.md) — the package-owned read
-  surface, all 17 closed lifecycle verbs, and the carrier/custody refusal.
 
 ### Recipes
 - [Browser sign-in and reload custody](./recipes/browser-auth.md) — verified
@@ -501,7 +481,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-commit: eac098a99
 ---
 
 # Surface map
@@ -952,7 +932,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
 ---
 
 # Retrieval eval protocol
@@ -1294,72 +1274,6 @@ and LLP 0196 T4.
     `auth/app-identity-binding.md`.
     Route terms: "browser auth reload", "IndexedDB auth custody",
     "createIndexedDbAuthCustodyStorage", "issuer subject".
-
-Cases 32–39 absorb the diary-friction routing misses re-verified by LLP 0202:
-job contention and retry observability, Expo filesystem setup, system-field
-indexes, the Vite virtual module, headless transport defaults, dev-auth persona
-composition, packaged codegen, and existing-app composition.
-
-32. **Retryable durable job and DLQ inspection:** "Enqueue a notification job
-    that can race foreground writes, then tell whether it succeeded only after
-    a retry or exhausted into the DLQ." The run fails if it accepts the
-    one-attempt default for routine contention, promises a separate dead-letter
-    queue, or infers first-try success from `lastErrorCode: null`.
-    Expected pages: `backend/jobs.md`.
-    Route terms: "retryable by design", "SNAPBACK_AUTH_RESERVATION_STALE",
-    "dead-letter", "DLQ", "succeeded after retry".
-
-33. **Expo durable-store registration:** "Register Expo file persistence in a
-    universal iOS/Android/web app without white-screening web." The run fails
-    if it calls `registerExpoFileSystemRqsFiles` on web or hand-writes an
-    `expo-file-system` version instead of using Expo's installer.
-    Expected pages: `clients/react-expo.md`.
-    Route terms: "registerExpoFileSystemRqsFiles", "Platform.OS",
-    "white-screening", "npx expo install", "expo-file-system".
-
-34. **System-field index boundary:** "Page a player's rows by `_version` and
-    decide whether `.index('by_player_version', ['playerId', '_version'])` is
-    legal." The run fails if it declares a system-field index or fails to name
-    the authored-partition-index plus system-field range/order path.
-    Expected pages: `getting-started/your-first-backend.md` or
-    `backend/queries.md`.
-    Route terms: "system fields", "SCHEMA_UNKNOWN_FIELD", "_version",
-    "composite system-field index".
-
-35. **Vite development virtual module:** "A hand-built Vite app cannot type
-    the `virtual:snapback/dev` import used by the Snapback templates." The run
-    fails if it invents a physical module or omits the ambient declaration.
-    Expected pages: `getting-started/the-authoring-loop.md`.
-    Route terms: "virtual:snapback/dev", "snapback-dev.d.ts",
-    "snapbackBasePath", "ambient declaration".
-
-36. **Headless live transport default:** "Subscribe with headless `liveQuery`
-    and receive updates without manually polling." The run fails if it omits
-    `transport: 'stream'` while claiming push updates.
-    Expected pages: `clients/headless.md`.
-    Route terms: "manual polling", "transport default", "transport: 'stream'",
-    "poll()".
-
-37. **Expo multi-persona auth:** "Switch between two acting users in an Expo
-    demo using the packaged provider." The run fails if it passes `userId` per
-    hook call or claims dev auth composes with the provider's single custody
-    identity.
-    Expected pages: `clients/react-expo.md`.
-    Route terms: "dev-auth, multi-persona", "SnapbackExpoProvider",
-    "per-call userId", "one custody identity".
-
-38. **Packaged codegen command:** "Generate a newly scaffolded backend from an
-    installed Snapback CLI rather than a Snapback source checkout." The run
-    fails if it invokes `node packages/snapback-codegen/index.mjs`.
-    Expected pages: `getting-started/your-first-backend.md`.
-    Route terms: "snapback generate", "Generate and load", "packaged".
-
-39. **Compose into an existing app:** "Add a Snapback backend to an existing
-    `create-expo-app` project." The run fails if it invents `snapback init` or
-    hides the current sibling-scaffold/copy workaround and capability GAP.
-    Expected pages: `clients/react-expo.md`.
-    Route terms: "existing standalone Expo", "backend-only initializer",
-    "sibling directory", "compose into existing app".
 
 ## Static routing check
 
@@ -3212,7 +3126,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Queries
@@ -3276,14 +3190,6 @@ Use the declarative form when the plan vocabulary expresses the query. Use a
 JS handler for bounded logic the plan cannot express. Both styles return the
 same public query envelope and must use declared indexes for author-facing
 lookup paths.
-
-Indexes name authored table fields only. `_id`, `_version`, `_createdAt`, and
-`_updatedAt` are legal filter/order leaves but are rejected inside
-`.index(...)` with `SCHEMA_UNKNOWN_FIELD`; `_id` is already the implicit final
-tie-break for every declared index. For a version cursor, declare an index over
-the authored partition key and apply the `_version` range/order after selecting
-that index, as in the keyset example below. There is no portable composite
-system-field index declaration to opt into.
 
 Specialized read shapes are their own closed carriers with their own pages —
 cross-reference rather than reimplementing them in a JS handler. Before using
@@ -4696,13 +4602,13 @@ id: backend.cron
 order: 4
 audience: agent-first
 capabilities: [backend.cron]
-authorities: [llp/0028-cron-scheduled-execution.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/cron.mjs, demos/_kit/server-process.mjs]
+authorities: [llp/0028-cron-scheduled-execution.rfc.md, src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/cron.mjs, demos/_kit/server-process.mjs]
 examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-08
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Scheduled execution with cron
@@ -4815,7 +4721,7 @@ To keep autonomous cron runs out of a test or dev session entirely, start
 the server with the scheduler disabled:
 
 ```sh
-SNAPBACK_CRON_DISABLED=1 snapback   # or: snapback --cron-disabled
+SNAPBACK_CRON_DISABLED=1 snapback start   # or: snapback start --cron-disabled
 ```
 
 The switch accepts `1` or `true`; any other value leaves the scheduler on,
@@ -4881,8 +4787,8 @@ examples: [packages/snapback-codegen/jobs-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # One-off durable jobs
@@ -4950,30 +4856,6 @@ The complete options vocabulary:
 The return value is `{ jobId, availableAtMs, deduplicated }`. Job ids ride
 the ctx-answer ledger, so tests can assert on them across replay.
 
-### Budget retries for expected contention
-
-`maxAttempts: 1` is a bounded-work default, not a recommendation that every
-job is safe to try once. If an action calls a mutation that can contend with
-foreground writes or authorization reservations, enqueue it as
-**retryable by design** with a stable idempotency key and a small explicit
-budget:
-
-```js fragment reason="application-specific action, arguments, and idempotency identity"
-await ctx.jobs.enqueue('notify', args, {
-  maxAttempts: 3,
-  idempotencyKey: `notify:${args.eventId}`,
-});
-```
-
-The local sessions target may return the retryable
-`SNAPBACK_AUTH_RESERVATION_STALE` refusal when a deferred mutation races a
-concurrent foreground move. An attempt consumes one slot even though no
-application effect committed; the queue applies its bounded jittered backoff
-before the next attempt. With the default budget, that same routine contention
-would make the job terminal `dead`. Keep the action idempotent because delivery
-is still at-least-once, and choose the smallest budget that covers the
-contention your acceptance test actually witnesses.
-
 Who may enqueue, and what may run:
 
 - **Only mutations enqueue.** Queries and actions get
@@ -5030,22 +4912,6 @@ The served row is lifecycle facts only — never argument values or results:
 `terminalAtMs`, `lastErrorCode`, and the producer association
 (`producerMutationId`, `producerSnapshotVersion`, `producerFunction`).
 States: `pending`, `claimed`, `succeeded`, `dead`, `cancelled`.
-
-The terminal `dead` state is Snapback's **dead-letter / DLQ equivalent** in v1:
-there is no separate dead-letter queue. Exhausted jobs remain on the same
-durable queue with `lastErrorCode` and append-only attempt receipts, where the
-operator lane below can inspect them. There is no replay/redrive operation in
-this slice.
-
-Retry history and current status are deliberately different surfaces. A job
-that succeeds after one or more retries has `state: "succeeded"` and
-`lastErrorCode: null`; the privacy-bounded product status row therefore does
-**not** reveal that it retried. The operator detail route
-`GET /_snapback/api/jobs/{id}` retains the attempt sequence (for example,
-`retryable` with `SNAPBACK_AUTH_RESERVATION_STALE`, then `succeeded`). Use that
-route with the required secret-read lease when succeeded-after-retry visibility
-matters operationally; do not infer first-try success from a null terminal
-error.
 
 Receipts carry the other half of the association: a **confirmed** mutation
 receipt that enqueued jobs gains a bounded `enqueues` array
@@ -8945,7 +8811,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-commit: 2c6b3d38cbf2ba197cfb0390aaddba1ce107e4e0
 ---
 
 # The headless client
@@ -9057,13 +8923,6 @@ actor/credential-generation/grant axis while invalidating the old token
 carrier; a changed tuple deletes predecessor state before publishing the
 validated successor. In either case, no successor result can publish until an
 exact final custody comparison succeeds.
-
-This fork only **adopts an already-issued agent credential**. No
-user-reachable client or server route registers an agent principal or issues
-the initial `sbac_` credential today; those credentials come from
-harness/test-lane provisioning. Treat
-[`auth.agent-registration`](../capabilities.md) as a capability GAP, not as a
-missing method to keep searching for.
 
 Long-running Node CLI and daemon processes should import
 `createFilesystemAgentAuthorityCustodyStorage` directly from
@@ -9275,10 +9134,7 @@ snapshot-with-subscribe operation and returns a handle with `rows`,
     assertEqual(handle.rows.length, 3, 'snapshot rows');
 ```
 
-**Transport default:** omitting `transport` selects manual polling. The handle
-updates only when the caller invokes `poll()`; it does not become push-driven
-because an `onUpdate` callback is present. Use `transport: 'stream'` for managed
-WebSocket push; the manager multiplexes
+Use `transport: 'stream'` for managed WebSocket push; the manager multiplexes
 all durable and ephemeral consumers sharing a `connectionId`. Consume
 `onUpdate`, `onConnectionChange`, subscription events, and authorization
 callbacks instead of reading socket internals. Always dispose the handle.
@@ -10959,7 +10815,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Swift client
@@ -10969,23 +10825,9 @@ reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 > [auth/targets](../auth/targets.md).
 
 `clients/swift/SnapbackClient` is the first non-JavaScript proving client. It
-is structured as a SwiftPM library for macOS 13+ and iOS 16+ and claims
-`poll/local` and `live/local` when built and tested inside this repository. It
-does not yet claim external dependency consumption, `live/hosted`, offline
-`Parity`, or sender-constrained native custody.
-
-## Dependency declaration — not supported
-
-There is no supported SwiftPM dependency declaration for this client. The
-repository root has no `Package.swift`, no consumable tagged package release,
-and the conformance tests intentionally read the repository-owned fixture
-corpus through `SNAPBACK_REPO_ROOT`. Do not add
-`.package(url: "https://github.com/expo/snapback", ...)` to an application:
-SwiftPM cannot resolve the nested proving package from that repository URL.
-
-Use this client only from the in-repository package path. Publishing a tagged
-mirror or moving a manifest to a consumable package root would be a separate
-distribution change with its own fixture-resource and release evidence.
+ships as a SwiftPM library for macOS 13+ and iOS 16+ and claims `poll/local`
+and `live/local`. It does not yet claim `live/hosted`, offline `Parity`, or
+sender-constrained native custody.
 
 ## Construct a client
 
@@ -11037,25 +10879,18 @@ reconnect logic in individual views.
 
 ## Verify changes
 
-From the repository root, run:
-
-```sh
-SNAPBACK_REPO_ROOT="$PWD" swift test --package-path clients/swift/SnapbackClient
-```
-
-The suite replays the committed conformance corpus and adds client-specific
-coverage for invalidation apply-before-ack (including equal data versions),
-terminal deletion, exact duplicate redelivery, foreground grant-loss recovery,
-body-auth omission, and reservation retry exhaustion/eventual success. This is
-an in-repository proof command, not a consumed-package test claim.
+From `clients/swift/SnapbackClient`, run `swift test`. The suite replays the
+committed conformance corpus and adds client-specific coverage for invalidation
+apply-before-ack (including equal data versions), terminal deletion, exact
+duplicate redelivery, foreground grant-loss recovery, body-auth omission, and
+reservation retry exhaustion/eventual success.
 
 ## Support status
 
-Swift is the maintained proving client in this repository, not a published or
-URL-consumable dependency. Kotlin and Dart implementations produced during the
-Partitime clean-room run are reference evidence, not committed or published
-first-party artifacts. Do not tell users to depend on any of these clients
-until their packaging, ownership, and CI gates land; the
+Swift is the maintained proving client in this repository. Kotlin and Dart
+implementations produced during the Partitime clean-room run are reference
+evidence, not committed or published first-party artifacts. Do not tell users
+to depend on them until their packaging, ownership, and CI gates land; the
 [capability index](../capabilities.md) keeps that gap explicit.
 
 ## Anti-patterns
@@ -11076,13 +10911,13 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
 examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-cli/expo-bootstrap-exchange.test.mjs, packages/snapback-expo/asset-source.test.mjs, packages/snapback-expo/supervised-offline-fallback.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs, benchmarks/lanes/native-simulator.md]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # React Expo Online clients
@@ -11133,14 +10968,6 @@ npx expo install \
   @expo/snapback-react@latest \
   expo-file-system expo-crypto expo-image-picker
 ```
-
-Use `npx expo install` for the Expo modules; never hand-write or copy an
-`expo-file-system` constraint. Expo module versions follow the app's SDK, and
-a plausible mismatched version can resolve cleanly while exposing a different
-file API. In plain JavaScript that mismatch may appear only when the durable
-store tries to publish a rename, leaving the app apparently healthy but on no
-working file-backed persistence path. The Expo installer selects the
-SDK-compatible versions.
 
 Do not add `@expo/snapback-contract` directly; the client/codegen packages
 own their exact Contract edge. Keep one coherent version vector in the lock,
@@ -11312,15 +11139,6 @@ export default function App() {
 }
 ```
 
-The packaged provider owns one custody identity and intentionally exposes no
-per-call `userId`. That means a **dev-auth, multi-persona switcher does not
-compose with `SnapbackExpoProvider`**: dev auth is client-asserted, but the
-provider has nowhere safe to put a different acting user for each call. Use
-sessions mode and adopt a separate ordinary session for each test persona when
-the app needs product-shaped multi-persona behavior. The checkpoint-era
-`useSnapbackQuery({ provider, query, userId })` bridge in an older demo is a
-test-era workaround, not the packaged path.
-
 From an Expo app whose backend is the conventional `snapback/` child, start
 the iOS default or select Android explicitly:
 
@@ -11455,9 +11273,7 @@ custody boundary:
 
 On web the client store resolves the browser IndexedDB arm (see
 [the React client page](./react.md)); `registerExpoFileSystemRqsFiles` is a
-native-only registration. Calling it at module scope on web throws before
-React mounts and leaves a white screen, so the platform guard below is
-required. These paves are proven at
+native-only registration and is unnecessary there. These paves are proven at
 package level (CORS, resolution, and adapter tests named above), and the
 diary 0068 web lanes collected the end-to-end Expo-web supervised receipt
 from the published packages
@@ -11586,13 +11402,12 @@ resolves every literal specifier reachable from the root, so a platform
 import would break non-Expo consumers). Instead the app hands the module in
 **once, at the root, before constructing any client**:
 
-Import `Platform` from `react-native`, then use the same guarded registration
-the shipped `expo-chat` template carries:
+```ts fragment reason="app-root composition; the registration + ladder behavior is CI-proven in packages/snapback-client/rqs-store-expo.test.mjs and the on-device witness in demos/rn-durable-store-witness/"
+import * as FileSystem from 'expo-file-system';
+import * as Crypto from 'expo-crypto';
+import { registerExpoFileSystemRqsFiles } from '@expo/snapback-client';
 
-```tsx source=packages/snapback-cli/templates/expo-chat/App.tsx
-if (Platform.OS !== 'web') {
-  registerExpoFileSystemRqsFiles(FileSystem, { crypto: Crypto });
-}
+registerExpoFileSystemRqsFiles(FileSystem, { crypto: Crypto });
 ```
 
 The `expo-chat` scaffold (`snapback new --template expo-chat`) ships this root
@@ -11967,9 +11782,6 @@ the EAS build itself is an external paid service and is not CI-verified.
   form.** The checkpoint-era `useSnapbackQuery({ provider, query, userId })`
   bridge teaches dev-mode client-asserted identity; the packaged surface is
   the generated-reference hook under a provider whose client owns custody.
-- **Do not build a dev-auth multi-persona app on the packaged provider.** Use
-  sessions and one adopted session per persona; the legacy per-call-user bridge
-  is not the supported composition.
 - **Do not polyfill RNG with `Math.random`.** When
   `SNAPBACK_CLIENT_WEBCRYPTO_RNG_MISSING` names a missing primitive, install
   a real RNG polyfill (`expo-crypto`).
@@ -12091,72 +11903,6 @@ row update does not establish a useful binding.
 - Do not preserve predecessor rows across an authority change.
 - Do not swallow structured diagnostics into console logging.
 - Do not reconnect a socket without re-establishing its subscriptions.
-
----
-
-<!-- snapback-guide-source: guide/deploying/index.md -->
----
-title: Deployment posture
-id: deploying.index
-order: 0
-audience: agent-first
-capabilities: [deploy.release-build, deploy.target-control, deploy.cloudflare]
-authorities: [llp/0002-canonical-local-target.decision.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0111-fly-completion-and-hosted-ephemeral.plan.md, llp/0202-agentic-surface-audit-20260808.research.md, packages/snapback-cli/index.mjs, packages/snapback-cli/deployment-control.mjs, packages/snapback-cli/hosted-control.mjs, cloudflare/deploy.sh, issues/20260726-0072-fly-adapter-remaining-surface.md, issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md]
-examples: []
-status: current
-targets: [all]
-maturity: partial
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
----
-
-# Deployment posture
-
-**Snapback does not currently offer an end-to-end path that deploys an
-arbitrary user application to any hosted target.** The local target runs an
-app for development and testing, the Fly control plane stops behind evidence
-and lifecycle gates, and the Cloudflare workflow deploys only two checked-in
-proof apps. Treat those as three different boundaries, not partial steps of one
-working product journey.
-
-## Check where each path stops
-
-| Target or surface | What works now | Exact stopping point | Tracking ticket |
-| --- | --- | --- | --- |
-| Local | `snapback dev` runs the canonical local dev/test target. `snapback deploy build` can create and verify a target-neutral immutable release closure. | Every release built by that command has `activationEligible: false` and blocking `gaps`; the command does not upload, provision, activate, or host it. Local is not a hosting adapter. | The selected first complete hosted path, rather than a local-hosting adapter, is tracked by [the Fly adapter remaining-surface ticket](repo:issues/20260726-0072-fly-adapter-remaining-surface.md). |
-| Fly.io | Exact target registration, observation/doctoring, content-addressed planning, and the target-neutral lifecycle engine exist. Some Fly observation, backup primitive, supervisor, and custody evidence has also been retained. | Ordinary `deploy plan` output remains blocked, and `deploy apply` cannot obtain the zero-GAP adapter qualification and prepared release backed by the complete remote product journey. Upload, provision, activation, served inspection, migration, rollback, restore activation, and the final packed receipt remain open. | [Fly adapter remaining surface](repo:issues/20260726-0072-fly-adapter-remaining-surface.md). |
-| Cloudflare | `cloudflare/deploy.sh` can build, deploy, activate, health-probe, and emit an exact-version receipt for the checked-in `notes` or `all-aboard` proof from a Snapback source checkout. | `SNAPBACK_CF_APP` is a closed `notes | all-aboard` selector. The script is not wired to `snapback deploy build`, does not consume an arbitrary generated application, and is explicitly not a general Cloudflare hosting product. | The current product path to arbitrary app deployment is the [Fly adapter remaining-surface ticket](repo:issues/20260726-0072-fly-adapter-remaining-surface.md); the Cloudflare profile remains deliberately narrow under LLP 0040. |
-| Hosted lifecycle CLI | `snapback hosted plan`, `inspect`, and `logs` expose package-owned planning/read surfaces and the package publishes the exact lifecycle vocabulary. | Every one of the 17 `snapback hosted lifecycle` verbs returns `SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE` before credential resolution or provider I/O. | [Hosted lifecycle carrier and custody GAP](repo:issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md). |
-
-The Fly tracker appears for both the local and Cloudflare rows deliberately:
-the project selected Fly as the first complete hosted product journey. There
-is no separate commitment to turn the local target into a host or generalize
-the Cloudflare proof before that work.
-
-## Choose the honest path today
-
-- For development and acceptance, use the local authoring loop; do not call it
-  a deployment.
-- To exercise the retained release and planning contracts, follow [immutable
-  releases and deploy plans](./releases.md) and expect the documented GAP
-  refusals.
-- To redeploy one of the two repository proofs, follow [the Cloudflare proof](./cloudflare.md).
-- To inspect the disabled hosted command surface, read [hosted control](./hosted-control.md).
-- If the task requires an arbitrary user app at a public hosted origin, stop
-  and report the relevant open ticket instead of assembling a private path
-  around the gates.
-
-## Anti-patterns
-
-- **Do not describe `deploy build` as deployment.** It produces no provider
-  effect or traffic activation.
-- **Do not treat a deterministic lifecycle-harness receipt as remote
-  evidence.** Its explicit GAP is the point of the harness.
-- **Do not substitute `cloudflare/deploy.sh` for a general app adapter.** Its
-  two proof apps and source-checkout inputs are closed.
-- **Do not bypass a hosted lifecycle refusal with direct Fly or Tigris
-  credentials.** The missing carrier and custody closure is an authority
-  boundary, not a CLI inconvenience.
 
 ---
 
@@ -12704,13 +12450,13 @@ id: deploying.cloudflare
 order: 2
 audience: agent-first
 capabilities: [deploy.cloudflare]
-authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0060-hosted-auth-security.rfc.md, llp/0094-wire-envelope-contract.spec.md, schemas/cloudflare.deploy-receipt-v1.schema.json, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/gateway.js, cloudflare/src/coordinator.js, src/server.rs, cloudflare/test/local-suite-manifest.mjs]
+authorities: [llp/0014-cloudflare-strategy.rfc.md, llp/0040-cloudflare-narrow-proof.rfc.md, llp/0049-all-aboard-cloudflare-live.plan.md, llp/0094-wire-envelope-contract.spec.md, schemas/live.kit-socket-request.schema.json, schemas/live.kit-socket-reply.schema.json, cloudflare/README.md, cloudflare/deploy.sh, cloudflare/src/coordinator.js, cloudflare/test/local-suite-manifest.mjs]
 examples: [demos/all-aboard, cloudflare/app/all-aboard.app.js]
 status: current
 targets: [cloudflare]
 maturity: partial
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
 ---
 
 # Deploying the Cloudflare proof
@@ -12782,13 +12528,6 @@ repo-local Wrangler and locks, deploys handler dependencies before the gateway,
 attests the exact active Worker version, and performs the final gateway deploy
 after secret changes. On a partial failure it attempts to restore previously
 active Worker versions; ambiguous account/API state fails closed.
-
-On success, the script emits exactly one JSON line with
-`schemaVersion: snapback.cloudflare-deploy-receipt.v1`. The receipt names each
-Worker and its exact activated version, the probe URL, final health code, and
-the actions this run took. Validate or retain it using
-`schemas/cloudflare.deploy-receipt-v1.schema.json`; ordinary progress lines are
-not deployment evidence.
 
 An absent local `SNAPBACK_ADMIN_TOKEN` is not evidence that the remote secret
 is absent. Deployment reports absent, present-and-preserved, or unknown; only
@@ -12897,18 +12636,7 @@ It explicitly does **not** claim:
 - calendar/Cron Trigger schedules;
 - R2 asset upload, notifications, Postgres, code hot-load, untrusted hosted
   tenant code, multiple apps per deployment, or a hosted marketplace;
-- the local served-discovery surface: `/llms.txt`, `/_snapback/guide*`,
-  `/_snapback/api/control-catalog`, and host-operation discovery are not
-  hosted claims when `operatorSurface` is disabled; use the pinned checkout
-  or published guide instead;
 - local pages whose `targets:` omit `cloudflare`.
-
-An unimplemented path inside a reserved app-data namespace must not be
-mistaken for a web page. When Workers Assets answers such a miss with its SPA
-`200 text/html` fallback, the gateway converts it to HTTP 501 with the
-versioned `SNAPBACK_ROUTE_UNSUPPORTED_ON_TARGET` JSON diagnostic. This is an
-honest target refusal, not evidence that the route is available under another
-hosted path.
 
 See [auth target honesty](../auth/targets.md) before exposing this deployment
 to users. The local bearer/dev identity posture is not production hosted auth.
@@ -12926,106 +12654,6 @@ to users. The local bearer/dev identity posture is not production hosted auth.
 
 ---
 
-<!-- snapback-guide-source: guide/deploying/hosted-control.md -->
----
-title: Inspect hosted control
-id: deploying.hosted-control
-order: 3
-audience: agent-first
-capabilities: [deploy.target-control]
-authorities: [llp/0111-fly-completion-and-hosted-ephemeral.plan.md, packages/snapback-cli/hosted-control.mjs, packages/snapback-cli/index.mjs, issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md]
-examples: []
-status: current
-targets: [all]
-maturity: partial
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
----
-
-# Inspect hosted control
-
-The packaged `snapback hosted` surface is present, but its provider-mutating
-lifecycle is intentionally disabled. Planning and bounded reads work against
-the retained control-plane contracts; lifecycle commands publish the exact
-future vocabulary while refusing every effect before credentials or provider
-I/O.
-
-## Use the available read surface
-
-The closed command registry begins with three non-lifecycle entries:
-
-- `snapback hosted plan [--target <id>]` renders the package-owned driver,
-  schema identities, availability, required evidence, and complete command
-  inventory.
-- `snapback hosted inspect --target <id>` reads bounded authenticated target
-  inspection through the existing control plane.
-- `snapback hosted logs --target <id>` reads bounded retained logs and supports
-  the documented time, limit, and cursor bounds.
-
-`snapback hosted operator-request` is the separate signed, certificate-pinned
-supervisor transport command. Its existence does not enable lifecycle effects:
-the lifecycle gate returns before transport submission.
-
-## Read the complete lifecycle registry
-
-`snapback hosted lifecycle --help` lists all 17 closed verbs. They are:
-
-1. `acquire-lease`
-2. `renew-lease`
-3. `upload-immutable-release`
-4. `provision-inactive`
-5. `compatibility-preflight`
-6. `create-verified-backup`
-7. `stage-release`
-8. `activate-generation`
-9. `verify-served-path`
-10. `rollback`
-11. `fence-external-effects`
-12. `restore-backup-inactive`
-13. `verify-restored-components`
-14. `verify-restored-application`
-15. `activate-restored-generation`
-16. `reconcile-effect`
-17. `release-lease`
-
-Unknown verbs fail as `SNAPBACK_HOSTED_LIFECYCLE_VERB_UNKNOWN`; a valid verb
-with a valid V2 request returns the structured
-`snapback.hosted-lifecycle-refusal.v1` envelope with
-`SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE`. Its `recommendedNext` uses the
-catalog refusal shape—`owner`, `ticketOrDesignPointer`, and `note`—and points
-to the [hosted lifecycle carrier and custody GAP](repo:issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md).
-
-## Understand what must land before enablement
-
-The blocker is not merely a missing executor. The current V2 carrier cannot
-express the operation-specific authority and recovery facts required for safe
-effects, and `releaseLease` is not an exception. Enablement requires all of:
-
-- a separately reviewed closed per-operation carrier;
-- Rust-owned schemas with exhaustive registry and unknown-field tests;
-- supervisor-only opaque lease custody bound to expiry, provider version,
-  supervisor generation, and control head;
-- bootstrap, purpose-key custody, public mTLS listener, and wrong-role proofs;
-  and
-- a packed live Fly/Tigris journey covering reservation, interruption,
-  recovery, head CAS, and zero premature capability advertisement.
-
-Until the tracking ticket meets those criteria, availability stays `disabled`
-for every lifecycle entry.
-
-## Anti-patterns
-
-- **Do not infer a listed lifecycle verb is usable.** Registry membership
-  preserves vocabulary; `availability: disabled` is authoritative.
-- **Do not special-case `release-lease`.** It shares the same carrier and
-  opaque-custody blocker as the other 16 operations.
-- **Do not supply provider credentials directly to the CLI.** Fly and Tigris
-  authority belongs behind the supervisor/adapter boundary.
-- **Do not call `hosted plan` a deployment plan.** It describes the closed
-  hosted command surface; it performs no provider mutation.
-
----
-
 <!-- snapback-guide-source: guide/getting-started/your-first-backend.md -->
 ---
 title: Your first backend
@@ -13039,7 +12667,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed-commit: f3c7d9fbb394a413370a9264f22e72b6f151a25e
 ---
 
 # Your first backend
@@ -13179,15 +12807,6 @@ options object:
 The system fields `_id`, `_version`, `_createdAt`, `_updatedAt` are
 server-owned. Declaring one is a hard error
 (`SNAPBACK_SCHEMA_SYSTEM_FIELD`), and handlers never set timestamps.
-
-They also cannot appear in an authored `.index(...)` declaration: codegen
-reports `SCHEMA_UNKNOWN_FIELD`. Every declared index already receives an
-implicit trailing `_id` component for deterministic scan order, so never add
-`_id` yourself. System fields remain legal query filter/order leaves; for a
-cursor such as `(playerId, _version)`, declare the authored partition index on
-`playerId`, then range/order by `_version` in the query. Snapback does not yet
-offer a portable author-declared composite index containing `_version` or a
-timestamp system field.
 
 ## Define functions
 
@@ -13331,7 +12950,7 @@ and transition rules.
 ## Generate and load
 
 ```sh
-snapback generate myapp/snapback
+node packages/snapback-codegen/index.mjs myapp/snapback
 ```
 
 Codegen **fails closed**: on any error it leaves the previously serveable
@@ -13477,7 +13096,7 @@ id: getting-started.the-authoring-loop
 order: 2
 audience: agent-first
 capabilities: [backend.codegen, operating.packaged-dev-loop, testing.acceptance, operating.inspect]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, packages/create-snapback-app/cli.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/templates, packages/snapback-codegen/index.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, src/cli.rs, packages/create-snapback-app/cli.mjs, packages/snapback-cli/index.mjs, packages/snapback-codegen/index.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
 examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, packages/snapback-cli/sessions-dev-loop.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs]
 status: current
 targets: [local]
@@ -13517,19 +13136,9 @@ bun run dev
 
 <!-- since: 0.1.12 -->
 
-Five templates ship in the packaged CLI:
-
-- `todo-contract` — the smallest backend-first scaffold, with generated
-  headless client references and acceptance but no Contract UI.
-- `react` — a minimal React/Vite web app with a live todo query, mutation,
-  and connection state.
-- `crud-dashboard` — a React/Vite project dashboard with relational directory
-  reads, independent live detail, and optimistic CRUD.
-- `media-feed` — an Expo iOS/Android/web feed with image upload, a composed
-  publish command, and collision-safe load-more pagination.
-- `expo-chat` — the golden-path Expo conversation starter described below.
-
-The `expo-chat` template carries
+Three templates ship in the packaged CLI: `todo-contract` (headless
+backend + generated client references), `react` (the React/Vite web
+starter above), and `expo-chat` — the golden-path Expo starter carrying
 the LLP 0176 conversation surface as runnable code: a `messages` table
 with an image `assetRef` field, the `messageImageUpload` intent, live
 queries, the generated `conversation` surface (reads, a bound `sendText`
@@ -13573,28 +13182,6 @@ Vite and watches both sides. Browser code uses only Vite's relative
 runtime path, or repository path. The template uses generated query/mutation
 references and the first-party React provider/hooks; it does not add
 application-owned subscription cleanup.
-
-The React/Vite templates import the relative relay base from the generated
-development virtual module:
-
-```ts source=packages/snapback-cli/templates/react/src/snapback-dev.d.ts
-declare module 'virtual:snapback/dev' {
-  export const snapbackBasePath: string;
-  export const snapbackDevState: Readonly<{
-    mode: 'off' | 'external' | 'attach' | 'managed' | 'auto';
-    shape: string | null;
-    ready: boolean;
-    basePath: string;
-  }>;
-}
-```
-
-`@expo/snapback-vite` supplies `virtual:snapback/dev`; there is no file to
-install or generate at that specifier. A hand-built TypeScript/Vite app must
-add the ambient declaration above (conventionally
-`src/snapback-dev.d.ts`) so the compiler knows `snapbackBasePath` and
-`snapbackDevState`. Import `snapbackBasePath` in the client entry and pass it
-to the Snapback provider/client instead of baking in a loopback server URL.
 
 The package `@expo/snapback-cli` supplies the `snapback` command — the
 terminal npm identity (LLP 0115 decision 9): the workspace name and the
@@ -13704,6 +13291,10 @@ than only the top-level backup summary. Package help also declares whether the
 selected command is one-shot or long-running, its machine output, exit
 taxonomy, and recovery channel. `snapback hosted lifecycle --help` lists its
 closed verbs, transport flags, and current availability gate.
+
+Bare `snapback` is also discovery-only and prints root help. Start the normal
+authoring loop explicitly with `snapback dev`; use native `snapback start` only
+when a lower-level harness deliberately owns server loading and lifecycle.
 
 When `snapback dev` runs without a TTY, stdin accepts optional
 `snapback.dev-command.v1` JSON lines while it remains open. EOF only closes
@@ -15321,7 +14912,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Admin console
@@ -15348,11 +14939,17 @@ snapback admin --ready-file .snapback/dev.ready.json
 ```
 
 This is the exact command the Expo supervisor prints as its
-`adminConsoleCommand`. For a headless machine, print the URL instead:
+`adminConsoleCommand`. The command always prints the complete fragment-bearing
+URL, even when it successfully opens the browser. On a machine without a
+controlling `/dev/tty`, it automatically behaves as `--no-open`. You can force
+that behavior explicitly:
 
 ```sh
 snapback admin --ready-file .snapback/dev.ready.json --no-open
 ```
+
+For automation, add `--json`; the `snapback.admin-console.v1` result retains
+the URL, expiry, and whether a browser open was requested.
 
 The URL carries only a derived `sbcc_` credential and its expiry in the
 fragment. It never carries the `sbat_` master token in either the query or the
@@ -15373,7 +14970,7 @@ native Exact artifacts, then run the same commands through cargo:
 cd admin-ui
 ./build.sh
 cd ..
-cargo run -- --memory --ready-file .snapback/dev.ready.json
+cargo run -- start --memory --ready-file .snapback/dev.ready.json
 # in another terminal: discover the token, mint a browser credential, and open
 cargo run -- admin --ready-file .snapback/dev.ready.json
 ```
@@ -15391,7 +14988,7 @@ native-artifact capability diagnostic.
 Run Snapback at a known port, then start the Exact/Contract Vite app:
 
 ```sh
-cargo run -- --memory --port 4287
+cargo run -- start --memory --port 4287
 SNAPBACK_ADMIN_DEV_API=http://127.0.0.1:4287 bun run --cwd admin-ui dev
 ```
 
@@ -15481,6 +15078,19 @@ snapback admin link --no-wait --ready-file .snapback/dev.ready.json
 snapback admin link --status sbcl_… --ready-file .snapback/dev.ready.json
 snapback admin link --revoke sbcl_… --ready-file .snapback/dev.ready.json
 ```
+
+Attached automation can request JSON-line lifecycle records and an owner-only
+readiness handoff. The readiness file exists only while the observer owns the
+link and includes the exact fragment URL:
+
+```sh
+snapback admin link --json \
+  --link-ready-file .snapback/admin-link.ready.json \
+  --ready-file .snapback/dev.ready.json
+```
+
+`--link-ready-file` deliberately conflicts with `--no-wait`: an exited process
+cannot truthfully own attached-observer readiness.
 
 Claim-derived credentials have distinct provenance. Active use renews their
 ten-minute sliding expiry, but the server fixes their absolute deadline at
@@ -19530,15 +19140,15 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
 
 # Generated API reference
 
-One build-bound projection of 885 public symbols (367 runtime values and 518 explicit type-only symbols).
-Registry identity: `sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`; source commit: `5f7e262aa99318e1424678fae4366606e448bc22`.
+One build-bound projection of 888 public symbols (370 runtime values and 518 explicit type-only symbols).
+Registry identity: `sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`; source commit: `772c00649534d68b2ba63b98699e8ce2b2019057`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json).
 
@@ -19587,7 +19197,7 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 | [`@expo/snapback-expo/asset-source`](./expo-snapback-expo--asset-source.md) | 7 | 4 | 3 |
 | [`@expo/snapback-expo/config-plugin`](./expo-snapback-expo--config-plugin.md) | 6 | 4 | 2 |
 | [`@expo/snapback-expo/supervised-environment`](./expo-snapback-expo--supervised-environment.md) | 8 | 4 | 4 |
-| [`@expo/snapback-cli/verify`](./expo-snapback-cli--verify.md) | 19 | 14 | 5 |
+| [`@expo/snapback-cli/verify`](./expo-snapback-cli--verify.md) | 22 | 17 | 5 |
 | [`@expo/snapback-codegen/ctx`](./expo-snapback-codegen--ctx.md) | 38 | 0 | 38 |
 
 ---
@@ -19605,7 +19215,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -19613,7 +19223,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -25277,7 +24887,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -25285,7 +24895,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/agent-authority
 
 Build-bound public API projection for `@expo/snapback-client/agent-authority`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/agent-authority.mjs`.
 
@@ -25802,7 +25412,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -25810,7 +25420,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/app-data
 
 Build-bound public API projection for `@expo/snapback-client/app-data`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/app-data.mjs`.
 
@@ -26036,7 +25646,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -26044,7 +25654,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/assets
 
 Build-bound public API projection for `@expo/snapback-client/assets`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/assets.mjs`.
 
@@ -26476,7 +26086,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -26484,7 +26094,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/canonical-client-value
 
 Build-bound public API projection for `@expo/snapback-client/canonical-client-value`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/canonical-client-value.mjs`.
 
@@ -26583,7 +26193,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -26591,7 +26201,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/commands
 
 Build-bound public API projection for `@expo/snapback-client/commands`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/commands.mjs`.
 
@@ -27038,7 +26648,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -27046,7 +26656,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/evaluation-floor
 
 Build-bound public API projection for `@expo/snapback-client/evaluation-floor`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/evaluation-floor.mjs`.
 
@@ -27177,7 +26787,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -27185,7 +26795,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/external-store
 
 Build-bound public API projection for `@expo/snapback-client/external-store`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/external-store.mjs`.
 
@@ -27539,7 +27149,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -27547,7 +27157,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/hosted-browser
 
 Build-bound public API projection for `@expo/snapback-client/hosted-browser`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/hosted-browser.mjs`.
 
@@ -27630,7 +27240,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -27638,7 +27248,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/ir-evaluator
 
 Build-bound public API projection for `@expo/snapback-client/ir-evaluator`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/ir-evaluator.mjs`.
 
@@ -27999,7 +27609,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -28007,7 +27617,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/lease-convergence
 
 Build-bound public API projection for `@expo/snapback-client/lease-convergence`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/lease-convergence.mjs`.
 
@@ -28149,7 +27759,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -28157,7 +27767,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/local-read-admission
 
 Build-bound public API projection for `@expo/snapback-client/local-read-admission`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/local-read-admission.mjs`.
 
@@ -28652,7 +28262,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -28660,7 +28270,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/materialization-store
 
 Build-bound public API projection for `@expo/snapback-client/materialization-store`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/materialization-store.mjs`.
 
@@ -29153,7 +28763,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -29161,7 +28771,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/micro
 
 Build-bound public API projection for `@expo/snapback-client/micro`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro.mjs`.
 
@@ -29387,7 +28997,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -29395,7 +29005,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/micro/core
 
 Build-bound public API projection for `@expo/snapback-client/micro/core`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-core.mjs`.
 
@@ -29750,7 +29360,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -29758,7 +29368,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/micro/live
 
 Build-bound public API projection for `@expo/snapback-client/micro/live`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-live.mjs`.
 
@@ -29864,7 +29474,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -29872,7 +29482,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -30462,7 +30072,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -30470,7 +30080,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/optimistic-rebase
 
 Build-bound public API projection for `@expo/snapback-client/optimistic-rebase`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/optimistic-rebase.mjs`.
 
@@ -30767,7 +30377,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -30775,7 +30385,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/outbox-shared
 
 Build-bound public API projection for `@expo/snapback-client/outbox-shared`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/outbox-shared.mjs`.
 
@@ -31214,7 +30824,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31222,7 +30832,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/push-installation-expo
 
 Build-bound public API projection for `@expo/snapback-client/push-installation-expo`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-installation-expo.mjs`.
 
@@ -31340,7 +30950,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31348,7 +30958,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/push-registry
 
 Build-bound public API projection for `@expo/snapback-client/push-registry`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-registry.mjs`.
 
@@ -31512,7 +31122,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31520,7 +31130,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/result-transform
 
 Build-bound public API projection for `@expo/snapback-client/result-transform`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/result-transform.mjs`.
 
@@ -31917,7 +31527,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -31925,7 +31535,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/rqs
 
 Build-bound public API projection for `@expo/snapback-client/rqs`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs.mjs`.
 
@@ -32384,7 +31994,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32392,7 +32002,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/rqs-preload
 
 Build-bound public API projection for `@expo/snapback-client/rqs-preload`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload-core.mjs`.
 
@@ -32641,7 +32251,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32649,7 +32259,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/rqs-registered
 
 Build-bound public API projection for `@expo/snapback-client/rqs-registered`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload.mjs`.
 
@@ -33031,7 +32641,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33039,7 +32649,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/rqs-store
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store.mjs`.
 
@@ -33651,7 +33261,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33659,7 +33269,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/rqs-store-default
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-default`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-default.mjs`.
 
@@ -33799,7 +33409,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33807,7 +33417,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/rqs-store-expo
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-expo`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-expo.mjs`.
 
@@ -34007,7 +33617,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34015,7 +33625,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/rqs-store-file
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-file`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-file.mjs`.
 
@@ -34200,7 +33810,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34208,7 +33818,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/search
 
 Build-bound public API projection for `@expo/snapback-client/search`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/search.mjs`.
 
@@ -34453,7 +34063,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34461,7 +34071,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -35038,7 +34648,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35046,7 +34656,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-react
 
 Build-bound public API projection for `@expo/snapback-react`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-react/index.mjs`.
 
@@ -36755,7 +36365,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36763,7 +36373,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-react/thumbhash
 
 Build-bound public API projection for `@expo/snapback-react/thumbhash`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-react/thumbhash.mjs`.
 
@@ -36868,7 +36478,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36876,7 +36486,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-expo
 
 Build-bound public API projection for `@expo/snapback-expo`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import, default` → `packages/snapback-expo/index.mjs`.
 
@@ -39370,7 +38980,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39378,7 +38988,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-expo/app-binding
 
 Build-bound public API projection for `@expo/snapback-expo/app-binding`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/app-binding.mjs`.
 
@@ -39652,7 +39262,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39660,7 +39270,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-expo/app.plugin
 
 Build-bound public API projection for `@expo/snapback-expo/app.plugin`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/app.plugin.js`.
 
@@ -39776,7 +39386,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39784,7 +39394,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-expo/asset-source
 
 Build-bound public API projection for `@expo/snapback-expo/asset-source`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/asset-source.mjs`.
 
@@ -39931,7 +39541,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39939,7 +39549,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-expo/config-plugin
 
 Build-bound public API projection for `@expo/snapback-expo/config-plugin`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/config-plugin.cjs`.
 
@@ -40055,7 +39665,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40063,7 +39673,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-expo/supervised-environment
 
 Build-bound public API projection for `@expo/snapback-expo/supervised-environment`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/supervised-environment.mjs`.
 
@@ -40225,7 +39835,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40233,20 +39843,22 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-cli/verify
 
 Build-bound public API projection for `@expo/snapback-cli/verify`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 Runtime parity condition:
 `default` → `packages/snapback-cli/verify.mjs`.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)
 
-Symbols: 19 total; 14 runtime values; 5 type-only.
+Symbols: 22 total; 17 runtime values; 5 type-only.
 
 ## Symbol index
 
 - [`aggregateConformance`](#symbol-aggregateconformance-121916cfb5) — runtime-function
+- [`DEFAULT_VERIFY_PROFILE_TIMEOUT_MS`](#symbol-default-verify-profile-timeout-ms-eb38f305fd) — runtime-constant
 - [`defaultVerifyConfig`](#symbol-defaultverifyconfig-0b899ad7a3) — runtime-function
 - [`defineStarterVerifyProfile`](#symbol-definestarterverifyprofile-cef447f30a) — runtime-function
 - [`defineVerifyConfig`](#symbol-defineverifyconfig-57ec6f289e) — runtime-function
+- [`discoverVerifyConfig`](#symbol-discoververifyconfig-06fc1d556d) — runtime-function
 - [`loadVerifyConfig`](#symbol-loadverifyconfig-907dc2ac6e) — runtime-function
 - [`probeAdmission`](#symbol-probeadmission-1cd0665162) — runtime-function
 - [`probeArtifactFreshness`](#symbol-probeartifactfreshness-51b497abd5) — runtime-function
@@ -40254,6 +39866,7 @@ Symbols: 19 total; 14 runtime values; 5 type-only.
 - [`runVerify`](#symbol-runverify-805478f062) — runtime-function
 - [`StarterVerifyProfileOptions`](#symbol-starterverifyprofileoptions-e25abdb86c) — type-interface
 - [`validateVerifyReceipt`](#symbol-validateverifyreceipt-bdf5cb0e65) — runtime-function
+- [`VERIFY_CONFIG_CONVENTION`](#symbol-verify-config-convention-9342a6a064) — runtime-constant
 - [`VERIFY_CONFIG_SCHEMA_VERSION`](#symbol-verify-config-schema-version-96566996d9) — runtime-constant
 - [`VERIFY_RECEIPT_SCHEMA_VERSION`](#symbol-verify-receipt-schema-version-e3175cd00e) — runtime-constant
 - [`VERIFY_STAGE_IDS`](#symbol-verify-stage-ids-ab832dc763) — runtime-constant
@@ -40268,10 +39881,21 @@ Symbols: 19 total; 14 runtime values; 5 type-only.
 
 Stable identity: `npm:@expo/snapback-cli/verify#aggregateConformance`
 Kind: `runtime-function`
-Source: `packages/snapback-cli/verify.d.mts:64`
+Source: `packages/snapback-cli/verify.d.mts:68`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function aggregateConformance(profiles: readonly unknown[], results: readonly unknown[]): Readonly<Record<string, unknown>>;
+```
+
+<a id="symbol-default-verify-profile-timeout-ms-eb38f305fd"></a>
+## `DEFAULT_VERIFY_PROFILE_TIMEOUT_MS`
+
+Stable identity: `npm:@expo/snapback-cli/verify#DEFAULT_VERIFY_PROFILE_TIMEOUT_MS`
+Kind: `runtime-constant`
+Source: `packages/snapback-cli/verify.d.mts:58`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+DEFAULT_VERIFY_PROFILE_TIMEOUT_MS: 300000
 ```
 
 <a id="symbol-defaultverifyconfig-0b899ad7a3"></a>
@@ -40279,7 +39903,7 @@ export function aggregateConformance(profiles: readonly unknown[], results: read
 
 Stable identity: `npm:@expo/snapback-cli/verify#defaultVerifyConfig`
 Kind: `runtime-function`
-Source: `packages/snapback-cli/verify.d.mts:60`
+Source: `packages/snapback-cli/verify.d.mts:64`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function defaultVerifyConfig(options?: { readonly backendDirectory?: string }): VerifyConfig;
@@ -40290,7 +39914,7 @@ export function defaultVerifyConfig(options?: { readonly backendDirectory?: stri
 
 Stable identity: `npm:@expo/snapback-cli/verify#defineStarterVerifyProfile`
 Kind: `runtime-function`
-Source: `packages/snapback-cli/verify.d.mts:58`
+Source: `packages/snapback-cli/verify.d.mts:61`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function defineStarterVerifyProfile(options: StarterVerifyProfileOptions): NonNullable<VerifyConfig['profiles']>[number];
@@ -40301,10 +39925,21 @@ export function defineStarterVerifyProfile(options: StarterVerifyProfileOptions)
 
 Stable identity: `npm:@expo/snapback-cli/verify#defineVerifyConfig`
 Kind: `runtime-function`
-Source: `packages/snapback-cli/verify.d.mts:57`
+Source: `packages/snapback-cli/verify.d.mts:60`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function defineVerifyConfig<T extends VerifyConfig>(config: T): T;
+```
+
+<a id="symbol-discoververifyconfig-06fc1d556d"></a>
+## `discoverVerifyConfig`
+
+Stable identity: `npm:@expo/snapback-cli/verify#discoverVerifyConfig`
+Kind: `runtime-function`
+Source: `packages/snapback-cli/verify.d.mts:63`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export function discoverVerifyConfig(directory?: string): string | null;
 ```
 
 <a id="symbol-loadverifyconfig-907dc2ac6e"></a>
@@ -40312,7 +39947,7 @@ export function defineVerifyConfig<T extends VerifyConfig>(config: T): T;
 
 Stable identity: `npm:@expo/snapback-cli/verify#loadVerifyConfig`
 Kind: `runtime-function`
-Source: `packages/snapback-cli/verify.d.mts:59`
+Source: `packages/snapback-cli/verify.d.mts:62`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function loadVerifyConfig(path: string, options?: { readonly backendDirectory?: string | null }): Promise<VerifyConfig>;
@@ -40323,7 +39958,7 @@ export function loadVerifyConfig(path: string, options?: { readonly backendDirec
 
 Stable identity: `npm:@expo/snapback-cli/verify#probeAdmission`
 Kind: `runtime-function`
-Source: `packages/snapback-cli/verify.d.mts:62`
+Source: `packages/snapback-cli/verify.d.mts:66`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function probeAdmission(artifact: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>>;
@@ -40334,7 +39969,7 @@ export function probeAdmission(artifact: Readonly<Record<string, unknown>>): Rea
 
 Stable identity: `npm:@expo/snapback-cli/verify#probeArtifactFreshness`
 Kind: `runtime-function`
-Source: `packages/snapback-cli/verify.d.mts:61`
+Source: `packages/snapback-cli/verify.d.mts:65`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function probeArtifactFreshness(config: VerifyConfig): Promise<Readonly<Record<string, unknown>>>;
@@ -40345,7 +39980,7 @@ export function probeArtifactFreshness(config: VerifyConfig): Promise<Readonly<R
 
 Stable identity: `npm:@expo/snapback-cli/verify#probeCapabilities`
 Kind: `runtime-function`
-Source: `packages/snapback-cli/verify.d.mts:63`
+Source: `packages/snapback-cli/verify.d.mts:67`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function probeCapabilities(artifact: Readonly<Record<string, unknown>>, profiles: readonly unknown[]): Readonly<Record<string, unknown>>;
@@ -40356,7 +39991,7 @@ export function probeCapabilities(artifact: Readonly<Record<string, unknown>>, p
 
 Stable identity: `npm:@expo/snapback-cli/verify#runVerify`
 Kind: `runtime-function`
-Source: `packages/snapback-cli/verify.d.mts:65`
+Source: `packages/snapback-cli/verify.d.mts:69`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function runVerify(config: VerifyConfig, options?: Readonly<Record<string, unknown>>): Promise<Readonly<Record<string, unknown>>>;
@@ -40367,7 +40002,7 @@ export function runVerify(config: VerifyConfig, options?: Readonly<Record<string
 
 Stable identity: `npm:@expo/snapback-cli/verify#StarterVerifyProfileOptions`
 Kind: `type-interface`
-Source: `packages/snapback-cli/verify.d.mts:39`
+Source: `packages/snapback-cli/verify.d.mts:40`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface StarterVerifyProfileOptions {
@@ -40401,10 +40036,21 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-cli/verify#validateVerifyReceipt`
 Kind: `runtime-function`
-Source: `packages/snapback-cli/verify.d.mts:66`
+Source: `packages/snapback-cli/verify.d.mts:70`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function validateVerifyReceipt(receipt: unknown): Readonly<Record<string, unknown>>;
+```
+
+<a id="symbol-verify-config-convention-9342a6a064"></a>
+## `VERIFY_CONFIG_CONVENTION`
+
+Stable identity: `npm:@expo/snapback-cli/verify#VERIFY_CONFIG_CONVENTION`
+Kind: `runtime-constant`
+Source: `packages/snapback-cli/verify.d.mts:57`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+VERIFY_CONFIG_CONVENTION: 'snapback.verify.config.mjs'
 ```
 
 <a id="symbol-verify-config-schema-version-96566996d9"></a>
@@ -40412,7 +40058,7 @@ export function validateVerifyReceipt(receipt: unknown): Readonly<Record<string,
 
 Stable identity: `npm:@expo/snapback-cli/verify#VERIFY_CONFIG_SCHEMA_VERSION`
 Kind: `runtime-constant`
-Source: `packages/snapback-cli/verify.d.mts:54`
+Source: `packages/snapback-cli/verify.d.mts:55`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 VERIFY_CONFIG_SCHEMA_VERSION: 'snapback.verify-config.v1'
@@ -40423,7 +40069,7 @@ VERIFY_CONFIG_SCHEMA_VERSION: 'snapback.verify-config.v1'
 
 Stable identity: `npm:@expo/snapback-cli/verify#VERIFY_RECEIPT_SCHEMA_VERSION`
 Kind: `runtime-constant`
-Source: `packages/snapback-cli/verify.d.mts:55`
+Source: `packages/snapback-cli/verify.d.mts:56`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 VERIFY_RECEIPT_SCHEMA_VERSION: 'snapback.verify-receipt.v1'
@@ -40434,7 +40080,7 @@ VERIFY_RECEIPT_SCHEMA_VERSION: 'snapback.verify-receipt.v1'
 
 Stable identity: `npm:@expo/snapback-cli/verify#VERIFY_STAGE_IDS`
 Kind: `runtime-constant`
-Source: `packages/snapback-cli/verify.d.mts:56`
+Source: `packages/snapback-cli/verify.d.mts:59`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 VERIFY_STAGE_IDS: readonly string[]
@@ -40456,6 +40102,7 @@ export interface VerifyConfig {
   readonly profiles?: readonly {
     readonly id: string;
     readonly title?: string;
+    readonly timeoutMs?: number;
     readonly testFiles?: readonly string[];
     readonly requiredCapabilities?: readonly string[];
     readonly paths?: readonly {
@@ -40543,7 +40190,7 @@ export type VerifyPathKind = 'success' | 'failure' | 'action' | 'relational' | '
 
 Stable identity: `npm:@expo/snapback-cli/verify#writeVerifyReceipt`
 Kind: `runtime-function`
-Source: `packages/snapback-cli/verify.d.mts:67`
+Source: `packages/snapback-cli/verify.d.mts:71`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function writeVerifyReceipt(path: string, receipt: unknown): string;
@@ -40564,7 +40211,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40572,7 +40219,7 @@ reviewed-commit: 5f7e262aa99318e1424678fae4366606e448bc22
 # @expo/snapback-codegen/ctx
 
 Build-bound public API projection for `@expo/snapback-codegen/ctx`. Canonical registry identity:
-`sha256:1cd79296b429fb579ea4409940a4288ea938bd06e7c7d035662962a6eb66e58a`.
+`sha256:22ef8ee5812f9151fed44d9bf8f1969c6a6bee2ff54f532f164cdfe6f1ac9d34`.
 This package subpath is type-only; runtime export parity is not applicable.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)
@@ -42289,13 +41936,13 @@ id: testing.acceptance
 order: 1
 audience: agent-first
 capabilities: [testing.acceptance, operating.server-lifecycle]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, schemas/host-ready.schema.json]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, src/cli.rs, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, schemas/host-ready.schema.json]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs, packages/snapback-cli/fixtures/comparator/green.config.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-05
-reviewed-commit: 6f7cfdfa1c1ab675b5a3fe8d193328e8a4d7e870
+reviewed: 2026-08-08
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Acceptance testing
@@ -42564,7 +42211,7 @@ once the listener binds, Snapback writes a JSON readiness descriptor there
 `adminTokenFile`:
 
 ```sh
-snapback --memory --ready-file /tmp/sb-ready.json &
+snapback start --memory --ready-file /tmp/sb-ready.json &
 # ...wait for the file, then:
 BASE_URL=$(jq -r .serverUrl /tmp/sb-ready.json)
 ```
@@ -42654,15 +42301,16 @@ examples: [packages/snapback-cli/verify.test.mjs, packages/snapback-cli/fixtures
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-04
-reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
+reviewed: 2026-08-08
+reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
 ---
 
 # Verify the declared app contract
 
 > **Local target, partial surface.** This page describes generated-artifact
 > admission and explicitly registered acceptance paths. Live-target admission
-> and automatic discovery of every repository acceptance suite remain GAPs.
+> and automatic discovery of acceptance suites beyond the conventional config
+> file remain GAPs.
 
 `snapback verify --json` is the CLI-owned readiness composition from LLP 0146
 D2. It is not the unbuilt `acceptance.run` host operation. In fixed receipt
@@ -42675,12 +42323,18 @@ snapback runtime-qualify --persist
 snapback verify ./snapback --config ./snapback.verify.config.mjs --receipt ./.snapback/verify-receipt.json --json
 ```
 
+When the current directory contains `snapback.verify.config.mjs`, omit
+`--config`: `snapback verify --json` discovers that conventional filename.
+An explicit positional `<backend-dir>` is resolved from the shell's current
+directory. A `backendDirectory` authored inside the config remains relative to
+the config file, as do `testFiles`.
+
 ## Author `snapback.verify.config.mjs`
 
 Prefer the dedicated `@expo/snapback-cli/verify` subpath. The package root
 currently re-exports the same helpers for compatibility, but the subpath keeps
 verifier-only imports explicit and matches the package's dedicated export.
-Default-export one `defineVerifyConfig(...)` value. Paths in
+Default-export one `defineVerifyConfig(...)` value. Config-authored paths in
 `backendDirectory` and `testFiles` are relative to the config file:
 
 ```js source=packages/snapback-cli/fixtures/verify/snapback.verify.config.mjs
@@ -42712,6 +42366,11 @@ capability it needs, and every expected path. Path `kind` is one of `success`,
 `failure`, `action`, `relational`, `search`, or `snapshot-bundle`;
 `targetProfileId` names the target actually exercised; `functionId` binds D1
 read/write evidence to a declared function when the path has one.
+
+Profiles have a five-minute timeout by default. Set a positive integer
+`timeoutMs` on one profile, override all profiles for one invocation with
+`--timeout-ms`, or set `SNAPBACK_VERIFY_PROFILE_TIMEOUT`. A timeout fails the
+profile with `SNAPBACK_VERIFY_PROFILE_TIMEOUT`.
 
 The runner receives `{ artifact, backendDirectory, generatedDirectory,
 profileId }`. It returns boolean `ok`, the exact target/data/authority/seed
@@ -42779,7 +42438,17 @@ identity, digest of the config and actual test bytes, artifact target, data,
 authority, seed, all five stage verdicts, and ordered `next[]` actions.
 `recommendedNext` appears only when exactly one stage failed. With no
 registered profiles, a fresh app can pass the platform checks, but the receipt
-says `no-registered-acceptance-paths` and does not claim D1 aggregate coverage.
+says `status: "passed-without-acceptance"` and does not claim D1 aggregate
+coverage. This status is successful for process automation but machine-distinct
+from a receipt whose registered acceptance profiles passed. Each next action
+separates a nullable runnable `command` from its prose `instruction`.
+
+Stage 2 probes the digest-bound local packaged runtime only for local target
+profiles. For a non-local generated target it records an explicit
+`not-applicable-non-local-target` result with `claim: false`; it does not imply
+that target's runtime is ready. A Cloudflare acceptance adapter and live-target
+admission remain GAPs, so a non-local receipt cannot close those claims merely
+by skipping the local probe.
 
 The current admission authority is the locally regenerated generated-artifact
 set. It does not claim that a live target admitted those bytes, does not

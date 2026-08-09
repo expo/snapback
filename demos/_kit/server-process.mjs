@@ -569,7 +569,10 @@ async function launchServerAttempt(plan, {
   // explicit restart bind also goes directly to the OS without a preflight
   // probe. In both modes the unique ready-file returns the bound port and
   // process nonce, eliminating adoption and probe-then-bind races.
+  // @ref LLP 0024#dated-amendment-native-machine-mode-2026-08-08 — bare native
+  // invocation is help-only; every owned server launch names `start`.
   const serverArgs = [
+    'start',
     '--port',
     bindPortExactly ? String(port) : '0',
     '--ready-file',

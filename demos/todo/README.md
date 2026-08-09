@@ -64,7 +64,7 @@ node demos/todo/tests/acceptance/headless.mjs
 bun demos/todo/tests/acceptance/contract.mjs
 
 # 5. Browser-hosted Contract surface (starts Vite; needs a running Snapback API).
-cargo run -- --port 4420 --memory
+cargo run -- start --port 4420 --memory
 SNAPBACK_TODO_API=http://127.0.0.1:4420 \
   bun run --cwd demos/todo/surfaces/contract dev
 

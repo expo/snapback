@@ -1,6 +1,6 @@
 # Native CLI machine-mode gaps: prose failures, ignored --json, no --version, opaque help
 
-**Status:** Open
+**Status:** Resolved
 **Opened:** 2026-08-08 · **Severity:** P1 batch · **Area:** src/cli.rs / src/main.rs / snapback-app-cli
 
 From the 2026-08-08 agentic surface audit (LLP 0202 theme 7). The packaged
@@ -57,3 +57,23 @@ the models; the native binary lags both:
    <unknown>` bails with no code and no pointer to `controls list --intent`
    (`src/cli.rs:5430-5432`); `SNAPBACK_CLI_ARGUMENT_INVALID` covers 46
    distinct usage failures with no `details.command` discriminator.
+
+## Resolution (2026-08-08)
+
+The native binary now shares the app CLI's frozen 11-value exit taxonomy and
+projects JSON-requested failures through `hostOpsResult`, including a
+`details.command` discriminator. Native guide search is total under the
+`snapback.guide-search.v1` envelope, the packaged root-help document includes
+a structured native inventory, and all three CLI entry points expose versions
+derived from their build/package identity.
+
+Bare invocation is help-only; explicit `start` was carried through the guide
+and the shared demo server launcher. Admin console and link commands now have
+headless-safe opening defaults, always expose the fragment-bearing URL, and
+offer JSON plus an owner-lifecycle link ready file. The app CLI has
+registry-backed root and per-command help covering subscribe and pair flags.
+The remaining native JSON families now declare schema versions, the six
+runtime environment knobs are documented in native help, and unknown controls
+produce a stable code with the intent-list repair command. Governing behavior
+is recorded in LLP 0024, with affected guide, generated reference, and test
+projections updated alongside the implementation.

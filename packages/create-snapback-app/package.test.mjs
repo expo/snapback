@@ -40,6 +40,10 @@ function fileList(root) {
 
 const root = mkdtempSync(join(tmpdir(), 'create-snapback-app-'));
 try {
+  const version = run(createBin, ['--version'], { cwd: root });
+  assert.equal(version.status, 0, version.stderr);
+  assert.equal(version.stdout.trim(), `create-snapback-app ${manifest.version}`);
+
   // Default template is expo-chat, and the wrapper's output is identical to
   // `snapback new --template expo-chat` (same files, same substituted manifest
   // contents modulo the project name).

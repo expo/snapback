@@ -12,6 +12,7 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -31,6 +32,8 @@ import {
 
 export const VERIFY_CONFIG_SCHEMA_VERSION = 'snapback.verify-config.v1';
 export const VERIFY_RECEIPT_SCHEMA_VERSION = 'snapback.verify-receipt.v1';
+export const VERIFY_CONFIG_CONVENTION = 'snapback.verify.config.mjs';
+export const DEFAULT_VERIFY_PROFILE_TIMEOUT_MS = 300_000;
 
 export const VERIFY_STAGE_IDS = Object.freeze([
   'artifact-freshness',
@@ -58,30 +61,45 @@ const PROVENANCE = new Set(['complete', 'incomplete', 'unsupported']);
 const NEXT_BY_STAGE = Object.freeze({
   'artifact-freshness': Object.freeze({
     code: 'SNAPBACK_VERIFY_REGENERATE_ARTIFACTS',
-    command: 'snapback generate <backend-dir>',
+    command: 'snapback generate',
+    instruction: 'Regenerate the backend selected by the current working directory, or pass its directory explicitly.',
     reason: 'generated artifacts are absent, invalid, or do not match current source bytes',
   }),
   'runtime-readiness': Object.freeze({
     code: 'SNAPBACK_VERIFY_QUALIFY_RUNTIME',
     command: 'snapback runtime-qualify --persist',
+    instruction: 'Qualify the exact local packaged runtime and persist its digest-bound readiness receipt.',
     reason: 'the selected runtime has no valid digest-bound readiness receipt',
   }),
   'admission-and-conformance': Object.freeze({
     code: 'SNAPBACK_VERIFY_FIX_ADMISSION_OR_COVERAGE',
-    command: 'fix schema/function admission failures and rerun every registered coverage path',
+    command: null,
+    instruction: 'Fix schema/function admission failures and rerun every registered coverage path.',
     reason: 'generated identities disagree or D1 coverage evidence is missing/under-declared',
   }),
   'capability-resolution': Object.freeze({
     code: 'SNAPBACK_VERIFY_SELECT_CAPABLE_TARGET',
-    command: 'select a target profile that supplies every required capability, then regenerate',
+    command: null,
+    instruction: 'Select a target profile that supplies every required capability, then regenerate.',
     reason: 'the generated target profile does not satisfy the application and profile requirements',
   }),
   'acceptance-profiles': Object.freeze({
     code: 'SNAPBACK_VERIFY_FIX_ACCEPTANCE',
-    command: 'repair the failing registered acceptance profile and rerun snapback verify',
+    command: null,
+    instruction: 'Repair the failing registered acceptance profile and rerun snapback verify.',
     reason: 'one or more registered acceptance profiles failed',
   }),
 });
+
+function foreignCauseDetails(error, details = undefined) {
+  const causeCode = typeof error?.code === 'string' && !error.code.startsWith('SNAPBACK_')
+    ? error.code
+    : null;
+  return {
+    ...(details ?? {}),
+    ...(causeCode === null ? {} : { causeCode }),
+  };
+}
 
 function verifyError(code, message, details = undefined) {
   const error = new Error(`${code}: ${message}`);
@@ -181,12 +199,26 @@ function normalizeProfile(profile, index, configDirectory) {
   assert(typeof profile.run === 'function', `profiles[${profile.id}].run must be a function`);
   const paths = (profile.paths ?? []).map((path, pathIndex) => normalizePath(path, profile.id, pathIndex));
   assert(new Set(paths.map(({ id }) => id)).size === paths.length, `profiles[${profile.id}].paths must have unique ids`);
+  if (profile.timeoutMs !== undefined) {
+    assert(Number.isSafeInteger(profile.timeoutMs) && profile.timeoutMs > 0, `profiles[${profile.id}].timeoutMs must be a positive integer`);
+  }
+  let testFiles;
+  try {
+    testFiles = (profile.testFiles ?? []).map((path) => realpathSync(resolve(configDirectory, path))).sort();
+  } catch (error) {
+    throw verifyError(
+      'SNAPBACK_VERIFY_CONFIG_INVALID',
+      `profiles[${profile.id}].testFiles contains an unavailable path`,
+      foreignCauseDetails(error, { profileId: profile.id }),
+    );
+  }
   return Object.freeze({
     id: profile.id,
     title: typeof profile.title === 'string' && profile.title.length > 0 ? profile.title : profile.id,
-    testFiles: Object.freeze((profile.testFiles ?? []).map((path) => realpathSync(resolve(configDirectory, path))).sort()),
+    testFiles: Object.freeze(testFiles),
     requiredCapabilities: normalizedStringArray(profile.requiredCapabilities ?? [], `profiles[${profile.id}].requiredCapabilities`),
     paths: Object.freeze(paths),
+    timeoutMs: profile.timeoutMs ?? null,
     run: profile.run,
   });
 }
@@ -289,11 +321,12 @@ async function runStarterAcceptanceProfile({ acceptanceFile, identityContext, pa
     && receipt.cleanup?.ok === true
     && receipt.diagnostic === null;
   const ok = !overflow && !timedOut && exit.error === null && exit.code === 0 && receiptComplete;
+  const causeCode = exit.error?.code ?? receipt?.diagnostic?.code ?? null;
   const diagnosticCode = overflow
     ? 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_OUTPUT_LIMIT'
     : timedOut
       ? 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_TIMEOUT'
-      : exit.error?.code ?? receipt?.diagnostic?.code ?? 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED';
+      : 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED';
   const diagnosticMessage = overflow
     ? 'starter acceptance exceeded the bounded output limit'
     : timedOut
@@ -311,6 +344,7 @@ async function runStarterAcceptanceProfile({ acceptanceFile, identityContext, pa
       receiptStatus: receipt?.status ?? null,
       expectedCheckCount: receipt?.expectedCheckCount ?? null,
       executedCheckCount: receipt?.executedCheckCount ?? null,
+      ...(typeof causeCode === 'string' ? { causeCode } : {}),
       stderr: stderr.slice(-16_384),
     },
   )];
@@ -360,7 +394,16 @@ export function defineStarterVerifyProfile({
 }
 
 export async function loadVerifyConfig(path, { backendDirectory = null } = {}) {
-  const configPath = realpathSync(resolve(path));
+  let configPath;
+  try {
+    configPath = realpathSync(resolve(path));
+  } catch (error) {
+    throw verifyError(
+      'SNAPBACK_VERIFY_CONFIG_UNAVAILABLE',
+      `verify config ${resolve(path)} is unavailable`,
+      foreignCauseDetails(error, { path: resolve(path) }),
+    );
+  }
   const imported = await import(`${pathToFileURL(configPath).href}?verify=${Date.now()}`);
   const value = imported.default;
   assert(plainObject(value), 'verify config default export must be an object');
@@ -371,13 +414,22 @@ export async function loadVerifyConfig(path, { backendDirectory = null } = {}) {
   return Object.freeze({
     schemaVersion: VERIFY_CONFIG_SCHEMA_VERSION,
     configPath,
-    backendDirectory: resolve(configDirectory, backendDirectory ?? value.backendDirectory ?? 'snapback'),
+    // An explicit CLI positional is shell-facing and therefore cwd-relative;
+    // paths authored inside the config remain config-file-relative.
+    backendDirectory: backendDirectory === null
+      ? resolve(configDirectory, value.backendDirectory ?? 'snapback')
+      : resolve(process.cwd(), backendDirectory),
     generatedDirectory: value.generatedDirectory === undefined
       ? null
       : resolve(configDirectory, value.generatedDirectory),
     context: normalizeContext(value.context),
     profiles: Object.freeze(profiles),
   });
+}
+
+export function discoverVerifyConfig(directory = process.cwd()) {
+  const candidate = resolve(directory, VERIFY_CONFIG_CONVENTION);
+  return existsSync(candidate) ? candidate : null;
 }
 
 export function defaultVerifyConfig({ backendDirectory = 'snapback' } = {}) {
@@ -701,7 +753,21 @@ export function aggregateConformance(profiles, results) {
   });
 }
 
-async function runProfiles(config, context) {
+function runWithTimeout(work, timeoutMs, profileId) {
+  let timer;
+  return Promise.race([
+    Promise.resolve().then(work),
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(verifyError(
+        'SNAPBACK_VERIFY_PROFILE_TIMEOUT',
+        `acceptance profile ${profileId} exceeded its ${timeoutMs}ms timeout`,
+        { profileId, timeoutMs },
+      )), timeoutMs);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+async function runProfiles(config, context, options) {
   const output = [];
   for (const profile of config.profiles) {
     // Capture the bytes before execution. A runner that rewrites its own test
@@ -711,21 +777,27 @@ async function runProfiles(config, context) {
     const startedAtMs = Date.now();
     let returned;
     try {
-      returned = await profile.run(Object.freeze({
-        artifact: context.artifact,
-        backendDirectory: config.backendDirectory,
-        generatedDirectory: context.artifact?.generatedRoot ?? config.generatedDirectory,
-        identityContext: context.identityContext,
-        profileId: profile.id,
-      }));
+      const timeoutMs = options.profileTimeoutMs ?? profile.timeoutMs ?? DEFAULT_VERIFY_PROFILE_TIMEOUT_MS;
+      returned = await runWithTimeout(
+        () => profile.run(Object.freeze({
+          artifact: context.artifact,
+          backendDirectory: config.backendDirectory,
+          generatedDirectory: context.artifact?.generatedRoot ?? config.generatedDirectory,
+          identityContext: context.identityContext,
+          profileId: profile.id,
+        })),
+        timeoutMs,
+        profile.id,
+      );
       assert(plainObject(returned), `profile ${profile.id} must return an object`);
       assert(typeof returned.ok === 'boolean', `profile ${profile.id} must return boolean ok`);
     } catch (error) {
       returned = {
         ok: false,
         diagnostics: [error?.diagnostic ?? diagnostic(
-          error?.code ?? 'SNAPBACK_VERIFY_PROFILE_THREW',
+          'SNAPBACK_VERIFY_PROFILE_THREW',
           error?.message ?? String(error),
+          foreignCauseDetails(error, { profileId: profile.id }),
         )],
         conformance: [],
       };
@@ -742,8 +814,9 @@ async function runProfiles(config, context) {
         diagnostics: [
           ...(returned.diagnostics ?? []),
           error?.diagnostic ?? diagnostic(
-            error?.code ?? 'SNAPBACK_VERIFY_PROFILE_IDENTITY_INVALID',
+            'SNAPBACK_VERIFY_PROFILE_IDENTITY_INVALID',
             error?.message ?? String(error),
+            foreignCauseDetails(error, { profileId: profile.id }),
           ),
         ],
       };
@@ -801,11 +874,19 @@ async function safeProbe(probe, ...args) {
     return {
       ok: false,
       diagnostics: [error?.diagnostic ?? diagnostic(
-        error?.code ?? 'SNAPBACK_VERIFY_PROBE_FAILED',
+        'SNAPBACK_VERIFY_PROBE_FAILED',
         error?.message ?? String(error),
+        foreignCauseDetails(error),
       )],
     };
   }
+}
+
+function targetUsesLocalPackagedRuntime(artifact) {
+  const targetProfileId = artifact?.manifests?.capability?.targetProfileId ?? null;
+  return targetProfileId === null
+    || targetProfileId.startsWith('local-')
+    || targetProfileId.startsWith('local.');
 }
 
 export async function runVerify(config, options = {}) {
@@ -816,10 +897,23 @@ export async function runVerify(config, options = {}) {
   );
   const artifact = await safeProbe(options.artifactProbe ?? probeArtifactFreshness, config);
   const runtime = artifact.ok
-    ? await safeProbe(
-      options.runtimeProbe ?? (() => ({ ok: false, diagnostics: [diagnostic('SNAPBACK_VERIFY_RUNTIME_PROBE_MISSING', 'no runtime readiness verifier was supplied')]})),
-      config,
-    )
+    ? targetUsesLocalPackagedRuntime(artifact)
+      ? await safeProbe(
+        options.runtimeProbe ?? (() => ({ ok: false, diagnostics: [diagnostic('SNAPBACK_VERIFY_RUNTIME_PROBE_MISSING', 'no runtime readiness verifier was supplied')]})),
+        artifact,
+        config,
+      )
+      : {
+          ok: true,
+          skipped: true,
+          diagnostics: [],
+          evidence: {
+            disposition: 'not-applicable-non-local-target',
+            targetProfileId: artifact.manifests.capability.targetProfileId,
+            claim: false,
+            nonclaim: 'the local packaged runtime readiness probe does not apply to this non-local target',
+          },
+        }
     : { ok: false, blocked: true, diagnostics: [] };
   const admission = artifact.ok && runtime.ok
     ? await safeProbe(options.admissionProbe ?? probeAdmission, artifact, config)
@@ -842,7 +936,7 @@ export async function runVerify(config, options = {}) {
       : config.context.seed,
   });
   const profileResults = canRunProfiles
-    ? await runProfiles(config, { artifact, identityContext })
+    ? await runProfiles(config, { artifact, identityContext }, options)
     : Object.freeze([]);
   let conformance;
   if (canRunProfiles) {
@@ -917,11 +1011,15 @@ export async function runVerify(config, options = {}) {
   ]);
   const next = Object.freeze(stages.filter(({ status }) => status === 'failed').map(({ id }) => NEXT_BY_STAGE[id]));
   const finishedAtMs = options.now?.() ?? Date.now();
+  const allStagesPassed = stages.every(({ status }) => status === 'passed');
+  const acceptanceRegistered = config.profiles.length > 0;
   const receipt = {
     artifactKind: 'snapbackVerifyReceipt',
     schemaVersion: VERIFY_RECEIPT_SCHEMA_VERSION,
-    ok: stages.every(({ status }) => status === 'passed'),
-    status: stages.every(({ status }) => status === 'passed') ? 'passed' : 'failed',
+    ok: allStagesPassed,
+    status: allStagesPassed
+      ? acceptanceRegistered ? 'passed' : 'passed-without-acceptance'
+      : 'failed',
     startedAtMs,
     finishedAtMs,
     durationMs: finishedAtMs - startedAtMs,
@@ -943,6 +1041,9 @@ export async function runVerify(config, options = {}) {
       'a passing receipt proves readiness under the registered contract, not product completion',
       'no registered acceptance paths means D1 aggregate coverage is not claimed',
       'generated-artifact-local-admission does not claim a live target admitted the same bytes',
+      ...(!targetUsesLocalPackagedRuntime(artifact)
+        ? ['the local packaged runtime readiness probe was skipped and makes no claim about the non-local target runtime']
+        : []),
       'this receipt does not perform semantic review or satisfy LLP 0115 CV-14 review custody',
     ]),
   };

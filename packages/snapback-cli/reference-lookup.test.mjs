@@ -63,6 +63,8 @@ try {
   console.log = originalLog;
 }
 const cliResult = JSON.parse(output.join('\n'));
-assert.equal(cliResult.match, 'member');
+assert.equal(cliResult.schemaVersion, 'snapback.guide-search.v1');
+assert.equal(cliResult.mode, 'exact-symbol');
 assert.equal(cliResult.query, 'SnapbackClient.query');
+assert.equal(cliResult.result.match, 'member');
 console.log('reference-lookup.test.mjs: exact member, bounded symbol, bounded module, identity, and fallback pass');

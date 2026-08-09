@@ -30,7 +30,7 @@ app code re-implements any of it.
 
 ```sh
 # 1. serve the app (sessions mode) on the demo port
-cargo run -- --port 4433 --memory \
+cargo run -- start --port 4433 --memory \
   --startup-artifacts <(node -e 'const s=require("./demos/party-wall/snapback/generated/schema.manifest.json"),f=require("./demos/party-wall/snapback/generated/functions.manifest.json");console.log(JSON.stringify({formatVersion:1,schema:s,functions:f}))')
 
 # 2. the browser wall

@@ -259,7 +259,7 @@ Sandbox-blocked loopback witness:
 
 ```sh
 readiness_dir=$(mktemp -d /tmp/snapback-0194-readiness.XXXXXX)
-DYLD_FRAMEWORK_PATH="$PWD/vendor/ibex/ios/Frameworks" target/debug/snapback --port 0 --memory --ready-file "$readiness_dir/ready.json"
+DYLD_FRAMEWORK_PATH="$PWD/vendor/ibex/ios/Frameworks" target/debug/snapback start --port 0 --memory --ready-file "$readiness_dir/ready.json"
 ```
 
 This failed before readiness with

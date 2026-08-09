@@ -13,6 +13,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PACKAGED_CLI_COMMANDS, PACKAGED_CLI_SUBCOMMANDS } from './index.mjs';
+import { VERIFY_RECEIPT_SCHEMA_VERSION } from './verify.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const cli = join(packageDir, 'cli.mjs');
@@ -27,13 +28,18 @@ const runCliSource = source.slice(
 const dispatched = new Set();
 for (const line of runCliSource.split('\n').filter((candidate) => candidate.startsWith('  if (command ==='))) {
   for (const match of line.matchAll(/command === '([^']+)'/g)) {
-    if (!['--help', '-h', 'help'].includes(match[1])) dispatched.add(match[1]);
+    if (!['--help', '-h', 'help', '--version', '-V'].includes(match[1])) dispatched.add(match[1]);
   }
 }
 assert.deepEqual(
   [...dispatched].sort(),
   PACKAGED_CLI_COMMANDS.map(({ name }) => name).sort(),
   'composed help registry must equal the mechanically derived package dispatch set',
+);
+assert.equal(
+  PACKAGED_CLI_COMMANDS.find(({ name }) => name === 'verify').output,
+  `${VERIFY_RECEIPT_SCHEMA_VERSION} receipt`,
+  'verify help must bind its output claim to the exported receipt schema constant',
 );
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-cli-help-')));
@@ -42,6 +48,10 @@ try {
   writeFileSync(native, `#!/bin/sh
 if [ "$1" = "--help" ]; then
   printf '%s\\n' 'Native Snapback help' 'Commands:' '  start' '  stop' '  admin' '  guide' '  mcp' '' 'Documentation:' '  snapback guide [QUERY]' '  snapback mcp'
+  exit 0
+fi
+if [ "$1" = "command-inventory" ]; then
+  printf '%s\n' '{"schemaVersion":"snapback.native-command-inventory.v1","ok":true,"root":{"name":"snapback","path":["snapback"],"arguments":[],"subcommands":[{"name":"start","path":["snapback","start"],"arguments":[],"subcommands":[]},{"name":"admin","path":["snapback","admin"],"arguments":[],"subcommands":[]}]}}'
   exit 0
 fi
 if [ "$2" = "--help" ]; then
@@ -53,6 +63,16 @@ exit 97
 `);
   chmodSync(native, 0o755);
   const env = { ...process.env, SNAPBACK_RUNTIME_BINARY: native };
+
+  const manifest = JSON.parse(readFileSync(join(packageDir, 'package.json'), 'utf8'));
+  const version = spawnSync(process.execPath, [cli, '--version'], { encoding: 'utf8', env });
+  assert.equal(version.status, 0, version.stderr);
+  assert.equal(version.stdout.trim(), `snapback ${manifest.version}`);
+
+  const bare = spawnSync(process.execPath, [cli], { encoding: 'utf8', env });
+  assert.equal(bare.status, 0, bare.stderr);
+  assert.match(bare.stdout, /^Usage: snapback <command>/m);
+  assert.doesNotMatch(`${bare.stdout}\n${bare.stderr}`, /EXECUTED/);
 
   const rootHelp = spawnSync(process.execPath, [cli, '--help'], { encoding: 'utf8', env });
   assert.equal(rootHelp.status, 0, rootHelp.stderr);
@@ -131,6 +151,12 @@ exit 97
   const parsed = JSON.parse(jsonHelp.stdout);
   assert.equal(parsed.schemaVersion, 'snapback.cli-help.v1');
   assert.equal(parsed.command.name, 'dev');
+
+  const rootJsonHelp = spawnSync(process.execPath, [cli, '--help', '--json'], { encoding: 'utf8', env });
+  assert.equal(rootJsonHelp.status, 0, rootJsonHelp.stderr);
+  const rootJson = JSON.parse(rootJsonHelp.stdout);
+  assert.equal(rootJson.nativeInventory.schemaVersion, 'snapback.native-command-inventory.v1');
+  assert.deepEqual(rootJson.nativeCommands.map(({ name }) => name), ['start', 'admin']);
 
   // A held-open stdin must not make help wait for input. spawnSync above
   // covers the ordinary closed-input probe; the help path never inspects TTY

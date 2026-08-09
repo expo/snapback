@@ -24,6 +24,7 @@ export interface VerifyConfig {
   readonly profiles?: readonly {
     readonly id: string;
     readonly title?: string;
+    readonly timeoutMs?: number;
     readonly testFiles?: readonly string[];
     readonly requiredCapabilities?: readonly string[];
     readonly paths?: readonly {
@@ -53,10 +54,13 @@ export interface StarterVerifyProfileOptions {
 
 export const VERIFY_CONFIG_SCHEMA_VERSION: 'snapback.verify-config.v1';
 export const VERIFY_RECEIPT_SCHEMA_VERSION: 'snapback.verify-receipt.v1';
+export const VERIFY_CONFIG_CONVENTION: 'snapback.verify.config.mjs';
+export const DEFAULT_VERIFY_PROFILE_TIMEOUT_MS: 300000;
 export const VERIFY_STAGE_IDS: readonly string[];
 export function defineVerifyConfig<T extends VerifyConfig>(config: T): T;
 export function defineStarterVerifyProfile(options: StarterVerifyProfileOptions): NonNullable<VerifyConfig['profiles']>[number];
 export function loadVerifyConfig(path: string, options?: { readonly backendDirectory?: string | null }): Promise<VerifyConfig>;
+export function discoverVerifyConfig(directory?: string): string | null;
 export function defaultVerifyConfig(options?: { readonly backendDirectory?: string }): VerifyConfig;
 export function probeArtifactFreshness(config: VerifyConfig): Promise<Readonly<Record<string, unknown>>>;
 export function probeAdmission(artifact: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>>;

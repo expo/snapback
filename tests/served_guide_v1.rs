@@ -53,6 +53,7 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
     let ready_file = temp.path().join("ready.json");
     let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_snapback"))
         .args([
+            "start",
             "--port",
             "0",
             "--memory",
@@ -64,7 +65,7 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
         .stderr(Stdio::null())
         .kill_on_drop(true)
         .spawn()
-        .expect("spawn snapback --memory");
+        .expect("spawn snapback start --memory");
 
     let deadline = Instant::now() + Duration::from_secs(15);
     let server_url = loop {
@@ -77,12 +78,12 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
                 .expect("ready descriptor serverUrl")
                 .to_owned();
         }
-        if let Some(status) = child.try_wait().expect("poll snapback --memory") {
-            panic!("snapback --memory exited before readiness: {status}");
+        if let Some(status) = child.try_wait().expect("poll snapback start --memory") {
+            panic!("snapback start --memory exited before readiness: {status}");
         }
         assert!(
             Instant::now() < deadline,
-            "snapback --memory readiness timeout"
+            "snapback start --memory readiness timeout"
         );
         tokio::time::sleep(Duration::from_millis(25)).await;
     };
@@ -91,7 +92,7 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
     let served = tokio::task::spawn_blocking(move || {
         let response = ureq::get(&request_url)
             .call()
-            .expect("GET served guide from snapback --memory");
+            .expect("GET served guide from snapback start --memory");
         let status = response.status();
         let content_hash = response
             .header(GUIDE_CONTENT_HASH_HEADER)
@@ -111,7 +112,7 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
     .await
     .expect("join served-guide HTTP request");
 
-    child.start_kill().expect("stop snapback --memory");
+    child.start_kill().expect("stop snapback start --memory");
     let _ = child.wait().await;
 
     assert_eq!(served.0, 200);
