@@ -80,6 +80,11 @@ These apply across all milestones.
   backend). "Contacts" means registered accounts: discovery is
   people-search by display name or handle; the de-facto contact set is
   who you follow and who you share chats with.
+- **Self-follow is implicit feed membership.** The Following feed always
+  includes the viewer's own original posts and reposts, even when the viewer
+  follows no accounts. This is not a persisted follow edge: users cannot
+  follow or unfollow themselves, follower/following counts exclude the
+  implicit relationship, and feed entries remain unique.
 - **Out of scope everywhere:** email sending (so: no verification, no
   password reset), SMS, OAuth/social login, device address-book
   access, quote-posts, link previews, message forwarding, voice notes
@@ -381,9 +386,10 @@ Spec:
   replies, chronological. Parents show a reply count. Replies never
   appear in feeds, only on thread screens.
 - **Feeds, two tabs** (Following is the default): **Following** —
-  reverse-chronological original posts and reposts from accounts the
-  viewer currently follows; after an unfollow, that account's posts
-  (including older ones) no longer appear on next load. **Global** —
+  reverse-chronological original posts and reposts from the viewer plus
+  accounts the viewer currently follows; after an unfollow, that other
+  account's posts (including older ones) no longer appear on next load.
+  **Global** —
   reverse-chronological original posts and reposts from everyone.
   Both paginate 20 per page with infinite scroll.
 - Profile screens list that user's posts, reverse-chronological.
@@ -396,7 +402,9 @@ Acceptance:
 2. Bob follows Alice; Alice's posts appear in Bob's Following feed and
    her follower count updates live. Bob unfollows; on next feed load
    her posts (including older ones) are gone from Following but remain
-   in Global.
+   in Global. With no explicit self-follow edge, Bob's own original posts
+   and reposts remain in Following throughout; the implicit relationship
+   does not change his follower/following counts.
 3. A post from a user Bob doesn't follow appears in his Global feed
    but not his Following feed.
 4. A URL in a text post is tappable; no preview card renders.
