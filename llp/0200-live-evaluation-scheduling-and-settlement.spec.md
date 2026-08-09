@@ -5,9 +5,12 @@
 **Systems:** Live queries, Performance, Auth, Storage, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-08
-**Revised:** 2026-08-09 (§6a dated note: zero-observer commit-turn
-remainder closed; v0.4 post-round-3 repairs remain **unreviewed**; final
-review verdicts bind to v0.3; see Revision history)
+**Revised:** 2026-08-09 (§6b dated note: Phase 3 landed — write
+priority, cancellation/age inheritance, bounds + overload degrade —
+with exit A/B and H-1/H-4 verdicts; earlier same-day §6a note closed
+the zero-observer commit-turn remainder; v0.4 post-round-3 repairs
+remain **unreviewed**; final review verdicts bind to v0.3; see
+Revision history)
 **Related:** LLP 0191 (evidence and ladder), LLP 0008 (live protocol; dated
 coalescing decision and authorization-invalidation amendment this Spec
 binds to), LLP 0183 (D4 charter this Spec extends), LLP 0012/0043
@@ -483,6 +486,70 @@ measurement. Split-out remainders:
 per-turn drift-window slowdown),
 `issues/closed/20260809-mutation-facts-turn-extra-lock.md` (post-commit facts
 re-lock).
+
+## 6b. Phase-3 implementation record (dated note, 2026-08-09)
+
+Phase 3 (§2.5) landed in three stages plus the Lane C commit-turn fix:
+
+1. **Write priority** — `LiveFanoutCoalescer` carries a writer-visibility
+   gate (atomic count + RAII guard + drained notify); the staged
+   authorization write holds it across its lock acquisitions (HTTP
+   mutations, host-ops function.run, and the mutation-class scoped-token
+   authority resolve); the scheduler defers before each subscription turn
+   while writers are visible, capped at `max_hold/4` per turn gap. The
+   post-commit facts turn was folded into the commit turn (one fewer
+   global-lock round trip per applied mutation).
+2. **Cancellation + age inheritance** — every pending-entry replacement
+   inherits the oldest undelivered `first_deferred_at` and trace frontier
+   (continuous supersession cannot reset the clock); within each lane the
+   scheduler serves the oldest inherited age; a supersession that discards
+   queued work emits a trace-only "superseded" eval event.
+3. **Bounds + overload degrade** — selection-time conversion of a
+   Data-lane entry whose inherited age exceeds `max_hold` into a
+   priority Refresh obligation (fail-closed semantic conversion,
+   `SNAPBACK_LIVE_OVERLOAD_DEGRADE` scheduler-health diagnostic +
+   trace event); the `max_eval_turn` one-retry-then-typed-teardown
+   terminal state and the send-failure teardown escape are now
+   behaviorally test-pinned.
+
+**Exit A/B vs the recorded Phase-1 arms (same harness, same 5.5M-row
+baseline, N=1 per arm, shape evidence; trigger/non-trigger settle p50 ms):**
+
+| arm | Phase-1 recorded | Phase-3 exit |
+|---|---|---|
+| burst 6-obs | 15,269 / 42,856 | 1,648 / 1,579 |
+| burst 0-obs | 629 / 728 | 38 / 23 |
+| sustained 6-obs | 68,127 / 178,705 | 6,761 / 6,533 |
+| sustained 0-obs | 35 / 28 | 31 / 26 |
+
+**H-4: met.** Superseded-evaluation cancellations observed (12 burst /
+28 sustained trace events); overload degrades observed fail-closed
+(12 burst / 1 sustained `overload_degrade` conversions, semantics
+test-pinned); no turn exceeded `max_eval_turn` (max observed turn
+1.15 s vs 30 s). Staleness bound: holds within capacity by
+construction (oldest-inherited-age service + degrade conversion); the
+six-observer arms run beyond single-evaluator capacity by design
+(6 subscriptions × ~0.9–1.15 s turns per frame wave > `max_hold` 5 s),
+so delivery-start ages reached 13.1 s (burst) with degrade conversions
+firing — the §2.5 overload scoping (semantic conversion; teardown is
+the capacity escape), not a silent violation.
+
+**H-1 re-check: partially met.** Zero-observer settle is restored past
+the original baseline (38/23 vs pre-Phase-1 171/130 — the §6a dated
+note's fix, plus write priority, held). At six observers settle p50 is
+1.65 s (burst) vs the < 1 s target, and commit-ack ≈ settle minus a
+sub-millisecond response leg, vs < 250 ms — a ~9× improvement over
+Phase 1 that still misses the numeric bar on this hardware. The
+remainder is (a) the unpreemptible in-flight evaluation turn a
+just-arrived writer waits behind (structural until turn cost falls),
+(b) the ticketed drift-window stage-turn slowdown
+(`issues/20260809-mutate-stage-turn-cost-bisect.md`), and (c) raw
+evaluation cost at 5.5M rows — the D2 sharing/widening ladder, not
+scheduling. Fence-applied p95 remains unmeasured (the hot inventory
+still fires no mid-burst authority transitions; the requalification
+arm still needs one). `issues/20260808-p1-write-priority-scheduling.md`
+is refreshed to carry exactly this remainder. Formal N≥3
+requalification per LLP 0189 stays gated on the remainder ticket.
 
 ## 7. Non-goals
 

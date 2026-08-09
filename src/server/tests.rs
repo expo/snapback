@@ -15720,6 +15720,10 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "positive millisecond bound for one scheduled live subscription evaluation turn (default 30000; LLP 0200 Phase 1)",
     ),
     (
+        "SNAPBACK_LIVE_OVERLOAD_DEGRADE",
+        "scheduler-health attached diagnostic and spike-trace code; it is never emitted in an HTTP response",
+    ),
+    (
         "SNAPBACK_LIVE_SCHEDULER_DISABLED",
         "environment variable restoring legacy inline live fan-out for settlement-isolation A/B measurement (LLP 0200 Phase 1)",
     ),

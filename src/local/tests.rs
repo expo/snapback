@@ -221,6 +221,259 @@
         assert!(scheduler.pop("sub-a").is_none());
     }
 
+    // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — an
+    // overdue data frame becomes a priority refresh obligation at selection,
+    // without resetting the age or trace inherited through supersession.
+    #[test]
+    fn pending_overload_degrade_converts_aged_data_to_inherited_refresh() {
+        let mut snapback = LocalSnapback::memory().expect("memory scheduler fixture");
+        let max_hold = Duration::from_millis(10);
+        snapback.install_live_fanout_coalescer(Arc::new(
+            crate::live_coalesce::LiveFanoutCoalescer::with_tunables(
+                crate::live_coalesce::LiveCoalesceTunables {
+                    max_hold,
+                    ..crate::live_coalesce::LiveCoalesceTunables::default()
+                },
+            ),
+        ));
+        let inherited_age = Instant::now()
+            .checked_sub(Duration::from_secs(1))
+            .expect("test age remains representable");
+        snapback.pending_live_fanout.push(
+            "overloaded".to_owned(),
+            pending_live_test_entry(
+                PendingLiveLane::Data,
+                PendingLiveWork::Data,
+                inherited_age,
+                71,
+                vec![69, 71],
+                Some(4.0),
+            ),
+        );
+        let diagnostics_before = snapback.recent_diagnostics.len();
+
+        assert_eq!(
+            snapback.next_pending_live_subscription().as_deref(),
+            Some("overloaded")
+        );
+        let pending = snapback
+            .pending_live_fanout
+            .entries
+            .get("overloaded")
+            .expect("refresh obligation remains pending for the selected turn");
+        assert_eq!(pending.lane, PendingLiveLane::Refresh);
+        assert!(matches!(pending.work, PendingLiveWork::Refresh));
+        assert!(pending.force_replace);
+        assert!(pending.changes.is_empty(), "delta work was collapsed");
+        assert_eq!(pending.first_deferred_at, inherited_age);
+        assert_eq!(pending.trace_commit_versions, vec![69, 71]);
+        assert_eq!(pending.trace_queued_ms, Some(4.0));
+        assert_eq!(pending.coverage_through, 71);
+        let diagnostic = snapback
+            .recent_diagnostics
+            .get(diagnostics_before)
+            .expect("overload degrade is attached to scheduler diagnostics");
+        assert_eq!(diagnostic.code, "SNAPBACK_LIVE_OVERLOAD_DEGRADE");
+        assert_eq!(diagnostic.details["subscriptionId"], "overloaded");
+        assert_eq!(
+            diagnostic.details["maxHoldMs"],
+            json!(max_hold.as_millis())
+        );
+    }
+
+    #[test]
+    fn pending_overload_selection_preserves_aged_authority_and_refresh_lanes() {
+        let mut snapback = LocalSnapback::memory().expect("memory scheduler fixture");
+        snapback.install_live_fanout_coalescer(Arc::new(
+            crate::live_coalesce::LiveFanoutCoalescer::with_tunables(
+                crate::live_coalesce::LiveCoalesceTunables {
+                    max_hold: Duration::from_millis(1),
+                    ..crate::live_coalesce::LiveCoalesceTunables::default()
+                },
+            ),
+        ));
+        let inherited_age = Instant::now()
+            .checked_sub(Duration::from_secs(1))
+            .expect("test age remains representable");
+        snapback.pending_live_fanout.push(
+            "refresh".to_owned(),
+            pending_live_test_entry(
+                PendingLiveLane::Refresh,
+                PendingLiveWork::Refresh,
+                inherited_age,
+                80,
+                vec![80],
+                Some(8.0),
+            ),
+        );
+        snapback.pending_live_fanout.push(
+            "authority".to_owned(),
+            pending_live_test_entry(
+                PendingLiveLane::Authority,
+                PendingLiveWork::PermissionResync {
+                    scope: "scope-a".to_owned(),
+                    epoch: 3,
+                    frame_version: 81,
+                },
+                inherited_age,
+                81,
+                vec![81],
+                Some(9.0),
+            ),
+        );
+        let diagnostics_before = snapback.recent_diagnostics.len();
+
+        assert_eq!(
+            snapback.next_pending_live_subscription().as_deref(),
+            Some("authority")
+        );
+        assert!(matches!(
+            snapback.pending_live_fanout.entries["authority"].work,
+            PendingLiveWork::PermissionResync { .. }
+        ));
+        snapback
+            .pending_live_fanout
+            .pop("authority")
+            .expect("remove preserved authority fixture");
+        assert_eq!(
+            snapback.next_pending_live_subscription().as_deref(),
+            Some("refresh")
+        );
+        assert!(matches!(
+            snapback.pending_live_fanout.entries["refresh"].work,
+            PendingLiveWork::Refresh
+        ));
+        assert_eq!(snapback.recent_diagnostics.len(), diagnostics_before);
+    }
+
+    fn live_timeout_scheduler_fixture() -> (
+        LocalSnapback,
+        String,
+        Arc<crate::live_coalesce::LiveFanoutCoalescer>,
+    ) {
+        let mut snapback = live_limit_snapback();
+        let subscription_id = snapback
+            .subscribe_live(
+                "listItems",
+                live_limit_input("timeout-connection", json!({})),
+            )
+            .expect("subscribe timeout fixture")
+            .subscription_id;
+        let coalescer = Arc::new(crate::live_coalesce::LiveFanoutCoalescer::new());
+        snapback.install_live_fanout_coalescer(coalescer.clone());
+        (snapback, subscription_id, coalescer)
+    }
+
+    // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — the
+    // first timeout gets exactly one priority refresh retry and stays live.
+    #[test]
+    fn live_evaluation_first_timeout_queues_one_refresh_and_keeps_subscription() {
+        let (mut snapback, subscription_id, _) = live_timeout_scheduler_fixture();
+        let admission = snapback.admission.admit().expect("test admission");
+
+        snapback.handle_live_evaluation_timeout(&subscription_id, 91, &admission);
+
+        assert!(snapback.subscriptions.contains_key(&subscription_id));
+        assert_eq!(
+            snapback.live_evaluation_timeout_streaks.get(&subscription_id),
+            Some(&1)
+        );
+        assert_eq!(snapback.pending_live_fanout.entries.len(), 1);
+        let pending = snapback
+            .pending_live_fanout
+            .entries
+            .get(&subscription_id)
+            .expect("one timeout refresh retry");
+        assert_eq!(pending.lane, PendingLiveLane::Refresh);
+        assert!(matches!(pending.work, PendingLiveWork::Refresh));
+        assert!(pending.force_replace);
+    }
+
+    // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — a
+    // second consecutive timeout is the typed terminal state.
+    #[test]
+    fn live_evaluation_second_timeout_tears_down_with_resync_and_retires_state() {
+        let (mut snapback, subscription_id, coalescer) = live_timeout_scheduler_fixture();
+        let fenced = crate::storage::AuthorizationVersion {
+            incarnation: "timeout-fence".to_owned(),
+            epoch: 1,
+        };
+        let different = crate::storage::AuthorizationVersion {
+            incarnation: "timeout-fence".to_owned(),
+            epoch: 2,
+        };
+        coalescer.fence_authority(&subscription_id, fenced);
+        assert!(!coalescer.authorize_delivery(&subscription_id, &different));
+        let admission = snapback.admission.admit().expect("test admission");
+
+        snapback.handle_live_evaluation_timeout(&subscription_id, 92, &admission);
+        snapback.handle_live_evaluation_timeout(&subscription_id, 93, &admission);
+
+        assert!(!snapback.subscriptions.contains_key(&subscription_id));
+        assert!(
+            !snapback
+                .live_evaluation_timeout_streaks
+                .contains_key(&subscription_id)
+        );
+        assert!(
+            !snapback
+                .pending_live_fanout
+                .entries
+                .contains_key(&subscription_id)
+        );
+        assert!(
+            coalescer.authorize_delivery(&subscription_id, &different),
+            "terminal teardown retired the coalescer fence"
+        );
+        let envelopes = drain_live_stream_through_test_sink(
+            &mut snapback,
+            "timeout-connection",
+        )
+        .into_iter()
+        .filter_map(|frame| serde_json::from_str::<Value>(&frame).ok())
+        .filter(|frame| {
+            frame["kind"] == "resync_required"
+                && frame["subscription_id"] == subscription_id
+        })
+        .collect::<Vec<_>>();
+        assert_eq!(envelopes.len(), 1);
+        assert_eq!(
+            envelopes[0]["reason"],
+            "SNAPBACK_LIVE_EVALUATION_TIMEOUT"
+        );
+        assert_eq!(envelopes[0]["clear_retained"], true);
+    }
+
+    #[test]
+    fn live_evaluation_success_between_timeouts_resets_timeout_streak() {
+        let (mut snapback, subscription_id, _) = live_timeout_scheduler_fixture();
+        let admission = snapback.admission.admit().expect("test admission");
+        snapback.handle_live_evaluation_timeout(&subscription_id, 94, &admission);
+        assert_eq!(
+            snapback.live_evaluation_timeout_streaks.get(&subscription_id),
+            Some(&1)
+        );
+
+        assert!(snapback.run_pending_live_subscription(
+            &subscription_id,
+            Arc::new(crate::live_coalesce::LiveEvaluationControl::default()),
+        ));
+        assert!(
+            !snapback
+                .live_evaluation_timeout_streaks
+                .contains_key(&subscription_id)
+        );
+        assert!(snapback.subscriptions.contains_key(&subscription_id));
+
+        snapback.handle_live_evaluation_timeout(&subscription_id, 95, &admission);
+        assert_eq!(
+            snapback.live_evaluation_timeout_streaks.get(&subscription_id),
+            Some(&1),
+            "the post-success timeout starts a new streak"
+        );
+        assert!(snapback.subscriptions.contains_key(&subscription_id));
+    }
+
     fn target_descriptor(environment_id: &str) -> crate::deploy::TargetDescriptor {
         crate::deploy::TargetDescriptor {
             schema_version: crate::deploy::TargetDescriptorVersion::V1,

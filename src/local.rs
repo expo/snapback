@@ -20399,6 +20399,86 @@ impl LocalSnapback {
     }
 
     pub fn next_pending_live_subscription(&mut self) -> Option<String> {
+        self.select_pending_live_subscription()
+    }
+
+    fn select_pending_live_subscription(&mut self) -> Option<String> {
+        let subscription_id = self.pending_live_fanout.peek()?;
+        let max_hold = self
+            .live_coalescer
+            .as_ref()
+            .map(|coalescer| coalescer.tunables().max_hold)
+            .unwrap_or(Duration::MAX);
+        let overload = self
+            .pending_live_fanout
+            .entries
+            .get(&subscription_id)
+            .filter(|pending| pending.lane == PendingLiveLane::Data)
+            .map(|pending| {
+                (
+                    pending.first_deferred_at.elapsed(),
+                    pending.coverage_through,
+                    pending.trace_commit_versions.clone(),
+                    pending.trace_queued_ms,
+                )
+            })
+            .filter(|(inherited_age, _, _, _)| *inherited_age >= max_hold);
+        let Some((inherited_age, coverage_through, trace_commit_versions, trace_queued_ms)) =
+            overload
+        else {
+            return Some(subscription_id);
+        };
+
+        // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — an
+        // overdue data frame has exceeded scheduler capacity. Convert it to
+        // the priority refresh obligation without resetting inherited age or
+        // trace; Authority and already-Refresh work retain their semantics.
+        self.pending_live_fanout.push(
+            subscription_id.clone(),
+            PendingLiveFanout {
+                lane: PendingLiveLane::Refresh,
+                work: PendingLiveWork::Refresh,
+                changes: Vec::new(),
+                force_replace: true,
+                frames: 1,
+                coverage_through,
+                first_deferred_at: Instant::now(),
+                trace_commit_versions: Vec::new(),
+                trace_queued_ms: None,
+                generation: 0,
+            },
+        );
+        self.record_attached_diagnostics(vec![
+            Diagnostic::warning(
+                "SNAPBACK_LIVE_OVERLOAD_DEGRADE",
+                "realtime",
+                "live scheduler converted overdue data work to a refresh obligation",
+            )
+            .with_details(json!({
+                "subscriptionId": subscription_id,
+                "coverageThrough": coverage_through,
+                "inheritedAgeMs": inherited_age.as_millis(),
+                "maxHoldMs": max_hold.as_millis(),
+            })),
+        ]);
+        let connection_id = self
+            .subscriptions
+            .get(&subscription_id)
+            .map(|subscription| subscription.connection_id.as_str())
+            .unwrap_or_default();
+        crate::spike_trace::eval(
+            &subscription_id,
+            connection_id,
+            &trace_commit_versions,
+            trace_queued_ms,
+            None,
+            crate::spike_trace::timestamp_ms(),
+            0,
+            Some("refresh"),
+            coverage_through,
+            "overload_degrade",
+            Some("SNAPBACK_LIVE_OVERLOAD_DEGRADE"),
+        );
         self.pending_live_fanout.peek()
     }
 
@@ -20414,7 +20494,7 @@ impl LocalSnapback {
         // The serving loop may have observed this id before a commit inserted
         // authority work; in that race it yields and reselects instead of
         // letting stale data jump the authority lane.
-        if self.pending_live_fanout.peek().as_deref() != Some(subscription_id) {
+        if self.select_pending_live_subscription().as_deref() != Some(subscription_id) {
             return false;
         }
         let Ok(admission) = self.admission.admit() else {
@@ -20424,7 +20504,7 @@ impl LocalSnapback {
             // successor admission is published.
             return false;
         };
-        let Some(mut pending) = self.pending_live_fanout.pop(subscription_id) else {
+        let Some(pending) = self.pending_live_fanout.pop(subscription_id) else {
             return false;
         };
         if !self.subscriptions.contains_key(subscription_id) {
@@ -20462,18 +20542,6 @@ impl LocalSnapback {
             wire_kind: None,
         });
 
-        if pending.first_deferred_at.elapsed()
-            >= self
-                .live_coalescer
-                .as_ref()
-                .map(|coalescer| coalescer.tunables().max_hold)
-                .unwrap_or(Duration::MAX)
-        {
-            pending.work = PendingLiveWork::Refresh;
-            pending.lane = PendingLiveLane::Refresh;
-            pending.force_replace = true;
-            pending.changes.clear();
-        }
         if pending.lane == PendingLiveLane::Data {
             // @ref LLP 0200#22-fan-out-leaves-the-write-turn — sampling the
             // head and draining this subscription's complete pending list are

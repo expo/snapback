@@ -20,3 +20,34 @@ into the immediate remainder. Instrument: the committed A/B harness
 Also unmeasured: fence-applied p95 (H-1) — the hot inventory fires no
 authority transitions mid-burst; the requalification arm needs a
 revocation/grant mutation added to the inventory to sample fence latency.
+
+## Refresh (2026-08-09, Lane B of the LLP 0200 program)
+
+**Write priority is implemented and landed** (LLP 0200 §6b): pending
+commit turns preempt queued evaluation turns via the coalescer's
+writer-visibility gate; the scheduler defers between turns (capped at
+`max_hold/4` per gap); the mutate settle path is fully covered (staged
+write, mutation-class scoped-token resolve, facts folded into the commit
+turn). Phase-3 cancellation, age inheritance, and overload degrade
+landed with it.
+
+Measured (exit battery vs recorded Phase-1 arms, N=1 shape): burst
+6-obs settle p50 15.3 s → **1.65 s**; sustained 6-obs 68.1 s → 6.8 s;
+zero-observer arms 38/23 and 31/26 ms.
+
+**H-1 remains unmet at six observers**: settle p50 1.65 s vs < 1 s,
+commit-ack ≈ settle − sub-ms vs < 250 ms. The remainder is no longer
+scheduling policy:
+
+1. A just-arrived writer still waits behind one unpreemptible in-flight
+   evaluation turn (~0.9–1.15 s at 5.5M rows) — structural until turn
+   cost falls (D2 sharing / matcher widening ladder), since §2.5
+   forbids VM preemption.
+2. The per-attempt stage-turn slowdown ticketed in
+   `issues/20260809-mutate-stage-turn-cost-bisect.md`.
+3. Fence-applied p95 (H-1) is still unmeasured — the hot inventory
+   fires no mid-burst authority transitions; the requalification arm
+   needs a revocation/grant mutation added.
+
+This ticket stays open to carry exactly that remainder and the N≥3
+requalification per LLP 0189.
