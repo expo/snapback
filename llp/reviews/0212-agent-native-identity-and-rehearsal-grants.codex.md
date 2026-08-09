@@ -413,3 +413,26 @@ Most v0.3 growth is load-bearing: the new lifecycle enumeration, provenance prop
 Revise only the v0.3 delta: complete landing item 2, choose a coherent namespace mint protocol, name a positive reachability-fact producer, extend provenance through deferred work, and integrity-bind or narrow the export-envelope guarantee. Then run one focused delta verification.
 
 VERDICT: NOT READY
+
+## Round 4 — 2026-08-09 (focused delta verification)
+
+**Round record (persisted before launch):**
+
+- Round: 4 — the single focused verification round the delta-convergence
+  rule authorizes (convergence reached at round 3: zero pre-existing
+  MATERIAL across both families in two consecutive post-revision rounds)
+- Target revision under review: v0.4,
+  `f3da1baed35afcf35c8b4e05fb5f39413286889c36e27c6b1f454889e67c7b33`
+- Topology: single target, independent dual-family round, mutually blind
+- Capsule: `capsule-0212-r4`, aggregate hash
+  `a6e8c20850774518b246ffd4c14e650226e60f730be2b1b9c5e15da485cf0bd2`
+- Instructions hash:
+  `7d8f8bfbf2ecca7375c8d413e9173ddfce97c26b61488a80ef9394e30cef5fc6`
+- Scope: v0.4 delta only (9 items); pre-existing text passed two
+  consecutive cross-family sweeps
+- Blindness: instruction-based, self-attested, as in prior rounds
+- Reviewer: Codex `gpt-5.6-sol`, effort xhigh, `codex exec`, read-only sandbox, cwd = capsule
+
+**Review body (verbatim):**
+
+_pending — appended on receipt_
