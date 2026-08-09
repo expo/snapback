@@ -44,41 +44,43 @@ mod asset_reads;
 pub(crate) mod auth;
 mod connections;
 mod jobs;
+mod membership_reads;
 pub mod migration_executor;
 mod migration_scan;
-mod membership_reads;
 mod projection_rebuild;
+mod push_registry;
 mod schema_transition;
 
 pub use asset_attempts::{AssetAttemptsKernel, AssetPreparedVariant, AssetPublishOutcome};
 pub use asset_maintenance::AssetMaintenanceKernel;
 pub use asset_reads::{AssetDelivery, AssetDeliveryOutcome, AssetReadsKernel};
+use connections::registered_writer_coverage_manifest;
 pub use connections::{PooledReader, ReaderPool};
+#[allow(unused_imports)] // Preserve the pre-split crate::storage surface.
+pub(crate) use connections::{
+    RegisteredSystemWriterPurposeV1, RegisteredSystemWriterV1, open_registered_system_writer_v1,
+};
 pub use jobs::{JobsKernel, JobsReadKernel};
+pub use membership_reads::MembershipReadsKernel;
+pub(crate) use migration_scan::migration_keyset_scan_batch_on;
 pub use migration_scan::{
     MIGRATION_SCAN_CHECKPOINT_VERSION, MIGRATION_SCAN_MAX_BATCH_BYTES,
     MIGRATION_SCAN_MAX_BATCH_MILLIS, MIGRATION_SCAN_MAX_BATCH_ROWS, MigrationKeysetScanBatch,
     MigrationKeysetScanCheckpointV1, MigrationKeysetScanRequestV1, MigrationScanCeilingsV1,
     MigrationScanValidatorStateV1, MigrationScanValidatorV1,
 };
-pub use membership_reads::MembershipReadsKernel;
 pub use projection_rebuild::ProjectionRebuildReceipt;
+use projection_rebuild::{ProjectionEffectCeiling, maintain_projections_in_tx};
+pub use push_registry::PushRegistryKernel;
+#[cfg(test)]
+pub(crate) use schema_transition::publish_schema_transition_for_test;
 pub use schema_transition::{
     SCHEMA_TRANSITION_JOURNAL_TABLE, SchemaTransitionEventBodyV1, SchemaTransitionEventV1,
     SchemaTransitionKind,
 };
-#[allow(unused_imports)] // Preserve the pre-split crate::storage surface.
-pub(crate) use connections::{
-    RegisteredSystemWriterPurposeV1, RegisteredSystemWriterV1, open_registered_system_writer_v1,
-};
-use connections::registered_writer_coverage_manifest;
-pub(crate) use migration_scan::migration_keyset_scan_batch_on;
-use projection_rebuild::{ProjectionEffectCeiling, maintain_projections_in_tx};
 pub(crate) use schema_transition::{
     prove_retained_work_posture, record_schema_transition_event, schema_transition_events_on,
 };
-#[cfg(test)]
-pub(crate) use schema_transition::publish_schema_transition_for_test;
 
 #[cfg(test)]
 mod tests;
@@ -1965,6 +1967,10 @@ impl LocalDatabase {
         JobsReadKernel::new(self)
     }
 
+    pub fn push_registry(&mut self) -> PushRegistryKernel<'_> {
+        PushRegistryKernel::new(self)
+    }
+
     pub fn memory() -> SnapbackResult<Self> {
         let conn = Connection::open_in_memory()?;
         let mode_inspection = auth_mode::inspect_for_open(&conn)?;
@@ -2283,30 +2289,6 @@ impl LocalDatabase {
 
     pub fn schema(&self) -> &SchemaManifest {
         &self.schema
-    }
-
-    pub(crate) fn push_registry_inspection(
-        &self,
-    ) -> SnapbackResult<crate::push::PushRegistryInspectionV1> {
-        if self.schema.push_seam.is_some() {
-            crate::push::inspect(&self.conn)
-        } else {
-            Ok(crate::push::PushRegistryInspectionV1::default())
-        }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn activate_push_registry_for_test(
-        &mut self,
-        declaration: crate::push::PushSeamDeclarationV1,
-    ) -> SnapbackResult<()> {
-        self.with_auth_transaction(|tx| crate::push::activate_manifest_in(tx, Some(&declaration)))?;
-        self.schema.auth = Some(crate::manifest::AuthManifest {
-            mode: crate::manifest::AuthMode::Sessions,
-            agents: None,
-        });
-        self.schema.push_seam = Some(declaration);
-        Ok(())
     }
 
     /// File-backed databases publish their canonical storage path to sibling
@@ -8005,7 +7987,6 @@ pub struct KeysetAfter {
     pub id: String,
 }
 
-
 /// Lower a keyset boundary to one WHERE clause selecting rows strictly after
 /// the boundary row under the plan's `(order…, _id ASC)` total order with
 /// Snapback's `NULLS LAST` rule. Emitted as a disjunction of prefix-equality
@@ -8151,7 +8132,6 @@ pub(crate) fn validate_standard_pattern_boundary(
     ensure_orderable_field(table, cursor_field)?;
     validate_query_filter_value(table, cursor_field, value)
 }
-
 
 // @ref LLP 0080#1-closed-relational-plan — runtime admission of the closed
 //   plan shape: exactly one joined table, 1..=4 equality pairs, take in
@@ -9282,7 +9262,6 @@ impl DbRead<'_> {
         crate::jobs::job_status_row(self.conn(), job_id)
     }
 }
-
 
 trait WithDetail {
     fn with_detail(self, key: &str, value: impl Into<Value>) -> Self;
@@ -17716,7 +17695,6 @@ fn get_document_from_tx(
     }
 }
 
-
 fn record_change(
     tx: &Transaction<'_>,
     version: u64,
@@ -18318,7 +18296,6 @@ fn ensure_orderable_field(table: &TableManifest, field: &str) -> SnapbackResult<
     }
     Ok(())
 }
-
 
 fn field_type<'a>(table: &'a TableManifest, field: &str) -> Option<&'a FieldType> {
     table.field(field).map(|field| &field.field_type)

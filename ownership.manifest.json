@@ -197,6 +197,7 @@
       "src/storage/migration_executor.rs",
       "src/storage/migration_scan.rs",
       "src/storage/projection_rebuild.rs",
+      "src/storage/push_registry.rs",
       "src/storage/schema_transition.rs",
       "src/storage/tests.rs",
       "src/storage/write_authority.rs",
@@ -232,6 +233,7 @@
       "src/rqs.rs",
       "src/snapshot_batch_cursor.rs",
       "src/snapshot_batch_cursor_v2.rs",
+      "src/spike_trace.rs",
       "src/stream_attempt.rs"
     ],
     "background-services": [
@@ -358,6 +360,7 @@
     "src/migration_presentation.rs": "Placed with migration for the first ratchet; presentation behavior may later move to an adapter.",
     "src/runtime.rs": "Handler-VM host placed with transport adapters (server/cli/workerd compose it); a future dedicated execution owner could claim it.",
     "src/search/fixtures.rs": "Test-fixture module assigned to its subject owner (kernel) because the gate has no test category.",
+    "src/spike_trace.rs": "Env-gated JSONL instrumentation for the LLP 0191 OQ4 live-query spike, placed with the sync engine it instruments; retire the entry if the spike module is removed.",
     "src/telemetry_contract.rs": "Treated as a contract leaf; telemetry behavior remains under background services.",
     "src/vector/acceptance.rs": "Acceptance-test module assigned to its subject owner (kernel) because the gate has no test category."
   }

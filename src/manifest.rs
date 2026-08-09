@@ -9844,13 +9844,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:09edb9aeb90d89a2e15b06ce2a6fdeaf637ab25201b8462ca4743c919b4744d3";
+    "sha256:e94c71efa2e3086a99e284c8880279bf742965301c1e6c0c738c31999c84f9f1";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:e75271eccc9eb4ca7bf6a8d337117cd96168f4516c8e7918e6156e4be9ebb88e";
+    "sha256:6d2b3b79855519f263adf11a05c4add7d008528203cc270a65c54bce8fbb95af";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -10290,7 +10290,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:ad4b1599ecaf595b26e38acb230358d938b512bb59ec66f2d8142f87f982f973"
+                    "sha256:1d1eba6f6a56a8ca650b04b53d2908888d8b42243d3443fbbe0254542a7321dc"
                         .to_owned(),
                 ),
                 (
@@ -10498,7 +10498,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:ad4b1599ecaf595b26e38acb230358d938b512bb59ec66f2d8142f87f982f973"
+                    "sha256:1d1eba6f6a56a8ca650b04b53d2908888d8b42243d3443fbbe0254542a7321dc"
                         .to_owned(),
                 ),
                 (
@@ -10787,7 +10787,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:ad4b1599ecaf595b26e38acb230358d938b512bb59ec66f2d8142f87f982f973"
+                    "sha256:1d1eba6f6a56a8ca650b04b53d2908888d8b42243d3443fbbe0254542a7321dc"
                         .to_owned(),
                 ),
                 (
