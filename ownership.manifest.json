@@ -162,6 +162,7 @@
       "src/storage/authorized_lease.rs",
       "src/storage/connections.rs",
       "src/storage/hosted_admission.rs",
+      "src/storage/jobs.rs",
       "src/storage/migration_executor.rs",
       "src/storage/migration_scan.rs",
       "src/storage/projection_rebuild.rs",

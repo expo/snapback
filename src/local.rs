@@ -18972,7 +18972,7 @@ impl LocalSnapback {
         // Admission precedes the durable claim write, mirroring cron: if the
         // process is closing, no new claims are taken.
         let first_admission = self.admission.admit()?;
-        let (claims, job_changes) = self.db.claim_due_jobs(now_ms, limit, drive)?;
+        let (claims, job_changes) = self.db.jobs().claim_due_jobs(now_ms, limit, drive)?;
         if !job_changes.is_empty() {
             self.notify_live_subscriptions(&job_changes);
         }
@@ -19046,7 +19046,9 @@ impl LocalSnapback {
         // (which takes admission-controller entry points of its own).
         let terminal_publication = (|| {
             let _publication = admission.effect_guard("job result publication")?;
-            self.db.finish_job(&claim.claim, &outcome, now_ms)
+            self.db
+                .jobs()
+                .finish_job(&claim.claim, &outcome, now_ms)
         })();
         let (disposition, changed_row) = match terminal_publication {
             Ok(terminal) => terminal,
@@ -19152,8 +19154,8 @@ impl LocalSnapback {
     }
 
     pub(crate) fn jobs_inspect(&self, limit: usize) -> SnapbackResult<Value> {
-        let jobs = self.db.list_job_status_rows(limit)?;
-        let pending = self.db.pending_job_count()?;
+        let jobs = self.db.jobs_read().list_job_status_rows(limit)?;
+        let pending = self.db.jobs_read().pending_job_count()?;
         Ok(json!({
             "artifactKind": "snapback.jobs-inspect/v0",
             // Honest capability posture (LLP 0070 §Non-goals): the RFC is
@@ -19166,10 +19168,10 @@ impl LocalSnapback {
     }
 
     pub(crate) fn job_show(&self, job_id: &str) -> SnapbackResult<Option<Value>> {
-        let Some(job) = self.db.job_status(job_id)? else {
+        let Some(job) = self.db.jobs_read().job_status(job_id)? else {
             return Ok(None);
         };
-        let attempts = self.db.job_attempt_records(job_id)?;
+        let attempts = self.db.jobs_read().job_attempt_records(job_id)?;
         Ok(Some(json!({
             "artifactKind": "snapback.job-show/v0",
             "job": job,
@@ -19180,7 +19182,7 @@ impl LocalSnapback {
     /// Whether any job could need the autonomous worker: pending or claimed
     /// rows exist. The worker polls this only when its activity hint is set.
     pub(crate) fn jobs_pending_count(&self) -> SnapbackResult<u64> {
-        self.db.pending_job_count()
+        self.db.jobs_read().pending_job_count()
     }
 
     /// A lock-free hint allowing the autonomous worker to skip SQLite while
@@ -19783,10 +19785,10 @@ impl LocalSnapback {
                 crate::telemetry::TelemetryConfig::default(),
             )?,
         };
-        let cron = LocalCronRuntime::from_persisted(db.load_cron_state()?)?;
+        let cron = LocalCronRuntime::from_persisted(db.jobs().load_cron_state()?)?;
         // One startup read preserves crash recovery without turning an empty
         // durable queue into a forever-polling database workload.
-        let jobs_active = db.pending_job_count()? != 0;
+        let jobs_active = db.jobs().pending_job_count()? != 0;
         let auth_mode = db.auth_mode_snapshot()?.state;
         // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
         //   persisted migration fence outlives the process: opening over a
@@ -21414,7 +21416,7 @@ impl LocalSnapback {
         if self.last_persisted_cron.as_ref() == Some(&value) {
             return Ok(());
         }
-        self.db.save_cron_state(&value)?;
+        self.db.jobs().save_cron_state(&value)?;
         self.last_persisted_cron = Some(value);
         self.cron_state_writes += 1;
         Ok(())

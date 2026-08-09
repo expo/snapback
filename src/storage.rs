@@ -40,12 +40,14 @@ pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 #[path = "storage/auth.rs"]
 pub(crate) mod auth;
 mod connections;
+mod jobs;
 mod migration_scan;
 pub mod migration_executor;
 mod projection_rebuild;
 mod schema_transition;
 
 pub use connections::{PooledReader, ReaderPool};
+pub use jobs::{JobsKernel, JobsReadKernel};
 pub use migration_scan::{
     MIGRATION_SCAN_CHECKPOINT_VERSION, MIGRATION_SCAN_MAX_BATCH_BYTES,
     MIGRATION_SCAN_MAX_BATCH_MILLIS, MIGRATION_SCAN_MAX_BATCH_ROWS, MigrationKeysetScanBatch,
@@ -1931,6 +1933,14 @@ fn inspect_storage_for_open(conn: &Connection) -> SnapbackResult<()> {
 }
 
 impl LocalDatabase {
+    pub fn jobs(&mut self) -> JobsKernel<'_> {
+        JobsKernel::new(self)
+    }
+
+    pub fn jobs_read(&self) -> JobsReadKernel<'_> {
+        JobsReadKernel::new(self)
+    }
+
     pub fn memory() -> SnapbackResult<Self> {
         let conn = Connection::open_in_memory()?;
         let mode_inspection = auth_mode::inspect_for_open(&conn)?;
@@ -4048,47 +4058,6 @@ impl LocalDatabase {
                 membership_declarations: Vec::new(),
             },
         })
-    }
-
-    pub fn load_cron_state(&self) -> SnapbackResult<Option<Value>> {
-        let value: Option<String> = self
-            .conn
-            .query_row(
-                "SELECT value FROM _snapback_meta WHERE key = ?1",
-                params![META_CRON_STATE],
-                |row| row.get(0),
-            )
-            .optional()?;
-
-        value
-            .map(|value| {
-                serde_json::from_str(&value).map_err(|error| {
-                    SnapbackError::error(
-                        "SNAPBACK_CRON_STATE_PARSE_FAILED",
-                        "cron",
-                        "stored cron runtime state could not be parsed",
-                    )
-                    .with_detail("error", error.to_string())
-                })
-            })
-            .transpose()
-    }
-
-    pub fn save_cron_state(&mut self, value: &Value) -> SnapbackResult<()> {
-        let state_json = serde_json::to_string(value).map_err(|error| {
-            SnapbackError::error(
-                "SNAPBACK_CRON_STATE_SERIALIZE_FAILED",
-                "cron",
-                "cron runtime state could not be serialized",
-            )
-            .with_detail("error", error.to_string())
-        })?;
-        self.conn.execute(
-            "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params![META_CRON_STATE, state_json],
-        )?;
-        Ok(())
     }
 
     /// Load the served api-envelope state (LLP 0062 §5, server-composed).
@@ -7374,87 +7343,6 @@ impl LocalDatabase {
             authorization,
             network_egress: Default::default(),
         })
-    }
-
-    /// Set-based injected-clock claim over the durable job table (LLP 0070's
-    /// first slice; the deterministic drain seam of LLP 0115 CV-9). One
-    /// SQLite transaction claims every due job up to `limit`; the returned
-    /// ChangedRows feed the live matcher for the declared job-status query.
-    pub(crate) fn claim_due_jobs(
-        &mut self,
-        now_ms: u64,
-        limit: usize,
-        drive: &str,
-    ) -> SnapbackResult<(Vec<crate::jobs::ClaimedJob>, Vec<ChangedRow>)> {
-        crate::manifest::validate_portable_timestamp_millis(now_ms)?;
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let reaped_job_ids = crate::jobs::reap_terminal_jobs_in_tx(
-            &tx,
-            now_ms,
-            crate::jobs::JOBS_RETENTION_SWEEP_LIMIT,
-        )?;
-        let mut claim_ids = new_id_source();
-        let claims = crate::jobs::claim_due_jobs_in_tx(&tx, now_ms, limit, drive, &mut claim_ids)?;
-        let mut job_changes = Vec::with_capacity(reaped_job_ids.len() + claims.len());
-        job_changes.extend(reaped_job_ids.into_iter().map(|job_id| ChangedRow {
-            table: crate::jobs::JOBS_STATUS_TABLE.to_owned(),
-            id: job_id,
-            op: ChangeOp::Delete,
-            row: None,
-            changed_fields: Vec::new(),
-        }));
-        for claim in &claims {
-            if let Some(row) = crate::jobs::job_status_row(&tx, &claim.job_id)? {
-                job_changes.push(job_status_changed_row(&row));
-            }
-        }
-        tx.commit()?;
-        Ok((claims, job_changes))
-    }
-
-    /// Atomic terminal publication for one claimed job attempt. Returns the
-    /// disposition plus the job's post-transition ChangedRow (None only when
-    /// the publication was stale AND the row vanished, which v1 never does).
-    pub(crate) fn finish_job(
-        &mut self,
-        claim: &crate::jobs::ClaimedJob,
-        outcome: &crate::jobs::JobAttemptOutcome,
-        now_ms: u64,
-    ) -> SnapbackResult<(crate::jobs::JobFinishDisposition, Option<ChangedRow>)> {
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let disposition = crate::jobs::finish_job_in_tx(&tx, claim, outcome, now_ms)?;
-        let row = crate::jobs::job_status_row(&tx, &claim.job_id)?;
-        tx.commit()?;
-        Ok((disposition, row.as_ref().map(job_status_changed_row)))
-    }
-
-    pub(crate) fn job_status(
-        &self,
-        job_id: &str,
-    ) -> SnapbackResult<Option<crate::jobs::JobStatusRow>> {
-        crate::jobs::job_status_row(&self.conn, job_id)
-    }
-
-    pub(crate) fn job_attempt_records(
-        &self,
-        job_id: &str,
-    ) -> SnapbackResult<Vec<crate::jobs::JobAttemptRecord>> {
-        crate::jobs::job_attempts(&self.conn, job_id)
-    }
-
-    pub(crate) fn list_job_status_rows(
-        &self,
-        limit: usize,
-    ) -> SnapbackResult<Vec<crate::jobs::JobStatusRow>> {
-        crate::jobs::list_job_status_rows(&self.conn, limit)
-    }
-
-    pub(crate) fn pending_job_count(&self) -> SnapbackResult<u64> {
-        crate::jobs::pending_job_count(&self.conn)
     }
 
     fn configure(&mut self, file_backed: bool) -> SnapbackResult<()> {
