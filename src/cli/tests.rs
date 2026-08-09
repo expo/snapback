@@ -1,4 +1,3 @@
-
 use super::{
     AdminArgs, AdminCommand, AdminLinkReadyFile, Args, AssetsCommand, AuthCommand,
     AuthConstructionFailure, AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
