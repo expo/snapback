@@ -1,7 +1,7 @@
 # LLP 0211: Typed opaque structured stored values
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Review
 **Systems:** Schema, Application data API, Storage, Code generation, Client SDK
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-09
@@ -315,12 +315,14 @@ named refusal is defined behavior.
 
 ## Open questions
 
-1. **Withdrawal scope (author gate).** Does the 2026-07-31 LLP 0044
-   ruling's "the portable field vocabulary ships no array table fields"
-   bind plain-data structured values, or only the asset-reference
-   vocabulary that was the decision's subject? This Spec assumes the
-   latter and cannot be accepted without the author ruling it so (and, if
-   ruled so, LLP 0044 gains a dated clarification note).
+1. **Withdrawal scope (author gate) — RULED 2026-08-09.** Does the
+   2026-07-31 LLP 0044 ruling's "the portable field vocabulary ships no
+   array table fields" bind plain-data structured values, or only the
+   asset-reference vocabulary that was the decision's subject? The author
+   (Charlie, 2026-08-09, at implementation kickoff) ruled the latter:
+   the withdrawal binds the asset-reference vocabulary; plain-data
+   structured stored values proceed under this Spec. LLP 0044's dated
+   clarification note lands with the implementation.
 2. **Byte-equality predicate.** Admit `eq` on canonical bytes in v1, or
    ship with no predicates at all (the current text)? Lean: no predicates;
    add equality only with a demand instance.
