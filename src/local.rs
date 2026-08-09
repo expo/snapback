@@ -47413,15 +47413,11 @@ globalThis.__snapbackHandlers = {
         functions.app_id = schema.app_id.clone();
         functions.bundle_hash = Some(format!("sha256:{}", "b".repeat(64)));
         functions.inputs_hash = schema.inputs_hash.clone();
-        let durable_generation = DeploymentIdentity::from_manifests(
-            AuthMode::Dev,
-            &schema,
-            &functions,
-        )
-        .expect("coherent durable generation");
+        let durable_generation =
+            DeploymentIdentity::from_manifests(AuthMode::Dev, &schema, &functions)
+                .expect("coherent durable generation");
         let expected_plan_digest = crate::rqs::sha256_identity(
-            &serde_json::to_value(&functions.projections[0])
-                .expect("projection plan serializes"),
+            &serde_json::to_value(&functions.projections[0]).expect("projection plan serializes"),
         )
         .expect("projection plan canonicalizes");
         let row = |fields: Value| fields.as_object().cloned().expect("seed row");
@@ -47430,20 +47426,26 @@ globalThis.__snapbackHandlers = {
                 (
                     "books".to_owned(),
                     vec![
-                        row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" })),
-                        row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                        row(
+                            json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" }),
+                        ),
+                        row(
+                            json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" }),
+                        ),
                     ],
                 ),
                 (
                     "authors".to_owned(),
-                    vec![row(json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }))],
+                    vec![row(
+                        json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                    )],
                 ),
             ]),
         };
 
         {
-            let mut snapback = LocalSnapback::open(&database_path)
-                .expect("open persistent activation fixture");
+            let mut snapback =
+                LocalSnapback::open(&database_path).expect("open persistent activation fixture");
             let prepared = snapback
                 .prepare_auth_provision(
                     EnsureAppMode::Dev,

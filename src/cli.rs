@@ -2254,48 +2254,8 @@ fn render_guide_command(
         );
     }
     if matches.is_empty() {
-        if json_output {
-            return Ok(format!(
-                "{}\n",
-                serde_json::to_string_pretty(&json!({
-                    "schemaVersion": "snapback.guide-search.v1",
-                    "query": query,
-                    "match": "none",
-                    "matches": [],
-                    "count": 0,
-                    "capabilityIndex": format!("{DEFAULT_SERVED_GUIDE_URL}/capabilities.md"),
-                }))?
-            ));
-        }
         return Ok(format!(
             "No embedded Guide sections matched {query:?}.\nStart with the capability index: {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n"
-        ));
-    }
-
-    if json_output {
-        let matches = matches
-            .iter()
-            .map(|matched| {
-                json!({
-                    "path": matched.path,
-                    "heading": matched.heading,
-                    "anchor": matched.anchor,
-                    "servedUrl": format!(
-                        "{DEFAULT_SERVED_GUIDE_URL}/{}#{}",
-                        matched.path, matched.anchor
-                    ),
-                })
-            })
-            .collect::<Vec<_>>();
-        return Ok(format!(
-            "{}\n",
-            serde_json::to_string_pretty(&json!({
-                "schemaVersion": "snapback.guide-search.v1",
-                "query": query,
-                "match": "sections",
-                "count": matches.len(),
-                "matches": matches,
-            }))?
         ));
     }
 

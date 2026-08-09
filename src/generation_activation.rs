@@ -70,8 +70,7 @@ impl<'a> GenerationActivation<'a> {
         } = activation;
 
         if publish_ephemeral_collections {
-            self.snapback
-                .publish_generation_ephemeral_collections();
+            self.snapback.publish_generation_ephemeral_collections();
         }
 
         // @ref LLP 0080#5-transactionally-maintained-projections — activation
@@ -91,10 +90,7 @@ impl<'a> GenerationActivation<'a> {
                         "storage",
                         format!(
                             "projection {} rebuilt at activation: {} rows, generation {}, {}",
-                            plan.id,
-                            receipt.row_count,
-                            receipt.generation,
-                            receipt.content_digest
+                            plan.id, receipt.row_count, receipt.generation, receipt.content_digest
                         ),
                     ));
                 }
@@ -126,10 +122,8 @@ impl<'a> GenerationActivation<'a> {
                 &rebuilt_projection_ids,
                 &mut diagnostics,
             );
-            self.snapback.record_generation_activation_diagnostics(
-                diagnostics.clone(),
-                diagnostic_boundary,
-            );
+            self.snapback
+                .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
             return diagnostics;
         }
 
@@ -141,10 +135,8 @@ impl<'a> GenerationActivation<'a> {
             validate_routes_after_install,
             inject_publication_warning,
         );
-        self.snapback.record_generation_activation_diagnostics(
-            diagnostics.clone(),
-            diagnostic_boundary,
-        );
+        self.snapback
+            .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
         diagnostics
     }
 

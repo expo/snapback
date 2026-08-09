@@ -756,6 +756,7 @@ CLI-only offline/store/auth and build/runtime probes either use
 explicit family `schemaVersion`. Admin console/link JSON likewise preserves
 the fragment-bearing URL; attached links may publish an owner-only readiness
 record that is removed when their observation lifecycle ends.
+
 ## Dated amendment: catalog-bound CLI and refusal acquisition paths (2026-08-08)
 
 The built lifecycle and auth projections are recorded exactly as
