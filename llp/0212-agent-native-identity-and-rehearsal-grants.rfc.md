@@ -9,11 +9,9 @@ independent brainstorm from Codex (gpt-5.6-sol, xhigh) on 2026-08-09 —
 idea provenance is tagged throughout ([C] Claude, [X] Codex, [=] both
 families converged independently)
 **Date:** 2026-08-09
-**Revised:** 2026-08-09 (author sitting: all six open questions ruled —
-combined wedge+floor first wave; guest-first as template default;
-provisioning hook *and* read-only verified claims in v1; a standalone
-effect-budgets Spec; names ratified; import pipeline *and* the narrow
-JWT bridge commissioned. See §Author decisions.)
+**Revised:** 2026-08-09 (v0.2, round-1 super-refine dispositions applied;
+see §Revision history). 2026-08-09 (author sitting: all six open
+questions ruled; see §Author decisions.)
 **Related:** LLP 0011 (auth and permissions — the principal-first root),
 LLP 0057 (auth provider protocol — the shipped email-code provider,
 capture mailbox, throttle constants, `ImpersonationCapability`),
@@ -100,13 +98,16 @@ The one architectural idea is already right: **the server derives who you
 are; the client never asserts it** (LLP 0011; the LLP 0058 shared
 invocation gate). Shipped today on the local target: exactly one
 authenticator — the passwordless email-code provider (LLP 0057, Accepted)
-— with sessions, rotation, family alarm, and the four reserved `_auth_*`
-tables app code physically cannot address. No password, no magic links,
-no OAuth, no passkeys, no anonymous principals, no SMS (LLP 0151
-§Summary states this flatly). There is **no production email path at
-all**: codes land in a dev/test/demo capture mailbox and `prod` refuses
-`/auth/request-code` outright — so "email-code login, React web" has no
-self-serve production story yet (guide/auth/sessions-and-principals.md).
+— with sessions, rotation, family alarm, and the reserved `_auth`
+namespace (five `_auth_*` tables in catalog v1; the reservation is a
+namespace rule, not a fixed set) that app code physically cannot
+address. No password, no magic links, no OAuth, no passkeys, no
+anonymous principals, no SMS (LLP 0151 §Summary states this flatly).
+There is **no production email path at all**: codes land in a
+dev/test/demo capture mailbox and `prod` refuses `/auth/request-code`
+outright (LLP 0057 §Request-code transaction) — so "email-code login,
+React web" has no self-serve production story yet
+(guide/auth/sessions-and-principals.md).
 Rate limits are constants, not configuration (per-address 5/10min in
 test+prod, global 120/60s everywhere). Test personas exist but need two
 independent local-only carriers (admin token + `ImpersonationCapability`),
@@ -150,11 +151,26 @@ Adopted from both brainstorms and consistent with LLP 0011/0151 [=]:
    password hash, passkey, recovery codes, key-bound agent credential.
    LLP 0151's round-1 structural ruling stands: identities and
    credentials never share a relation.
-4. **Assurance** — server-derived evidence with kind, source, time, and
-   provenance: `authenticated`, `email_verified`, `recent_auth`,
-   `phishing_resistant`, `rehearsal_simulated`. Functions and lifecycle
-   transitions require assurances; a session is a projection of this
-   state, not the identity itself.
+4. **Assurance** — server-derived evidence: `authenticated`,
+   `email_verified`, `recent_auth`, `phishing_resistant`. Functions and
+   lifecycle transitions require assurances; a session is a projection
+   of this state, not the identity itself.
+
+**The assurance record separates kind from provenance** — they are
+different fields, never conflated: an assurance is
+`{kind, provenance, issuedAt, expiresAt?, governingGrant?}`, where
+`kind` is what was assured (`email_verified`, …) and `provenance` is how
+(`delivery`, `import`, `rehearsal`, …). Rehearsal never invents a kind:
+`verification.simulate` mints `kind: email_verified` with
+`provenance: rehearsal` and the governing grant recorded. **Requirement
+evaluation is posture-scoped**: `requires: ['email_verified']` is
+satisfied by rehearsal-provenance assurances only on non-production
+deployment profiles; production admission policy never accepts
+rehearsal provenance, so an implementation cannot accidentally accept
+simulated evidence where real contact verification was intended. The
+read-only `ctx.auth` projection (OQ3) preserves the provenance field,
+though app logic is taught to declare requirements, not branch on
+provenance.
 
 The fourth layer is the load-bearing novelty relative to GoTrue: a global
 `email_confirmed` boolean becomes a per-claim assurance that *upgrades
@@ -185,11 +201,16 @@ convergence (treated as signal).
 - **I3. Guest-first sessions / anonymous-first progressive identity** [=]
   — every client can mint a real, server-minted guest principal before
   any identity exists; identity factors attach later and upgrade
-  assurance. Signup stops being a gate and becomes an upgrade. The 0011
-  guest-claiming amendment already designed the hard parts (continuous
-  `userId`, typed collision refusal with `switch_existing` / declared
-  `merge`, reaping policy); this RFC proposes making it the paved
-  *template default* for agent-built apps, not a platform-wide default.
+  assurance. Signup stops being a gate and becomes an upgrade. The
+  design authority is layered — stated precisely: the **0011 dated
+  amendment** designed continuous `userId` on claiming and the typed
+  collision refusal, and records merge as *out of scope* (an app-level
+  migration hook as the escape hatch); the `switch_existing`/`merge`
+  continuations, reaping/retention limits, and the cleanup-policy
+  requirement are **LLP 0151's proposals on top of that amendment**,
+  expressly delegated to the commissioned lifecycle spec. This RFC
+  proposes making guest-first the paved *template default* for
+  agent-built apps, not a platform-wide default.
 - **I4. Assurance as capability upgrade** [=] — replace boolean
   verification with the assurance layer; functions declare
   `requires: ['email_verified']` (or an app-defined assurance profile) the
@@ -230,12 +251,21 @@ convergence (treated as signal).
   auth coordinator or persona handle, open a magic link in a controlled
   browser. Plaintext codes are not printed by default; reveal is a
   separate audited action, keeping one-time secrets out of model-visible
-  prose (the LLP 0106 credential-custody stance).
+  prose (the LLP 0106 credential-custody stance). Listing is a larger
+  disclosure surface than today's exact-challenge-id lookup, so the
+  owning 0057 amendment pins its bulk-disclosure contract: pagination
+  and count caps, address redaction posture, the exact
+  `AdminWrite`/`ImpersonationCapability` composition, and
+  planted-sentinel acceptance proving bulk results never reach logs,
+  receipts, browser endpoints, or default machine output.
 - **V3. Delivery simulator** [X] — deterministic per-fixture delivery
   profiles: `delivered`, `delayed`, `bounced`, `provider_unavailable`,
   `expired_before_open`, `duplicate_callback`, with structured receipts.
   Failure-path testing without a vendor; strictly more valuable than a
-  mailbox that only models perfect delivery.
+  mailbox that only models perfect delivery. Ordering note: the
+  simulator can precede real adapters by targeting the challenge seam
+  directly; its receipt vocabulary is shared with — but not blocked on —
+  V4's adapter contract.
 - **V4. Ephemeral delivery adapters** [X] — Snapback owns challenge
   creation and verification; vendor drivers receive only ephemeral
   destination/template variables and return a classified result. Email is
@@ -256,26 +286,45 @@ convergence (treated as signal).
 ### Rehearsal (the override-token idea, in its safe shape)
 
 - **R1. Scoped auth rehearsal grant** [=] — the centerpiece; full design
-  in §Rehearsal grants. A server-side grant, profile-bound (dev/test/demo,
-  never prod), instance- and boot-bound, carrying a closed enum of named
-  effects (`challenge.capture`, `challenge.redeem`,
-  `fixture.identity.create`, `fixture.session.mint`,
-  `verification.simulate`, `budget.rehearsal.allocate`,
-  `clock.auth.advance`) with finite budgets, TTL, and an audit trail. No
-  wildcard scope exists.
-- **R2. Rehearsal window** [X] — a rehearsal grant can install a
-  short-lived server-side policy window scoped to a fixture namespace or
-  reserved contact domain (`*@example.invalid`): matching signups get
-  capture delivery, simulated assurance, and a separate rehearsal budget
-  — while the app's ordinary signup UI runs unmodified. Application code
-  never carries or even sees an override capability; browser/native
-  bundles stay clean by construction.
+  in §Rehearsal grants. A server-side grant, bound to a non-production
+  deployment profile (dev/test/demo, never prod — "deployment profile"
+  throughout, distinct from LLP 0096's client auth profiles), instance-
+  and boot-bound, carrying a closed enum of named effects
+  (`challenge.capture`, `challenge.redeem`, `fixture.identity.create`,
+  `fixture.session.mint`, `verification.simulate`, `window.install`,
+  `budget.rehearsal.allocate`, `clock.auth.advance`) with finite
+  budgets, TTL, and an audit trail. No wildcard scope exists, and every
+  effect has a named counter (§Rehearsal grants pins the
+  effect-to-counter mapping).
+- **R2. Rehearsal window** [X] — under the `window.install` effect, a
+  grant can install a short-lived server-side policy window: matching
+  signups get capture delivery, simulated assurance, and a separate
+  rehearsal budget — while the app's ordinary signup UI runs
+  unmodified. Application code never carries or even sees an override
+  capability; browser/native bundles stay clean by construction.
+  **A window's selector is minted, never chosen**: installation returns
+  an unguessable one-use selector namespace (e.g.
+  `*@<128-bit-random>.rehearsal.invalid`) generated by the host —
+  predictable domains like `*@example.invalid` are illustrative
+  vocabulary only and are never valid selectors — so a foreign caller
+  who can reach the same deployment cannot obtain the waiver by
+  guessing; the window is additionally bounded by the grant's budgets
+  and TTL, and window installation is refused on targets whose declared
+  reachability is public (a deliberately exposed `demo` target needs no
+  window: its operator drives flows through R3/R4 fixtures instead).
+  The acceptance matrix includes foreign-caller selector guessing and
+  transcript-equivalence rows.
 - **R3. Declarative auth fixtures** [=] — `auth.fixtures` names logical
   personas (identities, assurances, credentials, memberships, scenarios);
   `snapback auth fixtures preview/apply` reconciles idempotently and
   returns a receipt mapping *logical aliases* to freshly minted
   principals. Respects the reset-reissues-principals rule: aliases are
-  deterministic, raw ids never are.
+  deterministic, raw ids never are. **Declared memberships are not a
+  rehearsal effect**: no membership scope exists in the enum, and
+  rehearsal never bypasses membership rules — the fixture applier
+  reaches a declared membership by running the app's ordinary,
+  app-authorized membership transitions under the persona's own real
+  authority (or the fixture fails typed if no such transition exists).
 - **R4. Persona factory** [=] — mint N users or agents from a template
   with bounded session handles in one call (`snapback auth personas mint
   --template buyer --count 20`), feeding parallel acceptance workers.
@@ -284,8 +333,13 @@ convergence (treated as signal).
   test instances: advance challenge expiry, rotation cadence, recovery
   windows, throttle cooldowns, guest-retention deadlines. A
   rehearsal-scoped host operation with an audit receipt; never OS time,
-  never prod. (Composes with LLP 0059's durable clock floor — the
-  advance is a floor input on rehearsal instances, not a second clock.)
+  never prod. **Confined to disposable stores**: because LLP 0059's
+  durable clock floor is non-decreasing, an advanced floor cannot be
+  lowered by teardown — so `clock.auth.advance` is admissible only on a
+  store marked disposable at creation (which is thereby permanently
+  ineligible for production promotion, per §Rehearsal grants rule 3);
+  it is never an input to an ordinary store's floor, and a wedged
+  far-future ordinary database cannot occur by construction.
 
 ### Abuse control, administration, observability
 
@@ -384,36 +438,65 @@ convergence (treated as signal).
 | Safe only with hard restrictions | R2, R5, A5 | Become bad ideas if global, persistent, browser-carried, or production-reachable |
 | Narrow edge only | M2 | Useful for migration; dangerous as a product center |
 
-### Build-first (the seven moves, in order)
+### Build order: two waves over a dependency spine
 
-Per the OQ1 ruling, moves 2 and 6's password/guest floor ship as **one
-combined first wave**: the wedge lands with enough production
-capability that the first public story is complete auth, not just great
-auth testing.
+Per the OQ1 ruling, the wedge and the floor ship as **one combined first
+wave**. The order below is a dependency spine, not a linear wish list —
+each item names what it consumes, and the interims are stated rather
+than implied.
 
-1. **Declared auth program + the four-layer catalog** (I1, I2) — one
-   authority for mechanisms, generation, readiness, fixtures, docs.
-2. **Rehearsal grants + captured inbox + fixtures + personas** (R1–R4,
-   V2, V5) — the agent-DX wedge: one command yields real principals and
-   sessions with no SMTP, no CAPTCHA, no clipboard secrets, no rate-limit
-   fights. First consumer: the acceptance suites themselves. Ships in
-   the same wave as move 6's guest + password floor (OQ1).
-3. **Assurance layer + deferred verification** (I4, V1) — with the
-   verified provisioning hook (I8) closing the binding gap.
-4. **Account lifecycle engine** (A3) — give 0151's commissioned lifecycle
-   spec a number and an owner before adding any provider; provider count
-   is worthless if accounts can't be repaired safely.
-5. **Effect budgets + explanation traces** (A1, A6) — abuse control that
-   explains itself, landed before password/delivery/OAuth expansion
-   multiplies the surfaces that need it.
-6. **Guest-first + zero-dependency password/recovery + delivery
-   adapters** (I3, I6, V4) — immediate-use, vendor-free, and
-   verified-contact paths; SMTP is never the prerequisite for a working
-   product.
-7. **OIDC engine + conformance IdP + return intents + registration
-   copilot** (O1–O3) — per 0151's sequencing: Google first, GitHub next,
-   Apple when a store-bound app demands it; passkeys after
-   custom-domain and recovery foundations.
+**Wave 1 — the spine, then the wedge and floor on it:**
+
+- **1a. Contracts first** (authored in wave 1, before the code that
+  consumes them): the identity-core Spec (I1 `defineAuth` + I2 catalog
+  v3 + the assurance record of §Design frame + I8's hook contract), the
+  effect-budgets Spec (vocabulary and charge semantics — the 0057
+  constant *migration* follows later and is not a wave-1 gate), and the
+  rehearsal-grants Spec. The rehearsal Spec consumes the assurance
+  record (for `verification.simulate`) and the budgets vocabulary (for
+  its rehearsal budgets) — which is exactly why both contracts are
+  wave-1a, resolving what would otherwise be forward references to
+  later moves.
+- **1b. The wedge** (R1–R4, V2, V5): rehearsal grants, windows,
+  captured-inbox promotion, fixtures, personas. One command yields real
+  principals and sessions with no SMTP, no CAPTCHA, no clipboard
+  secrets, no rate-limit fights. First consumer: the acceptance suites
+  themselves. Carrier interim, stated plainly: **wave-1 rehearsal
+  carriage is local-only** (ready-file sidecar / stdin, per 0057's
+  discipline); remote/CI key-bound carriage waits for LLP 0150's
+  commissioned extractable-key profile and is not claimed before it
+  exists.
+- **1c. The floor** (I3, I6, minimal V1): guest principals with
+  claiming, the zero-dependency password + recovery-codes
+  authenticator, and deferred verification for the email-code path.
+  The floor's guessing defenses charge budgets from the 1a vocabulary.
+  Lifecycle interim, stated plainly: wave 1 ships only the floor's own
+  transitions (guest claim, password set/change, recovery-code
+  consume), each specified in the identity-core Spec; the *general*
+  lifecycle engine (A3) is wave 2 and the floor does not wait for it.
+
+**Wave 1 release boundary:** the rehearsal surface may not be declared
+ready (LLP 0189 claim discipline) until the assurance record and budget
+vocabulary it consumes are landed contracts — a wedge shipped against
+provisional vocabulary would re-specify itself in wave 2.
+
+**Wave 2 and later, on the stabilized spine:**
+
+- **2a. Assurance generalization + provisioning hook + `ctx.auth`
+  claims** (I4 complete, I8, V1 general): the full
+  requirement-declaration surface beyond the floor's minimum.
+- **2b. Account lifecycle engine** (A3) — the 0151-commissioned spec,
+  numbered and owned in wave 1a's batch, implemented here, before any
+  new provider: provider count is worthless if accounts can't be
+  repaired safely.
+- **2c. Explanation traces + budget migration** (A6; A1's 0057
+  constant migration): abuse control that explains itself, completed
+  before provider expansion multiplies the surfaces that need it.
+- **2d. Delivery adapters + simulator** (V4, V3) — the prod email path.
+- **3. OIDC engine + conformance IdP + return intents + registration
+  copilot** (O1–O3) — per 0151's sequencing: Google first, GitHub next,
+  Apple when a store-bound app demands it; passkeys after custom-domain
+  and recovery foundations.
 
 ### Explicitly rejected
 
@@ -480,21 +563,42 @@ take. The safe form:
 > plus a rehearsal window so real UI flows run without any carrier at
 > all.**
 
-Neither a profile alone nor a token alone:
+Neither a deployment profile alone nor a token alone:
 
-- The **profile** is the hard outer boundary: `dev` / `test` / `demo`,
-  never `prod` — prod refuses mint *and* honor (fail closed at both
-  ends).
+- The **deployment profile** is the hard outer boundary: `dev` / `test`
+  / `demo`, never `prod` — prod refuses mint *and* honor (fail closed
+  at both ends). ("Deployment profile" throughout — deliberately not
+  LLP 0096's client "auth profiles.")
 - The **grant** records exact effects, selectors, budgets, expiry, and
-  audit lineage.
+  audit lineage. **Selectors bind every effect, not only windows**: a
+  direct exercise of `challenge.capture`, `challenge.redeem`,
+  `fixture.identity.create`, or `fixture.session.mint` outside the
+  grant's fixture namespaces / contact domains is refused — this is
+  the difference between a scoped grant and a profile-wide grant with
+  a scoped window.
 - The **carrier** proves authority to install or exercise the grant —
   local one-boot cases ride the existing `ImpersonationCapability`
   sidecar discipline (LLP 0057: owner-only sibling file, stdin
   attachment, never argv/env); remote/CI cases bind the grant to an
-  ephemeral caller key with LLP 0150-style request proofs.
+  ephemeral caller key with LLP 0150-style request proofs (wave-1
+  carriage is local-only until that commissioned 0150 profile exists —
+  §Build order).
 - The **rehearsal window** (R2) lets ordinary signup UI exercise capture
-  delivery and simulated assurance for a matching fixture namespace with
-  no capability in any client bundle.
+  delivery and simulated assurance for a minted, unguessable selector
+  namespace with no capability in any client bundle.
+
+**Plane classification, stated plainly (a deliberate boundary, not an
+0055 extension):** a rehearsal grant is a **new operator/test-plane
+capability owned by the rehearsal-grants Spec** — minted under
+`AdminWrite` + `ImpersonationCapability`, carrying host/provider
+effects. It is *not* an LLP 0055 grant: 0055's grants are
+application-plane function authority for service principals, and 0055
+is explicit that scoped tokens never satisfy `Admin*`,
+`ImpersonationCapability`, or host-operation policy. The
+non-substitution is bidirectional — an 0055 token or grant never
+exercises a rehearsal effect, and a rehearsal capability never invokes
+application functions or satisfies any 0055 scope. The shared word
+"grant" is vocabulary, not substitutability.
 
 A conceptual grant record (illustrative, not the Spec's schema):
 
@@ -502,14 +606,16 @@ A conceptual grant record (illustrative, not the Spec's schema):
 {
   "kind": "authRehearsalGrant.v1",
   "instanceId": "…", "startupNonce": "…", "appId": "…",
-  "activationDigest": "…", "profile": "test",
+  "activationDigest": "…", "deploymentProfile": "test",
   "scopes": ["challenge.capture", "challenge.redeem",
              "fixture.identity.create", "fixture.session.mint",
-             "verification.simulate", "budget.rehearsal.allocate"],
-  "selectors": { "fixtureNamespaces": ["acceptance"],
-                 "emailDomains": ["example.invalid"] },
+             "verification.simulate", "window.install",
+             "budget.rehearsal.allocate"],
+  "selectors": { "fixtureNamespaces": ["acceptance"] },
   "budgets": { "identityCreates": 50, "challengeAttempts": 500,
-               "sessionMints": 100 },
+               "sessionMints": 100, "windowInstalls": 2,
+               "verificationSimulations": 200, "clockAdvances": 20,
+               "allocationCeiling": 2000 },
   "expiresAt": "…", "maxUses": 1000
 }
 ```
@@ -517,7 +623,27 @@ A conceptual grant record (illustrative, not the Spec's schema):
 The closed scope enum, no-wildcard rule, and per-effect budgets are the
 design: waivers are *named effects with finite budgets*, and "turn off
 rate limiting" is expressible only as `budget.rehearsal.allocate` — a
-separate, finite, audited budget, never the absence of one.
+separate, finite, audited budget, never the absence of one. The budget
+model is **closed and conservative**, four rules:
+
+1. **Every effect in the enum has a named counter** (the
+   effect-to-counter mapping above is total: capture/redeem charge
+   `challengeAttempts`, identity creates and session mints their own
+   counters, `verification.simulate` charges
+   `verificationSimulations`, `window.install` charges
+   `windowInstalls`, `clock.auth.advance` charges `clockAdvances`,
+   allocation draws `allocationCeiling`), charged **atomically at the
+   effect's linearization point**, with idempotent retry semantics
+   that neither double-charge nor yield a free effect.
+2. **Allocation draws down an immutable ceiling fixed at mint** —
+   `allocationCeiling` is conserved: the sum of all budgets ever
+   allocated under a grant never exceeds it.
+3. **Allocation is non-recursive and non-renewable**: no effect
+   reachable under a grant can raise that grant's own ceiling,
+   replenish its exhausted budgets, or mint a further grant — so a
+   runaway loop exhausts and stops, structurally.
+4. `maxUses` bounds total effect invocations independently of
+   quantities allocated per call.
 
 **Minting** requires, conjunctively: a non-prod profile, active sessions
 mode, `AdminWrite`, the independent process-bound
@@ -535,15 +661,35 @@ or session bearers.
    token-class prefix before any validation work).
 2. Production startup *rejects* rehearsal configuration rather than
    ignoring it.
-3. Rehearsal-minted identities, sessions, and assurances carry protected
-   provenance (`rehearsal_simulated`); production deploy/import refuses
-   protected auth state carrying rehearsal taint — the "dev database
-   copied to prod" channel fails closed.
+3. **Rehearsal admission taints the store, not just the rows.**
+   Rehearsal-minted identities, sessions, and assurances carry
+   protected provenance (`provenance: rehearsal`), *and* the first
+   honored rehearsal effect durably marks the whole store: a store
+   that has ever admitted rehearsal is **permanently ineligible for
+   production promotion**, and production deploy/import refuses it —
+   whole-store, fail-closed. This deliberately covers what row-level
+   taint cannot: ordinary app rows written by handlers running under
+   simulated assurance, provisioning-hook output, and fixture-created
+   memberships are all inside the ineligible store, so an
+   app-data-only export from a rehearsal store cannot launder derived
+   state into prod. Real external egress under rehearsal authority is
+   refused unless a declared simulator/test adapter owns the channel.
 4. Restart, reset, or activation-digest change invalidates outstanding
    grants and windows (boot-nonce binding).
-5. Rehearsal sessions cannot refresh after their grant ends.
+5. **Termination terminates derived authority, not just the grant.**
+   A rehearsal-derived session's expiry is clamped to its governing
+   grant/window; when the grant ends (expiry or revocation), derived
+   sessions and windows are refused at the invocation gate immediately
+   (level-triggered, the LLP 0053 obligation pattern — not
+   next-refresh), and simulated assurances are validated at **use
+   time** against their governing grant, so no simulated evidence
+   outlives the authority that minted it. Derived identities are swept
+   on grant end or left inert (no live session can be minted against
+   them without a new grant).
 6. Release qualification asserts `rehearsalActive: false`, zero live
-   grants, zero rehearsal-tainted identity state.
+   grants, and — via rule 3's store marker — that the candidate store
+   never admitted rehearsal (which subsumes row-level assertions and
+   covers derived app state).
 7. The capability manifest reports rehearsal support as
    absent/available/active so the posture is a readable fact (LLP 0203
    P4).
@@ -554,7 +700,8 @@ redacted `Debug` and no route-level body capture (never in logs, traces,
 or model transcripts); no browser-consumable endpoint and no CORS-visible
 header (the window replaces client carriage); receipts redacted in CI
 artifacts; instance+boot+activation binding kills stale-sidecar and
-cross-worktree reuse; finite budgets, TTL, revocation, and concurrency
+cross-worktree reuse; finite budgets under an immutable allocation
+ceiling (budget-model rules 1–4), TTL, revocation, and concurrency
 ceilings bound a runaway agent loop; closed enum refuses scope
 substitution; every mint/install/effect/expiry/revoke audited with actor,
 grant, namespace, and effect class.
@@ -610,40 +757,78 @@ bypass switch exists anywhere in the system.
 This RFC creates no second authority. Deltas land by owner:
 
 1. **A rehearsal-grants Spec** (new number at implementation time) —
-   the grant/window/carrier contract, the full leak-channel matrix, the
-   budget vocabulary, and the acceptance matrix (mint negatives, prod
-   refusals, taint-import refusal, boot-nonce invalidation, budget
-   exhaustion, scope substitution, carrier custody). Commissioned here.
-2. **The account lifecycle Spec 0151 commissioned** — this RFC ranks it
-   build-order #4 and asks the author to assign it a number and owner.
-3. **LLP 0151 amendments** — assurance layer (I4) as the verification
+   the grant/window/carrier contract (an operator/test-plane
+   capability, non-substitutable with 0055 grants in both directions),
+   the full leak-channel matrix, the closed effect-to-counter budget
+   model, the window selector-namespace mint, the store-taint marker,
+   and the acceptance matrix (mint negatives, prod refusals,
+   store-taint promotion refusal, boot-nonce invalidation,
+   derived-authority termination at the gate, budget/ceiling
+   exhaustion, foreign-caller selector guessing, transcript
+   equivalence, scope substitution, carrier custody). Commissioned
+   here.
+2. **An identity-core Spec** (new number at implementation time) —
+   owns I1 (`defineAuth`), I2 (catalog v3 and the four-layer storage
+   split), the assurance record and its posture-scoped admissibility
+   rule, I8's verified provisioning hook (its sealed invocation
+   authority, allowed write set, and permission-backing provenance —
+   "generated transactional hook" is a mechanism only once this
+   contract pins it), the read-only `ctx.auth` claims projection
+   (OQ3), and the floor's own lifecycle transitions (guest claim,
+   password set/change, recovery-code consume). Catalog v3 gets an
+   owner the way v1 (0057) and v2 (0055) have owners.
+3. **The account lifecycle Spec 0151 commissioned** — this RFC ranks it
+   wave 2b and asks the author to assign it a number and owner in the
+   wave-1a batch.
+4. **LLP 0151 amendments** — assurance layer (I4) as the verification
    vocabulary its authenticators consume; return intents (O2) and the
    registration copilot (O3) as completion-protocol/DX extensions;
-   guest-first template posture (I3).
-4. **An effect-budgets Spec** (new number; OQ4 ruling) — one document
+   guest-first template posture (I3); and the commissioning of its
+   password + guest **implementing** work (I6, I3 implementation) into
+   the identity-core Spec's floor transitions — 0151 remains the
+   authenticator authority; the implementation commission is recorded
+   here so the floor work is owned, not implied.
+5. **An effect-budgets Spec** (new number; OQ4 ruling) — one document
    owns budget names, charge axes, and refusal semantics for local and
    hosted alike; LLP 0057 (whose throttle constants it replaces via
    amendment), LLP 0060's multi-bucket throttle, and the
    rehearsal-grants Spec's rehearsal budgets all reference it.
-5. **LLP 0057 amendments** — capture-mailbox promotion (V2), challenge
-   redemption under rehearsal authority (V5), and the constant→budget
-   migration referencing the budgets Spec (A1).
-6. **LLP 0024/host-ops** — persona and fixture operations; `auth explain`.
-7. **LLP 0036** — secret-reference consumption from `defineAuth`.
-8. **LLP 0045** — delivery adapter contract (V4) and simulator (V3).
-9. **LLP 0203** — auth becomes the named first exhibit for P2 (explain
-   traces) and P7 (versioned `--json` on the `auth` CLI family).
-10. **Migration surface** (OQ6 ruling) — the Supabase/GoTrue import
-    pipeline (M1) and the narrow JWT/JWKS bridge (short-lived,
-    audience-constrained tokens only), each specified inside the
-    rehearsal-era implementing work, with the bridge carrying an
-    explicit non-goal fence against façade growth: any endpoint beyond
-    token issuance + JWKS requires reopening the rejected-ideas record.
+6. **LLP 0057 amendments** — capture-mailbox promotion with its
+   bulk-disclosure contract (V2), challenge redemption under rehearsal
+   authority (V5), and the constant→budget migration referencing the
+   budgets Spec (A1).
+7. **LLP 0024/host-ops** — persona and fixture operations; `auth explain`.
+8. **LLP 0036** — secret-reference consumption from `defineAuth`.
+9. **LLP 0045** — delivery adapter contract (V4) and simulator (V3).
+10. **LLP 0203** — auth becomes the named first exhibit for P2 (explain
+    traces) and P7 (versioned `--json` on the `auth` CLI family).
+11. **Migration surface** (OQ6 ruling) — the Supabase/GoTrue import
+    pipeline (M1) and the narrow JWT/JWKS bridge, recorded as a
+    **named exception to the no-second-token non-goal** with its
+    security contract pinned: bridge tokens are never accepted by any
+    Snapback surface (issue-only; Snapback never consumes them); exact
+    issuer/subject/audience rules; authority never wider and expiry
+    never later than the live source session/principal, with a hard
+    platform maximum TTL; no refresh and no delegation;
+    key-compromise rotation behavior specified; and the
+    bounded-revocation-lag residual for offline verifiers named
+    honestly (an external verifier cannot see revocation until token
+    expiry — the hard TTL bounds that lag). Growth fence unchanged:
+    any endpoint beyond token issuance + JWKS requires reopening the
+    rejected-ideas record.
 
 ## Non-goals
 
-- No second token or session model — sessions, bearers, rotation, and
-  fencing stay with 0057/0059/0077; grants and scopes stay with 0055.
+- No second token or session model *inside Snapback* — sessions,
+  bearers, rotation, and fencing stay with 0057/0059/0077. Two named,
+  fenced boundary artifacts are the exceptions, not the rule: the
+  outbound-only JWT bridge (landing item 11's contract; never consumed
+  by Snapback) and the operator-plane rehearsal capability (landing
+  item 1; never an application credential).
+- Application-plane grants and scopes stay with 0055; rehearsal
+  authority is a separate operator/test-plane capability
+  (§Rehearsal grants, "Plane classification"), non-substitutable in
+  both directions.
 - No relitigation of 0151's ruled questions (Option D credential
   ownership, SMS tier 2, generated-domain passkeys preview-only).
 - No hosted-target expansion — every new route inherits the existing
@@ -669,7 +854,9 @@ are normative. No open questions remain in this revision.
   app templates, carrying a default reaping posture for unclaimed
   guests (templates declare it; apps may opt out or change retention).
   The platform-wide default is unchanged; this is template posture,
-  per the 0011 amendment's cleanup-policy requirement.
+  per LLP 0151's cleanup-policy requirement (proposed atop the narrower
+  0011 amendment and delegated to the lifecycle spec — see I3's
+  attribution).
 - **OQ3 — Both in v1.** The verified provisioning hook (I8) *and*
   read-only verified/assurance claims on `ctx.auth` ship together: the
   hook is the paved binding path, and the assurance layer (I4) needs
@@ -690,4 +877,31 @@ are normative. No open questions remain in this revision.
   commissioned.** The bridge is fenced: short-lived,
   audience-constrained token issuance plus a JWKS endpoint, nothing
   else; any growth beyond that reopens the rejected full-façade record
-  rather than extending the bridge. (Landing-shape item 10.)
+  rather than extending the bridge. It is recorded as a named exception
+  to the no-second-token non-goal with the full security contract of
+  landing-shape item 11 (issue-only, source-clamped authority and
+  expiry, hard maximum TTL, no refresh/delegation, named
+  revocation-lag residual).
+
+## Revision history
+
+- **v0.2 — 2026-08-09.** Round-1 super-refine dispositions; both
+  families NOT READY on v0.1 (Fable 4M/5D, Codex 8M/2D, convergent on
+  four). All applied — the headline repairs: dependency-spine build
+  order with stated interims and a release boundary; identity-core
+  Spec added so every v1 commitment is owned; guest-claiming
+  attribution corrected (0011 vs 0151); assurance record pins kind vs.
+  provenance with posture-scoped admissibility; windows bind to minted
+  unguessable selector namespaces; termination terminates derived
+  authority at the invocation gate; rehearsal admission permanently
+  marks the store ineligible for production promotion; closed
+  effect-to-counter budget model with an immutable allocation ceiling;
+  fixture memberships via ordinary app authority; clock advance
+  confined to disposable stores; rehearsal authority classified
+  operator-plane (not an 0055 grant); JWT bridge recorded as a named
+  exception with a pinned contract. Full finding-by-finding record:
+  the round-1 sections of the two review artifacts under
+  `llp/reviews/0212-*`.
+- **v0.1 — 2026-08-09.** Initial Draft (dual-family brainstorm
+  synthesis + evaluation), author sitting ruling all six OQs, and the
+  Draft→Review flip at super-refine loop start.
