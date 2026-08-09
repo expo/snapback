@@ -1,10 +1,10 @@
 # useSnapbackQuery resubscribes every render when callers pass inline args objects
 
 **Status:** Open
-**Severity:** P3 (papercut — correct but wasteful)
-**Systems:** snapback-react, live queries
+**Severity:** P2 (escalated 2026-08-09 from P3 — pilot evidence shows this is a hard main-thread-saturation failure with zero diagnostics, not a papercut)
+**Systems:** snapback-react, live queries, ephemeral presence
 **Date:** 2026-08-06
-**Related:** `packages/snapback-react/index.mjs` (`useSnapbackQuery`), LLP 0183 (surfaced during Zerobugs control-app work)
+**Related:** `packages/snapback-react/index.mjs` (`useSnapbackQuery`), LLP 0183 (surfaced during Zerobugs control-app work), LLP 0208 (pilot evidence)
 
 ## Problem
 
@@ -30,6 +30,27 @@ write the call.
 
 Observed while building the Zerobugs control app, where the pattern shows up
 in list views that render frequently.
+
+## Escalation (2026-08-09, LLP 0201 P2 pilot evidence)
+
+"Correct but wasteful" understates the worst case. In the pilot's
+messaging screen (four queries plus a presence hook), inline args objects
+**combined with a per-render `useSnapbackPresence` value object** produced
+a hard render/resubscribe/publish loop that saturated the browser main
+thread until clicks stopped landing entirely — Playwright could not
+complete a click — with **zero diagnostics anywhere** (no console warning
+from the hooks). Root-causing took ~50 minutes of bisection; the
+authoring skill documents the trap and the builder still hit it. The
+pilot's B3 score discounts for exactly this, and its diary calls it the
+single worst DX moment of the build.
+
+Consequences for scope: the presence-value half is not a "same treatment
+considered" nice-to-have (as below) — it is a confirmed co-trigger and
+should be in the primary fix. If the content-keyed descriptor fix carries
+unacceptable hot-path hashing cost, the fallback is a dev-mode storm
+detector (N resubscribes/republishes of the same reference within M ms →
+named console warning); either way the skill/guide wording should stop
+saying "wasteful" and name the saturation failure mode.
 
 ## Done when
 

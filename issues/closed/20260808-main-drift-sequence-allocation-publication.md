@@ -44,3 +44,15 @@ node scripts/refresh-publication-carrier.mjs
 
 Commit the reconciled record with the measured change, verify the gate, record
 the resolution here, and move this ticket to `issues/closed/`.
+
+## Resolution (2026-08-09)
+
+Reconciled via `node scripts/refresh-publication-carrier.mjs` after the LLP
+0204 S0 landing (eaed8e784) rotated pinned readers
+(src/local/auth_room_kick_acceptance.rs, src/storage/tests.rs,
+packages/snapback-codegen/index.mjs). The refresh also re-minted the
+local-persistent-store and relation-activity carriers plus the inline sha
+pins in src/manifest.rs. All three conformance checks pass at the reconciled
+tree:
+sequence-allocation-publication-v1, local-persistent-store-publication-v1,
+relation-activity-publication-v1.

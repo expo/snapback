@@ -5,21 +5,21 @@
     "single_table_v1"
   ],
   "maturity": "experimental",
-  "qualificationReceiptSha256": "sha256:2b6f9daed4d61e0280b01c0a473a7a6c4b1862ea33d3eeefabd8a87ba5f0b46d",
+  "qualificationReceiptSha256": "sha256:45c12d5c56aef23e5760e3d043ac488615b5f6f5220d7856a2b674fa07cc0ccc",
   "supportingReceiptSha256": {
-    "triageBudgetFreeze": "sha256:dec195e72147c61ee6dd430f4e7468f1cbebf9793c194c60ef7e6813a2d7baec",
-    "triageMove1Exit": "sha256:7ba56fcf41daa68b301bd95080c73ccc1193b3c347d889755900d1910daf1132"
+    "triageBudgetFreeze": "sha256:9a6b97d9ae09b4edc3e3103828fc5250dcc0f4e538fe78f643bd0aee3daa8335",
+    "triageMove1Exit": "sha256:93ec8310e353ca0b515f95b374359eb2466f5d081a05a880581b93ab350aa48a"
   },
   "executorSourceSha256": {
-    "src/local.rs": "sha256:16e69572c510a919faa2e30e7dc9898cb5afca67101c01d57b831a2bf3137a69",
+    "src/local.rs": "sha256:1bd24ff8216e0055273be064603e8fafdb30b1c0cfa54c7d18e9d2aaf43a474c",
     "src/local/auth_room_kick_acceptance.rs": "sha256:1a8600f9e74c64744c8c0f403e701568b8de2fca9ea46769e7636f567349f289",
     "src/local/authorization_acceptance.rs": "sha256:a1e3fd4f342fc1b1a1511746842d18e0baf2d62d6f9afd965d4de9664005788a",
-    "src/local/config_types.rs": "sha256:ccae542de561b1e394053f482f21b88118c74d028017f72307691b806f2b0e85",
-    "src/local/inspection.rs": "sha256:6d71043af2197673095ef9eaf6dc53d457ccfb04a1384c57c047b64eec9f3a35",
-    "src/local/live_protocol.rs": "sha256:0157ad0e62bb723f31a67a45fbcd82ad7cc6f63fa9fad9c41edd661d4d31ed1d",
-    "src/local/receipt_log.rs": "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add",
-    "src/local/tests.rs": "sha256:f74571a2f9ea7747c79801263096390ea04d0b313ba9c7f74a49f4e68c32e151",
-    "src/storage.rs": "sha256:8bb11f26740cf84ea5616d91fb7c144ee65b4a0d6334df73469c3f7316e946fe",
+    "src/local/config_types.rs": "sha256:803c9184186c7561e010da3f7bc4855acea1d7da1f9dbf0fc251a207f4bd766b",
+    "src/local/inspection.rs": "sha256:5ccad6a135dfaefd9700e7d989a3110a248990ea472e7d903d5f2ea50cfcbdfa",
+    "src/local/live_protocol.rs": "sha256:0375120730496ba5b01910dce8be8fb8e36038802c711b6d8c433ca9a928e10f",
+    "src/local/receipt_log.rs": "sha256:43c832a852417ecfb741a26c625b43037f61294e49eebbe1260bd3689d54f557",
+    "src/local/tests.rs": "sha256:c6ef9b361b42ccc96b8ff8ebfb1d688696963623d4514887c53167a36af9249f",
+    "src/storage.rs": "sha256:c07600fb4993e5fa56a7142cccf51a5299a0376cae35dd3a9bf37f09269c682a",
     "src/storage/auth.rs": "sha256:e171b777274b234f083f1082c23e0d6f5c10a0a4ad6fc5c975009952c7bf2826",
     "src/storage/auth_agent_credentials.rs": "sha256:557d25e9c54350f05689986d8c2ea80b442b578360161f6f1dfe121f35c867c4",
     "src/storage/auth_agents.rs": "sha256:a4000848d7c9cd5415cc00746df287a5161b23a6d82d2446ddd2c10b82d9b99e",

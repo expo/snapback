@@ -1,0 +1,61 @@
+# Queued mutations lie at the call site: offline settlement rejects as an error; queued dispatch resolves indistinguishably from commit
+
+**Status:** Open
+**Severity:** P2 (correctness of the client contract; convergent evidence from two mutually-blind builder sessions)
+**Systems:** snapback-react, Durable outbox, Offline, Diagnostics
+**Date:** 2026-08-09
+**Related:** LLP 0107 (optimistic lifecycle), LLP 0043 (offline
+retention/outbox), LLP 0208 (pilot evidence; carries the follow-on
+drain/observability design as its G1),
+`issues/20260808-first-class-react-optimistic-create.md` (adjacent),
+`issues/20260731-js-arm-lease-custody-and-sessions-outbox.md` (adjacent)
+
+## Problem
+
+Two facets of the same contract defect — the durable outbox's behavior
+is excellent, but its settlement signal misrepresents what happened:
+
+**Facet A — queued-but-rejected (React arm).** Call a mutation through
+`useSnapbackMutation` while offline: the intent IS queued durably and
+DOES replay on reconnect — but the settlement promise **rejects** with
+`SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED` when the mutation declares a
+result contract the client can't install locally. Callers that treat
+rejection as failure (the natural reading) roll back optimistic UI for
+a write that then settles successfully — the UI lies in the pessimistic
+direction.
+
+**Facet B — queued-as-success (call-site ambiguity).** A transient
+connectivity-classified refusal silently queues the mutation and
+`mutate()` **resolves** `{queued: true}` — the same resolved promise
+shape as a commit unless the caller inspects the flag. Every subsequent
+mutation queues behind the wedged head. In the pilot this made a
+settings screen "randomly broken under load" for ~2 hours of suite
+flakes with zero diagnostics; the eventual lesson was "every screen
+needs outbox awareness," which is the wrong place for that burden.
+
+Evidence (LLP 0201 P2 pilot): facet B was the builder session's worst
+debugging stretch (M6, holistic-cited moment); facet A was
+**independently rediscovered blind** by the M7 fresh-engineer session,
+whose rollback-on-error erased a poll-vote pending marker that settled
+1s after reconnect. The original builder had implicitly absorbed the
+same lesson (fire-and-forget text sends). Two mutually-blind sessions,
+same bug shape — the strongest convergence signal the pilot produced.
+
+## Done when
+
+- A durably-queued dispatch never surfaces as an ordinary error: facet
+  A's settlement either resolves `{queued: true}` (consistent with the
+  imperative client) or rejects with a **distinct, documented
+  diagnostic class** that the React hook docs call out at the point of
+  use. Open ruling for the fixer: resolving is the truthful contract
+  but breaking for callers that await settlement semantics; a distinct
+  rejection class is non-breaking but still error-shaped. Record the
+  choice and rationale here.
+- The queued outcome is unmistakable at the call site in dev: queueing
+  (and a queue head wedged past a threshold) emits a dev-mode console
+  warning naming the queued mutation.
+- Docs: the mutation hook page and offline page state the queue
+  semantics and show the correct handling pattern (keep pending UI;
+  roll back only on server refusals with an `appCode`).
+- Out of scope here (LLP 0208 G1 carries it): the app-wide default
+  drain and the queue-state observability hook.
