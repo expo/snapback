@@ -8933,27 +8933,39 @@ impl LocalSnapback {
         variant: &crate::manifest::AssetImageVariant,
         recipe_version: u64,
     ) -> SnapbackResult<AssetPreparedVariant> {
-        use crate::assets;
-        let rendered = crate::assets_image::render_variant(
+        let prepared = crate::assets::prepare_asset_variant(
             canonical_bytes,
             content_type,
-            variant.width,
-            &crate::assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1,
+            variant,
+            recipe_version,
         )?;
-        let digest = asset_hash_bytes(&rendered);
+        self.asset_stage_prepared_variant(store, app_id, &prepared)
+    }
+
+    /// Commit-side companion to `assets::prepare_asset_variant`: record the
+    /// write-ahead intent, put and verify its immutable object, then advance
+    /// the record to `staged`. No media decode/render occurs in this half.
+    fn asset_stage_prepared_variant(
+        &mut self,
+        store: &dyn crate::assets_store::AssetStore,
+        app_id: &str,
+        prepared: &crate::assets::AssetVariantPreparation,
+    ) -> SnapbackResult<AssetPreparedVariant> {
+        use crate::assets;
         let now = now_millis();
         let mut publication = {
-            let mut record = asset_planned_publication(app_id, "variant", &digest, now);
+            let mut record =
+                asset_planned_publication(app_id, "variant", &prepared.digest, now);
             record.attempt_id = None;
             record
         };
         self.db
             .asset_transaction(|tx| assets::insert_publication(tx, &publication))?;
-        store.put_blob_idempotent(&publication.planned_key, &rendered)?;
+        store.put_blob_idempotent(&publication.planned_key, &prepared.rendered)?;
         let copied = store.hash(crate::assets_store::AssetObjectRef::Blob(
             &publication.planned_key,
         ))?;
-        if copied.digest != digest || copied.byte_length != rendered.len() as u64 {
+        if copied.digest != prepared.digest || copied.byte_length != prepared.byte_length {
             let _ = store.delete_blob(&publication.planned_key);
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_STORE_UNAVAILABLE",
@@ -8970,13 +8982,13 @@ impl LocalSnapback {
             )
         })?;
         Ok(AssetPreparedVariant {
-            key: variant.key.clone(),
-            width: variant.width,
+            key: prepared.key.clone(),
+            width: prepared.width,
             publication,
-            digest,
-            byte_length: rendered.len() as u64,
-            content_type: content_type.to_owned(),
-            recipe_version,
+            digest: prepared.digest.clone(),
+            byte_length: prepared.byte_length,
+            content_type: prepared.content_type.clone(),
+            recipe_version: prepared.recipe_version,
         })
     }
 
@@ -9133,304 +9145,55 @@ impl LocalSnapback {
         // *detected* type below — image bytes need the image-finalization
         // fact, video bytes the video one — so it runs after detection.
 
-        // Byte verification over restricted staging: exact length, canonical
-        // SHA-256 digest, trusted detection from bytes.
+        // PREPARE half (LLP 0199 owner #4): byte-store reads, whole-object
+        // hashing/buffering, trusted detection, canonicalization, media
+        // decode/inspection, and derived facts. This helper owns no database
+        // handle and is deliberately repeatable from restricted staging.
+        //
+        // OQ #4 follow-up: `asset_attempt_finalize_route` currently enters
+        // this method through `with_snapback`, so the outer LocalSnapback
+        // guard still spans this otherwise lock-free preparation. Move this
+        // call between a generation-fenced preflight and the narrow Phase
+        // A/C/D commit operations, releasing Local for staging hash/read,
+        // canonical rewrite, image/video CPU, ThumbHash, and variant renders.
+        // Preserve LLP 0044's planned-before-put and staged-before-publish
+        // crash cuts when the transport/kernel choreography is opened.
         let store = self.asset_store_obj()?;
-        let staged = store.hash(crate::assets_store::AssetObjectRef::Staging(
-            &attempt.staging_key,
-        ))?;
-        if staged.byte_length != attempt.declared_length {
-            return self.asset_fail_attempt(
-                &attempt,
-                assets::AssetAvailability::Pending,
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_LENGTH_MISMATCH",
-                    "assets",
-                    format!(
-                        "staging holds {} bytes but the attempt declared {}",
-                        staged.byte_length, attempt.declared_length
-                    ),
-                ),
-            );
-        }
-        if let Some(declared_digest) = &request.declared_digest
-            && declared_digest != &staged.digest
-        {
-            return self.asset_fail_attempt(
-                &attempt,
-                assets::AssetAvailability::Pending,
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_DIGEST_MISMATCH",
-                    "assets",
-                    "the declared whole-upload digest does not match the received bytes",
-                ),
-            );
-        }
-        let detected = assets::detect_content_type(&staged.head);
-        if !asset_media_type_admitted(&frozen_intent.accept.media_types, detected) {
-            return self.asset_fail_attempt(
-                &attempt,
-                assets::AssetAvailability::Pending,
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED",
-                    "assets",
-                    format!("detected content type {detected} is outside the intent's accept list"),
-                )
-                .with_details(serde_json::json!({
-                    "declared": attempt.declared_content_type,
-                    "detected": detected,
-                })),
-            );
-        }
-        // Canonicalization: strip-declared images rewrite (decode →
-        // corrective orientation → re-encode) so no deliverable canonical
-        // blob carries location metadata; everything else publishes the
-        // received bytes under policy `none`. Canonical bytes are what gets
-        // digested, deduplicated, and published.
-        let mut image_media_facts = serde_json::Map::new();
-        let detected_video_container = matches!(detected, "video/mp4" | "video/quicktime");
-        let location_policy = if detected_video_container {
-            video_location
-        } else {
-            image_location
-        };
-        if location_policy.is_some()
-            && staged.byte_length > assets::ASSET_BUFFERED_FINALIZE_MAX_BYTES
-        {
-            return self.asset_fail_attempt(
-                &attempt,
-                assets::AssetAvailability::Pending,
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED",
-                    "assets",
-                    format!(
-                        "staged media length {} exceeds the buffered finalizer ceiling {}",
-                        staged.byte_length,
-                        assets::ASSET_BUFFERED_FINALIZE_MAX_BYTES
-                    ),
-                )
-                .with_details(serde_json::json!({
-                    "limit": assets::ASSET_BUFFERED_FINALIZE_MAX_BYTES,
-                    "observed": staged.byte_length,
-                    "path": "buffered-finalizer",
-                })),
-            );
-        }
-        if location_policy.is_none() && (detected_video_container || detected.starts_with("image/"))
-        {
-            // A pre-amendment or hand-built video manifest may still put its
-            // policy under `image`. The sibling split is not an alias: refuse
-            // rather than silently retaining location-bearing bytes.
-            return self.asset_fail_attempt(
-                &attempt,
-                assets::AssetAvailability::Rejected,
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED",
-                    "assets",
-                    format!(
-                        "detected {detected} requires the deployed intent's {}.location policy; the image and video blocks do not alias",
-                        if detected_video_container { "video" } else { "image" },
-                    ),
-                ),
-            );
-        }
-        let strip_declared = location_policy == Some(crate::manifest::AssetLocationPolicy::Strip);
-        let strip_capability_missing = if detected_video_container {
-            !self.asset_video_finalization_enabled()
-        } else {
-            !self.asset_image_finalization_enabled()
-        };
-        if strip_declared && strip_capability_missing {
-            // Defense in depth: generation refuses strip-declared media on a
-            // target without the matching rewriting fact, so bytes carrying
-            // this policy can only arrive through a hand-built manifest —
-            // and finalization still refuses. A policy the intent can never
-            // satisfy here, so the asset rejects, not retry-eligible.
-            return self.asset_fail_attempt(
-                &attempt,
-                assets::AssetAvailability::Rejected,
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED",
-                    "assets",
-                    "location stripping is not available on this target; no strip-declared \
-                     media can publish",
-                ),
-            );
-        }
-        let canonical = if strip_declared && detected_video_container {
-            // Video strip: in-place location blanking over the box tree
-            // (never transcoding); the blanked file is the canonical byte
-            // stream, under its own policy tag so strip and retain video
-            // can never alias in blob identity.
-            let source = store.read(crate::assets_store::AssetObjectRef::Staging(
-                &attempt.staging_key,
-            ))?;
-            match crate::assets_video::canonicalize_strip_video(
-                &source,
-                &crate::assets_video::ASSET_VIDEO_CEILINGS_LOCAL_V1,
-            ) {
-                Ok(outcome) => {
-                    store.write_canonical(&attempt.staging_key, &outcome.canonical)?;
-                    let hashed = store.hash(crate::assets_store::AssetObjectRef::Canonical(
-                        &attempt.staging_key,
-                    ))?;
-                    asset_insert_video_facts(&mut image_media_facts, &outcome.facts);
-                    AssetCanonicalBytes {
-                        object: AssetCanonicalObject::Canonical(attempt.staging_key.clone()),
-                        digest: hashed.digest,
-                        byte_length: hashed.byte_length,
-                        policy: assets::ASSET_CANONICALIZATION_STRIP_VIDEO_V1,
-                    }
-                }
-                // Deterministic over the received bytes — a hostile or
-                // unclassifiable container refuses identically on every
-                // retry, so the asset rejects rather than staying
-                // retry-eligible.
-                Err(error) => {
-                    return self.asset_fail_attempt(
-                        &attempt,
-                        assets::AssetAvailability::Rejected,
-                        error,
-                    );
-                }
-            }
-        } else if strip_declared {
-            let source = store.read(crate::assets_store::AssetObjectRef::Staging(
-                &attempt.staging_key,
-            ))?;
-            match crate::assets_image::canonicalize_strip(
-                &source,
-                detected,
-                &crate::assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1,
-            ) {
-                Ok(outcome) => {
-                    store.write_canonical(&attempt.staging_key, &outcome.canonical)?;
-                    let hashed = store.hash(crate::assets_store::AssetObjectRef::Canonical(
-                        &attempt.staging_key,
-                    ))?;
-                    if let Some(orientation) = outcome.safe_exif.orientation {
-                        image_media_facts.insert("orientationApplied".into(), orientation.into());
-                    }
-                    if let Some(captured_at) = outcome.safe_exif.captured_at {
-                        image_media_facts.insert("capturedAt".into(), captured_at.into());
-                    }
-                    image_media_facts.insert("width".into(), outcome.width.into());
-                    image_media_facts.insert("height".into(), outcome.height.into());
-                    asset_insert_derived_facts(&mut image_media_facts, &outcome.derived);
-                    AssetCanonicalBytes {
-                        object: AssetCanonicalObject::Canonical(attempt.staging_key.clone()),
-                        digest: hashed.digest,
-                        byte_length: hashed.byte_length,
-                        policy: assets::ASSET_CANONICALIZATION_STRIP_IMAGE_V1,
-                    }
-                }
-                // Deterministic over the received bytes — a hostile or
-                // unstrippable input refuses identically on every retry, so
-                // the asset rejects rather than staying retry-eligible.
-                Err(error) => {
-                    return self.asset_fail_attempt(
-                        &attempt,
-                        assets::AssetAvailability::Rejected,
-                        error,
-                    );
-                }
-            }
-        } else {
-            // Retain-declared images publish their received bytes unchanged,
-            // but the pipeline still derives display facts (dimensions,
-            // placeholder, dominant color) from a bounded decode when the
-            // image capability is on. A hostile retain-path image refuses
-            // deterministically, exactly like strip — the pipeline claim
-            // covers both policies or neither.
-            if image_location.is_some()
-                && self.asset_image_finalization_enabled()
-                && matches!(detected, "image/jpeg" | "image/png")
-            {
-                let source = store.read(crate::assets_store::AssetObjectRef::Staging(
-                    &attempt.staging_key,
-                ))?;
-                match crate::assets_image::inspect_image(
-                    &source,
-                    detected,
-                    &crate::assets_image::ASSET_IMAGE_CEILINGS_LOCAL_V1,
-                ) {
-                    Ok(inspection) => {
-                        if let Some(orientation) = inspection.safe_exif.orientation {
-                            image_media_facts
-                                .insert("orientationApplied".into(), orientation.into());
-                        }
-                        if let Some(captured_at) = inspection.safe_exif.captured_at {
-                            image_media_facts.insert("capturedAt".into(), captured_at.into());
-                        }
-                        image_media_facts.insert("width".into(), inspection.width.into());
-                        image_media_facts.insert("height".into(), inspection.height.into());
-                        asset_insert_derived_facts(&mut image_media_facts, &inspection.derived);
-                    }
-                    Err(error) => {
-                        return self.asset_fail_attempt(
-                            &attempt,
-                            assets::AssetAvailability::Rejected,
-                            error,
-                        );
-                    }
-                }
-            } else if video_location.is_some()
-                && self.asset_video_finalization_enabled()
-                && detected_video_container
-            {
-                // Retain-declared video publishes its received bytes
-                // unchanged, but the bounded container walk still derives
-                // duration/dimensions — and a hostile container refuses
-                // deterministically, exactly like strip: the video claim
-                // covers both policies or neither.
-                let source = store.read(crate::assets_store::AssetObjectRef::Staging(
-                    &attempt.staging_key,
-                ))?;
-                match crate::assets_video::inspect_video(
-                    &source,
-                    &crate::assets_video::ASSET_VIDEO_CEILINGS_LOCAL_V1,
-                ) {
-                    Ok(facts) => {
-                        asset_insert_video_facts(&mut image_media_facts, &facts);
-                    }
-                    Err(error) => {
-                        return self.asset_fail_attempt(
-                            &attempt,
-                            assets::AssetAvailability::Rejected,
-                            error,
-                        );
-                    }
-                }
-            }
-            AssetCanonicalBytes {
-                object: AssetCanonicalObject::Staging(attempt.staging_key.clone()),
-                digest: staged.digest.clone(),
-                byte_length: staged.byte_length,
-                policy: assets::ASSET_CANONICALIZATION_NONE,
+        let prepared = match assets::prepare_asset_finalize(
+            store.as_ref(),
+            assets::AssetFinalizePrepareInput {
+                staging_key: &attempt.staging_key,
+                declared_length: attempt.declared_length,
+                declared_digest: request.declared_digest.as_deref(),
+                declared_content_type: attempt.declared_content_type.as_deref(),
+                accepted_media_types: &frozen_intent.accept.media_types,
+                max_canonical_bytes: frozen_intent.accept.max_bytes,
+                image_location,
+                video_location,
+                image_finalization_enabled: self.asset_image_finalization_enabled(),
+                video_finalization_enabled: self.asset_video_finalization_enabled(),
+            },
+        ) {
+            Ok(prepared) => prepared,
+            Err(assets::AssetFinalizePrepareError::Transient(error)) => return Err(error),
+            Err(assets::AssetFinalizePrepareError::Refusal(failure)) => {
+                return self.asset_fail_attempt(
+                    &attempt,
+                    failure.asset_outcome,
+                    failure.refusal,
+                );
             }
         };
-        if location_policy.is_some() {
-            image_media_facts.insert(
-                "locationPolicy".into(),
-                if strip_declared { "strip" } else { "retain" }.into(),
-            );
-        }
-        if canonical.byte_length > frozen_intent.accept.max_bytes {
-            return self.asset_fail_attempt(
-                &attempt,
-                assets::AssetAvailability::Pending,
-                SnapbackError::error(
-                    "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED",
-                    "assets",
-                    "canonical bytes exceed the intent's byte bound",
-                ),
-            );
-        }
+        let staged_digest = prepared.staged_digest;
+        let detected = prepared.detected_content_type;
+        let canonical = prepared.canonical;
+        let image_media_facts = prepared.media_facts;
+
         // The integrity grade is honest: end-to-end verified only when every
         // chunk carried a checksum or an authenticated whole-upload digest
         // matched; a freshly computed digest alone names the received bytes.
         let grade = if attempt.all_chunks_checksummed
-            || request.declared_digest.as_deref() == Some(staged.digest.as_str())
+            || request.declared_digest.as_deref() == Some(staged_digest.as_str())
         {
             assets::AssetIntegrityGrade::EndToEndVerified
         } else {
@@ -9557,16 +9320,24 @@ impl LocalSnapback {
         let app_quota = self.asset_app_quota();
         let mut prepared_required: Vec<AssetPreparedVariant> = Vec::new();
         if variants_enabled {
-            let canonical_bytes = store.read(canonical.object.as_ref())?;
-            for variant in declared_variants.iter().filter(|variant| variant.required) {
-                match self.asset_prepare_variant(
-                    store.as_ref(),
-                    &app_id,
-                    &canonical_bytes,
-                    detected,
-                    variant,
-                    1,
-                ) {
+            let rendered_required = match assets::prepare_required_asset_variants(
+                store.as_ref(),
+                canonical.object.as_ref(),
+                detected,
+                &declared_variants,
+            ) {
+                Ok(prepared) => prepared,
+                Err(assets::AssetFinalizePrepareError::Transient(error)) => return Err(error),
+                Err(assets::AssetFinalizePrepareError::Refusal(failure)) => {
+                    return self.asset_fail_attempt(
+                        &attempt,
+                        failure.asset_outcome,
+                        failure.refusal,
+                    );
+                }
+            };
+            for rendered in &rendered_required {
+                match self.asset_stage_prepared_variant(store.as_ref(), &app_id, rendered) {
                     Ok(prepared) => prepared_required.push(prepared),
                     // Ceiling/decode refusals over trusted canonical bytes
                     // are deterministic: the required variant can never
@@ -29863,68 +29634,6 @@ fn elapsed_ms(started: Instant) -> u64 {
 /// Test-only crash injection for the named fault cuts; the public finalize
 /// path always passes `None`, so production code cannot reach the sentinel.
 /// The names mirror LLP 0044's crash-cut vocabulary on purpose.
-/// What actually publishes: the canonical bytes' custody path, identity,
-/// and the policy that produced them (LLP 0044: dedup and delivery operate
-/// on canonical bytes, never the raw upload when a rewrite applies).
-struct AssetCanonicalBytes {
-    object: AssetCanonicalObject,
-    digest: String,
-    byte_length: u64,
-    policy: &'static str,
-}
-
-/// Which staged object carries the canonical bytes: the raw upload (no
-/// rewrite applied) or the canonical rewrite staged beside it.
-enum AssetCanonicalObject {
-    Staging(String),
-    Canonical(String),
-}
-
-impl AssetCanonicalObject {
-    fn as_ref(&self) -> crate::assets_store::AssetObjectRef<'_> {
-        match self {
-            AssetCanonicalObject::Staging(key) => crate::assets_store::AssetObjectRef::Staging(key),
-            AssetCanonicalObject::Canonical(key) => {
-                crate::assets_store::AssetObjectRef::Canonical(key)
-            }
-        }
-    }
-}
-
-/// The versioned placeholder field plus dominant color, one shape for every
-/// image path (LLP 0044: one placeholder algorithm, versioned field).
-fn asset_insert_derived_facts(
-    facts: &mut serde_json::Map<String, serde_json::Value>,
-    derived: &crate::assets_image::AssetImageDerivedFacts,
-) {
-    facts.insert(
-        "placeholder".into(),
-        serde_json::json!({
-            "algo": crate::assets_image::ASSET_PLACEHOLDER_ALGO_THUMBHASH_V1,
-            "value": derived.placeholder,
-        }),
-    );
-    facts.insert(
-        "dominantColor".into(),
-        derived.dominant_color.clone().into(),
-    );
-}
-
-fn asset_insert_video_facts(
-    facts: &mut serde_json::Map<String, serde_json::Value>,
-    video: &crate::assets_video::AssetVideoFacts,
-) {
-    if let Some(duration_ms) = video.duration_ms {
-        facts.insert("durationMs".into(), duration_ms.into());
-    }
-    if let Some(width) = video.width {
-        facts.insert("width".into(), width.into());
-    }
-    if let Some(height) = video.height {
-        facts.insert("height".into(), height.into());
-    }
-}
-
 #[allow(clippy::enum_variant_names)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AssetFinalizeCrashPoint {
@@ -30212,17 +29921,6 @@ fn asset_planned_publication(
         created_at_ms: now_ms,
         updated_at_ms: now_ms,
     }
-}
-
-fn asset_hash_bytes(bytes: &[u8]) -> String {
-    use sha2::Digest as _;
-    let mut hasher = sha2::Sha256::new();
-    hasher.update(bytes);
-    hasher
-        .finalize()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
 }
 
 /// A rendered variant staged through the write-ahead publication protocol:
