@@ -3,11 +3,11 @@
   "capabilityId": "agent_safe_derived_deployment_fork_v1",
   "targetProfileId": "local-dev-sqlite-ibex",
   "maturity": "experimental",
-  "qualifiedSourceCommit": "ad0ad58748981010204b61eb5002e35b887a5093",
-  "implementationDigestVersion": "snapback:agent-safe-implementation-tree:v2",
-  "implementationTreeSha256": "sha256:fc6e3e58453b4700ce06c647aaef87132879e0da336e560eca834d1d42c5459a",
+  "qualifiedSourceCommit": "04332ab8b73799bd3279b3150dbd8598df275530",
+  "implementationDigestVersion": "snapback:agent-safe-implementation-tree:v3",
+  "implementationTreeSha256": "sha256:42d8fdccbe42ed3699da014f1c3ec68aa8fd05ca99de423310b6a6885190708f",
   "candidateFactsSha256": "sha256:b487d69d7a0392626e01f39e7fa81bd85251291c5ed119cd38a6cc30e50bfc88",
-  "qualificationReceiptSha256": "sha256:12a5630da0f8ab9d82f7506752c9c2c5a9d434f4d2eae4ca743eeb43a756dc96",
+  "qualificationReceiptSha256": "sha256:15438d4cb27d90226debc2c3ce6a0d776d35b846e2419405a046c9c876edd4ff",
   "buildProvenanceRequirement": "known-clean-contributor-source",
   "candidateFacts": {
     "envelope": {

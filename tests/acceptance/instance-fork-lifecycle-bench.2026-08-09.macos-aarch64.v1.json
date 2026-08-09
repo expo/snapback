@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "snapback.fork-lifecycle-bench.v1",
+  "scope": "LLP 0162 row 13, narrow operating.instance-forks claim (author-scoped 2026-08-05)",
+  "environment": {
+    "os": "macos",
+    "arch": "aarch64",
+    "cpus": 10,
+    "profile": "release",
+    "commit": "04332ab8b73799bd3279b3150dbd8598df275530"
+  },
+  "measurements": {
+    "createColdSmallParent": {
+      "samples": 5,
+      "minMs": 272.35749999999996,
+      "medianMs": 278.4005,
+      "maxMs": 1491.2646249999998
+    },
+    "createColdLargeParent32MiB": {
+      "samples": 3,
+      "minMs": 401.495167,
+      "medianMs": 531.167625,
+      "maxMs": 544.6627090000001
+    },
+    "createLiveParent": {
+      "samples": 3,
+      "minMs": 267.114958,
+      "medianMs": 269.206417,
+      "maxMs": 271.05345800000003
+    },
+    "dropSmall": {
+      "samples": 5,
+      "minMs": 65.94720799999999,
+      "medianMs": 74.72775,
+      "maxMs": 83.007125
+    },
+    "dropLarge": {
+      "samples": 3,
+      "minMs": 67.670625,
+      "medianMs": 73.450792,
+      "maxMs": 75.36008299999999
+    },
+    "dropLive": {
+      "samples": 3,
+      "minMs": 73.583709,
+      "medianMs": 74.87133299999999,
+      "maxMs": 75.600792
+    },
+    "attributedDiff10kRows": {
+      "samples": 3,
+      "minMs": 35.92525,
+      "medianMs": 36.26825,
+      "maxMs": 36.436042
+    },
+    "netDiff10kRows": {
+      "samples": 3,
+      "minMs": 48.328125,
+      "medianMs": 48.761958,
+      "maxMs": 50.441667
+    },
+    "reapThreeExpiredForks": {
+      "samples": 1,
+      "medianMs": 89.595916
+    },
+    "concurrentCreate3WallMs": 673.7653329999999,
+    "sequentialCreateMedianMs": 278.4005
+  },
+  "ratifiedBounds": {
+    "ratifiedBy": "LLP 0162 author (Charlie), 2026-08-06",
+    "createColdSmallParentMs": 2000,
+    "createColdLargeParent32MiBMs": 3000,
+    "createLiveParentMs": 2000,
+    "dropMs": 1000,
+    "attributedDiff10kRowsMs": 500,
+    "netDiff10kRowsMs": 750,
+    "reapSweepMs": 1000,
+    "concurrentCreate3WallMs": "<= 3x the sequential create bound"
+  },
+  "notes": [
+    "create latency includes server boot, ready handshake, and manifest load — the full product surface",
+    "diff spans are 10k journal rows, an order of magnitude under the 100k diff-work bound"
+  ]
+}
