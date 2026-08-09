@@ -5,7 +5,8 @@
 **Systems:** Live queries, Performance, Auth, Storage, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (v0.4 — post-round-3 repairs, **unreviewed**; final
+**Revised:** 2026-08-09 (§6a dated note: zero-observer commit-turn
+remainder closed; v0.4 post-round-3 repairs remain **unreviewed**; final
 review verdicts bind to v0.3; see Revision history)
 **Related:** LLP 0191 (evidence and ladder), LLP 0008 (live protocol; dated
 coalescing decision and authorization-invalidation amendment this Spec
@@ -459,6 +460,29 @@ hot shape improved, and the served suites now encode Phase-1 semantics
 (a matcher-skip converges via a watermark that counts as one delivery).
 H-1/H-2 requalification (N≥3) happens after the two remainder tickets
 close.
+
+**Zero-observer remainder closed (dated note, 2026-08-09).** Profiling
+refuted the commit-turn-overhead ticket's scheduler suspects: at zero
+observers the scheduler is never woken, and everything after
+commit-durable measured 0.26 ms p50 (kill-switched arm equally slow —
+the regression was not scheduler-conditional). The measured cause was
+the two-turn staged authorization write: a ~29 ms lock-held stage turn
+per attempt plus a released-lock stage→commit window in which any
+interleaved commit staled every in-flight staged mutation (data-head +
+auth-witness snapshot equality), producing a 60%-stale retry cascade
+(5.6 attempts per applied commit). Fixed by committing
+authorization-neutral preflights in the same Local turn that staged
+them (no lock release, no stale window; auth-event preflights keep the
+split reservation path; the mispreview fail-closed contract is
+unchanged and test-pinned). p1-burst-obs0 settle p50: 629/728 ms
+recorded → 139/27 and 83/33 ms (N=2), vs the 171/130 ms pre-Phase-1
+baseline — H-1's "zero-observer settle unchanged" clause is now
+satisfiable; formal N≥3 requalification rides the Phase-3 exit
+measurement. Split-out remainders:
+`issues/20260809-mutate-stage-turn-cost-bisect.md` (unconditional
+per-turn drift-window slowdown),
+`issues/20260809-mutation-facts-turn-extra-lock.md` (post-commit facts
+re-lock).
 
 ## 7. Non-goals
 

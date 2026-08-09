@@ -1764,6 +1764,131 @@ globalThis.__snapbackHandlers = {
     (state, directory)
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn authorization_neutral_staged_write_commits_before_its_shared_batch_flushes() {
+    let state = tokio::task::spawn_blocking(|| {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        auth_projection_http_fixture("neutral-stage-turn", 0, 0)
+    })
+    .await
+    .expect("construct authorization-neutral fixture");
+    let after_batch_runs = Arc::new(AtomicUsize::new(0));
+    let stage_after_batch_runs = Arc::clone(&after_batch_runs);
+    let work_after_batch_runs = Arc::clone(&after_batch_runs);
+    let seed = SeedData {
+        tables: BTreeMap::from([(
+            "items".to_owned(),
+            vec![Map::from_iter([
+                (
+                    "_id".to_owned(),
+                    json!("0198a2aa-32b0-7000-8000-000000000001"),
+                ),
+                ("value".to_owned(), json!("single-turn")),
+            ])],
+        )]),
+    };
+
+    let committed = with_snapback_staged_authorization_write(
+        &state.snapback,
+        move |snapback| {
+            let preflight = snapback.authorization_commit_preflight_for_seed(&seed)?;
+            assert!(matches!(
+                preflight,
+                crate::storage::AuthorizationCommitPreflight::NoAuthorizationEvent
+            ));
+            let stage_after_batch_runs = Arc::clone(&stage_after_batch_runs);
+            crate::exec_guard::run_or_defer_after_local(move || {
+                stage_after_batch_runs.fetch_add(1, Ordering::SeqCst);
+            });
+            Ok((preflight, seed.clone()))
+        },
+        move |snapback, seed| {
+            assert_eq!(
+                work_after_batch_runs.load(Ordering::SeqCst),
+                0,
+                "the stage batch must remain deferred through the neutral commit"
+            );
+            snapback.seed(seed)
+        },
+    )
+    .await
+    .expect("authorization-neutral staging turn completes")
+    .expect("authorization-neutral seed commits");
+
+    assert_eq!(committed.changed_count, 1);
+    assert_eq!(
+        after_batch_runs.load(Ordering::SeqCst),
+        1,
+        "the combined stage/commit batch flushes exactly once after Local drops"
+    );
+    let rows = with_snapback(&state.snapback, |snapback| {
+        snapback.scan_table("items", 10, 0).map(|scan| scan.total)
+    })
+    .await
+    .expect("scan the authorization-neutral commit");
+    assert_eq!(rows, 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn authorization_neutral_stage_mispreview_still_fails_closed() {
+    let (state, _directory) = tokio::task::spawn_blocking(|| {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        protected_room_server_fixture()
+    })
+    .await
+    .expect("construct protected-room mispreview fixture");
+    let before = with_snapback(&state.snapback, |snapback| {
+        Ok::<_, SnapbackError>((
+            snapback.authorization_reservation_snapshot()?,
+            snapback
+                .scan_table("roomMembers", 10, 0)
+                .map(|scan| scan.total)?,
+        ))
+    })
+    .await
+    .expect("capture pre-mispreview state");
+    let seed = SeedData {
+        tables: BTreeMap::from([(
+            "roomMembers".to_owned(),
+            vec![Map::from_iter([
+                (
+                    "_id".to_owned(),
+                    json!("0198a2aa-32b0-7000-8000-000000000002"),
+                ),
+                ("roomId".to_owned(), json!("mispreview-room")),
+                ("userId".to_owned(), json!("mispreview-user")),
+            ])],
+        )]),
+    };
+
+    let error = with_snapback_staged_authorization_write(
+        &state.snapback,
+        move |_| {
+            Ok((
+                crate::storage::AuthorizationCommitPreflight::NoAuthorizationEvent,
+                seed.clone(),
+            ))
+        },
+        move |snapback, seed| snapback.seed(seed),
+    )
+    .await
+    .expect("mispreview staging turn completes")
+    .expect_err("authorization-producing neutral preview must roll back");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_RESERVATION_STALE");
+
+    let after = with_snapback(&state.snapback, |snapback| {
+        Ok::<_, SnapbackError>((
+            snapback.authorization_reservation_snapshot()?,
+            snapback
+                .scan_table("roomMembers", 10, 0)
+                .map(|scan| scan.total)?,
+        ))
+    })
+    .await
+    .expect("capture post-mispreview state");
+    assert_eq!(after, before, "mispreview commits no data or auth witness");
+}
+
 /// @ref LLP 0053#ephemeral-room-authority-invalidation — L9 requires an
 /// unrelated protected room to register, publish, and drain over both HTTP
 /// and WebSocket while an affected authorization commit is pending, with

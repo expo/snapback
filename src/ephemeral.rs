@@ -4701,6 +4701,10 @@ struct RoomAuthorizationCommitReservation {
 
 struct NoAuthorizationEventReservation;
 
+pub(crate) fn no_authorization_event_reservation() -> Box<dyn AuthorizationCommitReservation> {
+    Box::new(NoAuthorizationEventReservation)
+}
+
 /// Reservation drift happens before the durable application/auth transaction
 /// begins, so every producer exposes the same closed retry contract.
 ///
@@ -5093,7 +5097,7 @@ impl LocalEphemeralBackend {
             preflight,
             AuthorizationCommitPreflight::NoAuthorizationEvent
         ) {
-            return Ok(Box::new(NoAuthorizationEventReservation));
+            return Ok(no_authorization_event_reservation());
         }
         let (collections, collection_generation) = self.protected_room_collections_snapshot();
         let reserved_selector = match preflight {

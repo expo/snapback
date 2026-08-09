@@ -434,6 +434,32 @@ enum AuthorizationWriteAttempt<T> {
     Complete(T),
 }
 
+enum AuthorizationWriteTurn<S, T, F> {
+    Complete {
+        output: std::thread::Result<T>,
+        unused: Option<Box<dyn crate::storage::AuthorizationCommitReservation>>,
+    },
+    NeedsReservation {
+        preflight: crate::storage::AuthorizationCommitPreflight,
+        staged: S,
+        generation: u64,
+        snapshot: (u64, crate::storage::AuthorizationVersion),
+        ephemeral: crate::local::EphemeralApi,
+        work: F,
+    },
+}
+
+enum StagedAuthorizationWrite<S, T, F> {
+    Complete(T),
+    Reserved {
+        staged: S,
+        generation: u64,
+        snapshot: (u64, crate::storage::AuthorizationVersion),
+        reservation: Box<dyn crate::storage::AuthorizationCommitReservation>,
+        work: F,
+    },
+}
+
 struct CancelAuthorizationReservationOnDrop {
     cancellation: Arc<crate::storage::AuthorizationReservationCancellation>,
     armed: bool,
@@ -461,8 +487,9 @@ impl Drop for CancelAuthorizationReservationOnDrop {
 }
 
 /// Staging may evaluate a stored mutation plan or already-buffered handler
-/// effects to obtain exact changed rows. It never owns the eventual commit.
-/// The durable data and authorization witnesses are rechecked after room
+/// effects to obtain exact changed rows. An authorization-neutral plan commits
+/// in that same turn; authorization-bearing plans retain the split handoff.
+/// Their durable data and authorization witnesses are rechecked after room
 /// quiescence; stale work is cancelled off-Local and returned as a typed
 /// conflict. The one-attempt bound deliberately prevents rerunning a handler
 /// whose buffered effects may already have been computed.
@@ -483,43 +510,101 @@ where
     let mut guard = lock_managed_snapback(state).await;
     let cancellation = Arc::new(crate::storage::AuthorizationReservationCancellation::default());
     let mut cancel_on_drop = CancelAuthorizationReservationOnDrop::new(cancellation.clone());
-    let staged_result = tokio::task::spawn_blocking(move || {
-        let _sanction = crate::exec_guard::BlockingSanction::acquire();
-        let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let (preflight, staged) = stage(&mut guard)?;
-            let snapshot = guard.authorization_reservation_snapshot()?;
-            Ok::<_, SnapbackError>((
-                preflight,
-                staged,
-                guard.app_generation(),
-                snapshot,
-                guard.ephemeral_api(),
-            ))
-        }));
-        let batch = local_scope.take_after_local_batch();
-        let handoff = batch.has_effects().then(|| {
-            let handoff = guard.managed_local_handoff();
-            handoff.close();
-            handoff
-        });
-        drop(guard);
-        drop(local_scope);
-        crate::exec_guard::run_after_local_batch(batch);
-        if let Some(handoff) = handoff {
-            handoff.reopen();
-        }
-        let (preflight, staged, generation, snapshot, ephemeral) = match result {
-            Ok(result) => result?,
-            Err(payload) => std::panic::resume_unwind(payload),
-        };
-        let reservation = ephemeral.reserve_authorization_commit(preflight, cancellation)?;
-        Ok::<_, SnapbackError>((staged, generation, snapshot, reservation))
-    })
-    .await
-    .expect("authorization staging task panicked");
+    let staged_result: SnapbackResult<StagedAuthorizationWrite<S, T, F>> =
+        tokio::task::spawn_blocking(move || {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+            let mut result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let (preflight, staged) = stage(&mut guard)?;
+                if matches!(
+                    preflight,
+                    crate::storage::AuthorizationCommitPreflight::NoAuthorizationEvent
+                ) {
+                    // @ref LLP 0059#authorization-write-handoff — a neutral preview
+                    // allocates no room ticket or registry authority, so its sentinel
+                    // can bind the commit in this stage turn without a stale window.
+                    crate::storage::install_managed_authorization_reservation(
+                        crate::ephemeral::no_authorization_event_reservation(),
+                    );
+                    let output = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        work(&mut guard, staged)
+                    }));
+                    let unused = crate::storage::take_managed_authorization_reservation();
+                    return Ok::<_, SnapbackError>(AuthorizationWriteTurn::Complete {
+                        output,
+                        unused,
+                    });
+                }
+                Ok::<_, SnapbackError>(AuthorizationWriteTurn::NeedsReservation {
+                    preflight,
+                    staged,
+                    generation: guard.app_generation(),
+                    snapshot: guard.authorization_reservation_snapshot()?,
+                    ephemeral: guard.ephemeral_api(),
+                    work,
+                })
+            }));
+            let unused = match &mut result {
+                Ok(Ok(AuthorizationWriteTurn::Complete { unused, .. })) => unused.take(),
+                _ => None,
+            };
+            let batch = local_scope.take_after_local_batch();
+            let handoff = (batch.has_effects() || unused.is_some()).then(|| {
+                let handoff = guard.managed_local_handoff();
+                handoff.close();
+                handoff
+            });
+            drop(guard);
+            drop(local_scope);
+            if let Some(unused) = unused {
+                unused.cancel();
+            }
+            crate::exec_guard::run_after_local_batch(batch);
+            if let Some(handoff) = handoff {
+                handoff.reopen();
+            }
+            let turn = match result {
+                Ok(result) => result?,
+                Err(payload) => std::panic::resume_unwind(payload),
+            };
+            match turn {
+                AuthorizationWriteTurn::Complete { output, .. } => match output {
+                    Ok(output) => Ok(StagedAuthorizationWrite::Complete(output)),
+                    Err(payload) => std::panic::resume_unwind(payload),
+                },
+                AuthorizationWriteTurn::NeedsReservation {
+                    preflight,
+                    staged,
+                    generation,
+                    snapshot,
+                    ephemeral,
+                    work,
+                } => {
+                    let reservation =
+                        ephemeral.reserve_authorization_commit(preflight, cancellation)?;
+                    Ok(StagedAuthorizationWrite::Reserved {
+                        staged,
+                        generation,
+                        snapshot,
+                        reservation,
+                        work,
+                    })
+                }
+            }
+        })
+        .await
+        .expect("authorization staging task panicked");
     cancel_on_drop.disarm();
-    let (staged, generation, snapshot, reservation) = staged_result?;
+    let (staged, generation, snapshot, reservation, work) = match staged_result? {
+        StagedAuthorizationWrite::Complete(output) => return Ok(output),
+        StagedAuthorizationWrite::Reserved {
+            staged,
+            generation,
+            snapshot,
+            reservation,
+            work,
+        } => (staged, generation, snapshot, reservation, work),
+    };
 
     let mut guard = lock_managed_snapback(state).await;
     let attempted = tokio::task::spawn_blocking(move || {
