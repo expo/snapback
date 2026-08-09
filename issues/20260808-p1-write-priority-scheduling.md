@@ -51,3 +51,28 @@ scheduling policy:
 
 This ticket stays open to carry exactly that remainder and the N≥3
 requalification per LLP 0189.
+
+## Refresh (2026-08-09, LLP 0200 Phase 2)
+
+**Fence-applied p95 is now measured — remainder item 3 closed.** The A/B
+inventory gained an authority-transition probe (membership-declared
+`authorityProbeMembers` + alternating grant/revoke mutations +
+`--authority-transitions`, landed d885c5a8f), and the p2-authority-burst
+arm (six observers, 4 mid-burst transitions) measured fence-applied p95 =
+**0.09 ms** across 20 per-subscription markings vs the ≤ 500 ms §2.4
+target — met by more than three orders of magnitude. Restoration latency
+per (epoch, subscription): p50 4598 / p95 6959 / max 8067 ms across the 6
+completed restorations (14 fences superseded by newer transitions —
+§2.4's latest-authority collapse); the Phase-2 numeric restoration target
+(p95 ≤ 10 s on this arm) is recorded in LLP 0200 §6c.
+
+Also fixed forward in this window (bc26e015b): the scheduler path
+deferred the revocation obligation delivery behind the writer-visibility
+gate, so `blankBeforeMutationReturn` lost the settle race
+(require-role-live-revocation red at clean 65064cd3a; green ×4 after
+obligation projections publish inline in the commit turn —
+`issues/closed/20260809-main-red-scheduler-defers-revocation-obligation-delivery.md`).
+
+Remaining here: item 1 (unpreemptible in-flight evaluation turn — D2
+ladder), item 2 (`issues/20260809-mutate-stage-turn-cost-bisect.md`), and
+the N≥3 H-1 requalification.

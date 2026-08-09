@@ -5,12 +5,16 @@
 **Systems:** Live queries, Performance, Auth, Storage, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-08
-**Revised:** 2026-08-09 (§6b dated note: Phase 3 landed — write
+**Revised:** 2026-08-09 (§6c dated note: Phase 2 landed — B-4 root
+cause corrected via same-envelope atomic resolution application, the
+scheduler-era revocation-obligation-delivery main red fixed forward,
+authority transitions made measurable on the A/B inventory, fence p95
+and restoration measured, the §2.4 restoration target set, and the
+split H-3 verdict recorded; same day, §6b recorded Phase 3 — write
 priority, cancellation/age inheritance, bounds + overload degrade —
-with exit A/B and H-1/H-4 verdicts; earlier same-day §6a note closed
-the zero-observer commit-turn remainder; v0.4 post-round-3 repairs
-remain **unreviewed**; final review verdicts bind to v0.3; see
-Revision history)
+and §6a closed the zero-observer commit-turn remainder; v0.4
+post-round-3 repairs remain **unreviewed**; final review verdicts bind
+to v0.3; see Revision history)
 **Related:** LLP 0191 (evidence and ladder), LLP 0008 (live protocol; dated
 coalescing decision and authorization-invalidation amendment this Spec
 binds to), LLP 0183 (D4 charter this Spec extends), LLP 0012/0043
@@ -550,6 +554,104 @@ still fires no mid-burst authority transitions; the requalification
 arm still needs one). `issues/20260808-p1-write-priority-scheduling.md`
 is refreshed to carry exactly this remainder. Formal N≥3
 requalification per LLP 0189 stays gated on the remainder ticket.
+
+## 6c. Phase-2 implementation record (dated note, 2026-08-09)
+
+Phase 2 (§2.4 remainder + §2.6) landed in three pieces plus a discovered
+main-red fix:
+
+1. **B-4 root cause corrected; same-envelope atomic application
+   (bc26e015b).** The Phase-1 diagnostic's reading of B-4 ("frames arrived
+   without a usable resolution ticket") was imprecise: the recorded arms
+   show every data-driven re-resolution envelope already carried
+   obligation + usable ticket + snapshot atomically
+   (`deliver_authorization_snapshot` raises and issues in one lock step).
+   The churn was client-side: one envelope was applied as two observable
+   boundary commits — `receiveObligation` committed the quarantine
+   disposition (blank + `authorization_quarantine` callback +
+   `onUpdate([])`), then `applyResolution` committed the snapshot. Fix:
+   the fence gained `deferCommit` + a `commitCurrentDisposition` repair —
+   a same-envelope SNAPSHOT resolution defers the intermediate commit and
+   the envelope commits once; any failure repairs fail-closed against the
+   exact current fence generation. `terminalDelete` proofs never defer
+   (revocation blanks at obligation receipt). Obligations without a
+   same-envelope resolution — authority transitions, overflow roots,
+   reprojection hints — keep the immediate quarantine commit: §2.6's
+   narrowing, quarantine marks authority uncertainty only. LLP 0053's
+   closed disposition enumeration, obligation merge, queue suspension,
+   and ACK custody are unchanged; §2.4's "must carry a usable resolution
+   ticket" is test-pinned server-side and the atomic application is
+   pinned in the contract and client packages.
+2. **Main red found and fixed forward in the same landing:** the
+   scheduler path skipped the legacy inline delivery of preprojected
+   obligation envelopes, so under Phase-3 write priority the revocation
+   blank lost the settle race and the receipt-exported
+   `blankBeforeMutationReturn` contract broke
+   (`tests/acceptance/require-role-live-revocation.mjs` red at clean
+   65064cd3a; green with `SNAPBACK_LIVE_SCHEDULER_DISABLED=1`). The
+   fail-closed obligation projection publication is §2.4's cheap
+   security step and now publishes inline in the commit turn on both
+   paths; restoration stays on the authority lane. Suite green ×4 after
+   the fix
+   (`issues/closed/20260809-main-red-scheduler-defers-revocation-obligation-delivery.md`).
+3. **Authority transitions are now measurable on the A/B inventory
+   (d885c5a8f):** a probe membership table + alternating
+   grant/revoke mutations (permission-backing writes that change no
+   observer's access), a `--authority-transitions` harness arm, an
+   authority-fixture derivation script, and the analyzer's
+   fence/restoration decomposition (fence p95 from trace events per the
+   Phase-1 stage-3 note).
+
+**Exit A/B (pinned post-landing binary, same 5.5M-row baseline, N=1 per
+arm, shape evidence):**
+
+| arm | quarantine callbacks (before → after) | settle p50 t/nt ms | conv p50 first/last ms |
+|---|---|---|---|
+| burst 6-obs | 24 → **0** | 1719 / 1652 | 4972 / 14577 |
+| sustained 6-obs | 135 → **42** | 6343 / 6458 | 5959 / 17691 |
+| burst 0-obs | — | 37 / 24 | — |
+
+The sustained arm's 42 residual quarantines are not delivery-caused: every
+delivery now commits exactly once (104 snapshot commits, all but the
+initial six carrying ack tickets), and the residue is isolated
+obligation-only frames (no same-envelope proof — reprojection/backpressure
+hints under sustained load) each restored by the next delivery. Whether
+those hint frames should carry the current ticket or ride LLP 0053's
+retain producer is
+`issues/20260809-sustained-reprojection-hints-still-quarantine.md`.
+
+Authority arm (burst 6-obs, 4 mid-burst transitions 1.5 s apart):
+fence-applied p95 **0.09 ms** across 20 per-subscription markings
+(target ≤ 500 ms — met by more than three orders of magnitude; marking
+is registry mutation, no evaluation). Restoration latency per
+(epoch, subscription): p50 **4598 ms** / p95 **6959 ms** / max
+**8067 ms** across the 6 restorations that ran to completion — the other
+14 fences were superseded by newer transitions before their restoration
+started (§2.4's latest-authority-wins collapse, working as specified);
+0 stale-authority frame discards. The authority arm's 31 quarantine
+callbacks are §2.6-correct (authority uncertainty until restoration) and
+excluded from the data-only clause by construction.
+
+**Phase-2 numeric restoration target (§2.4):** restoration p95 ≤ 10 s
+per subscription under the six-observer burst arm at the 5.5M-row
+baseline (N=1 basis: measured p50 4.6 s / p95 7.0 s / max 8.1 s;
+structural bound = sub-ms fence + authority-lane queue position +
+~0.7–0.9 s per-subscription turns; tightens as D2 sharing/widening
+reduces turn cost).
+
+**H-3 verdict: split.** The zero-quarantine clause is **met on the
+burst instrument** — zero `authorization_quarantine` callbacks on
+ordinary data delivery (teardown deletes excluded; the sustained arm's
+42 non-delivery-caused hint-frame quarantines are disclosed above and
+ticketed). The restoration clause is **met** — the distribution is
+measured and the numeric target set. The convergence clause is **not
+met**: six-observer burst full-convergence p50 14.6 s vs the same run's
+serial-evaluation floor 6 × 717 ms = 4.3 s — unchanged in shape from
+Phase 3 (13.9 s), because convergence under a 16-mutation burst is
+evaluation-cost × wave-depth bound; the remainder is raw evaluation
+cost at 5.5M rows (the D2 sharing/widening ladder), the same structural
+residue H-1's settle clause carries. Formal N≥3 requalification per
+LLP 0189 remains gated on the H-1 remainder ticket.
 
 ## 7. Non-goals
 

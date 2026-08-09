@@ -165,3 +165,18 @@ Code-level follow-up resolving the spike's two open "why"s (trace evidence:
    quarantined the query boundary until a later resolution restored it
    (`packages/snapback-contract/index.mjs` ~1651–1666). The
    quarantine-recovery lifecycle is chartered D4 content.
+
+## Progress 2026-08-09 — LLP 0200 Phase 2 (B-4 churn closed)
+
+Data-driven re-resolution deliveries no longer quarantine the boundary
+they feed (bc26e015b): the recorded quarantine→snapshot flicker (24
+callbacks per six-observer burst arm; 135 sustained) measured **0** on the
+burst arm and 42 non-delivery-caused residual hints on sustained
+(`issues/20260809-sustained-reprojection-hints-still-quarantine.md`) after
+the same-envelope atomic application fix — B-4's root cause was the
+client's two-commit application of one envelope, not missing tickets.
+Authority transitions are now measurable on this inventory (probe arm,
+d885c5a8f): fence-applied p95 0.09 ms; restoration p50 4.6 s / p95 7.0 s.
+Full Phase-2 record and the split H-3 verdict: LLP 0200 §6c. The
+convergence-vs-serial-floor clause remains open on evaluation cost — the
+D2 sharing/widening ladder this ticket anchors.
