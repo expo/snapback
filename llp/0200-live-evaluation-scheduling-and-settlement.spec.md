@@ -392,7 +392,10 @@ are D2/D3 scope and are not blocked by, nor blocking, these phases.
 - **OQ-2 (ordering-audit findings).** The §2.1 audit is now a Phase-1
   gate; this OQ holds its findings — any dependent that cannot move to
   convergence-gating gets its carve-out recorded here before Phase 1
-  lands.
+  lands. **Carve-out: the stream-attempt/job-claim terminal publication
+  path keeps job-status fan-out inline.** Its fenced CAS transition,
+  job-status publication, and synchronous drain receipt remain one atomic
+  control-plane publication; this low-volume path is not the hot data path.
 - **OQ-3 (watermark wire economics).** §2.1's `current_as_of` watermark
   gives skips a deliverable; its cost under high commit rates (many tiny
   frames) is unmeasured. Piggybacking and coalescing should make it
@@ -406,6 +409,56 @@ are D2/D3 scope and are not blocked by, nor blocking, these phases.
   the ordering, authority-vocabulary, and overlay owners), since this
   document binds to their semantics sight-unseen from reviewers'
   perspective.
+
+## 6a. Phase-1 implementation record (dated note, 2026-08-08)
+
+Phase 1 landed on this date (stages: scheduler + settlement isolation +
+fence/gate/classifier; watermark + Contract convergence gating; §3
+counters + inspect rotation + obligation-transfer proof; served-suite
+migration). Every §5 Phase-1 deliverable shipped; correctness evidence:
+full Rust suite green (2914 tests / 102 targets), 13 served acceptance
+suites green under Phase-1 semantics, and the receipt-exported revocation
+contract (`blankBeforeMutationReturn`) intact ×4 — the fence blanks
+inline in the commit turn as §2.4 requires.
+
+**§2.1 ordering-audit outcome (OQ-2 closure).** The audit found ~28
+doc-level dependents, two client-code hazards, one server atomic
+publication, and ~55 test sites. Dispositions landed with Phase 1: the
+Contract package's overlay release is watermark-gated with
+version-regression guards; LLP 0135's composite replace frames were
+proven already version-truthful (pinned by tests); the
+stream-attempt/job-claim publication keeps inline fan-out (OQ-2
+carve-out above); served suites migrated to convergence waits; Rust
+unit-test drains are unaffected (scheduler absent = inline). One
+adjacent main red was found and fixed forward
+(`issues/closed/20260808-stream-attempt-terminal-reap-breaks-cursor-signal.md`).
+
+**A/B against the OQ4 baseline (N=1 per arm, shape evidence; arms
+preserved under the committed harness):**
+
+- Improvements: burst trigger settle p50 15.3 s vs 45.3 s same-binary
+  legacy (~3×); coalescer deferral engaged on 24/24 backlogged commits
+  (vs 4/24 pre-Phase-1 — B-2 resolved); sustained-arm settles 155/480 vs
+  ~105/480; durable→response leg p50 3.4–7.6 ms (settlement isolation
+  works at the response layer).
+- **H-1: NOT met.** Settle p50 at six observers is ~15 s, not < 1 s:
+  mutations and evaluation turns share the instance lock without write
+  priority, so burst settles queue behind interleaved ~0.9 s turns
+  (`issues/20260808-p1-write-priority-scheduling.md` — §2.5's fairness
+  content pulled into the immediate remainder). Zero-observer settle
+  regressed 171→629 ms (~4× per-commit-turn overhead,
+  `issues/20260808-p1-commit-turn-overhead.md`). Fence-applied p95 is
+  unmeasured — the hot inventory fires no mid-burst authority
+  transitions; the requalification arm needs one.
+- **H-2: split.** Deferral-majority clause met (24/24); throughput
+  clause not met (sustained settle throughput ≈32% of same-run
+  zero-observer capacity, target ≥50%).
+
+Landed default-on per LLP 0189 fix-forward: correctness is proven, the
+hot shape improved, and the served suites now encode Phase-1 semantics
+(a matcher-skip converges via a watermark that counts as one delivery).
+H-1/H-2 requalification (N≥3) happens after the two remainder tickets
+close.
 
 ## 7. Non-goals
 

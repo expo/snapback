@@ -63,4 +63,3 @@ fn push_capped(ring: &mut VecDeque<Value>, receipt: Value) {
         ring.pop_front();
     }
 }
-

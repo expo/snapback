@@ -994,6 +994,22 @@ evaluation across same-query observers; incremental view maintenance for
 admitted shapes) remain the D2/D4 owner-Spec work — coalescing bounds the
 cost at one evaluation per observer per drain cycle, not below it.
 
+## Dated decision — off-turn evaluation scheduler and convergence watermarks (2026-08-08)
+
+LLP 0200 Phase 1 moved served-mode fan-out off the commit turn onto an
+evaluation scheduler (settlement no longer implies delivery; the mutate
+response carries the committed version) and added the **subscription-scoped
+`current_as_of` convergence watermark**: matcher-skip and evaluated
+no-change dispositions emit (or piggyback) a rows-free `current_as_of(V)`
+envelope, latest-value-coalescible, never overtaking an undelivered
+content frame, and counting as one delivery in `liveDelivery` accounting.
+Optimistic-suppression release moves from settlement-gated to
+watermark-gated per subscription (release-after-apply). The coalescing
+decision above is otherwise unchanged; its inline-flush starvation rule is
+superseded by scheduler-enforced bounds. Contracts, classifier, fence, and
+gate: LLP 0200 §2. The strict per-commit inline path remains behind
+`SNAPBACK_LIVE_SCHEDULER_DISABLED=1` (A/B and embedder fallback).
+
 ## Status
 
 Draft. The Valet retrospective ([LLP 0006](./0006-valet-retrospective.research.md))

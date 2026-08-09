@@ -67,9 +67,11 @@ use snapback::deploy::{
 };
 use snapback::diagnostic::Diagnostic;
 use snapback::ephemeral::{EphemeralDiagnostics, EphemeralRoomDiagnostics, Scope};
+use snapback::live_coalesce::LiveCoalesceStats;
 use snapback::local::{
-    InspectState, LiveDeliveryStats, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
-    MaintenanceDiagnostics, PublicInspect,
+    InspectState, LiveAuthorityLaneStats, LiveDeliveryStats, LiveEvaluationStats,
+    LiveMatcherDecisionStats, LiveResumeInput, LiveSettlementStats, LiveSubscribeInput,
+    LiveUnsubscribeInput, LiveWatermarkStats, MaintenanceDiagnostics, PublicInspect,
 };
 use snapback::manifest::{
     AuthInput, AuthorityDescriptor, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS,
@@ -1660,6 +1662,12 @@ fn representative_inspect() -> InspectState {
         active_connections: 0,
         reaped_connections: 0,
         live_delivery: LiveDeliveryStats::default(),
+        live_matcher: LiveMatcherDecisionStats::default(),
+        live_evaluation: LiveEvaluationStats::default(),
+        live_coalesce: LiveCoalesceStats::default(),
+        live_settlement: LiveSettlementStats::default(),
+        live_authority: LiveAuthorityLaneStats::default(),
+        live_watermarks: LiveWatermarkStats::default(),
         ephemeral: EphemeralDiagnostics {
             room_count: 1,
             entry_count: 1,
@@ -2803,6 +2811,13 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
                     row: None,
                 },
             ],
+            resume: None,
+        },
+        LiveEnvelope::CurrentAsOf {
+            network_profile: None,
+            subscription_id: "sub_1".to_owned(),
+            function: "listTodos".to_owned(),
+            version: 9,
             resume: None,
         },
         LiveEnvelope::ResyncRequired {

@@ -1270,7 +1270,11 @@ export async function createSnapbackContractSurface({
     // response, or a concurrent mutation's reconcile), so reducers are spec'd
     // idempotent and each op records baseVersion at mutation time so insert
     // reducers can recognize their own landed commit. Interim until D2
-    // receipts correlate fan-outs to mutations.
+    // receipts correlate fan-outs to mutations. Successful settlement now
+    // records the response's committed version on the op; the op remains here
+    // until this subscription observes and applies server version >= it.
+    // @ref LLP 0200#21-settlement-is-decoupled-from-subscriber-work — release
+    //   is watermark-gated and occurs after the gating server frame applies.
     const inFlightOptimistic = new Set();
 
     // The highest durable commit version among the given server rows (0 when
@@ -1294,9 +1298,52 @@ export async function createSnapbackContractSurface({
     let lastServerRows = [];
     let queryAuthorizationHidden = false;
 
-    const applyOptimisticOverlay = (rows) => {
+    const isServerVersion = (version) => (
+      Number.isSafeInteger(version) && version >= 0
+    );
+
+    const convergedOptimisticOps = (
+      observedVersion,
+      { releaseVersionlessSettlements = false } = {},
+    ) => {
+      const convergedOps = new Set();
+      for (const op of inFlightOptimistic) {
+        const converged = isServerVersion(op.committedVersion)
+          && isServerVersion(observedVersion)
+          && observedVersion >= op.committedVersion;
+        if (converged || (releaseVersionlessSettlements && op.settledWithoutVersion === true)) {
+          convergedOps.add(op);
+        }
+      }
+      return convergedOps;
+    };
+
+    const releaseConvergedOptimistic = (convergedOps) => {
+      for (const op of convergedOps) inFlightOptimistic.delete(op);
+    };
+
+    const markOptimisticSettled = (optimisticOp, output) => {
+      if (!optimisticOp) return;
+      if (isServerVersion(output?.version)) {
+        optimisticOp.committedVersion = output.version;
+      } else {
+        // Compatibility for non-protocol test/legacy clients that omit the
+        // contractual mutation version: only the mandatory post-settlement
+        // reconcile may release this op, after applying its authoritative pull.
+        optimisticOp.settledWithoutVersion = true;
+      }
+    };
+
+    const markOptimisticMutationSettled = (mutationId, output) => {
+      for (const op of inFlightOptimistic) {
+        if (op.mutationId === mutationId) markOptimisticSettled(op, output);
+      }
+    };
+
+    const applyOptimisticOverlay = (rows, excludedOps = null) => {
       let out = rows;
       for (const op of inFlightOptimistic) {
+        if (excludedOps?.has(op)) continue;
         let ledgerCursor = 0;
         const ledgerRuntimeId = op.ctxLedger
           ? () => {
@@ -1573,13 +1620,38 @@ export async function createSnapbackContractSurface({
       return retainedWriteTail;
     };
 
-    const writeServerRows = (rows, version = maxServerRowVersion(rows), capture = authorityCapture) => {
-      lastServerRows = rows;
-      lastServerVersion = version ?? maxServerRowVersion(rows);
-      if (!queryAuthorizationHidden) retainRows(rows, lastServerVersion, capture);
-      if (disposed || !boundary || queryAuthorizationHidden) return rows;
+    const writeServerRows = (
+      rows,
+      version = maxServerRowVersion(rows),
+      capture = authorityCapture,
+      releaseOptions = {},
+    ) => {
+      const resolvedVersion = version ?? maxServerRowVersion(rows);
+      if (
+        isServerVersion(resolvedVersion)
+        && isServerVersion(lastServerVersion)
+        && resolvedVersion < lastServerVersion
+      ) return lastServerRows;
+      const convergedOps = convergedOptimisticOps(resolvedVersion, releaseOptions);
+      // Reducers are app code and may mutate their input. Compute the
+      // post-release view from an isolated authoritative copy before applying
+      // the still-registered overlay to the gating frame itself.
+      const releasedView = convergedOps.size > 0
+        ? applyOptimisticOverlay(JSON.parse(JSON.stringify(rows)), convergedOps)
+        : null;
       const overlaid = applyOptimisticOverlay(rows);
-      boundary.write(boundaryKey, () => overlaid);
+      lastServerRows = rows;
+      lastServerVersion = resolvedVersion;
+      if (!disposed && boundary && !queryAuthorizationHidden) {
+        boundary.write(boundaryKey, () => overlaid);
+      }
+      // Release-after-apply: the gating frame is fully reflected in the
+      // boundary before its optimistic op leaves the overlay set.
+      releaseConvergedOptimistic(convergedOps);
+      if (releasedView && !disposed && boundary && !queryAuthorizationHidden) {
+        boundary.write(boundaryKey, () => releasedView);
+      }
+      if (!queryAuthorizationHidden) retainRows(rows, lastServerVersion, capture);
       return overlaid;
     };
 
@@ -1587,17 +1659,41 @@ export async function createSnapbackContractSurface({
       capture,
       rows,
       version = maxServerRowVersion(rows),
+      releaseOptions = {},
     ) => {
-      if (!coordinator) return writeServerRows(rows, version, capture);
+      const resolvedVersion = version ?? maxServerRowVersion(rows);
+      if (
+        isServerVersion(resolvedVersion)
+        && isServerVersion(lastServerVersion)
+        && resolvedVersion < lastServerVersion
+      ) return lastServerRows;
+      if (!coordinator) return writeServerRows(rows, resolvedVersion, capture, releaseOptions);
       // Run app reducers before entering the non-reentrant custody commit.
       // A transition after preparation simply makes the commit stale.
+      const convergedOps = convergedOptimisticOps(resolvedVersion, releaseOptions);
+      const releasedView = convergedOps.size > 0
+        ? applyOptimisticOverlay(JSON.parse(JSON.stringify(rows)), convergedOps)
+        : null;
       const overlaid = applyOptimisticOverlay(rows);
-      const resolvedVersion = version ?? maxServerRowVersion(rows);
+      let applied = false;
       const outcome = await compareContractCommit(client, coordinator, capture, () => {
+        // Another authoritative callback may have advanced the boundary while
+        // the durable authority comparison yielded. Recheck at the exact
+        // commit cut so an older frame can never overwrite it.
+        if (
+          isServerVersion(resolvedVersion)
+          && isServerVersion(lastServerVersion)
+          && resolvedVersion < lastServerVersion
+        ) return lastServerRows;
+        applied = true;
         lastServerRows = rows;
         lastServerVersion = resolvedVersion;
         if (!disposed && boundary && !queryAuthorizationHidden) {
           boundary.write(boundaryKey, () => overlaid);
+        }
+        releaseConvergedOptimistic(convergedOps);
+        if (releasedView && !disposed && boundary && !queryAuthorizationHidden) {
+          boundary.write(boundaryKey, () => releasedView);
         }
         return overlaid;
       });
@@ -1609,7 +1705,7 @@ export async function createSnapbackContractSurface({
         void confirmDurableAuthority().catch(() => {});
         return null;
       }
-      retainRows(rows, resolvedVersion, capture);
+      if (applied) retainRows(rows, resolvedVersion, capture);
       return outcome.value;
     };
 
@@ -1883,6 +1979,7 @@ export async function createSnapbackContractSurface({
         resultCapture,
         snapshot.rows,
         snapshot.version ?? maxServerRowVersion(snapshot.rows),
+        { releaseVersionlessSettlements: true },
       );
       if (published === null) throw staleContractAuthorityError();
       return published;
@@ -2053,6 +2150,7 @@ export async function createSnapbackContractSurface({
         await commitCurrent(resultCapture, () => {
           mutationCommitted = true;
           mutationOutput = output;
+          markOptimisticSettled(optimisticOp, output);
         });
         await confirmSentAcknowledgements(sentAcknowledgements, resultCapture);
         if (queued) {
@@ -2069,11 +2167,8 @@ export async function createSnapbackContractSurface({
           });
           await flushPendingAcknowledgements(resultCapture);
         }
-        // The commit landed: drop the optimistic op BEFORE reconciling so the
-        // authoritative row is not doubled by its own overlay.
-        if (optimisticOp) {
-          await commitCurrent(resultCapture, () => inFlightOptimistic.delete(optimisticOp));
-        }
+        // Settlement records V above; the op stays overlaid until a live frame,
+        // current_as_of, or the reconcile pull below applies version >= V.
         await reconcile(resultCapture);
         return output;
       } catch (error) {
@@ -2877,7 +2972,9 @@ export async function createSnapbackContractSurface({
             authorityCapture: resyncCapture,
           });
           const resultCapture = captureForTransportValue(client, resyncCapture, output);
-          await commitCurrent(resultCapture, () => undefined);
+          await commitCurrent(resultCapture, () => {
+            markOptimisticMutationSettled(record.id, output);
+          });
           await confirmSentAcknowledgements(sentAcknowledgements, resultCapture);
           await preflightDurable(resultCapture);
           await clientStore.settleMutation(record.id, {
@@ -2937,6 +3034,9 @@ export async function createSnapbackContractSurface({
           });
           await commitCurrent(errorCapture, () => {
             durablePendingCount = Math.max(0, durablePendingCount - 1);
+            // Refused replay writes have no convergence version; failure
+            // settlement remains the immediate overlay-release boundary.
+            removeOptimisticMutation(record.id);
           });
           failed += 1;
           publishDiagnostic(
@@ -2945,7 +3045,6 @@ export async function createSnapbackContractSurface({
             { mutation: record.function, clientMutationId: record.id },
           );
         }
-        await commitCurrent(resyncCapture, () => removeOptimisticMutation(record.id));
         await reconcile(resyncCapture);
       }
 

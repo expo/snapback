@@ -1203,6 +1203,79 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/optimistic-rebase-acceptance.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.llp-0200-settlement-isolation.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'llp-0200-phase1.2026-08-09.v1',
+    profileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-external-store',
+      'public-subpath-optimistic-rebase',
+      'public-subpath-rqs-registered',
+      'react-external',
+      'resolved-public-subpath-external-store',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.sessions-custody-offline-queue.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'public-subpath-rqs-registered',
+          'react-external',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.v1.json',
+        profileIds: Object.freeze(['public-subpath-external-store']),
+      }),
+      Object.freeze({
+        filename: 'baseline.single-row-delete-admission.v1.json',
+        profileIds: Object.freeze(['public-subpath-optimistic-rebase']),
+      }),
+      Object.freeze({
+        filename: 'baseline.local-sync-absence.v1.json',
+        profileIds: Object.freeze(['resolved-public-subpath-external-store']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0200#21-settlement-is-decoupled-from-subscriber-work',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-09',
+      fix: 'LLP 0200 Phase 1 adds watermark-gated optimistic-overlay release '
+        + 'and version-regression guards to packages/snapback-contract/index.mjs, '
+        + 'the ordering audit\'s top-risk fix for settlement isolation\'s '
+        + 'causal-version handoff.',
+      ticket: 'issues/closed/20260808-oq4-coalescing-measurement-spike.md',
+      byteDeltas: 'external-react-application min 93671->94180, gzip '
+        + '29049->29204, brotli 25347->25517; public-subpath-external-store '
+        + 'min 9767->10114, gzip 3539->3642, brotli 3189->3277; '
+        + 'public-subpath-optimistic-rebase min 45395->45602, gzip '
+        + '14291->14397, brotli 12791->12818; public-subpath-rqs-registered '
+        + 'min 32045->32144, gzip 10651->10686, brotli 9371->9389; '
+        + 'react-external min 93496->94005, gzip 29002->29151, brotli '
+        + '25296->25426; resolved-public-subpath-external-store min '
+        + '9776->10123, gzip 3544->3647, brotli 3196->3280.',
+      summary: 'Advance exactly the six closures grown by LLP 0200 Phase 1\'s '
+        + 'watermark-gated overlay release and version-regression guards; '
+        + 'every other active ceiling and all four predecessors remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-external-store',
+      'public-subpath-optimistic-rebase',
+      'public-subpath-rqs-registered',
+      'react-external',
+      'resolved-public-subpath-external-store',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['bun', ['run', '--cwd', 'packages/snapback-contract', 'test']],
+      ['node', ['packages/snapback-client/package.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {

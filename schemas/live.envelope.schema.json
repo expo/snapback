@@ -520,7 +520,7 @@
       "type": "object"
     },
     {
-      "description": "Rung-1 answer to a `resumeFromToken` subscribe (LLP 0090 D1.3, LLP\n0091 §0B.2): \"your held rows are current as of `version`\". The client\nadopts the mandatory fresh token and advances its version without\ntouching rows. Sent only to a subscriber that presented\n`resumeFromToken`, so decode ability is implied by the request — no\ncapability negotiation.",
+      "description": "Rowless acknowledgement that the subscription's held rows are current\nas of `version`. The original rung-1 resume answer carries a fresh\ntoken; scheduler convergence watermarks use the same additive envelope\nwithout one.\n\n@ref LLP 0200#21-settlement-is-decoupled-from-subscriber-work — skip\n  and no-change dispositions advance the per-subscription watermark.",
       "properties": {
         "function": {
           "type": "string"
@@ -538,8 +538,15 @@
           ]
         },
         "resume": {
-          "$ref": "#/$defs/ResumeWire",
-          "description": "Fresh token minted at `version` — the variant exists to advance it."
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResumeWire"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Fresh token minted at `version` for an RQS-capable subscription."
         },
         "subscription_id": {
           "type": "string"
@@ -555,8 +562,7 @@
         "kind",
         "subscription_id",
         "function",
-        "version",
-        "resume"
+        "version"
       ],
       "type": "object"
     },

@@ -195,7 +195,9 @@ pub enum FieldType {
     /// representation.
     ///
     /// @ref LLP 0004#dated-alignment-stored-literal-union-domains-2026-08-08
-    Enum { values: Vec<String> },
+    Enum {
+        values: Vec<String>,
+    },
     Boolean,
     Integer,
     Real,
@@ -203,7 +205,9 @@ pub enum FieldType {
     /// Ordinary arrays keep their separate 1,024-item contract ceiling.
     ///
     /// @ref LLP 0132#the-vvectordimensions-value
-    Vector { dimensions: u32 },
+    Vector {
+        dimensions: u32,
+    },
     Json,
     /// `v.principal()` — nominal typing over the auth-principal id string space
     /// (the same space as `ctx.auth.userId`, including LLP 0055 agent
@@ -223,7 +227,9 @@ pub enum FieldType {
     ///
     /// @ref LLP 0056#rule-helpers — resource references must name the same
     ///   declared resource type; a plain string cannot prove that equality.
-    Id { table: String },
+    Id {
+        table: String,
+    },
     /// Framework-owned relation-incarnation stamp. It is stored as a string,
     /// but unlike an application string it is never writable by application
     /// arguments. The paired required foreign-key field is the complete

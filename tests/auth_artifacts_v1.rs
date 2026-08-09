@@ -3,10 +3,11 @@
 
 use serde_json::json;
 use snapback::manifest::{
-    AgentsManifest, AgentsMode, AuthManifest, AuthMode, AuthRequirement, CapabilityManifest, CapabilityMaturity,
-    CronJobDefinition, FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest,
-    FunctionRuntime, HandlerPlan, IbexModule, InvitedBy, QueryPlan, SNAPBACK_SCHEMA_VERSION,
-    SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, TargetCapabilityId, ValueExpr,
+    AgentsManifest, AgentsMode, AuthManifest, AuthMode, AuthRequirement, CapabilityManifest,
+    CapabilityMaturity, CronJobDefinition, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
+    FunctionManifest, FunctionRuntime, HandlerPlan, IbexModule, InvitedBy, QueryPlan,
+    SNAPBACK_SCHEMA_VERSION, SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, TargetCapabilityId,
+    ValueExpr,
 };
 
 fn host_query(name: &str) -> FunctionDefinition {

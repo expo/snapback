@@ -4587,6 +4587,78 @@
       ],
       "type": "string"
     },
+    "LiveAuthorityLaneStats": {
+      "description": "Fail-closed authority-lane work and final-publication gate outcomes.",
+      "properties": {
+        "fencesApplied": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lastFenceMarkingLatencyMs": {
+          "format": "double",
+          "type": "number"
+        },
+        "maxFenceMarkingLatencyMs": {
+          "format": "double",
+          "type": "number"
+        },
+        "restorationsCompleted": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "staleAuthorityFramesDiscarded": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "fencesApplied",
+        "lastFenceMarkingLatencyMs",
+        "maxFenceMarkingLatencyMs",
+        "restorationsCompleted",
+        "staleAuthorityFramesDiscarded"
+      ],
+      "type": "object"
+    },
+    "LiveCoalesceStats": {
+      "description": "Cumulative coalescing counters reported on the serialized inspect surface.",
+      "properties": {
+        "backstopFlushes": {
+          "description": "Coalesced flushes performed by the backstop task specifically.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "coalescedFlushes": {
+          "description": "Flushes that delivered a pending (coalesced) frame, by any path.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deferredCommits": {
+          "description": "Commit frames whose data fan-out was deferred into the pending frame.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lastFlushMergedFrames": {
+          "description": "Number of deferred commit frames merged into the most recent\ncoalesced flush (including the flushing commit's own frame when the\nflush rode a commit).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "deferredCommits",
+        "coalescedFlushes",
+        "backstopFlushes",
+        "lastFlushMergedFrames"
+      ],
+      "type": "object"
+    },
     "LiveDeliveryStats": {
       "properties": {
         "authorizationBlastRadius": {
@@ -4673,6 +4745,57 @@
       ],
       "type": "object"
     },
+    "LiveEvaluationStats": {
+      "description": "Scheduler evaluation lifecycle and wire-output accounting.",
+      "properties": {
+        "cumulativeDurationMs": {
+          "format": "double",
+          "type": "number"
+        },
+        "deliveredBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deliveredFramesByWireKind": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "evaluationsAbandoned": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "evaluationsFinished": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "evaluationsStarted": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lastTurnDurationMs": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "evaluationsStarted",
+        "evaluationsFinished",
+        "evaluationsAbandoned",
+        "cumulativeDurationMs",
+        "lastTurnDurationMs",
+        "deliveredFramesByWireKind",
+        "deliveredBytes"
+      ],
+      "type": "object"
+    },
     "LiveFullTextSearchFactsV1": {
       "additionalProperties": false,
       "description": "The exact inspection fact block a future claiming target must publish.\nValues are target facts, not app-authored authority. The sibling stays\nabsent while support is false, but landing the closed shape now prevents\nthe runtime wave from inventing a looser or backend-specific projection.\n\n@ref LLP 0136#capability-id-and-claim-discipline-llp-0119-oq2-proposal",
@@ -4728,6 +4851,56 @@
       ],
       "type": "object"
     },
+    "LiveMatcherDecisionStats": {
+      "description": "Permanent matcher-decision ledger. Every subscription disposition is\nclassified once into one of these four OQ4-compatible lanes.",
+      "properties": {
+        "conservativeFallback": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "matchDelta": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "matchReplace": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "skip": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "matchReplace",
+        "matchDelta",
+        "skip",
+        "conservativeFallback"
+      ],
+      "type": "object"
+    },
+    "LiveSettlementStats": {
+      "description": "Commit-ack to caller-settlement decomposition for applied mutations.",
+      "properties": {
+        "cumulativeCommitAckToSettlementMs": {
+          "format": "double",
+          "type": "number"
+        },
+        "lastCommitAckToSettlementMs": {
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lastCommitAckToSettlementMs",
+        "cumulativeCommitAckToSettlementMs"
+      ],
+      "type": "object"
+    },
     "LiveSubscriptionInfo": {
       "properties": {
         "connectionId": {
@@ -4744,6 +4917,26 @@
         "id",
         "connectionId",
         "function"
+      ],
+      "type": "object"
+    },
+    "LiveWatermarkStats": {
+      "description": "Standalone convergence-envelope production and latest-value collapse.",
+      "properties": {
+        "envelopesCoalesced": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "envelopesEmitted": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "envelopesEmitted",
+        "envelopesCoalesced"
       ],
       "type": "object"
     },
@@ -8782,8 +8975,26 @@
     "functions": {
       "$ref": "#/$defs/FunctionManifest"
     },
+    "liveAuthority": {
+      "$ref": "#/$defs/LiveAuthorityLaneStats"
+    },
+    "liveCoalesce": {
+      "$ref": "#/$defs/LiveCoalesceStats"
+    },
     "liveDelivery": {
       "$ref": "#/$defs/LiveDeliveryStats"
+    },
+    "liveEvaluation": {
+      "$ref": "#/$defs/LiveEvaluationStats"
+    },
+    "liveMatcher": {
+      "$ref": "#/$defs/LiveMatcherDecisionStats"
+    },
+    "liveSettlement": {
+      "$ref": "#/$defs/LiveSettlementStats"
+    },
+    "liveWatermarks": {
+      "$ref": "#/$defs/LiveWatermarkStats"
     },
     "maintenance": {
       "$ref": "#/$defs/MaintenanceDiagnostics"
@@ -8853,6 +9064,12 @@
     "activeConnections",
     "reapedConnections",
     "liveDelivery",
+    "liveMatcher",
+    "liveEvaluation",
+    "liveCoalesce",
+    "liveSettlement",
+    "liveAuthority",
+    "liveWatermarks",
     "ephemeral",
     "cron",
     "maintenance",

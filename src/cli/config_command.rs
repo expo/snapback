@@ -192,4 +192,3 @@ pub(crate) fn config_command(command: ConfigCommand) -> anyhow::Result<()> {
         }
     }
 }
-

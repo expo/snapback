@@ -30,6 +30,18 @@ pub struct InspectState {
     pub reaped_connections: u64,
     #[serde(rename = "liveDelivery")]
     pub live_delivery: LiveDeliveryStats,
+    #[serde(rename = "liveMatcher")]
+    pub live_matcher: LiveMatcherDecisionStats,
+    #[serde(rename = "liveEvaluation")]
+    pub live_evaluation: LiveEvaluationStats,
+    #[serde(rename = "liveCoalesce")]
+    pub live_coalesce: crate::live_coalesce::LiveCoalesceStats,
+    #[serde(rename = "liveSettlement")]
+    pub live_settlement: LiveSettlementStats,
+    #[serde(rename = "liveAuthority")]
+    pub live_authority: LiveAuthorityLaneStats,
+    #[serde(rename = "liveWatermarks")]
+    pub live_watermarks: LiveWatermarkStats,
     pub ephemeral: EphemeralDiagnostics,
     pub cron: CronInspectState,
     pub maintenance: MaintenanceDiagnostics,
@@ -108,6 +120,18 @@ pub struct PublicInspect {
     pub reaped_connections: u64,
     #[serde(rename = "liveDelivery")]
     pub live_delivery: LiveDeliveryStats,
+    #[serde(rename = "liveMatcher")]
+    pub live_matcher: LiveMatcherDecisionStats,
+    #[serde(rename = "liveEvaluation")]
+    pub live_evaluation: LiveEvaluationStats,
+    #[serde(rename = "liveCoalesce")]
+    pub live_coalesce: crate::live_coalesce::LiveCoalesceStats,
+    #[serde(rename = "liveSettlement")]
+    pub live_settlement: LiveSettlementStats,
+    #[serde(rename = "liveAuthority")]
+    pub live_authority: LiveAuthorityLaneStats,
+    #[serde(rename = "liveWatermarks")]
+    pub live_watermarks: LiveWatermarkStats,
     pub ephemeral: PublicEphemeralDiagnostics,
     pub cron: PublicCronInspectState,
     pub maintenance: MaintenanceDiagnostics,
@@ -351,6 +375,12 @@ impl From<InspectState> for PublicInspect {
             active_connections,
             reaped_connections,
             live_delivery,
+            live_matcher,
+            live_evaluation,
+            live_coalesce,
+            live_settlement,
+            live_authority,
+            live_watermarks,
             ephemeral,
             cron,
             maintenance,
@@ -389,6 +419,12 @@ impl From<InspectState> for PublicInspect {
             active_connections,
             reaped_connections,
             live_delivery,
+            live_matcher,
+            live_evaluation,
+            live_coalesce,
+            live_settlement,
+            live_authority,
+            live_watermarks,
             ephemeral: ephemeral.into(),
             cron: cron.into(),
             maintenance,
@@ -397,4 +433,3 @@ impl From<InspectState> for PublicInspect {
         }
     }
 }
-

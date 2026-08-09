@@ -9,8 +9,8 @@ use crate::auth::coordinator::{
     ConnectionSessionThrottleKey, IssuanceFinish, RevocationFinish, RotationFinish,
 };
 use crate::auth::crypto::{
-    AgentCredential, CreationInvitation, CredentialClass, PairingCode, ScopedToken, SessionBearer, classify_credential,
-    dispatch_credential_class,
+    AgentCredential, CreationInvitation, CredentialClass, PairingCode, ScopedToken, SessionBearer,
+    classify_credential, dispatch_credential_class,
 };
 use crate::auth::descriptor::descriptor_for_resolved_authority;
 use crate::auth::handshake::{
@@ -69,11 +69,12 @@ use crate::local::{
     StagedNestedMutation, live_stream_text, live_stream_text_with_server_observed,
 };
 use crate::manifest::{
-    ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ArtifactGeneration, AuthInput, AuthMode, AuthRequirement,
-    AuthorityDescriptor, CtxAnswerLedger, FiniteQueryOutput, FiniteQueryRequest,
-    FunctionCallRequest, FunctionInvocationFacts, FunctionKind, FunctionManifest, FunctionResponse,
-    FunctionRuntime, HandlerInput, MutationAcknowledgementRequest, MutationAcknowledgementResponse,
-    MutationOutput, MutationRequest, QueryOutput, ReadDependency, SchemaManifest, SeedData,
+    ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ArtifactGeneration, AuthInput,
+    AuthMode, AuthRequirement, AuthorityDescriptor, CtxAnswerLedger, FiniteQueryOutput,
+    FiniteQueryRequest, FunctionCallRequest, FunctionInvocationFacts, FunctionKind,
+    FunctionManifest, FunctionResponse, FunctionRuntime, HandlerInput,
+    MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationOutput,
+    MutationRequest, QueryOutput, ReadDependency, SchemaManifest, SeedData,
 };
 use crate::push::{
     PushTokenRegistrationResponse, PushTokenUnregisterResponse, RegisterPushTokenRequest,
@@ -354,7 +355,21 @@ where
     T: Send + 'static,
     U: Send + 'static,
 {
-    let mut guard = lock_managed_snapback(state).await;
+    let guard = lock_managed_snapback(state).await;
+    with_locked_snapback_then(guard, work, after).await
+}
+
+async fn with_locked_snapback_then<T, U, F, A>(
+    mut guard: tokio::sync::OwnedMutexGuard<LocalSnapback>,
+    work: F,
+    after: A,
+) -> U
+where
+    F: FnOnce(&mut LocalSnapback) -> T + Send + 'static,
+    A: FnOnce(T) -> U + Send + 'static,
+    T: Send + 'static,
+    U: Send + 'static,
+{
     tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
         let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
@@ -16506,26 +16521,27 @@ pub fn live_coalesce_disabled(value: Option<&str>) -> bool {
     matches!(value, Some("1") | Some("true"))
 }
 
-/// How long the backstop waits after a flush request before taking the
-/// global lock. The wait lets a commit burst keep merging into the pending
-/// frame; the lock acquisition then queues FIFO behind already-waiting
-/// writers, so by the time the flush runs it delivers the whole drain in one
-/// re-evaluation per subscription.
-const LIVE_FANOUT_BACKSTOP_DELAY: Duration = Duration::from_millis(10);
+/// `SNAPBACK_LIVE_SCHEDULER_DISABLED=1` restores the legacy inline fan-out
+/// path. The coalescing switch remains an independent compatibility control;
+/// either switch prevents scheduler installation.
+pub fn live_scheduler_disabled(value: Option<&str>) -> bool {
+    matches!(value, Some("1") | Some("true"))
+}
 
-/// Install the live fan-out coalescer and run its backstop flusher.
+pub fn live_max_eval_turn(value: Option<&str>) -> Duration {
+    value
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|milliseconds| *milliseconds > 0)
+        .map(Duration::from_millis)
+        .unwrap_or(Duration::from_secs(30))
+}
+
+/// Install the evaluation scheduler (which subsumes the old backstop). Each
+/// loop iteration acquires Local for exactly one subscription, then releases
+/// it so queued commits can settle before the next subscription turn.
 ///
-/// Deferral inside `LocalSnapback` is only a scheduling decision; this task
-/// is the delivery guarantee. Every deferral signals `request_flush` (sticky
-/// — a permit is stored if this task is mid-flush), so a deferred frame is
-/// flushed within roughly `LIVE_FANOUT_BACKSTOP_DELAY` plus one lock queue
-/// even if no further commit ever arrives. Under a sustained write stream
-/// the fair FIFO lock gives this task a turn each drain cycle, which is the
-/// no-starvation bound: deliveries happen at least once per evaluation-cost
-/// interval.
-///
-/// @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08 —
-/// coalescer and backstop install together or not at all.
+/// @ref LLP 0200#22-fan-out-leaves-the-write-turn — one subscription per
+/// lock turn is the settlement-isolation boundary.
 pub fn spawn_live_fanout_backstop(
     state: SharedSnapback,
     coalescer: Arc<crate::live_coalesce::LiveFanoutCoalescer>,
@@ -16537,11 +16553,71 @@ pub fn spawn_live_fanout_backstop(
             .install_live_fanout_coalescer(coalescer.clone());
         loop {
             coalescer.flush_requested().await;
-            tokio::time::sleep(LIVE_FANOUT_BACKSTOP_DELAY).await;
-            with_snapback(&state, |snapback| {
-                snapback.flush_pending_live_fanout();
-            })
-            .await;
+            loop {
+                // Lock queueing is not evaluation time. Acquire first, then
+                // select and run the turn under this exact guard so the
+                // max_eval_turn clock covers only the lock-held evaluator.
+                let mut guard = lock_managed_snapback(&state).await;
+                let next = guard.next_pending_live_subscription();
+                let Some(subscription_id) = next else {
+                    drop(guard);
+                    break;
+                };
+                let control = Arc::new(crate::live_coalesce::LiveEvaluationControl::default());
+                let turn_control = control.clone();
+                let turn_subscription_id = subscription_id.clone();
+                let mut turn = tokio::spawn(async move {
+                    with_locked_snapback_then(
+                        guard,
+                        move |snapback| {
+                            snapback
+                                .run_pending_live_subscription(&turn_subscription_id, turn_control)
+                        },
+                        |output| output,
+                    )
+                    .await
+                });
+                match tokio::time::timeout(coalescer.tunables().max_eval_turn, &mut turn).await {
+                    Ok(Ok(true)) => {}
+                    Ok(Ok(false)) => break,
+                    Ok(Err(error)) => {
+                        eprintln!(
+                            "{}",
+                            json!({
+                                "kind": "live_scheduler_health",
+                                "code": "SNAPBACK_LIVE_EVALUATION_TASK_FAILED",
+                                "subscriptionId": subscription_id,
+                                "error": error.to_string(),
+                            })
+                        );
+                    }
+                    Err(_) if control.abandon() => {
+                        eprintln!(
+                            "{}",
+                            json!({
+                                "kind": "live_scheduler_health",
+                                "code": "SNAPBACK_LIVE_EVALUATION_TIMEOUT",
+                                "subscriptionId": subscription_id,
+                                "maxEvalTurnMs": coalescer.tunables().max_eval_turn.as_millis(),
+                            })
+                        );
+                        // Dropping the JoinHandle abandons only this waiter;
+                        // the blocking turn observes the control flag before
+                        // publication and schedules the one permitted retry.
+                    }
+                    Err(_) => {
+                        // Publication already started at the timeout edge. It
+                        // is safer to await that narrow terminal section than
+                        // to report a timeout after bytes became visible.
+                        let _ = turn.await;
+                    }
+                }
+                // Make the lock release between turns observable to ready
+                // request tasks before this scheduler queues for another
+                // subscription. Mutex FIFO then gives an already-ready commit
+                // the enqueue-complete turn promised by the scheduling model.
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
         }
     })
 }
@@ -20190,11 +20266,22 @@ async fn invoke_mutation(
 ) -> Response {
     let network_profiles = runtime.network_profiles.clone();
     let mut network_basis = crate::network_profile::MutationEgressBasis::ResultReady;
+    let mut trace_client_mutation_id = None;
+    // @ref LLP 0200#21-settlement-is-decoupled-from-subscriber-work — the
+    // commit-ack instant travels from the write turn to the response boundary
+    // so the settlement gap is measured per applied mutation.
+    let mut settlement_observation: Option<(
+        Instant,
+        std::sync::Arc<std::sync::Mutex<crate::local::LiveSettlementStats>>,
+    )> = None;
     let result: Result<Json<MutationResponse>, ApiError> = async {
         let attribution = authority.function_attribution();
         let Json(request) = input
             .map_err(ApiError::from_json_rejection)
             .map_err(|error| error.with_attribution(attribution.clone()))?;
+        if crate::spike_trace::enabled() {
+            trace_client_mutation_id = request.client_mutation_id.clone();
+        }
         if let Some(current_id) = request.client_mutation_id.as_deref()
             && request
                 .acknowledged_client_mutation_ids
@@ -20223,7 +20310,7 @@ async fn invoke_mutation(
         let stage_operation_issuance = request.operation_issuance.clone();
         let stage_settlement = request.settlement.clone();
         let stage_authority = authority.clone();
-        let (result, receipt, response_authority_descriptor, committed_network_basis) =
+        let (result, receipt, response_authority_descriptor, committed_network_basis, commit_ack) =
             with_snapback_staged_authorization_write(
                 &state,
                 move |snapback| {
@@ -20248,11 +20335,17 @@ async fn invoke_mutation(
                     snapback
                         .commit_staged_recorded_authorization_mutation_with_network_egress(staged)
                         .map(|(result, receipt, network_basis)| {
+                            // Taken inside the same Local turn that stamped
+                            // it, so a concurrent mutation cannot mispair.
+                            let commit_ack = snapback
+                                .take_last_commit_ack_at()
+                                .map(|at| (at, snapback.live_settlement_stats_cell()));
                             (
                                 result,
                                 receipt,
                                 response_authority_descriptor,
                                 network_basis,
+                                commit_ack,
                             )
                         })
                 },
@@ -20263,6 +20356,14 @@ async fn invoke_mutation(
             .map_err(ApiError::from)
             .map_err(|error| error.with_attribution(attribution.clone()))?;
         network_basis = committed_network_basis;
+        settlement_observation = commit_ack;
+        crate::spike_trace::mutate_settle(
+            crate::spike_trace::timestamp_ms(),
+            "handler_result_ready",
+            &name,
+            trace_client_mutation_id.as_deref(),
+            None,
+        );
         match result {
             // The mutation envelope carries its attribution member directly
             // (never through the FunctionResponse flatten) so the served bytes
@@ -20293,7 +20394,102 @@ async fn invoke_mutation(
     let response = result.into_response();
     let prepared =
         prepare_mutation_network_egress(&network_profiles, network_basis, Instant::now());
-    release_network_profiled_response(response, prepared).await
+    let response = release_network_profiled_response(response, prepared).await;
+    observe_mutation_settlement(
+        response,
+        name,
+        trace_client_mutation_id,
+        settlement_observation,
+    )
+}
+
+/// Record the first response data frame yielded to Hyper. This is the last
+/// application-owned boundary before the transport writes the mutation
+/// response, and unlike handler return it includes configured egress delay.
+/// It closes §2.1's settlement milestone: the commit-ack→settlement gap for an
+/// applied mutation, plus the optional `mutate_settle` measurement trace.
+struct MutationSettleBody {
+    inner: Body,
+    mutation: String,
+    client_mutation_id: Option<String>,
+    settlement: Option<(
+        Instant,
+        std::sync::Arc<std::sync::Mutex<crate::local::LiveSettlementStats>>,
+    )>,
+    status: u16,
+    recorded: bool,
+}
+
+impl HttpBody for MutationSettleBody {
+    type Data = Bytes;
+    type Error = axum::Error;
+
+    fn poll_frame(
+        self: std::pin::Pin<&mut Self>,
+        context: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Result<http_body::Frame<Self::Data>, Self::Error>>> {
+        let this = self.get_mut();
+        let frame = std::pin::Pin::new(&mut this.inner).poll_frame(context);
+        if !this.recorded
+            && matches!(
+                &frame,
+                std::task::Poll::Ready(Some(Ok(frame))) if frame.data_ref().is_some()
+            )
+        {
+            this.recorded = true;
+            if let Some((commit_ack_at, stats)) = this.settlement.take() {
+                let gap_ms = commit_ack_at.elapsed().as_secs_f64() * 1_000.0;
+                let mut stats = stats
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                stats.last_commit_ack_to_settlement_ms = gap_ms;
+                stats.cumulative_commit_ack_to_settlement_ms += gap_ms;
+            }
+            crate::spike_trace::mutate_settle(
+                crate::spike_trace::timestamp_ms(),
+                "http_response_written",
+                &this.mutation,
+                this.client_mutation_id.as_deref(),
+                Some(this.status),
+            );
+        }
+        frame
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.inner.is_end_stream()
+    }
+
+    fn size_hint(&self) -> http_body::SizeHint {
+        self.inner.size_hint()
+    }
+}
+
+fn observe_mutation_settlement(
+    response: Response,
+    mutation: String,
+    client_mutation_id: Option<String>,
+    settlement: Option<(
+        Instant,
+        std::sync::Arc<std::sync::Mutex<crate::local::LiveSettlementStats>>,
+    )>,
+) -> Response {
+    if settlement.is_none() && !crate::spike_trace::enabled() {
+        return response;
+    }
+    let status = response.status().as_u16();
+    let (parts, body) = response.into_parts();
+    Response::from_parts(
+        parts,
+        Body::new(MutationSettleBody {
+            inner: body,
+            mutation,
+            client_mutation_id,
+            settlement,
+            status,
+            recorded: false,
+        }),
+    )
 }
 
 /// App-data action runner for side-effectful app work that is not a transaction:

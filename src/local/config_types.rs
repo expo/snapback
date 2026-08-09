@@ -107,4 +107,3 @@ pub struct ConfigVerifyOutcome {
     pub verified: ConfigVerificationStatus,
     pub generation: u64,
 }
-

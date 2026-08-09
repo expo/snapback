@@ -1,8 +1,8 @@
 //! Post-commit live fan-out coalescing (LLP 0008 §Dated decision —
 //! post-commit fan-out coalescing (2026-08-08); LLP 0191 §1 rung 1).
 //!
-//! When commits are backlogged behind fan-out evaluation, their data fan-out
-//! merges into one pending frame delivered once at the latest version. These
+//! Serving-process commits enqueue outside-turn fan-out, and backlogged data
+//! merges into one pending frame per subscription at the latest version. These
 //! tests prove the three obligations of that decision: (a) a burst of M
 //! mutations costs each observer far fewer than M re-evaluations, (b) the
 //! delivered state converges exactly to a fresh query, and (c) a continuous
@@ -24,9 +24,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-/// Deterministic-deferral tunables: the nonzero `min_window` floor makes every
-/// commit that lands within ten minutes of the previous fan-out frame count as
-/// backlogged, so tests control flush timing exactly.
+/// Deterministic scheduler tunables. The long hold/turn bounds keep tests in
+/// explicit control of synchronous drains.
 fn deterministic_tunables() -> LiveCoalesceTunables {
     LiveCoalesceTunables {
         min_eval_cost: Duration::ZERO,
@@ -34,6 +33,7 @@ fn deterministic_tunables() -> LiveCoalesceTunables {
         max_frames: 4096,
         max_changes: 25_000,
         max_hold: Duration::from_secs(600),
+        max_eval_turn: Duration::from_secs(30),
     }
 }
 
@@ -53,15 +53,11 @@ fn backlogged_burst_coalesces_to_one_frame_and_converges() {
         .subscribe_live("listMine", sub_input("conn", "ada"))
         .expect("subscribe");
 
-    // Prime: the very first commit always fans out inline (no previous frame
-    // means no backlog evidence yet).
     let mut client: BTreeMap<String, Value> = BTreeMap::new();
     create(&mut snapback, "prime", "ada");
-    let primed = drain(&mut snapback, "conn");
-    assert_eq!(primed.len(), 1, "the priming commit delivers inline");
-    apply_deltas(&mut client, primed);
 
-    // Burst: every commit lands inside the backlog window → all deferred.
+    // Every installed-scheduler commit is outside-turn and collapses while no
+    // scheduler turn is driven.
     for index in 0..10 {
         create(&mut snapback, &format!("burst-{index}"), "ada");
     }
@@ -69,7 +65,7 @@ fn backlogged_burst_coalesces_to_one_frame_and_converges() {
         drain(&mut snapback, "conn").is_empty(),
         "backlogged commits defer their data fan-out"
     );
-    assert_eq!(snapback.live_coalesce_stats().deferred_commits, 10);
+    assert_eq!(snapback.live_coalesce_stats().deferred_commits, 11);
 
     // The backstop's flush delivers the whole burst as ONE frame.
     assert!(
@@ -80,7 +76,7 @@ fn backlogged_burst_coalesces_to_one_frame_and_converges() {
     assert_eq!(
         flushed.len(),
         1,
-        "ten deferred commits deliver exactly one coalesced frame"
+        "eleven queued commits deliver exactly one coalesced frame"
     );
     apply_deltas(&mut client, flushed);
 
@@ -93,11 +89,179 @@ fn backlogged_burst_coalesces_to_one_frame_and_converges() {
     let stats = snapback.live_coalesce_stats();
     assert_eq!(stats.coalesced_flushes, 1);
     assert_eq!(stats.backstop_flushes, 1);
-    assert_eq!(stats.last_flush_merged_frames, 10);
+    assert_eq!(stats.last_flush_merged_frames, 11);
     assert!(
         !snapback.flush_pending_live_fanout(),
         "nothing pending after the flush"
     );
+}
+
+/// The turn-start cut drains the complete pending prefix and stamps the delta
+/// with that same store head. The implementation carries a hard assertion for
+/// coverage == stamp; this wire assertion makes the accepted burst observable
+/// at the integration boundary too.
+#[test]
+fn atomic_cut_never_stamps_ahead_of_coverage() {
+    let mut snapback = configured();
+    install_deterministic_coalescer(&mut snapback);
+    snapback
+        .subscribe_live("listMine", sub_input("conn-cut", "ada"))
+        .expect("subscribe");
+
+    for index in 0..8 {
+        create(&mut snapback, &format!("cut-{index}"), "ada");
+    }
+    let current = snapback
+        .invoke_query("listMine", input(json!({ "userId": "ada" }), "ada"))
+        .expect("fresh head before scheduler cut");
+    assert!(snapback.flush_pending_live_fanout());
+    let delivered = drain(&mut snapback, "conn-cut");
+    assert_eq!(delivered.len(), 1, "one turn covers the complete burst");
+    let RealtimeEnvelope::Durable(message) = &delivered[0] else {
+        panic!("live delivery must be durable");
+    };
+    let frame: Value = serde_json::from_slice(&message.payload).expect("live frame JSON");
+    assert_eq!(frame["kind"], "live_delta");
+    assert_eq!(
+        frame["version"], current.version,
+        "the emitted stamp is exactly the store head covered by the atomic cut"
+    );
+}
+
+/// Matcher-disjoint and evaluated-no-change turns both publish the rowless
+/// subscription watermark that makes convergence observable after settlement.
+#[test]
+fn skip_and_no_change_advance_subscription_watermark() {
+    let mut snapback = configured();
+    install_deterministic_coalescer(&mut snapback);
+    snapback
+        .subscribe_live("listMine", sub_input("conn-watermark", "ada"))
+        .expect("subscribe");
+
+    let skipped_version = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "theirs", "userId": "bob" }), "bob"),
+        )
+        .expect("matcher-disjoint commit")
+        .version;
+    assert!(snapback.flush_pending_live_fanout());
+    let skipped = drain_json(&mut snapback, "conn-watermark");
+    assert_eq!(skipped.len(), 1);
+    assert_eq!(skipped[0]["kind"], "current_as_of");
+    assert_eq!(skipped[0]["version"], skipped_version);
+    assert!(skipped[0].get("resume").is_none());
+
+    let no_change_version = snapback
+        .invoke_mutation(
+            "createThenDelete",
+            input(json!({ "title": "transient", "userId": "ada" }), "ada"),
+        )
+        .expect("net-no-change commit")
+        .version;
+    assert!(snapback.flush_pending_live_fanout());
+    let no_change = drain_json(&mut snapback, "conn-watermark");
+    assert_eq!(no_change.len(), 1);
+    assert_eq!(no_change[0]["kind"], "current_as_of");
+    assert_eq!(no_change[0]["version"], no_change_version);
+}
+
+/// A watermark is appended behind older content for its subscription. The
+/// client can therefore never observe watermark V while content < V is still
+/// pending behind it.
+#[test]
+fn watermark_never_overtakes_undelivered_content() {
+    let mut snapback = configured();
+    install_deterministic_coalescer(&mut snapback);
+    snapback
+        .subscribe_live("listMine", sub_input("conn-order", "ada"))
+        .expect("subscribe");
+
+    let content_version = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "mine", "userId": "ada" }), "ada"),
+        )
+        .expect("content commit")
+        .version;
+    assert!(snapback.flush_pending_live_fanout());
+    let watermark_version = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "theirs", "userId": "bob" }), "bob"),
+        )
+        .expect("skip commit")
+        .version;
+    assert!(snapback.flush_pending_live_fanout());
+
+    let delivered = drain_json(&mut snapback, "conn-order");
+    assert_eq!(delivered.len(), 2);
+    assert_eq!(delivered[0]["kind"], "live_delta");
+    assert_eq!(delivered[0]["version"], content_version);
+    assert_eq!(delivered[1]["kind"], "current_as_of");
+    assert_eq!(delivered[1]["version"], watermark_version);
+    assert!(watermark_version > content_version);
+}
+
+/// Repeated skip turns collapse to one pending latest-value envelope, and a
+/// newer content frame removes a pending watermark because it carries the
+/// same version fact intrinsically.
+#[test]
+fn pending_watermarks_coalesce_and_newer_content_supersedes_them() {
+    let mut snapback = configured();
+    install_deterministic_coalescer(&mut snapback);
+    snapback
+        .subscribe_live("listMine", sub_input("conn-coalesce", "ada"))
+        .expect("subscribe");
+
+    let mut newest = 0;
+    for index in 0..6 {
+        newest = snapback
+            .invoke_mutation(
+                "createTodo",
+                input(
+                    json!({ "title": format!("theirs-{index}"), "userId": "bob" }),
+                    "bob",
+                ),
+            )
+            .expect("skip commit")
+            .version;
+        assert!(snapback.flush_pending_live_fanout());
+    }
+    let coalesced = drain_json(&mut snapback, "conn-coalesce");
+    assert_eq!(
+        coalesced.len(),
+        1,
+        "six pending skips collapse to one envelope"
+    );
+    assert_eq!(coalesced[0]["kind"], "current_as_of");
+    assert_eq!(coalesced[0]["version"], newest);
+
+    let watermark_version = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "still-theirs", "userId": "bob" }), "bob"),
+        )
+        .expect("pending watermark")
+        .version;
+    assert!(snapback.flush_pending_live_fanout());
+    let content_version = snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "mine", "userId": "ada" }), "ada"),
+        )
+        .expect("newer content")
+        .version;
+    assert!(content_version > watermark_version);
+    assert!(snapback.flush_pending_live_fanout());
+    let superseding = drain_json(&mut snapback, "conn-coalesce");
+    assert_eq!(
+        superseding.len(),
+        1,
+        "content supersedes the pending watermark"
+    );
+    assert_eq!(superseding[0]["kind"], "live_delta");
+    assert_eq!(superseding[0]["version"], content_version);
 }
 
 /// (b) across mixed operations: create/update/leave/delete/create-then-delete
@@ -113,6 +277,7 @@ fn coalesced_flush_converges_across_mixed_operations() {
 
     let mut client: BTreeMap<String, Value> = BTreeMap::new();
     let doomed = create(&mut snapback, "doomed", "ada");
+    assert!(snapback.flush_pending_live_fanout());
     apply_deltas(&mut client, drain(&mut snapback, "conn"));
     assert_eq!(client.len(), 1);
 
@@ -131,7 +296,7 @@ fn coalesced_flush_converges_across_mixed_operations() {
         )
         .expect("create-then-delete");
     assert!(drain(&mut snapback, "conn").is_empty());
-    assert_eq!(snapback.live_coalesce_stats().deferred_commits, 6);
+    assert_eq!(snapback.live_coalesce_stats().deferred_commits, 7);
 
     assert!(snapback.flush_pending_live_fanout());
     let flushed = drain(&mut snapback, "conn");
@@ -146,11 +311,11 @@ fn coalesced_flush_converges_across_mixed_operations() {
     assert_eq!(fresh.rows[0]["title"], "a-final");
 }
 
-/// (c) starvation bound: with the backstop unable to run, the pending-frame
-/// caps force an inline flush on the next commit, so a continuous write
-/// stream still yields periodic deliveries.
+/// (c) memory bound: without a running scheduler, a pending frame that reaches
+/// its cap degrades to one refresh obligation. It never re-enters the commit
+/// turn to flush inline.
 #[test]
-fn starvation_bound_forces_periodic_inline_flush() {
+fn pending_bound_degrades_to_scheduler_refresh() {
     let mut snapback = configured();
     let coalescer = Arc::new(LiveFanoutCoalescer::with_tunables(LiveCoalesceTunables {
         max_frames: 3,
@@ -163,26 +328,28 @@ fn starvation_bound_forces_periodic_inline_flush() {
 
     let mut client: BTreeMap<String, Value> = BTreeMap::new();
     create(&mut snapback, "prime", "ada");
+    assert!(snapback.flush_pending_live_fanout());
     apply_deltas(&mut client, drain(&mut snapback, "conn"));
 
-    // Three commits defer; the fourth exceeds `max_frames` and must flush
-    // inline, merging all four — without any backstop involvement.
+    // The fourth commit crosses the cap. Settlement still performs no fan-out;
+    // the pending data becomes one scheduler-priority refresh.
     for index in 0..4 {
         create(&mut snapback, &format!("stream-{index}"), "ada");
     }
+    assert!(drain(&mut snapback, "conn").is_empty());
+    assert!(snapback.flush_pending_live_fanout());
     let delivered = drain(&mut snapback, "conn");
-    assert_eq!(
-        delivered.len(),
-        1,
-        "the bounded stream still delivered (inline, merged) without a backstop"
-    );
+    assert_eq!(delivered.len(), 1, "one refresh delivers the latest state");
     apply_deltas(&mut client, delivered);
 
     let stats = snapback.live_coalesce_stats();
-    assert_eq!(stats.deferred_commits, 3);
-    assert_eq!(stats.coalesced_flushes, 1);
-    assert_eq!(stats.backstop_flushes, 0);
-    assert_eq!(stats.last_flush_merged_frames, 4);
+    // The fourth stream commit arrives after this subscription has already
+    // collapsed to a refresh obligation, so it creates no additional queued
+    // work and is intentionally absent from the accepted-work diagnostic.
+    assert_eq!(stats.deferred_commits, 4);
+    assert_eq!(stats.coalesced_flushes, 2);
+    assert_eq!(stats.backstop_flushes, 2);
+    assert_eq!(stats.last_flush_merged_frames, 1);
 
     let fresh = snapback
         .invoke_query("listMine", input(json!({ "userId": "ada" }), "ada"))
@@ -204,6 +371,7 @@ fn refresh_signal_supersedes_pending_frame() {
 
     let mut client: BTreeMap<String, Value> = BTreeMap::new();
     create(&mut snapback, "prime", "ada");
+    assert!(snapback.flush_pending_live_fanout());
     apply_deltas(&mut client, drain(&mut snapback, "conn"));
     for index in 0..3 {
         create(&mut snapback, &format!("deferred-{index}"), "ada");
@@ -219,6 +387,7 @@ fn refresh_signal_supersedes_pending_frame() {
         })
         .expect("seed");
 
+    assert!(snapback.flush_pending_live_fanout());
     let refreshed = drain(&mut snapback, "conn");
     assert_eq!(
         refreshed.len(),
@@ -255,6 +424,26 @@ fn no_coalescing_without_installed_coalescer() {
         "one frame per commit without a coalescer"
     );
     assert_eq!(snapback.live_coalesce_stats().deferred_commits, 0);
+
+    snapback
+        .invoke_mutation(
+            "createTodo",
+            input(json!({ "title": "legacy-skip", "userId": "bob" }), "bob"),
+        )
+        .expect("legacy matcher-disjoint commit");
+    snapback
+        .invoke_mutation(
+            "createThenDelete",
+            input(
+                json!({ "title": "legacy-no-change", "userId": "ada" }),
+                "ada",
+            ),
+        )
+        .expect("legacy no-change commit");
+    assert!(
+        drain(&mut snapback, "conn").is_empty(),
+        "legacy skip and no-change dispositions remain byte-for-byte silent"
+    );
 }
 
 /// The backstop flusher task end to end: deferred commits are delivered
@@ -271,7 +460,7 @@ async fn backstop_task_flushes_deferred_frames() {
         .expect("subscribe");
     let state: snapback::server::SharedSnapback = Arc::new(tokio::sync::Mutex::new(snapback));
     let coalescer = Arc::new(LiveFanoutCoalescer::with_tunables(deterministic_tunables()));
-    // Install synchronously so the burst below cannot race the backstop
+    // Install synchronously so the burst below cannot race the scheduler
     // task's own (idempotent, same-Arc) installation.
     state
         .lock()
@@ -283,13 +472,10 @@ async fn backstop_task_flushes_deferred_frames() {
     {
         let mut guard = state.lock().await;
         create(&mut guard, "prime", "ada");
-        let primed = drain(&mut guard, "conn");
-        assert_eq!(primed.len(), 1, "the priming commit delivers inline");
-        apply_deltas(&mut client, primed);
         for index in 0..5 {
             create(&mut guard, &format!("burst-{index}"), "ada");
         }
-        assert_eq!(guard.live_coalesce_stats().deferred_commits, 5);
+        assert_eq!(guard.live_coalesce_stats().deferred_commits, 6);
         assert!(drain(&mut guard, "conn").is_empty());
     }
 
@@ -441,6 +627,18 @@ fn query_rows(rows: &[Value]) -> BTreeMap<String, Value> {
 
 fn drain(snapback: &mut LocalSnapback, connection: &str) -> Vec<RealtimeEnvelope> {
     snapback.drain_outbox(connection)
+}
+
+fn drain_json(snapback: &mut LocalSnapback, connection: &str) -> Vec<Value> {
+    drain(snapback, connection)
+        .into_iter()
+        .filter_map(|envelope| match envelope {
+            RealtimeEnvelope::Durable(message) => {
+                Some(serde_json::from_slice(&message.payload).expect("durable live JSON"))
+            }
+            RealtimeEnvelope::Ephemeral(_) => None,
+        })
+        .collect()
 }
 
 fn create(snapback: &mut LocalSnapback, title: &str, user: &str) -> String {

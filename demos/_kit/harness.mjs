@@ -237,6 +237,25 @@ function stableStringify(value) {
       : val));
 }
 
+// Phase 1 (LLP 0200): in served mode, live fan-out runs on a scheduler off
+// the commit turn, so mutation settlement no longer implies the subscription
+// frames are already drainable. Re-run `assertion` (sync or async) until it
+// stops throwing or the budget lapses; the last failure is rethrown with the
+// label so the timeout names the convergence it was waiting on.
+export async function eventually(assertion, label, timeoutMs = 10_000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      return await assertion();
+    } catch (error) {
+      if (Date.now() >= deadline) {
+        throw new Error(`${label ?? 'eventually'} (after ${timeoutMs}ms): ${error?.message ?? error}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  }
+}
+
 export async function assertThrows(fn, code, message) {
   try {
     await fn();

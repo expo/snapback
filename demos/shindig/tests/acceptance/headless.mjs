@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
-import { assert, assertEqual, assertThrows, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
+import { assert, assertEqual, assertThrows, createSuite, eventually, runAcceptance } from '../../../_kit/harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -89,8 +89,13 @@ await runAcceptance(suite, async () => {
       args: { eventId, userId: GRACE, guestName: 'Grace' },
       userId: ADA,
     });
-    const rows = await feed.poll();
-    assertEqual(rows.map((r) => [r.eventTitle, r.status]), [['Rooftop Solstice', 'invited']], 'invited card');
+    // Phase 1 (LLP 0200): fan-out is scheduled off the commit turn — poll
+    // until the invite card lands instead of asserting one immediate drain.
+    const rows = await eventually(async () => {
+      const polled = await feed.poll();
+      assertEqual(polled.map((r) => [r.eventTitle, r.status]), [['Rooftop Solstice', 'invited']], 'invited card');
+      return polled;
+    }, 'invite card in grace_feed');
     assertEqual(rows[0].hostName, 'Ada', 'denormalized host name');
   });
 
@@ -179,12 +184,15 @@ await runAcceptance(suite, async () => {
       'guest list snapshot',
     );
     await db.mutate(api.rsvp, { args: { eventId, status: 'maybe' }, userId: GRACE });
-    const rows = await guests.poll();
-    assertEqual(
-      rows.map((r) => [r.guestName, r.status]).sort(),
-      [['Ada', 'host'], ['Grace', 'maybe'], ['Linus', 'invited']],
-      'status change delivered live',
-    );
+    // Phase 1 (LLP 0200): poll until the scheduled fan-out delivers the change.
+    await eventually(async () => {
+      const rows = await guests.poll();
+      assertEqual(
+        rows.map((r) => [r.guestName, r.status]).sort(),
+        [['Ada', 'host'], ['Grace', 'maybe'], ['Linus', 'invited']],
+        'status change delivered live',
+      );
+    }, 'RSVP status change on ada_guests');
   });
 
   await suite.check('a changed RSVP does not re-seat membership', async () => {
@@ -209,12 +217,27 @@ await runAcceptance(suite, async () => {
       userId: EVE,
     });
     assertEqual(guests.rows, [], 'non-member guest list starts empty');
-    await db.mutate(api.postToWall, {
+    const post = await db.mutate(api.postToWall, {
       args: { eventId, message: 'see everyone soon!', authorName: 'Ada' },
       userId: ADA,
     });
-    const updates = await db.drainUpdates('eve_guests');
-    assertEqual(updates, [], 'member activity must not leak to a non-member subscription');
+    // Phase 1 (LLP 0200): fan-out is scheduled off the commit turn, and a
+    // subscription the matcher skips converges through a rows-free
+    // `current_as_of` watermark at the commit's version. Wait on that
+    // watermark so the no-leak assert observes a completed fan-out pass.
+    const updates = [];
+    await eventually(async () => {
+      updates.push(...await db.drainUpdates('eve_guests'));
+      assert(
+        updates.some((u) => u.kind === 'current_as_of' && u.version >= post.version),
+        `no current_as_of watermark at version ${post.version} yet`,
+      );
+    }, 'eve_guests convergence watermark');
+    assertEqual(
+      updates.filter((u) => u.kind !== 'current_as_of'),
+      [],
+      'member activity must not leak to a non-member subscription',
+    );
     await assertThrows(
       () => db.mutate(api.postToWall, { args: { eventId, message: 'hi', authorName: 'Eve' }, userId: EVE }),
       'SNAPBACK_AUTH_PERMISSION_DENIED',
@@ -233,7 +256,12 @@ await runAcceptance(suite, async () => {
       args: { eventId, message: 'limes acquired 🍋', authorName: 'Grace' },
       userId: GRACE,
     });
-    const rows = await wall.poll();
+    // Phase 1 (LLP 0200): poll until the scheduled fan-out delivers the post.
+    const rows = await eventually(async () => {
+      const polled = await wall.poll();
+      assertEqual(polled.length, 2, 'member post not yet delivered');
+      return polled;
+    }, 'member post on grace_wall');
     assertEqual(
       rows.map((r) => [r.authorName, r.message]),
       [['Ada', 'see everyone soon!'], ['Grace', 'limes acquired 🍋']],

@@ -800,6 +800,19 @@ store-only closure names the local-read-admission receipt. Both historical
 receipts remain immutable, and every unaffected profile retains its existing
 active ceiling.
 
+## Watermark amendment — 2026-08-08
+
+LLP 0200 Phase 1 made the `current_as_of` envelope subscription-scoped
+and routine: servers emit it for matcher-skip and no-change fan-out
+dispositions (`resume` is now optional on the wire — additive), so every
+subscription's observed version advances on every commit's fan-out pass
+and convergence ("this subscription reflects version ≥ V") is
+client-decidable. Clients MUST treat rows-free `current_as_of` frames as
+version-only advancement (existing decoders already do); protocol
+consumers MUST NOT assume mutation settlement implies prior frame
+delivery — the mutate response's committed version plus the watermark is
+the ordering carrier. Contracts: LLP 0200 §2.1.
+
 ## Alternatives considered
 
 - **Extend LLP 0064 instead of a new RFC.** 0064 defines surface

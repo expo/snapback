@@ -2010,12 +2010,12 @@ impl std::fmt::Debug for TargetArgs {
 }
 
 mod guide_command;
-pub(crate) use guide_command::{guide_command, parse_guide_slice};
 #[cfg(test)]
 pub(crate) use guide_command::{
-    DEFAULT_SERVED_GUIDE_URL, GUIDE_SEARCH_SCHEMA_VERSION, GuideSectionMatch,
-    render_guide_command, search_guide_sections_in,
+    DEFAULT_SERVED_GUIDE_URL, GUIDE_SEARCH_SCHEMA_VERSION, GuideSectionMatch, render_guide_command,
+    search_guide_sections_in,
 };
+pub(crate) use guide_command::{guide_command, parse_guide_slice};
 
 // @ref LLP 0024#dated-amendment-native-machine-mode-2026-08-08 — the packaged
 // root help consumes a structured projection of Clap's authoritative tree.
@@ -2976,14 +2976,14 @@ fn auth_restore(backup_directory: &Path, target_database: &Path) -> anyhow::Resu
 }
 
 mod fork;
-pub(crate) use fork::{fork_command, process_is_proven_gone, wait_for_derived_fork_expiry};
+#[cfg(unix)]
+pub(crate) use fork::configure_detached_child;
+use fork::now_ms;
 #[cfg(test)]
 pub(crate) use fork::{
     automatic_reap_before_create, fork_secret_disposition, parse_fork_ttl, quiet_stop_fork,
 };
-use fork::now_ms;
-#[cfg(unix)]
-pub(crate) use fork::configure_detached_child;
+pub(crate) use fork::{fork_command, process_is_proven_gone, wait_for_derived_fork_expiry};
 
 fn reject_misdirected_serve_flags(cli: &Cli) -> anyhow::Result<()> {
     if cli.serve != Args::default() {
@@ -6943,23 +6943,42 @@ async fn run_composed(
                     ),
             )
         });
-    // Post-commit fan-out coalescing engages only in a serving process that
-    // also runs this backstop flusher (they install together; LLP 0008
-    // fan-out coalescing). The env switch preserves strict per-commit
-    // inline fan-out for A/B measurement.
-    let live_fanout_backstop = ((auth_mode_state.app_data_availability
+    // The evaluation scheduler subsumes the old coalescing backstop. Either
+    // compatibility switch leaves the scheduler absent, which is the exact
+    // legacy-inline boundary used by direct callers and A/B runs.
+    let live_scheduler_enabled = (auth_mode_state.app_data_availability
         == crate::auth::mode::AppDataAvailability::Available)
         && !server::live_coalesce_disabled(
             std::env::var("SNAPBACK_LIVE_COALESCE_DISABLED")
                 .ok()
                 .as_deref(),
-        ))
-    .then(|| {
-        server::spawn_live_fanout_backstop(
-            state.clone(),
-            std::sync::Arc::new(crate::live_coalesce::LiveFanoutCoalescer::new()),
         )
-    });
+        && !server::live_scheduler_disabled(
+            std::env::var("SNAPBACK_LIVE_SCHEDULER_DISABLED")
+                .ok()
+                .as_deref(),
+        );
+    let live_fanout_backstop = if live_scheduler_enabled {
+        let tunables = crate::live_coalesce::LiveCoalesceTunables {
+            max_eval_turn: server::live_max_eval_turn(
+                std::env::var("SNAPBACK_LIVE_MAX_EVAL_TURN_MS")
+                    .ok()
+                    .as_deref(),
+            ),
+            ..crate::live_coalesce::LiveCoalesceTunables::default()
+        };
+        let coalescer = std::sync::Arc::new(
+            crate::live_coalesce::LiveFanoutCoalescer::with_tunables(tunables),
+        );
+        let installed = coalescer.clone();
+        server::with_snapback(&state, move |snapback| {
+            snapback.install_live_fanout_coalescer(installed);
+        })
+        .await;
+        Some(server::spawn_live_fanout_backstop(state.clone(), coalescer))
+    } else {
+        None
+    };
     let maintenance_worker = server::spawn_maintenance_worker(app_state);
     let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
         state.clone(),

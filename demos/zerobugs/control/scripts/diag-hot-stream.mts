@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {createWriteStream, type WriteStream} from 'node:fs';
+import {createWriteStream, readFileSync, type WriteStream} from 'node:fs';
 import {mkdir, readFile} from 'node:fs/promises';
 import {dirname, join, resolve} from 'node:path';
 import {performance} from 'node:perf_hooks';
@@ -11,7 +11,42 @@ import {
   createExternalSessionClient,
 } from '@expo/snapback-client';
 
-import api from '../snapback/generated/api.mjs';
+import apiGenerated from '../snapback/generated/api.mjs';
+
+// The frozen hot-diag baseline pins its auth-mode deployment (LLP 0058) at
+// the generation active at ingest time; the checked-out codegen has since
+// rotated bundle/inputs hashes with byte-identical control sources. When
+// OQ4_STARTUP_ARTIFACTS names the ingest-era carrier, assert the pinned
+// generation on every function reference so the client matches the store it
+// measures instead of the codegen toolchain of the day.
+function pinnedGenerationFromCarrier(path: string | undefined): AnyRecord | null {
+  if (!path) return null;
+  const carrier = JSON.parse(readFileSync(path, 'utf8')) as AnyRecord;
+  const functions = carrier.functions as AnyRecord;
+  const schema = carrier.schema as AnyRecord;
+  return {
+    schemaVersion: String(functions.schemaVersion),
+    appId: String(functions.appId),
+    schemaHash: String(schema.schemaHash),
+    bundleHash: String(functions.bundleHash),
+    inputsHash: String(functions.inputsHash),
+  };
+}
+
+const pinnedGeneration = pinnedGenerationFromCarrier(process.env.OQ4_STARTUP_ARTIFACTS);
+const api = (pinnedGeneration
+  ? Object.fromEntries(Object.entries(apiGenerated as Record<string, unknown>).map(
+    ([key, value]) => [
+      key,
+      value !== null
+        && typeof value === 'object'
+        && (value as AnyRecord).artifactKind === 'functionReference'
+        && (value as AnyRecord).expectedGeneration != null
+        ? {...(value as AnyRecord), expectedGeneration: pinnedGeneration}
+        : value,
+    ],
+  ))
+  : apiGenerated) as typeof apiGenerated;
 import {
   GENERATION_EPOCH_MS,
   MANIFEST_ID,
@@ -31,7 +66,9 @@ const DEFAULT_OVERLAY_PATH = join(
 const DEFAULT_OUT_PATH = '/tmp/diag-hot-stream.jsonl';
 const DEFAULT_OBSERVE_SECONDS = 180;
 const STATUS_INTERVAL_MS = 10_000;
-const ARRIVAL_INTERVAL_MS = 25;
+const FIXED_ARRIVAL_INTERVAL_MS = 25;
+const DEFAULT_SUSTAIN_INTERVAL_MS = 250;
+const DEFAULT_SUSTAIN_SECONDS = 120;
 const OBSERVER_OPEN_TIMEOUT_MS = 10_000;
 
 const ACTORS = Object.freeze([
@@ -44,7 +81,9 @@ const ACTORS = Object.freeze([
 const OBSERVERS = Object.freeze([...ACTORS, 'anonymous'] as const);
 
 type Actor = (typeof ACTORS)[number];
-type ObserverName = (typeof OBSERVERS)[number];
+type ObserverName = string;
+type ArrivalMode = 'fixed' | 'settle-gated' | 'sustained';
+type ObserverPartition = 'mixed' | 'same';
 type AnyRecord = Record<string, unknown>;
 type AnyClient = SnapbackClient & Record<string, unknown>;
 
@@ -105,7 +144,20 @@ interface Options {
   outPath: string;
   observeSeconds: number;
   cycles: number;
+  arrivalMode: ArrivalMode;
+  sustainIntervalMs: number;
+  sustainSeconds: number;
+  observerCount: 0 | 1 | 6;
+  observerPartition: ObserverPartition;
+  coalescing: 'on' | 'off';
+  cycleOffset: number;
 }
+
+// Cycle indices 0-2 (and their hotIDs, clientMutationIds, and the un-suffixed
+// bind ids) are burned into the persistent hot-diag baseline by diag-run1/2;
+// arms replay against clones of that baseline, so every deterministic identity
+// is namespaced by the arm's cycle offset to stay fresh.
+let runIdentitySuffix = '-o0';
 
 interface HotOperation {
   inventoryIndex: number;
@@ -138,6 +190,7 @@ interface SubscriptionProbe {
 
 interface ObserverStats {
   actor: ObserverName;
+  authorityActor: ObserverName;
   connectionId: string;
   client: AnyClient;
   handle: AnyRecord | null;
@@ -157,6 +210,43 @@ interface ObserverStats {
   subscription: SubscriptionProbe;
   offManagerState: (() => void) | null;
   restoreSubscribe: (() => void) | null;
+  frameLedger: FrameLedger;
+  deliveryTimeline: DeliveryFact[];
+}
+
+interface ObserverSource {
+  label: ObserverName;
+  authorityActor: ObserverName;
+  client: AnyClient;
+}
+
+interface FrameLedger {
+  initialSnapshots: number;
+  updateCallbacksByKind: Record<string, number>;
+  authorizationBoundaryCallbacksByKind: Record<string, number>;
+  subscriptionEventsByEvent: Record<string, number>;
+  pollStarts: number;
+  pollSucceeded: number;
+  pollFailed: number;
+}
+
+interface DeliveryFact {
+  source: 'initial' | 'update' | 'authorization-boundary' | 'poll';
+  frameKind: string;
+  version: number | null;
+  atPerformanceMs: number;
+}
+
+interface MutationFact {
+  cycle: number;
+  inventoryIndex: number;
+  name: MutationName;
+  effectClass: 'trigger' | 'non-trigger';
+  clientMutationId: string;
+  dispatchedAtPerformanceMs: number;
+  settledAtPerformanceMs: number | null;
+  committedVersion: number | null;
+  outcome: 'applied' | 'refused' | 'pending';
 }
 
 interface MutationTracker {
@@ -286,6 +376,12 @@ function usage(): string {
     `  --out PATH              JSONL output (default ${DEFAULT_OUT_PATH})`,
     `  --observe-seconds N     observation window per cycle (default ${DEFAULT_OBSERVE_SECONDS})`,
     '  --cycles N              mutation cycles without reopening observers (default 1)',
+    '  --arrival-mode MODE     fixed, settle-gated, or sustained (default fixed)',
+    `  --sustain-interval-ms N sustained dispatch interval (default ${DEFAULT_SUSTAIN_INTERVAL_MS})`,
+    `  --sustain-seconds N     sustained stream duration (default ${DEFAULT_SUSTAIN_SECONDS})`,
+    '  --observer-count N      0, 1, or 6 persistent observers (default 6)',
+    '  --observer-partition M  mixed or same authority partition (default mixed)',
+    '  --coalescing MODE       on or off; records the server arm (default on)',
   ].join('\n');
 }
 
@@ -320,6 +416,13 @@ function parseArgs(argv: string[]): Options | null {
   let outPath = DEFAULT_OUT_PATH;
   let observeSeconds = DEFAULT_OBSERVE_SECONDS;
   let cycles = 1;
+  let cycleOffset = 0;
+  let arrivalMode: ArrivalMode = 'fixed';
+  let sustainIntervalMs = DEFAULT_SUSTAIN_INTERVAL_MS;
+  let sustainSeconds = DEFAULT_SUSTAIN_SECONDS;
+  let observerCount: 0 | 1 | 6 = 6;
+  let observerPartition: ObserverPartition = 'mixed';
+  let coalescing: 'on' | 'off' = 'on';
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--help' || argument === '-h') return null;
@@ -338,6 +441,66 @@ function parseArgs(argv: string[]): Options | null {
       let value;
       [value, index] = optionValue(argv, index, '--cycles');
       cycles = positiveInteger(value, '--cycles');
+    } else if (
+      argument === '--arrival-mode'
+      || argument.startsWith('--arrival-mode=')
+    ) {
+      let value;
+      [value, index] = optionValue(argv, index, '--arrival-mode');
+      if (!['fixed', 'settle-gated', 'sustained'].includes(value)) {
+        throw new Error('--arrival-mode must be fixed, settle-gated, or sustained');
+      }
+      arrivalMode = value as ArrivalMode;
+    } else if (
+      argument === '--sustain-interval-ms'
+      || argument.startsWith('--sustain-interval-ms=')
+    ) {
+      let value;
+      [value, index] = optionValue(argv, index, '--sustain-interval-ms');
+      sustainIntervalMs = positiveNumber(value, '--sustain-interval-ms');
+    } else if (
+      argument === '--sustain-seconds'
+      || argument.startsWith('--sustain-seconds=')
+    ) {
+      let value;
+      [value, index] = optionValue(argv, index, '--sustain-seconds');
+      sustainSeconds = positiveNumber(value, '--sustain-seconds');
+    } else if (
+      argument === '--observer-count'
+      || argument.startsWith('--observer-count=')
+    ) {
+      let value;
+      [value, index] = optionValue(argv, index, '--observer-count');
+      const parsed = Number(value);
+      if (parsed !== 0 && parsed !== 1 && parsed !== 6) {
+        throw new Error('--observer-count must be 0, 1, or 6');
+      }
+      observerCount = parsed as 0 | 1 | 6;
+    } else if (
+      argument === '--observer-partition'
+      || argument.startsWith('--observer-partition=')
+    ) {
+      let value;
+      [value, index] = optionValue(argv, index, '--observer-partition');
+      if (value !== 'mixed' && value !== 'same') {
+        throw new Error('--observer-partition must be mixed or same');
+      }
+      observerPartition = value;
+    } else if (argument === '--coalescing' || argument.startsWith('--coalescing=')) {
+      let value;
+      [value, index] = optionValue(argv, index, '--coalescing');
+      if (value !== 'on' && value !== 'off') {
+        throw new Error('--coalescing must be on or off');
+      }
+      coalescing = value;
+    } else if (argument === '--cycle-offset' || argument.startsWith('--cycle-offset=')) {
+      let value;
+      [value, index] = optionValue(argv, index, '--cycle-offset');
+      const parsed = Number(value);
+      if (!Number.isSafeInteger(parsed) || parsed < 0) {
+        throw new Error('--cycle-offset must be a non-negative integer');
+      }
+      cycleOffset = parsed;
     } else {
       throw new Error(`unknown argument ${argument}`);
     }
@@ -351,6 +514,13 @@ function parseArgs(argv: string[]): Options | null {
     outPath: resolve(outPath),
     observeSeconds,
     cycles,
+    cycleOffset,
+    arrivalMode,
+    sustainIntervalMs,
+    sustainSeconds,
+    observerCount,
+    observerPartition,
+    coalescing,
   };
 }
 
@@ -368,7 +538,11 @@ function actorNameBySourceID(bindings: AnyRecord): Map<string, Actor> {
   }));
 }
 
-function buildHotOperationPlan(overlay: AnyRecord, cycles: number): HotCycle[] {
+function buildHotOperationPlan(
+  overlay: AnyRecord,
+  cycles: number,
+  cycleOffset: number,
+): HotCycle[] {
   const payload = overlay.payload as AnyRecord;
   const workingSet = payload.workingSet as AnyRecord;
   const projections = payload.projections as AnyRecord;
@@ -432,7 +606,8 @@ function buildHotOperationPlan(overlay: AnyRecord, cycles: number): HotCycle[] {
   assert(addLabelID, 'working set has a project label for the add candidate');
 
   const plan: HotCycle[] = [];
-  for (let cycle = 0; cycle < cycles; cycle += 1) {
+  for (let step = 0; step < cycles; step += 1) {
+    const cycle = cycleOffset + step;
     const time = (index: number): number => (
       GENERATION_EPOCH_MS + 10_000 + cycle * 1_000 + index
     );
@@ -543,7 +718,7 @@ function buildHotOperationPlan(overlay: AnyRecord, cycles: number): HotCycle[] {
         name,
         actor: actorByName[name],
         effectClass: EFFECT_TRIGGERS.has(name) ? 'trigger' : 'non-trigger',
-        arrivalOffsetMs: inventoryIndex * ARRIVAL_INTERVAL_MS,
+        arrivalOffsetMs: inventoryIndex * FIXED_ARRIVAL_INTERVAL_MS,
         args: argumentsByName[name],
       })),
     });
@@ -588,7 +763,7 @@ async function bindOrAdoptActors(
       try {
         await client.mutate(api.acceptanceBindActor, {
           args: {actor},
-          clientMutationId: `diag-hot-stream-bind-${actor}`,
+          clientMutationId: `diag-hot-stream-bind-${actor}${runIdentitySuffix}`,
           queue: false,
         });
       } catch (error) {
@@ -647,6 +822,81 @@ function anonymousClient(baseUrl: string): AnyClient {
     rqsStore: null,
     authInvalidationProtocol: 1,
   }) as AnyClient;
+}
+
+async function buildObserverSources(
+  options: Options,
+  sessions: Map<Actor, BoundSession>,
+  anonymous: AnyClient,
+  overlay: AnyRecord,
+  logger: JsonlLogger,
+): Promise<ObserverSource[]> {
+  if (options.observerCount === 0) return [];
+  if (options.observerPartition === 'mixed') {
+    const names = options.observerCount === 1 ? ['crew-admin'] : [...OBSERVERS];
+    return names.map(label => {
+      const client = label === 'anonymous' ? anonymous : sessions.get(label as Actor)?.client;
+      assert(client, `observer ${label} has a client`);
+      return {label, authorityActor: label, client};
+    });
+  }
+
+  const sources: ObserverSource[] = [];
+  const expected = (
+    ((overlay.payload as AnyRecord).actorBindings as AnyRecord)['crew-admin']
+  ) as AnyRecord;
+  // Reuse the canonical crew-admin mint email: dev-session principals are
+  // deterministic per email, and the crew-admin source user is already bound
+  // to that principal in the baseline — six sessions under one principal IS
+  // the same-authority-partition axis. A fresh email would mint a fresh
+  // principal and acceptanceBindActor refuses a second binding for the same
+  // source user.
+  const email = 'zerobugs-diag-hot-stream-crew-admin@acceptance.invalid';
+  try {
+    for (let index = 0; index < options.observerCount; index += 1) {
+      const label = `same-crew-admin-${index + 1}`;
+      const minted = await mintDevSession(options.readyFile, email);
+      const client = createExternalSessionClient(minted.baseUrl, {
+        bearerToken: minted.token,
+        clientStoreId: `zerobugs-diag-hot-stream-${label}`,
+        rqsStore: null,
+      }) as AnyClient;
+      // Register immediately so a later bind/self-check failure still closes
+      // every distinct observer session in this partial construction.
+      sources.push({label, authorityActor: 'crew-admin', client});
+      let mode: 'bound' | 'adopted' = 'bound';
+      let bindRefusal: AnyRecord | null = null;
+      try {
+        await client.mutate(api.acceptanceBindActor, {
+          args: {actor: 'crew-admin'},
+          clientMutationId: `diag-hot-stream-bind-${label}${runIdentitySuffix}`,
+          queue: false,
+        });
+      } catch (error) {
+        mode = 'adopted';
+        bindRefusal = errorFact(error);
+      }
+      const self = await client.query(api.acceptanceActorBindingSelf, {args: {}});
+      const row = self.rows[0] as AnyRecord | undefined;
+      const correct = self.rows.length === 1
+        && row?.principal === minted.principal
+        && row?.sourceUserID === expected.sourceUserID
+        && row?.role === expected.role;
+      logger.record('observer_authority_binding', {
+        observer: label,
+        authorityActor: 'crew-admin',
+        mode,
+        correct,
+        principal: minted.principal,
+        bindRefusal,
+      });
+      assert(correct, `${label} adopted the shared crew-admin principal`);
+    }
+    return sources;
+  } catch (error) {
+    await Promise.allSettled(sources.map(source => source.client.closeAuth()));
+    throw error;
+  }
 }
 
 async function selectedProjectName(
@@ -818,17 +1068,22 @@ function handleFacts(stats: ObserverStats): AnyRecord {
   };
 }
 
+function incrementLedger(ledger: Record<string, number>, key: unknown): string {
+  const normalized = typeof key === 'string' && key.length > 0 ? key : 'unknown';
+  ledger[normalized] = (ledger[normalized] ?? 0) + 1;
+  return normalized;
+}
+
 async function openObservers(
-  sessions: Map<Actor, BoundSession>,
-  anonymous: AnyClient,
+  sources: ObserverSource[],
   projectName: string,
   logger: JsonlLogger,
 ): Promise<Map<ObserverName, ObserverStats>> {
   const observers = new Map<ObserverName, ObserverStats>();
   try {
-    for (const actor of OBSERVERS) {
-      const client = actor === 'anonymous' ? anonymous : sessions.get(actor)?.client;
-      assert(client, `observer ${actor} has a client`);
+    for (const source of sources) {
+      const actor = source.label;
+      const client = source.client;
       const connectionId = `zb5-hot-0-${actor}`;
       const manager = (client.liveStreamManager as (
         connection: string,
@@ -836,6 +1091,7 @@ async function openObservers(
       ) => AnyRecord)(connectionId);
       const stats: ObserverStats = {
         actor,
+        authorityActor: source.authorityActor,
         connectionId,
         client,
         handle: null,
@@ -863,6 +1119,16 @@ async function openObservers(
         },
         offManagerState: null,
         restoreSubscribe: null,
+        frameLedger: {
+          initialSnapshots: 0,
+          updateCallbacksByKind: {},
+          authorizationBoundaryCallbacksByKind: {},
+          subscriptionEventsByEvent: {},
+          pollStarts: 0,
+          pollSucceeded: 0,
+          pollFailed: 0,
+        },
+        deliveryTimeline: [],
       };
       observers.set(actor, stats);
       stats.restoreSubscribe = instrumentSubscribeLive(stats, logger);
@@ -926,15 +1192,26 @@ async function openObservers(
         onUpdate: (rows: unknown[], meta: AnyRecord = {}) => {
           stats.onUpdateDeliveries += 1;
           stats.deliveries += 1;
-          stats.lastUpdateAt = performance.now();
-          stats.lastDeliveryAt = stats.lastUpdateAt;
+          const deliveredAt = performance.now();
+          stats.lastUpdateAt = deliveredAt;
+          stats.lastDeliveryAt = deliveredAt;
+          const updateKind = incrementLedger(stats.frameLedger.updateCallbacksByKind, meta.kind);
+          const version = typeof meta.version === 'number'
+            ? meta.version
+            : typeof handle?.version === 'number' ? handle.version as number : null;
+          stats.deliveryTimeline.push({
+            source: 'update',
+            frameKind: updateKind,
+            version,
+            atPerformanceMs: deliveredAt,
+          });
           logger.record('update', {
             actor,
             connectionId,
             delivery: stats.deliveries,
             onUpdateDelivery: stats.onUpdateDeliveries,
-            version: meta.version ?? handle?.version ?? null,
-            updateKind: meta.kind ?? null,
+            version,
+            updateKind,
             ...rowFacts(rows),
           });
         },
@@ -942,6 +1219,7 @@ async function openObservers(
           if (event?.event === 'resubscribed') {
             stats.subscription.successfulResubscribeEvents += 1;
           }
+          incrementLedger(stats.frameLedger.subscriptionEventsByEvent, event?.event);
           logger.record('subscription_event', {
             actor,
             connectionId,
@@ -950,6 +1228,19 @@ async function openObservers(
           });
         },
         onAuthorizationBoundary: (rows: unknown[], detail: AnyRecord = {}) => {
+          const frameKind = incrementLedger(
+            stats.frameLedger.authorizationBoundaryCallbacksByKind,
+            detail.kind ?? detail.frameKind,
+          );
+          const version = typeof detail.version === 'number'
+            ? detail.version
+            : typeof handle?.version === 'number' ? handle.version as number : null;
+          stats.deliveryTimeline.push({
+            source: 'authorization-boundary',
+            frameKind,
+            version,
+            atPerformanceMs: performance.now(),
+          });
           logger.record('authorization_boundary', {
             actor,
             connectionId,
@@ -982,11 +1273,21 @@ async function openObservers(
         handle = opened;
         stats.handle = opened;
         stats.deliveries += 1;
-        stats.lastDeliveryAt = performance.now();
-        const expectedRows = actor === 'crew-admin' || actor === 'removed-member' ? 1_000 : 900;
+        stats.frameLedger.initialSnapshots += 1;
+        const openedAt = performance.now();
+        stats.lastDeliveryAt = openedAt;
+        stats.deliveryTimeline.push({
+          source: 'initial',
+          frameKind: 'snapshot',
+          version: typeof opened.version === 'number' ? opened.version : null,
+          atPerformanceMs: openedAt,
+        });
+        const expectedRows = source.authorityActor === 'crew-admin'
+          || source.authorityActor === 'removed-member' ? 1_000 : 900;
         const facts = rowFacts(opened.rows);
         logger.record('observer_opened', {
           actor,
+          authorityActor: source.authorityActor,
           connectionId,
           expectedRows,
           matchesExpectedRows: facts.rows === expectedRows,
@@ -1022,6 +1323,7 @@ function emitObserverStatus(
     cycle,
     phase,
     actor: stats.actor,
+    authorityActor: stats.authorityActor,
     connectionId: stats.connectionId,
     deliveries: stats.deliveries,
     onUpdateDeliveries: stats.onUpdateDeliveries,
@@ -1045,6 +1347,7 @@ function emitObserverStatus(
     handle: handleFacts(stats),
     manager: managerFacts(stats.manager),
     localResourceInspection: inspection,
+    frameLedger: stats.frameLedger,
   });
 }
 
@@ -1105,6 +1408,7 @@ function scheduleMutation(
   cycleStart: number,
   logger: JsonlLogger,
   tracker: MutationTracker,
+  mutationFacts: MutationFact[],
   signal: AbortSignal,
 ): {dispatched: Promise<void>; settled: Promise<void>} {
   const targetTime = cycleStart + operation.arrivalOffsetMs;
@@ -1128,6 +1432,19 @@ function scheduleMutation(
         return;
       }
       const dispatchedAt = performance.now();
+      const clientMutationId = `zb5-hot-${cycle}-${String(operation.inventoryIndex + 1).padStart(2, '0')}`;
+      const mutationFact: MutationFact = {
+        cycle,
+        inventoryIndex: operation.inventoryIndex,
+        name: operation.name,
+        effectClass: operation.effectClass,
+        clientMutationId,
+        dispatchedAtPerformanceMs: dispatchedAt,
+        settledAtPerformanceMs: null,
+        committedVersion: null,
+        outcome: 'pending',
+      };
+      mutationFacts.push(mutationFact);
       tracker.dispatched += 1;
       logger.record('mutation_dispatch', {
         cycle,
@@ -1137,6 +1454,7 @@ function scheduleMutation(
         effectClass: operation.effectClass,
         targetOffsetMs: operation.arrivalOffsetMs,
         dispatchDriftMs: roundedMilliseconds(dispatchedAt - targetTime),
+        clientMutationId,
         args: operation.args,
       });
       resolveDispatched();
@@ -1145,12 +1463,23 @@ function scheduleMutation(
           API_BY_MUTATION[operation.name] as never,
           {
             args: operation.args,
-            clientMutationId: `zb5-hot-${cycle}-${String(operation.inventoryIndex + 1).padStart(2, '0')}`,
+            clientMutationId,
             queue: false,
           },
         );
         tracker.settled += 1;
         tracker.applied += 1;
+        const responseRecord = response as unknown as AnyRecord;
+        const resultRecord = responseRecord.result && typeof responseRecord.result === 'object'
+          ? responseRecord.result as AnyRecord
+          : null;
+        const committedVersion = typeof responseRecord.version === 'number'
+          ? responseRecord.version
+          : typeof resultRecord?.version === 'number' ? resultRecord.version : null;
+        const settledAt = performance.now();
+        mutationFact.settledAtPerformanceMs = settledAt;
+        mutationFact.committedVersion = committedVersion;
+        mutationFact.outcome = 'applied';
         logger.record('mutation_result', {
           cycle,
           inventoryIndex: operation.inventoryIndex,
@@ -1158,14 +1487,19 @@ function scheduleMutation(
           actor: operation.actor,
           effectClass: operation.effectClass,
           outcome: 'applied',
+          clientMutationId,
+          committedVersion,
           expectedRefusal: operation.name === 'issue.create',
           expectationMet: operation.name !== 'issue.create',
-          latencyMs: roundedMilliseconds(performance.now() - dispatchedAt),
+          latencyMs: roundedMilliseconds(settledAt - dispatchedAt),
           result: response.result,
         });
       } catch (error) {
         tracker.settled += 1;
         tracker.refused += 1;
+        const settledAt = performance.now();
+        mutationFact.settledAtPerformanceMs = settledAt;
+        mutationFact.outcome = 'refused';
         logger.record('mutation_result', {
           cycle,
           inventoryIndex: operation.inventoryIndex,
@@ -1173,9 +1507,11 @@ function scheduleMutation(
           actor: operation.actor,
           effectClass: operation.effectClass,
           outcome: 'refused',
+          clientMutationId,
+          committedVersion: null,
           expectedRefusal: operation.name === 'issue.create',
           expectationMet: operation.name === 'issue.create',
-          latencyMs: roundedMilliseconds(performance.now() - dispatchedAt),
+          latencyMs: roundedMilliseconds(settledAt - dispatchedAt),
           error: errorFact(error),
         });
       } finally {
@@ -1193,6 +1529,7 @@ async function finalPolls(
 ): Promise<number> {
   let failures = 0;
   for (const stats of observers.values()) {
+    stats.frameLedger.pollStarts += 1;
     const handle = stats.handle;
     if (!handle || typeof handle.poll !== 'function') {
       failures += 1;
@@ -1212,6 +1549,13 @@ async function finalPolls(
     const startedAt = performance.now();
     try {
       const rows = await (handle.poll as () => Promise<unknown>)();
+      stats.frameLedger.pollSucceeded += 1;
+      stats.deliveryTimeline.push({
+        source: 'poll',
+        frameKind: 'poll',
+        version: typeof handle.version === 'number' ? handle.version : null,
+        atPerformanceMs: performance.now(),
+      });
       logger.record('poll_result', {
         actor: stats.actor,
         connectionId: stats.connectionId,
@@ -1224,6 +1568,7 @@ async function finalPolls(
       });
     } catch (error) {
       failures += 1;
+      stats.frameLedger.pollFailed += 1;
       logger.record('poll_result', {
         actor: stats.actor,
         connectionId: stats.connectionId,
@@ -1236,6 +1581,71 @@ async function finalPolls(
     }
   }
   return failures;
+}
+
+function recordConvergence(
+  mutationFacts: MutationFact[],
+  observers: Map<ObserverName, ObserverStats>,
+  logger: JsonlLogger,
+): AnyRecord {
+  let measuredMutations = 0;
+  let fullyConvergedMutations = 0;
+  const latencies: number[] = [];
+  for (const mutation of mutationFacts) {
+    if (mutation.outcome !== 'applied' || mutation.committedVersion === null) continue;
+    measuredMutations += 1;
+    const byObserver: AnyRecord = {};
+    let firstAt: number | null = null;
+    let lastAt: number | null = null;
+    for (const [observer, stats] of observers) {
+      const delivery = stats.deliveryTimeline.find(candidate => (
+        candidate.atPerformanceMs >= mutation.dispatchedAtPerformanceMs
+        && candidate.version !== null
+        && candidate.version >= mutation.committedVersion!
+      ));
+      const latencyMs = delivery
+        ? roundedMilliseconds(delivery.atPerformanceMs - mutation.dispatchedAtPerformanceMs)
+        : null;
+      if (delivery) {
+        firstAt = firstAt === null ? delivery.atPerformanceMs : Math.min(firstAt, delivery.atPerformanceMs);
+        lastAt = lastAt === null ? delivery.atPerformanceMs : Math.max(lastAt, delivery.atPerformanceMs);
+        latencies.push(latencyMs!);
+      }
+      byObserver[observer] = delivery ? {
+        converged: true,
+        latencyMs,
+        source: delivery.source,
+        frameKind: delivery.frameKind,
+        observedVersion: delivery.version,
+      } : {converged: false};
+    }
+    const fullyConverged = observers.size > 0
+      && [...observers.keys()].every(observer => (
+        (byObserver[observer] as AnyRecord).converged === true
+      ));
+    if (fullyConverged) fullyConvergedMutations += 1;
+    logger.record('mutation_convergence', {
+      cycle: mutation.cycle,
+      inventoryIndex: mutation.inventoryIndex,
+      name: mutation.name,
+      effectClass: mutation.effectClass,
+      clientMutationId: mutation.clientMutationId,
+      committedVersion: mutation.committedVersion,
+      fullyConverged,
+      firstObserverLatencyMs: firstAt === null
+        ? null
+        : roundedMilliseconds(firstAt - mutation.dispatchedAtPerformanceMs),
+      lastObserverLatencyMs: lastAt === null
+        ? null
+        : roundedMilliseconds(lastAt - mutation.dispatchedAtPerformanceMs),
+      observers: byObserver,
+    });
+  }
+  return {
+    measuredMutations,
+    fullyConvergedMutations,
+    observerConvergenceSamples: latencies.length,
+  };
 }
 
 async function closeObservers(
@@ -1278,12 +1688,20 @@ async function closeObservers(
 async function closeClients(
   sessions: Map<Actor, BoundSession>,
   anonymous: AnyClient | null,
+  observerSources: ObserverSource[],
   logger: JsonlLogger,
 ): Promise<void> {
-  const clients: Array<[string, AnyClient]> = [
+  const candidates: Array<[string, AnyClient]> = [
     ...[...sessions].map(([actor, session]) => [actor, session.client] as [string, AnyClient]),
     ...(anonymous ? [['anonymous', anonymous] as [string, AnyClient]] : []),
+    ...observerSources.map(source => [source.label, source.client] as [string, AnyClient]),
   ];
+  const seen = new Set<AnyClient>();
+  const clients = candidates.filter(([, client]) => {
+    if (seen.has(client)) return false;
+    seen.add(client);
+    return true;
+  });
   for (const [actor, client] of clients) {
     try {
       await client.closeAuth();
@@ -1295,6 +1713,7 @@ async function closeClients(
 }
 
 async function run(options: Options, logger: JsonlLogger): Promise<void> {
+  runIdentitySuffix = `-o${options.cycleOffset}`;
   const abortController = new AbortController();
   let interruptedBy: NodeJS.Signals | null = null;
   const onSignal = (signal: NodeJS.Signals): void => {
@@ -1310,15 +1729,27 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
 
   const sessions = new Map<Actor, BoundSession>();
   let anonymous: AnyClient | null = null;
+  let observerSources: ObserverSource[] = [];
   let observers = new Map<ObserverName, ObserverStats>();
+  const plannedCycles = options.arrivalMode === 'sustained'
+    ? Math.ceil(
+      options.sustainSeconds * 1_000
+      / options.sustainIntervalMs
+      / MUTATION_NAMES.length,
+    )
+    : options.cycles;
+  const plannedOperationCount = options.arrivalMode === 'sustained'
+    ? Math.ceil(options.sustainSeconds * 1_000 / options.sustainIntervalMs)
+    : plannedCycles * MUTATION_NAMES.length;
   const tracker: MutationTracker = {
-    total: options.cycles * MUTATION_NAMES.length,
+    total: plannedOperationCount,
     dispatched: 0,
     settled: 0,
     applied: 0,
     refused: 0,
   };
   const mutationSettlements: Promise<void>[] = [];
+  const mutationFacts: MutationFact[] = [];
   let pollFailures = 0;
   try {
     const ready = JSON.parse(await readFile(options.readyFile, 'utf8')) as AnyRecord;
@@ -1333,6 +1764,7 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
       outPath: logger.outPath,
     });
     logger.record('configuration', {
+      pinnedGeneration,
       readyFile: options.readyFile,
       serverUrl: ready.serverUrl,
       overlayPath: options.overlayPath,
@@ -1340,6 +1772,16 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
       fixtureId: payload.fixtureId ?? null,
       selectedProject: payload.selectedProject ?? null,
       cycles: options.cycles,
+      plannedCycles,
+      plannedOperationCount,
+      arrivalMode: options.arrivalMode,
+      sustainedIntervalMs: options.sustainIntervalMs,
+      sustainedSeconds: options.sustainSeconds,
+      observerCount: options.observerCount,
+      observerPartition: options.observerPartition,
+      coalescing: options.coalescing,
+      coalescingDisabled: options.coalescing === 'off',
+      repeatedOperationPolicy: 'keep-all-16-and-record-deterministic-refusals',
       observeSecondsPerCycle: options.observeSeconds,
       statusIntervalSeconds: STATUS_INTERVAL_MS / 1_000,
       observerOpenTimeoutSeconds: OBSERVER_OPEN_TIMEOUT_MS / 1_000,
@@ -1369,21 +1811,64 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
       String((payload.selectedProject as AnyRecord).id),
       logger,
     );
-    const plan = buildHotOperationPlan(overlay, options.cycles);
+    const plan = buildHotOperationPlan(overlay, plannedCycles, options.cycleOffset);
     logger.record('operation_plan', {
       cycles: plan.length,
+      cycleOffset: options.cycleOffset,
       operationsPerCycle: MUTATION_NAMES.length,
-      arrivalIntervalMs: ARRIVAL_INTERVAL_MS,
-      adaptiveArrivals: false,
+      arrivalMode: options.arrivalMode,
+      fixedArrivalIntervalMs: FIXED_ARRIVAL_INTERVAL_MS,
+      sustainedArrivalIntervalMs: options.sustainIntervalMs,
+      sustainedSeconds: options.sustainSeconds,
+      adaptiveArrivals: options.arrivalMode === 'settle-gated',
       mutationNames: MUTATION_NAMES,
     });
 
-    observers = await openObservers(sessions, anonymous, projectName, logger);
+    observerSources = await buildObserverSources(
+      options,
+      sessions,
+      anonymous,
+      overlay,
+      logger,
+    );
+    observers = await openObservers(observerSources, projectName, logger);
     for (const stats of observers.values()) {
       emitObserverStatus(null, 'all-open', stats, logger);
     }
 
-    for (const cycle of plan) {
+    if (options.arrivalMode === 'sustained') {
+      const operationCount = Math.ceil(
+        options.sustainSeconds * 1_000 / options.sustainIntervalMs,
+      );
+      const operations = plan.flatMap(cycle => cycle.operations).slice(0, operationCount);
+      logger.record('sustained_start', {
+        operations: operations.length,
+        intervalMs: options.sustainIntervalMs,
+        durationSeconds: options.sustainSeconds,
+      });
+      const streamStart = performance.now() + 50;
+      const scheduled = operations.map((operation, index) => scheduleMutation(
+        Math.floor(index / MUTATION_NAMES.length),
+        {...operation, arrivalOffsetMs: index * options.sustainIntervalMs},
+        sessions,
+        streamStart,
+        logger,
+        tracker,
+        mutationFacts,
+        abortController.signal,
+      ));
+      mutationSettlements.push(...scheduled.map(row => row.settled));
+      const observation = observeCycle(
+        0,
+        options.sustainSeconds,
+        observers,
+        logger,
+        abortController.signal,
+      );
+      await Promise.all(scheduled.map(row => row.dispatched));
+      await observation;
+      logger.record('sustained_end', {mutationTracker: tracker});
+    } else for (const cycle of plan) {
       if (abortController.signal.aborted) break;
       logger.record('cycle_start', {
         cycle: cycle.cycle,
@@ -1391,20 +1876,42 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
         observeSeconds: options.observeSeconds,
       });
       const cycleStart = performance.now() + 50;
-      const scheduled = cycle.operations.map(operation => scheduleMutation(
-        cycle.cycle,
-        operation,
-        sessions,
-        cycleStart,
-        logger,
-        tracker,
-        abortController.signal,
-      ));
+      const scheduled = options.arrivalMode === 'settle-gated'
+        ? []
+        : cycle.operations.map(operation => scheduleMutation(
+          cycle.cycle,
+          operation,
+          sessions,
+          cycleStart,
+          logger,
+          tracker,
+          mutationFacts,
+          abortController.signal,
+        ));
+      if (options.arrivalMode === 'settle-gated') {
+        for (const operation of cycle.operations) {
+          const one = scheduleMutation(
+            cycle.cycle,
+            {...operation, arrivalOffsetMs: 0},
+            sessions,
+            performance.now(),
+            logger,
+            tracker,
+            mutationFacts,
+            abortController.signal,
+          );
+          scheduled.push(one);
+          await one.dispatched;
+          await one.settled;
+        }
+      }
       mutationSettlements.push(...scheduled.map(row => row.settled));
       await Promise.all(scheduled.map(row => row.dispatched));
       logger.record('cycle_dispatched', {
         cycle: cycle.cycle,
-        dispatchSpanMs: cycle.operations.at(-1)?.arrivalOffsetMs ?? 0,
+        dispatchSpanMs: options.arrivalMode === 'settle-gated'
+          ? null
+          : cycle.operations.at(-1)?.arrivalOffsetMs ?? 0,
         mutationTracker: tracker,
       });
       await observeCycle(
@@ -1431,6 +1938,7 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
         delay(5_000),
       ]);
     }
+    const convergence = recordConvergence(mutationFacts, observers, logger);
     logger.record('summary', {
       outcome: abortController.signal.aborted ? 'interrupted' : 'completed',
       interruptedBy,
@@ -1438,6 +1946,7 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
       mutationTracker: tracker,
       pendingMutationResponses: tracker.dispatched - tracker.settled,
       pollFailures,
+      convergence,
       observers: Object.fromEntries([...observers].map(([actor, stats]) => [actor, {
         connection: stats.handle?.connection ?? null,
         version: stats.handle?.version ?? null,
@@ -1445,6 +1954,7 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
         onUpdateDeliveries: stats.onUpdateDeliveries,
         socketReconnectAttempts: Math.max(0, stats.managerConnectingEvents - 1),
         resubscribe: stats.subscription,
+        frameLedger: stats.frameLedger,
       }])),
     });
     if (pollFailures > 0) process.exitCode = 1;
@@ -1453,7 +1963,7 @@ async function run(options: Options, logger: JsonlLogger): Promise<void> {
     process.off('SIGINT', onSigint);
     process.off('SIGTERM', onSigterm);
     await closeObservers(observers, logger);
-    await closeClients(sessions, anonymous, logger);
+    await closeClients(sessions, anonymous, observerSources, logger);
   }
 }
 
