@@ -6,9 +6,16 @@
 Code generation, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-09
-**Revised:** 2026-08-09 (Draft → Review at super-refine loop start — the
-loop's one authorized transition; author invoked /llp-super-refine this
-session)
+**Revised:** 2026-08-09, later same day (round-1 revision, r2 — applied
+8 MATERIAL concerns from the dual-family round-1 reviews: neutral
+issued-URL controller + complete hook state algebra (D1), authorization
+precedes variant enumeration (D2), frozen raw-task terminal table (D3),
+admit-where-safe mapping ruling (D4, adjudicating the round-1
+cross-family contradiction), and grant identity/lifecycle/authorization
+semantics with named G4 obligations (D5); see §Status and the run
+journal). Prior, same day: (Draft → Review at super-refine loop start —
+the loop's one authorized transition; author invoked /llp-super-refine
+this session)
 **Related:** LLP 0044 (asset pipeline — owns the pipeline; its 2026-08-09
 dated addition commissions this design), LLP 0180 (asset-bearing commands
 — its 2026-08-09 dated note commissions D4), LLP 0208 (Clique pilot gap
@@ -32,9 +39,9 @@ items:
   refusals replacing bare framework 422s on the issuance route;
 - **D3** — a one-call `assets.upload()` convenience with a
   settle-or-reject contract, and `task.done` legibility;
-- **D4** — the `SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE` refusal
-  teaches the `optional: true` escape, and the required-child →
-  optional-argument pairing gets a teach-or-admit resolution;
+- **D4** — the required-child → optional-argument command mapping is
+  admitted (a command may narrow its mutation), and the remaining
+  genuinely unsafe refusal teaches its fixes at the point of denial;
 - **D5** — recipient-scoped asset authority: bless the grant-rows
   recipe now, adopt `ctx.assets.grant`/`ctx.assets.revoke` as the paved
   spelling (author ruling), defer app-bound sharing to the LLP 0208 G4
@@ -112,24 +119,42 @@ const issued = await assets.signedUrl(assetId, {
   revocation-latency reasoning depend on client internals, and
   `expiresAt` gives callers everything a cache needs.
 
-**React/Expo projection.** A hook owning the refresh loop per LLP 0114's
-provider rules:
+**Framework-neutral issued-URL store.** Refresh is not React-owned: per
+LLP 0044 ("projections over the framework-neutral asset client and live
+store, not a React-specific transport, cache, or auth model") and LLP
+0114's external-store discipline, the neutral asset client gains an
+**issued-URL controller**: a keyed store (`assetId` + issuance options,
+partitioned by the prepared binding's authority identity) that owns the
+issued URL, its `expiresAt` timer, refresh-before-expiry, bounded retry,
+and diagnostic state. Equal keys share one entry — N consumers of one
+asset drive one issuance loop, not N (the pilot's resubscribe-storm
+lesson). Authority replacement or logout synchronously blanks every
+entry of the old authority and generation-fences late issuance
+responses; final unsubscribe cancels the timer.
+
+**React/Expo projection.** `useSnapbackAssetUrl(assetId, { variant?,
+widthPx? })` subscribes to that store — a named LLP 0114 projection
+(ledger entry recorded on acceptance):
 
 ```ts
-const { url, status } = useSnapbackAssetUrl(assetId, {
-  variant?, widthPx?,
-})
-// status: 'issuing' | 'ready' | 'refreshing' | 'denied'
+const { url, status, diagnostic } = useSnapbackAssetUrl(assetId, opts)
+// status: 'issuing' | 'ready' | 'refreshing' | 'unavailable' | 'denied'
 ```
 
-- Re-issues before `expiresAt` while mounted; drops to `denied` with the
-  structured diagnostic when issuance refuses (revocation surfaces as
-  the next refresh failing — apps render the denial state instead of a
-  broken `<img>`).
-- Provider replacement / logout invalidates held URLs immediately
-  (authority-follows-provider, LLP 0114 discipline).
+State algebra (normative; fixtures pin each transition):
+
+- `ready` — `url` is issued and unexpired. A failed refresh attempt
+  does **not** leave `ready` while the held URL is still valid; retry
+  continues and `diagnostic` carries the last failure.
+- `refreshing` — re-issuance in flight with the held URL still valid.
+- `unavailable` — the URL expired (or none was ever issued) and
+  re-issuance is failing for a **non-authorization** reason (transport,
+  server error); `url` is `null`, `diagnostic` is the last failure,
+  bounded retry continues. Offline blips land here, never in `denied`.
+- `denied` — entered **only** on a structured authorization refusal;
+  `url` blanks immediately (authority loss does not wait for TTL).
 - The existing asset renderer surface (LLP 0044 §Client upload surface)
-  composes this hook rather than duplicating refresh logic.
+  composes the same store rather than duplicating refresh logic.
 
 **Headless contract.** The method is part of the LLP 0012 language-
 neutral protocol surface: the issuance request/response DTO shapes are
@@ -151,6 +176,13 @@ non-JS arms implement the same method, not a lookalike.
   `SNAPBACK_ASSET_REQUEST_INVALID`-class diagnostic naming the field,
   never a bare framework 422. An absent/empty body is a valid request
   meaning "primary, default TTL."
+- **Authorization precedes enumeration.** Order: parse generically →
+  authorize the caller for issuance under the asset's declared read
+  policy → only then validate the variant. An unauthorized caller
+  receives the ordinary access denial with no variant details, for an
+  existing and a nonexistent asset indistinguishably — variant sets are
+  asset metadata and LLP 0044 grants no metadata authority to bare
+  possession of an id.
 
 `ttlMs` validation is unchanged (`SNAPBACK_ASSET_TTL_INVALID`). No
 change to signing, aliasing, or authorization semantics — D2 is
@@ -169,43 +201,54 @@ const assetId = await assets.upload(uploadRef, source, { args? })
   0180 §Input and platform adapters): `File`, `Blob`, or picker-shaped
   `{ uri, mimeType?, fileName? }`. On native, URI normalization uses the
   existing adapter seam — the helper adds no new platform surface.
-- Resolves with the finalized `assetId` when the asset reaches `ready`.
-- Rejects on **every** other terminal outcome, carrying the task's
+- Resolves with the `assetId` when the asset task reaches `ready`.
+- Rejects on **every** other terminal status, carrying the task's
   structured diagnostic (and the terminal status) on the error.
 - No partial-success lane: callers who need pause/resume/progress use
   `start()`.
 
-**`task.done` legibility.** The task contract already settles `done` at
-terminal status (LLP 0180's terminal-state transitions). What the pilot
-shows is that the *call site* cannot tell which statuses are terminal
-successes. The docs obligation: the task API reference states the settle
-rule in one sentence at `done`'s definition ("resolves at the first
-terminal status; `ready` is the only success"), and `upload()` is the
-recommended spelling wherever an app only wants the id.
+**The raw asset-task terminal table, frozen.** The shipped client's
+terminal set is `ready | rejected | cancelled | failed` — nothing else;
+in particular there is **no** `finalized` status (the pilot's defensive
+`finalized` branch guarded a state that does not exist, which is itself
+the legibility finding). This RFC freezes that table as the raw
+`AssetTask` settlement contract, distinct from `CommandTask.done`
+(which settles a `CommandOutcome`, LLP 0180 §Command task — the two
+`done`s are documented side by side): `task.done` resolves with the
+snapshot at the **first** terminal status; `ready` is the only success;
+`rejected`/`cancelled`/`failed` each carry their structured diagnostic.
+`upload()` is defined mechanically over this table (resolve on `ready`,
+reject on each of the other three) and is the recommended spelling
+wherever an app only wants the id; every row is fixture-tested.
 
-### D4 — The mapping refusal teaches; required-over-optional is ruled
+### D4 — The mapping is admitted where safe; the remaining refusal teaches
 
-Two halves (commissioned by LLP 0180's 2026-08-09 dated note):
+Two halves (commissioned by LLP 0180's 2026-08-09 dated note, which
+left teach-or-admit open):
 
-1. **Teach.** `SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE`, when the
-   incompatibility is a non-optional asset child over an
-   `v.optional(v.assetRef(...))` mutation argument, appends the escape
-   to its message/details: declare the child `optional: true` (admitted
-   by LLP 0180 §Declaration) and validate presence in the handler.
-   Generate-time refusals with file/line/column are the platform's best
-   surface (both pilot sessions said so); this refusal joins that
-   standard.
-2. **Rule.** The required-child → optional-argument pairing stays
-   **refused** in v1. Rationale: a required child asserts "this command
-   always carries the asset," but the optional argument leaves the
-   text-only branch open to every *other* caller of the mutation — the
-   declared contracts would disagree about whether absence is a
-   representable state, and the command descriptor is the wrong place
-   to narrow a mutation's argument contract. The refusal's diagnostic
-   states this rationale (one sentence) alongside the two fixes:
-   make the argument required (if absence is truly impossible) or the
-   child optional (if it is not). This is the teach-or-admit
-   resolution: teach, with the reason on the refusal.
+1. **Admit.** The required-child → optional-`v.assetRef`-argument
+   pairing is **admitted** when intent compatibility holds. The
+   generated command derives a *required* command input and always
+   populates the optional mutation argument — a command is a narrower
+   client entry point over a more general mutation, and narrowing is
+   ordinary: the mutation's own contract is untouched (other callers
+   keep the text-only branch; the handler still cannot rely on
+   presence — descriptor requiredness is a client-authoring guarantee
+   enforced by generation and client-side validation, never a server
+   contract). This is the shape the pilot actually wanted (a dedicated
+   `sendPhoto` command guaranteeing its asset over a shared
+   image-or-video mutation) and what the pilot's `optional: true` +
+   handler-validation workaround approximated with a weaker authored
+   contract. Fixtures: the mutation remains directly callable without
+   the argument; the command is not.
+2. **Teach.** The genuinely unsafe inverse — an `optional: true` child
+   over a *required* mutation argument (the text-only branch would call
+   a mutation missing a required input) — stays refused, and
+   `SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE`'s message/details name
+   the two fixes at the point of refusal: make the child required, or
+   the argument optional. Generate-time refusals with file/line/column
+   are the platform's best surface (both pilot sessions said so); this
+   refusal joins that standard.
 
 ### D5 — Recipient-scoped authority: recipe now, grant ops as the paved spelling
 
@@ -215,25 +258,53 @@ The ladder from LLP 0044's dated addition, resolved:
   pattern becomes a CI-verified guide recipe (with the view-once
   variant), credited as the pilot-proven composition. This lands with
   the G11 guide work regardless of (b)'s implementation timing.
-- **(b) — adopted as design.** Handler ops make authority transfer
-  explicit and auditable:
+- **(b) — adopted as design.** First-class grant edges with explicit
+  lifecycle, identity, and authorization:
 
   ```ts
-  await ctx.assets.grant(assetId, principal, { via?: intentName })
-  await ctx.assets.revoke(assetId, principal)
+  const { grantId } = await ctx.assets.grant(assetId, principal, {
+    state?: 'active' | 'pending',   // default 'active'
+  })
+  await ctx.assets.activate(grantId)   // pending → active
+  await ctx.assets.revoke(grantId)     // one edge, by identity
   ```
 
-  Semantics: a grant is a first-class authority edge from asset to
-  principal, created only by a handler whose caller the asset's intent
-  policy admits as a granter (v1: the owner — the same rule `attach`
-  enforces today, so (b) widens no authority). Revoke removes the edge;
-  `private-strict` denies on the next request, `private-signed` stops
-  new issuance (TTL semantics unchanged). View-once becomes
-  grant-at-open / revoke-at-close with no field-patch idiom. Grants are
-  visible to the read-authorization witness (LLP 0044 §Asset read
-  authorization) as declared edges, not row-predicate side effects.
-  Implementation is commissioned under the G4 ticket after this RFC's
-  acceptance; the recipe (a) is the supported path until it ships.
+  A grant is a **system record** (not an app row): `{ grantId, assetId,
+  principal, state: 'pending' | 'active', provenance: { mintedBy,
+  mutation, at } }`. Only `active` edges confer read authority. Grant
+  edges are admitted only for assets whose upload intent opts in
+  (`grants: true` on the intent declaration; exact spelling reconciled
+  with LLP 0007's vocabulary at implementation) — existing `owner-only`
+  and `via-references` policies are untouched, so (b) creates no new
+  authority path on any existing asset.
+
+  Authorization rules (closed, v1): **mint** requires caller = asset
+  owner (the same rule `attach` enforces); **activate** requires
+  caller = the grant's principal and state `pending`; **revoke**
+  requires caller = owner or caller = the grant's principal
+  (self-revoke). Every `active` edge therefore traces to an owner mint
+  — the honest no-ambient-widening statement (a viewer can *accept and
+  relinquish* authority the owner minted, never originate it).
+
+  View-once becomes fully expressible with no field-patch idiom: mint
+  `pending` per recipient at send (confers nothing), the viewer's
+  `open()` activates its own grant, `close()` self-revokes — exactly
+  the pilot's 403 / 200 / 403 probe sequence. Revoke-by-identity keeps
+  overlapping authority independent: two grants on one asset, revoking
+  one, leaves the other's access intact. Delivery consequences are
+  unchanged (`private-strict` denies on the next request;
+  `private-signed` stops new issuance, TTL semantics unchanged).
+
+  Grant edges join the read-authorization witness as declared edges
+  (LLP 0044 §Asset read authorization), and the G4 ticket carries three
+  named obligations the dated 0044 amendment must record: the LLP 0053
+  invalidation projection for grant edges (revoke blanks live asset
+  metadata), the storage locus (system records, exported/imported with
+  the asset component of a consistent cut), and reference-GC
+  interaction (an `active` grant edge protects the asset like a typed
+  reverse-reference; `pending` edges do not). Implementation is
+  commissioned under the G4 ticket after this RFC's acceptance; the
+  recipe (a) is the supported path until it ships.
 - **(c) — deferred.** `assetSharing` binding to app-declared
   tables/predicates moves with the LLP 0208 G4 membership program
   (roster projection and friends), so asset sharing and product rosters
@@ -243,9 +314,12 @@ The ladder from LLP 0044's dated addition, resolved:
 
 One page-section per LLP 0061 conventions, CI-verified: issuance body +
 custody headers by mode; variant selection and `widthPx`; TTL/refresh
-guidance pointing at the D1 hook; the `optional: true` command pattern;
-the D5(a) recipe; and the assets capability-index rows updated (the
-"deliver access-controlled media" row stops being a GAP when D1 lands).
+guidance pointing at the D1 store/hook; `assets.upload()` and the frozen
+`task.done` settlement table (a snippet showing both the resolve and
+reject paths); the command child-optionality patterns (both D4
+directions); the D5(a) recipe; and the assets capability-index rows
+updated (the "deliver access-controlled media" row stops being a GAP
+when D1 lands; the helper and settlement table get their own row).
 
 ## Non-goals
 
@@ -255,48 +329,77 @@ the D5(a) recipe; and the assets capability-index rows updated (the
   steering is `issues/20260809-multi-image-authoring-revisit-g8.md`).
 - Background/process-death upload custody (LLP 0180 deferred
   extensions).
-- Anonymous or viewer-minted grants — (b) keeps the owner-as-granter
-  rule; widening granters is a future intent-policy decision.
+- Viewer-*originated* authority — (b)'s closed rules let a principal
+  accept (`activate`) or relinquish (`revoke`) authority the owner
+  minted, never originate it; widening the granter set is a future
+  intent-policy decision (OQ3).
 
 ## Acceptance
 
 - D1: `assets.signedUrl` on the framework-neutral client, custody
-  matrix covered (AuthCoordinator + external bearer) in acceptance
-  tests; `useSnapbackAssetUrl` refresh-before-expiry and denial-state
-  fixtures; headless-contract fixtures for the DTO obligations.
+  matrix covered (AuthCoordinator + external bearer); issued-URL store
+  fixtures: refresh-before-expiry, same-key subscriber sharing (one
+  loop for N consumers), authority A→B synchronous blanking with
+  late-response fencing, final-unsubscribe timer cleanup; state-algebra
+  negatives: transient issuance failure ≠ `denied`, expiry without
+  refresh → `unavailable`, `denied` only on structured authorization
+  refusal; headless-contract fixtures for the DTO obligations; the
+  LLP 0114 named-projection ledger entry recorded.
 - D2: empty-body issuance returns a primary-variant URL; unknown
   variant returns the typed enumeration refusal; no issuance-route
-  request shape can produce a bare framework 422 (negative fixture).
-- D3: `upload()` resolves `ready` → id; rejects each non-ready terminal
-  with the structured diagnostic; picker-shaped source accepted on the
-  Expo fixture.
-- D4: the optional-argument incompatibility message names
-  `optional: true`; the required-over-optional refusal carries its
-  rationale sentence; codegen fixtures pin both texts.
-- D5: recipe lands CI-verified; grant/revoke ops (when implemented)
-  reproduce the pilot's hostile-probe sequence (403 before open, 200
-  during, 403 after close) as acceptance fixtures.
+  request shape can produce a bare framework 422; authorization
+  precedence negatives — unauthorized caller × {existing, nonexistent
+  asset} × unknown variant all yield the indistinguishable ordinary
+  denial with no variant details.
+- D3: every row of the frozen terminal table fixture-tested through
+  both `task.done` and `upload()` (resolve on `ready`; reject with the
+  structured diagnostic on `rejected`/`cancelled`/`failed`);
+  picker-shaped source accepted on the Expo fixture.
+- D4: codegen fixtures — required child over optional argument
+  generates the required command input and the mutation stays directly
+  callable without it; optional child over required argument refuses
+  with the teaching message (both fix pointers pinned).
+- D5: recipe lands CI-verified; grant ops (when implemented) reproduce
+  the pilot's hostile-probe sequence (403 pending, 200 active, 403
+  after self-revoke), plus: unauthorized mint/activate/revoke refuse;
+  activate by a non-principal refuses; two independent grants on one
+  asset survive one revoke; strict delivery denies on the request after
+  the final revoke; signed issuance stops post-revoke within TTL
+  semantics.
 - Each landing carries scoped evidence per LLP 0189; no claim binds to
   a complete proof at an exact commit.
 
 ## Open questions
 
-1. **D1 caching:** is projection-layer-only caching right, or should the
-   neutral client offer an opt-in issued-URL cache (bounded by
-   `expiresAt`) for non-React consumers?
+1. **D1 caching** — *resolved by the round-1 revision:* the issued-URL
+   controller **is** the framework-neutral cache/refresh surface;
+   non-React consumers use it directly, and bare `signedUrl()` stays
+   pure for callers who want no caching.
 2. **D2 code names:** reconcile `SNAPBACK_ASSET_VARIANT_UNKNOWN` /
    `SNAPBACK_ASSET_REQUEST_INVALID` against the diagnostics registry at
    implementation time (registry owns final spellings).
-3. **D5(b) granter set:** v1 keeps owner-as-granter; should the intent
-   policy later be able to name additional granter roles (e.g. "any
-   current grantee may re-grant")? Deferred, but the ops' signature
-   should not preclude it.
+3. **D5(b) granter set:** v1 is closed at owner-mint +
+   principal-self-activate/self-revoke; should the intent policy later
+   name additional granter rules (e.g. "any current grantee may
+   re-grant")? Deferred, but `grantId`-shaped ops do not preclude it.
+4. **D1 retry policy:** the store's bounded-retry parameters (backoff,
+   cap) — implementation-owned, but the fixtures should pin that retry
+   *continues* in `unavailable` and stops in `denied`.
 
 ## Status
 
-Draft. Authored 2026-08-09 from the LLP 0208 register (G11 + G4 asset
-slice) at author direction; enters super-refine with the review focus on
-D1–D5. On acceptance: LLP 0044/0180 receive dated amendments recording
-the rulings (D4.2, D5), and implementation proceeds under
-`issues/20260809-asset-upload-dx-papercuts-g11.md` and
+Review (Draft → Review at super-refine loop start, 2026-08-09).
+Authored from the LLP 0208 register (G11 + G4 asset slice) at author
+direction. Round-1 revision (same day) applied both families' MATERIAL
+concerns: the issued-URL controller replaces hook-owned refresh with a
+complete state algebra; D2 gains authorization-precedes-enumeration;
+D3 freezes the raw terminal table (`ready | rejected | cancelled |
+failed`, no `finalized`); D4 flips to admit-where-safe (the round-1
+cross-family contradiction, adjudicated by the reviser — the run
+journal records both positions); D5(b) gains grant identity, lifecycle
+(`pending`/`active`), closed authorization rules, and named G4-ticket
+obligations. On acceptance: LLP 0044/0180 receive dated amendments
+recording the rulings (D4, D5) and LLP 0114 gains the
+`useSnapbackAssetUrl` named-projection ledger entry; implementation
+proceeds under `issues/20260809-asset-upload-dx-papercuts-g11.md` and
 `issues/20260809-asset-recipient-grant-authority-g4.md`.

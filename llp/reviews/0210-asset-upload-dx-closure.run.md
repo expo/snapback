@@ -59,3 +59,58 @@ revision.
   trust check — capsule dir is not a git repo; no review content
   produced, not counted). Launch #2 relaunched identically plus
   `--skip-git-repo-check`. Claude launch #1 proceeding.
+
+### Round 1 results
+
+- claude: **NOT READY** — 2 MATERIAL (C1 D5(b) owner-as-granter cannot
+  express view-once grant-at-open, contradicting its own flagship
+  fixture; C2 D1 hook status union conflates transient failure with
+  denial), 6 DETAIL. Artifact: `0210-….claude.md` §Round 1.
+- gpt-5.6-sol: **NOT READY** — 6 MATERIAL (D4 refusal unjustified —
+  admit the safe mapping; D1 hook-owned refresh contradicts 0044/0114
+  projection architecture — demand a neutral store; D1 state algebra
+  incomplete; D2 variant enumeration needs authorization precedence;
+  D3 raw-task terminal vocabulary unfrozen; D5 grant
+  authorization/edge-identity underspecified), 3 DETAIL. Artifact:
+  `0210-….gpt-5.6-sol.md` §Round 1.
+- **Cross-family contradiction (D4):** claude affirms the
+  required-over-optional refusal (with a rationale rewrite); codex
+  holds admission is the better ruling (MATERIAL). Reviser
+  adjudication for r2: **admit the safe direction** — a command is a
+  narrower client entry point and narrowing is ordinary; the mutation's
+  server contract is untouched and the handler never relies on
+  descriptor requiredness, which dissolves claude's
+  client-only-guarantee objection; it is also the shape the pilot
+  wanted (dedicated `sendPhoto` over a shared image-or-video mutation,
+  claude's own C3 tail). Both positions preserved verbatim in the
+  artifacts; round 2 (fresh reviewers) tests the adjudicated text. Not
+  escalated as terminal: adjudicable by argument with a concrete
+  revision, single round, not sustained.
+- Both DETAIL-flagged: §Status trailer said Draft (fixed in r2);
+  capsule ground-truth excerpt held the wrong struct (corrected for
+  the r2 capsule). Claude flagged launch logs inside the capsule dir
+  (codex logs are written outside the capsule from r2 on).
+
+### Revision r2 (reviser: orchestrator, 2026-08-09)
+
+All 8 MATERIALs applied: D1 neutral issued-URL controller (keyed,
+authority-partitioned, shared per key, fenced, cleaned up) with the
+5-state hook algebra (`denied` only on structured authorization
+refusal; `unavailable` for non-authorization failure; `ready` holds to
+true expiry); D2 authorization-precedes-enumeration with
+indistinguishable denials; D3 terminal table frozen from the shipped
+client (`TERMINAL = ready|rejected|cancelled|failed`, no `finalized` —
+verified at `packages/snapback-client/assets.mjs:165`); D4 flipped to
+admit-where-safe, refusal-teaches on the unsafe inverse; D5(b)
+grantId-identified system-record edges, `pending|active` lifecycle,
+closed authorization rules (owner-mint / principal-self-activate /
+owner-or-self revoke), revoke-by-identity, named G4 obligations (0053
+invalidation, storage locus, GC). DETAILs: status trailer fixed; OQ1
+resolved by the controller; OQ4 added (retry policy); guide/acceptance
+lists extended (upload + settlement table).
+
+Growth note: r2 is 405 lines vs 271 entering (+49%), exceeding the
+~20% guidance — the excess is reviewer-demanded specification (the
+grant machine and the state algebra). No MATERIAL concern is left open
+by the reviser's lights; if round 2 finds MATERIALs requiring further
+growth, the growth-exhaustion escalation applies.
