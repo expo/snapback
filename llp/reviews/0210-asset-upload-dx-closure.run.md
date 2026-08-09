@@ -134,3 +134,59 @@ growth, the growth-exhaustion escalation applies.
 - Convergence rule in force: no MATERIAL in PRE-EXISTING text from
   either family converges the loop; IN-DELTA MATERIALs get one focused
   follow-up round.
+
+### Round 2 results
+
+- claude: **READY** — 0 MATERIAL, 7 DETAIL (6 in-delta, 1
+  pre-existing). Explicitly endorses the D5(b) machine, the D4
+  admission, and the D1 controller decomposition.
+- gpt-5.6-sol: **NOT READY** — 5 MATERIAL, all IN-DELTA (`issuing`
+  undefined + no same-authority exit from `denied`; last-unsubscribe
+  does not fence in-flight issuance; retry-vs-settled-`done` successor
+  semantics unstated; grant transitions lack commit atomicity;
+  `grants: true` not captured in the frozen policy generation), 1
+  DETAIL; **explicitly no PRE-EXISTING MATERIAL**. Endorses D4 and the
+  D2/D3 deltas.
+- Delta-convergence precondition met (no family reports PRE-EXISTING
+  MATERIAL); the IN-DELTA MATERIALs take the one focused follow-up
+  round the rule provides. No cross-family contradiction this round —
+  claude's DETAILs 1–2 are the same defects codex graded MATERIAL
+  (severity disagreement, not direction), and both endorse the same
+  D4/D5 decisions.
+
+### Revision r3 (reviser: orchestrator, 2026-08-09)
+
+Applied codex's 5 MATERIALs and claude's 7 DETAILs together: `issuing`
+defined; `denied` exit paths (fresh subscribe / `refresh()` /
+composed authorization-invalidation signal) with both-direction
+fixtures; final-unsubscribe fences in-flight issuance, zero-residual
+fixture; frozen terminal snapshots + `retry()` successor generations
+with per-terminal eligibility (aligned to 0044's successor-attempt
+rule); D5(b): revoke removes the edge (typed unknown-grant refusal
+after), commit-atomic transitions revalidated under the final write
+lock, `grants: true` captured in the frozen intent-policy generation
+(pre-opt-in assets refuse mint post-redeploy), effective authority =
+declared policy OR active grant, sole-authority composition constraint
+for view-once + pending-window GC retention, quota ceilings as the 4th
+named G4 obligation, controller keying reworded to the persisted
+task-fact partition, recipe-fate note. Revision r3 sha256:
+`21e33e4b87982317f06fc6f2a9436a2914f9bcb5a7781c8cfe1dcb3dd37e3d96`
+(487 lines; growth over guidance again — all reviewer-demanded
+specification; journal stands as the growth record).
+
+## Round 3 (focused delta round; final budgeted round) — launched 2026-08-09
+
+- Target revision r3 sha256:
+  `21e33e4b87982317f06fc6f2a9436a2914f9bcb5a7781c8cfe1dcb3dd37e3d96`
+  (landed on main before launch).
+- Families unchanged; fresh reviewers, capsule-only, no prior-round
+  knowledge; launch logs outside the capsule.
+- Capsule r3 (tar) sha256:
+  `aa6bc1e1f6979272c4fb64e54663468b038b0a8511280803cb8b055326b16469`
+  (r2 layout, r3 target).
+- Instructions sha256 (r3 delta enumeration; final-round disposition
+  warning; three named decision questions):
+  `62852c1533e7af60e34bd5f0a519d01a0ea61776671e231eae14fb78a4d98e8a`.
+- Terminal conditions: no PRE-EXISTING MATERIAL from either family
+  converges the loop; remaining IN-DELTA MATERIALs at budget exhaustion
+  are dispositioned to the author per LLP 0010 §2.
