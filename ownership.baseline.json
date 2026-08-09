@@ -8,7 +8,7 @@
       "from": "src/admin_impersonation.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/admin_impersonation.rs",
@@ -86,13 +86,13 @@
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/admission.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/coordinator.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/admin.rs",
@@ -104,49 +104,49 @@
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/lease.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/provider.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/service_fence.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/admin.rs",
@@ -164,13 +164,13 @@
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/contract_exact.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/control_catalog.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/admin.rs",
@@ -206,7 +206,7 @@
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/host_ops.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/admin.rs",
@@ -254,7 +254,7 @@
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/admin.rs",
@@ -314,7 +314,7 @@
       "from": "src/args_contract.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/authoring_suggestion.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/args_contract.rs",
@@ -332,13 +332,13 @@
       "from": "src/args_contract.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/args_contract.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/vector/mod.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/assets_cut.rs",
@@ -468,145 +468,145 @@
     },
     {
       "from": "src/auth/admission.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/admission.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/admission.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/admission.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/admission.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/backup.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/backup.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/auth/keyring.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/backup.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/auth/lifecycle.rs",
-      "toOwner": "unassigned"
+      "toOwner": "background-services"
     },
     {
       "from": "src/auth/backup.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/backup.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/instance_lock.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/backup.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/secure_file.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/backup.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/backup.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/storage/auth.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/coordinator.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/admin.rs",
       "toOwner": "transport-adapters"
     },
     {
       "from": "src/auth/coordinator.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/coordinator.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/coordinator.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/provider.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/coordinator.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/coordinator.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/coordinator.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/local.rs",
       "toOwner": "unassigned"
     },
     {
       "from": "src/auth/coordinator.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/coordinator.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/server.rs",
       "toOwner": "transport-adapters"
     },
     {
       "from": "src/auth/coordinator.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/storage/auth.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/crypto.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
@@ -614,7 +614,7 @@
       "from": "src/auth/deployment.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/auth/sender_proof.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/deployment.rs",
@@ -636,733 +636,733 @@
     },
     {
       "from": "src/auth/descriptor.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/admin.rs",
       "toOwner": "transport-adapters"
     },
     {
       "from": "src/auth/descriptor.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/descriptor.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/descriptor.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/ids.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/descriptor.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/effective_source.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/handshake.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/auth/lease.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/handshake.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/handshake.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/ids.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/handshake.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/hosted_edge.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/deployment.rs",
       "toOwner": "generation-activation-coordinator"
     },
     {
       "from": "src/auth/hosted_edge.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/throttle.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/hosted_edge.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/deploy.rs",
       "toOwner": "generation-activation-coordinator"
     },
     {
       "from": "src/auth/hosted_edge.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/invalidation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/invalidation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/ids.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/invalidation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/invalidation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/admin.rs",
       "toOwner": "transport-adapters"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/admission.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/provider.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/service_fence.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/conformance.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/ids.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/storage/auth_agent_credentials.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/storage/auth_asset_callbacks.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/storage/auth_grants.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/invocation.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/storage/auth_scope_bases.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/keyring.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/secure_file.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/lease.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/lease.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/lease.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/keyring.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/lease.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/lease.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/lease.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/ids.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/lease.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/lease.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/lifecycle.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/lifecycle.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/auth/keyring.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/lifecycle.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/auth/mailbox.rs",
-      "toOwner": "unassigned"
+      "toOwner": "background-services"
     },
     {
       "from": "src/auth/lifecycle.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/lifecycle.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/ids.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/lifecycle.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/secure_file.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/lifecycle.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/lifecycle.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/storage/auth.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/mailbox.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/mailbox.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/mode.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/mode.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/provider.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/provider.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/lease.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/provider.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/sender_proof.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/provider.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/provider.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/provider.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/ids.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/provider.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/provider.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/storage/auth.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/admin_impersonation.rs",
       "toOwner": "transport-adapters"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/admin.rs",
       "toOwner": "transport-adapters"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/keyring.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/rescue.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/wire.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/control_catalog.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/host_ops.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/identity.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/server.rs",
       "toOwner": "transport-adapters"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/recovery.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/storage/auth_mode.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/rescue.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/auth/wire.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/rescue.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/rescue.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/admin.rs",
       "toOwner": "transport-adapters"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/backup.rs",
-      "toOwner": "unassigned"
+      "toOwner": "background-services"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/keyring.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/lifecycle.rs",
-      "toOwner": "unassigned"
+      "toOwner": "background-services"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/provider.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/ids.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/local.rs",
       "toOwner": "unassigned"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/push.rs",
       "toOwner": "background-services"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/secure_file.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/server.rs",
       "toOwner": "transport-adapters"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/storage/auth.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/sender_proof.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/sender_proof.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/sender_proof.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/storage/auth.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/service_fence.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/service_fence.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/keyring.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/service_fence.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/provider.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/service_fence.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/auth/service_fence.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/service_fence.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/service_fence.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/storage/auth_agent_credentials.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/session_projection.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/session_projection.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/session_projection.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/session_projection.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/ids.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/wire.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/wire.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/auth/descriptor.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/wire.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/ids.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/auth/wire.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/authoring_suggestion.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/authoring_suggestion.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/bench.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/commit_envelope.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/bench.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/bench.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/ephemeral.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/bench.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/live_matcher.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/bench.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/local.rs",
       "toOwner": "unassigned"
     },
     {
       "from": "src/bench.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/bench.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/bench.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
@@ -1388,7 +1388,7 @@
       "from": "src/bundle.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/bundle.rs",
@@ -1436,13 +1436,13 @@
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/backup.rs",
-      "toOwner": "unassigned"
+      "toOwner": "background-services"
     },
     {
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/cli.rs",
@@ -1454,43 +1454,43 @@
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/hosted_edge.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/keyring.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/lifecycle.rs",
-      "toOwner": "unassigned"
+      "toOwner": "background-services"
     },
     {
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/provider.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/recovery.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli.rs",
@@ -1508,7 +1508,7 @@
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
       "to": "src/control_catalog.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli.rs",
@@ -1538,7 +1538,7 @@
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/cli.rs",
@@ -1550,7 +1550,7 @@
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
       "to": "src/host_ops.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli.rs",
@@ -1604,7 +1604,7 @@
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
       "to": "src/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli.rs",
@@ -1658,7 +1658,7 @@
       "from": "src/cli/fork.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/cli/fork.rs",
@@ -1676,7 +1676,7 @@
       "from": "src/cli/fork.rs",
       "fromOwner": "transport-adapters",
       "to": "src/host_ops.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli/fork.rs",
@@ -1712,19 +1712,19 @@
       "from": "src/cli/guide_command.rs",
       "fromOwner": "transport-adapters",
       "to": "src/guide_reference.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli/guide_command.rs",
       "fromOwner": "transport-adapters",
       "to": "src/guide.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli/migration.rs",
       "fromOwner": "transport-adapters",
       "to": "src/control_catalog.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli/migration.rs",
@@ -1736,7 +1736,7 @@
       "from": "src/cli/migration.rs",
       "fromOwner": "transport-adapters",
       "to": "src/host_ops.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli/migration.rs",
@@ -1796,7 +1796,7 @@
       "from": "src/cli/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/cli/tests.rs",
@@ -1808,31 +1808,31 @@
       "from": "src/cli/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/keyring.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/cli/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/lifecycle.rs",
-      "toOwner": "unassigned"
+      "toOwner": "background-services"
     },
     {
       "from": "src/cli/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/cli/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/provider.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/cli/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli/tests.rs",
@@ -1844,7 +1844,7 @@
       "from": "src/cli/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/control_catalog.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli/tests.rs",
@@ -1862,19 +1862,19 @@
       "from": "src/cli/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/guide_reference.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/guide.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/host_ops.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/cli/tests.rs",
@@ -1964,7 +1964,7 @@
       "from": "src/completeness.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/completeness.rs",
@@ -2016,43 +2016,43 @@
     },
     {
       "from": "src/conformance.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/conformance.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/conformance.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/contract_exact.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/control_catalog.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/admin.rs",
       "toOwner": "transport-adapters"
     },
     {
       "from": "src/control_catalog.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/deployment.rs",
       "toOwner": "generation-activation-coordinator"
     },
     {
       "from": "src/control_catalog.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/server.rs",
       "toOwner": "transport-adapters"
     },
@@ -2144,7 +2144,7 @@
       "from": "src/embed.rs",
       "fromOwner": "embed-facade",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/embed.rs",
@@ -2186,7 +2186,7 @@
       "from": "src/ephemeral.rs",
       "fromOwner": "sync-realtime-engine",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/ephemeral.rs",
@@ -2198,7 +2198,7 @@
       "from": "src/ephemeral.rs",
       "fromOwner": "sync-realtime-engine",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/ephemeral.rs",
@@ -2244,9 +2244,9 @@
     },
     {
       "from": "src/exec_guard.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "shared-contract-types-leaf",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/fork_promotion.rs",
@@ -2306,13 +2306,13 @@
       "from": "src/generation_activation.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/auth/admission.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/generation_activation.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/generation_activation.rs",
@@ -2342,119 +2342,119 @@
       "from": "src/guide_mcp.rs",
       "fromOwner": "transport-adapters",
       "to": "src/guide_reference.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/guide_mcp.rs",
       "fromOwner": "transport-adapters",
       "to": "src/guide.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/guide_reference.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/guide.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/guide.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/guide_reference.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/admin.rs",
       "toOwner": "transport-adapters"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/authoring_suggestion.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/branches.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/conformance.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/control_catalog.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/cron.rs",
       "toOwner": "background-services"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/data_patch.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/fork_promotion.rs",
       "toOwner": "background-services"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/ids.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/local.rs",
       "toOwner": "unassigned"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/seed_identity.rs",
       "toOwner": "generation-activation-coordinator"
     },
     {
       "from": "src/host_ops.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
@@ -2492,13 +2492,13 @@
       "from": "src/instance_fork.rs",
       "fromOwner": "background-services",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/instance_fork.rs",
       "fromOwner": "background-services",
       "to": "src/auth/keyring.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/instance_fork.rs",
@@ -2558,13 +2558,13 @@
       "from": "src/instance_fork.rs",
       "fromOwner": "background-services",
       "to": "src/search/cursor.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/instance_fork.rs",
       "fromOwner": "background-services",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/instance_fork.rs",
@@ -2660,7 +2660,7 @@
       "from": "src/live_wire.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/live_wire.rs",
@@ -2738,61 +2738,61 @@
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/admission.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/coordinator.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/descriptor.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/lease.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/service_fence.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/authoring_suggestion.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/local.rs",
@@ -2834,7 +2834,7 @@
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/conformance.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/local.rs",
@@ -2870,7 +2870,7 @@
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/local.rs",
@@ -2984,19 +2984,19 @@
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/search/sqlite.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/local.rs",
@@ -3086,37 +3086,37 @@
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/vector/diagnostics.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/vector/mod.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/vector/sqlite.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/warm_vm.rs",
-      "toOwner": "unassigned"
+      "toOwner": "background-services"
     },
     {
       "from": "src/local/auth_room_kick_acceptance.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local/auth_room_kick_acceptance.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/local/auth_room_kick_acceptance.rs",
@@ -3146,19 +3146,19 @@
       "from": "src/local/authorization_acceptance.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/admission.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local/authorization_acceptance.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local/authorization_acceptance.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local/authorization_acceptance.rs",
@@ -3180,37 +3180,37 @@
     },
     {
       "from": "src/local/inspection.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/local/inspection.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/push.rs",
       "toOwner": "background-services"
     },
     {
       "from": "src/local/inspection.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "background-services",
       "to": "src/telemetry.rs",
       "toOwner": "background-services"
     },
     {
       "from": "src/local/live_protocol.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/completeness.rs",
       "toOwner": "generation-activation-coordinator"
     },
     {
       "from": "src/local/live_protocol.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/local/live_protocol.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
@@ -3266,13 +3266,13 @@
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/admission.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/local/tests.rs",
@@ -3284,37 +3284,37 @@
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/descriptor.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/lease.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/auth/service_fence.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local/tests.rs",
@@ -3362,7 +3362,7 @@
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/local/tests.rs",
@@ -3374,7 +3374,7 @@
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/host_ops.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/local/tests.rs",
@@ -3422,19 +3422,19 @@
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/search/unicode17_generated.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/local/tests.rs",
@@ -3494,19 +3494,19 @@
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/vector/mod.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/vector/rebuild.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/local/tests.rs",
       "fromOwner": "unassigned",
       "to": "src/vector/sqlite.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/manifest.rs",
@@ -3530,13 +3530,13 @@
       "from": "src/manifest.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/manifest.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/manifest.rs",
@@ -3602,7 +3602,7 @@
       "from": "src/manifest.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/manifest.rs",
@@ -3626,13 +3626,13 @@
       "from": "src/manifest.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/vector/mod.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/manifest.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/vector/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/membership_rules.rs",
@@ -3794,13 +3794,13 @@
       "from": "src/proof_checkpoint.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/admission.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/proof_checkpoint.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/proof_checkpoint.rs",
@@ -3842,19 +3842,19 @@
       "from": "src/push.rs",
       "fromOwner": "background-services",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/push.rs",
       "fromOwner": "background-services",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/push.rs",
       "fromOwner": "background-services",
       "to": "src/auth/wire.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/push.rs",
@@ -3920,13 +3920,13 @@
       "from": "src/result_contract.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/vector/mod.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/rqs.rs",
       "fromOwner": "sync-realtime-engine",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/rqs.rs",
@@ -3960,115 +3960,115 @@
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/assets.rs",
       "toOwner": "background-services"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/admission.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/conformance.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/cron.rs",
       "toOwner": "background-services"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/error_tracking.rs",
       "toOwner": "background-services"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/ids.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/jobs.rs",
       "toOwner": "background-services"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/live_matcher.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/membership_rules.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/push.rs",
       "toOwner": "background-services"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/stream_attempt.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/telemetry.rs",
       "toOwner": "background-services"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/warm_vm.rs",
-      "toOwner": "unassigned"
+      "toOwner": "background-services"
     },
     {
       "from": "src/runtime.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "transport-adapters",
       "to": "src/workerd_exec.rs",
       "toOwner": "transport-adapters"
     },
@@ -4106,25 +4106,25 @@
       "from": "src/schema_export.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/auth/handshake.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/schema_export.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/auth/lease.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/schema_export.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/auth/rescue.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/schema_export.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/auth/wire.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/schema_export.rs",
@@ -4190,7 +4190,7 @@
       "from": "src/schema_export.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/host_ops.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/schema_export.rs",
@@ -4232,7 +4232,7 @@
       "from": "src/schema_export.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/result_transform.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/schema_export.rs",
@@ -4244,13 +4244,13 @@
       "from": "src/schema_export.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/search/fixtures.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/schema_export.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/schema_export.rs",
@@ -4298,13 +4298,13 @@
       "from": "src/schema_export.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/vector/mod.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/schema_export.rs",
       "fromOwner": "generation-activation-coordinator",
       "to": "src/vector/profile.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/schema_export.rs",
@@ -4314,213 +4314,213 @@
     },
     {
       "from": "src/search/analyzer.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/search/analyzer.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/analyzer.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/unicode17_generated.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/ast.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/search/ast.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/rqs.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/search/ast.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/analyzer.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/ast.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/ast.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/unicode17_generated.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/cursor.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/fixtures.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/args_contract.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/search/fixtures.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/highlight.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/analyzer.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/highlight.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/parser.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/search/parser.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/rebuild.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/search/rebuild.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/search/scorer.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/analyzer.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/scorer.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/args_contract.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/membership_rules.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/rqs.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/analyzer.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/ast.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/cursor.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/highlight.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/rebuild.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/scorer.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/unicode17_generated.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/storage/auth_stream.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/search/types.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/search/unicode17_generated.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/seed_identity.rs",
@@ -4580,19 +4580,19 @@
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/admission.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/coordinator.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/server.rs",
@@ -4604,91 +4604,91 @@
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/descriptor.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/effective_source.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/handshake.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/lease.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/provider.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/rescue.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/sender_proof.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/service_fence.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/wire.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/authoring_suggestion.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/server.rs",
@@ -4736,19 +4736,19 @@
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/guide.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/host_ops.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/server.rs",
@@ -4820,7 +4820,7 @@
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
       "to": "src/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/server.rs",
@@ -4910,13 +4910,13 @@
       "from": "src/server/response_types.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server/response_types.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/server/response_types.rs",
@@ -4964,13 +4964,13 @@
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/admission.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/server/tests.rs",
@@ -4982,67 +4982,67 @@
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/descriptor.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/effective_source.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/keyring.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/lifecycle.rs",
-      "toOwner": "unassigned"
+      "toOwner": "background-services"
     },
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/provider.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/service_fence.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/server/tests.rs",
@@ -5078,13 +5078,13 @@
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/host_ops.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/server/tests.rs",
@@ -5138,7 +5138,7 @@
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/server/tests.rs",
@@ -5228,31 +5228,31 @@
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/coordinator.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/service_fence.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/authoring_suggestion.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage.rs",
@@ -5282,7 +5282,7 @@
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage.rs",
@@ -5366,25 +5366,25 @@
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/search/mod.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/search/sqlite.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/search/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/search/unicode17_generated.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage.rs",
@@ -5408,31 +5408,31 @@
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/vector/diagnostics.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/vector/mod.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/vector/rebuild.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/vector/sqlite.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/vector/storage.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage/asset_maintenance.rs",
@@ -5444,13 +5444,13 @@
       "from": "src/storage/auth_agent_credentials.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/auth_agent_credentials.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/service_fence.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/auth_agent_credentials.rs",
@@ -5480,7 +5480,7 @@
       "from": "src/storage/auth_agents.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/service_fence.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/auth_agents.rs",
@@ -5522,19 +5522,19 @@
       "from": "src/storage/auth_grants.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/auth_grants.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/provider.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/auth_grants.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/service_fence.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/auth_grants.rs",
@@ -5570,7 +5570,7 @@
       "from": "src/storage/auth_invalidation.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/auth_invalidation.rs",
@@ -5606,13 +5606,13 @@
       "from": "src/storage/auth_mode.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/auth_mode.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/auth_mode.rs",
@@ -5624,7 +5624,7 @@
       "from": "src/storage/auth_mode.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/auth_mode.rs",
@@ -5648,7 +5648,7 @@
       "from": "src/storage/auth_mode.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/search/sqlite.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage/auth_mode.rs",
@@ -5660,19 +5660,19 @@
       "from": "src/storage/auth_mode.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/vector/sqlite.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage/auth_rescue.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/auth_rescue.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/rescue.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage/auth_rescue.rs",
@@ -5708,7 +5708,7 @@
       "from": "src/storage/auth_sender.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/sender_proof.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/auth_sender.rs",
@@ -5720,7 +5720,7 @@
       "from": "src/storage/auth_stream.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/auth_stream.rs",
@@ -5732,7 +5732,7 @@
       "from": "src/storage/auth_throttle.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/auth_throttle.rs",
@@ -5744,31 +5744,31 @@
       "from": "src/storage/auth_throttle.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/sender_proof.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/auth_throttle.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/throttle.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage/auth.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/sender_proof.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/auth.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/service_fence.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/auth.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/auth.rs",
@@ -5780,7 +5780,7 @@
       "from": "src/storage/auth.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/auth.rs",
@@ -5834,19 +5834,19 @@
       "from": "src/storage/authorized_lease.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/authorized_lease.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/lease.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/authorized_lease.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/mode.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/authorized_lease.rs",
@@ -5870,7 +5870,7 @@
       "from": "src/storage/connections.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/connections.rs",
@@ -5894,7 +5894,7 @@
       "from": "src/storage/connections.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/vector/sqlite.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage/hosted_admission.rs",
@@ -5906,7 +5906,7 @@
       "from": "src/storage/hosted_admission.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/hosted_edge.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/storage/hosted_admission.rs",
@@ -5990,7 +5990,7 @@
       "from": "src/storage/projection_rebuild.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/projection_rebuild.rs",
@@ -6038,31 +6038,31 @@
       "from": "src/storage/tests.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/coordinator.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/tests.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/tests.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/invocation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/tests.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/sender_proof.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/tests.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/session_projection.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/tests.rs",
@@ -6164,7 +6164,7 @@
       "from": "src/storage/tests.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/vector/mod.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage/write_authority.rs",
@@ -6200,31 +6200,31 @@
       "from": "src/store_state.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/crypto.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/store_state.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/keyring.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/store_state.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/lifecycle.rs",
-      "toOwner": "unassigned"
+      "toOwner": "background-services"
     },
     {
       "from": "src/store_state.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/provider.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/store_state.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/store_state.rs",
@@ -6314,7 +6314,7 @@
       "from": "src/telemetry_bench.rs",
       "fromOwner": "background-services",
       "to": "src/bench.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/telemetry_bench.rs",
@@ -6420,243 +6420,243 @@
     },
     {
       "from": "src/vector/acceptance.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/vector/acceptance.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/vector/acceptance.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/migration.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/acceptance.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/diagnostics.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/vector/profile.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/rqs.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/vector/query.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/vector/query.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/vector/query.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/rqs.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/vector/query.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/diagnostics.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/query.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/mod.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/query.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/profile.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/query.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/storage.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/query.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/rebuild.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/vector/rebuild.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/vector/rebuild.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/migration.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/rebuild.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/rqs.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/vector/rebuild.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/rebuild.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/diagnostics.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/rebuild.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/mod.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/rebuild.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/sqlite.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/rebuild.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/storage.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/rebuild.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/vector/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/vector/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/rqs.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/vector/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/diagnostics.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/mod.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/query.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/rebuild.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/storage.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/sqlite.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/types.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/storage.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/vector/storage.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/rqs.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/vector/storage.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/diagnostics.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/storage.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/profile.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/vector/types.rs",
-      "fromOwner": "unassigned",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/profile.rs",
-      "toOwner": "unassigned"
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/wire_fixtures.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/auth/invalidation.rs",
-      "toOwner": "unassigned"
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/wire_fixtures.rs",
@@ -6692,7 +6692,7 @@
       "from": "src/workerd_exec.rs",
       "fromOwner": "transport-adapters",
       "to": "src/exec_guard.rs",
-      "toOwner": "unassigned"
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/workerd_exec.rs",
@@ -6710,7 +6710,7 @@
       "from": "src/workerd_exec.rs",
       "fromOwner": "transport-adapters",
       "to": "src/runtime.rs",
-      "toOwner": "unassigned"
+      "toOwner": "transport-adapters"
     },
     {
       "from": "src/workerd_exec.rs",
