@@ -3,7 +3,7 @@ use crate::assets;
 use rusqlite::TransactionBehavior;
 use serde_json::Value;
 
-fn asset_receipt(
+pub(super) fn asset_receipt(
     lineage: &str,
     event: assets::AssetReceiptEventV1,
     asset_id: &str,

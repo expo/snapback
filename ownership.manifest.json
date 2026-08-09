@@ -173,6 +173,7 @@
       "src/search/unicode17_generated.rs",
       "src/secure_file.rs",
       "src/storage.rs",
+      "src/storage/asset_attempts.rs",
       "src/storage/asset_maintenance.rs",
       "src/storage/auth.rs",
       "src/storage/auth_agent_credentials.rs",
