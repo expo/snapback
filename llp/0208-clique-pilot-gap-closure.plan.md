@@ -251,8 +251,13 @@ per LLP 0189, independent of this Plan's review state:
   filed 2026-08-09:** `issues/20260809-multi-image-authoring-revisit-g8.md`
   (steer to the LLP 0110 bounded-children paved path first; any
   bounded-array revisit is a new author ruling request against the
-  2026-07-31 withdrawal, not a default). The unique-on-optional half
-  still needs its ticket.
+  2026-07-31 withdrawal, not a default). The unique-on-optional half is
+  filed 2026-08-09: `issues/20260809-unique-where-present-optional-fields.md`
+  (LLP 0007 owner). The plain-data structured-value half (quoted preview,
+  poll options — the `v.json()` escapes) is now owned by LLP 0211 (Draft,
+  2026-08-09), which preserves the LLP 0044 withdrawal and excludes asset
+  refs; the stored-`v.object` silent-Json-degrade defect found during its
+  review is `issues/20260809-stored-vobject-silent-json-degrade.md`.
 
 ### G9. No server-side connected-client predicate for push suppression
 
