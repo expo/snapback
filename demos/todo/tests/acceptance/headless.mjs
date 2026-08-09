@@ -16,7 +16,7 @@ import { SnapbackClient } from '../../../_kit/client.mjs';
 import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 import { generate } from '../../../_kit/codegen.mjs';
-import { assert, assertEqual, assertThrows, createSuite, writeMachineReport } from '../../../_kit/harness.mjs';
+import { assert, assertEqual, assertThrows, createSuite, eventually, writeMachineReport } from '../../../_kit/harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -163,8 +163,13 @@ try {
     const b = await db.liveQuery(api.listTodos, { connectionId: 'client_b', userId: ADA });
     assertEqual(b.rows.length, 3, 'b initial');
     await db.mutate(api.createTodo, { args: { title: 'Added by another client' }, userId: ADA });
-    const rows = await b.poll();
-    assertEqual(rows.length, 4, 'b did not receive realtime update');
+    // Phase 1 (LLP 0200): fan-out is scheduled off the commit turn, so poll
+    // until the frame lands instead of asserting one immediate drain.
+    const rows = await eventually(async () => {
+      const polled = await b.poll();
+      assertEqual(polled.length, 4, 'b did not receive realtime update');
+      return polled;
+    }, 'realtime update for client_b');
     assert(rows.some((r) => r.title === 'Added by another client'), 'new row missing');
     return { rows: rows.length };
   });
@@ -177,7 +182,9 @@ try {
       await stream.ready;
       const live = await db.subscribeLive(api.listTodos, { connectionId: 'client_ws', userId: ADA });
       await db.mutate(api.createTodo, { args: { title: 'Pushed over WebSocket' }, userId: ADA });
-      const update = await stream.nextUpdate();
+      // Phase 1 (LLP 0200): the 2 s nextUpdate default is no longer a safe
+      // whole-fan-out window once delivery is scheduled off the commit turn.
+      const update = await stream.nextUpdate(10_000);
       assertEqual(update.kind, 'live_replace', 'websocket update kind');
       assertEqual(update.subscription_id, live.subscription_id, 'subscription id');
       assert(update.rows.some((r) => r.title === 'Pushed over WebSocket'), 'pushed row missing');
@@ -297,7 +304,16 @@ try {
         value: { x: 100 + i, y: 200 + i },
       });
     }
+    const mixedDeliveriesBefore = (await db.inspect()).liveDelivery.totalDeliveries;
     await db.mutate(api.createTodo, { args: { title: 'Durable during cursor flood' }, userId: ADA });
+    // Phase 1 (LLP 0200): wait until the scheduled fan-out has enqueued the
+    // durable frame, then prove durable-lane priority within a single drain.
+    await eventually(async () => {
+      assert(
+        (await db.inspect()).liveDelivery.totalDeliveries > mixedDeliveriesBefore,
+        'durable fan-out for the flood mutation not yet delivered',
+      );
+    }, 'durable frame enqueued under cursor flood');
     const mixedEnvelopes = await db.drainEnvelopes('mixed_lane');
     assert(mixedEnvelopes[0]?.Durable, `first mixed-lane message was not durable: ${JSON.stringify(mixedEnvelopes[0])}`);
     const durableUpdate = JSON.parse(Buffer.from(mixedEnvelopes[0].Durable.payload).toString('utf8'));
@@ -376,16 +392,38 @@ try {
     }
   });
 
+  // Phase 1 (LLP 0200): live fan-out is scheduled off the commit turn, and a
+  // subscription the matcher skips converges through a rows-free
+  // `current_as_of` watermark at the commit's version instead of silence.
+  // Draining until that watermark arrives is the deterministic "the fan-out
+  // pass for this commit ran" signal; only then are an empty row-bearing
+  // drain and the per-pass matcher counters meaningful.
+  const drainUpdatesUntilWatermark = async (connectionId, version) => {
+    const updates = [];
+    await eventually(async () => {
+      updates.push(...await db.drainUpdates(connectionId));
+      assert(
+        updates.some((u) => u.kind === 'current_as_of' && u.version >= version),
+        `no current_as_of watermark at version ${version} yet`,
+      );
+    }, `convergence watermark for ${connectionId}`);
+    return updates;
+  };
+  const rowBearing = (updates) => updates.filter((u) => u.kind !== 'current_as_of');
+
   await suite.check('realtime matcher skips unrelated user-scoped mutations', async () => {
     await db.reset();
     await db.seed(seed);
     await db.liveQuery(api.listTodos, { connectionId: 'client_disjoint', userId: ADA });
-    await db.mutate(api.createTodo, { args: { title: 'Grace private todo' }, userId: GRACE });
-    const updates = await db.drainUpdates('client_disjoint');
-    assertEqual(updates, [], 'other-user create should not refresh Ada subscription');
+    const graceCreate = await db.mutate(api.createTodo, { args: { title: 'Grace private todo' }, userId: GRACE });
+    const updates = await drainUpdatesUntilWatermark('client_disjoint', graceCreate.version);
+    assertEqual(rowBearing(updates), [], 'other-user create should not refresh Ada subscription');
     const state = await db.inspect();
     assertEqual(state.liveDelivery.lastSkipped, 1, 'matcher skip count');
-    assertEqual(state.liveDelivery.lastDeliveries, 0, 'matcher delivery count');
+    // Phase 1 (LLP 0200): the skipped subscription's convergence watermark is
+    // itself counted as one (rows-free) delivery; the drain filter above
+    // proves nothing row-bearing crossed.
+    assertEqual(state.liveDelivery.lastDeliveries, 1, 'watermark-only delivery count');
     return { updates: updates.length, liveDelivery: state.liveDelivery };
   });
 
@@ -393,16 +431,26 @@ try {
     await db.reset();
     const hidden = await db.mutate(api.createTodo, { args: { title: 'Grace hidden row' }, userId: GRACE });
     await db.liveQuery(api.listTodos, { connectionId: 'client_hidden', userId: ADA });
-    await db.mutate(api.setCompleted, { args: { id: hidden.result, completed: true }, userId: GRACE });
-    assertEqual(await db.drainUpdates('client_hidden'), [], 'hidden patch should not refresh Ada subscription');
+    const hiddenPatch = await db.mutate(api.setCompleted, { args: { id: hidden.result, completed: true }, userId: GRACE });
+    assertEqual(
+      rowBearing(await drainUpdatesUntilWatermark('client_hidden', hiddenPatch.version)),
+      [],
+      'hidden patch should not refresh Ada subscription',
+    );
     const patchState = await db.inspect();
     assertEqual(patchState.liveDelivery.lastSkipped, 1, 'hidden patch skip count');
-    assertEqual(patchState.liveDelivery.lastDeliveries, 0, 'hidden patch delivery count');
-    await db.mutate(api.deleteTodo, { args: { id: hidden.result }, userId: GRACE });
-    assertEqual(await db.drainUpdates('client_hidden'), [], 'hidden delete should not refresh Ada subscription');
+    // Phase 1 (LLP 0200): the skip's convergence watermark counts as one
+    // rows-free delivery (see the unrelated-mutation check above).
+    assertEqual(patchState.liveDelivery.lastDeliveries, 1, 'hidden patch watermark-only delivery count');
+    const hiddenDelete = await db.mutate(api.deleteTodo, { args: { id: hidden.result }, userId: GRACE });
+    assertEqual(
+      rowBearing(await drainUpdatesUntilWatermark('client_hidden', hiddenDelete.version)),
+      [],
+      'hidden delete should not refresh Ada subscription',
+    );
     const deleteState = await db.inspect();
     assertEqual(deleteState.liveDelivery.lastSkipped, 1, 'hidden delete skip count');
-    assertEqual(deleteState.liveDelivery.lastDeliveries, 0, 'hidden delete delivery count');
+    assertEqual(deleteState.liveDelivery.lastDeliveries, 1, 'hidden delete watermark-only delivery count');
     return { hiddenId: hidden.result, liveDelivery: deleteState.liveDelivery };
   });
 
@@ -413,14 +461,23 @@ try {
     assertEqual(completed.rows, [], 'initial completed rows');
 
     const created = await db.mutate(api.createTodo, { args: { title: 'Still open' }, userId: ADA });
-    assertEqual(await db.drainUpdates('client_completed'), [], 'completed=false insert should not refresh completed=true subscription');
+    assertEqual(
+      rowBearing(await drainUpdatesUntilWatermark('client_completed', created.version)),
+      [],
+      'completed=false insert should not refresh completed=true subscription',
+    );
     const skipped = await db.inspect();
     assertEqual(skipped.liveDelivery.lastSkipped, 1, 'completed=false skip count');
-    assertEqual(skipped.liveDelivery.lastDeliveries, 0, 'completed=false delivery count');
+    // Phase 1 (LLP 0200): the skip's convergence watermark counts as one
+    // rows-free delivery (see the unrelated-mutation check above).
+    assertEqual(skipped.liveDelivery.lastDeliveries, 1, 'completed=false watermark-only delivery count');
 
     await db.mutate(api.setCompleted, { args: { id: created.result, completed: true }, userId: ADA });
-    const rows = await completed.poll();
-    assertEqual(rows.length, 1, 'completed=true update should refresh subscription');
+    const rows = await eventually(async () => {
+      const polled = await completed.poll();
+      assertEqual(polled.length, 1, 'completed=true update should refresh subscription');
+      return polled;
+    }, 'completed=true refresh for client_completed');
     assertEqual(rows[0]._id, created.result, 'completed row id');
     assertEqual(rows[0].completed, true, 'completed row flag');
     const delivered = await db.inspect();

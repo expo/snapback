@@ -16,7 +16,7 @@ import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
-import { assert, assertEqual, assertThrows, createSuite } from '../../../_kit/harness.mjs';
+import { assert, assertEqual, assertThrows, createSuite, eventually } from '../../../_kit/harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -111,9 +111,14 @@ try {
     const graceSub = await db.subscribeLive(api.listCells, { connectionId: 'peerGrace', args: { boardId: BOARD }, userId: GRACE });
     const before = graceSub.snapshot.rows.length;
     await db.mutate(api.paintCell, { args: { boardId: BOARD, x: 22, y: 13, color: '#30a46c' }, userId: ADA });
-    const updates = await db.drainUpdates('peerGrace');
-    const last = updates.at(-1);
-    assert(last, 'peer received no durable update');
+    // Phase 1 (LLP 0200): fan-out is scheduled off the commit turn — drain
+    // until the durable update lands instead of asserting one immediate drain.
+    const updates = [];
+    await eventually(async () => {
+      updates.push(...await db.drainUpdates('peerGrace'));
+      assert(updates.some((u) => Array.isArray(u.rows)), 'peer received no durable update');
+    }, 'peer durable update for peerGrace');
+    const last = updates.filter((u) => Array.isArray(u.rows)).at(-1);
     assert(last.rows.length === before + 1, 'peer row count did not grow');
     assert(last.rows.some((r) => r.x === 22 && r.y === 13 && r.color === '#30a46c'), 'peer missing the new pixel');
     return { delivered: updates.length, rows: last.rows.length };
@@ -303,7 +308,17 @@ try {
     for (let i = 0; i < 8; i += 1) {
       await db.publishEphemeral(cursorRef, { connectionId: 'flooder', scope, userId: ADA, permissions: perms, value: { x: 100 + i, y: 1, color: '#e93d82', name: 'Ada' } });
     }
+    const mixedDeliveriesBefore = (await db.inspect()).liveDelivery.totalDeliveries;
     await db.mutate(api.paintCell, { args: { boardId: BOARD, x: 7, y: 7, color: '#ad7f58' }, userId: ADA });
+    // Phase 1 (LLP 0200): wait until the scheduled fan-out has enqueued the
+    // paint's durable frames — one per listCells subscription (peerAda,
+    // peerGrace, mixed) — then prove durable-lane priority in a single drain.
+    await eventually(async () => {
+      assert(
+        (await db.inspect()).liveDelivery.totalDeliveries >= mixedDeliveriesBefore + 3,
+        'durable fan-out for the flood paint not yet delivered',
+      );
+    }, 'durable frame enqueued under cursor flood');
     const envelopes = await db.drainEnvelopes('mixed');
     assert(envelopes[0]?.Durable, `first mixed-lane message was not durable: ${JSON.stringify(envelopes[0])}`);
     const durable = JSON.parse(Buffer.from(envelopes[0].Durable.payload).toString('utf8'));

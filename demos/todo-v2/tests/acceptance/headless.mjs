@@ -13,7 +13,7 @@ import { SnapbackClient } from '../../../_kit/client.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 import { freePort } from '../../../_kit/provenance.mjs';
 import { generate } from '../../../_kit/codegen.mjs';
-import { assert, assertEqual, assertThrows, createSuite } from '../../../_kit/harness.mjs';
+import { assert, assertEqual, assertThrows, createSuite, eventually } from '../../../_kit/harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
@@ -124,8 +124,13 @@ try {
     const b = await db.liveQuery('listTodos', { connectionId: 'client_b', userId: ADA });
     assertEqual(b.rows.length, 3, 'b initial');
     await db.mutate('createTodo', { args: { title: 'Added by another client', priority: 'normal' }, userId: ADA });
-    const rows = await b.poll();
-    assertEqual(rows.length, 4, 'b did not receive realtime update');
+    // Phase 1 (LLP 0200): fan-out is scheduled off the commit turn, so poll
+    // until the frame lands instead of asserting one immediate drain.
+    const rows = await eventually(async () => {
+      const polled = await b.poll();
+      assertEqual(polled.length, 4, 'b did not receive realtime update');
+      return polled;
+    }, 'realtime update for client_b');
     assert(rows.some((r) => r.title === 'Added by another client' && r.priority === 'normal'), 'new row missing');
     return { rows: rows.length };
   });

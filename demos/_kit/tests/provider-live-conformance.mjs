@@ -38,7 +38,7 @@ import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../client.mjs';
 import { startServer } from '../server-process.mjs';
 import { generate, crossCheckContractQueryBinding } from '../codegen.mjs';
-import { assert, assertEqual, createSuite } from '../harness.mjs';
+import { assert, assertEqual, createSuite, eventually } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..');
@@ -134,8 +134,18 @@ try {
     // Every delta after the snapshot carries a version >= the snapshot's:
     // nothing can fall between the snapshot and the subscription.
     await db.mutate('createTodo', { args: { title: 'after atomic subscribe' }, userId: ADA });
-    const updates = await db.drainUpdates('atomic_conn');
-    const update = updates.find((u) => u.subscription_id === response.subscription_id);
+    // Phase 1 (LLP 0200): delivery is scheduled off the commit turn — drain
+    // until the update for this subscription arrives. The version bound below
+    // is exactly the watermark this wait rides on.
+    const updates = [];
+    await eventually(async () => {
+      updates.push(...await db.drainUpdates('atomic_conn'));
+      assert(
+        updates.some((u) => u.subscription_id === response.subscription_id && Array.isArray(u.rows)),
+        'delta for the atomic subscription not delivered',
+      );
+    }, 'atomic subscription delta');
+    const update = updates.find((u) => u.subscription_id === response.subscription_id && Array.isArray(u.rows));
     assert(update, 'delta for the atomic subscription not delivered');
     assert(update.version >= response.snapshot.version, `delta version ${update.version} regressed below snapshot ${response.snapshot.version}`);
     assertEqual(update.rows.length, 4, 'delta reflects the post-snapshot mutation');

@@ -180,9 +180,19 @@ try {
     await suite.check('a non-matching insert produces no update for this subscription', async () => {
       const before = rec.updates.length;
       await db.mutate('createTodo', { args: { title: 'theirs', userId: 'bob' }, userId: 'bob' });
-      // Give any (erroneous) delivery a moment; there should be none.
-      await new Promise((r) => setTimeout(r, 300));
-      assertEqual(rec.updates.length, before, 'no update for a non-matching commit');
+      // Phase 1 (LLP 0200): the skipped subscription converges through a
+      // rows-free `current_as_of` watermark instead of silence. Wait for the
+      // watermark — the deterministic "this commit's fan-out pass ran"
+      // signal — then assert nothing row-bearing was delivered.
+      await rec.waitFor(
+        () => rec.updates.slice(before).some((u) => u.kind === 'current_as_of'),
+        'convergence watermark for the non-matching commit',
+      );
+      assertEqual(
+        rec.updates.slice(before).filter((u) => u.kind !== 'current_as_of'),
+        [],
+        'no row update for a non-matching commit',
+      );
       assertEqual(handle.rows.length, 1, 'still one row');
       return { updates: rec.updates.length };
     });
