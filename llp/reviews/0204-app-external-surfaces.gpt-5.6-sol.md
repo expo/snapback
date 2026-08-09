@@ -104,3 +104,51 @@ The revision materially improves the hosted-execution, untrusted-code, receipt, 
 7. [PRE-EXISTING] **D9.3 watches:** Pin watch predicates as a closed declarative grammar, or apply D6’s untrusted-code gate. A caller-submitted executable predicate would otherwise become durable untrusted code despite D6’s “query plan, not deployment” boundary.
 
 VERDICT: NOT READY
+## Round 3 — 2026-08-08 (delta round)
+
+**Provenance:** External family reviewer — OpenAI gpt-5.6-sol via
+`codex exec`, reasoning effort xhigh, cwd = capsule worktree at commit
+384c5f638 (structural blindness: capsule excludes `llp/reviews/0204-*`
+and orchestrator notes). Delta-round instructions enumerated the v0.4
+delta and required IN-DELTA / PRE-EXISTING classification. Target
+revision: 384c5f638; target sha256:
+adf915268374a39ed0f005303a8bd1e6be8281eb607602f7326e2497562d76a2.
+Review received 2026-08-08, preserved verbatim below.
+
+**Verdict: NOT READY** (6 material: 4 IN-DELTA, 2 PRE-EXISTING; 6
+minors). PRE-EXISTING materials (M3, M6) block delta-round convergence;
+round budget (3) exhausted → terminal escalation to the author.
+
+---
+
+The revision materially improves anonymous reachability honesty, hosted-lane scoping, code-mode gating, and capability-link staging. It is still not ready: D7’s lifecycle model contradicts LLP 0055/0150, and several newly claimed inheritance paths do not exist in the governing LLPs. Assessment binds to sha256 `adf915268374a39ed0f005303a8bd1e6be8281eb607602f7326e2497562d76a2`.
+
+## Material concerns
+
+1. [IN-DELTA] **D7, key-holder rotation.** D7 says grants bind to credential generation and therefore rotation terminally revokes every installation for fresh consent. LLP 0055 §Credentials and LLP 0150 §1 say the opposite: self-rotation preserves grants, keeps the credential id stable, and only invalidates old tokens/connections and queued work. A rotated integration can mint fresh tokens against every existing grant. This invalidates the claimed global-kill and consent semantics. **Disposition:** distinguish ordinary self-rotation from retirement. Add a separate atomic integration-retirement operation that revokes the credential family and every installation grant, or commission an explicit LLP 0055 amendment changing rotation semantics.
+
+2. [IN-DELTA] **D7/D8, integration ownership.** “Never first-installer” conflicts directly with “owner is bound only as LLP 0150 binds one.” LLP 0150 §2 makes the approving user the owner under `open`; for a DCR-created integration, that approver is the first installer. D7 also says both the owner and the key-holder control lifecycle without resolving their competing powers. This leaves control of a multi-user integration undefined and may give an arbitrary first consenting user re-credential/deactivation authority. **Disposition:** choose one explicit model—publisher/key-holder ownership separate from installations, or acknowledged first-approver ownership—and specify `open`, invited, and operator-created cases through named LLP 0055/0150 amendments.
+
+3. [PRE-EXISTING] **D7, “delegation-only” integrations.** An integration is declared to be an ordinary LLP 0055 agent principal, yet the RFC says it can receive authority only through installations. Existing LLP 0055 registration may apply `auth.agents.template`, creating an autonomous grant at registration; its owner/re-credential path can reapply that template. DCR therefore does not inherit the claimed delegation-only property. **Disposition:** define a named integration registration class/amendment that suppresses autonomous templates and grants and enforces installation-only token minting, including activation and migration checks.
+
+4. [IN-DELTA] **D1/D7, anonymous-floor ownership.** LLP 0031 says `DeclaredPublicApplicationData` governs exactly LLP 0090’s HTML-inline and read-bundle lanes, requiring `public`, `authorityIndependent`, closed inputs, and `publicInline`. It does not cover arbitrary `optional-user` functions, finite API/MCP calls, mutations, or actions. LLP 0204’s external anonymous set is much broader. Consequently, the claimed inherited budget/response posture for the hosted anonymous-first rollout does not exist. **Disposition:** define a new LLP 0031/0071 external-anonymous admission and response contract—or explicitly extend the existing ones—and make callable API activation depend on its enforcement.
+
+5. [IN-DELTA] **D4, developer full-surface discovery.** LLP 0031 D3’s gated full `/inspect` twin is an operator-plane `AdminSecretRead` surface containing sensitive implementation material. LLP 0062 explicitly makes the app CLI app-data-only and forbids it from accepting admin authority. The inspect projection also does not supply the complete operation schemas and declarations needed for code mode. The newly stated discovery path is therefore both insufficient and a plane-boundary violation. **Disposition:** retain LLP 0062’s explicit local-artifact path for trusted-local development, or commission a source-stripped full developer envelope with its own app-plane authority.
+
+6. [PRE-EXISTING] **D5/D10, impossible `ask` acceptance.** D5 makes v1 `ask` query-only regardless of grant, while D10 requires “authenticated, listed, paged, sent, received” to pass on `ask` as well as the API, MCP, and CLI. “Sent” requires a mutation, so the stated acceptance bar cannot pass under the decided v1 safety boundary. **Disposition:** give `ask` a read-only v1 acceptance task and defer the send case to the post-audit-log mutating-`ask` phase.
+
+## Minor / implementation-phase notes
+
+1. [IN-DELTA] **D1, `disclosure: "full"`.** “Callability follows exposure regardless” contradicts the newly added anonymous residual. Change it to “credentialed callability follows exposure regardless.”
+
+2. [IN-DELTA] **D2 versus Sequencing S1, CORS ownership.** D2 correctly requires a dedicated bearer-token `api.origins` statement, while S1 still says CORS lands “under the LLP 0039 contract.” Name the dedicated amendment consistently.
+
+3. [IN-DELTA] **D2 versus Hosted gates.** D2 limits LLP 0019 F8 to granted external mutations/effectful actions, while Sequencing says it gates “any external mutation.” Publish one exact lane × function-kind matrix and use it in both places.
+
+4. [IN-DELTA] **D9.4, anonymous capability-link plumbing.** “No amendment needed” can only mean no new execution-authority model. The v1 link still needs an LLP 0031 route/response registration, secret-token handling, and an explicit rule that link budgets compose with the anonymous network-evidence floor.
+
+5. [PRE-EXISTING] **D3, MCP scale shaping.** Advertising `run_code` does not by itself solve LLP 0149 F3: an eager one-tool-per-function catalog still consumes discovery context. The implementation should adopt a bounded search/describe projection or define mechanically testable grouping/pagination.
+
+6. [PRE-EXISTING] **D5, model-data egress.** The `ask` consent and receipt should identify the model/provider and disclose that authorized application data may be sent to it; the current scope language emphasizes token spend but not data egress.
+
+VERDICT: NOT READY
