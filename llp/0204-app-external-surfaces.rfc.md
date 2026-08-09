@@ -6,6 +6,10 @@
 Hosted platform, Developer experience, Docs
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
+**Revised:** 2026-08-08 (v0.2 — adopted the second-wave derived
+features per author direction: streaming conversations, generated agent
+skill, durable watches, shareable capability links, approval-gated
+effects; new D9, sequencing S5, OQ9–OQ10.)
 **Related:** LLP 0004 (application data API — deferred "REST auto-generation,
 public endpoint routing"), LLP 0024 (agent operating surface — generated
 app-data MCP catalog), LLP 0031 (server route taxonomy — reserved-prefix
@@ -72,6 +76,12 @@ Code mode is the shared execution substrate: the API's batch endpoint, the
 MCP server's escape hatch from tool-call chattiness, the CLI's `run` verb
 (shipped today), and the inner loop of the AI interface are all the same
 mechanism with the same authority and budget semantics.
+
+A second wave of derived features (D9) extends the same authority chain
+into standing and shareable forms: a streaming-conversation primitive, a
+generated agent skill, durable watches (end-user automations), shareable
+capability links, and approval-gated effects. Each is a projection or a
+grant shape, not new machinery.
 
 Nothing here invents a wire dialect, a permission language, or a doc
 pipeline. The competitive claim is precise: no platform today derives an
@@ -314,7 +324,8 @@ distribution and authority:
 The novel surface: `POST /api/v1/ask` (and the `ask` MCP tool). The caller
 sends a task in natural language plus an optional result schema; a hosted
 agent runs **next to the data**, iterates over the app's exposed functions
-(and only those), and returns a result with receipts.
+(and only those), and returns a result with receipts, streamed via the
+D9.1 primitive by default.
 
 - **Authority = caller's authority.** The agent runs under the caller's
   grant; every function call inside the loop passes the same per-function
@@ -462,7 +473,87 @@ grant from the app's console (the LLP 0055 approval surface), bound to a
 key the script generates — never a copy-paste bearer secret (LLP 0150
 invariant 1).
 
-## D9 — What falls out for free (the pitch, and the test)
+## D9 — Second-wave derived features
+
+Five features adopted into this RFC's scope (2026-08-08). Each derives
+from the D1–D8 chain; none introduces a new authority model.
+
+### D9.1 — Streaming conversations
+
+A first-class stream result kind for chatbot-style UIs, and the transport
+`ask` (D5) uses by default. An action may declare `stream: true`: chunks
+ride the existing ephemeral/live machinery to subscribed clients, and the
+**durable transcript settles into app data on completion** — attempt
+identity, final text, and token accounting land as a row, so chat
+history, reconnect (cursor resume), and cancellation are platform
+behavior rather than per-app boilerplate. Because delivery is a live
+surface, streams are **multi-viewer by default** (two principals watching
+the same response; support observing a session) under normal query
+authorization — something point-to-point SSE cannot express. A Vercel
+AI SDK-compatible SSE endpoint (`/api/v1/stream/...`) is a projection
+for drop-in chat UIs, not the core. Token accounting integrates with
+the D5/D7 budget ladder.
+
+### D9.2 — Generated agent skill
+
+Every app serves an installable Agent Skill — a small, digest-pinned
+bundle (SKILL.md + pointers) that teaches a harness three things:
+discovery (the envelope), authority acquisition (the D8 ceremony), and
+code mode. It deliberately does **not** embed the full API: it teaches
+the agent to fetch current facts from the envelope and reference
+projections, so it cannot rot (LLP 0203 P1 — generated or gated, never
+transcribed). It never contains credentials and never presents static
+scope lists as current authority. This is a sibling of D2's `API.md` /
+OpenAPI projections and lands with them; harness-side install follows
+the same conventions this repo already uses for skill distribution.
+
+### D9.3 — Durable watches (end-user automations)
+
+Any exposed live query can anchor a **watch**: a standing rule owned by
+a principal — `when this query's result satisfies this predicate, do
+that reaction` — persisted via durable background work and evaluated off
+the existing invalidation machinery, not by polling. Reactions in v1:
+deliver a notification/webhook, or call one exposed function; a
+code-mode reaction follows D6's gates. Every firing is admitted against
+the owner's budgets and journaled under the owner's grant; revoking the
+grant kills the watch. This gives every app an automation layer ("IFTTT
+for free") with authorization and cost attribution built in. Storm
+control (debounce, coalescing, per-watch firing budgets) is part of the
+admission design, not an afterthought (OQ10).
+
+### D9.4 — Shareable capability links
+
+A principal may mint an **expiring, revocable URL** bound to: one
+exposed function, an argument template (pinned args + caller-supplied
+args validated by schema), a narrowed delegated grant as ceiling, and
+an optional use count. The server renders a generated destination —
+live result view for queries, a validated form for mutations/actions,
+asset delivery where applicable. Uses: public dashboards, upload
+requests, RSVP links, approval forms, temporary data rooms. Possession
+of the link is the authority, so links are an acknowledged **bearer
+exception** in the LLP 0150 sense: short default expiry, instant
+revocation, narrow-by-construction, and journaled per use. Queries by
+default; a mutating link requires explicit opt-in or an approval gate
+(D9.5, OQ9).
+
+### D9.5 — Approval-gated effects
+
+An exposed mutation or action may declare `approval: "required"` (in
+total, or per caller class — e.g. required for integration/agent
+callers, direct for first-party sessions). An external invocation then
+produces a **pending effect** and an approval link instead of executing:
+the binding covers caller, function, args digest, authority, effect
+class, expiry, and a preview receipt (dry-run where the function
+supports it; disclosed prospective effects otherwise — never a
+pretended dry-run). Approval revalidates the binding (generation and
+authority still current) before execution; expiry and refusal settle
+into the journal. The approval surface is LLP 0150's, reused verbatim.
+This is the trust primitive for consequential agent-initiated writes,
+and a candidate **on-ramp for hosted external mutations** ahead of the
+full audit-log gate — narrowing it, not replacing it: approval is
+consent, not audit, and the LLP 0019 F8 requirement stands.
+
+## D10 — What falls out for free (the pitch, and the test)
 
 For an app that adds ~ten `expose: true` lines and one budget block:
 
@@ -470,8 +561,10 @@ For an app that adds ~ten `expose: true` lines and one budget block:
 - `POST /api/v1/...` with scoped tokens, quotas, deprecation discipline.
 - A remote MCP server any 2026 agent client can connect to with consent.
 - `npx snapback-app <url>` CLI with login.
-- Optional `ask` endpoint with hard budgets.
+- Optional `ask` endpoint with hard budgets, streaming by default.
 - Code mode on all of the above.
+- An installable agent skill; watches, capability links, and
+  approval-gated effects as the app opts in (D9).
 - Per-integration usage attribution, suspension, and revocation in the
   admin console.
 
@@ -489,13 +582,17 @@ must pass on the API, the MCP server, the CLI, and `ask`.
   surface; generated `API.md` v0 from the envelope. No new wire surface.
 - **S1:** exposure declaration + disclosure knob (governing `/inspect` +
   envelope together) + `/api/v1/*` route family with the stability
-  contract; OpenAPI projection; CORS under the LLP 0039 contract.
+  contract; OpenAPI projection and the generated agent skill (D9.2 —
+  same projection family); CORS under the LLP 0039 contract.
 - **S2:** remote MCP endpoint + OAuth facade + integration records +
   per-integration admission/metering.
 - **S3:** CLI login + `npx` distribution polish (smallest slice; mostly
   shipped).
-- **S4:** code mode over the wire (`/api/v1/run`), then `ask` read-only
-  with budgets.
+- **S4:** the streaming primitive (D9.1), code mode over the wire
+  (`/api/v1/run`), then `ask` read-only with budgets, streaming.
+- **S5:** the standing-authority cluster — durable watches (D9.3),
+  capability links (D9.4), approval-gated effects (D9.5) — after S2's
+  integration records and admission ladder, which they all key off.
 - **Hosted gates, in parallel, unchanged by this RFC:** LLP 0039
   deployment-security contract, durable audit log (LLP 0019 F8) for any
   external mutation, hosted envelope/app-api serving.
@@ -541,6 +638,16 @@ must pass on the API, the MCP server, the CLI, and `ask`.
   to `ask` at all (proposed: no — `ask` always requires at least a
   granted principal or caller-key billing, because compute is not a
   cooperative resource).
+- **OQ9 — Capability-link bearer posture.** Default and maximum expiry;
+  whether mutating links exist at all without an approval gate
+  (proposed: a mutating link is always approval-gated or single-use);
+  and whether link minting is itself a scoped grant operation (proposed:
+  yes — minting a link consumes the minter's authority, so a revoked
+  minter's links die with the grant).
+- **OQ10 — Watch storm control.** Debounce/coalescing policy, per-watch
+  and per-owner firing budgets, and the refusal shape when a watch
+  exhausts its budget mid-storm (proposed: suspend + notify owner with
+  the escalation pattern, never silent drop).
 
 ## Revision history
 
@@ -553,3 +660,10 @@ must pass on the API, the MCP server, the CLI, and `ask`.
   model. Same day: added the declared tier (auth-free identified access —
   self-chosen client id, cooperative budgets over the anonymous floor,
   claimable into an integration record) per author direction.
+- 2026-08-08 — v0.2. Adopted five second-wave derived features per author
+  direction after a dual-model brainstorm (Claude + Codex gpt-5.6-sol):
+  D9.1 streaming conversations (durable settling transcripts,
+  multi-viewer, AI-SDK projection), D9.2 generated agent skill, D9.3
+  durable watches, D9.4 shareable capability links, D9.5 approval-gated
+  effects. `ask` now streams by default; sequencing gains S5; OQ9–OQ10
+  added.
