@@ -382,29 +382,29 @@ export const escaped = defineJsQuery({ source: 'inside-link.mjs', exportName: 'e
   assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
   const before = readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8');
   const invalidValues = [
-    ['NaN', 'NaN'],
-    ['positive infinity', 'Infinity'],
-    ['negative infinity', '-Infinity'],
-    ['negative zero', '-0'],
-    ['undefined', 'undefined'],
-    ['object undefined', '{ kept: 1, dropped: undefined }'],
-    ['array undefined', '[1, undefined, 3]'],
-    ['sparse array', '[1, , 3]'],
-    ['array extra property', "Object.assign([1], { extra: 2 })"],
-    ['function', '() => 1'],
-    ['symbol', "Symbol('not-json')"],
-    ['symbol property', "Object.assign({}, { [Symbol('not-json')]: 1 })"],
-    ['bigint', '1n'],
-    ['map', "new Map([['key', 1]])"],
-    ['set', 'new Set([1])'],
-    ['regexp', '/not-json/'],
-    ['typed array', 'new Uint8Array([1])'],
-    ['date', 'new Date(0)'],
-    ['custom prototype', 'Object.create({ inherited: true })'],
-    ['hidden property', "Object.defineProperty({}, 'hidden', { value: 1, enumerable: false })"],
-    ['accessor', "Object.defineProperty({}, 'value', { enumerable: true, get() { throw new Error('ACCESSOR_EXECUTED'); } })"],
+    ['NaN', 'NaN', 'SNAPBACK_CODEGEN_DEFINITION_NUMBER_INVALID'],
+    ['positive infinity', 'Infinity', 'SNAPBACK_CODEGEN_DEFINITION_NUMBER_INVALID'],
+    ['negative infinity', '-Infinity', 'SNAPBACK_CODEGEN_DEFINITION_NUMBER_INVALID'],
+    ['negative zero', '-0', 'SNAPBACK_CODEGEN_DEFINITION_NUMBER_INVALID'],
+    ['undefined', 'undefined', 'SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE'],
+    ['object undefined', '{ kept: 1, dropped: undefined }', 'SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE'],
+    ['array undefined', '[1, undefined, 3]', 'SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE'],
+    ['sparse array', '[1, , 3]', 'SNAPBACK_CODEGEN_DEFINITION_ARRAY_SHAPE_INVALID'],
+    ['array extra property', "Object.assign([1], { extra: 2 })", 'SNAPBACK_CODEGEN_DEFINITION_ARRAY_SHAPE_INVALID'],
+    ['function', '() => 1', 'SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE'],
+    ['symbol', "Symbol('not-json')", 'SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE'],
+    ['symbol property', "Object.assign({}, { [Symbol('not-json')]: 1 })", 'SNAPBACK_CODEGEN_DEFINITION_OBJECT_SYMBOL_KEY_INVALID'],
+    ['bigint', '1n', 'SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE'],
+    ['map', "new Map([['key', 1]])", 'SNAPBACK_CODEGEN_DEFINITION_OBJECT_PROTOTYPE_INVALID'],
+    ['set', 'new Set([1])', 'SNAPBACK_CODEGEN_DEFINITION_OBJECT_PROTOTYPE_INVALID'],
+    ['regexp', '/not-json/', 'SNAPBACK_CODEGEN_DEFINITION_OBJECT_PROTOTYPE_INVALID'],
+    ['typed array', 'new Uint8Array([1])', 'SNAPBACK_CODEGEN_DEFINITION_OBJECT_PROTOTYPE_INVALID'],
+    ['date', 'new Date(0)', 'CODEGEN_MODULE_EVALUATION_FAILED'],
+    ['custom prototype', 'Object.create({ inherited: true })', 'SNAPBACK_CODEGEN_DEFINITION_OBJECT_PROTOTYPE_INVALID'],
+    ['hidden property', "Object.defineProperty({}, 'hidden', { value: 1, enumerable: false })", 'SNAPBACK_CODEGEN_DEFINITION_OBJECT_DESCRIPTOR_INVALID'],
+    ['accessor', "Object.defineProperty({}, 'value', { enumerable: true, get() { throw new Error('ACCESSOR_EXECUTED'); } })", 'SNAPBACK_CODEGEN_DEFINITION_OBJECT_DESCRIPTOR_INVALID'],
   ];
-  for (const [name, expression] of invalidValues) {
+  for (const [name, expression, expectedCode] of invalidValues) {
     writeFileSync(join(dir, 'functions.mjs'), `
 import { defineMutation, insert, lit } from '${defineUrl}';
 const invalidValue = ${expression};
@@ -412,10 +412,15 @@ export const mutate = defineMutation({ args: {}, plan: insert('todos', { title: 
 `);
     const rejected = await generate(dir);
     assert.equal(rejected.ok, false, `${name}: generation unexpectedly succeeded`);
-    assert(
-      rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_MODULE_EVALUATION_FAILED'),
-      `${name}: ${JSON.stringify(rejected.diagnostics)}`,
-    );
+    const diagnostic = rejected.diagnostics.find((candidate) => candidate.code === expectedCode);
+    assert(diagnostic, `${name}: ${JSON.stringify(rejected.diagnostics)}`);
+    if (expectedCode.startsWith('SNAPBACK_CODEGEN_')) {
+      assert.equal(
+        diagnostic.path.endsWith('/functions.mjs'),
+        true,
+        `${name}: source file is retained (${diagnostic.path})`,
+      );
+    }
     assert(
       rejected.diagnostics.every((diagnostic) => !diagnostic.message.includes('ACCESSOR_EXECUTED')),
       `${name}: normalization must inspect descriptors without invoking accessors`,
@@ -775,7 +780,10 @@ for (const source of [
   const rejected = await generate(dir);
   assert.equal(rejected.ok, false);
   assert(
-    rejected.diagnostics.some((diagnostic) => diagnostic.code === 'CODEGEN_MODULE_EVALUATION_FAILED'),
+    rejected.diagnostics.some((diagnostic) => [
+      'CODEGEN_MODULE_EVALUATION_FAILED',
+      'SNAPBACK_CODEGEN_DEFINITION_AMBIENT_UNAVAILABLE',
+    ].includes(diagnostic.code)),
     JSON.stringify(rejected.diagnostics),
   );
   assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false);

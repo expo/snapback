@@ -9,6 +9,19 @@ const ES256 = Object.freeze({ name: 'ECDSA', hash: 'SHA-256' });
 const P256 = Object.freeze({ name: 'ECDSA', namedCurve: 'P-256' });
 const BASE64URL = /^[A-Za-z0-9_-]+$/;
 
+function senderProofError(code, message) {
+  const error = new Error(`${code}: ${message}`);
+  error.code = code;
+  error.diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code,
+    severity: 'error',
+    message,
+    details: Object.freeze({}),
+  });
+  return error;
+}
+
 const base64url = (bytes) => {
   const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   let binary = '';
@@ -77,7 +90,10 @@ export async function generateSenderConstraintKey() {
       || pair.privateKey.type !== 'private'
       || pair.privateKey.algorithm?.name !== 'ECDSA'
       || pair.privateKey.algorithm?.namedCurve !== 'P-256') {
-    throw new Error('platform did not create a non-extractable P-256 private key');
+    throw senderProofError(
+      'SNAPBACK_AUTH_SENDER_KEY_GENERATION_INVALID',
+      'platform did not create a non-extractable P-256 private key',
+    );
   }
   const publicJwk = canonicalJwk(await crypto.subtle.exportKey('jwk', pair.publicKey));
   const thumbprint = base64url(await sha256(encoder.encode(JSON.stringify(publicJwk))));
@@ -130,7 +146,10 @@ export async function createSenderProofForCustody({
     encoder.encode(signingInput),
   ));
   if (signature.byteLength !== 64) {
-    throw new Error('platform returned a non-canonical ES256 signature');
+    throw senderProofError(
+      'SNAPBACK_AUTH_SENDER_PROOF_SIGNATURE_INVALID',
+      'platform returned a non-canonical ES256 signature',
+    );
   }
   return `${signingInput}.${base64url(signature)}`;
 }
@@ -177,7 +196,10 @@ export async function createSenderIssuanceProofForCustody({
     encoder.encode(signingInput),
   ));
   if (signature.byteLength !== 64) {
-    throw new Error('platform returned a non-canonical ES256 issuance signature');
+    throw senderProofError(
+      'SNAPBACK_AUTH_SENDER_ISSUANCE_SIGNATURE_INVALID',
+      'platform returned a non-canonical ES256 issuance signature',
+    );
   }
   return `${signingInput}.${base64url(signature)}`;
 }

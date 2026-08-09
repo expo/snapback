@@ -30,6 +30,7 @@
     "commands.d.mts",
     "commands.mjs",
     "demand-broker.mjs",
+    "diagnostic-codes.d.mts",
     "evaluation-floor.d.mts",
     "evaluation-floor.mjs",
     "external-store.d.mts",

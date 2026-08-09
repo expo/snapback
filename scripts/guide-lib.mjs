@@ -14,6 +14,7 @@ export const SURFACE_MAP_PATH = join(GUIDE_DIR, 'surface-map.md');
 export const INDEX_PATH = join(GUIDE_DIR, 'index.md');
 export const PUBLISHED_CLOSURE_PATH = join(GUIDE_DIR, 'published-closure.json');
 export const SYMBOL_REGISTRY_PATH = join(GUIDE_DIR, 'reference', 'registry.json');
+export const DIAGNOSTICS_REGISTRY_PATH = join(GUIDE_DIR, 'reference', 'diagnostics-registry.json');
 export const GUIDE_MCP_MANIFEST_URI = 'snapback-guide://manifest';
 export const GUIDE_MCP_FLAT_URI = 'snapback-guide://flat';
 export const GUIDE_MCP_PAGE_URI_PREFIX = 'snapback-guide://page/';
@@ -707,6 +708,8 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
   }
   const registryBytes = readFileSync(join(root, SYMBOL_REGISTRY_PATH));
   const registry = JSON.parse(registryBytes);
+  const diagnosticsBytes = readFileSync(join(root, DIAGNOSTICS_REGISTRY_PATH));
+  const diagnostics = JSON.parse(diagnosticsBytes);
   const manifest = {
     schemaVersion: 'snapback-guide.v1',
     generatedBy: 'scripts/generate-guide-manifest.mjs',
@@ -735,6 +738,20 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
         modules: registry.modules?.length ?? 0,
         symbols: registry.symbols?.length ?? 0,
       },
+      'reference.diagnostics-registry': {
+        path: DIAGNOSTICS_REGISTRY_PATH,
+        title: 'Build-bound diagnostic code registry',
+        mediaType: 'application/json',
+        bytes: diagnosticsBytes.byteLength,
+        sha256: createHash('sha256').update(diagnosticsBytes).digest('hex'),
+        uri: 'snapback-guide://reference/diagnostics',
+        servedPath: '/_snapback/guide/reference/diagnostics-registry.json',
+        projections: { http: true, mcp: true, llms: true },
+        schemaVersion: diagnostics.schemaVersion,
+        sourceDigest: diagnostics.buildIdentity?.sourceDigest,
+        codes: diagnostics.counts?.codes ?? 0,
+        emittingSites: diagnostics.counts?.emittingSites ?? 0,
+      },
     },
     capabilities: { covered: covered.sort(), gaps: gaps.sort() },
     surfaces,
@@ -745,6 +762,10 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
     .update(SYMBOL_REGISTRY_PATH)
     .update('\0')
     .update(registryBytes)
+    .update('\0guide-resource\0')
+    .update(DIAGNOSTICS_REGISTRY_PATH)
+    .update('\0')
+    .update(diagnosticsBytes)
     .digest('hex');
   return manifest;
 }
@@ -810,12 +831,17 @@ export function auditGuideManifestInventory({
   try {
     execFileSync(
       process.execPath,
+      [join(root, 'scripts/generate-diagnostics-registry.mjs'), '--check'],
+      { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    execFileSync(
+      process.execPath,
       [join(root, 'scripts/generate-symbol-registry.mjs'), '--check'],
       { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
     );
   } catch (error) {
     const detail = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim();
-    registryErrors.push(`symbol-registry inventory failed${detail ? `: ${detail}` : ''}`);
+    registryErrors.push(`reference-registry inventory failed${detail ? `: ${detail}` : ''}`);
   }
   const { errors, pagePaths, pageInfo, pageBodies } = loadCorpus(root);
   errors.push(...registryErrors);

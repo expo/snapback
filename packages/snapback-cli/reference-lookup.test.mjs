@@ -39,6 +39,14 @@ assert.equal(member.truncation, null);
 assert.match(member.identity.guideContentHash, /^[0-9a-f]{64}$/u);
 assert.match(member.identity.registrySourceDigest, /^sha256:[0-9a-f]{64}$/u);
 
+const diagnostic = lookupGuideReference(['SNAPBACK_AUTH_SESSION_EXPIRED'], { projectRoot: root });
+assert.equal(diagnostic.match, 'diagnostic');
+assert.equal(diagnostic.diagnostic.code, 'SNAPBACK_AUTH_SESSION_EXPIRED');
+assert.equal(diagnostic.diagnostic.subsystem, 'auth');
+assert.equal(diagnostic.diagnostic.httpStatus, 401);
+assert.match(diagnostic.identity.diagnosticsSourceDigest, /^sha256:[0-9a-f]{64}$/u);
+assert.ok(Buffer.byteLength(JSON.stringify(diagnostic)) <= 16_384);
+
 const large = lookupGuideReference(['SnapbackClient'], { projectRoot: root });
 assert.equal(large.match, 'symbol-slice');
 assert.equal(large.truncation.truncated, true);
@@ -67,4 +75,4 @@ assert.equal(cliResult.schemaVersion, 'snapback.guide-search.v1');
 assert.equal(cliResult.mode, 'exact-symbol');
 assert.equal(cliResult.query, 'SnapbackClient.query');
 assert.equal(cliResult.result.match, 'member');
-console.log('reference-lookup.test.mjs: exact member, bounded symbol, bounded module, identity, and fallback pass');
+console.log('reference-lookup.test.mjs: exact diagnostic/member, bounded symbol/module, identity, and fallback pass');

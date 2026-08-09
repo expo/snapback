@@ -334,3 +334,13 @@ test('mutate mints one settlement/layer identity and persists replayable IR', as
   assert.equal(engine.getSnapshot().layers[0].layer.layerId, queued.clientMutationId);
   assert.equal(engine.getSnapshot().visibleRows.cards[0].position, 1);
 });
+
+test('closed optimistic rebase engines reject with a stable diagnostic', async () => {
+  const fixture = await setup();
+  fixture.engine.close();
+  await assert.rejects(
+    fixture.engine.rebase(),
+    (error) => error.code === 'SNAPBACK_OPTIMISTIC_REBASE_CLOSED'
+      && error.diagnostic.code === error.code,
+  );
+});

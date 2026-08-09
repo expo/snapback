@@ -4,7 +4,7 @@ id: meta.index
 order: 1
 audience: agent-first
 capabilities: [operating.served-guide, operating.guide-mcp]
-authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0042-agent-mcp-surface.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/server.rs, src/schema_export.rs, schemas/http.routes.v1.json, src/cli.rs, src/guide_mcp.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs]
+authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0042-agent-mcp-surface.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0181-zero-configuration-expo.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/server.rs, src/schema_export.rs, schemas/http.routes.v1.json, src/cli.rs, src/guide_mcp.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/mcp-control.mjs, llp/0193-errors-as-docs-completeness.plan.md, scripts/generate-diagnostics-registry.mjs]
 examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/partiful-matrix, demos/expo-golden-path-fixture]
 status: current
 targets: [all]
@@ -25,6 +25,9 @@ intent-first, with code that ran in CI.
 Need an exact exported signature? Start with the build-bound
 [generated API reference](./reference/index.md), or run
 `snapback guide <ExactSymbolName>` for a budgeted symbol lookup.
+For a stable `SNAPBACK_*` failure, use the generated
+[diagnostic code registry](./reference/diagnostics.md), or pass the code to
+the same command for exact lookup before prose search.
 
 **Audience:** agents (primarily) and humans (secondarily) building on
 Snapback. In a checkout, read this corpus directly. Outside a checkout, a

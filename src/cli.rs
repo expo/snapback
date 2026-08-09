@@ -2186,6 +2186,7 @@ fn render_guide_command(
              Browse the Guide:             {DEFAULT_SERVED_GUIDE_URL}\n\
              API reference index:           {DEFAULT_SERVED_GUIDE_URL}/reference/index.md\n\
              API symbol registry:           {DEFAULT_SERVED_GUIDE_URL}/reference/registry.json\n\
+             Diagnostic code registry:      {DEFAULT_SERVED_GUIDE_URL}/reference/diagnostics.md\n\
              Flat agent projection:         {DEFAULT_SERVED_GUIDE_URL}/flat.md\n\
              Exact symbol or Guide search:  snapback guide <query> [--slice <n>]\n\
              Read through MCP:              snapback mcp\n\
@@ -10645,6 +10646,10 @@ mod tests {
             output.contains("/_snapback/guide/reference/registry.json"),
             "{output}"
         );
+        assert!(
+            output.contains("/_snapback/guide/reference/diagnostics.md"),
+            "{output}"
+        );
         assert!(output.contains("snapback mcp"), "{output}");
     }
 
@@ -10661,6 +10666,22 @@ mod tests {
             output.contains("readonly args?: FunctionArgs<Ref>"),
             "{output}"
         );
+        assert!(
+            !output.contains("Embedded Guide sections matching"),
+            "{output}"
+        );
+    }
+
+    #[test]
+    fn guide_exact_diagnostic_lookup_precedes_markdown_search() {
+        let output =
+            render_guide_command(&["SNAPBACK_AUTH_SESSION_EXPIRED".to_owned()], 1, false).unwrap();
+        assert!(
+            output.starts_with("SNAPBACK_AUTH_SESSION_EXPIRED — diagnostic\n"),
+            "{output}"
+        );
+        assert!(output.contains("auth · HTTP 401"), "{output}");
+        assert!(output.contains("Emitting sites:"), "{output}");
         assert!(
             !output.contains("Embedded Guide sections matching"),
             "{output}"

@@ -1,6 +1,6 @@
 # No code→doc lookup path for SNAPBACK_* diagnostics; LLP 0193's sizing is off 5–10×
 
-**Status:** Open
+**Status:** Resolved
 **Opened:** 2026-08-08 · **Severity:** P1 · **Area:** guide reference / CLI guide lookup / LLP 0193
 
 From the 2026-08-08 agentic surface audit (LLP 0202 theme 4).
@@ -42,3 +42,22 @@ text when that settles).
 3. Correct LLP 0193's population estimate before its lanes are sized; the
    graded-ledger design in 0193 remains the right owner for message-quality
    grading — this ticket is the lookup substrate it needs anyway.
+
+## Resolution (2026-08-08)
+
+Added `scripts/generate-diagnostics-registry.mjs`, which deterministically
+inventories production Rust, package JavaScript, and Swift source into
+`guide/reference/diagnostics-registry.json`, the human
+`guide/reference/diagnostics.md`, and the generated client diagnostic-code
+union. Records are code-keyed and carry subsystem, all emitting sites, known
+HTTP status/class, and authored Guide anchors. Guide generation, checking,
+embedding, HTTP/MCP/docs-site projection, and the frozen-record drift policy
+now bind those bytes.
+
+Both native and package CLI exact-reference lookup load and identity-check the
+diagnostics registry before symbol lookup and Markdown search, with bounded
+JSON/text results and acceptance coverage for
+`SNAPBACK_AUTH_SESSION_EXPIRED`. LLP 0193 has the requested dated amendment:
+the 200–500 estimate is superseded by the measured ~2,418-code intake, with
+the audit's scan/exclusion/deduplication method recorded without restructuring
+the plan.

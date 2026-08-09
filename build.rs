@@ -119,6 +119,10 @@ fn emit_embedded_guide() {
         // for the compact reference index and canonical registry, not only pages.
         "reference/index.md",
         "reference/registry.json",
+        // @ref LLP 0193#program — exact diagnostic lookup uses the same
+        // embedded, manifest-bound Guide artifact as the human projection.
+        "reference/diagnostics.md",
+        "reference/diagnostics-registry.json",
     ] {
         assert!(
             files.iter().any(|path| path == required),

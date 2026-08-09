@@ -51,6 +51,20 @@ public actor SnapbackClient {
         case undecodableResponse(String)
         case invalidState(String)
 
+        /// Stable cross-client diagnostic identity. Refusals preserve the
+        /// server's registered code; the three client-owned cases use codes
+        /// emitted into the shared diagnostics registry.
+        /// @ref LLP 0093#d4--the-swift-proving-client — native client failures
+        /// expose protocol-independent identities instead of prose matching.
+        public var code: String {
+            switch self {
+            case .transport: return "SNAPBACK_SWIFT_TRANSPORT_FAILED"
+            case .refusal(let error, _): return error.code
+            case .undecodableResponse: return "SNAPBACK_SWIFT_RESPONSE_UNDECODABLE"
+            case .invalidState: return "SNAPBACK_SWIFT_CLIENT_STATE_INVALID"
+            }
+        }
+
         public var description: String {
             switch self {
             case .transport(let detail): return "transport: \(detail)"

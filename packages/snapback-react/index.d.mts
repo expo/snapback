@@ -48,14 +48,7 @@ export type {
   SnapbackCommandDiagnostic,
   TypedRemediation,
 } from '@expo/snapback-client/commands';
-
-export type SnapbackDiagnostic = Readonly<{
-  schemaVersion: 'snapback.client-diagnostic.v1';
-  code: string;
-  severity: 'error';
-  message: string;
-  details: Readonly<Record<string, unknown>>;
-}>;
+export type SnapbackDiagnostic = import('@expo/snapback-client').SnapbackDiagnostic;
 
 export type SnapbackConnection =
   | 'idle'

@@ -1,6 +1,6 @@
 # Uncoded throws on published client subpaths; thrown mutation errors are structurally untyped
 
-**Status:** Open
+**Status:** Resolved
 **Opened:** 2026-08-08 · **Severity:** P1 · **Area:** snapback-client / snapback-react / snapback-codegen / swift client
 
 From the 2026-08-08 agentic surface audit (LLP 0202 theme 4).
@@ -46,3 +46,23 @@ message. Several published surfaces break the promise:
    union emitted from the registry so the guide's cast disappears.
 3. Add a `code` payload to the three client-originated Swift cases, drawn
    from the same registry.
+
+## Resolution (2026-08-08)
+
+Assigned structured stable diagnostics to the listed external-store,
+optimistic-rebase, sender-proof, and not-yet-ready live-stream failures. The
+20 cited codegen throws now use the `SNAPBACK_CODEGEN_*` family; worker
+transport preserves those codes and retains the authored file and source span
+where the evaluator or definition scan can derive them. All new codes flow
+through the generated diagnostics registry and its drift gate.
+
+`@expo/snapback-client` now exports `SnapbackDiagnosticCode`,
+`SnapbackDiagnostic`, `SnapbackMutationError`, and
+`SnapbackAppRefusalError`; React aliases the shared diagnostic type, and the
+React Guide refusal example uses the exported refusal error instead of a
+handwritten structural cast. The generated code union narrows diagnostic
+branching to the source-complete registry vocabulary. Swift `ClientError`
+now exposes stable codes for transport, undecodable-response, and invalid-state
+cases while preserving a server refusal's wire code. Targeted Node tests,
+strict TypeScript checking, the complete Swift package suite, Guide checks,
+and native exact/served-Guide tests cover the landed surfaces.

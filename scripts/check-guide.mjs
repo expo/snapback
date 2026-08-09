@@ -31,6 +31,16 @@ const runAll = flags.size === 0;
 const root = repoRoot();
 const preflightErrors = [];
 if (runAll || flags.has('--consistency')) {
+  try {
+    execFileSync(
+      process.execPath,
+      [join(root, 'scripts/generate-diagnostics-registry.mjs'), '--check'],
+      { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+  } catch (error) {
+    const detail = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim();
+    preflightErrors.push(`diagnostics-registry check failed${detail ? `:\n${detail}` : ''}`);
+  }
   // @ref LLP 0194#acceptance — declaration/runtime parity and generated
   // projections are part of the Guide consistency gate.
   try {

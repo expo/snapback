@@ -5,7 +5,7 @@
 **Systems:** Diagnostics, Error handling, Guide, Agent experience, CI
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (Accepted by Charlie Cheever — author ruling in session; final review binding per llp/reviews/0193-*.run.md close-out: 0194 dual-READY at r8, the others accepted with the enumerated r9 tail.) 2026-08-08 (r9, round-7 fixes: the residue routing re-derived from diary 0069's record — run 5's refusal-reachable set is EMPTY (1/4 → 0196, 2/3/5 → 0194, 6 = guide-anchor gap, no refusal incident), replacing r8's unverified 1/4/6 enumeration; D7 terminology narrowed to the typed-remediation requirement vs OQ6's carrier.) 2026-08-08 (r8, round-6 fixes: ledger fields made orthogonal (representation / target kind / OQ6 mechanism); candidate-vs-published closure validation so unreleased diagnostics stay landable; exit criterion 5 requires downgrade+refix+retest for ineffective A-grades, bounded to the first post-ratchet run; carrier trigger = OQ6 carrier SHIPS; three-of-six residues enumerated.) 2026-08-08 (r7, author-merge: Charlie's reconciliation —
+**Revised:** 2026-08-08 (implementation amendment: replaces the 200–500 intake estimate with the audit's measured ~2,418 production-code vocabulary and records the measurement method.) 2026-08-08 (Accepted by Charlie Cheever — author ruling in session; final review binding per llp/reviews/0193-*.run.md close-out: 0194 dual-READY at r8, the others accepted with the enumerated r9 tail.) 2026-08-08 (r9, round-7 fixes: the residue routing re-derived from diary 0069's record — run 5's refusal-reachable set is EMPTY (1/4 → 0196, 2/3/5 → 0194, 6 = guide-anchor gap, no refusal incident), replacing r8's unverified 1/4/6 enumeration; D7 terminology narrowed to the typed-remediation requirement vs OQ6's carrier.) 2026-08-08 (r8, round-6 fixes: ledger fields made orthogonal (representation / target kind / OQ6 mechanism); candidate-vs-published closure validation so unreleased diagnostics stay landable; exit criterion 5 requires downgrade+refix+retest for ineffective A-grades, bounded to the first post-ratchet run; carrier trigger = OQ6 carrier SHIPS; three-of-six residues enumerated.) 2026-08-08 (r7, author-merge: Charlie's reconciliation —
 the evidence claim narrowed to the refusal-reachable three-of-six subset
 with the rest routed to 0194/0196; the ledger grades resolution quality
 and closure binding (carrier/target/applicability/one-attempt witness
@@ -130,6 +130,16 @@ comparison (LLP 0197's fairness rules assume this) — and records
 whether each supplied remediation resolved the condition in one
 attempt. New B/C sightings and A-grade remediations that still caused
 search or bisection are the recurring audit input.
+
+### Dated amendment — 2026-08-08: measured Phase 1 population
+
+The earlier intake estimate of **200–500** codes is superseded by the audit's
+measured **~2,418 distinct production `SNAPBACK_*` identifiers**. The audit
+scanned literal identifiers in `src/**/*.rs` (1,248 distinct) and
+`packages/**/*.mjs` (1,316 distinct), excluded tests, fixtures, and templates,
+then deduplicated the two sets to a 2,418-identifier union. This measurement is
+the sizing input for Phase 1; grading still distinguishes actual diagnostics
+from environment names, protocol constants, and other non-emitting vocabulary.
 
 ## Exit criteria
 

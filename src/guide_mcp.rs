@@ -485,6 +485,7 @@ mod tests {
         actual.sort();
         assert_eq!(actual, expected);
         assert!(actual.contains(&"snapback-guide://reference/registry".to_owned()));
+        assert!(actual.contains(&"snapback-guide://reference/diagnostics".to_owned()));
         let identity = guide_identity(&manifest).unwrap();
         assert!(resources.iter().all(|resource| {
             resource["_meta"]["snapback/guideContentHash"] == identity.content_hash

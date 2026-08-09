@@ -709,6 +709,21 @@ final class ClientBehaviorTests: XCTestCase {
         XCTAssertNil(WireErrorResponse.from(unknown))
     }
 
+    func testClientOwnedErrorsExposeStableDiagnosticCodes() {
+        XCTAssertEqual(
+            SnapbackClient.ClientError.transport("offline").code,
+            "SNAPBACK_SWIFT_TRANSPORT_FAILED"
+        )
+        XCTAssertEqual(
+            SnapbackClient.ClientError.undecodableResponse("query").code,
+            "SNAPBACK_SWIFT_RESPONSE_UNDECODABLE"
+        )
+        XCTAssertEqual(
+            SnapbackClient.ClientError.invalidState("closed").code,
+            "SNAPBACK_SWIFT_CLIENT_STATE_INVALID"
+        )
+    }
+
     private func client(
         maxAttempts: Int,
         jitterMilliseconds: ClosedRange<UInt64> = 0...0

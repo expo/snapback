@@ -184,6 +184,8 @@ async fn memory_server_serves_root_llms_txt_with_guide_identity() {
     assert!(body.contains("/_snapback/guide/reference/index.md"));
     assert!(body.contains("/_snapback/guide/reference/registry.json"));
     assert!(body.contains(HTTP_ROUTES_PATH));
+    assert!(body.contains("/_snapback/guide/reference/diagnostics.md"));
+    assert!(body.contains("/_snapback/guide/reference/diagnostics-registry.json"));
 }
 
 #[tokio::test]
@@ -286,6 +288,28 @@ async fn index_and_individual_build_embedded_files_are_public_read_only() {
             .as_ref(),
         include_bytes!("../guide/reference/registry.json")
     );
+    let diagnostics = get("/_snapback/guide/reference/diagnostics.md").await;
+    assert_eq!(diagnostics.status(), StatusCode::OK);
+    assert_eq!(
+        to_bytes(diagnostics.into_body(), usize::MAX)
+            .await
+            .unwrap()
+            .as_ref(),
+        include_bytes!("../guide/reference/diagnostics.md")
+    );
+    let diagnostics_registry = get("/_snapback/guide/reference/diagnostics-registry.json").await;
+    assert_eq!(diagnostics_registry.status(), StatusCode::OK);
+    assert_eq!(
+        diagnostics_registry.headers()[header::CONTENT_TYPE],
+        "application/json; charset=utf-8"
+    );
+    assert_eq!(
+        to_bytes(diagnostics_registry.into_body(), usize::MAX)
+            .await
+            .unwrap()
+            .as_ref(),
+        include_bytes!("../guide/reference/diagnostics-registry.json")
+    );
 
     assert_eq!(
         get("/_snapback/guide/eval-runs/2026-07-15/realtime.md")
@@ -338,4 +362,6 @@ fn served_guide_routes_are_registered_system_static_public_projections() {
     assert!(snapback::guide::file("capabilities.md").is_some());
     assert!(snapback::guide::file("reference/index.md").is_some());
     assert!(snapback::guide::file("reference/registry.json").is_some());
+    assert!(snapback::guide::file("reference/diagnostics.md").is_some());
+    assert!(snapback::guide::file("reference/diagnostics-registry.json").is_some());
 }

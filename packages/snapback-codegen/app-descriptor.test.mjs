@@ -928,7 +928,7 @@ import { defineLiveQuery } from '${defineUrl}';
 const query = defineLiveQuery({ table: 'items', args: {} });
 export const futureMember = { ...query, __snapbackDefinitionKind: 'surface' };
 `);
-  await assertGenerationRefusedPreservingDescriptor('CODEGEN_MODULE_EVALUATION_FAILED');
+  await assertGenerationRefusedPreservingDescriptor('SNAPBACK_CODEGEN_DEFINITION_RESERVED_FIELD');
 
   // A checked-in real demo proves aliases survive ordinary generated-artifact
   // custody rather than only the temporary unit fixture.

@@ -334,7 +334,20 @@ export function createOptimisticRebaseEngineV1({
     retiredSettlementIdentities = [],
     cause = 'authoritative-delivery',
   } = {}) => {
-    if (closed) throw new Error('optimistic rebase engine is closed');
+    if (closed) {
+      const code = 'SNAPBACK_OPTIMISTIC_REBASE_CLOSED';
+      const message = 'optimistic rebase engine is closed';
+      const error = new Error(`${code}: ${message}`);
+      error.code = code;
+      error.diagnostic = Object.freeze({
+        schemaVersion: 'snapback.client-diagnostic.v1',
+        code,
+        severity: 'error',
+        message,
+        details: Object.freeze({}),
+      });
+      throw error;
+    }
     if (typeof cause !== 'string' || cause.length === 0) {
       throw new TypeError('rebase cause must be a non-empty string');
     }

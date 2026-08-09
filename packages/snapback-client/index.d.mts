@@ -1,3 +1,35 @@
+import type { SnapbackDiagnosticCode } from './diagnostic-codes.d.mts';
+
+export type { SnapbackDiagnosticCode } from './diagnostic-codes.d.mts';
+
+/** Stable, source-complete client diagnostic carrier (LLP 0010 / LLP 0193). */
+export interface SnapbackDiagnostic {
+  readonly schemaVersion: 'snapback.client-diagnostic.v1';
+  readonly code: SnapbackDiagnosticCode;
+  readonly severity: 'error';
+  readonly message: string;
+  readonly details: Readonly<Record<string, unknown>>;
+}
+
+/** Structural error returned by mutation promises without changing throw-based control flow. */
+export interface SnapbackMutationError extends Error {
+  readonly code: SnapbackDiagnosticCode;
+  readonly diagnostic: SnapbackDiagnostic;
+}
+
+/** A declared application refusal; appCode remains application-defined. */
+export interface SnapbackAppRefusalError extends SnapbackMutationError {
+  readonly code: 'SNAPBACK_APP_REFUSAL';
+  readonly diagnostic: SnapbackDiagnostic & Readonly<{
+    code: 'SNAPBACK_APP_REFUSAL';
+    details: Readonly<Record<string, unknown> & {
+      appCode: string;
+      appDetails?: unknown;
+      appDetailsDropped?: boolean;
+    }>;
+  }>;
+}
+
 export {
   SNAPBACK_EXTERNAL_STORE_PROTOCOL,
   ExternalQueryScope,
