@@ -5,7 +5,9 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-08 (hosted app-data SPA-fallback refusal: reserved
+**Revised:** 2026-08-09 (LLP 0204 S1: the implemented `/api/v1` versioned
+external finite family and the `api.origins` bearer-token CORS statement —
+see the dated amendment). 2026-08-08 (hosted app-data SPA-fallback refusal: reserved
 app-data prefixes whose unimplemented route is answered by Workers Assets as
 200 HTML now return the structured
 `SNAPBACK_ROUTE_UNSUPPORTED_ON_TARGET` ErrorResponse). 2026-08-08 (LLP 0204 commissioned the OAuth-facade, capability-link, and external-anonymous route/response classes; design only, outside this Active spec's implemented-route claim — see the dated amendment). 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-05 (§Server-binary identity: the build-identity dirty
@@ -1463,6 +1465,67 @@ unexposed function, an authenticated-only function, a declared-id budget
 failure, a network-floor failure, and a link outside the v1 anonymous set all
 refuse before a sentinel handler effect. These are acceptance obligations for
 the implementing landing, not evidence that it exists today.
+
+## Dated amendment: LLP 0204 S1 versioned external finite family (2026-08-09)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md) D1/D2;
+**implemented** at the S1 Landing 1 commit (`4b401a9e8`), unlike the
+2026-08-08 amendment above, which remains commissioned design.
+
+### The `/api/v1` app-data family
+
+Three registered AppData routes extend the finite invocation family:
+
+| Route | Effective policy | Notes |
+| --- | --- | --- |
+| `POST /api/v1/query/{name}` | identical tuple to `POST /query/{name}` (AppAuth path, sessions overlay → `OptionalSessionOrScopedToken`) | dispatches to the same handler |
+| `POST /api/v1/mutation/{name}` | identical tuple to `POST /mutation/{name}` | same handler |
+| `POST /api/v1/action/{name}` | identical tuple to `POST /action/{name}` | same handler |
+
+The family is the *advertised external projection* of the finite surface;
+`v1` names the contract regime (additive-only per the LLP 0204 OQ4 ruling),
+not the app generation. Family-specific semantics, enforced before the shared
+handler runs:
+
+- **Unpinned.** A request carrying `expectedGeneration` is refused with
+  `SNAPBACK_API_GENERATION_PIN_UNSUPPORTED` (400) rather than silently
+  ignored; internal clients keep pinning on the bare family.
+- **Exposure-gated for every authority class.** When the active manifest has
+  no `api` block or `api.enabled` is false, every invocation refuses with
+  `SNAPBACK_API_NOT_ENABLED` (403); an unexposed function refuses with
+  `SNAPBACK_API_EXPOSURE_DENIED` (403) even where the bare route would admit
+  the same anonymous caller. The bare routes retain LLP 0204 D1's honest
+  limit for anonymous-admitting functions; this family is strictly opt-in
+  surface. Credentialed (service-principal) exposure enforcement is not
+  route-local: it lives at the invocation-gate chokepoint and covers the
+  bare finite routes, live initial/rerun, and nested code-mode invocations
+  identically.
+- **No authorized-lease mint.** The `/query/{name}/authorized-lease` row has
+  no `/api/v1` sibling (LLP 0055 pins the v1 service-principal surface to
+  the finite routes plus `/connection/open`; retained reads are a non-goal).
+
+### `api.origins` bearer-token CORS statement
+
+The manifest's `api.origins` list grants cross-origin browser access to the
+`/api/v1/*` family only. Because [LLP 0039's deferred origin-allowlisting
+contract](./0039-auth-vertical-slice.rfc.md) is scoped to cookie transport,
+this amendment carries its own statement for bearer transport:
+
+- Matching is an exact scheme+host+port string comparison against the
+  declared list; wildcards are refused at authoring and activation
+  (`SNAPBACK_API_ORIGIN_INVALID`). No declaration means no CORS beyond the
+  existing loopback dev behavior — today's posture.
+- A matching origin is echoed in `Access-Control-Allow-Origin` with
+  `Vary: Origin`. Credentialed CORS (`Access-Control-Allow-Credentials`) is
+  never emitted: external calls authenticate with bearer headers, not
+  cookies, so the cookie-scoped LLP 0039 contract is not implicated.
+- The grant does not extend to system routes, the bare finite family, or
+  the app-api discovery pair; those keep their existing posture.
+
+The route registry remains the single method inventory (the CORS
+allow-methods projection continues to derive from it), and the three rows
+surface in `schemas/http.routes.v1.json` through the standard generator with
+the same input/output schema refs as their bare siblings.
 
 ## Status
 

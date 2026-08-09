@@ -189,6 +189,8 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/inspect"),
         // LLP 0062 §5: the app-data-plane envelope surface.
         ("GET", "/app-api/current"),
+        ("GET", "/app-api/openapi.json"),
+        ("GET", "/app-api/agent-skill"),
         ("GET", "/app-api/envelope/{sha256}"),
         ("GET", "/auth/session"),
         ("POST", "/auth/request-code"),
@@ -214,6 +216,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("DELETE", "/auth/grants/by-actor/{actor_id}"),
         ("DELETE", "/auth/grants/{id}"),
         ("POST", "/query/{name}"),
+        ("POST", "/api/v1/query/{name}"),
         ("POST", "/query/{name}/authorized-lease"),
         ("POST", "/client-mutations/acknowledge"),
         ("POST", "/client-mutations/identity-range"),
@@ -232,7 +235,9 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("PATCH", "/assets/tus/{id}"),
         ("DELETE", "/assets/tus/{id}"),
         ("POST", "/mutation/{name}"),
+        ("POST", "/api/v1/mutation/{name}"),
         ("POST", "/action/{name}"),
+        ("POST", "/api/v1/action/{name}"),
         ("POST", "/app/bundle"),
         ("POST", "/app/ensure"),
         ("POST", "/connection/open"),
@@ -382,6 +387,44 @@ async fn registry_and_router_have_black_box_path_method_parity() {
             }
         }
     }
+}
+
+#[test]
+fn app_api_current_projections_are_bare_public_no_store_routes() {
+    let routes = route_registry()
+        .into_iter()
+        .filter(|route| route.path.starts_with("/app-api/"))
+        .map(|route| (route.path, route))
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(routes.len(), 4);
+    for path in [
+        "/app-api/current",
+        "/app-api/openapi.json",
+        "/app-api/agent-skill",
+    ] {
+        let route = routes[path];
+        assert_eq!(route.method, "GET", "{path}");
+        assert_eq!(route.class, RouteClass::AppData, "{path}");
+        assert_eq!(route.path_policy, RoutePolicy::Public, "{path}");
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::None,
+            "{path}"
+        );
+        assert_eq!(
+            route.invocation_authority,
+            InvocationAuthority::None,
+            "{path}"
+        );
+        assert_eq!(route.effect_policy, EffectPolicy::None, "{path}");
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::PublicNoStore,
+            "{path}"
+        );
+    }
+    let envelope = routes["/app-api/envelope/{sha256}"];
+    assert_eq!(envelope.response_sensitivity, ResponseSensitivity::PublicProjection);
 }
 
 /// LLP 0031 keeps the router-owned registry authoritative for method shape;
@@ -808,7 +851,13 @@ fn session_overlay_closes_every_client_asserted_http_route() {
                     // Bundle entries are evaluated exactly like /query
                     // invocations, so the generated app-data route class's
                     // scoped tokens stay legal (LLP 0092 §0D.7).
-                    "/query/{name}" | "/mutation/{name}" | "/action/{name}" | "/app/bundle" => {
+                    "/query/{name}"
+                    | "/api/v1/query/{name}"
+                    | "/mutation/{name}"
+                    | "/api/v1/mutation/{name}"
+                    | "/action/{name}"
+                    | "/api/v1/action/{name}"
+                    | "/app/bundle" => {
                         CredentialResolution::OptionalSessionOrScopedToken
                     }
                     _ => CredentialResolution::OptionalSessionBearer,
@@ -1647,6 +1696,14 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             },
         ),
         (
+            ("POST", "/api/v1/query/{name}"),
+            SessionBodyProbe {
+                uri: "/api/v1/query/missing_function",
+                base: json!({ "args": {} }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
             ("POST", "/app/bundle"),
             SessionBodyProbe {
                 uri: "/app/bundle",
@@ -1836,9 +1893,25 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             },
         ),
         (
+            ("POST", "/api/v1/mutation/{name}"),
+            SessionBodyProbe {
+                uri: "/api/v1/mutation/missing_function",
+                base: json!({ "args": {} }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
             ("POST", "/action/{name}"),
             SessionBodyProbe {
                 uri: "/action/missing_function",
+                base: json!({ "args": {} }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/api/v1/action/{name}"),
+            SessionBodyProbe {
+                uri: "/api/v1/action/missing_function",
                 base: json!({ "args": {} }),
                 forbidden_fields: handler_fields(),
             },

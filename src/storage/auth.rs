@@ -1027,7 +1027,10 @@ impl LocalDatabase {
     /// Run a read through the protected lane. No raw connection accessor is
     /// exposed; callers must cross an exact recognized-catalog check for every
     /// operation.
-    pub(crate) fn with_auth_read<T>(
+    ///
+    /// New callers outside the storage kernel are forbidden; enter through
+    /// the typed kernels (LLP 0199 owner #2).
+    pub(super) fn with_auth_read<T>(
         &self,
         operation: impl FnOnce(&Connection) -> SnapbackResult<T>,
     ) -> SnapbackResult<T> {
@@ -1038,7 +1041,10 @@ impl LocalDatabase {
     /// Run one direct auth mutation as an IMMEDIATE transaction. `Ok(T)` is a
     /// committed outcome (including provider-level negative outcome enums);
     /// `Err` drops and rolls the transaction back.
-    pub(crate) fn with_auth_transaction<T>(
+    ///
+    /// New callers outside the storage kernel are forbidden; enter through
+    /// the typed kernels (LLP 0199 owner #2).
+    pub(super) fn with_auth_transaction<T>(
         &mut self,
         operation: impl FnOnce(&Transaction<'_>) -> SnapbackResult<T>,
     ) -> SnapbackResult<T> {
@@ -1057,7 +1063,10 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0059#rollback-and-ambiguous-commit — only a proven rollback
     /// exact-unmarks; a commit error is reconciled or left unavailable.
-    pub(crate) fn attempt_auth_transaction<T>(
+    ///
+    /// New callers outside the storage kernel are forbidden; enter through
+    /// the typed kernels (LLP 0199 owner #2).
+    pub(super) fn attempt_auth_transaction<T>(
         &mut self,
         operation: impl FnOnce(&Transaction<'_>) -> SnapbackResult<T>,
     ) -> AuthTransactionAttempt<T> {

@@ -153,6 +153,27 @@ function fixtureEnvelope() {
   };
 }
 
+function exposedOnlyFixtureEnvelope() {
+  const exposed = structuredClone(fixtureEnvelope());
+  const exposedIds = new Set(['fn-query-a', 'fn-mutation']);
+  exposed.functions.functions = exposed.functions.functions
+    .filter((definition) => exposedIds.has(definition.id))
+    .map((definition) => ({
+      ...definition,
+      apiExposure: { expose: true, since: '2026-08-09' },
+    }));
+  exposed.operations = Object.fromEntries(
+    Object.entries(exposed.operations).filter(([id]) => exposedIds.has(id)),
+  );
+  exposed.memberDigests = Object.fromEntries(
+    Object.entries(exposed.memberDigests).filter(
+      ([key]) => key === 'declaration:appBindings'
+        || exposedIds.has(key.replace(/^operation:/u, '')),
+    ),
+  );
+  return exposed;
+}
+
 function fixtureDiscovery(envelope) {
   return {
     artifactKind: 'appApiDiscovery',
@@ -246,6 +267,21 @@ test('functions are grouped by protocol kind and sorted by operation name', asyn
   assert.match(markdown, /Route: `POST \/query\/alpha\.find`/u);
   assert.match(markdown, /Route: `POST \/mutation\/posts\.create`/u);
   assert.match(markdown, /Route: `POST \/action\/rebuildSearch`/u);
+});
+
+test('an exposure-filtered API envelope renders only versioned external routes', async () => {
+  const exposed = exposedOnlyFixtureEnvelope();
+  const path = join(scratch, 'exposed-only-envelope.json');
+  writeFileSync(path, `${JSON.stringify(exposed, null, 2)}\n`);
+  const markdown = await generateApiMarkdown({ envelopePath: path });
+
+  assert.match(markdown, /`POST \/api\/v1\/query\/\{name\}`/u);
+  assert.match(markdown, /Route: `POST \/api\/v1\/query\/alpha\.find`/u);
+  assert.match(markdown, /Route: `POST \/api\/v1\/mutation\/posts\.create`/u);
+  assert.doesNotMatch(markdown, /zebra\.list|rebuildSearch/u);
+  const example = markdown.slice(markdown.indexOf('#### Example'));
+  assert.match(example, /SNAPBACK_BASE_URL\/api\/v1\/query\/alpha\.find/u);
+  assert.doesNotMatch(example, /read_set|expectedGeneration/u);
 });
 
 test('nested and optional argument fields render readably and examples are minimal', async () => {

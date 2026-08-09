@@ -54,6 +54,7 @@ const PRESENCE_CONSUMER_CAP = 256;
 const PRESENCE_PUBLISHER_CAP = 64;
 const OPTIMISTIC_LAYER_CAP = 256;
 const REACT_RUNTIME_FALLBACK_RETRY_MS = 250;
+const QUEUED_MUTATION_WEDGE_WARNING_MS = 30_000;
 const providerContext = createContext(null);
 let providerSequence = 0;
 // Local-uniqueness labels (provider instances, optimistic-layer ids): NOT
@@ -123,6 +124,25 @@ function diagnosticError(code, message, details = {}) {
   error.code = code;
   error.diagnostic = value;
   return error;
+}
+
+export class SnapbackQueuedMutationError extends Error {
+  constructor(mutation, outcome) {
+    const message = `mutation "${mutation}" was durably queued; settlement is still pending`;
+    super(`SNAPBACK_REACT_MUTATION_QUEUED: ${message}`);
+    this.name = 'SnapbackQueuedMutationError';
+    this.code = 'SNAPBACK_REACT_MUTATION_QUEUED';
+    this.queued = true;
+    this.mutation = mutation;
+    this.clientMutationId = outcome.clientMutationId;
+    this.sequence = outcome.sequence;
+    this.diagnostic = diagnostic(this.code, message, {
+      mutation,
+      queued: true,
+      clientMutationId: outcome.clientMutationId,
+      sequence: outcome.sequence,
+    });
+  }
 }
 
 function serializeError(error) {
@@ -292,6 +312,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const loadReactRuntime = typeof options.__loadReactRuntime === 'function'
     ? options.__loadReactRuntime
     : () => import('./react-runtime.mjs');
+  const queuedMutationWedgeWarningMs = Number.isFinite(
+    options.__queuedMutationWedgeWarningMs,
+  ) && options.__queuedMutationWedgeWarningMs >= 0
+    ? options.__queuedMutationWedgeWarningMs
+    : QUEUED_MUTATION_WEDGE_WARNING_MS;
+  const queuedMutationWarningTimers = new Set();
   let preparedGroup = options.preparedGroup ?? null;
   if (preparedGroup !== null && !isPreparedReactQueryGroup(preparedGroup)) {
     throw diagnosticError(
@@ -971,6 +997,52 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     );
   };
 
+  // @ref LLP 0043#raw-settlement-facts-and-projection-ownership-2026-07-20-llp-0063-step-1 — a
+  // connectivity-refused dispatch that crossed the durable enqueue cut is a
+  // pending settlement fact, never a result-contract installation failure.
+  // React keeps its result-only resolved type by rejecting one distinct
+  // queued class, while development warnings make the deferred outcome loud.
+  const queuedMutationError = (mutationReference, outcome) => {
+    if (outcome?.queued !== true) return null;
+    const error = new SnapbackQueuedMutationError(mutationReference.name, outcome);
+    if (!positiveDevelopmentEnvironment()) return error;
+
+    console.warn(
+      `${error.code}: mutation "${mutationReference.name}" was durably queued as `
+      + `${outcome.clientMutationId} (sequence ${outcome.sequence}); keep pending UI until `
+      + 'replay settles it, and roll back only for a declared server refusal carrying appCode.',
+    );
+
+    const timer = setTimeout(async () => {
+      queuedMutationWarningTimers.delete(timer);
+      if (terminal) return;
+      const progressed = (client.outboxDiagnostics ?? []).some((entry) => (
+        entry?.clientMutationId === outcome.clientMutationId
+        && ![
+          'SNAPBACK_OFFLINE_MUTATION_QUEUED',
+          'SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED',
+        ].includes(entry.code)
+      ));
+      if (progressed || typeof client.outboxStatus !== 'function') return;
+      let status;
+      try {
+        status = await client.outboxStatus();
+      } catch {
+        return;
+      }
+      if (terminal || status?.supported !== true || status.pending === 0) return;
+      console.warn(
+        `SNAPBACK_REACT_MUTATION_QUEUE_WEDGED: the durable queue head blocking mutation `
+        + `"${mutationReference.name}" (${outcome.clientMutationId}, sequence ${outcome.sequence}) `
+        + `has not advanced for ${queuedMutationWedgeWarningMs}ms; later mutations remain queued `
+        + 'behind it. Inspect useSnapbackOutbox() and the original connectivity refusal.',
+      );
+    }, queuedMutationWedgeWarningMs);
+    timer?.unref?.();
+    queuedMutationWarningTimers.add(timer);
+    return error;
+  };
+
   const runMutation = async (mutationReference, mutationArgs, optimistic = null) => {
     if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
     if (mutationReference?.[HANDOFF_DEFERRED_REFERENCE] === true) {
@@ -1000,6 +1072,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         args: mutationArgs,
         ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
       });
+      const queued = queuedMutationError(admittedMutation, output);
+      if (queued !== null) throw queued;
       return validateResultContract(
         mutationContract,
         output.result,
@@ -1128,6 +1202,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         authorityCapture: capture,
         ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
       });
+      const queued = queuedMutationError(admittedMutation, output);
+      if (queued !== null) throw queued;
       const result = validateResultContract(
         mutationContract,
         output.result,
@@ -2397,6 +2473,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       terminal = true;
       custodyPaused = true;
       hostPaused = true;
+      for (const timer of queuedMutationWarningTimers) clearTimeout(timer);
+      queuedMutationWarningTimers.clear();
       const ownsUnadoptedRegisteredOwner = preparedGroup?.connectionId === connectionId
         && (
           preparedRegistrations.size > 0
@@ -2554,11 +2632,19 @@ function useProvider() {
   return assertProvider(useContext(providerContext));
 }
 
+// @ref LLP 0114#exact-identity-bytes-and-limits — hook dependency identity
+// follows the same canonical content grammar as registry store identity, so
+// fresh but equal inline values cannot rotate committed subscriptions.
+const canonicalHookInputKey = (value) => (
+  value === skip ? skip : canonicalizeClientValueV1(value)
+);
+
 export function useSnapbackQuery(reference, args) {
   const provider = useProvider();
+  const argsKey = canonicalHookInputKey(args);
   const descriptor = useMemo(
     () => provider.registry.descriptor(reference, args),
-    [provider, reference, args],
+    [provider, reference, argsKey],
   );
   const lease = useRef(null);
   const subscribe = useCallback((listener) => {
@@ -2587,6 +2673,8 @@ export function useSnapbackPresence(reference, options) {
   const tokenRef = useRef(null);
   if (tokenRef.current === null) tokenRef.current = provider.registry.createPresenceToken();
   const token = tokenRef.current;
+  const scopeKey = canonicalHookInputKey(options.scope);
+  const valueKey = canonicalHookInputKey(options.value);
   const descriptor = useMemo(
     () => provider.registry.presenceDescriptor(
       reference,
@@ -2594,7 +2682,7 @@ export function useSnapbackPresence(reference, options) {
       options.value,
       options.ttlMs,
     ),
-    [provider, reference, options.scope, options.value, options.ttlMs],
+    [provider, reference, scopeKey, valueKey, options.ttlMs],
   );
   const subscribe = useCallback((listener) => {
     const lease = provider.registry.subscribePresence(descriptor, token, listener);

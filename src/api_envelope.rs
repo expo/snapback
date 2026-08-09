@@ -10,7 +10,7 @@
 //! member digest against an independently carried map.
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
@@ -399,6 +399,436 @@ pub fn verify_correspondence(
     Ok(())
 }
 
+#[derive(Clone, Debug, PartialEq)]
+struct AppApiOperationProjection {
+    stable_id: String,
+    name: String,
+    route_kind: &'static str,
+    auth_requirement: String,
+    args_schema: Value,
+}
+
+impl AppApiOperationProjection {
+    fn admits_anonymous(&self) -> bool {
+        matches!(self.auth_requirement.as_str(), "public" | "optional-user")
+    }
+
+    fn path(&self) -> String {
+        format!(
+            "/api/v1/{}/{}",
+            self.route_kind,
+            path_segment_escape(&self.name)
+        )
+    }
+}
+
+fn projection_operations(
+    envelope: &ApiEnvelopeV1,
+) -> Result<Vec<AppApiOperationProjection>, EnvelopeRefusal> {
+    let definitions = envelope
+        .functions
+        .get("functions")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            EnvelopeRefusal::new(
+                "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+                "envelope projection carries no function list",
+            )
+        })?;
+    let mut definitions_by_id = BTreeMap::new();
+    for definition in definitions {
+        let stable_id = definition.get("id").and_then(Value::as_str).ok_or_else(|| {
+            EnvelopeRefusal::new(
+                "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+                "envelope function projection carries a function without a stable id",
+            )
+        })?;
+        if definitions_by_id.insert(stable_id, definition).is_some() {
+            return Err(EnvelopeRefusal::new(
+                "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+                format!("duplicate function stable id '{stable_id}'"),
+            ));
+        }
+    }
+    if definitions_by_id.len() != envelope.operations.len()
+        || envelope
+            .operations
+            .keys()
+            .any(|stable_id| !definitions_by_id.contains_key(stable_id.as_str()))
+    {
+        return Err(EnvelopeRefusal::new(
+            "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+            "operation ids do not exactly match the public function projection",
+        ));
+    }
+
+    let mut operations = Vec::with_capacity(envelope.operations.len());
+    for (stable_id, operation) in &envelope.operations {
+        let definition = definitions_by_id
+            .get(stable_id.as_str())
+            .expect("exact id set checked above");
+        let route_kind = match definition.get("kind").and_then(Value::as_str) {
+            Some("Query" | "LiveQuery") => "query",
+            Some("Mutation") => "mutation",
+            Some("Action") => "action",
+            Some(kind) => {
+                return Err(EnvelopeRefusal::new(
+                    "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+                    format!("function '{stable_id}' has unsupported kind '{kind}'"),
+                ));
+            }
+            None => {
+                return Err(EnvelopeRefusal::new(
+                    "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+                    format!("function '{stable_id}' carries no kind"),
+                ));
+            }
+        };
+        let auth_requirement = match definition.get("authRequirement") {
+            None | Some(Value::Null) => "optional-user",
+            Some(Value::String(requirement))
+                if matches!(requirement.as_str(), "public" | "optional-user" | "authenticated") =>
+            {
+                requirement
+            }
+            _ => {
+                return Err(EnvelopeRefusal::new(
+                    "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+                    format!("function '{stable_id}' carries an invalid auth requirement"),
+                ));
+            }
+        };
+        operations.push(AppApiOperationProjection {
+            stable_id: stable_id.clone(),
+            name: operation.name.clone(),
+            route_kind,
+            auth_requirement: auth_requirement.to_string(),
+            args_schema: operation.args_schema.clone(),
+        });
+    }
+    operations.sort_by(|left, right| {
+        let kind_order = |kind| match kind {
+            "query" => 0,
+            "mutation" => 1,
+            "action" => 2,
+            _ => 3,
+        };
+        kind_order(left.route_kind)
+            .cmp(&kind_order(right.route_kind))
+            .then_with(|| left.name.cmp(&right.name))
+            .then_with(|| left.stable_id.cmp(&right.stable_id))
+    });
+    Ok(operations)
+}
+
+fn path_segment_escape(raw: &str) -> String {
+    let mut escaped = String::with_capacity(raw.len());
+    for byte in raw.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                escaped.push(byte as char);
+            }
+            _ => escaped.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    escaped
+}
+
+/// Compose the OpenAPI 3.1 projection directly from persisted envelope bytes.
+/// The envelope has already applied the app's disclosure posture; this join
+/// deliberately applies no second exposure filter.
+///
+/// @ref LLP 0204#d2--surface-1-the-third-party-api — OpenAPI is generated
+/// from the envelope, the external request is unpinned, and result schemas
+/// are not invented when envelope v1 does not carry them.
+pub fn compose_openapi_document(envelope_bytes: &[u8]) -> Result<Value, EnvelopeRefusal> {
+    let (envelope, digest) = parse_and_validate(envelope_bytes)?;
+    let operations = projection_operations(&envelope)?;
+    let mut paths = Map::new();
+    for operation in operations {
+        let security = if operation.admits_anonymous() {
+            serde_json::json!([{}, { "bearer": [] }])
+        } else {
+            serde_json::json!([{ "bearer": [] }])
+        };
+        paths.insert(
+            operation.path(),
+            serde_json::json!({
+                "post": {
+                    "operationId": operation.stable_id,
+                    "summary": operation.name,
+                    "x-snapback-auth-requirement": operation.auth_requirement,
+                    "security": security,
+                    "requestBody": {
+                        "required": true,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["args"],
+                                    "properties": {
+                                        "args": operation.args_schema
+                                    },
+                                    "additionalProperties": false
+                                }
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "Successful Snapback invocation. Envelope v1 does not carry a result schema, so result members are intentionally unspecified.",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "description": "Snapback success envelope with operation-defined result members and server-owned invocation facts.",
+                                        "additionalProperties": true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }),
+        );
+    }
+
+    Ok(serde_json::json!({
+        "openapi": "3.1.0",
+        "info": {
+            "title": envelope.app_id,
+            "version": digest,
+            "x-snapback-envelope-digest": digest
+        },
+        "servers": [{ "url": "/" }],
+        "paths": Value::Object(paths),
+        "components": {
+            "securitySchemes": {
+                "bearer": {
+                    "type": "http",
+                    "scheme": "bearer",
+                    "bearerFormat": "Snapback scoped token",
+                    "description": "A live scoped token acquired through the app's agent authority ceremony."
+                }
+            }
+        }
+    }))
+}
+
+fn first_array_value(schema: &Value, key: &str) -> Option<Value> {
+    schema
+        .get(key)
+        .and_then(Value::as_array)
+        .and_then(|items| items.first())
+        .cloned()
+}
+
+fn synthesize_schema_value(schema: &Value, path: &str) -> Result<Value, EnvelopeRefusal> {
+    if schema == &Value::Bool(true) {
+        return Ok(Value::Null);
+    }
+    if schema == &Value::Bool(false) {
+        return Err(EnvelopeRefusal::new(
+            "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+            format!("{path} rejects every JSON value"),
+        ));
+    }
+    let object = schema.as_object().ok_or_else(|| {
+        EnvelopeRefusal::new(
+            "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+            format!("{path} is not a JSON Schema object or boolean"),
+        )
+    })?;
+    for key in ["const", "default"] {
+        if let Some(value) = object.get(key) {
+            return Ok(value.clone());
+        }
+    }
+    for key in ["examples", "enum", "oneOf", "anyOf"] {
+        if let Some(value) = first_array_value(schema, key) {
+            return if matches!(key, "oneOf" | "anyOf") {
+                synthesize_schema_value(&value, path)
+            } else {
+                Ok(value)
+            };
+        }
+    }
+    if let Some(branches) = object.get("allOf").and_then(Value::as_array) {
+        let mut merged = Map::new();
+        for branch in branches {
+            let value = synthesize_schema_value(branch, path)?;
+            let Value::Object(fields) = value else {
+                return Ok(value);
+            };
+            merged.extend(fields);
+        }
+        return Ok(Value::Object(merged));
+    }
+
+    let declared_types = match object.get("type") {
+        Some(Value::String(kind)) => vec![kind.as_str()],
+        Some(Value::Array(kinds)) => kinds.iter().filter_map(Value::as_str).collect(),
+        _ if object.get("properties").is_some() => vec!["object"],
+        _ => vec!["object"],
+    };
+    let kind = declared_types
+        .iter()
+        .copied()
+        .find(|kind| *kind != "null")
+        .or_else(|| declared_types.first().copied())
+        .unwrap_or("object");
+    match kind {
+        "object" => {
+            let properties = object
+                .get("properties")
+                .and_then(Value::as_object)
+                .cloned()
+                .unwrap_or_default();
+            let mut required = object
+                .get("required")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>();
+            required.sort_unstable();
+            let mut result = Map::new();
+            for name in required {
+                let child = properties.get(name).or_else(|| {
+                    object
+                        .get("additionalProperties")
+                        .filter(|schema| schema.is_object() || schema.is_boolean())
+                });
+                let Some(child) = child else {
+                    return Err(EnvelopeRefusal::new(
+                        "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+                        format!("{path} requires '{name}' but carries no schema for it"),
+                    ));
+                };
+                result.insert(
+                    name.to_string(),
+                    synthesize_schema_value(child, &format!("{path}.{name}"))?,
+                );
+            }
+            Ok(Value::Object(result))
+        }
+        "array" => {
+            let length = object.get("minItems").and_then(Value::as_u64).unwrap_or(0);
+            let unconstrained_items = Value::Bool(true);
+            let items = object.get("items").unwrap_or(&unconstrained_items);
+            let mut result = Vec::new();
+            for index in 0..length {
+                result.push(synthesize_schema_value(
+                    items,
+                    &format!("{path}[{index}]"),
+                )?);
+            }
+            Ok(Value::Array(result))
+        }
+        "string" => {
+            let length = object.get("minLength").and_then(Value::as_u64).unwrap_or(1);
+            let length = usize::try_from(length.max(1)).map_err(|_| {
+                EnvelopeRefusal::new(
+                    "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+                    format!("{path} string minimum is too large to render"),
+                )
+            })?;
+            Ok(Value::String("x".repeat(length)))
+        }
+        "integer" => {
+            let minimum = object.get("minimum").and_then(Value::as_f64).unwrap_or(0.0);
+            let exclusive = object
+                .get("exclusiveMinimum")
+                .and_then(Value::as_f64)
+                .map(|value| value.floor() + 1.0)
+                .unwrap_or(minimum);
+            Ok(Value::from(minimum.max(exclusive).ceil() as i64))
+        }
+        "number" => {
+            let minimum = object.get("minimum").and_then(Value::as_f64).unwrap_or(0.0);
+            let exclusive = object
+                .get("exclusiveMinimum")
+                .and_then(Value::as_f64)
+                .map(|value| value + 0.5)
+                .unwrap_or(minimum);
+            serde_json::Number::from_f64(minimum.max(exclusive))
+                .map(Value::Number)
+                .ok_or_else(|| {
+                    EnvelopeRefusal::new(
+                        "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+                        format!("{path} has a non-finite numeric minimum"),
+                    )
+                })
+        }
+        "boolean" => Ok(Value::Bool(false)),
+        "null" => Ok(Value::Null),
+        _ => Err(EnvelopeRefusal::new(
+            "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+            format!("{path} uses unsupported type '{kind}'"),
+        )),
+    }
+}
+
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+/// Compose the app's compact, digest-pinned Agent Skill from the same
+/// persisted envelope as the OpenAPI projection. Mutable operation and scope
+/// inventories remain pointers to current server facts rather than prose.
+///
+/// @ref LLP 0204#d92--generated-agent-skill — discovery, authority, finite
+/// invocation, and target-conditional code mode are taught without embedding
+/// credentials or a static scope list.
+pub fn compose_agent_skill(envelope_bytes: &[u8]) -> Result<String, EnvelopeRefusal> {
+    let (envelope, digest) = parse_and_validate(envelope_bytes)?;
+    let operations = projection_operations(&envelope)?;
+    let example = if let Some(operation) = operations.first() {
+        let args = synthesize_schema_value(
+            &operation.args_schema,
+            &format!("operations.{}.argsSchema", operation.name),
+        )?;
+        let body = serde_json::to_string_pretty(&serde_json::json!({ "args": args })).map_err(
+            |error| {
+                EnvelopeRefusal::new(
+                    "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+                    format!("agent-skill example could not be serialized: {error}"),
+                )
+            },
+        )?;
+        let anonymous_note = if operation.admits_anonymous() {
+            " This operation admits anonymous callers, so omit the Authorization header when no user authority is needed."
+        } else {
+            ""
+        };
+        format!(
+            concat!(
+                "The current envelope's first operation is `{}` (`{}`).{}\n\n",
+                "```sh\n",
+                "curl --fail-with-body --silent --show-error \\\n",
+                "  -X POST \"$APP_BASE_URL{}\" \\\n",
+                "  -H 'content-type: application/json' \\\n",
+                "  -H 'x-snapback-auth-client-protocol: 1' \\\n",
+                "  -H \"authorization: Bearer $APP_API_TOKEN\" \\\n",
+                "  --data {}\n",
+                "```",
+            ),
+            operation.name,
+            operation.stable_id,
+            anonymous_note,
+            operation.path(),
+            shell_quote(&body),
+        )
+    } else {
+        "The pinned envelope currently declares no callable operations; fetch the next current envelope before invoking.".to_string()
+    };
+
+    Ok(format!(
+        "---\nname: snapback-app-api\ndescription: Discover and invoke the current digest-pinned API for this Snapback app.\n---\n\n# Snapback app API: {}\n\nEnvelope digest: `{}`\n\nThis skill is a navigation aid for one persisted API envelope. Fetch current facts before acting; do not treat this document as an operation or scope registry. It contains no credential.\n\n## Discover\n\n1. Fetch `GET /app-api/current`.\n2. Fetch the exact `GET /app-api/envelope/{{sha256}}` named by discovery and require its digest to equal `{}`.\n3. Fetch `GET /app-api/openapi.json` for the OpenAPI 3.1 projection of that same current envelope.\n\nIf discovery changes, discard derived facts and repeat these steps.\n\n## Acquire authority\n\nUse the app's live LLP 0150 ceremony endpoints as pointers: `POST /auth/agents/register` for eligible registration, or the pairing path through `POST /auth/pairing-codes` and `POST /auth/agents/pair`; mint bounded authority with `POST /auth/agents/token`. Follow live refusals and discovery for the exact next step. Never invent scopes, copy a static scope list, or persist returned credentials in source or model output.\n\n## Invoke\n\nCall the versioned finite family at `POST /api/v1/{{kind}}/{{name}}` with a closed body containing only `args`; `expectedGeneration` is not part of this external contract. Use the live OpenAPI document for current names, argument schemas, and anonymous-admission facts.\n\n{}\n\n## Code mode\n\nCode mode is target-conditional. Treat `/api/v1/run` as a v1 capability pointer only: consult `GET /inspect` and the current OpenAPI document, use it only when the target explicitly advertises the evidenced untrusted-code profile and route, and otherwise continue with finite calls. This skill does not transcribe the submission protocol.\n",
+        envelope.app_id, digest, digest, example,
+    ))
+}
+
 pub fn schema_registrations() -> Vec<(&'static str, Value)> {
     vec![
         (
@@ -633,6 +1063,73 @@ mod tests {
             .into_bytes()
     }
 
+    fn projectable_envelope() -> Value {
+        let mut value = fixture_envelope();
+        value["functions"]["functions"] = json!([
+            {
+                "id": "demo:listTodos",
+                "name": "listTodos",
+                "kind": "Query",
+                "authRequirement": "public",
+                "apiExposure": { "expose": true }
+            },
+            {
+                "id": "demo:createTodo",
+                "name": "createTodo",
+                "kind": "Mutation",
+                "authRequirement": "authenticated",
+                "apiExposure": { "expose": true }
+            }
+        ]);
+        let list_schema = json!({
+            "type": "object",
+            "required": ["filter"],
+            "properties": {
+                "filter": {
+                    "type": "object",
+                    "required": ["term"],
+                    "properties": {
+                        "term": { "type": "string", "minLength": 1 },
+                        "limit": { "type": "integer", "minimum": 1 }
+                    },
+                    "additionalProperties": false
+                }
+            },
+            "additionalProperties": false
+        });
+        let create_schema = json!({
+            "type": "object",
+            "required": ["title"],
+            "properties": {
+                "title": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+        });
+        value["operations"] = json!({
+            "demo:listTodos": {
+                "name": "listTodos",
+                "argsSchema": list_schema
+            },
+            "demo:createTodo": {
+                "name": "createTodo",
+                "argsSchema": create_schema
+            }
+        });
+        let declaration = value["declarations"]["appBindings"]
+            .as_str()
+            .expect("declaration");
+        value["memberDigests"] = json!({
+            "operation:demo:listTodos": member_digest(
+                &canonicalize(&list_schema).expect("list schema canonicalizes")
+            ),
+            "operation:demo:createTodo": member_digest(
+                &canonicalize(&create_schema).expect("create schema canonicalizes")
+            ),
+            "declaration:appBindings": member_digest(declaration)
+        });
+        value
+    }
+
     #[test]
     fn admits_a_canonical_envelope_and_returns_its_identity() {
         let bytes = canonical_bytes(&fixture_envelope());
@@ -725,6 +1222,72 @@ mod tests {
         };
         let refusal = verify_correspondence(&envelope, &projection).expect_err("wrong app refuses");
         assert_eq!(refusal.code, "SNAPBACK_API_ENVELOPE_CORRESPONDENCE_FAILED");
+    }
+
+    #[test]
+    fn openapi_projection_joins_operations_and_keeps_result_shape_honest() {
+        let bytes = canonical_bytes(&projectable_envelope());
+        let document = compose_openapi_document(&bytes).expect("OpenAPI composes");
+        assert_eq!(document["openapi"], "3.1.0");
+        assert_eq!(document["info"]["title"], "demo");
+        let canonical = std::str::from_utf8(&bytes).expect("canonical UTF-8");
+        assert_eq!(document["info"]["version"], envelope_digest(canonical));
+        assert_eq!(document["paths"].as_object().expect("paths").len(), 2);
+
+        let query = &document["paths"]["/api/v1/query/listTodos"]["post"];
+        let request_schema =
+            &query["requestBody"]["content"]["application/json"]["schema"];
+        assert_eq!(request_schema["required"], json!(["args"]));
+        assert_eq!(request_schema["additionalProperties"], false);
+        assert_eq!(
+            request_schema["properties"]
+                .as_object()
+                .expect("request properties")
+                .keys()
+                .collect::<Vec<_>>(),
+            vec!["args"]
+        );
+        assert!(request_schema.get("expectedGeneration").is_none());
+        assert_eq!(query["security"][0], json!({}));
+        assert_eq!(query["security"][1], json!({ "bearer": [] }));
+
+        let mutation = &document["paths"]["/api/v1/mutation/createTodo"]["post"];
+        assert_eq!(mutation["security"], json!([{ "bearer": [] }]));
+        assert!(mutation["responses"]["200"]["description"]
+            .as_str()
+            .expect("response description")
+            .contains("does not carry a result schema"));
+        assert_eq!(
+            mutation["responses"]["200"]["content"]["application/json"]["schema"]
+                ["additionalProperties"],
+            true
+        );
+    }
+
+    #[test]
+    fn generated_agent_skill_is_small_pinned_and_pointer_heavy() {
+        let bytes = canonical_bytes(&projectable_envelope());
+        let skill = compose_agent_skill(&bytes).expect("agent skill composes");
+        let canonical = std::str::from_utf8(&bytes).expect("canonical UTF-8");
+        assert!(skill.len() < 8 * 1024, "skill grew beyond the D9.2 target");
+        assert!(skill.contains(&envelope_digest(canonical)));
+        for pointer in [
+            "/app-api/current",
+            "/app-api/envelope/{sha256}",
+            "/app-api/openapi.json",
+            "/auth/agents/register",
+            "/auth/agents/pair",
+            "/auth/agents/token",
+            "/api/v1/query/listTodos",
+            "/api/v1/run",
+        ] {
+            assert!(skill.contains(pointer), "missing pointer {pointer}");
+        }
+        assert!(skill.contains("\"filter\": {"));
+        assert!(skill.contains("\"term\": \"x\""));
+        assert!(!skill.contains("requestedScopes"));
+        assert!(!skill.contains("sbagt_"));
+        assert!(!skill.contains("read_set"));
     }
 }
 

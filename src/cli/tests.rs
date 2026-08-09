@@ -1945,7 +1945,6 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
 
 #[tokio::test]
 async fn physical_restore_is_quarantined_until_exact_prebind_declaration() {
-    use rusqlite::params;
 
     let directory = tempfile::tempdir().unwrap();
     let source_database = directory.path().join("source.sqlite3");
@@ -1970,43 +1969,14 @@ async fn physical_restore_is_quarantined_until_exact_prebind_declaration() {
     let session_id = uuid::Uuid::now_v7().to_string();
     let authority_instance_id = uuid::Uuid::now_v7().to_string();
     database
-        .with_auth_transaction(|transaction| {
-            transaction.execute(
-                "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 0)",
-                params![user_id],
-            )?;
-            transaction.execute(
-                "INSERT INTO _auth_identities(
-                       id, user_id, provider, subject, verified_at_ms
-                     ) VALUES(?1, ?2, 'email-code', 'person@example.com', 0)",
-                params![identity_id, user_id],
-            )?;
-            transaction.execute(
-                "INSERT INTO _auth_sessions(
-                       id, user_id, identity_id, authority_instance_id, token_hash,
-                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                       absolute_expires_at_ms, revoked_at_ms
-                     ) VALUES(?1, ?2, ?3, ?4, ?5,
-                              1, 0, 0, 2000000000000, 2000000000000, NULL)",
-                params![
-                    session_id,
-                    user_id,
-                    identity_id,
-                    authority_instance_id,
-                    vec![1_u8; 32],
-                ],
-            )?;
-            transaction.execute(
-                "INSERT INTO _auth_verification_codes(
-                       challenge_id, canonical_address, code_digest, key_id,
-                       attempts, max_attempts, requested_at_ms, expires_at_ms,
-                       consumed_at_ms, superseded_by
-                     ) VALUES('sbc_AAAAAAAAAAAAAAAAAAAAAA', 'person@example.com', ?1, ?2,
-                              0, 5, 0, 2000000000000, NULL, NULL)",
-                params![vec![2_u8; 32], key_id],
-            )?;
-            Ok(())
-        })
+        .auth_catalog()
+        .insert_restore_cli_fixture_for_test(
+            &user_id,
+            &identity_id,
+            &session_id,
+            &authority_instance_id,
+            &key_id,
+        )
         .unwrap();
     drop(database);
 
@@ -2097,20 +2067,8 @@ async fn physical_restore_is_quarantined_until_exact_prebind_declaration() {
 
     let restored = crate::storage::LocalDatabase::open(&restored_database).unwrap();
     let facts = restored
-        .with_auth_read(|connection| {
-            Ok((
-                connection.query_row(
-                    "SELECT COUNT(*) FROM _auth_sessions WHERE id = ?1",
-                    params![session_id],
-                    |row| row.get::<_, i64>(0),
-                )?,
-                connection.query_row(
-                    "SELECT COUNT(*) FROM _auth_verification_codes",
-                    [],
-                    |row| row.get::<_, i64>(0),
-                )?,
-            ))
-        })
+        .auth_catalog_read()
+        .restored_counts_for_test(&session_id)
         .unwrap();
     assert_eq!(facts, (0, 0));
 }

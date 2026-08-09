@@ -395,6 +395,23 @@ impl From<InspectState> for PublicInspect {
             tables,
             client_mutation_retention: _,
         } = storage;
+        let exposed_names = schema.uses_exposed_only_disclosure().then(|| {
+            functions
+                .functions
+                .iter()
+                .filter(|function| {
+                    function
+                        .api_exposure
+                        .as_ref()
+                        .is_some_and(|exposure| exposure.expose)
+                })
+                .map(|function| function.name.clone())
+                .collect::<std::collections::BTreeSet<_>>()
+        });
+        let public_functions = crate::manifest::public_function_manifest_for_schema(
+            &schema,
+            functions,
+        );
         PublicInspect {
             artifact_kind,
             schema_version,
@@ -403,11 +420,16 @@ impl From<InspectState> for PublicInspect {
             storage: PublicStorageInfo { version, tables },
             runtime: runtime.into(),
             schema: schema.into(),
-            functions: functions.into(),
+            functions: public_functions,
             capability_manifest,
             route_manifest_hash,
             subscriptions: subscriptions
                 .into_iter()
+                .filter(|subscription| {
+                    exposed_names
+                        .as_ref()
+                        .is_none_or(|names| names.contains(&subscription.function))
+                })
                 .map(
                     |LiveSubscriptionInfo {
                          id,

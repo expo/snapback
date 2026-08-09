@@ -4,7 +4,7 @@ id: sync.offline-and-retention
 order: 1
 audience: agent-first
 capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.offline-js-arm-sessions, sync.local-persistent-store]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
 examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, demos/browser-local-first, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-client/rqs-resume.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
 status: current
 targets: [local]
@@ -200,6 +200,48 @@ proof of the same contracts. The headless witness proves:
   2026-08-01 rendering note). Render the queued-changes state next to the
   retained rows from `client.outboxStatus()` (React:
   `useSnapbackOutbox()`), never by faking the rows themselves.
+
+### Keep a queued React mutation pending
+
+<!-- since: 0.1.16 unreleased -->
+
+> **Unreleased.** This source checkout distinguishes a durably queued React
+> mutation from failure; the newest published package is `0.1.15`.
+
+The headless client resolves a durably enqueued dispatch with
+`{ queued: true, clientMutationId, sequence }`. `useSnapbackMutation` keeps its
+generated result-only resolved type, so the same durable outcome rejects with
+`SnapbackQueuedMutationError` and code
+`SNAPBACK_REACT_MUTATION_QUEUED`. That class is a pending-settlement signal,
+not a server refusal: it has `queued === true`, names the mutation identity and
+sequence, and has no `appCode`. Keep the user's pending presentation. Roll it
+back only for a server refusal whose diagnostic carries a declared `appCode`:
+
+```ts fragment reason="pending presentation and refusal copy are application-specific"
+try {
+  await mutate(input);
+  clearPending(input.intentKey);
+} catch (error) {
+  if ((error as { code?: string }).code === 'SNAPBACK_REACT_MUTATION_QUEUED') {
+    return; // still durable and replayable
+  }
+  const appCode = (error as { diagnostic?: { details?: { appCode?: unknown } } })
+    .diagnostic?.details?.appCode;
+  if (typeof appCode === 'string') {
+    rollbackPending(input.intentKey);
+    showDeclaredRefusal(appCode);
+    return;
+  }
+  throw error;
+}
+```
+
+In development, the React arm logs the queued mutation immediately. If the
+queue head still blocks it after 30 seconds, it logs
+`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED`; later mutations remain ordered behind
+that head. These warnings do not add an automatic drain or an oldest-pending
+hook. Those remain the LLP 0208 G1 follow-on; today, inspect and explicitly
+drain through `useSnapbackOutbox()`.
 
 <!-- since: 0.1.15 -->
 

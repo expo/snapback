@@ -17,8 +17,25 @@ settlement from subscriber work, splits the authorization lane
 (data-driven resolution refresh vs authority transitions), and phases
 implementation with the spike harness as the A/B instrument. Informed by
 the post-spike diagnostic in the parent evidence ticket (write-turn
-coupling; auth-lane routing; quarantine churn). The D2-side Spec remains
-to be drafted.
+coupling; auth-lane routing; quarantine churn).
+
+**D2-side drafted (2026-08-09):** LLP 0209
+(`llp/0209-live-graph-profile.spec.md`, Draft) — the graph-profile
+owner-Spec with rungs 2–4 as required content: the finite graph IR with
+per-node authority classification and content-addressed plan identity,
+the completeness vocabulary, and server/local evaluator agreement (§5
+scope); rung 2 scoped as extend-and-measure and explicitly *not* the
+near-term bottleneck (the spike's 0-conservative-fallback result), with
+per-node dependency capture required at graph introduction and further
+widening demand-gated on ledger evidence; rung 3 sequenced first among
+the evaluation-cost rungs (same-authority-partition memoization against
+the measured ~6× headroom), with cross-principal sharing gated on a
+declared authority-independent base sharing LLP 0190 §4's answer; rung 4
+as per-node-kind delta rules extending LLP 0008 DK-3's `live_delta`
+guards; rung 5 referenced as D3 scope via the §8 interface. Sequenced
+G0–G3 with the preserved spike harness as the A/B instrument. Both
+commissioned Specs are now drafted; this ticket stays open until their
+review/acceptance disposition is recorded.
 
 Two separable owner-Specs, per LLP 0191 §1's revised ladder:
 

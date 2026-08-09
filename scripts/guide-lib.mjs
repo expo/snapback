@@ -32,7 +32,9 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // new rows (backend.migrations, backend.record-history, clients.micro,
 // auth.agent-registration GAP) plus alias additions. Keep the budget tight —
 // grow it only with a deliberate row addition, never to absorb prose creep.
-const CAPABILITIES_SIZE_BUDGET_BYTES = 51200;
+// Bumped 51200 -> 52224 on 2026-08-09 for the api.external-exposure row
+// (LLP 0204 S1): the page had 73 bytes of headroom before the row.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 52224;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

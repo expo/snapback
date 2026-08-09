@@ -6,7 +6,11 @@
 Schema, Memberships, Assets, Push, Relational queries, Operations, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-09
-**Revised:** 2026-08-09 (defect-grade findings — typed-search hash skew,
+**Revised:** 2026-08-09, later same day (asset-surface tickets filed —
+G11 papercuts, the G4 asset-authority slice, and the G8 multi-asset
+half — with the design-shaped remainder recorded as dated amendments in
+LLP 0044 and LLP 0180 for super-refine; register rows annotated in
+place). Prior, same day: (defect-grade findings — typed-search hash skew,
 queued-mutation settlement truthfulness, generic handler runtime
 errors, resubscribe-storm escalation — filed directly as `issues/`
 tickets at author direction and removed from the register; register
@@ -111,7 +115,7 @@ per LLP 0189, independent of this Plan's review state:
   `ctx.runtime.newId()` typo), the one 30-grade class beside the
   90-grade refusal surface; routed to LLP 0193's no-refusal failure
   layer.
-- `issues/20260806-usesnapbackquery-inline-args-resubscribe.md` —
+- `issues/closed/20260806-usesnapbackquery-inline-args-resubscribe.md` —
   pre-existing ticket escalated P3→P2 with the pilot's evidence
   (unmemoized hook args + per-render presence value saturated the main
   thread until clicks stopped landing; ~50 min of bisection, zero
@@ -187,7 +191,12 @@ per LLP 0189, independent of this Plan's review state:
   closed machine is airtight and documented — the ask is a paved bridge
   from it to product-shaped rosters, not a weakening.
 - **Owner:** LLP 0056 / LLP 0100. New ticket to commission the design
-  choice.
+  choice (roster projection and friends — still to file). **The asset
+  slice is filed 2026-08-09:**
+  `issues/20260809-asset-recipient-grant-authority-g4.md`, with the
+  ascending-ambition ladder (recipe / grant primitive / app-bound
+  sharing) recorded for ruling in LLP 0044 §Clique-pilot delivery and
+  grant DX closure; rung (c) is the bridge back to this row's program.
 
 ### G5. Relational v1 cannot express the follower join (the canonical social query)
 
@@ -238,7 +247,12 @@ per LLP 0189, independent of this Plan's review state:
   required-with-generated-default workarounds for clientKey/dmKey.
 - **Closure:** bounded stored arrays (even fixed-max, matching the
   bounded-children philosophy) and unique-where-present index semantics.
-- **Owner:** LLP 0004 / LLP 0131 / LLP 0110. New ticket.
+- **Owner:** LLP 0004 / LLP 0131 / LLP 0110. **The multi-asset half is
+  filed 2026-08-09:** `issues/20260809-multi-image-authoring-revisit-g8.md`
+  (steer to the LLP 0110 bounded-children paved path first; any
+  bounded-array revisit is a new author ruling request against the
+  2026-07-31 withdrawal, not a default). The unique-on-optional half
+  still needs its ticket.
 
 ### G9. No server-side connected-client predicate for push suppression
 
@@ -279,7 +293,12 @@ per LLP 0189, independent of this Plan's review state:
   pattern into a guide recipe — ~80 lines, survived every hostile probe
   (403 before open, 200 during, 403 after close), and non-obvious
   precisely because of the owner-only attach rule.
-- **Owner:** LLP 0044 / LLP 0180 + guide. New ticket.
+- **Owner:** LLP 0044 / LLP 0180 + guide. **Filed 2026-08-09:**
+  `issues/20260809-asset-upload-dx-papercuts-g11.md` (adds the
+  picker-friendly one-call upload helper and the `task.done` contract
+  legibility finding to this register row's list); the design-shaped
+  remainder is recorded as LLP 0044's dated addition §Clique-pilot
+  delivery and grant DX closure and LLP 0180's 2026-08-09 dated note.
 
 ### G12. API consistency papercuts
 

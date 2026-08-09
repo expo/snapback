@@ -623,6 +623,54 @@
     },
     {
       "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": {
+        "$ref": "action.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "action.output.schema.json"
+      },
+      "path": "/api/v1/action/{name}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": {
+        "$ref": "mutation.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "mutation.output.schema.json"
+      },
+      "path": "/api/v1/mutation/{name}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": {
+        "$ref": "query.input.schema.json"
+      },
+      "method": "POST",
+      "outputSchema": {
+        "$ref": "query.output.schema.json"
+      },
+      "path": "/api/v1/query/{name}",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/app-api/agent-skill",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
       "credential_resolution": "None",
       "inputSchema": null,
       "method": "GET",
@@ -639,6 +687,15 @@
       "method": "GET",
       "outputSchema": null,
       "path": "/app-api/envelope/{sha256}",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "None",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/app-api/openapi.json",
       "path_policy": "Public"
     },
     {

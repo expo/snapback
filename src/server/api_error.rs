@@ -135,7 +135,20 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_AUTH_AGENT_INVITATION_INVALID"
         | "SNAPBACK_AUTH_AGENT_INVITATION_REQUIRED"
         | "SNAPBACK_AUTH_AGENT_INVITATION_UNEXPECTED"
-        | "SNAPBACK_AUTH_AGENT_POLICY_MODE_INVALID" => StatusCode::BAD_REQUEST,
+        | "SNAPBACK_AUTH_AGENT_POLICY_MODE_INVALID"
+        | "SNAPBACK_API_AUTH_MODE_INVALID"
+        | "SNAPBACK_API_BUDGETS_UNAVAILABLE"
+        | "SNAPBACK_API_EXPOSURE_COMPILATION_INVALID"
+        | "SNAPBACK_API_FUNCTION_EXPOSURE_INVALID"
+        | "SNAPBACK_API_FUNCTION_UNKNOWN"
+        | "SNAPBACK_API_GENERATION_PIN_UNSUPPORTED"
+        | "SNAPBACK_API_MANIFEST_INVALID"
+        | "SNAPBACK_API_ORIGIN_INVALID"
+        | "SNAPBACK_API_PAGINATION_RECOMMENDED"
+        | "SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_API_EXPOSURE_DENIED" | "SNAPBACK_API_NOT_ENABLED" => {
+            StatusCode::FORBIDDEN
+        }
         "SNAPBACK_AUTH_AGENT_INVITATION_CAP" => StatusCode::TOO_MANY_REQUESTS,
         // These are operator-only shutdown controls/failures rather than
         // served request outcomes. Inventory still classifies them explicitly

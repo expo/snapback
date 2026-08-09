@@ -1,5 +1,5 @@
 {
-  "manifestVersion": "0.1.0-p1",
+  "manifestVersion": "0.1.1-p1",
   "title": "social-messenger dimension applicability manifest",
   "provenance": {
     "brief": "benchmarks/briefs/social-messenger.md (Scoring section: Applicability paragraph, dimension definitions and weights)",

@@ -5,7 +5,12 @@
 **Systems:** React, React/Expo, Ephemeral state, Client integration, Realtime, Auth, Mutation settlement, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-07 (strand backstop, Charlie Cheever's ruling via the
+**Revised:** 2026-08-09 (queued-settlement truthfulness: a durably queued
+React mutation rejects only through the distinct
+`SnapbackQueuedMutationError` / `SNAPBACK_REACT_MUTATION_QUEUED` class so the
+generated resolved type stays result-only; positive development builds warn
+at enqueue and again after a 30-second blocked-head threshold). 2026-08-07
+(strand backstop, Charlie Cheever's ruling via the
 local-first author-gate packet, item 5 —
 issues/closed/20260804-optimistic-matcher-strand-backstop.md options 2+3: a
 confirmed `projectRecordFields` layer retires when its identified row is
@@ -223,8 +228,27 @@ dispatch/expose/commit/terminal publication (`isCurrent` for expose,
 `compareAndCommit` for durable commit).
 Pending layers cap at 256.
 
-The promise resolves only to the LLP 0101-validated result. No offline queue or
-new LLP 0043 settlement identity is claimed.
+The promise resolves only to the LLP 0101-validated result. React owns no
+offline queue or alternate LLP 0043 settlement identity: it projects the
+headless client's durable outcome. When that client returns
+`{queued:true, clientMutationId, sequence}`, React rejects through the distinct
+`SnapbackQueuedMutationError` class with code
+`SNAPBACK_REACT_MUTATION_QUEUED`, `queued:true`, and the same identity/sequence.
+It never routes the missing `result` through
+`SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED`. This preserves the generated
+result-only resolved type while making queued settlement machine-distinct from
+server refusal; the queued diagnostic carries no application `appCode`, so
+caller-owned pending presentation remains installed and rollback is reserved
+for a declared server refusal. The provider's built-in optimistic query layer
+remains a process-local Online projection, not a durable outbox overlay.
+
+In a positively identified development build, every queued hook dispatch logs
+`SNAPBACK_REACT_MUTATION_QUEUED` with the mutation name and durable identity.
+A timer observes the headless outbox facts after 30 seconds; if the queue still
+has pending work and that identity has no terminal/replayed diagnostic, it logs
+`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` naming the blocked mutation and sequence.
+The timer is diagnostic-only and provider-owned/cleaned up. It neither drains
+the queue nor adds the app-wide queue-state hook deferred to LLP 0208 G1.
 
 ### Replay-safety affordances
 
@@ -368,6 +392,16 @@ No durable/offline/SSR/history/cross-room/custom-key presence, caller authority
 facts, React-owned transport/cache/ledger, HTTP authority, or hosted inheritance.
 
 ## Implementation journal
+
+2026-08-09 (queued-settlement truthfulness,
+`issues/closed/20260809-queued-mutation-settlement-truthfulness.md`): the React
+mutation projection now detects the headless `{queued:true}` marker before
+result-contract validation, rejects one exported distinct queued class, and
+emits development enqueue/30-second blocked-head warnings. The imperative
+client contract and durable outbox are unchanged. The React optimistic and
+offline suites pin the class, the absence of an `appCode`, mutation naming,
+and both warnings; the React and offline Guide pages teach keep-pending and
+appCode-only rollback handling.
 
 2026-08-07 (strand backstop, ruled by Charlie Cheever via the local-first
 author-gate packet item 5 on

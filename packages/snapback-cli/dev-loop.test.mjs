@@ -123,7 +123,18 @@ try {
   const functionsPath = join(backend, 'functions.mjs');
   const functionsAsc = readFileSync(functionsPath, 'utf8');
   const functionsDesc = functionsAsc.replace('asc,', 'desc,').replace("asc('_createdAt')", "desc('_createdAt')");
+  const functionsRuntimeTypo = functionsAsc
+    .replace('  defineLiveQuery,', '  defineJsMutation,\n  defineLiveQuery,')
+    .concat(`
+
+export const runtimeTypo = defineJsMutation({
+  args: {},
+  writes: ['todos'],
+  handler: async (ctx) => ctx.runtime.newId(),
+});
+`);
   assert.notEqual(functionsDesc, functionsAsc, 'template edit fixture must actually change the query order');
+  assert.notEqual(functionsRuntimeTypo, functionsAsc, 'runtime typo fixture must add an inline handler');
   const database = join(project, '.snapback', 'dev.sqlite3');
 
   // The client arm is the REAL SC-2a plugin over a minimal Vite app run by
@@ -238,6 +249,34 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   await mutate('first todo');
   await mutate('second todo');
   assert.deepEqual(await listTitles(), ['first todo', 'second todo']);
+
+  // --- managed-dev handler failures carry bounded underlying detail ---------
+  mark = stream.mark();
+  writeFileSync(functionsPath, functionsRuntimeTypo);
+  await stream.waitFor(
+    (event) => event.state === 'generated-and-loaded' && /functions\.mjs$/.test(event.changed ?? ''),
+    { from: mark, label: 'runtime typo handler load' },
+  );
+  const runtimeTypoResponse = await fetch(`${relay}/mutation/runtimeTypo`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ args: {}, auth: auth(ADA), read_set: [] }),
+  });
+  assert.equal(runtimeTypoResponse.status, 400);
+  const runtimeTypo = await runtimeTypoResponse.json();
+  assert.equal(runtimeTypo.diagnostic.code, 'SNAPBACK_HANDLER_FAILED');
+  assert.match(runtimeTypo.diagnostic.message, /newId/u);
+  assert.equal(runtimeTypo.diagnostic.details.property, 'newId');
+  assert.equal(runtimeTypo.diagnostic.details.callee, 'ctx.runtime.newId');
+  assert(Number.isInteger(runtimeTypo.diagnostic.details.sourcePosition?.line));
+  assert(Number.isInteger(runtimeTypo.diagnostic.details.sourcePosition?.column));
+  mark = stream.mark();
+  writeFileSync(functionsPath, functionsAsc);
+  await stream.waitFor(
+    (event) => event.state === 'generated-and-loaded' && /functions\.mjs$/.test(event.changed ?? ''),
+    { from: mark, label: 'runtime typo handler removal' },
+  );
+  console.log('managed dev surfaces missing ctx member, TypeError detail, and handler position');
 
   // --- live edit observable through the client surface -----------------------
   mark = stream.mark();

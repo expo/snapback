@@ -314,7 +314,13 @@ export function createSnapbackViteLifecycle(options = {}) {
     runtime = resolveRuntimeBinary(options);
     child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
       cwd: projectRoot,
-      env: scrubDynamicLoaderEnvironment(options.env ?? process.env),
+      env: {
+        ...scrubDynamicLoaderEnvironment(options.env ?? process.env),
+        // @ref LLP 0193#program — a plugin-managed child is a development
+        // supervisor boundary. External/attach targets remain redacted by
+        // default because this process does not control their launch policy.
+        SNAPBACK_HANDLER_ERROR_EXPOSURE: 'development',
+      },
       stdio: options.serverStdio ?? 'inherit',
     });
     try {

@@ -3,12 +3,14 @@
 
 use serde_json::json;
 use snapback::manifest::{
-    AgentsManifest, AgentsMode, AuthManifest, AuthMode, AuthRequirement, CapabilityManifest,
-    CapabilityMaturity, CronJobDefinition, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
-    FunctionManifest, FunctionRuntime, HandlerPlan, IbexModule, InvitedBy, QueryPlan,
-    SNAPBACK_SCHEMA_VERSION, SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, TargetCapabilityId,
-    ValueExpr,
+    AgentsManifest, AgentsMode, ApiDisclosure, ApiFunctionExposure, ApiManifest, AuthManifest,
+    AuthMode, AuthRequirement, CapabilityManifest, CapabilityMaturity,
+    CronJobDefinition, FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest,
+    FunctionResultContract, FunctionRuntime, HandlerPlan, IbexModule, InvitedBy, QueryPlan,
+    ResultRowsBound, ResultValueContract, SNAPBACK_SCHEMA_VERSION,
+    SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, TargetCapabilityId, ValueExpr,
 };
+use std::collections::BTreeMap;
 
 fn host_query(name: &str) -> FunctionDefinition {
     FunctionDefinition::new(
@@ -39,6 +41,7 @@ fn agent_registration_policy_is_sessions_only_closed_and_defaults_disabled() {
     assert_eq!(closed.agents, Some(AgentsManifest::default()));
     assert_eq!(closed.agents.unwrap().mode, AgentsMode::Disabled);
     assert_eq!(closed.agents.unwrap().invited_by, InvitedBy::Operators);
+    assert!(!closed.agents.unwrap().mode_explicit);
 
     let dev_agents = SchemaManifest {
         auth: Some(AuthManifest {
@@ -46,6 +49,7 @@ fn agent_registration_policy_is_sessions_only_closed_and_defaults_disabled() {
             agents: Some(AgentsManifest {
                 mode: AgentsMode::Open,
                 invited_by: InvitedBy::Operators,
+                mode_explicit: true,
             }),
         }),
         ..SchemaManifest::default()
@@ -59,6 +63,7 @@ fn agent_registration_policy_is_sessions_only_closed_and_defaults_disabled() {
     operator_invited.auth.as_mut().unwrap().agents = Some(AgentsManifest {
         mode: AgentsMode::Invited,
         invited_by: InvitedBy::Operators,
+        mode_explicit: true,
     });
     assert_eq!(
         operator_invited.agent_registration_diagnostics()[0].code,
@@ -76,6 +81,144 @@ fn sessions_schema() -> SchemaManifest {
         required_capabilities: vec![TargetCapabilityId::AuthSessionsV1.to_string()],
         ..SchemaManifest::default()
     }
+}
+
+#[test]
+fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
+    assert!(serde_json::from_value::<ApiManifest>(json!({
+        "enabled": true,
+        "budgets": {}
+    }))
+    .is_err());
+
+    let mut dev_api = SchemaManifest {
+        api: Some(ApiManifest::default()),
+        ..SchemaManifest::default()
+    };
+    assert_eq!(
+        dev_api.validate_artifact().unwrap_err().diagnostic.code,
+        "SNAPBACK_API_AUTH_MODE_INVALID"
+    );
+
+    dev_api = sessions_schema();
+    dev_api.api = Some(ApiManifest {
+        enabled: true,
+        ..ApiManifest::default()
+    });
+    let missing_posture = dev_api.validate_artifact().unwrap_err();
+    assert_eq!(
+        missing_posture.diagnostic.code,
+        "SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED"
+    );
+    assert!(missing_posture.diagnostic.message.contains("auth.mode sessions"));
+    assert!(missing_posture.diagnostic.message.contains("auth.agents.mode"));
+
+    let mut omitted_mode = serde_json::to_value(sessions_schema()).unwrap();
+    omitted_mode["auth"]["agents"] = json!({});
+    omitted_mode["api"] = json!({ "enabled": true });
+    let omitted_mode: SchemaManifest = serde_json::from_value(omitted_mode).unwrap();
+    assert_eq!(
+        omitted_mode
+            .validate_artifact()
+            .unwrap_err()
+            .diagnostic
+            .code,
+        "SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED"
+    );
+
+    let mut schema = sessions_schema();
+    schema.auth.as_mut().unwrap().agents = Some(AgentsManifest::explicit(
+        AgentsMode::Disabled,
+        InvitedBy::Operators,
+    ));
+    schema.api = Some(ApiManifest {
+        enabled: true,
+        disclosure: ApiDisclosure::ExposedOnly,
+        functions: BTreeMap::from([(
+            "listed".to_owned(),
+            ApiFunctionExposure {
+                expose: true,
+                since: Some("v1".to_owned()),
+            },
+        )]),
+        origins: Some(vec!["https://example.com:8443".to_owned()]),
+    });
+    schema.validate_artifact().expect("explicit disabled is valid");
+
+    let mut listed = host_query("listed");
+    listed.api_exposure = Some(ApiFunctionExposure {
+        expose: true,
+        since: Some("v1".to_owned()),
+    });
+    let mut closed = host_query("closed");
+    closed.api_exposure = Some(ApiFunctionExposure::default());
+    let functions = FunctionManifest {
+        functions: vec![listed, closed],
+        ..FunctionManifest::default()
+    };
+    schema
+        .validate_api_against_functions(&functions)
+        .expect("compiled exposure matches declaration");
+    let exposed_projection = snapback::manifest::public_function_manifest_for_schema(
+        &schema,
+        functions.clone(),
+    );
+    assert_eq!(
+        exposed_projection
+            .functions
+            .iter()
+            .map(|function| function.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["listed"]
+    );
+    schema.api.as_mut().unwrap().disclosure = ApiDisclosure::Full;
+    let full_projection = snapback::manifest::public_function_manifest_for_schema(
+        &schema,
+        functions.clone(),
+    );
+    assert_eq!(full_projection.functions.len(), 2);
+    schema.api.as_mut().unwrap().disclosure = ApiDisclosure::ExposedOnly;
+
+    let mut large = host_query("large");
+    large.api_exposure = Some(ApiFunctionExposure {
+        expose: true,
+        since: None,
+    });
+    large.result_contract = FunctionResultContract::Records {
+        record: ResultValueContract::Null,
+        rows: Some(ResultRowsBound {
+            min_items: 0,
+            max_items: 101,
+        }),
+    };
+    let lint = schema.api_exposure_diagnostics(&FunctionManifest {
+        functions: vec![large],
+        ..FunctionManifest::default()
+    });
+    assert_eq!(lint.len(), 1);
+    assert_eq!(lint[0].code, "SNAPBACK_API_PAGINATION_RECOMMENDED");
+    assert!(lint[0].message.contains("large"));
+    assert!(lint[0].message.contains("101"));
+
+    schema.api.as_mut().unwrap().functions.insert(
+        "missing".to_owned(),
+        ApiFunctionExposure { expose: true, since: None },
+    );
+    assert_eq!(
+        schema
+            .validate_api_against_functions(&functions)
+            .unwrap_err()
+            .diagnostic
+            .code,
+        "SNAPBACK_API_FUNCTION_UNKNOWN"
+    );
+
+    schema.api.as_mut().unwrap().functions.remove("missing");
+    schema.api.as_mut().unwrap().origins = Some(vec!["*".to_owned()]);
+    assert_eq!(
+        schema.validate_artifact().unwrap_err().diagnostic.code,
+        "SNAPBACK_API_ORIGIN_INVALID"
+    );
 }
 
 #[test]

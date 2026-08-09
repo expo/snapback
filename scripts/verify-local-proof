@@ -605,6 +605,10 @@ run regression-midflight-resync --requires current-binary-readiness -- node demo
 run regression-durable-bytes-resync --requires current-binary-readiness -- node demos/_kit/tests/regression-durable-bytes-resync.mjs
 run regression-poll-decode-resync --requires current-binary-readiness -- node demos/_kit/tests/regression-poll-decode-resync.mjs
 run live-delta-e2e --requires current-binary-readiness -- node demos/_kit/tests/live-delta-e2e.mjs
+# @ref LLP 0131#amendment-2026-08-09-typed-search-selector-witness-for-resource-scoped-references
+# — qualified publication composes the shipped typed wrapper with fresh real
+# codegen output for both plain and resource-scoped search references.
+run typed-search-wrapper-qualification --requires package-test-inventory -- node packages/snapback-codegen/typed-search-wrapper.test.mjs
 # Package-owned test commands are the inventory authority. The preceding
 # inventory gate proves every maintained test file is declared, so this cannot
 # silently regress to a hand-picked subset (ENG-24502).

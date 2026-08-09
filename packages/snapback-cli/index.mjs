@@ -1978,6 +1978,17 @@ export function spawnManagedRuntime(binary, args, {
   return child;
 }
 
+function managedDevRuntimeEnvironment(environment) {
+  return {
+    ...scrubDynamicLoaderEnvironment(environment),
+    // @ref LLP 0193#program — managed development is the explicit opt-in
+    // boundary for bounded handler exception detail. Native `start` and every
+    // production launcher remain redacted unless they make the same deliberate
+    // choice; an inherited caller value cannot silently change this supervisor.
+    SNAPBACK_HANDLER_ERROR_EXPOSURE: 'development',
+  };
+}
+
 export async function loadGenerated(
   binary,
   projectRoot,
@@ -2276,7 +2287,7 @@ export async function runDev(options = {}) {
       ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
     ], {
       cwd: projectRoot,
-      env: scrubDynamicLoaderEnvironment(options.env),
+      env: managedDevRuntimeEnvironment(options.env),
       stdio: options.serverStdio ?? ['ignore', 2, 2],
     });
     managed = true;
@@ -2651,7 +2662,7 @@ export async function runDev(options = {}) {
         ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
       ], {
         cwd: projectRoot,
-        env: scrubDynamicLoaderEnvironment(options.env),
+        env: managedDevRuntimeEnvironment(options.env),
         stdio: options.serverStdio ?? ['ignore', 2, 2],
       });
       attachExitWatch(child);
@@ -2734,7 +2745,7 @@ export async function runDev(options = {}) {
         ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
       ], {
         cwd: projectRoot,
-        env: scrubDynamicLoaderEnvironment(options.env),
+        env: managedDevRuntimeEnvironment(options.env),
         stdio: options.serverStdio ?? ['ignore', 2, 2],
       });
       attachExitWatch(child);

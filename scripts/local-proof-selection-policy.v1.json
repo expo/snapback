@@ -911,7 +911,8 @@
         "control-catalog",
         "control-catalog-fixtures",
         "app-api-md-fixtures",
-        "js-production-audit"
+        "js-production-audit",
+        "typed-search-wrapper-qualification"
       ]
     },
     "client": {
@@ -940,7 +941,8 @@
         "live-delta-e2e",
         "js-production-audit",
         "snapback-client-package",
-        "snapback-react-package"
+        "snapback-react-package",
+        "typed-search-wrapper-qualification"
       ]
     },
     "codegen": {
@@ -961,7 +963,8 @@
         "artifact-path-hygiene-fixtures",
         "codegen-regressions",
         "snapback-codegen-package",
-        "snapback-contract-package"
+        "snapback-contract-package",
+        "typed-search-wrapper-qualification"
       ]
     },
     "native": {
@@ -1046,7 +1049,8 @@
         "snapback-cli-real-server",
         "snapback-contract-package",
         "snapback-vite-real-server",
-        "template-portfolio-self-check"
+        "template-portfolio-self-check",
+        "typed-search-wrapper-qualification"
       ]
     },
     "scheduled-reporting": {

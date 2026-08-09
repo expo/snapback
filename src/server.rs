@@ -78,7 +78,7 @@ use crate::manifest::{
 };
 use crate::push::{
     PushTokenRegistrationResponse, PushTokenUnregisterResponse, RegisterPushTokenRequest,
-    Registration as PushTokenRegistration, UnregisterPushTokenRequest,
+    UnregisterPushTokenRequest,
 };
 use crate::runtime::{
     ActionStreamChunk, ActionStreamOpened, ActionStreamRequest, CapabilityState, IbexActionHost,
@@ -2201,20 +2201,15 @@ impl IbexActionHost for DetachedActionHost {
                 )
             })?;
             let access_token = self.push_access_token(&declaration)?;
-            let attempt = database.with_auth_transaction(|tx| {
-                crate::push::reserve_send_in(
-                    tx,
-                    crate::push::PushSendReservation {
-                        declaration: &declaration,
-                        schema: &schema,
-                        authority: &self.authority,
-                        trigger_mode,
-                        deferred_grant: self.deferred_push_grant.as_ref(),
-                        request: &request,
-                        now_ms,
-                    },
-                )
-            })?;
+            let attempt = database.push_registry().reserve_send(
+                &declaration,
+                &schema,
+                || self.authority.clone(),
+                trigger_mode,
+                self.deferred_push_grant.as_ref(),
+                &request,
+                now_ms,
+            )?;
             (attempt, access_token)
         };
 
@@ -2231,9 +2226,10 @@ impl IbexActionHost for DetachedActionHost {
             let Some(claim) = ({
                 let mut snapback = self.lock_live("push.send.claim")?;
                 let _effect = self.authority.effect_guard("push batch claim")?;
-                snapback.auth_database_mut().with_auth_transaction(|tx| {
-                    crate::push::claim_batch_in(tx, &batch.batch_id, now_millis())
-                })?
+                snapback
+                    .auth_database_mut()
+                    .push_registry()
+                    .claim_batch(&batch.batch_id, now_millis())?
             }) else {
                 continue;
             };
@@ -2253,9 +2249,10 @@ impl IbexActionHost for DetachedActionHost {
                 let _effect = self
                     .authority
                     .effect_guard("push batch transmitting marker")?;
-                snapback.auth_database_mut().with_auth_transaction(|tx| {
-                    crate::push::mark_batch_transmitting_in(tx, &claim, now_millis())
-                })?;
+                snapback
+                    .auth_database_mut()
+                    .push_registry()
+                    .mark_batch_transmitting(&claim, now_millis())?;
             }
 
             let payload = crate::push::expo_send_payload(&claim, &request);
@@ -2280,20 +2277,19 @@ impl IbexActionHost for DetachedActionHost {
             {
                 let mut snapback = self.lock_live("push.send.settle")?;
                 let _effect = self.authority.effect_guard("push batch settlement")?;
-                snapback.auth_database_mut().with_auth_transaction(|tx| {
-                    crate::push::settle_batch_in(tx, &claim, &settlement, now_millis())
-                })?;
+                snapback.auth_database_mut().push_registry().settle_batch(
+                    &claim,
+                    &settlement,
+                    now_millis(),
+                )?;
             }
         }
         let mut snapback = self.lock_live("push.send.result")?;
         let intent_id = attempt.response.intent_id.clone();
-        attempt.response.state = snapback.auth_database_mut().with_auth_read(|conn| {
-            Ok(conn.query_row(
-                "SELECT state FROM _snapback_push_intents_v1 WHERE id = ?1",
-                rusqlite::params![intent_id],
-                |row| row.get(0),
-            )?)
-        })?;
+        attempt.response.state = snapback
+            .auth_database_mut()
+            .push_registry()
+            .intent_state(&intent_id)?;
         Ok(attempt.response)
     }
 
@@ -8008,6 +8004,27 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             ),
             get(app_api_current).layer(DefaultBodyLimit::max(0)),
         ),
+        // @ref LLP 0204#d2--surface-1-the-third-party-api — the OpenAPI
+        // document is a current, digest-pinned projection of the persisted
+        // envelope, never a separately maintained operation inventory.
+        RegisteredRoute::new(
+            public_route(
+                "GET",
+                "/app-api/openapi.json",
+                ResponseSensitivity::PublicNoStore,
+            ),
+            get(app_api_openapi).layer(DefaultBodyLimit::max(0)),
+        ),
+        // @ref LLP 0204#d92--generated-agent-skill — the small served skill
+        // points at current facts and embeds no credential or scope list.
+        RegisteredRoute::new(
+            public_route(
+                "GET",
+                "/app-api/agent-skill",
+                ResponseSensitivity::PublicNoStore,
+            ),
+            get(app_api_agent_skill).layer(DefaultBodyLimit::max(0)),
+        ),
         RegisteredRoute::new(
             public_route(
                 "GET",
@@ -8315,6 +8332,13 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             app_function_route("POST", "/query/{name}"),
             post(invoke_query),
         ),
+        // @ref LLP 0204#d2--surface-1-the-third-party-api — the external v1
+        // carrier reuses the finite handlers while remaining a separately
+        // classified app-data route family.
+        RegisteredRoute::new(
+            app_function_route("POST", "/api/v1/query/{name}"),
+            post(invoke_query),
+        ),
         RegisteredRoute::new(
             app_auth_route("POST", "/query/{name}/authorized-lease"),
             post(invoke_authorized_lease_query),
@@ -8356,7 +8380,15 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             post(invoke_mutation),
         ),
         RegisteredRoute::new(
+            app_function_route("POST", "/api/v1/mutation/{name}"),
+            post(invoke_mutation),
+        ),
+        RegisteredRoute::new(
             app_function_route("POST", "/action/{name}"),
+            post(invoke_action),
+        ),
+        RegisteredRoute::new(
+            app_function_route("POST", "/api/v1/action/{name}"),
             post(invoke_action),
         ),
         // Asset upload sessions (LLP 0044; LLP 0031 dated amendment
@@ -9400,7 +9432,13 @@ fn bare_public_artifact_route(spec: RouteSpec) -> bool {
         && spec.policy == RoutePolicy::Public
         && spec.invocation_authority == InvocationAuthority::None
         && spec.credential_resolution == CredentialResolution::None
-        && matches!(spec.path, "/app-api/current" | "/app-api/envelope/{sha256}")
+        && matches!(
+            spec.path,
+            "/app-api/current"
+                | "/app-api/openapi.json"
+                | "/app-api/agent-skill"
+                | "/app-api/envelope/{sha256}"
+        )
 }
 
 /// The pasteable asset-delivery lanes (LLP 0044 §Delivery profiles, dated
@@ -9585,7 +9623,7 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         | "/auth/grants"
         | "/auth/grants/by-actor/{actor_id}"
         | "/auth/grants/{id}" => Some(InvocationSource::AgentGrantManagement),
-        "/query/{name}" => Some(InvocationSource::HttpQuery),
+        "/query/{name}" | "/api/v1/query/{name}" => Some(InvocationSource::HttpQuery),
         // Attempt creation runs the generated upload-intent authorizer — a
         // Query-kind admission (LLP 0044 §Upload sessions).
         // Create and finalize both run the generated authorizer (finalize
@@ -9605,8 +9643,10 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         // mode re-prepares LiveInitialQuery authorities per entry inside the
         // local cut (LLP 0092 §0D.5).
         "/app/bundle" => Some(InvocationSource::HttpQuery),
-        "/mutation/{name}" => Some(InvocationSource::HttpMutation),
-        "/action/{name}" => Some(InvocationSource::HttpAction),
+        "/mutation/{name}" | "/api/v1/mutation/{name}" => {
+            Some(InvocationSource::HttpMutation)
+        }
+        "/action/{name}" | "/api/v1/action/{name}" => Some(InvocationSource::HttpAction),
         "/client-mutations/acknowledge" | "/client-mutations/identity-range" => {
             Some(InvocationSource::MutationSettlementAcknowledgement)
         }
@@ -10692,11 +10732,14 @@ fn sender_proof_subprotocol(headers: &HeaderMap) -> Result<Option<String>, Snapb
 fn function_invocation_route_name(spec: RouteSpec, path: &str) -> Option<&str> {
     let name = match spec.path {
         "/query/{name}" => path.strip_prefix("/query/")?,
+        "/api/v1/query/{name}" => path.strip_prefix("/api/v1/query/")?,
         "/query/{name}/authorized-lease" => path
             .strip_prefix("/query/")?
             .strip_suffix("/authorized-lease")?,
         "/mutation/{name}" => path.strip_prefix("/mutation/")?,
+        "/api/v1/mutation/{name}" => path.strip_prefix("/api/v1/mutation/")?,
         "/action/{name}" => path.strip_prefix("/action/")?,
+        "/api/v1/action/{name}" => path.strip_prefix("/api/v1/action/")?,
         _ => return None,
     };
     (!name.is_empty() && !name.contains('/')).then_some(name)
@@ -12206,7 +12249,8 @@ async fn enforce_registered_route_policy(
             .extensions()
             .get::<NetworkProfileObservation>()
             .is_none()
-        && (spec.path != "/action/{name}" || response.status().is_success())
+        && (!matches!(spec.path, "/action/{name}" | "/api/v1/action/{name}")
+            || response.status().is_success())
     {
         response
             .extensions_mut()
@@ -14479,20 +14523,15 @@ async fn push_token_register(
                 "the app schema does not declare definePushSeam",
             )
         })?;
-        database.with_auth_transaction(|tx| {
-            crate::push::register_in(
-                tx,
-                PushTokenRegistration {
-                    declaration: &declaration,
-                    principal_id: &principal_id,
-                    session_id: &session_id,
-                    session_generation,
-                    installation_id: &request.installation_id,
-                    token: request.token.as_str(),
-                    now_ms,
-                },
-            )
-        })
+        database.push_registry().register(
+            &declaration,
+            &principal_id,
+            &session_id,
+            session_generation,
+            &request.installation_id,
+            request.token.as_str(),
+            now_ms,
+        )
     })
     .await?;
     Ok(Json(response))
@@ -14520,17 +14559,14 @@ async fn push_token_unregister(
                 "the app schema does not declare definePushSeam",
             )
         })?;
-        database.with_auth_transaction(|tx| {
-            crate::push::unregister_in(
-                tx,
-                &declaration,
-                &principal_id,
-                &session_id,
-                session_generation,
-                &request.installation_id,
-                now_ms,
-            )
-        })
+        database.push_registry().unregister(
+            &declaration,
+            &principal_id,
+            &session_id,
+            session_generation,
+            &request.installation_id,
+            now_ms,
+        )
     })
     .await?;
     Ok(Json(response))
@@ -14830,13 +14866,19 @@ fn network_profile_refusal_lane(
     spec: RouteSpec,
 ) -> Option<crate::network_profile::NetworkEgressLane> {
     match spec.path {
-        "/query/{name}" => Some(crate::network_profile::NetworkEgressLane::QueryResponse),
-        "/mutation/{name}" => Some(crate::network_profile::NetworkEgressLane::MutationAck),
+        "/query/{name}" | "/api/v1/query/{name}" => {
+            Some(crate::network_profile::NetworkEgressLane::QueryResponse)
+        }
+        "/mutation/{name}" | "/api/v1/mutation/{name}" => {
+            Some(crate::network_profile::NetworkEgressLane::MutationAck)
+        }
         // LLP 0167 defines no action-response lane. A refusal before an action
         // handler runs is an ordinary commitless HTTP result, so the shared
         // route tower assigns it the query-response lane; successful action
         // responses are marked as handler-origin and remain unchanged.
-        "/action/{name}" => Some(crate::network_profile::NetworkEgressLane::QueryResponse),
+        "/action/{name}" | "/api/v1/action/{name}" => {
+            Some(crate::network_profile::NetworkEgressLane::QueryResponse)
+        }
         _ => None,
     }
 }
@@ -15080,17 +15122,17 @@ impl BoundSnapbackApp {
 }
 
 fn router_for_state(state: AppState) -> Router {
-    let reachability = state.console_reachability.clone();
+    let cors_state = state.clone();
     router_from_registrations(all_route_registrations(), state.clone())
         .with_state(state)
-        .layer(middleware::from_fn_with_state(reachability, local_dev_cors))
+        .layer(middleware::from_fn_with_state(cors_state, local_dev_cors))
 }
 
 fn app_from_registrations(registrations: Vec<RegisteredRoute>, state: AppState) -> SnapbackApp {
-    let reachability = state.console_reachability.clone();
+    let cors_state = state.clone();
     let router = router_from_registrations(registrations, state.clone())
         .with_state(state.clone())
-        .layer(middleware::from_fn_with_state(reachability, local_dev_cors));
+        .layer(middleware::from_fn_with_state(cors_state, local_dev_cors));
     SnapbackApp { router, state }
 }
 
@@ -16310,13 +16352,10 @@ pub(crate) async fn drive_push_maintenance_once(
                 now_ms,
             )?;
             let access_token = snapback.push_maintenance_access_token();
-            let claim = snapback.auth_database_mut().with_auth_transaction(|tx| {
-                crate::push::recover_expired_batches_in(tx, now_ms)?;
-                crate::push::expire_ledger_in(tx, now_ms)?;
-                let recovered = crate::push::claim_recovered_batch_for_transmit_in(tx, now_ms)?;
-                let receipts = crate::push::claim_due_receipts_in(tx, now_ms)?;
-                Ok((recovered, receipts))
-            })?;
+            let claim = snapback
+                .auth_database_mut()
+                .push_registry()
+                .claim_maintenance(now_ms)?;
             Ok(Some(PushMaintenancePlan {
                 recovered: claim.0,
                 receipts: claim.1,
@@ -16366,9 +16405,11 @@ pub(crate) async fn drive_push_maintenance_once(
             )
         })?;
         with_snapback(state, move |snapback| {
-            snapback.auth_database_mut().with_auth_transaction(|tx| {
-                crate::push::settle_batch_in(tx, &recovered_claim, &settlement, now_millis())
-            })
+            snapback.auth_database_mut().push_registry().settle_batch(
+                &recovered_claim,
+                &settlement,
+                now_millis(),
+            )
         })
         .await?;
     }
@@ -16408,9 +16449,10 @@ pub(crate) async fn drive_push_maintenance_once(
         return Ok(());
     };
     with_snapback(state, move |snapback| {
-        snapback.auth_database_mut().with_auth_transaction(|tx| {
-            crate::push::settle_receipt_poll_in(tx, &claim, &outcomes, now_millis())
-        })
+        snapback
+            .auth_database_mut()
+            .push_registry()
+            .settle_receipt_poll(&claim, &outcomes, now_millis())
     })
     .await
 }
@@ -16759,14 +16801,37 @@ pub fn spawn_cron_scheduler(state: SharedSnapback, autonomy_disabled: bool) -> J
 }
 
 async fn local_dev_cors(
-    State(reachability): State<crate::admin::ConsoleReachabilityRegistry>,
+    State(runtime): State<AppState>,
     request: Request<Body>,
     next: Next,
 ) -> Response {
     // @ref LLP 0025#demo-shape — web-only demos may be served by an ordinary
     // static/Vite origin while talking to the local Snapback server.
     let origin = request.headers().get(header::ORIGIN);
-    let allowed_origin = loopback_origin(origin).or_else(|| reachability.admitted_origin(origin));
+    let declared_api_origin = if request.uri().path().starts_with("/api/v1/") {
+        let candidate = origin.and_then(|value| value.to_str().ok()).map(str::to_owned);
+        let origins = with_snapback(&runtime.snapback, |snapback| {
+            Ok::<_, SnapbackError>(snapback.api_origins())
+        })
+        .await
+        .ok()
+        .flatten();
+        candidate.and_then(|candidate| {
+            origins
+                .as_ref()
+                .is_some_and(|origins| origins.iter().any(|origin| origin == &candidate))
+                .then(|| HeaderValue::from_str(&candidate).ok())
+                .flatten()
+        })
+    } else {
+        None
+    };
+    // @ref LLP 0204#d2--surface-1-the-third-party-api — browser integrations
+    // use bearer headers, so a declared exact origin is echoed with Vary but
+    // never Access-Control-Allow-Credentials.
+    let allowed_origin = loopback_origin(origin)
+        .or_else(|| runtime.console_reachability.admitted_origin(origin))
+        .or(declared_api_origin);
     with_cors_headers(next.run(request).await, allowed_origin)
 }
 
@@ -16946,6 +17011,153 @@ async fn app_api_current(State(runtime): State<AppState>) -> Result<Response, Ap
         HeaderValue::from_static("identity"),
     );
     Ok(response)
+}
+
+async fn current_app_api_envelope(
+    runtime: &AppState,
+) -> Result<(String, String), ApiError> {
+    with_snapback(&runtime.snapback, |snapback| -> SnapbackResult<(String, String)> {
+        let Some(discovery) = snapback.app_api_discovery()? else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_APP_API_UNAVAILABLE",
+                "app-api",
+                "app-api discovery is served by sessions targets only; dev targets use /inspect and local artifacts",
+            ));
+        };
+        let crate::api_envelope::AppApiDiscoveryEnvelopeV1::Current { sha256 } =
+            discovery.envelope
+        else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_APP_API_UNAVAILABLE",
+                "app-api",
+                "the active generation has no API envelope; refetch /app-api/current after provisioning one",
+            ));
+        };
+        let Some(canonical) = snapback.app_api_envelope_bytes(&sha256)? else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "the current discovery digest has no retained envelope bytes",
+            ));
+        };
+        let (_, actual_digest) = crate::api_envelope::parse_and_validate(canonical.as_bytes())
+            .map_err(|refusal| {
+                SnapbackError::error(
+                    "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                    "app-api",
+                    "the current persisted envelope no longer passes admission",
+                )
+                .with_details(json!({
+                    "envelopeCode": refusal.code,
+                    "error": refusal.message,
+                }))
+            })?;
+        if actual_digest != sha256 {
+            return Err(SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "the current discovery digest does not identify its persisted envelope bytes",
+            ));
+        }
+        Ok((sha256, canonical))
+    })
+    .await
+    .map_err(ApiError::from)
+}
+
+fn app_api_projection_response(
+    body: Vec<u8>,
+    content_type: &'static str,
+    etag_kind: &'static str,
+    envelope_digest: &str,
+) -> Result<Response, ApiError> {
+    let mut response = Response::new(axum::body::Body::from(body));
+    let headers = response.headers_mut();
+    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
+    // These are current projections rather than content-addressed paths.
+    // `no-store` avoids stale discovery while the strong, projection-versioned
+    // tag still lets clients compare two responses to the same envelope.
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("no-store, no-transform"),
+    );
+    headers.insert(
+        header::CONTENT_ENCODING,
+        HeaderValue::from_static("identity"),
+    );
+    headers.insert(
+        header::ETAG,
+        HeaderValue::from_str(&format!("\"{etag_kind}-{envelope_digest}\"")).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "projection etag header could not be encoded",
+            )
+        })?,
+    );
+    Ok(response)
+}
+
+/// `GET /app-api/openapi.json` — OpenAPI 3.1 composed from the active
+/// persisted envelope. The response is current/no-store and carries a strong
+/// envelope-derived ETag; clients that need immutable bytes pin the envelope
+/// itself through `/app-api/envelope/{sha256}`.
+///
+/// @ref LLP 0204#d2--surface-1-the-third-party-api — projections are generated
+/// from the envelope and inherit its exposed operation set.
+async fn app_api_openapi(State(runtime): State<AppState>) -> Result<Response, ApiError> {
+    let (digest, canonical) = current_app_api_envelope(&runtime).await?;
+    let document = crate::api_envelope::compose_openapi_document(canonical.as_bytes()).map_err(
+        |refusal| {
+            SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "the persisted envelope could not be projected as OpenAPI",
+            )
+            .with_details(json!({
+                "envelopeCode": refusal.code,
+                "error": refusal.message,
+            }))
+        },
+    )?;
+    let body = serde_json::to_vec(&document).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+            "app-api",
+            "the OpenAPI projection could not be serialized",
+        )
+        .with_details(json!({ "error": error.to_string() }))
+    })?;
+    app_api_projection_response(body, "application/json", "openapi-v1", &digest)
+}
+
+/// `GET /app-api/agent-skill` — a small SKILL.md-style navigation document
+/// pinned to the active envelope digest. It points at live discovery,
+/// authority, invocation, and capability facts instead of restating them.
+///
+/// @ref LLP 0204#d92--generated-agent-skill — the served skill is generated,
+/// credential-free, and code-mode-conditional.
+async fn app_api_agent_skill(State(runtime): State<AppState>) -> Result<Response, ApiError> {
+    let (digest, canonical) = current_app_api_envelope(&runtime).await?;
+    let skill = crate::api_envelope::compose_agent_skill(canonical.as_bytes()).map_err(
+        |refusal| {
+            SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "the persisted envelope could not be projected as an agent skill",
+            )
+            .with_details(json!({
+                "envelopeCode": refusal.code,
+                "error": refusal.message,
+            }))
+        },
+    )?;
+    app_api_projection_response(
+        skill.into_bytes(),
+        "text/markdown; charset=utf-8",
+        "agent-skill-v1",
+        &digest,
+    )
 }
 
 /// `GET /app-api/envelope/<sha256>` — the immutable, content-addressed
@@ -19534,6 +19746,44 @@ fn prepare_mutation_network_egress(
     }
 }
 
+fn external_api_route(spec: RouteSpec) -> bool {
+    matches!(
+        spec.path,
+        "/api/v1/query/{name}"
+            | "/api/v1/mutation/{name}"
+            | "/api/v1/action/{name}"
+    )
+}
+
+async fn validate_external_api_request(
+    state: &SharedSnapback,
+    spec: RouteSpec,
+    name: &str,
+    carries_expected_generation: bool,
+) -> Result<(), ApiError> {
+    if !external_api_route(spec) {
+        return Ok(());
+    }
+    let name = name.to_owned();
+    with_snapback(state, move |snapback| {
+        snapback.validate_external_api_function(&name)
+    })
+    .await
+    .map_err(ApiError::from)?;
+    if carries_expected_generation {
+        // @ref LLP 0204#d2--surface-1-the-third-party-api — v1 external calls
+        // are deliberately unpinned; a supplied pin is refused rather than
+        // silently ignored under a different contract regime.
+        return Err(SnapbackError::error(
+            "SNAPBACK_API_GENERATION_PIN_UNSUPPORTED",
+            "api",
+            "the external API surface is unpinned; omit expectedGeneration",
+        )
+        .into());
+    }
+    Ok(())
+}
+
 /// `/query/{name}` runs on the lock-free read lane when the instance is
 /// file-backed: a pooled WAL reader inside a pinned read transaction, so
 /// queries proceed during long writes. In-memory instances (no WAL) keep the
@@ -19545,6 +19795,7 @@ async fn invoke_query(
     State(state): State<SharedSnapback>,
     State(read): State<crate::local::ReadLane>,
     Extension(authority): Extension<PreparedAuthority>,
+    Extension(route): Extension<RouteSpec>,
     Path(name): Path<String>,
     input: Result<Json<FiniteQueryRequest>, JsonRejection>,
 ) -> Response {
@@ -19554,6 +19805,14 @@ async fn invoke_query(
         let Json(request) = input
             .map_err(ApiError::from_json_rejection)
             .map_err(|error| error.with_attribution(attribution.clone()))?;
+        validate_external_api_request(
+            &state,
+            route,
+            &name,
+            request.request.expected_generation.is_some(),
+        )
+        .await
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
         let input = request.request.input;
         let expected_generation = request.request.expected_generation;
         let completeness_namespace = request.completeness_namespace;
@@ -20346,6 +20605,7 @@ async fn invoke_mutation(
     State(runtime): State<AppState>,
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
+    Extension(route): Extension<RouteSpec>,
     Path(name): Path<String>,
     input: Result<Json<MutationRequest>, JsonRejection>,
 ) -> Response {
@@ -20367,6 +20627,14 @@ async fn invoke_mutation(
         if crate::spike_trace::enabled() {
             trace_client_mutation_id = request.client_mutation_id.clone();
         }
+        validate_external_api_request(
+            &state,
+            route,
+            &name,
+            request.expected_generation.is_some(),
+        )
+        .await
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
         if let Some(current_id) = request.client_mutation_id.as_deref()
             && request
                 .acknowledged_client_mutation_ids
@@ -20591,6 +20859,7 @@ fn observe_mutation_settlement(
 async fn invoke_action(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
+    Extension(route): Extension<RouteSpec>,
     Path(name): Path<String>,
     input: Result<Json<FunctionCallRequest>, JsonRejection>,
 ) -> Result<Json<FunctionResponse<crate::local::FunctionRunResult>>, ApiError> {
@@ -20598,6 +20867,14 @@ async fn invoke_action(
     let Json(request) = input
         .map_err(ApiError::from_json_rejection)
         .map_err(|error| error.with_attribution(attribution.clone()))?;
+    validate_external_api_request(
+        &state,
+        route,
+        &name,
+        request.expected_generation.is_some(),
+    )
+    .await
+    .map_err(|error| error.with_attribution(attribution.clone()))?;
     let input = request.input;
     let expected_generation = request.expected_generation;
     let facts_mode = authority.active_mode();

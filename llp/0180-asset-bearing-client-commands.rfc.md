@@ -6,7 +6,13 @@
 generation, Protocol, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (f) — Appended the dated C0/C1 delivery note: both
+**Revised:** 2026-08-09 (g) — Dated note under §Declaration: the
+`SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE` refusal must name the
+`optional: true` escape for optional-argument mappings, and the
+required-child → optional-argument pairing is reopened for a
+teach-or-admit resolution (Clique pilot evidence, LLP 0208 G11,
+`issues/20260809-asset-upload-dx-papercuts-g11.md`). Prior: 2026-08-06
+(f) — Appended the dated C0/C1 delivery note: both
 slices landed at `17e7ca8ca` with the acceptance matrix and a real-runtime
 Expo-fixture witness; C2 and every deferred extension remain untouched and
 unclaimed; `unattached: "authoritative"` is recorded as unreachable against
@@ -194,6 +200,27 @@ Generation refuses:
 Text-only execution of an optional asset command is an admitted branch in the
 closed descriptor: the asset child is absent and the same ordinary mutation is
 called without that optional reference.
+
+> **Dated note — the mapping refusal must teach the optional escape
+> (2026-08-09).** The LLP 0201 P2 pilot (Clique) authored the common
+> "one mutation accepts image-or-video" shape and hit
+> `SNAPBACK_COMMAND_ASSET_MAPPING_INCOMPATIBLE` ("asset image must map
+> to a required `v.assetRef(...)` mutation argument") from a
+> non-optional asset child over an optional argument. The rule was
+> correctly named but the *escape* — the `optional: true` child this
+> section already admits, plus handler-side presence validation — was
+> not, and the builder derived it unaided (LLP 0208 G11;
+> `issues/20260809-asset-upload-dx-papercuts-g11.md`). Two closures:
+> the refusal's message/details gain the `optional: true` pointer for
+> the optional-argument case, per the refusals-as-docs posture; and the
+> required-child → optional-argument pairing is reconsidered — the
+> command guarantees the asset's presence, so the pairing is
+> semantically satisfiable, and if it stays refused the diagnostic must
+> say why (contract-strictness: an optional argument admits a
+> text-only branch the required child forbids). The normative
+> resolution is [LLP 0210](./0210-asset-upload-dx-closure.rfc.md) D4
+> (the super-refine vehicle); implementation rides the G11 ticket; the
+> descriptor shape is unchanged.
 
 ## Input and platform adapters
 

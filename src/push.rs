@@ -403,7 +403,7 @@ impl PushAppScopeV1 {
         Ok(())
     }
 
-    fn identity(&self) -> String {
+    pub(crate) fn identity(&self) -> String {
         format!(
             "{}:{}|{}:{}|{}:{}",
             self.eas_project_id.len(),
@@ -1311,6 +1311,15 @@ fn expected_registry_shape() -> SnapbackResult<&'static RegistryShape> {
         Ok(shape) => Ok(shape),
         Err(error) => Err(error.clone()),
     }
+}
+
+#[cfg(test)]
+pub(crate) fn expected_registry_owner_index_sql_for_test() -> SnapbackResult<&'static str> {
+    expected_registry_shape()?
+        .objects
+        .get("_snapback_push_tokens_v1_owner_live")
+        .and_then(|object| object.sql.as_deref())
+        .ok_or_else(|| corrupt("test reference index SQL is missing"))
 }
 
 fn registry_shape(conn: &Connection) -> SnapbackResult<RegistryShape> {
@@ -2493,7 +2502,7 @@ fn settle_claim_messages_in(
     Ok(())
 }
 
-fn recompute_intent_state_in(
+pub(crate) fn recompute_intent_state_in(
     tx: &Transaction<'_>,
     intent_id: &str,
     now_ms: u64,
@@ -3750,7 +3759,6 @@ mod tests {
     use crate::auth::invocation::{
         InvocationGate, InvocationSource, ResolvedAppAuthority, WireAuthorityFields,
     };
-    use crate::auth::session_projection::RevocationReason;
     use crate::manifest::{AuthMode, MembershipManifest, MembershipScope, TableManifest};
     use crate::storage::{DbRead, LocalDatabase};
 
@@ -3789,9 +3797,12 @@ mod tests {
 
     fn registry_database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("database");
-        db.activate_current_auth_catalog().expect("auth catalog");
+        db.push_registry()
+            .activate_current_auth_catalog()
+            .expect("auth catalog");
         let declaration = declaration("preview", 86_400_000);
-        db.activate_push_registry_for_test(declaration)
+        db.push_registry()
+            .activate_push_registry_for_test(declaration)
             .expect("push registry activation");
         db
     }
@@ -3894,32 +3905,6 @@ mod tests {
         schema
     }
 
-    fn insert_acceptance_token(
-        tx: &Transaction<'_>,
-        declaration: &PushSeamDeclarationV1,
-        principal: &str,
-        token: &str,
-    ) -> SnapbackResult<String> {
-        let token_id = ids::mint_time_ordered(Kind::PushToken);
-        let installation_id = ids::mint(Kind::Installation)?;
-        let token_hash = Sha256::digest(token.as_bytes()).to_vec();
-        tx.execute(
-            "INSERT INTO _snapback_push_tokens_v1(
-               id, app_scope, principal_id, installation_id, token_hash, token_bytes,
-               session_id, session_generation, registered_at_ms, last_registered_at_ms
-             ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, 'fixture-session', 1, 1, 1)",
-            params![
-                token_id,
-                declaration.app_scope.identity(),
-                principal,
-                installation_id,
-                token_hash,
-                token,
-            ],
-        )?;
-        Ok(token_id)
-    }
-
     fn acceptance_request(audience: &str, event_id: &str, dedupe_key: &str) -> PushSendRequestV1 {
         PushSendRequestV1 {
             to: PushAudienceReferenceV1 {
@@ -3977,41 +3962,15 @@ mod tests {
         expires_at_ms: u64,
         discriminator: u8,
     ) {
-        db.with_auth_transaction(|tx| {
-            let identity_id = format!("identity-{discriminator}");
-            tx.execute(
-                "INSERT OR IGNORE INTO _auth_users(id, created_at_ms) VALUES(?1, 0)",
-                params![principal_id],
-            )?;
-            tx.execute(
-                "INSERT OR IGNORE INTO _auth_identities(
-                   id, user_id, provider, subject, verified_at_ms
-                 ) VALUES(?1, ?2, 'email-code', ?3, 0)",
-                params![
-                    identity_id,
-                    principal_id,
-                    format!("user-{discriminator}@example.com")
-                ],
-            )?;
-            tx.execute(
-                "INSERT INTO _auth_sessions(
-                   id, user_id, identity_id, authority_instance_id, token_hash,
-                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                   absolute_expires_at_ms, revoked_at_ms
-                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?7, NULL)",
-                params![
-                    session_id,
-                    principal_id,
-                    identity_id,
-                    format!("authority-{discriminator}"),
-                    vec![discriminator; 32],
-                    generation as i64,
-                    expires_at_ms as i64,
-                ],
-            )?;
-            Ok(())
-        })
-        .expect("insert session");
+        db.push_registry()
+            .insert_session_for_test(
+                principal_id,
+                session_id,
+                generation,
+                expires_at_ms,
+                discriminator,
+            )
+            .expect("insert session");
     }
 
     // Keep every registration security field explicit at the call site: these
@@ -4027,20 +3986,15 @@ mod tests {
         token: &str,
         now_ms: u64,
     ) -> SnapbackResult<PushTokenRegistrationResponse> {
-        db.with_auth_transaction(|tx| {
-            register_in(
-                tx,
-                Registration {
-                    declaration,
-                    principal_id,
-                    session_id,
-                    session_generation,
-                    installation_id,
-                    token,
-                    now_ms,
-                },
-            )
-        })
+        db.push_registry().register(
+            declaration,
+            principal_id,
+            session_id,
+            session_generation,
+            installation_id,
+            token,
+            now_ms,
+        )
     }
 
     #[test]
@@ -4055,9 +4009,12 @@ mod tests {
     #[test]
     fn ledger_projection_is_authorized_and_never_releases_payload_or_token_bytes() {
         let mut db = LocalDatabase::memory().expect("database");
-        db.activate_current_auth_catalog().expect("auth catalog");
+        db.push_registry()
+            .activate_current_auth_catalog()
+            .expect("auth catalog");
         let declaration = system_ledger_declaration();
-        db.activate_push_registry_for_test(declaration.clone())
+        db.push_registry()
+            .activate_push_registry_for_test(declaration.clone())
             .expect("push ledger");
         let intent_id = ids::mint_time_ordered(Kind::PushIntent);
         let batch_id = ids::mint_time_ordered(Kind::PushBatch);
@@ -4068,37 +4025,16 @@ mod tests {
             "principalIds": [principal_id],
         }))
         .unwrap();
-        db.with_auth_transaction(|tx| {
-            tx.execute(
-                "INSERT INTO _snapback_push_intents_v1(
-                   id, app_scope, dedupe_key, binding_hash, audience_name,
-                   audience_args_json, payload_json, trigger_mode, state,
-                   attempt_count, created_at_ms, updated_at_ms, expires_at_ms
-                 ) VALUES(?1, ?2, 'dedupe-secret', zeroblob(32), 'selectedGuests',
-                          ?3, '{\"body\":\"payload-secret\"}', 'system',
-                          'handed-to-expo', 1, 1, 2, 100000000)",
-                params![intent_id, declaration.app_scope.identity(), audience_args],
-            )?;
-            tx.execute(
-                "INSERT INTO _snapback_push_batches_v1(
-                   id, intent_id, attempt_number, batch_index, state,
-                   transmitting_at_ms, settled_at_ms, http_status
-                 ) VALUES(?1, ?2, 1, 0, 'settled', 3, 4, 200)",
-                params![batch_id, intent_id],
-            )?;
-            tx.execute(
-                "INSERT INTO _snapback_push_messages_v1(
-                   id, batch_id, token_id, token_hash, token_bytes, state,
-                   ticket_id, receipt_poll_count, next_receipt_poll_at_ms,
-                   receipt_window_closes_at_ms, handed_to_expo_at_ms
-                 ) VALUES(?1, ?2, ?3, zeroblob(32),
-                          'ExponentPushToken[token-secret]', 'handed-to-expo',
-                          'ticket-fixture', 0, 900003, 86400003, 3)",
-                params![message_id, batch_id, token_id],
-            )?;
-            Ok(())
-        })
-        .expect("ledger fixture");
+        db.push_registry()
+            .seed_ledger_projection_for_test(
+                &declaration,
+                &intent_id,
+                &batch_id,
+                &message_id,
+                &token_id,
+                &audience_args,
+            )
+            .expect("ledger fixture");
 
         let system = system_authority();
         let (rows, dependency) = read_ledger_projection(
@@ -4275,77 +4211,48 @@ mod tests {
         );
         let schema = push_acceptance_schema(declaration.clone());
         let mut db = LocalDatabase::memory().expect("database");
-        db.activate_current_auth_catalog().expect("auth catalog");
-        db.activate_push_registry_for_test(declaration.clone())
+        db.push_registry()
+            .activate_current_auth_catalog()
+            .expect("auth catalog");
+        db.push_registry()
+            .activate_push_registry_for_test(declaration.clone())
             .expect("push ledger");
 
         let principal_ok = ids::mint(Kind::User).expect("ok principal");
         let principal_ticket_dnr = ids::mint(Kind::User).expect("ticket DNR principal");
         let principal_receipt_dnr = ids::mint(Kind::User).expect("receipt DNR principal");
         let (token_ok, token_ticket_dnr, token_receipt_dnr) = db
-            .with_auth_transaction(|tx| {
-                tx.execute_batch(
-                    "CREATE TABLE event_members(
-                       principal TEXT NOT NULL, event_id TEXT NOT NULL, role TEXT NOT NULL
-                     );
-                     CREATE TABLE event_senders(
-                       principal TEXT NOT NULL, event_id TEXT NOT NULL, role TEXT NOT NULL
-                     );",
-                )?;
-                for principal in [&principal_ok, &principal_ticket_dnr, &principal_receipt_dnr] {
-                    tx.execute(
-                        "INSERT INTO event_members(principal, event_id, role)
-                         VALUES(?1, 'event-main', 'guest')",
-                        params![principal],
-                    )?;
-                }
-                Ok((
-                    insert_acceptance_token(
-                        tx,
-                        &declaration,
-                        &principal_ok,
-                        "ExponentPushToken[fixture-ok]",
-                    )?,
-                    insert_acceptance_token(
-                        tx,
-                        &declaration,
-                        &principal_ticket_dnr,
-                        "ExponentPushToken[fixture-ticket-dnr]",
-                    )?,
-                    insert_acceptance_token(
-                        tx,
-                        &declaration,
-                        &principal_receipt_dnr,
-                        "ExponentPushToken[fixture-receipt-dnr]",
-                    )?,
-                ))
-            })
+            .push_registry()
+            .seed_acceptance_audience_and_tokens_for_test(
+                &declaration,
+                &principal_ok,
+                &principal_ticket_dnr,
+                &principal_receipt_dnr,
+            )
             .expect("acceptance audience and token custody");
 
         let request = acceptance_request("guests", "event-main", "acceptance-main");
         let attempt = db
-            .with_auth_transaction(|tx| {
-                reserve_send_in(
-                    tx,
-                    PushSendReservation {
-                        declaration: &declaration,
-                        schema: &schema,
-                        authority: &system_authority(),
-                        trigger_mode: PushTriggerModeV1::System,
-                        deferred_grant: None,
-                        request: &request,
-                        now_ms: 100,
-                    },
-                )
-            })
+            .push_registry()
+            .reserve_send(
+                &declaration,
+                &schema,
+                system_authority,
+                PushTriggerModeV1::System,
+                None,
+                &request,
+                100,
+            )
             .expect("reserve fixture send");
         assert_eq!(attempt.response.target_count, 3);
         assert_eq!(attempt.response.batch_count, 1);
         let claim = db
-            .with_auth_transaction(|tx| claim_batch_in(tx, &attempt.batches[0].batch_id, 101))
+            .push_registry()
+            .claim_batch(&attempt.batches[0].batch_id, 101)
             .expect("claim fixture batch")
             .expect("fixture batch exists");
-        db.with_auth_transaction(|tx| mark_batch_transmitting_in(tx, &claim, 102))
+        db.push_registry()
+            .mark_batch_transmitting(&claim, 102)
             .expect("durable fixture transmit cut");
 
         let tickets = claim
@@ -4399,12 +4306,14 @@ mod tests {
         .expect("fixture ticket response");
         let settlement =
             classify_expo_send_response(send_response.status, &send_response.body, 60_000);
-        db.with_auth_transaction(|tx| settle_batch_in(tx, &claim, &settlement, 103))
+        db.push_registry()
+            .settle_batch(&claim, &settlement, 103)
             .expect("settle fixture tickets");
 
         let receipt_due = 103 + PUSH_RECEIPT_FIRST_POLL_MS;
         let receipt_claim = db
-            .with_auth_transaction(|tx| claim_due_receipts_in(tx, receipt_due))
+            .push_registry()
+            .claim_due_receipts(receipt_due)
             .expect("claim fixture receipts");
         assert_eq!(receipt_claim.entries.len(), 2);
         let receipt_response = post_expo_json(
@@ -4417,44 +4326,17 @@ mod tests {
         assert_eq!(receipt_response.status, 200);
         let receipt_outcomes =
             parse_expo_receipt_response(&receipt_response.body).expect("closed receipt response");
-        db.with_auth_transaction(|tx| {
-            settle_receipt_poll_in(tx, &receipt_claim, &receipt_outcomes, receipt_due + 1)
-        })
-        .expect("settle fixture receipts");
+        db.push_registry()
+            .settle_receipt_poll(&receipt_claim, &receipt_outcomes, receipt_due + 1)
+            .expect("settle fixture receipts");
 
-        db.with_auth_read(|conn| {
-            for (token_id, expected_state, expected_retired) in [
+        db.push_registry()
+            .assert_acceptance_ledger_outcomes_for_test(&[
                 (&token_ok, "expo-accepted", false),
                 (&token_ticket_dnr, "failed-permanent", true),
                 (&token_receipt_dnr, "expo-error", true),
-            ] {
-                let state: String = conn.query_row(
-                    "SELECT state FROM _snapback_push_messages_v1
-                     WHERE token_id = ?1 ORDER BY id LIMIT 1",
-                    params![token_id],
-                    |row| row.get(0),
-                )?;
-                assert_eq!(state, expected_state);
-                let (retired, bytes): (bool, String) = conn.query_row(
-                    "SELECT retired_at_ms IS NOT NULL, token_bytes
-                     FROM _snapback_push_tokens_v1 WHERE id = ?1",
-                    params![token_id],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
-                )?;
-                assert_eq!(retired, expected_retired);
-                assert_eq!(bytes.is_empty(), expected_retired);
-            }
-            let persisted_codes: String = conn.query_row(
-                "SELECT COALESCE(group_concat(COALESCE(expo_error_code, ''), '|'), '')
-                 FROM _snapback_push_messages_v1",
-                [],
-                |row| row.get(0),
-            )?;
-            assert!(!persisted_codes.contains("provider-prose"));
-            assert!(persisted_codes.contains("DeviceNotRegistered"));
-            Ok(())
-        })
-        .expect("fixture ledger outcomes");
+            ])
+            .expect("fixture ledger outcomes");
 
         let requests = provider.finish();
         assert_eq!(requests.len(), 2);
@@ -4471,40 +4353,32 @@ mod tests {
         assert_eq!(receipt_ids, ["ticket-ok", "ticket-receipt-dnr"]);
 
         let duplicate = db
-            .with_auth_transaction(|tx| {
-                reserve_send_in(
-                    tx,
-                    PushSendReservation {
-                        declaration: &declaration,
-                        schema: &schema,
-                        authority: &system_authority(),
-                        trigger_mode: PushTriggerModeV1::System,
-                        deferred_grant: None,
-                        request: &request,
-                        now_ms: receipt_due + 2,
-                    },
-                )
-            })
+            .push_registry()
+            .reserve_send(
+                &declaration,
+                &schema,
+                system_authority,
+                PushTriggerModeV1::System,
+                None,
+                &request,
+                receipt_due + 2,
+            )
             .expect("duplicate intent lookup");
         assert!(duplicate.response.deduplicated);
         assert!(duplicate.batches.is_empty());
 
         let zero_target = acceptance_request("guests", "event-empty", "acceptance-zero");
         let zero_attempt = db
-            .with_auth_transaction(|tx| {
-                reserve_send_in(
-                    tx,
-                    PushSendReservation {
-                        declaration: &declaration,
-                        schema: &schema,
-                        authority: &system_authority(),
-                        trigger_mode: PushTriggerModeV1::System,
-                        deferred_grant: None,
-                        request: &zero_target,
-                        now_ms: receipt_due + 3,
-                    },
-                )
-            })
+            .push_registry()
+            .reserve_send(
+                &declaration,
+                &schema,
+                system_authority,
+                PushTriggerModeV1::System,
+                None,
+                &zero_target,
+                receipt_due + 3,
+            )
             .expect("zero-target intent");
         assert_eq!(zero_attempt.response.state, "zero-target");
         assert_eq!(zero_attempt.response.target_count, 0);
@@ -4513,20 +4387,15 @@ mod tests {
         let unauthorized = ids::mint(Kind::User).expect("unauthorized principal");
         let unauthorized_request =
             acceptance_request("authorizedGuests", "event-main", "acceptance-unauthorized");
-        let authorization_error = match db.with_auth_transaction(|tx| {
-            reserve_send_in(
-                tx,
-                PushSendReservation {
-                    declaration: &declaration,
-                    schema: &schema,
-                    authority: &session_authority(&unauthorized),
-                    trigger_mode: PushTriggerModeV1::Immediate,
-                    deferred_grant: None,
-                    request: &unauthorized_request,
-                    now_ms: receipt_due + 4,
-                },
-            )
-        }) {
+        let authorization_error = match db.push_registry().reserve_send(
+            &declaration,
+            &schema,
+            || session_authority(&unauthorized),
+            PushTriggerModeV1::Immediate,
+            None,
+            &unauthorized_request,
+            receipt_due + 4,
+        ) {
             Ok(_) => panic!("unauthorized push send must refuse"),
             Err(error) => error,
         };
@@ -4536,45 +4405,29 @@ mod tests {
         );
 
         let drop_principal = ids::mint(Kind::User).expect("drop principal");
-        db.with_auth_transaction(|tx| {
-            tx.execute(
-                "INSERT INTO event_members(principal, event_id, role)
-                 VALUES(?1, 'event-drop', 'guest')",
-                params![drop_principal],
-            )?;
-            insert_acceptance_token(
-                tx,
-                &declaration,
-                &drop_principal,
-                "ExponentPushToken[fixture-drop]",
-            )?;
-            Ok(())
-        })
-        .expect("drop fixture audience");
+        db.push_registry()
+            .seed_drop_audience_for_test(&declaration, &drop_principal)
+            .expect("drop fixture audience");
         let drop_request = acceptance_request("guests", "event-drop", "acceptance-drop");
         let drop_attempt = db
-            .with_auth_transaction(|tx| {
-                reserve_send_in(
-                    tx,
-                    PushSendReservation {
-                        declaration: &declaration,
-                        schema: &schema,
-                        authority: &system_authority(),
-                        trigger_mode: PushTriggerModeV1::System,
-                        deferred_grant: None,
-                        request: &drop_request,
-                        now_ms: 2_000_000,
-                    },
-                )
-            })
+            .push_registry()
+            .reserve_send(
+                &declaration,
+                &schema,
+                system_authority,
+                PushTriggerModeV1::System,
+                None,
+                &drop_request,
+                2_000_000,
+            )
             .expect("reserve drop fixture");
         let drop_claim = db
-            .with_auth_transaction(|tx| {
-                claim_batch_in(tx, &drop_attempt.batches[0].batch_id, 2_000_001)
-            })
+            .push_registry()
+            .claim_batch(&drop_attempt.batches[0].batch_id, 2_000_001)
             .expect("claim drop fixture")
             .expect("drop batch exists");
-        db.with_auth_transaction(|tx| mark_batch_transmitting_in(tx, &drop_claim, 2_000_002))
+        db.push_registry()
+            .mark_batch_transmitting(&drop_claim, 2_000_002)
             .expect("drop fixture transmit cut");
         let dropping_provider =
             FakeExpo::start(vec![FakeExpoStep::DropAfterRequest { path: SEND_PATH }]);
@@ -4587,39 +4440,31 @@ mod tests {
         .err()
         .expect("lost response is transport uncertainty");
         assert_eq!(uncertainty, ExpoHttpUncertaintyV1::Transport);
-        db.with_auth_transaction(|tx| {
-            settle_batch_in(
-                tx,
+        db.push_registry()
+            .settle_batch(
                 &drop_claim,
                 &PushBatchSettlementV1::Ambiguous {
                     code: "transport-error".into(),
                 },
                 2_000_003,
             )
-        })
-        .expect("settle response-loss ambiguity");
+            .expect("settle response-loss ambiguity");
         assert_eq!(dropping_provider.finish().len(), 1);
-        db.with_auth_transaction(|tx| {
-            assert_eq!(recover_expired_batches_in(tx, 2_100_000)?, (0, 0));
-            Ok(())
-        })
-        .expect("ambiguous settlement has no automatic redrive");
+        db.push_registry()
+            .assert_no_expired_batch_recovery_for_test(2_100_000)
+            .expect("ambiguous settlement has no automatic redrive");
 
         let implicit_retry = db
-            .with_auth_transaction(|tx| {
-                reserve_send_in(
-                    tx,
-                    PushSendReservation {
-                        declaration: &declaration,
-                        schema: &schema,
-                        authority: &system_authority(),
-                        trigger_mode: PushTriggerModeV1::System,
-                        deferred_grant: None,
-                        request: &drop_request,
-                        now_ms: 2_100_001,
-                    },
-                )
-            })
+            .push_registry()
+            .reserve_send(
+                &declaration,
+                &schema,
+                system_authority,
+                PushTriggerModeV1::System,
+                None,
+                &drop_request,
+                2_100_001,
+            )
             .expect("same key remains a deduplicated lookup");
         assert!(implicit_retry.response.deduplicated);
         assert!(implicit_retry.batches.is_empty());
@@ -4627,35 +4472,23 @@ mod tests {
         let mut explicit_redrive = drop_request.clone();
         explicit_redrive.redrive_ambiguous = true;
         let redriven = db
-            .with_auth_transaction(|tx| {
-                reserve_send_in(
-                    tx,
-                    PushSendReservation {
-                        declaration: &declaration,
-                        schema: &schema,
-                        authority: &system_authority(),
-                        trigger_mode: PushTriggerModeV1::System,
-                        deferred_grant: None,
-                        request: &explicit_redrive,
-                        now_ms: 2_100_002,
-                    },
-                )
-            })
+            .push_registry()
+            .reserve_send(
+                &declaration,
+                &schema,
+                system_authority,
+                PushTriggerModeV1::System,
+                None,
+                &explicit_redrive,
+                2_100_002,
+            )
             .expect("explicit duplicate-risk redrive");
         assert_eq!(redriven.response.attempt, 2);
         assert!(!redriven.response.deduplicated);
         assert_eq!(redriven.batches.len(), 1);
-        db.with_auth_read(|conn| {
-            let previous_ambiguous: bool = conn.query_row(
-                "SELECT previous_ambiguous FROM _snapback_push_batches_v1
-                 WHERE id = ?1 AND attempt_number = 2",
-                params![redriven.batches[0].batch_id],
-                |row| row.get(0),
-            )?;
-            assert!(previous_ambiguous);
-            Ok(())
-        })
-        .expect("redrive provenance marker");
+        db.push_registry()
+            .redrive_previous_ambiguous_for_test(&redriven.batches[0].batch_id)
+            .expect("redrive provenance marker");
     }
 
     #[test]
@@ -4849,30 +4682,28 @@ mod tests {
     #[test]
     fn undeclared_database_has_no_registry_storage_or_lifecycle_triggers() {
         let mut db = LocalDatabase::memory().expect("undeclared database");
-        db.activate_current_auth_catalog().expect("auth catalog");
+        db.push_registry()
+            .activate_current_auth_catalog()
+            .expect("auth catalog");
         let push_objects = |db: &mut LocalDatabase| -> Vec<String> {
-            db.with_auth_read(|conn| {
-                let mut statement = conn.prepare(
-                    "SELECT name FROM sqlite_schema
-                     WHERE name LIKE '_snapback_push_%' ORDER BY name",
-                )?;
-                Ok(statement
-                    .query_map([], |row| row.get(0))?
-                    .collect::<Result<Vec<_>, _>>()?)
-            })
-            .expect("push object inventory")
+            db.push_registry()
+                .object_names_for_test()
+                .expect("push object inventory")
         };
         assert!(push_objects(&mut db).is_empty());
         assert_eq!(
-            db.push_registry_inspection()
+            db.push_registry()
+                .push_registry_inspection()
                 .expect("zero-cost inspection projection"),
             PushRegistryInspectionV1::default()
         );
 
-        db.activate_push_registry_for_test(declaration("preview", 86_400_000))
+        db.push_registry()
+            .activate_push_registry_for_test(declaration("preview", 86_400_000))
             .expect("declared activation");
         assert!(!push_objects(&mut db).is_empty());
-        db.with_auth_transaction(|tx| activate_manifest_in(tx, None))
+        db.push_registry()
+            .activate_manifest(None)
             .expect("declaration removal");
         assert!(push_objects(&mut db).is_empty());
     }
@@ -4880,44 +4711,33 @@ mod tests {
     #[test]
     fn send_declaration_owns_exact_normalized_ledger_and_registry_only_does_not() {
         let mut db = LocalDatabase::memory().expect("database");
-        db.activate_current_auth_catalog().expect("auth catalog");
-        db.activate_push_registry_for_test(declaration("test", 86_400_000))
+        db.push_registry()
+            .activate_current_auth_catalog()
+            .expect("auth catalog");
+        db.push_registry()
+            .activate_push_registry_for_test(declaration("test", 86_400_000))
             .expect("registry-only activation");
         let ledger_tables = |db: &mut LocalDatabase| -> Vec<String> {
-            db.with_auth_read(|conn| {
-                let mut statement = conn.prepare(
-                    "SELECT name FROM sqlite_schema
-                     WHERE type = 'table' AND name IN (
-                       '_snapback_push_intents_v1',
-                       '_snapback_push_batches_v1',
-                       '_snapback_push_messages_v1'
-                     ) ORDER BY name",
-                )?;
-                Ok(statement
-                    .query_map([], |row| row.get(0))?
-                    .collect::<Result<Vec<_>, _>>()?)
-            })
-            .expect("ledger table inventory")
+            db.push_registry()
+                .ledger_table_names_for_test()
+                .expect("ledger table inventory")
         };
         assert!(ledger_tables(&mut db).is_empty());
 
-        db.activate_push_registry_for_test(send_declaration())
+        db.push_registry()
+            .activate_push_registry_for_test(send_declaration())
             .expect("send activation");
         assert_eq!(ledger_tables(&mut db).len(), 3);
-        db.with_auth_read(validate_exact_ledger_schema)
+        db.push_registry()
+            .validate_exact_ledger_schema()
             .expect("exact ledger");
 
-        db.with_auth_transaction(|tx| {
-            tx.execute_batch(
-                "DROP INDEX _snapback_push_messages_v1_receipts;
-                 CREATE INDEX _snapback_push_messages_v1_receipts
-                   ON _snapback_push_messages_v1(state, ticket_id, id);",
-            )?;
-            Ok(())
-        })
-        .expect("tamper ledger index");
+        db.push_registry()
+            .tamper_ledger_index_for_test()
+            .expect("tamper ledger index");
         let error = db
-            .with_auth_read(validate_exact_ledger_schema)
+            .push_registry()
+            .validate_exact_ledger_schema()
             .expect_err("tampered physical ledger index refuses");
         assert_eq!(error.diagnostic.code, "SNAPBACK_PUSH_REGISTRY_CORRUPT");
     }
@@ -4925,8 +4745,11 @@ mod tests {
     #[test]
     fn mixed_batch_aggregate_never_hides_ambiguity_or_a_pending_sibling() {
         let mut db = LocalDatabase::memory().expect("database");
-        db.activate_current_auth_catalog().expect("auth catalog");
-        db.activate_push_registry_for_test(send_declaration())
+        db.push_registry()
+            .activate_current_auth_catalog()
+            .expect("auth catalog");
+        db.push_registry()
+            .activate_push_registry_for_test(send_declaration())
             .expect("send ledger");
         let intent_id = ids::mint_time_ordered(Kind::PushIntent);
         let ambiguous_batch = ids::mint_time_ordered(Kind::PushBatch);
@@ -4935,85 +4758,27 @@ mod tests {
         let ambiguous_message = ids::mint_time_ordered(Kind::PushMessage);
         let pending_message = ids::mint_time_ordered(Kind::PushMessage);
         let failed_message = ids::mint_time_ordered(Kind::PushMessage);
-        db.with_auth_transaction(|tx| {
-            tx.execute(
-                "INSERT INTO _snapback_push_intents_v1(
-                   id, app_scope, dedupe_key, binding_hash, audience_name,
-                   audience_args_json, payload_json, trigger_mode, state,
-                   attempt_count, created_at_ms, updated_at_ms, expires_at_ms
-                 ) VALUES(?1, 'scope', 'aggregate', zeroblob(32), 'guests', '{}', '{}',
-                          'system', 'reserved', 1, 1, 1, 100000000)",
-                params![intent_id],
-            )?;
-            for (index, batch_id) in [&ambiguous_batch, &pending_batch, &failed_batch]
-                .into_iter()
-                .enumerate()
-            {
-                tx.execute(
-                    "INSERT INTO _snapback_push_batches_v1(
-                       id, intent_id, attempt_number, batch_index, state
-                     ) VALUES(?1, ?2, 1, ?3, 'settled')",
-                    params![batch_id, intent_id, index as i64],
-                )?;
-            }
-            for (message_id, batch_id, token_id, state) in [
-                (&ambiguous_message, &ambiguous_batch, "token-a", "ambiguous"),
-                (
-                    &pending_message,
-                    &pending_batch,
-                    "token-b",
-                    "handed-to-expo",
-                ),
-                (
-                    &failed_message,
-                    &failed_batch,
-                    "token-c",
-                    "failed-permanent",
-                ),
-            ] {
-                tx.execute(
-                    "INSERT INTO _snapback_push_messages_v1(
-                       id, batch_id, token_id, token_hash, token_bytes, state
-                     ) VALUES(?1, ?2, ?3, zeroblob(32), '', ?4)",
-                    params![message_id, batch_id, token_id, state],
-                )?;
-            }
-
-            recompute_intent_state_in(tx, &intent_id, 2)?;
-            let state = |tx: &Transaction<'_>| -> rusqlite::Result<String> {
-                tx.query_row(
-                    "SELECT state FROM _snapback_push_intents_v1 WHERE id = ?1",
-                    params![intent_id],
-                    |row| row.get(0),
-                )
-            };
-            assert_eq!(state(tx)?, "ambiguous");
-
-            tx.execute(
-                "UPDATE _snapback_push_messages_v1 SET state = 'expo-accepted'
-                 WHERE id = ?1",
-                params![ambiguous_message],
-            )?;
-            recompute_intent_state_in(tx, &intent_id, 3)?;
-            assert_eq!(state(tx)?, "handed-to-expo");
-
-            tx.execute(
-                "UPDATE _snapback_push_messages_v1 SET state = 'expo-accepted'
-                 WHERE id = ?1",
-                params![pending_message],
-            )?;
-            recompute_intent_state_in(tx, &intent_id, 4)?;
-            assert_eq!(state(tx)?, "expo-error");
-            Ok(())
-        })
-        .expect("mixed aggregate fixture");
+        db.push_registry()
+            .seed_mixed_batch_aggregate_for_test(
+                &intent_id,
+                &ambiguous_batch,
+                &pending_batch,
+                &failed_batch,
+                &ambiguous_message,
+                &pending_message,
+                &failed_message,
+            )
+            .expect("mixed aggregate fixture");
     }
 
     #[test]
     fn reserved_recovery_rebinds_rotation_drops_retirement_and_never_redrives_transmitting() {
         let mut db = LocalDatabase::memory().expect("database");
-        db.activate_current_auth_catalog().expect("auth catalog");
-        db.activate_push_registry_for_test(send_declaration())
+        db.push_registry()
+            .activate_current_auth_catalog()
+            .expect("auth catalog");
+        db.push_registry()
+            .activate_push_registry_for_test(send_declaration())
             .expect("send ledger");
         let token_id = ids::mint_time_ordered(Kind::PushToken);
         let intent_id = ids::mint_time_ordered(Kind::PushIntent);
@@ -5021,72 +4786,38 @@ mod tests {
         let message_id = ids::mint_time_ordered(Kind::PushMessage);
         let installation_id = ids::mint(Kind::Installation).unwrap();
         let first_hash = Sha256::digest(b"ExponentPushToken[first]").to_vec();
-        db.with_auth_transaction(|tx| {
-            tx.execute(
-                "INSERT INTO _snapback_push_tokens_v1(
-                   id, app_scope, principal_id, installation_id, token_hash, token_bytes,
-                   session_id, session_generation, registered_at_ms, last_registered_at_ms
-                 ) VALUES(?1, 'scope', 'user', ?2, ?3, 'ExponentPushToken[first]',
-                          'session', 1, 1, 1)",
-                params![token_id, installation_id, first_hash],
-            )?;
-            tx.execute(
-                r#"INSERT INTO _snapback_push_intents_v1(
-                   id, app_scope, dedupe_key, binding_hash, audience_name,
-                   audience_args_json, payload_json, trigger_mode, state,
-                   attempt_count, created_at_ms, updated_at_ms, expires_at_ms
-                 ) VALUES(?1, 'scope', 'dedupe', zeroblob(32), 'guests', '{}',
-                          '{"title":"hello","body":"world","data":null}',
-                          'system', 'reserved', 1, 1, 1, 100000000)"#,
-                params![intent_id],
-            )?;
-            tx.execute(
-                "INSERT INTO _snapback_push_batches_v1(
-                   id, intent_id, attempt_number, batch_index, state
-                 ) VALUES(?1, ?2, 1, 0, 'reserved')",
-                params![batch_id, intent_id],
-            )?;
-            tx.execute(
-                "INSERT INTO _snapback_push_messages_v1(
-                   id, batch_id, token_id, token_hash, token_bytes, state
-                 ) VALUES(?1, ?2, ?3, ?4, 'ExponentPushToken[first]', 'reserved')",
-                params![
-                    message_id,
-                    batch_id,
-                    token_id,
-                    Sha256::digest(b"ExponentPushToken[first]").to_vec()
-                ],
-            )?;
-            Ok(())
-        })
-        .unwrap();
+        db.push_registry()
+            .seed_reserved_recovery_for_test(
+                &token_id,
+                &intent_id,
+                &batch_id,
+                &message_id,
+                &installation_id,
+                &first_hash,
+            )
+            .unwrap();
 
         assert!(
-            db.with_auth_transaction(|tx| { claim_recovered_batch_for_transmit_in(tx, 9) })
+            db.push_registry()
+                .claim_recovered_batch_for_transmit(9)
                 .unwrap()
                 .is_none(),
             "maintenance must not race a fresh fence-zero action reservation"
         );
 
         let first_claim = db
-            .with_auth_transaction(|tx| claim_batch_in(tx, &batch_id, 10))
+            .push_registry()
+            .claim_batch(&batch_id, 10)
             .unwrap()
             .expect("first claim");
         assert_eq!(first_claim.messages[0].token, "ExponentPushToken[first]");
         let rotated_hash = Sha256::digest(b"ExponentPushToken[rotated]").to_vec();
-        db.with_auth_transaction(|tx| {
-            tx.execute(
-                "UPDATE _snapback_push_tokens_v1
-                 SET token_hash = ?1, token_bytes = 'ExponentPushToken[rotated]'
-                 WHERE id = ?2",
-                params![rotated_hash, token_id],
-            )?;
-            assert_eq!(recover_expired_batches_in(tx, 31_000)?, (1, 0));
-            Ok(())
-        })
-        .unwrap();
+        db.push_registry()
+            .rotate_token_and_recover_reserved_for_test(&token_id, &rotated_hash)
+            .unwrap();
         let recovered = db
-            .with_auth_transaction(|tx| claim_recovered_batch_for_transmit_in(tx, 31_001))
+            .push_registry()
+            .claim_recovered_batch_for_transmit(31_001)
             .unwrap()
             .expect("safe recovery claim");
         assert_eq!(
@@ -5105,25 +4836,9 @@ mod tests {
 
         // Recovery committed the durable transmit cut with the new claim; a
         // second crash from this point is never redriven.
-        db.with_auth_transaction(|tx| {
-            assert_eq!(recover_expired_batches_in(tx, 62_000)?, (0, 1));
-            let (batch_state, message_state, token_snapshot): (String, String, String) = tx
-                .query_row(
-                    "SELECT batch.state, message.state, message.token_bytes
-                     FROM _snapback_push_batches_v1 AS batch
-                     JOIN _snapback_push_messages_v1 AS message ON message.batch_id = batch.id
-                     WHERE batch.id = ?1",
-                    params![batch_id],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-                )?;
-            assert_eq!(
-                (batch_state.as_str(), message_state.as_str()),
-                ("ambiguous", "ambiguous")
-            );
-            assert!(token_snapshot.is_empty());
-            Ok(())
-        })
-        .unwrap();
+        db.push_registry()
+            .assert_transmitting_recovery_ambiguous_for_test(&batch_id)
+            .unwrap();
 
         // A separately reserved batch whose registry row retires before its
         // first byte becomes a settled no-handoff, with custody erased.
@@ -5134,99 +4849,48 @@ mod tests {
         let live_token_id = ids::mint_time_ordered(Kind::PushToken);
         let live_installation_id = ids::mint(Kind::Installation).unwrap();
         let live_hash = Sha256::digest(b"ExponentPushToken[live]").to_vec();
-        db.with_auth_transaction(|tx| {
-            tx.execute(
-                "INSERT INTO _snapback_push_tokens_v1(
-                   id, app_scope, principal_id, installation_id, token_hash, token_bytes,
-                   session_id, session_generation, registered_at_ms, last_registered_at_ms
-                 ) VALUES(?1, 'scope', 'other-user', ?2, ?3, 'ExponentPushToken[live]',
-                          'other-session', 1, 1, 1)",
-                params![live_token_id, live_installation_id, live_hash],
-            )?;
-            tx.execute(
-                "INSERT INTO _snapback_push_intents_v1(
-                   id, app_scope, dedupe_key, binding_hash, audience_name,
-                   audience_args_json, payload_json, trigger_mode, state,
-                   attempt_count, created_at_ms, updated_at_ms, expires_at_ms
-                 ) VALUES(?1, 'scope', 'dedupe-retired', zeroblob(32), 'guests', '{}',
-                          '{}', 'system', 'reserved', 1, 1, 1, 100000000)",
-                params![retired_intent],
-            )?;
-            tx.execute(
-                "INSERT INTO _snapback_push_batches_v1(
-                   id, intent_id, attempt_number, batch_index, state
-                 ) VALUES(?1, ?2, 1, 0, 'reserved')",
-                params![retired_batch, retired_intent],
-            )?;
-            tx.execute(
-                "INSERT INTO _snapback_push_messages_v1(
-                   id, batch_id, token_id, token_hash, token_bytes, state
-                 ) VALUES(?1, ?2, ?3, ?4, 'ExponentPushToken[rotated]', 'reserved')",
-                params![retired_message, retired_batch, token_id, rotated_hash],
-            )?;
-            tx.execute(
-                "INSERT INTO _snapback_push_messages_v1(
-                   id, batch_id, token_id, token_hash, token_bytes, state
-                 ) VALUES(?1, ?2, ?3, ?4, 'ExponentPushToken[live]', 'reserved')",
-                params![live_message, retired_batch, live_token_id, live_hash],
-            )?;
-            retire_provider_token_in(tx, &token_id, 70_000, "ticket:retired")?;
-            Ok(())
-        })
-        .unwrap();
+        db.push_registry()
+            .seed_retired_recovery_for_test(
+                &retired_intent,
+                &retired_batch,
+                &retired_message,
+                &live_message,
+                &live_token_id,
+                &live_installation_id,
+                &live_hash,
+                &token_id,
+                &rotated_hash,
+            )
+            .unwrap();
         let mixed_claim = db
-            .with_auth_transaction(|tx| claim_batch_in(tx, &retired_batch, 70_001))
+            .push_registry()
+            .claim_batch(&retired_batch, 70_001)
             .unwrap()
             .expect("the live sibling remains claimable");
         assert_eq!(mixed_claim.messages.len(), 1);
         assert_eq!(mixed_claim.messages[0].message_id, live_message);
-        db.with_auth_transaction(|tx| {
-            mark_batch_transmitting_in(tx, &mixed_claim, 70_002)?;
-            settle_batch_in(
-                tx,
-                &mixed_claim,
-                &PushBatchSettlementV1::Tickets {
-                    http_status: 200,
-                    outcomes: vec![PushTicketOutcomeV1::Ok {
-                        ticket_id: "mixed-ticket".into(),
-                    }],
-                },
-                70_003,
-            )?;
-            let states: Vec<(String, String)> = {
-                let mut statement = tx.prepare(
-                    "SELECT state, token_bytes FROM _snapback_push_messages_v1
-                     WHERE batch_id = ?1 ORDER BY id",
-                )?;
-                statement
-                    .query_map(params![retired_batch], |row| Ok((row.get(0)?, row.get(1)?)))?
-                    .collect::<Result<Vec<_>, _>>()?
-            };
-            assert!(states.contains(&("failed-permanent".into(), String::new())));
-            assert!(states.contains(&("handed-to-expo".into(), String::new())));
-            Ok(())
-        })
-        .unwrap();
+        db.push_registry()
+            .settle_mixed_retired_recovery_for_test(&mixed_claim, &retired_batch)
+            .unwrap();
     }
 
     #[test]
     fn activation_refuses_a_preexisting_non_exact_registry_table() {
         let mut db = LocalDatabase::memory().expect("database");
-        db.activate_current_auth_catalog().expect("auth catalog");
+        db.push_registry()
+            .activate_current_auth_catalog()
+            .expect("auth catalog");
         let tampered_table = REGISTRY_TABLE_SQL.replace(
             "retirement_reference TEXT,",
             "retirement_reference TEXT, tampered_column TEXT,",
         );
-        db.with_auth_transaction(|tx| {
-            tx.execute_batch(&tampered_table)?;
-            Ok(())
-        })
-        .expect("preexisting lookalike table");
+        db.push_registry()
+            .create_lookalike_registry_for_test(&tampered_table)
+            .expect("preexisting lookalike table");
 
         let error = db
-            .with_auth_transaction(|tx| {
-                activate_manifest_in(tx, Some(&declaration("preview", 86_400_000)))
-            })
+            .push_registry()
+            .activate_manifest_with_for_test(|| declaration("preview", 86_400_000))
             .expect_err("CREATE IF NOT EXISTS must not adopt a lookalike table");
         assert_eq!(error.diagnostic.code, "SNAPBACK_PUSH_REGISTRY_CORRUPT");
     }
@@ -5235,29 +4899,11 @@ mod tests {
     fn inspection_refuses_tampered_registry_index_and_trigger() {
         let mut index_db = registry_database();
         index_db
-            .with_auth_transaction(|tx| {
-                tx.execute_batch(
-                    "DROP INDEX _snapback_push_tokens_v1_owner_live;
-                     CREATE UNIQUE INDEX _snapback_push_tokens_v1_owner_live
-                       ON _snapback_push_tokens_v1(app_scope, token_hash)
-                       WHERE retired_at_ms IS NULL;",
-                )?;
-                let expected_sql = expected_registry_shape()?
-                    .objects
-                    .get("_snapback_push_tokens_v1_owner_live")
-                    .and_then(|object| object.sql.as_deref())
-                    .ok_or_else(|| corrupt("test reference index SQL is missing"))?;
-                tx.execute_batch("PRAGMA writable_schema = ON;")?;
-                tx.execute(
-                    "UPDATE sqlite_schema SET sql = ?1
-                     WHERE name = '_snapback_push_tokens_v1_owner_live'",
-                    params![expected_sql],
-                )?;
-                tx.execute_batch("PRAGMA writable_schema = OFF;")?;
-                Ok(())
-            })
+            .push_registry()
+            .tamper_registry_index_for_test()
             .expect("tamper physical registry index while forging expected SQL text");
         let index_error = index_db
+            .push_registry()
             .push_registry_inspection()
             .expect_err("physical index shape defeats forged sqlite_schema text");
         assert_eq!(
@@ -5267,19 +4913,11 @@ mod tests {
 
         let mut trigger_db = registry_database();
         trigger_db
-            .with_auth_transaction(|tx| {
-                tx.execute_batch(
-                    "DROP TRIGGER _snapback_push_session_terminal_v1;
-                     CREATE TRIGGER _snapback_push_session_terminal_v1
-                       AFTER DELETE ON _auth_sessions
-                     BEGIN
-                       SELECT 1;
-                     END;",
-                )?;
-                Ok(())
-            })
+            .push_registry()
+            .tamper_lifecycle_trigger_for_test()
             .expect("tamper lifecycle trigger");
         let trigger_error = trigger_db
+            .push_registry()
             .push_registry_inspection()
             .expect_err("non-exact attached trigger refuses");
         assert_eq!(
@@ -5291,47 +4929,16 @@ mod tests {
     #[test]
     fn provider_retirement_is_idempotent_and_erases_token_bytes() {
         let mut db = LocalDatabase::memory().expect("database");
-        db.activate_current_auth_catalog().expect("auth catalog");
-        db.activate_push_registry_for_test(declaration("preview", 86_400_000))
+        db.push_registry()
+            .activate_current_auth_catalog()
+            .expect("auth catalog");
+        db.push_registry()
+            .activate_push_registry_for_test(declaration("preview", 86_400_000))
             .expect("push registry");
         let token_id = ids::mint_time_ordered(Kind::PushToken);
-        db.with_auth_transaction(|tx| {
-            tx.execute(
-                "INSERT INTO _snapback_push_tokens_v1(
-                   id, app_scope, principal_id, installation_id, token_hash, token_bytes,
-                   session_id, session_generation, registered_at_ms, last_registered_at_ms
-                 ) VALUES(?1, 'scope', 'user', 'installation', zeroblob(32), ?2,
-                          'session', 1, 1, 1)",
-                params![token_id, "ExponentPushToken[secret]"],
-            )?;
-            assert!(retire_provider_token_in(tx, &token_id, 2, "ticket:t1")?);
-            assert!(!retire_provider_token_in(tx, &token_id, 3, "receipt:r1")?);
-            let arbitrary = retire_provider_token_in(
-                tx,
-                &token_id,
-                4,
-                "Expo said token ExponentPushToken[secret] failed",
-            )
-            .expect_err("free-text provider prose is not an evidence reference");
-            assert_eq!(arbitrary.diagnostic.code, "SNAPBACK_PUSH_TOKEN_INVALID");
-            assert!(!format!("{arbitrary:?}").contains("ExponentPushToken"));
-            let row: (String, String, String) = tx.query_row(
-                "SELECT token_bytes, retirement_reason, retirement_reference
-                 FROM _snapback_push_tokens_v1 WHERE id = ?1",
-                params![token_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )?;
-            assert_eq!(
-                row,
-                (
-                    String::new(),
-                    "device-not-registered".into(),
-                    "ticket:t1".into()
-                )
-            );
-            Ok(())
-        })
-        .expect("retirement transaction");
+        db.push_registry()
+            .provider_retirement_for_test(&token_id)
+            .expect("retirement transaction");
     }
 
     #[test]
@@ -5399,26 +5006,16 @@ mod tests {
         assert!(transferred.ownership_transferred);
 
         let (live, predecessor): (i64, (String, String)) = db
-            .with_auth_read(|conn| {
-                let live = conn.query_row(
-                    "SELECT COUNT(*) FROM _snapback_push_tokens_v1 WHERE retired_at_ms IS NULL",
-                    [],
-                    |row| row.get(0),
-                )?;
-                let predecessor = conn.query_row(
-                    "SELECT token_bytes, retirement_reason FROM _snapback_push_tokens_v1 WHERE id = ?1",
-                    params![first.token_id],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
-                )?;
-                Ok((live, predecessor))
-            })
+            .push_registry()
+            .registry_facts_for_test(&first.token_id)
             .expect("registry facts");
         assert_eq!(live, 1);
         assert_eq!(predecessor, (String::new(), "ownership-transferred".into()));
 
         let other_scope = declaration("production", 86_400_000);
         let activation_error = db
-            .with_auth_transaction(|tx| activate_manifest_in(tx, Some(&other_scope)))
+            .push_registry()
+            .activate_manifest(Some(&other_scope))
             .expect_err("live old scope blocks schema activation");
         assert_eq!(
             activation_error.diagnostic.code,
@@ -5449,7 +5046,10 @@ mod tests {
         let encoded = serde_json::to_string(&collision).expect("diagnostic serialization");
         assert!(!encoded.contains("rotated_secret"));
 
-        let inspection = db.push_registry_inspection().expect("operator inspection");
+        let inspection = db
+            .push_registry()
+            .push_registry_inspection()
+            .expect("operator inspection");
         assert_eq!(inspection.live_tokens, 1);
         assert_eq!(inspection.retired_tokens, 1);
         assert_eq!(inspection.retirement_reasons["ownership-transferred"], 1);
@@ -5491,32 +5091,13 @@ mod tests {
         )
         .expect("sibling registration");
 
-        db.with_auth_transaction(|tx| {
-            tx.execute(
-                "UPDATE _auth_sessions SET generation = 2, revoked_at_ms = 200
-                 WHERE id = ?1 AND generation = 1",
-                params![logout_session],
-            )?;
-            crate::storage::auth::write_session_terminal_cause_in(
-                tx,
-                &logout_session,
-                2,
-                200,
-                RevocationReason::Logout,
-            )
-        })
-        .expect("logout commit");
+        db.push_registry()
+            .logout_session_for_test(&logout_session)
+            .expect("logout commit");
 
         let facts: Vec<(String, Option<String>, String)> = db
-            .with_auth_read(|conn| {
-                let mut statement = conn.prepare(
-                    "SELECT session_id, retirement_reason, token_bytes
-                     FROM _snapback_push_tokens_v1 ORDER BY session_id",
-                )?;
-                Ok(statement
-                    .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
-                    .collect::<Result<Vec<_>, _>>()?)
-            })
+            .push_registry()
+            .session_retirement_facts_for_test()
             .expect("session retirement facts");
         let facts = facts
             .into_iter()
@@ -5545,23 +5126,12 @@ mod tests {
 
         // The same storage hook owns an administrator/durable revocation;
         // exact predecessor generation remains the invariant, not the cause.
-        db.with_auth_transaction(|tx| {
-            tx.execute(
-                "UPDATE _auth_sessions SET generation = 2, revoked_at_ms = 202
-                 WHERE id = ?1 AND generation = 1",
-                params![sibling_session],
-            )?;
-            crate::storage::auth::write_session_terminal_cause_in(
-                tx,
-                &sibling_session,
-                2,
-                202,
-                RevocationReason::DurableRevocation,
-            )
-        })
-        .expect("administrator durable-revocation commit");
+        db.push_registry()
+            .durable_revoke_session_for_test(&sibling_session)
+            .expect("administrator durable-revocation commit");
         assert_eq!(
-            db.push_registry_inspection()
+            db.push_registry()
+                .push_registry_inspection()
                 .expect("inspection after durable revocation")
                 .retirement_reasons["session-ended"],
             2
@@ -5587,21 +5157,19 @@ mod tests {
         .expect("expiry registration");
         db.advance_auth_session_clock_floor(499)
             .expect("pre-expiry frontier");
-        assert_eq!(db.push_registry_inspection().unwrap().live_tokens, 1);
+        assert_eq!(
+            db.push_registry()
+                .push_registry_inspection()
+                .unwrap()
+                .live_tokens,
+            1
+        );
         db.advance_auth_session_clock_floor(500)
             .expect("expiry frontier commit");
-        let inspection = db.push_registry_inspection().unwrap();
+        let inspection = db.push_registry().push_registry_inspection().unwrap();
         assert_eq!(inspection.live_tokens, 0);
         assert_eq!(inspection.retirement_reasons["session-expired"], 1);
-        let bytes: String = db
-            .with_auth_read(|conn| {
-                Ok(conn.query_row(
-                    "SELECT token_bytes FROM _snapback_push_tokens_v1",
-                    [],
-                    |row| row.get(0),
-                )?)
-            })
-            .unwrap();
+        let bytes: String = db.push_registry().token_bytes_for_test().unwrap();
         assert!(bytes.is_empty());
         let stale = register(
             &mut db,
@@ -5615,7 +5183,13 @@ mod tests {
         )
         .expect_err("durable expiry floor blocks registration after wall-clock rollback");
         assert_eq!(stale.diagnostic.code, "SNAPBACK_PUSH_SESSION_STALE");
-        assert_eq!(db.push_registry_inspection().unwrap().live_tokens, 0);
+        assert_eq!(
+            db.push_registry()
+                .push_registry_inspection()
+                .unwrap()
+                .live_tokens,
+            0
+        );
     }
 
     #[test]
@@ -5636,13 +5210,10 @@ mod tests {
             100,
         )
         .expect("idle registration");
-        db.with_auth_transaction(|tx| {
-            assert_eq!(retire_idle_in(tx, &scope, retention + 99)?, 0);
-            assert_eq!(retire_idle_in(tx, &scope, retention + 100)?, 1);
-            Ok(())
-        })
-        .expect("idle maintenance");
-        let inspection = db.push_registry_inspection().unwrap();
+        db.push_registry()
+            .assert_idle_retention_for_test(&scope, retention)
+            .expect("idle maintenance");
+        let inspection = db.push_registry().push_registry_inspection().unwrap();
         assert_eq!(inspection.live_tokens, 0);
         assert_eq!(inspection.retirement_reasons["idle-retention"], 1);
     }

@@ -1647,7 +1647,6 @@ mod tests {
     use super::*;
     use crate::auth::crypto::{CryptoError, RandomSource};
     use crate::auth::lifecycle::{EmailCodeReadiness, activate_catalog};
-    use rusqlite::params;
     use std::sync::atomic::{AtomicU8, Ordering};
 
     #[derive(Debug, Default)]
@@ -1684,18 +1683,15 @@ mod tests {
                 .with_active_key(10, &random, |id, _| id.as_str().to_owned())
                 .unwrap();
             database
-                .with_auth_transaction(|tx| {
-                    tx.execute(
-                        "INSERT INTO _auth_verification_codes(
-                           challenge_id, canonical_address, code_digest, key_id,
-                           attempts, max_attempts, requested_at_ms, expires_at_ms,
-                           consumed_at_ms, superseded_by
-                         ) VALUES('sbc_AAAAAAAAAAAAAAAAAAAAAA', 'user@example.com', ?1, ?2,
-                                  0, 5, 10, 1000, NULL, NULL)",
-                        params![vec![7_u8; 32], key_id],
-                    )?;
-                    Ok(())
-                })
+                .auth_catalog()
+                .insert_verification_code_for_test(
+                    "sbc_AAAAAAAAAAAAAAAAAAAAAA",
+                    "user@example.com",
+                    &[7_u8; 32],
+                    &key_id,
+                    10,
+                    1000,
+                )
                 .unwrap();
             Self {
                 _directory: directory,
@@ -1754,13 +1750,8 @@ mod tests {
         );
         assert_eq!(
             restored
-                .with_auth_read(|connection| {
-                    Ok(connection.query_row(
-                        "SELECT value FROM _snapback_meta WHERE key = 'auth_catalog_version'",
-                        [],
-                        |row| row.get::<_, String>(0),
-                    )?)
-                })
+                .auth_catalog_read()
+                .catalog_version_for_test()
                 .unwrap(),
             AUTH_CATALOG_VERSION_V1
         );
@@ -2638,14 +2629,8 @@ mod tests {
         let mut fixture = Fixture::new();
         fixture
             .database
-            .with_auth_transaction(|tx| {
-                tx.execute(
-                    "UPDATE _auth_verification_codes
-                     SET key_id = 'sbak_AAAAAAAAAAAAAAAAAAAAAA'",
-                    [],
-                )?;
-                Ok(())
-            })
+            .auth_catalog()
+            .set_verification_key_id_for_test("sbak_AAAAAAAAAAAAAAAAAAAAAA")
             .unwrap();
         let error = create_backup(
             &fixture.database,
@@ -2675,13 +2660,8 @@ mod tests {
 
         fixture
             .database
-            .with_auth_transaction(|tx| {
-                tx.execute(
-                    "UPDATE _auth_verification_codes SET key_id = ?1",
-                    params![replacement_key_id],
-                )?;
-                Ok(())
-            })
+            .auth_catalog()
+            .set_verification_key_id_for_test(&replacement_key_id)
             .unwrap();
         let live_keyring_path = AuthKeyringStore::keyring_path(&fixture.database_path);
         AFTER_BACKUP_KEYRING_CAPTURE.with(|slot| {

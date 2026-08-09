@@ -14,7 +14,7 @@ closes all of these:
    module scope (args are static `{}`). Same exemplar problem in the guide:
    guide/clients/react.md:137's sourced snippet inlines its args object —
    hoist in the fixture or add a one-line caveat. (Both become moot if
-   issues/20260806-usesnapbackquery-inline-args-resubscribe.md lands
+   issues/closed/20260806-usesnapbackquery-inline-args-resubscribe.md lands
    content-keying — coordinate.)
 2. **expo-chat mutations accept client-supplied `senderId`**
    (templates/expo-chat/snapback/functions.mjs:71-77, 95-101) — the

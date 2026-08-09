@@ -7,8 +7,9 @@
 //! @ref LLP 0199#target-ownership-map — the shared contract/types leaf is the
 //!   canonical downward dependency for Rust owners and generated artifacts.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 fn is_false(value: &bool) -> bool {
     !*value
@@ -65,20 +66,98 @@ pub struct AuthManifest {
     pub agents: Option<AgentsManifest>,
 }
 
+/// App-owned declaration of the outward-facing function surface. Absence (or
+/// `enabled: false`) preserves the existing first-party/grant behavior; when
+/// enabled, every function is closed unless its named entry opts in.
+///
+/// @ref LLP 0204#d1--the-exposure-declaration-keystone — exposure is one
+/// declaration governing callability and public projections.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiManifest {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub disclosure: ApiDisclosure,
+    #[serde(default)]
+    pub functions: BTreeMap<String, ApiFunctionExposure>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origins: Option<Vec<String>>,
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum ApiDisclosure {
+    #[default]
+    ExposedOnly,
+    Full,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiFunctionExposure {
+    #[serde(default)]
+    pub expose: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub since: Option<String>,
+}
+
 /// App policy for creating new agent principals. Absence is deliberately
 /// equivalent to `disabled` rather than opening an ambient signup surface.
 ///
 /// @ref LLP 0055#registration — registration is sessions-only, disabled by
 /// default, and user invitations require an explicit `invitedBy` opt-in.
-#[derive(
-    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
-)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AgentsManifest {
     #[serde(default)]
     pub mode: AgentsMode,
     #[serde(default)]
     pub invited_by: InvitedBy,
+    /// Parse-time presence bit used only by declarations, never emitted on
+    /// the wire. `api.enabled` needs to distinguish omitted mode (whose
+    /// ordinary registration behavior still defaults closed) from an author
+    /// explicitly selecting `disabled`.
+    // @ref LLP 0204#d1--the-exposure-declaration-keystone — enabled external
+    // surfaces require an explicit registration posture, including disabled.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub mode_explicit: bool,
+}
+
+impl AgentsManifest {
+    pub const fn explicit(mode: AgentsMode, invited_by: InvitedBy) -> Self {
+        Self {
+            mode,
+            invited_by,
+            mode_explicit: true,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for AgentsManifest {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase", deny_unknown_fields)]
+        struct WireAgentsManifest {
+            #[serde(default)]
+            mode: Option<AgentsMode>,
+            #[serde(default)]
+            invited_by: InvitedBy,
+        }
+
+        let wire = WireAgentsManifest::deserialize(deserializer)?;
+        Ok(Self {
+            mode: wire.mode.unwrap_or_default(),
+            invited_by: wire.invited_by,
+            mode_explicit: wire.mode.is_some(),
+        })
+    }
 }
 
 #[derive(
