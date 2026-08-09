@@ -223,7 +223,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
         if matches!(case.operation.as_str(), "patch" | "derivedPatch") {
             seed_existing(&mut db, &corpus);
         }
-        let version_before = db.current_version().expect("version before case");
+        let version_before = db.versions_read().current_version().expect("version before case");
 
         let outcome = match case.operation.as_str() {
             "seed" => db
@@ -324,7 +324,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
             case.name, error.diagnostic.message
         );
         assert_eq!(
-            db.current_version().expect("version after rejected case"),
+            db.versions_read().current_version().expect("version after rejected case"),
             version_before,
             "{} changed durable state despite rejection",
             case.name
@@ -343,7 +343,7 @@ fn local_missing_rows_still_validate_the_shared_patch_corpus() {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.apply_schema(schema(&corpus))
             .expect("apply corpus schema");
-        let version_before = db.current_version().expect("version before case");
+        let version_before = db.versions_read().current_version().expect("version before case");
         let values = if case.operation == "patch" {
             literal_values(&case.values)
         } else {
@@ -380,7 +380,7 @@ fn local_missing_rows_still_validate_the_shared_patch_corpus() {
             case.name
         );
         assert_eq!(
-            db.current_version().expect("version after rejected case"),
+            db.versions_read().current_version().expect("version after rejected case"),
             version_before,
             "{} changed durable state for a missing row",
             case.name
@@ -481,7 +481,7 @@ fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
     assert_eq!(stored["__proto__"], json!({ "polluted": true }));
 
     for id in ["edge-existing", "edge-missing"] {
-        let before = db.current_version().expect("version before invalid patch");
+        let before = db.versions_read().current_version().expect("version before invalid patch");
         let error = db
             .execute_mutation(
                 &MutationPlan {
@@ -499,7 +499,7 @@ fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
             )
             .expect_err("required JSON null is invalid independent of row existence");
         assert_eq!(error.diagnostic.code, "SNAPBACK_FIELD_TYPE_MISMATCH");
-        assert_eq!(db.current_version().unwrap(), before);
+        assert_eq!(db.versions_read().current_version().unwrap(), before);
     }
 
     let insert_error = db

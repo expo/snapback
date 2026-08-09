@@ -16133,9 +16133,9 @@ globalThis.__snapbackHandlers = {
         assert_eq!(error.diagnostic.code, "SNAPBACK_UNKNOWN_FUNCTION");
     }
 
-    // @ref LLP 0199#target-ownership-map — the first-slice failure/retry characterization:
-    //   the coordinator owns P1 compensation, the failed successor never
-    //   becomes live, and retry proves its manifest against physical rows.
+    // @ref LLP 0199#target-ownership-map — the failed successor never pins its
+    //   repeatable materialization without the composite generation commit;
+    //   retry rebuilds and proves its manifest against the physical rows.
     #[test]
     fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization() {
         let (mut schema, mut functions, first_plan) = projection_fixture(5);
@@ -16195,9 +16195,11 @@ globalThis.__snapbackHandlers = {
         let first_receipt = snapback
             .db
             .projection_rebuild_receipt("book-summaries")
-            .expect("first receipt read")
-            .expect("first projection rebuilt before the refusal");
-        assert_eq!(first_receipt.generation, 1);
+            .expect("first receipt read");
+        assert!(
+            first_receipt.is_none(),
+            "materialized rows must remain unpinned when the generation refuses"
+        );
 
         let beta_id = snapback
             .db
@@ -16254,7 +16256,10 @@ globalThis.__snapbackHandlers = {
             .projection_rebuild_receipt("book-summaries")
             .expect("retried receipt read")
             .expect("retried receipt exists");
-        assert_eq!(retried_receipt.generation, 2);
+        assert_eq!(
+            retried_receipt.generation, 1,
+            "an unpublished materialization does not advance the durable generation"
+        );
         assert_eq!(
             snapback.functions.projections, expected_projections,
             "the live manifest is the exact successor whose plans rebuilt"
@@ -16409,6 +16414,154 @@ globalThis.__snapbackHandlers = {
             .expect("reopened receipt exists");
         assert_eq!(receipt.plan_digest, expected_plan_digest);
         assert_eq!(receipt.row_count, rows.len());
+    }
+
+    #[test]
+    fn oq3_crash_after_projection_materialization_reopens_unpinned_and_retry_converges() {
+        let directory = tempfile::tempdir().expect("projection crash-cut directory");
+        let database_path = directory.path().join("projection-before-composite.sqlite");
+        let (mut schema, mut functions, plan) = projection_fixture(5);
+        schema.app_id = "oq3-projection-crash-cut".to_owned();
+        schema.schema_hash = Some(format!("sha256:{}", "a".repeat(64)));
+        schema.inputs_hash = Some(format!("sha256:{}", "c".repeat(64)));
+        functions.app_id = schema.app_id.clone();
+        functions.bundle_hash = Some(format!("sha256:{}", "b".repeat(64)));
+        functions.inputs_hash = schema.inputs_hash.clone();
+        functions
+            .acknowledged_experimental_capabilities
+            .push("sequence_allocation_v1".to_owned());
+        let mut sequence_scopes = schema.tables[0].clone();
+        sequence_scopes.name = "sequenceScopes".to_owned();
+        sequence_scopes.fields.retain(|field| field.name == "title");
+        sequence_scopes.indexes.clear();
+        schema.tables.push(sequence_scopes);
+        let mut sequence_function = FunctionDefinition::new(
+            "allocateProjectionCrashSequence",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(crate::manifest::IbexModule {
+                source: "globalThis.__snapbackHandlers = { async allocateProjectionCrashSequence(ctx, args) { return await ctx.sequence.allocate('projectionCrashSequence', args.scopeId); } };".to_owned(),
+                export: "allocateProjectionCrashSequence".to_owned(),
+            }),
+        );
+        sequence_function.required_capabilities = vec!["sequence_allocation_v1".to_owned()];
+        sequence_function.sequences.push(crate::manifest::SequenceDeclaration {
+            name: "projectionCrashSequence".to_owned(),
+            scope_table: "sequenceScopes".to_owned(),
+            scope_access: crate::manifest::SequenceScopeAccess::Public("public.v1".to_owned()),
+        });
+        functions.functions.push(sequence_function);
+        let deployment = DeploymentIdentity::from_manifests(AuthMode::Dev, &schema, &functions)
+            .expect("coherent complete-pair crash generation");
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+
+        let materialized = {
+            let mut snapback =
+                LocalSnapback::open(&database_path).expect("open projection crash fixture");
+            snapback
+                .apply_schema(schema.clone())
+                .expect("apply projection schema");
+            snapback
+                .seed(SeedData {
+                    tables: BTreeMap::from([
+                        (
+                            "books".to_owned(),
+                            vec![
+                                row(json!({ "title": "alpha", "slug": "s-alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                                row(json!({ "title": "beta", "slug": "s-beta", "authorSlug": "ada", "ownerId": "user-a" })),
+                            ],
+                        ),
+                        (
+                            "authors".to_owned(),
+                            vec![row(json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }))],
+                        ),
+                    ]),
+                })
+                .expect("seed pre-activation projection sources");
+            let pending = snapback
+                .db
+                .rebuild_projection_if_stale(&plan, "activation")
+                .expect("materialize before crash cut")
+                .expect("stale plan materializes");
+            assert_eq!(pending.receipt.row_count, 2);
+            assert!(
+                snapback
+                    .db
+                    .projection_rebuild_receipt(&plan.id)
+                    .expect("read uncommitted publication")
+                    .is_none(),
+                "materialization does not pin before the composite"
+            );
+            pending.receipt
+        };
+
+        let mut reopened =
+            LocalSnapback::open(&database_path).expect("reopen after materialization crash cut");
+        assert!(reopened.functions.functions.is_empty());
+        assert!(reopened.db.function_generation_record().unwrap().is_none());
+        assert!(
+            reopened
+                .db
+                .auth_mode_snapshot()
+                .unwrap()
+                .state
+                .active_deployment
+                .is_none()
+        );
+        assert!(
+            reopened
+                .db
+                .projection_rebuild_receipt(&plan.id)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            reopened.db.sequence_scope_enrollment_count().unwrap(),
+            0,
+            "sequence enrollment cannot precede the owning manifest publication"
+        );
+
+        let prepared = reopened
+            .prepare_auth_provision(
+                EnsureAppMode::Dev,
+                Some(schema),
+                Some(functions.clone()),
+                None,
+            )
+            .expect("prepare complete-pair retry");
+        let committed_activation = reopened
+            .commit_auth_provision_classified(prepared, "oq3-projection-retry", None)
+            .expect("retry commits the complete pair");
+        let state = committed_activation.state;
+        let diagnostics = committed_activation.diagnostics;
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == "SNAPBACK_PROJECTION_REBUILT"),
+            "an unpinned materialization must rebuild on retry: {diagnostics:?}"
+        );
+        assert!(
+            diagnostics.iter().all(|diagnostic| !matches!(
+                diagnostic.severity,
+                crate::diagnostic::DiagnosticSeverity::Error
+                    | crate::diagnostic::DiagnosticSeverity::Fatal
+            )),
+            "retry must converge: {diagnostics:?}"
+        );
+        let committed = reopened
+            .db
+            .projection_rebuild_receipt(&plan.id)
+            .unwrap()
+            .expect("retry pins the rebuilt publication beside its generation record");
+        assert_eq!(committed.content_digest, materialized.content_digest);
+        assert_eq!(committed.row_count, materialized.row_count);
+        assert_eq!(state.active_deployment.as_ref(), Some(&deployment));
+        assert_eq!(
+            reopened.db.sequence_scope_enrollment_count().unwrap(),
+            1,
+            "retry publishes the sequence enrollment with the complete pair"
+        );
+        assert!(reopened.db.function_generation_record().unwrap().is_none());
+        assert_eq!(reopened.functions, functions);
     }
 
     // @ref LLP 0080#5-transactionally-maintained-projections — activation

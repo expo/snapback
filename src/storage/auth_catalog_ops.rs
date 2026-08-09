@@ -1640,6 +1640,7 @@ impl LocalDatabase {
     }
 
     #[cfg(test)]
+    #[allow(clippy::type_complexity)]
     pub(super) fn auth_agent_registration_facts_for_test(
         &self,
         user_id: &str,
@@ -2571,6 +2572,7 @@ impl<'a> AuthCatalogKernel<'a> {
     }
 
     #[cfg(test)]
+    #[allow(clippy::type_complexity)]
     pub fn agent_registration_facts_for_test(
         &self,
         user_id: &str,

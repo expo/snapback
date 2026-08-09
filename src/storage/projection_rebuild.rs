@@ -129,7 +129,7 @@ fn projection_key_bytes(key: &[Value]) -> SnapbackResult<String> {
 /// minimal slice, local profile): the deterministic operation id, the plan
 /// and streaming content digests, and the publication facts. Persisted in
 /// `_snapback_meta` and consumed by verification witnesses.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectionRebuildReceipt {
     pub operation_id: String,
@@ -142,6 +142,63 @@ pub struct ProjectionRebuildReceipt {
     pub at_ms: u64,
 }
 
+/// Publication facts computed by repeatable projection materialization but
+/// not yet made durable as the active generation's rebuild-skip oracle.
+///
+/// @ref LLP 0199#target-ownership-map — projection pins join the generation
+///   record in the owning composite kernel transaction; materialized rows are
+///   deliberately safe to commit earlier and rebuild after a crash.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PendingProjectionPublication {
+    pub(crate) plan_id: String,
+    pub(crate) plan_digest: String,
+    pub(crate) receipt: ProjectionRebuildReceipt,
+}
+
+/// Publish projection pins and their verification witnesses in a caller-owned
+/// kernel transaction. Keep these three upserts together: the plan digest is
+/// the skip oracle, while generation and receipt are its proof facts.
+pub(super) fn apply_projection_publication_in(
+    tx: &Transaction<'_>,
+    publications: &[PendingProjectionPublication],
+) -> SnapbackResult<()> {
+    for publication in publications {
+        let upsert = |key: String, value: String| -> SnapbackResult<()> {
+            tx.execute(
+                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![key, value],
+            )?;
+            Ok(())
+        };
+        upsert(
+            digest_key_for_projection(&publication.plan_id),
+            publication.plan_digest.clone(),
+        )?;
+        upsert(
+            format!("projection_generation:{}", publication.plan_id),
+            publication.receipt.generation.to_string(),
+        )?;
+        upsert(
+            format!("projection_rebuild_receipt:{}", publication.plan_id),
+            serde_json::to_string(&publication.receipt).map_err(|_| {
+                projection_invariant("rebuild receipt does not serialize".to_owned())
+            })?,
+        )?;
+    }
+    Ok(())
+}
+
+pub(super) fn projection_plan_digest(
+    plan: &crate::manifest::MaintainedProjectionPlan,
+) -> SnapbackResult<String> {
+    crate::rqs::sha256_identity(
+        &serde_json::to_value(plan)
+            .map_err(|_| projection_invariant("projection plan does not serialize".to_owned()))?,
+    )
+    .map_err(|_| projection_invariant("projection plan is not canonicalizable".to_owned()))
+}
+
 impl LocalDatabase {
     /// Rebuild a maintained projection when its plan digest changed or it
     /// has never materialized; `Ok(None)` when the stored generation is
@@ -151,14 +208,8 @@ impl LocalDatabase {
         &mut self,
         plan: &crate::manifest::MaintainedProjectionPlan,
         cause: &str,
-    ) -> SnapbackResult<Option<ProjectionRebuildReceipt>> {
-        let plan_digest =
-            crate::rqs::sha256_identity(&serde_json::to_value(plan).map_err(|_| {
-                projection_invariant("projection plan does not serialize".to_owned())
-            })?)
-            .map_err(|_| {
-                projection_invariant("projection plan is not canonicalizable".to_owned())
-            })?;
+    ) -> SnapbackResult<Option<PendingProjectionPublication>> {
+        let plan_digest = projection_plan_digest(plan)?;
         let digest_key = format!("projection_plan_digest:{}", plan.id);
         let stored: Option<String> = self
             .conn
@@ -178,7 +229,9 @@ impl LocalDatabase {
     /// (LLP 0080 §5 / LLP 0081 minimal slice): one IMMEDIATE transaction is
     /// the barrier — the serialized writer fences every source write for
     /// the rebuild's duration, a crash at any point rolls back to the
-    /// predecessor generation whole, and publication is the commit. The
+    /// predecessor materialization whole. Publication is deliberately
+    /// deferred to the owning generation or migration-journal transaction.
+    /// The
     /// durable batch-cursor state machine, approval records with the full
     /// LLP 0072 audience, and the downtime ceiling land with the complete
     /// 0081 lane; this slice records a typed admission/receipt row and the
@@ -188,27 +241,148 @@ impl LocalDatabase {
         plan: &crate::manifest::MaintainedProjectionPlan,
         plan_digest: &str,
         cause: &str,
-    ) -> SnapbackResult<ProjectionRebuildReceipt> {
+    ) -> SnapbackResult<PendingProjectionPublication> {
         let _writer_token = self
             .writer_authority
             .enter(write_authority::LocalWriterLaneV1::ProjectionRebuild)?;
         crate::exec_guard::debug_assert_off_async_worker("a projection rebuild");
         let schema = self.schema.clone();
+        let order_field_bounds = self.order_field_bounds.clone();
         let now_ms = now_millis();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let current_version = current_version_on(&tx)?;
-        let next_version = next_storage_version(current_version)?;
-        let root_table = schema_table(&schema, &plan.root)?;
-        let output_table = schema_table(&schema, &plan.output_table)?;
-        let (identity, activated_at_ms) = ensure_projection_identity(&tx, &plan.id, now_ms)?;
+        let publication = materialize_projection_in(
+            &tx,
+            &schema,
+            order_field_bounds.as_ref(),
+            plan,
+            plan_digest,
+            cause,
+            now_ms,
+        )?;
+        tx.commit()?;
+        Ok(publication)
+    }
+}
 
-        // --- Enumerate every root; prove existing-data fan-out. -----------
-        let mut desired: BTreeMap<String, (Vec<Value>, Map<String, Value>)> = BTreeMap::new();
-        let mut references: BTreeMap<String, u32> = BTreeMap::new();
-        let scan = QueryPlan {
+/// Materialize one projection inside a caller-owned kernel transaction.
+/// Complete-pair activation uses this only when successor DDL or same-cut seed
+/// makes pre-transaction materialization impossible; publication still occurs
+/// later in that exact transaction through `apply_projection_publication_in`.
+pub(super) fn materialize_projection_in(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    order_field_bounds: &BTreeMap<(String, String), u64>,
+    plan: &crate::manifest::MaintainedProjectionPlan,
+    plan_digest: &str,
+    cause: &str,
+    now_ms: u64,
+) -> SnapbackResult<PendingProjectionPublication> {
+    let current_version = current_version_on(&tx)?;
+    let next_version = next_storage_version(current_version)?;
+    let root_table = schema_table(&schema, &plan.root)?;
+    let output_table = schema_table(&schema, &plan.output_table)?;
+    let (identity, activated_at_ms) = ensure_projection_identity(&tx, &plan.id, now_ms)?;
+
+    // --- Enumerate every root; prove existing-data fan-out. -----------
+    let mut desired: BTreeMap<String, (Vec<Value>, Map<String, Value>)> = BTreeMap::new();
+    let mut references: BTreeMap<String, u32> = BTreeMap::new();
+    let scan = QueryPlan {
+        table: plan.root.clone(),
+        filters: Vec::new(),
+        membership_filters: Vec::new(),
+        order: Vec::new(),
+        limit: None,
+        indexed_by: None,
+    };
+    let (sql, values) = build_query_sql(
+        root_table,
+        &schema,
+        &scan,
+        &HandlerInput::default(),
+        &BTreeMap::new(),
+        None,
+        now_ms,
+        None,
+        "projection/root-scan",
+        None,
+        None,
+        false,
+        None,
+    )?;
+    let mut statement = tx.prepare(&sql)?;
+    let columns = statement
+        .column_names()
+        .into_iter()
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    let mut rows = statement.query(params_from_iter(values.iter()))?;
+    let mut roots: Vec<Value> = Vec::new();
+    while let Some(row) = rows.next()? {
+        roots.push(row_to_document(row, root_table, &columns)?);
+    }
+    drop(rows);
+    drop(statement);
+    for root in &roots {
+        // Pre-activation fan-out proof: every reverse-index entry for a
+        // joined key consumes limit, admitted or not, so an existing
+        // over-limit population refuses activation instead of leaving
+        // the joined row permanently un-updatable.
+        let joined_key = plan
+            .join_on
+            .iter()
+            .map(|pair| match root.get(&pair.root_field) {
+                Some(value) if !value.is_null() => Some(value.clone()),
+                _ => None,
+            })
+            .collect::<Option<Vec<Value>>>();
+        if let Some(joined_key) = joined_key {
+            let count = references
+                .entry(projection_key_bytes(&joined_key)?)
+                .or_insert(0);
+            *count += 1;
+            if *count > plan.fan_out_limit {
+                return Err(projection_fanout_exceeded(format!(
+                    "existing data holds more than fanOutLimit {} references to one \
+                         joined key of projection {}; activation is refused",
+                    plan.fan_out_limit, plan.id
+                )));
+            }
+        }
+        let id = root
+            .get("_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| projection_invariant("root row without _id".to_owned()))?;
+        let filter_plan = QueryPlan {
             table: plan.root.clone(),
+            filters: plan.root_filters.clone(),
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        };
+        if crate::live_matcher::row_matches_query_filters(
+            &filter_plan,
+            &HandlerInput::default(),
+            root,
+        ) != Some(true)
+        {
+            continue;
+        }
+        let Some(key) = projection_root_key(plan, id, root.as_object())? else {
+            continue;
+        };
+        let Some(logical) = projection_logical_row(&tx, &schema, plan, root, now_ms)? else {
+            continue;
+        };
+        desired.insert(projection_key_bytes(&key)?, (key, logical));
+    }
+
+    // --- Converge the output table; stream the content digest. --------
+    let existing = {
+        let scan = QueryPlan {
+            table: plan.output_table.clone(),
             filters: Vec::new(),
             membership_filters: Vec::new(),
             order: Vec::new(),
@@ -216,7 +390,7 @@ impl LocalDatabase {
             indexed_by: None,
         };
         let (sql, values) = build_query_sql(
-            root_table,
+            output_table,
             &schema,
             &scan,
             &HandlerInput::default(),
@@ -224,7 +398,7 @@ impl LocalDatabase {
             None,
             now_ms,
             None,
-            "projection/root-scan",
+            "projection/output-scan",
             None,
             None,
             false,
@@ -237,259 +411,154 @@ impl LocalDatabase {
             .map(ToOwned::to_owned)
             .collect::<Vec<_>>();
         let mut rows = statement.query(params_from_iter(values.iter()))?;
-        let mut roots: Vec<Value> = Vec::new();
+        let mut existing = Vec::new();
         while let Some(row) = rows.next()? {
-            roots.push(row_to_document(row, root_table, &columns)?);
+            existing.push(row_to_document(row, output_table, &columns)?);
         }
-        drop(rows);
-        drop(statement);
-        for root in &roots {
-            // Pre-activation fan-out proof: every reverse-index entry for a
-            // joined key consumes limit, admitted or not, so an existing
-            // over-limit population refuses activation instead of leaving
-            // the joined row permanently un-updatable.
-            let joined_key = plan
-                .join_on
-                .iter()
-                .map(|pair| match root.get(&pair.root_field) {
-                    Some(value) if !value.is_null() => Some(value.clone()),
-                    _ => None,
-                })
-                .collect::<Option<Vec<Value>>>();
-            if let Some(joined_key) = joined_key {
-                let count = references
-                    .entry(projection_key_bytes(&joined_key)?)
-                    .or_insert(0);
-                *count += 1;
-                if *count > plan.fan_out_limit {
-                    return Err(projection_fanout_exceeded(format!(
-                        "existing data holds more than fanOutLimit {} references to one \
-                         joined key of projection {}; activation is refused",
-                        plan.fan_out_limit, plan.id
-                    )));
-                }
-            }
-            let id = root
-                .get("_id")
-                .and_then(Value::as_str)
-                .ok_or_else(|| projection_invariant("root row without _id".to_owned()))?;
-            let filter_plan = QueryPlan {
-                table: plan.root.clone(),
-                filters: plan.root_filters.clone(),
-                membership_filters: Vec::new(),
-                order: Vec::new(),
-                limit: None,
-                indexed_by: None,
-            };
-            if crate::live_matcher::row_matches_query_filters(
-                &filter_plan,
-                &HandlerInput::default(),
-                root,
-            ) != Some(true)
-            {
-                continue;
-            }
-            let Some(key) = projection_root_key(plan, id, root.as_object())? else {
-                continue;
-            };
-            let Some(logical) = projection_logical_row(&tx, &schema, plan, root, now_ms)? else {
-                continue;
-            };
-            desired.insert(projection_key_bytes(&key)?, (key, logical));
-        }
-
-        // --- Converge the output table; stream the content digest. --------
-        let existing = {
-            let scan = QueryPlan {
-                table: plan.output_table.clone(),
-                filters: Vec::new(),
-                membership_filters: Vec::new(),
-                order: Vec::new(),
-                limit: None,
-                indexed_by: None,
-            };
-            let (sql, values) = build_query_sql(
-                output_table,
-                &schema,
-                &scan,
-                &HandlerInput::default(),
-                &BTreeMap::new(),
-                None,
-                now_ms,
-                None,
-                "projection/output-scan",
-                None,
-                None,
-                false,
-                None,
-            )?;
-            let mut statement = tx.prepare(&sql)?;
-            let columns = statement
-                .column_names()
-                .into_iter()
-                .map(ToOwned::to_owned)
-                .collect::<Vec<_>>();
-            let mut rows = statement.query(params_from_iter(values.iter()))?;
-            let mut existing = Vec::new();
-            while let Some(row) = rows.next()? {
-                existing.push(row_to_document(row, output_table, &columns)?);
-            }
-            existing
+        existing
+    };
+    let mut pending: BTreeMap<String, (&Vec<Value>, &Map<String, Value>)> = desired
+        .iter()
+        .map(|(bytes, (key, logical))| {
+            let output_id = projection_row_id(&identity, activated_at_ms, bytes);
+            (output_id, (key, logical))
+        })
+        .collect();
+    let mut changed = false;
+    for row in &existing {
+        let Some(id) = row.get("_id").and_then(Value::as_str) else {
+            continue;
         };
-        let mut pending: BTreeMap<String, (&Vec<Value>, &Map<String, Value>)> = desired
-            .iter()
-            .map(|(bytes, (key, logical))| {
-                let output_id = projection_row_id(&identity, activated_at_ms, bytes);
-                (output_id, (key, logical))
-            })
-            .collect();
-        let mut changed = false;
-        for row in &existing {
-            let Some(id) = row.get("_id").and_then(Value::as_str) else {
-                continue;
-            };
-            match pending.remove(id) {
-                None => {
-                    // Not in the rebuilt generation: remove.
-                    if delete_document(&tx, output_table, id)? {
-                        record_change(
-                            &tx,
-                            next_version,
-                            &output_table.name,
-                            id,
-                            ChangeOp::Delete,
-                            None,
-                            now_ms,
-                        )?;
-                        changed = true;
-                    }
+        match pending.remove(id) {
+            None => {
+                // Not in the rebuilt generation: remove.
+                if delete_document(&tx, output_table, id)? {
+                    record_change(
+                        &tx,
+                        next_version,
+                        &output_table.name,
+                        id,
+                        ChangeOp::Delete,
+                        None,
+                        now_ms,
+                    )?;
+                    changed = true;
                 }
-                Some((_, logical)) => {
-                    let unchanged = plan.projection.iter().all(|leaf| {
-                        row.get(&leaf.name).cloned().unwrap_or(Value::Null)
-                            == logical.get(&leaf.name).cloned().unwrap_or(Value::Null)
-                    });
-                    if !unchanged {
-                        patch_document(
-                            &tx,
-                            output_table,
-                            id,
-                            logical,
-                            next_version,
-                            now_ms,
-                            &self.order_field_bounds,
-                        )?;
-                        let document = get_document_from_tx(&tx, output_table, id, next_version)?;
-                        record_change(
-                            &tx,
-                            next_version,
-                            &output_table.name,
-                            id,
-                            ChangeOp::Update,
-                            document.as_ref(),
-                            now_ms,
-                        )?;
-                        changed = true;
-                    }
+            }
+            Some((_, logical)) => {
+                let unchanged = plan.projection.iter().all(|leaf| {
+                    row.get(&leaf.name).cloned().unwrap_or(Value::Null)
+                        == logical.get(&leaf.name).cloned().unwrap_or(Value::Null)
+                });
+                if !unchanged {
+                    patch_document(
+                        &tx,
+                        output_table,
+                        id,
+                        logical,
+                        next_version,
+                        now_ms,
+                        order_field_bounds,
+                    )?;
+                    let document = get_document_from_tx(&tx, output_table, id, next_version)?;
+                    record_change(
+                        &tx,
+                        next_version,
+                        &output_table.name,
+                        id,
+                        ChangeOp::Update,
+                        document.as_ref(),
+                        now_ms,
+                    )?;
+                    changed = true;
                 }
             }
         }
-        for (output_id, (_, logical)) in &pending {
-            let document = insert_document(
-                &tx,
-                output_table,
-                output_id,
-                logical,
-                next_version,
-                now_ms,
-                &self.order_field_bounds,
-            )?;
-            record_change(
-                &tx,
-                next_version,
-                &output_table.name,
-                output_id,
-                ChangeOp::Insert,
-                Some(&document),
-                now_ms,
-            )?;
-            changed = true;
-        }
-
-        // The streaming content digest under the split oracle: logical rows
-        // (key + declared leaves) in canonical output-key byte order.
-        // System fields are checked against their own deterministic rule by
-        // the verification witnesses, never folded into this digest.
-        let digest_rows: Vec<Value> = desired
-            .iter()
-            .map(|(_, (key, logical))| {
-                json!({ "k": Value::Array(key.clone()), "r": Value::Object(logical.clone()) })
-            })
-            .collect();
-        let content_digest = crate::rqs::seq1_digest(&digest_rows)
-            .map_err(|_| projection_invariant("rebuilt rows are not canonicalizable".to_owned()))?;
-
-        // --- Publication: admission/receipt row + digest pin + commit. ----
-        let generation_key = format!("projection_generation:{}", plan.id);
-        let generation: u64 = tx
-            .query_row(
-                "SELECT value FROM _snapback_meta WHERE key = ?1",
-                params![generation_key],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?
-            .and_then(|value| value.parse::<u64>().ok())
-            .unwrap_or(0)
-            + 1;
-        // The minimal deterministic operation-id namespace: digest over the
-        // plan digest and generation. The full LLP 0081 §3 UUIDv7 namespace
-        // with conformance vectors lands with the plan-artifact ticket.
-        let operation_digest =
-            crate::rqs::projection_row_digest(plan_digest, &format!("rebuild:{generation}"));
-        let operation_id = format!(
-            "rebuild_{}",
-            operation_digest[..8]
-                .iter()
-                .map(|byte| format!("{byte:02x}"))
-                .collect::<String>()
-        );
-        let receipt = ProjectionRebuildReceipt {
-            operation_id,
-            plan_digest: plan_digest.to_owned(),
-            content_digest,
-            row_count: desired.len(),
-            generation,
-            published_version: if changed {
-                next_version
-            } else {
-                current_version
-            },
-            cause: cause.to_owned(),
-            at_ms: now_ms,
-        };
-        let upsert = |key: String, value: String| -> SnapbackResult<()> {
-            tx.execute(
-                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
-                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                params![key, value],
-            )?;
-            Ok(())
-        };
-        upsert(digest_key_for_projection(&plan.id), plan_digest.to_owned())?;
-        upsert(generation_key, generation.to_string())?;
-        upsert(
-            format!("projection_rebuild_receipt:{}", plan.id),
-            serde_json::to_string(&receipt).map_err(|_| {
-                projection_invariant("rebuild receipt does not serialize".to_owned())
-            })?,
+    }
+    for (output_id, (_, logical)) in &pending {
+        let document = insert_document(
+            &tx,
+            output_table,
+            output_id,
+            logical,
+            next_version,
+            now_ms,
+            order_field_bounds,
         )?;
-        if changed {
-            set_version(&tx, next_version)?;
-        }
-        tx.commit()?;
-        Ok(receipt)
+        record_change(
+            &tx,
+            next_version,
+            &output_table.name,
+            output_id,
+            ChangeOp::Insert,
+            Some(&document),
+            now_ms,
+        )?;
+        changed = true;
     }
 
+    // The streaming content digest under the split oracle: logical rows
+    // (key + declared leaves) in canonical output-key byte order.
+    // System fields are checked against their own deterministic rule by
+    // the verification witnesses, never folded into this digest.
+    let digest_rows: Vec<Value> = desired
+        .iter()
+        .map(|(_, (key, logical))| {
+            json!({ "k": Value::Array(key.clone()), "r": Value::Object(logical.clone()) })
+        })
+        .collect();
+    let content_digest = crate::rqs::seq1_digest(&digest_rows)
+        .map_err(|_| projection_invariant("rebuilt rows are not canonicalizable".to_owned()))?;
+
+    // --- Compute publication facts; materialization commits alone. -----
+    let generation_key = format!("projection_generation:{}", plan.id);
+    let generation: u64 = tx
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key = ?1",
+            params![generation_key],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(0)
+        + 1;
+    // The minimal deterministic operation-id namespace: digest over the
+    // plan digest and generation. The full LLP 0081 §3 UUIDv7 namespace
+    // with conformance vectors lands with the plan-artifact ticket.
+    let operation_digest =
+        crate::rqs::projection_row_digest(plan_digest, &format!("rebuild:{generation}"));
+    let operation_id = format!(
+        "rebuild_{}",
+        operation_digest[..8]
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let receipt = ProjectionRebuildReceipt {
+        operation_id,
+        plan_digest: plan_digest.to_owned(),
+        content_digest,
+        row_count: desired.len(),
+        generation,
+        published_version: if changed {
+            next_version
+        } else {
+            current_version
+        },
+        cause: cause.to_owned(),
+        at_ms: now_ms,
+    };
+    if changed {
+        set_version(&tx, next_version)?;
+    }
+    Ok(PendingProjectionPublication {
+        plan_id: plan.id.clone(),
+        plan_digest: plan_digest.to_owned(),
+        receipt,
+    })
+}
+
+impl LocalDatabase {
     /// The persisted receipt of the last rebuild of `plan_id`, if any.
     /// Consumed by the coupled-suite verification witnesses today; the
     /// operator-facing `snapback migrate verify` surface (the full 0081
@@ -514,11 +583,10 @@ impl LocalDatabase {
         })
     }
 
-    /// Storage-kernel primitive used by the generation-activation coordinator
-    /// to compensate a rebuild whose owning generation did not install. The
-    /// output bytes may subsequently be maintained by the still-active
-    /// predecessor plan, so the successor digest cannot remain a rebuild-skip
-    /// oracle.
+    /// Recorded-per-slice compensation primitive for a future path that proves
+    /// it cannot publish through its owning transaction. OQ3 leaves no current
+    /// activation caller: materialization stays unpinned until either the
+    /// raw-dev generation or complete-pair record commits with it.
     pub(crate) fn clear_projection_plan_digests(
         &mut self,
         plan_ids: &[String],

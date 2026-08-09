@@ -5,8 +5,11 @@
 **Systems:** Rust core, Server, Storage, Migration, Live/realtime, Assets, Jobs, Auth, Embedding, LLP governance
 **Author:** Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (super-refine dual-family READY at round 3; **Accepted**
-by the author with OQ1–OQ5 ruled; see Author rulings and Revision history)
+**Revised:** 2026-08-09 (owner #1/#2 OQ3 follow-up implemented: projection
+materialization/publication split plus composite complete-pair and raw-dev
+generation commits); 2026-08-08 (super-refine dual-family READY at round 3;
+**Accepted** by the author with OQ1–OQ5 ruled; see Author rulings and Revision
+history)
 **Related:** LLP 0000 (root explainer / load-bearing invariants), LLP 0038
 (earlier `local.rs` split recommendation), LLP 0059 (single-writer locking and
 linearization), LLP 0141 (embeddable Rust library / `snapback::embed` façade),
@@ -97,6 +100,25 @@ build/isolation wins, crates) behind the current public surface:
    Sequencing) that this coordinator and the kernel consume, and reassign the
    residue to the owners that own that behavior; which parts go where is a
    per-slice decision, not settled here.
+
+   **OQ3 follow-up resolved (2026-08-09).** Projection rebuild now produces
+   repeatable physical rows and a pending publication separately. The digest
+   pin, projection generation, and rebuild receipt become authoritative only
+   in the SQLite transaction that also persists their owning generation: the
+   existing complete-pair mode transaction, or raw-dev's
+   `function_generation` record together with sequence enrollment. Raw-dev's
+   content digests plus monotonic durable high-water remain boot-safe when its
+   process counter resets. Process Arc/fence installation, ephemeral
+   publication, successor composition, route validation, cache effects, and
+   the complete-pair authorization acknowledgement remain recorded
+   transaction-domain exceptions and occur only after a committed verdict.
+   No activation path retains the P1 clear-digest compensation; the kernel
+   helper remains only as the explicit escape hatch should a future path prove
+   it cannot share an owning transaction. When a first complete pair creates
+   or seeds projection sources inside its mode transaction, the kernel performs
+   that projection materialization after DDL/seed in the same transaction;
+   otherwise activation keeps the shorter materialize-first/pin-in-composite
+   path. Both forms preserve the same owning durable fact.
 2. **Storage / migration kernel.** Owns SQLite transactions (the commit
    primitive owner #1 composes), schema lineage, rollback **artifacts persisted
    at admission** (not reconstructed from live `self.schema`), cleanup, and
@@ -286,6 +308,13 @@ because this review found a concrete atomicity failure (the P1) there, but the
 author should choose based on current product priorities.
 
 ## Revision history
+
+- **2026-08-09, OQ3 owner #1/#2 composite activation slice.** Split projection
+  materialization from publication; joined pending pins, sequence enrollments,
+  and the owning complete-pair or raw-dev generation fact in one kernel
+  transaction; limited in-transaction materialization to complete pairs whose
+  successor DDL/seed does not physically exist before that transaction; and
+  retired activation's P1 clear-digest compensation.
 
 - **2026-08-08, round-1 super-refine revision** (from the dual-family review):
   distinguished the P0 (migration/storage kernel, owner #2) from the

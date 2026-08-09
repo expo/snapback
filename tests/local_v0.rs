@@ -5129,7 +5129,7 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
         json!(null),
     )
     .expect("seed both tables");
-    let captured_notes_version = db.table_change_version("notes").unwrap();
+    let captured_notes_version = db.versions_read().table_change_version("notes").unwrap();
     assert_eq!(captured_notes_version, 1);
 
     insert(
@@ -5138,10 +5138,10 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
         "todo-v2",
         json!({ "title": "hotter", "completed": false, "userId": "u" }),
     );
-    db.prune_change_journal(2_000_000_000_000, 0, 0)
+    db.versions().prune_change_journal(2_000_000_000_000, 0, 0)
         .expect("prune boundary");
     assert_eq!(
-        db.journal_floor_version().unwrap(),
+        db.versions_read().journal_floor_version().unwrap(),
         captured_notes_version + 1
     );
 
@@ -5255,7 +5255,7 @@ fn e4_query_validation_is_predicate_granular() {
     {
         let mut db = LocalDatabase::memory().unwrap();
         db.apply_schema(todo_schema()).unwrap();
-        let captured = db.table_change_version("todos").unwrap();
+        let captured = db.versions_read().table_change_version("todos").unwrap();
         commit_todo(&mut db, "not-completed", false);
         let mut dep = filtered_query();
         dep.version = Some(captured);
@@ -5282,7 +5282,7 @@ fn e4_query_validation_is_predicate_granular() {
     {
         let mut db = LocalDatabase::memory().unwrap();
         db.apply_schema(todo_schema()).unwrap();
-        let captured = db.table_change_version("todos").unwrap();
+        let captured = db.versions_read().table_change_version("todos").unwrap();
         commit_todo(&mut db, "completed", true);
         let mut dep = filtered_query();
         dep.version = Some(captured);

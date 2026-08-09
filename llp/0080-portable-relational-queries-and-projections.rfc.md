@@ -5,7 +5,10 @@
 **Systems:** Application data API, Query planning, Storage portability, Live Queries, Authorization, Code generation, Maintained projections, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-06 (LLP 0157 v0.11 boundary note: the reviewed
+**Revised:** 2026-08-09 (LLP 0199 OQ3 composite activation: repeatable
+projection materialization is separated from authoritative digest/generation/
+receipt publication, which commits with the owning generation record);
+2026-08-06 (LLP 0157 v0.11 boundary note: the reviewed
 `snapshot-batch.v2` registration landed, binding this RFC's unchanged
 `relational-query.v1` root-window boundary into the `sbsb2` state union;
 grammar, standalone cursor, and admission unchanged; implementation and
@@ -592,6 +595,21 @@ V1 rebuild uses LLP 0081's exclusive single-writer barrier. It pins source
 commit version V, blocks source writes for the full materialization/publication
 window, and proves the new output equals `materializeAll(core, V)` against the V
 snapshot. Dual-apply and catch-up rebuilds are future profiles.
+
+For local generation activation, “materialization/publication window” has two
+durability roles. Materialization commits the repeatable output rows, change
+journal, and storage version while returning a pending publication containing
+the plan digest and receipt facts. The plan-digest skip oracle, projection
+generation, and rebuild receipt are not written by that materialization commit;
+they publish in the same SQLite transaction as the generation record that
+authorizes the plan (the complete-pair record or raw-dev
+`function_generation`). A crash between those commits therefore reopens
+unpinned physical rows as stale and rebuilds them rather than trusting them.
+Migration execution likewise publishes those three facts in the transaction
+that journals the completed projection step. If successor DDL or same-cut seed
+means the source state does not exist before a complete-pair transaction, the
+kernel materializes after DDL/seed inside that transaction and then applies the
+same pending-publication helper before publishing the complete-pair record.
 
 Rebuild is deterministic and target-bounded:
 
