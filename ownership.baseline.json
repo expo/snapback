@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v1",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 192,
-  "edgeCount": 1131,
+  "moduleCount": 193,
+  "edgeCount": 1135,
   "edges": [
     {
       "from": "src/admin_impersonation.rs",
@@ -3841,12 +3841,6 @@
     {
       "from": "src/push.rs",
       "fromOwner": "background-services",
-      "to": "src/auth/session_projection.rs",
-      "toOwner": "sync-realtime-engine"
-    },
-    {
-      "from": "src/push.rs",
-      "fromOwner": "background-services",
       "to": "src/auth/wire.rs",
       "toOwner": "shared-contract-types-leaf"
     },
@@ -3884,12 +3878,6 @@
       "from": "src/push.rs",
       "fromOwner": "background-services",
       "to": "src/storage.rs",
-      "toOwner": "storage-migration-kernel"
-    },
-    {
-      "from": "src/push.rs",
-      "fromOwner": "background-services",
-      "to": "src/storage/auth.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
@@ -6093,6 +6081,42 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/seed_identity.rs",
       "toOwner": "generation-activation-coordinator"
+    },
+    {
+      "from": "src/storage/push_registry.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/auth/invocation.rs",
+      "toOwner": "sync-realtime-engine"
+    },
+    {
+      "from": "src/storage/push_registry.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/auth/session_projection.rs",
+      "toOwner": "sync-realtime-engine"
+    },
+    {
+      "from": "src/storage/push_registry.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/ids.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/push_registry.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/manifest.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/push_registry.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/push.rs",
+      "toOwner": "background-services"
+    },
+    {
+      "from": "src/storage/push_registry.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/storage/auth.rs",
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage/schema_transition.rs",

@@ -197,6 +197,7 @@
       "src/storage/migration_executor.rs",
       "src/storage/migration_scan.rs",
       "src/storage/projection_rebuild.rs",
+      "src/storage/push_registry.rs",
       "src/storage/schema_transition.rs",
       "src/storage/tests.rs",
       "src/storage/write_authority.rs",
