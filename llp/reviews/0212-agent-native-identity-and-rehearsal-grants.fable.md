@@ -106,4 +106,69 @@ VERDICT: NOT READY
 
 **Review body (verbatim):**
 
-_pending — appended on receipt_
+# LLP 0212 v0.2 — Super-refine round 2 review (delta round)
+
+**Blindness compliance (self-attested):** I read only files inside `/private/tmp/claude-501/-Users-ccheever-projects-snapback/f38f3edc-aa45-44dc-872b-c2b7eef91a0b/scratchpad/capsule-0212-r2/` — the target RFC, REVIEW-INSTRUCTIONS.md, the ten governing LLPs, and the guide-auth pages. I did not read anything under the project checkout, `llp/reviews/`, or any round-1 artifact, and I have not attempted to reconstruct round 1 beyond the enumeration disclosed in the instructions.
+
+## Method
+
+I treated the fourteen enumerated delta items as claims to verify against the capsule authorities, then swept the whole document (including pre-existing v0.1 text) for internal consistency, cross-reference integrity, and anything the revision broke.
+
+## Delta verification against capsule authorities
+
+| Delta item | Check | Result |
+| --- | --- | --- |
+| 2 — "five `_auth_*` tables / namespace rule" | LLP 0057 catalog DDL defines exactly five tables (`_auth_users`, `_auth_identities`, `_auth_sessions`, `_auth_session_tokens`, `_auth_verification_codes`); §"reserved namespace" (line ~352) is written as a name-prefix rule, ASCII-case-insensitive | **Verified** |
+| 2 — prod request-code refusal cited to 0057 | 0057 §Request-code transaction: "The capture provider is available in `dev`, `test`, and `demo`, never `prod`"; request-code accepted only when a delivery provider is available | **Verified** |
+| 3 — assurance record paragraph | Internally consistent with rule 5 (use-time validation against `governingGrant`) and rule 3 (prod never sees rehearsal provenance anyway — belt and suspenders) | **Verified**, one DETAIL below (D6) |
+| 4 — I3 attribution split | LLP 0011 §"Guest auth with account claiming (proposed-in-amendment)": continuous `userId`, typed collision refusal, "v1 records merge as out of scope, with an explicit app-level migration hook as the escape hatch". LLP 0151 §guest section: `switch_existing`/`merge` continuations "proposed on top of the amendment", reaping/retention, and the cleanup-policy requirement ("Acceptance may not claim switch/merge for an app until its cleanup policy is pinned"), delegated to the commissioned lifecycle implementing spec | **Verified** — the layering is now exactly right |
+| 5 — V2 bulk-disclosure / V3 ordering | V2's contract items match the guide's actual gating (admin + impersonation, sibling-file custody); V3 ordering note is coherent with V4's adapter seam and LLP 0045's plaintext-never-durable rule (0045 Revised 2026-07-13 entry confirms) | **Verified** |
+| 6 — R1 enum + profile disambiguation | LLP 0096 is titled and framed as *client* "auth profiles"; the "deployment profile" disambiguation is correct and consistently used | **Verified** |
+| 7 — R2 minted selectors + reachability refusal | Minted one-use namespace is sound and preserves transcript equivalence (the test types an in-namespace address into unmodified UI) | **Verified**, one DETAIL below (D4) |
+| 8 — R3 memberships via ordinary authority | Coherent; the escape ("fixture fails typed if no such transition exists") closes the invite-only case. The carrier-level reading of "a rehearsal capability never invokes application functions" is consistent because personas act under their own minted sessions, which rule 5 terminates with the grant | **Verified** |
+| 9 — R5 disposable-store confinement | Self-consistent (LLP 0059 is not in the capsule so the non-decreasing-floor premise is taken on the RFC's citation; the reasoning from that premise is airtight) | **Verified**, one DETAIL below (D5) |
+| 10 — dependency-spine build order | 1a resolves the forward-reference problem cleanly; the carrier interim correctly leans on LLP 0150's commissioned extractable-key agent profile (0150 §Authorities, §1) and claims nothing before it exists; release boundary matches LLP 0189 claim discipline as described | **Verified**, two DETAILs below (D2, D3) |
+| 11 — plane classification, budget model, prod-bleed rules | LLP 0055 §Plane boundary confirms the cited direction verbatim ("app-plane authority never satisfies operator-plane policy"; everything `Admin*`/`ImpersonationCapability`-gated refuses `servicePrincipal`). The added reverse direction is new but stated as a deliberate boundary, not attributed to 0055. The four-rule budget model's effect-to-counter mapping is total over the eight-effect enum | **Verified**, one DETAIL below (D1 on the illustrative record) |
+| 12 — landing items renumbered + JWT-bridge contract | Item 2 (identity-core Spec) gives the floor transitions, assurance record, hook contract, and `ctx.auth` an owner; item 11's bridge contract is coherent (issue-only, source-clamped, hard TTL, honest revocation-lag residual) | **Verified**, but the renumbering broke one cross-reference — D0 below |
+| 13 — non-goals fenced exceptions | Both named exceptions point at their owning landing items correctly (items 11 and 1) | **Verified** |
+| 14 — OQ2/OQ6 updates | OQ2's cleanup-policy citation matches 0151; OQ6's item-11 pointer is correct | **Verified** |
+
+Other grounding spot-checks that pass: throttle constants (0057 table: per-address 5/10min in `test`+`prod`, global 120/60s), the guide's no-production-delivery and reset-reissues-principals statements, `authProgramReadiness` (guide + 0058), LLP 0203 P1/P2/P4/P7 numbering and content, 0151's dated rulings (Option D, SMS tier 2, generated-domain passkeys preview-only 2026-08-08), 0150 invariants 1 and 5, and the idea count (32).
+
+## Findings
+
+**D0. OQ4's landing-shape pointer is stale after the renumbering.** — DETAIL, IN-DELTA.
+§Author decisions OQ4 ends "(Landing-shape item 4.)", but after the delta inserted the identity-core Spec as item 2, the effect-budgets Spec is **item 5**; item 4 is now the LLP 0151 amendments. Line 791 itself correctly tags item 5 with "(new number; OQ4 ruling)". A reader disambiguates by name, so this is not material, but it is exactly the class of breakage a renumbering causes and should be fixed to "item 5".
+
+**D1. The illustrative grant record is internally inconsistent: a `clockAdvances` budget with no `clock.auth.advance` scope.** — DETAIL, IN-DELTA.
+The record's `scopes` array lists seven of the eight enum effects (omitting `clock.auth.advance`) while its `budgets` include `clockAdvances: 20`. Under budget rule 1 every counter pairs with an effect; a grant carrying a budget for an effect it doesn't hold is either dead weight or implies budgets can exist unscoped. The record is flagged "illustrative, not the Spec's schema", but an illustration of a *closed, total* mapping should itself be closed and total — either add the scope or drop the counter.
+
+**D2. R5 and V6 lost their wave slots in the build-order rewrite.** — DETAIL, IN-DELTA.
+The bucket table calls V2, V3, V5, R4, **R5**, A6, **V6** "cheap wins — land early", and the wedge bucket is "R1–R5". But wave 1b lists only "(R1–R4, V2, V5)"; R5 appears nowhere in waves 1–3, even though its effect (`clock.auth.advance`) and counter are in the wave-1 enum and budgets — so wave 1's rehearsal Spec specifies an effect whose implementing feature has no stated wave. V6 appears in no wave *and* no landing-shape item (item 9 covers only V3/V4). The spine disclaims being "a linear wish list", but the doc's own round-1 repair standard was "every v1 commitment is owned"; these two should be placed explicitly (even if the placement is "R5 mechanics land with 1b; V6 rides the identity-core Spec's readiness surface" or similar).
+
+**D3. "Two waves" heading vs. a numbered wave 3.** — DETAIL, IN-DELTA.
+The section is titled "Build order: two waves over a dependency spine" and the OQ1 framing is "one combined first wave", yet the list under "Wave 2 and later" ends with an item numbered "3." (OIDC engine…). Harmless, but either the heading should say "two waves plus a later tranche" or item 3 should be "2e"/unnumbered.
+
+**D4. "Declared reachability" is a new predicate with no stated fail-closed default.** — DETAIL, IN-DELTA.
+R2 refuses window installation "on targets whose declared reachability is public", but no capsule authority defines a reachability declaration (LLP 0060 discusses public reachability as a threat premise, not a declared target fact). The Spec will own the mechanism, which is fine for an RFC — but this document's own style is to state fail-closed at every boundary, and it doesn't say what happens when reachability is *undeclared*. One clause ("undeclared reachability refuses, same as public") would close it.
+
+**D5. R5's parenthetical mis-attributes the ineligibility trigger to rule 3.** — DETAIL, IN-DELTA.
+R5 says a store "marked disposable at creation (… is thereby permanently ineligible for production promotion, per §Rehearsal grants rule 3)". Rule 3's marker is set by *the first honored rehearsal effect*, not by creation-time disposable marking. The safety property holds either way (any clock advance is itself a rehearsal effect, so rule 3 fires before any floor moves), but the cross-reference conflates two distinct markers; the Spec should get them stated separately (disposable-at-creation marking vs. rehearsal-admission taint), and this sentence should not imply rule 3 covers the former.
+
+**D6. `import` provenance's production admissibility is left implicit.** — DETAIL, IN-DELTA.
+The assurance-record paragraph enumerates provenances (`delivery`, `import`, `rehearsal`, …) but pins admissibility only for `rehearsal`. M1 imports "provenance-marked verified claims" — presumably admissible in prod, since that's the point of the import — but nothing says so, and the paragraph's framing ("production admission policy never accepts rehearsal provenance") invites the question for every other provenance. One sentence assigning the import-admissibility ruling to the identity-core Spec (or M1's pipeline contract) would complete the picture.
+
+**D7. "Cannot launder" slightly overstates what store-level taint can enforce.** — DETAIL, IN-DELTA.
+Rule 3's claim that "an app-data-only export from a rehearsal store cannot launder derived state into prod" holds only for exports/imports that ride Snapback's own paths, where the marker's lineage can travel; app-level reads copied out by hand are unpreventable by any design. The intent (paved-path fail-closed refusal) is right and the acceptance matrix in landing item 1 already includes store-taint promotion refusal; the Spec should ensure export-artifact lineage carriage is an acceptance row, and this sentence could scope itself to Snapback-mediated deploy/import.
+
+**Pre-existing text sweep:** I found no MATERIAL concern in the untouched v0.1 text. The idea inventory's provenance tagging, the rejected-ideas record, the naming rationale, the bucket overlaps (deliberate multi-lens membership), and the motivation's grounding claims all check against the capsule authorities. The Summary's "thirty-odd" matches the inventory's 32. Citations to documents outside the capsule (0059, 0053, 0106, 0036, 0024, 0189) are used consistently with how the in-capsule corpus refers to them; I could not independently verify their contents and note that as a capsule limitation, not a finding.
+
+## Growth-budget judgment
+
+v0.2's ~31% growth exceeds the ~20% advisory, but I do not judge any of it bloat. The additions are precisely the contract text a NOT-READY×2 round demands: the budget model's four rules, the plane classification, the JWT-bridge security contract, the assurance record, and the dependency spine each carry normative weight that a Spec author or a future reviewer would otherwise have to invent. Nothing reads as padding; the document remains unusually dense per line.
+
+## Verdict reasoning
+
+Every enumerated delta item checks out against the capsule authorities, several with exact-text verification (0011's amendment, 0055's plane boundary, 0057's five tables and profile refusal, 0151's cleanup-policy and dated rulings). The revision introduced seven DETAIL-grade rough edges — one genuinely broken cross-reference (D0), one inconsistent illustration (D1), two unplaced ideas (D2), and four precision gaps the commissioned Specs will have to close anyway — but no unresolved MATERIAL concern anywhere in the document, in-delta or pre-existing.
+
+VERDICT: READY

@@ -197,4 +197,99 @@ VERDICT: NOT READY
 
 **Review body (verbatim):**
 
-_pending — appended on receipt_
+Self-attestation: I read only files inside this capsule directory. I did not seek or inspect the other family’s review, prior review artifacts, or orchestrator notes.
+
+# Delta review — LLP 0212 v0.2
+
+## Findings
+
+### 1. MATERIAL — IN-DELTA: Store taint does not yet support the claimed export and crash guarantees
+
+Lines 664–675 say the first honored rehearsal effect durably marks the store, that the mark is permanent, and that even an app-data-only export cannot launder derived state into production. The commissioned contract and acceptance matrix do not define:
+
+- Whether the marker commits before or atomically with the first effect. A crash after an effect but before a separate marker write could leave a falsely clean store.
+- Whether the marker survives reset, physical backup/restore, cloning, and logical export/import.
+- How an app-data-only export carries a protected store marker that is not itself app data.
+- How production import distinguishes an untainted export from one whose provenance envelope was omitted.
+
+The current capsule’s logical-export contract does not supply those properties automatically. The rehearsal-grants Spec must own marker ordering, preservation through every supported copy/export path, and fail-closed treatment of missing or malformed provenance. Its acceptance matrix needs crash cuts around the first effect and reset/backup/restore/export/import negatives. If manual data copying is outside the threat model, “cannot launder” must be narrowed to supported Snapback promotion/import paths.
+
+### 2. MATERIAL — IN-DELTA: External-egress refusal has no enforcing authority path or owner
+
+Lines 675–676 say real external egress under rehearsal authority is refused unless a declared simulator/test adapter owns the channel. Yet lines 598–600 correctly prohibit the rehearsal capability itself from invoking application functions. The code that can cause real egress is therefore ordinary app code running under a rehearsal-derived session or simulated assurance.
+
+The RFC does not commission the mechanism that propagates rehearsal provenance through prepared invocation authority, nested calls, actions, provisioning hooks, and provider adapters to a central egress gate. Store taint cannot undo an email, webhook, payment, or arbitrary network action.
+
+The landing shape needs an explicit runtime/egress owner and acceptance rows proving that fixture- and window-derived sessions cannot initiate real egress through direct actions, nested calls, hooks, or delivery adapters, while declared simulators remain usable.
+
+### 3. MATERIAL — IN-DELTA: Window-derived assurance lifetime is not closed
+
+The assurance record has `governingGrant?` but no window lineage (lines 159–165). Rule 5 clamps a session to its grant/window, but validates simulated assurances only against the governing grant (lines 679–686).
+
+Consequently, the text does not require an assurance created through a shorter-lived window to become inadmissible when that window expires or is revoked while the parent grant remains live. `expiresAt?` could implement the expiry case, but no mandatory clamp is stated, and it cannot represent early window revocation by itself.
+
+Either the assurance needs a governing-window reference, or window termination must atomically terminate every assurance and session derived through it. The Spec’s matrix needs window-expiry and window-revocation cases with the parent grant deliberately kept live.
+
+### 4. MATERIAL — IN-DELTA: The closed budget model omits charge-on-denial semantics
+
+Lines 629–637 charge counters at an effect’s linearization point. That does not say what happens when no successful effect occurs—for example, a wrong password, wrong challenge code, malformed credential, enumeration probe, or a request refused because one bucket is exhausted.
+
+That omission is security-significant because A1 explicitly covers guessing and enumeration, while the capsule’s existing contracts require wrong-code attempts to commit their charge and hosted buckets to charge atomically even on denial. Without outcome-specific rules, an implementation could treat failed guesses as free while still conforming to the stated “effect” rule.
+
+The effect-budgets Spec must distinguish attempt/debt counters from successful-effect quota counters, preserve LLP 0060’s atomic multi-bucket charge-on-denial behavior, and bind idempotency identity to the complete normalized request so one key cannot be reused across different guesses.
+
+### 5. MATERIAL — IN-DELTA: “Selectors bind every effect” lacks a total selector mapping
+
+Lines 572–578 make selector binding universal, but describe selector behavior only for capture, redeem, identity creation, and session minting. The illustrative record contains only `fixtureNamespaces`, while the enum also includes:
+
+- `verification.simulate`
+- `window.install`
+- `budget.rehearsal.allocate`
+- `clock.auth.advance`
+
+Those effects require different attenuation axes: identity/contact, generated window namespace, budget name and charge axes, and disposable store/clock domain. The landing item commissions the window selector mint and scope-substitution tests, but not a total effect-to-selector schema analogous to the new effect-to-counter mapping.
+
+Because attenuation is central to the claim that this is not a profile-wide override, the rehearsal Spec must define mandatory selector fields for every effect and reject an effect whose required selector is absent or incompatible.
+
+### 6. MATERIAL — IN-DELTA: Public-reachability refusal depends on a merely declared fact
+
+R2 refuses window installation when “declared reachability is public” (lines 312–314). LLP 0060 explicitly establishes that caller/operator description is not a security fact and that a loopback server may still be exposed by a reverse proxy.
+
+If public refusal is normative, it must consume a target-authored, unforgeable admission fact and fail closed when reachability is unknown. Otherwise the RFC should state that selector entropy—not the reachability declaration—is the actual foreign-caller boundary and describe public refusal as advisory defense in depth. Acceptance should cover a loopback target exposed through a proxy.
+
+### 7. MATERIAL — IN-DELTA: The wave-one password/guest floor still has unowned producer and recovery paths
+
+Wave 1 promises guest creation plus a zero-dependency password-and-recovery-code authenticator, but enumerates only guest claim, password set/change, and recovery-code consume (lines 469–476 and 770–790).
+
+That leaves at least these launch-critical paths implicit:
+
+- Guest principal/session creation.
+- Password account creation and password authentication.
+- Initial recovery-code issuance.
+- Replacement/rotation after use or suspected disclosure.
+- One-time plaintext recovery-code custody and redaction.
+- Session consequences and last-authenticator enforcement for those operations.
+
+LLP 0151 supplies requirements for several of these, but the new landing decomposition does not assign their implementing contract explicitly. They must be added to the identity-core/0151 commission before the OQ1 “complete floor” release can be claimed.
+
+### 8. DETAIL — IN-DELTA: R5 disappears from the new build order
+
+The evaluation classifies R1–R5 as the wedge and R5 as an early cheap win (lines 433–435), but wave 1b contains only R1–R4 and no later build-order item names R5. Place the clock laboratory explicitly or state that it is deferred.
+
+### 9. DETAIL — IN-DELTA: OQ4 points to the wrong landing item
+
+Line 870 says the budgets Spec is landing-shape item 4. Renumbering made it item 5.
+
+### 10. DETAIL — IN-DELTA: “One-use selector namespace” is ambiguous
+
+R2 describes a “one-use selector namespace” while also describing matching signups in the plural and budget-bounded repeated effects. Clarify whether one-use applies to installation, the namespace itself, each address, or the first matching signup. The choice changes concurrency and retry semantics.
+
+## Delta verification
+
+The revision successfully repairs the grounding of the five-table namespace statement and production request-code refusal; guest-claiming attribution; application/operator-plane separation; membership fixture authority; disposable-store clock confinement; the JWT bridge’s named-exception status; and the OQ6 pointer. The V2 disclosure addition and V3 ordering note are also coherent with the supplied authorities.
+
+I found no PRE-EXISTING concern that independently rises to MATERIAL based on the enumerated delta boundary.
+
+The approximately 31% growth is justified by load-bearing contract text. I do not find a separate bloat concern; the problem is incomplete closure of several new guarantees, not unnecessary addition.
+
+VERDICT: NOT READY
