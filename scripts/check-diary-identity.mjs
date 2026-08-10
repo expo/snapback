@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// issues/20260808-diary-number-identity-collisions: advisory detector for
-// duplicate diary numeric identities.
+// issues/closed/20260808-diary-number-identity-collisions: identity policy
+// and collision guard for diary numeric identities.
 //
 // AGENTS.md says demo diaries use `NNNN-slug.diary.md` with "the next
 // available number", but many concurrent agent sessions push to `main`
@@ -9,6 +9,12 @@
 // (0022, 0042-0048, 0054, 0058, 0065). "Diary NNNN" is used as a shorthand
 // reference in LLPs and issues, so a duplicated prefix makes that reference
 // ambiguous.
+//
+// Alias policy (author ruling, 2026-08-10): KNOWN_COLLISIONS is the canonical
+// disposition for the 11 historical duplicate numbers. Existing filenames
+// and citations stay untouched. Bare "Diary NNNN" references are authoritative
+// only for non-colliding numbers; every known colliding number must be
+// qualified with its slug. A new collision is never an alias automatically.
 //
 // What this checks: every `*.md` file directly under `diaries/` is parsed
 // for the four-digit numeric prefix. Any prefix used by more than one file
@@ -19,18 +25,16 @@
 // Files that do not match the `NNNN-` convention are listed as advisory
 // notes, never as failures.
 //
-// Why warning-only: renaming historical files would silently break existing
-// citations, and the repository has not yet ratified a canonical disposition
-// for the known collisions (see the ticket's Acceptance section). Until an
-// identity policy lands, this script observes and reports; it is a
-// standalone advisory tool and is deliberately NOT wired into
-// check-inventories, check-guide, CI, or hooks.
+// Enforcement: the default mode remains report-only for authors inspecting
+// the corpus. `--strict` blocks NEW collisions and stale baseline entries. The
+// canonical `diary-identity` proof gate invokes strict mode; its registered
+// drift trigger covers `diaries/`, and the scheduled complete backstop files
+// an idempotent ticket if a NEW collision reaches main.
 //
-// Updating the baseline: when a collision is deliberately resolved (rename
-// with a reviewed reference migration) or deliberately accepted, edit
-// KNOWN_COLLISIONS so it again matches the on-disk truth, and say why in the
-// commit that changes it. Never add a NEW collision to the baseline just to
-// silence it.
+// Updating the baseline: when a historical alias is deliberately resolved
+// with a reviewed reference migration, edit KNOWN_COLLISIONS so it again
+// matches the on-disk truth, and say why in the commit that changes it. Never
+// add a NEW collision to the baseline just to silence it.
 //
 // Recommendation for future numbering (concurrency-safe, aligned with
 // AGENTS.md "use the next available number"): before claiming a number, run

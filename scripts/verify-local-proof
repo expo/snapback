@@ -234,6 +234,7 @@ run affected-selector-fixtures -- node --test tests/local_proof_selection_v0.mjs
 run rustfmt -- node scripts/check-rustfmt.mjs
 run module-ownership -- node scripts/check-module-ownership.mjs
 run package-test-inventory -- node scripts/check-package-test-inventory.mjs
+run diary-identity -- node scripts/check-diary-identity.mjs --strict
 # Root production dependencies include the published workspace closure. This
 # gate is deliberately independent of the separately selected admin-ui audit.
 run js-production-audit -- node scripts/check-js-production-audit.mjs

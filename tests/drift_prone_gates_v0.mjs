@@ -40,6 +40,7 @@ const IMPLEMENTATION_FILES = [
   'scripts/drift-prone-gates.mjs',
   'scripts/check-contract-meta.mjs',
   'scripts/check-contract-meta.test.mjs',
+  'scripts/check-diary-identity.mjs',
   'scripts/local-proof-selection-policy.v1.json',
   'scripts/select-local-proof.mjs',
   'scripts/update-agent-safe-publication-leaf-set.mjs',
@@ -216,6 +217,12 @@ test('drift selection preserves mapped triggers and tiers fail-closed paths', ()
     ], context).selectedDriftProneGates,
     ['agent-safe-publication-fixtures', 'module-ownership'],
   );
+  assert.deepEqual(
+    selectDriftProneGates([
+      'diaries/0001-todo-demo.diary.md',
+    ], context).selectedDriftProneGates,
+    ['diary-identity', 'module-ownership'],
+  );
   const unknown = selectDriftProneGates(['unclassified-drift-probe.xyz'], context);
   assert.equal(unknown.selectionClass, 'FAIL_CLOSED_FULL');
   assert.equal(unknown.driftFailClosedDisposition, 'core');
@@ -295,6 +302,60 @@ test('agent-safe publication checker passes in the isolated revision environment
   });
   assert.equal(result.ok, true, `${result.stdout}\n${result.stderr}`);
   assert.equal(result.infrastructureReason, null);
+});
+
+test('diary identity backstop files one ticket for a new collision', { timeout: 60_000 }, () => {
+  const { scratch, repo } = setupCommittedClone();
+  const env = {
+    ...process.env,
+    SNAPBACK_DRIFT_TICKET_DATE: '2026-08-10',
+  };
+  try {
+    const diaryNames = readdirSync(join(repo, 'diaries'))
+      .filter((name) => /^\d{4}-.+\.diary\.md$/u.test(name));
+    const counts = new Map();
+    for (const name of diaryNames) {
+      const prefix = name.slice(0, 4);
+      counts.set(prefix, (counts.get(prefix) ?? 0) + 1);
+    }
+    const sourceName = diaryNames.find((name) => counts.get(name.slice(0, 4)) === 1);
+    assert.ok(sourceName, 'fixture needs a non-colliding diary prefix');
+    const prefix = sourceName.slice(0, 4);
+    copyFileSync(
+      join(repo, 'diaries', sourceName),
+      join(repo, 'diaries', `${prefix}-drift-backstop-probe.diary.md`),
+    );
+    commitAll(repo, 'test: introduce a new diary identity collision');
+
+    const first = run(repo, process.execPath, [
+      'scripts/drift-prone-gates.mjs', 'backstop', '--head', 'HEAD',
+      '--gate', 'diary-identity',
+    ], { env });
+    assert.equal(first.status, 1, first.output);
+    assert.match(first.output, new RegExp(`NEW collision ${prefix}:`, 'u'));
+    assert.match(
+      first.output,
+      /FILED issues\/20260810-main-drift-diary-identity\.md/u,
+    );
+
+    const second = run(repo, process.execPath, [
+      'scripts/drift-prone-gates.mjs', 'backstop', '--head', 'HEAD',
+      '--gate', 'diary-identity',
+    ], { env });
+    assert.equal(second.status, 1, second.output);
+    assert.match(second.output, /existing open ticket .*; not filing a duplicate/u);
+    assert.deepEqual(
+      readdirSync(join(repo, 'issues'))
+        .filter((name) => name.includes('main-drift-diary-identity')),
+      ['20260810-main-drift-diary-identity.md'],
+    );
+    console.log(
+      `DEMO diary NEW collision -> one idempotent backstop ticket\n`
+        + `${relevantLines(first.output)}\n${relevantLines(second.output)}`,
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });
 
 test('same-change hook and main backstop operate on committed pushes', { timeout: 180_000 }, () => {

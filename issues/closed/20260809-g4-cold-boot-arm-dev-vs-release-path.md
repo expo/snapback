@@ -98,3 +98,22 @@ no release build on a device.
 
 Receipt:
 [`20260810-g4-external-0117-ios-simulator.md`](../demos/expo-golden-path-fixture/receipts/20260810-g4-external-0117-ios-simulator.md).
+
+## Author ruling — 2026-08-10 — RESOLVED
+
+1. The retained-cold-boot arm binds the **release path**: LLP 0181's
+   `prepareReactBinding` persisted receipt is the guarantee carrier.
+2. The supervised development cache (1-hour TTL) is a best-effort development
+   convenience explicitly **outside** the guarantee; question 2 (TTL in or
+   out) is therefore moot. The 0.1.17 measurement above — dev path failed,
+   and the stricter dev condition is unmeasurable in Expo Go — is recorded as
+   evidence for why the dev path cannot carry the arm, not as a ledger
+   failure.
+3. Measuring a release build on a device is the same device-evidence boundary
+   that already defers LLP 0064 `Online` claims, so the retained-cold-boot
+   measurement moves to **G5 as a named row**. G4's ledger names the carrier
+   and records the arm as carried by G5 by rule, not by omission. The G4
+   0.1.17 PASS stands with this arm scoped out by rule.
+
+LLP 0176's guarantees-ledger ruling list is amended accordingly (ruled item
+6). Closed as ruled; the measurement obligation now lives in G5's scope.

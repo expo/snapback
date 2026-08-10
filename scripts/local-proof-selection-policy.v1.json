@@ -113,6 +113,23 @@
       },
       "regenerateCommand": "node tests/ci_workflows_v0.mjs"
     },
+    "diary-identity": {
+      "records": [
+        "scripts/check-diary-identity.mjs KNOWN_COLLISIONS (author-ruled historical diary aliases)"
+      ],
+      "recordPaths": [
+        "scripts/check-diary-identity.mjs"
+      ],
+      "triggerRules": {
+        "files": [
+          "scripts/check-diary-identity.mjs"
+        ],
+        "prefixes": [
+          "diaries/"
+        ]
+      },
+      "regenerateCommand": "node scripts/check-diary-identity.mjs --strict"
+    },
     "client-bundle-metrology": {
       "records": [
         "tests/fixtures/client-bundle-metrology/current.v1.json and its active profile/baseline ledgers"
@@ -941,6 +958,7 @@
       "lane": "fast",
       "gates": [
         "ci-workflow-fixtures",
+        "diary-identity",
         "drift-prone-gate-fixtures",
         "local-proof-inventory"
       ]

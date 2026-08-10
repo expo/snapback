@@ -1,6 +1,6 @@
 # docs: diary numeric identities collide under concurrent authoring
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 3
@@ -65,3 +65,25 @@ historical duplicates; existing filenames and citations stay untouched. Bare
 "Diary NNNN" is authoritative only for non-colliding IDs; the 11 colliding
 IDs require a qualified reference (number + slug). Wire `--strict` into the
 scheduled drift backstop so a NEW collision files a ticket automatically.
+
+## Resolution — 2026-08-10
+
+Implemented the author ruling without renaming any historical diary or
+rewriting any existing citation. `KNOWN_COLLISIONS` remains the canonical
+alias map for the 11 historical duplicate numbers, and both the checker header
+and `AGENTS.md` now tell authors that those numbers require number-plus-slug
+references while bare `Diary NNNN` remains authoritative only for
+non-colliding IDs.
+
+The canonical local proof now includes `diary-identity`, whose command is
+`node scripts/check-diary-identity.mjs --strict`. The existing LLP 0175
+`driftProneGates` registry owns the wiring: changes below `diaries/` or to the
+checker select the gate, and the complete scheduled backstop runs the
+registered gate and files its normal idempotent filesystem ticket on a NEW
+collision. No new scheduling mechanism or launchd state was added.
+
+Verification on the unchanged historical corpus reported all 11 collisions as
+KNOWN and zero as NEW in both default and strict modes. A disposable-clone
+integration fixture introduced a synthetic NEW collision, observed the
+backstop file `issues/20260810-main-drift-diary-identity.md`, and observed the
+second run reuse that open ticket instead of filing a duplicate.
