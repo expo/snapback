@@ -42,3 +42,15 @@ catalog-v3+backup, then defineAuth/assurance, then password/guest/hook is
 recommended over one lane). WIP to build from: `origin/wip/llp-0214-floor-partial`.
 The three commissioned Specs (0213/0214/0215) are already on main; 0213 slices
 1 and B are landed and green.
+
+## Update (2026-08-10)
+
+The backup regression is **confirmed real** independent of the DYLD red herring:
+on the WIP, `cargo test --lib 'auth::'` **without** `DYLD_FRAMEWORK_PATH` still
+fails 18 `auth::backup::` + 1 `auth::runtime` (current main is 25/0 without
+DYLD). So catalog v3 genuinely breaks the backup format-1 manifest.
+
+Correction: the earlier focused fix lane's "deadlock" was not a real deadlock —
+its prompt set `DYLD_FRAMEWORK_PATH`, which hangs the SQLite online-backup path
+(see the withdrawn hang ticket). Re-running the fix WITHOUT that override lets
+the backup tests actually run, so this is tractable. Retrying.
