@@ -10,6 +10,7 @@ import {
   generate,
   targetArtifactAuthProblems,
 } from './index.mjs';
+import { defineAuth, defineSchema, defineTable, v } from './define.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
@@ -98,6 +99,41 @@ assert.deepEqual(
 assert.throws(
   () => computeArtifactIdentityStrings({ artifactVersion: 'snapback.v1', authMode: 'dev', ...vectorInput }),
   /unsupported artifact\/auth identity tuple/,
+);
+
+assert.throws(
+  () => defineAuth({
+    version: 1,
+    mechanisms: { guest: { kind: 'guest' } },
+    providers: { mail: { clientSecret: 'literal-must-not-enter-an-artifact' } },
+    assuranceRequirements: {},
+    guestPolicy: { enabled: false },
+    secretReferences: {},
+  }),
+  (error) => error?.code === 'SNAPBACK_AUTH_LITERAL_SECRET_FORBIDDEN',
+);
+
+assert.throws(
+  () => defineSchema({
+    drafts: defineTable({ ownerId: v.principal() }),
+  }, {
+    auth: { mode: 'sessions' },
+    authProgram: defineAuth({
+      version: 1,
+      mechanisms: { guest: { kind: 'guest' } },
+      assuranceRequirements: {},
+      guestPolicy: {
+        enabled: true,
+        claiming: [],
+        reaping: {
+          afterMs: 604800000,
+          cleanup: { kind: 'declarative', default: 'tombstone', tables: {} },
+        },
+      },
+      secretReferences: {},
+    }),
+  }),
+  (error) => error?.code === 'SNAPBACK_AUTH_GUEST_CLEANUP_UNCLASSIFIED',
 );
 
 {
@@ -808,6 +844,51 @@ export const listTodos = defineLiveQuery({
   const result = await generate(dir);
   assert.equal(result.ok, false);
   assert(result.diagnostics.some((diagnostic) => diagnostic.code === 'FUNCTION_AUTHORITY_INDEPENDENT_INVALID'));
+}
+
+// @ref LLP 0214#10-v6-no-delivery-readiness — wave 1c publishes honest producer
+// facts while keeping delivery enforcement false until wave 2a.
+{
+  const schema = `
+import { defineAuth, defineSchema, defineTable, v } from '${defineUrl}';
+const authProgram = defineAuth({
+  version: 1,
+  mechanisms: {
+    guest: { kind: 'guest' },
+    emailCode: { kind: 'email-code', identityKind: 'email', provider: 'builtIn', delivery: 'transactionalEmail' },
+  },
+  assuranceRequirements: { sensitive: { allOf: ['email_verified', 'recent_auth'] } },
+  guestPolicy: { enabled: true, claiming: ['emailCode'], reaping: { afterMs: 604800000, cleanup: { kind: 'declarative', default: 'tombstone', tables: {} } } },
+  secretReferences: {},
+});
+export default defineSchema({ ${tables} }, { auth: { mode: 'sessions' }, authProgram });
+`;
+  const functions = `
+import { defineMutation, insert, lit } from '${defineUrl}';
+export const sensitiveWrite = defineMutation({
+  auth: 'authenticated',
+  requires: ['sensitive'],
+  plan: insert('todos', { title: lit('ready') }),
+});
+`;
+  const dir = backend(schema, functions);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const manifest = readJson(join(dir, 'generated', 'schema.manifest.json'));
+  assert.equal(manifest.authProgram.version, 1);
+  assert.deepEqual(manifest.authProgramReadiness.requiredAssuranceProducers.email_verified.requiredBy, ['sensitiveWrite']);
+  assert.deepEqual(manifest.authProgramReadiness.requiredAssuranceProducers.email_verified.declaredDeliveryAdapters, ['transactionalEmail']);
+  assert.deepEqual(manifest.authProgramReadiness.requiredAssuranceProducers.recent_auth.requiredBy, ['sensitiveWrite']);
+  assert.deepEqual(manifest.authProgramReadiness.deliveryChannels, {
+    email: {
+      declared: true,
+      configured: false,
+      available: false,
+      assuranceClass: 'contact-ownership',
+      missingSecretReferences: [],
+    },
+  });
+  assert.deepEqual(manifest.authProgramReadiness.noDeliveryCheck, { enforced: false, satisfied: false });
 }
 
 for (const dir of dirs) rmSync(dir, { recursive: true, force: true });

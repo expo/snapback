@@ -3927,17 +3927,12 @@ pub(crate) fn exchange_transaction(
                 "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
                 params![candidate.user_id, now_ms as i64],
             )?;
-            execute_candidate(
+            insert_email_code_identity(
                 transaction,
-                "INSERT INTO _auth_identities(
-                   id, user_id, provider, subject, verified_at_ms
-                 ) VALUES(?1, ?2, 'email-code', ?3, ?4)",
-                params![
-                    candidate.identity_id,
-                    candidate.user_id,
-                    address.as_str(),
-                    now_ms as i64,
-                ],
+                &candidate.identity_id,
+                &candidate.user_id,
+                address.as_str(),
+                now_ms,
             )?;
             (candidate.identity_id.clone(), candidate.user_id.clone())
         }
@@ -3947,23 +3942,16 @@ pub(crate) fn exchange_transaction(
     let expires_at_ms = checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?;
     let absolute_expires_at_ms =
         checked_time_add_snapback(now_ms, AUTH_SESSION_ABSOLUTE_WINDOW_MS)?;
-    execute_candidate(
+    insert_identity_session(
         transaction,
-        "INSERT INTO _auth_sessions(
-           id, user_id, identity_id, authority_instance_id, token_hash,
-           generation, created_at_ms, last_used_at_ms, expires_at_ms,
-           absolute_expires_at_ms, revoked_at_ms
-         ) VALUES(?1, ?2, ?3, ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)",
-        params![
-            candidate.session_id,
-            user_id,
-            identity_id,
-            candidate.authority_instance_id,
-            candidate.token_hash.as_bytes().as_slice(),
-            now_ms as i64,
-            expires_at_ms as i64,
-            absolute_expires_at_ms as i64,
-        ],
+        &candidate.session_id,
+        &user_id,
+        &identity_id,
+        &candidate.authority_instance_id,
+        candidate.token_hash.as_bytes(),
+        now_ms,
+        expires_at_ms,
+        absolute_expires_at_ms,
     )?;
 
     Ok(ExchangeOutcome::Issued {
@@ -4004,17 +3992,12 @@ pub(crate) fn mint_session_transaction(
                 "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
                 params![candidate.user_id, now_ms as i64],
             )?;
-            execute_candidate(
+            insert_email_code_identity(
                 transaction,
-                "INSERT INTO _auth_identities(
-                   id, user_id, provider, subject, verified_at_ms
-                 ) VALUES(?1, ?2, 'email-code', ?3, ?4)",
-                params![
-                    candidate.identity_id,
-                    candidate.user_id,
-                    address.as_str(),
-                    now_ms as i64,
-                ],
+                &candidate.identity_id,
+                &candidate.user_id,
+                address.as_str(),
+                now_ms,
             )?;
             (candidate.identity_id.clone(), candidate.user_id.clone())
         }
@@ -4023,23 +4006,16 @@ pub(crate) fn mint_session_transaction(
     let expires_at_ms = checked_time_add_snapback(now_ms, AUTH_SESSION_SLIDING_WINDOW_MS)?;
     let absolute_expires_at_ms =
         checked_time_add_snapback(now_ms, AUTH_SESSION_ABSOLUTE_WINDOW_MS)?;
-    execute_candidate(
+    insert_identity_session(
         transaction,
-        "INSERT INTO _auth_sessions(
-           id, user_id, identity_id, authority_instance_id, token_hash,
-           generation, created_at_ms, last_used_at_ms, expires_at_ms,
-           absolute_expires_at_ms, revoked_at_ms
-         ) VALUES(?1, ?2, ?3, ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)",
-        params![
-            candidate.session_id,
-            user_id,
-            identity_id,
-            candidate.authority_instance_id,
-            candidate.token_hash.as_bytes().as_slice(),
-            now_ms as i64,
-            expires_at_ms as i64,
-            absolute_expires_at_ms as i64,
-        ],
+        &candidate.session_id,
+        &user_id,
+        &identity_id,
+        &candidate.authority_instance_id,
+        candidate.token_hash.as_bytes(),
+        now_ms,
+        expires_at_ms,
+        absolute_expires_at_ms,
     )?;
     Ok((
         SessionResponse {
@@ -4448,17 +4424,12 @@ pub(crate) fn planned_session_issuance_transaction(
             "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
             params![user_id, plan.now_ms as i64],
         )?;
-        execute_candidate(
+        insert_email_code_identity(
             transaction,
-            "INSERT INTO _auth_identities(
-               id, user_id, provider, subject, verified_at_ms
-             ) VALUES(?1, ?2, 'email-code', ?3, ?4)",
-            params![
-                identity_id,
-                user_id,
-                plan.address.as_str(),
-                plan.now_ms as i64,
-            ],
+            &identity_id,
+            &user_id,
+            plan.address.as_str(),
+            plan.now_ms,
         )?;
     }
 
@@ -4496,23 +4467,16 @@ pub(crate) fn planned_session_issuance_transaction(
         None => None,
     };
 
-    execute_candidate(
+    insert_identity_session(
         transaction,
-        "INSERT INTO _auth_sessions(
-           id, user_id, identity_id, authority_instance_id, token_hash,
-           generation, created_at_ms, last_used_at_ms, expires_at_ms,
-           absolute_expires_at_ms, revoked_at_ms
-         ) VALUES(?1, ?2, ?3, ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)",
-        params![
-            plan.projected.session_id,
-            user_id,
-            identity_id,
-            plan.projected.authority_instance_id,
-            plan.projected.token_digest.as_bytes().as_slice(),
-            plan.now_ms as i64,
-            plan.projected.expires_at_ms as i64,
-            plan.projected.absolute_expires_at_ms as i64,
-        ],
+        &plan.projected.session_id,
+        &user_id,
+        &identity_id,
+        &plan.projected.authority_instance_id,
+        plan.projected.token_digest.as_bytes(),
+        plan.now_ms,
+        plan.projected.expires_at_ms,
+        plan.projected.absolute_expires_at_ms,
     )?;
     if let Some(provenance) = &plan.projected.rehearsal_provenance {
         let governing_not_after_ms = plan
@@ -5039,6 +5003,92 @@ fn perform_dummy_hmac(
         code,
     );
     let _ = digest.verify(&[0_u8; 32]);
+}
+
+fn transaction_uses_identity_core_v3(transaction: &Transaction<'_>) -> SnapbackResult<bool> {
+    transaction
+        .query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM pragma_table_info('_auth_sessions')
+               WHERE name = 'authn_source'
+             )",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(Into::into)
+}
+
+/// Keep the LLP 0057 email-code provider operational on every recognized
+/// catalog while writing the expanded v3 identity/session descriptors only
+/// when the marked catalog actually carries them.
+///
+/// @ref LLP 0214#31-version-policy — v1/v2 behavior is retained without rewriting
+/// predecessor rows; fresh v3 uses explicit identity provenance columns.
+fn insert_email_code_identity(
+    transaction: &Transaction<'_>,
+    identity_id: &str,
+    user_id: &str,
+    address: &str,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    let sql = if transaction_uses_identity_core_v3(transaction)? {
+        "INSERT INTO _auth_identities(
+           id, user_id, kind, provider, issuer, subject, canonical_value,
+           created_at_ms, verified_at_ms, disabled_at_ms
+         ) VALUES(?1, ?2, 'email', 'email-code', NULL, ?3, ?3, ?4, ?4, NULL)"
+    } else {
+        "INSERT INTO _auth_identities(
+           id, user_id, provider, subject, verified_at_ms
+         ) VALUES(?1, ?2, 'email-code', ?3, ?4)"
+    };
+    execute_candidate(
+        transaction,
+        sql,
+        params![identity_id, user_id, address, now_ms as i64],
+    )?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn insert_identity_session(
+    transaction: &Transaction<'_>,
+    session_id: &str,
+    user_id: &str,
+    identity_id: &str,
+    authority_instance_id: &str,
+    token_hash: &[u8; 32],
+    now_ms: u64,
+    expires_at_ms: u64,
+    absolute_expires_at_ms: u64,
+) -> SnapbackResult<()> {
+    let sql = if transaction_uses_identity_core_v3(transaction)? {
+        "INSERT INTO _auth_sessions(
+           id, user_id, identity_id, credential_id, authn_source,
+           authority_instance_id, token_hash, generation, created_at_ms,
+           last_used_at_ms, expires_at_ms, absolute_expires_at_ms, revoked_at_ms
+         ) VALUES(?1, ?2, ?3, NULL, 'identity', ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)"
+    } else {
+        "INSERT INTO _auth_sessions(
+           id, user_id, identity_id, authority_instance_id, token_hash,
+           generation, created_at_ms, last_used_at_ms, expires_at_ms,
+           absolute_expires_at_ms, revoked_at_ms
+         ) VALUES(?1, ?2, ?3, ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)"
+    };
+    execute_candidate(
+        transaction,
+        sql,
+        params![
+            session_id,
+            user_id,
+            identity_id,
+            authority_instance_id,
+            token_hash.as_slice(),
+            now_ms as i64,
+            expires_at_ms as i64,
+            absolute_expires_at_ms as i64,
+        ],
+    )?;
+    Ok(())
 }
 
 fn execute_candidate(

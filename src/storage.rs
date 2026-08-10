@@ -127,6 +127,12 @@ mod write_authority;
 #[path = "storage/auth_agents.rs"]
 pub(crate) mod auth_agents;
 
+// @ref LLP 0214#8-complete-floor-transition-set — guest, local-password, and
+// recovery-code transitions use the protected v3 catalog lane.
+#[allow(dead_code)]
+#[path = "storage/auth_identity.rs"]
+pub(crate) mod auth_identity;
+
 // @ref LLP 0055#credentials-and-tokens — credential rotation, time-only family
 //   tombstones, revoke-self, and scoped-token mint/validation live below the
 //   protected auth catalog rather than the app-data mutation surface.

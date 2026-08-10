@@ -13,7 +13,9 @@ use crate::auth::lifecycle::{RESTORE_DECLARATION_FILE, RestoreDeclaration};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::instance_lock::{FileIdentity, TargetInstanceReservation};
 use crate::storage::LocalDatabase;
-use crate::storage::auth::{AUTH_CATALOG_VERSION, AUTH_CATALOG_VERSION_V1, AuthCatalogState};
+use crate::storage::auth::{
+    AUTH_CATALOG_VERSION, AUTH_CATALOG_VERSION_V1, AUTH_CATALOG_VERSION_V2, AuthCatalogState,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
@@ -182,7 +184,8 @@ fn create_backup_inner(
         created_at_ms,
         catalog_version: match catalog {
             AuthCatalogState::ReadyV1 => AUTH_CATALOG_VERSION_V1,
-            AuthCatalogState::ReadyV2 => AUTH_CATALOG_VERSION,
+            AuthCatalogState::ReadyV2 => AUTH_CATALOG_VERSION_V2,
+            AuthCatalogState::ReadyV3 => AUTH_CATALOG_VERSION,
             AuthCatalogState::Uninitialized => unreachable!("readiness checked above"),
         }
         .parse()
@@ -296,6 +299,7 @@ pub(crate) fn restore_backup(
     let restored_catalog_version = match restored_catalog {
         AuthCatalogState::ReadyV1 => 1,
         AuthCatalogState::ReadyV2 => 2,
+        AuthCatalogState::ReadyV3 => 3,
         AuthCatalogState::Uninitialized => unreachable!("readiness checked above"),
     };
     if restored_catalog_version != manifest.catalog_version {
@@ -1841,7 +1845,7 @@ mod tests {
         let restored = LocalDatabase::open(&target_database).unwrap();
         assert_eq!(
             restored.inspect_auth_catalog().unwrap(),
-            AuthCatalogState::ReadyV2
+            AuthCatalogState::ReadyV3
         );
         assert_eq!(restored.auth_retained_key_ids().unwrap().len(), 1);
         let restored_keyring = AuthKeyringStore::file_for_database(&target_database);

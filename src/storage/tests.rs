@@ -9455,7 +9455,7 @@ mod guarded_commit_tests {
             .expect("install exact protected auth catalog");
         assert_eq!(
             db.inspect_auth_catalog().unwrap(),
-            crate::storage::auth::AuthCatalogState::ReadyV2
+            crate::storage::auth::AuthCatalogState::ReadyV3
         );
 
         db.conn

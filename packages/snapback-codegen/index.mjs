@@ -81,6 +81,11 @@ import {
   extractInlineHandlers,
   renderInlineOperationModule,
 } from './inline-handlers.mjs';
+
+const AUTH_ASSURANCE_KINDS = new Set([
+  'authenticated', 'email_verified', 'phone_verified', 'recent_auth',
+  'phishing_resistant',
+]);
 import {
   argsContractHash,
   canonicalJson as canonicalResultJson,
@@ -1232,6 +1237,82 @@ function validateSchemaAuthDefinition(schemaDef, err) {
   return AUTH_MODES.has(auth.mode) ? auth.mode : 'dev';
 }
 
+function compileAuthProgramReadiness(schemaDef, functionsModule, err) {
+  const program = schemaDef.authProgram;
+  if (program === undefined) return null;
+  if (schemaDef.auth?.mode !== 'sessions' || program.version !== 1) {
+    err('SNAPBACK_AUTH_PROGRAM_INVALID', 'auth', 'authProgram requires sessions mode and program version 1', {});
+    return null;
+  }
+  const aliases = new Map(Object.entries(program.assuranceRequirements ?? {}));
+  const declaredEmailAdapters = [...new Set(
+    Object.values(program.mechanisms ?? {})
+      .filter((mechanism) => mechanism?.kind === 'email-code')
+      .map((mechanism) => mechanism.delivery),
+  )].sort();
+  const expand = (name, trail = new Set()) => {
+    if (AUTH_ASSURANCE_KINDS.has(name)) return [name];
+    if (trail.has(name) || !aliases.has(name)) return null;
+    const next = new Set(trail).add(name);
+    const expanded = [];
+    for (const child of aliases.get(name).allOf ?? []) {
+      const kinds = expand(child, next);
+      if (kinds === null) return null;
+      expanded.push(...kinds);
+    }
+    return [...new Set(expanded)].sort();
+  };
+  const requiredByKind = new Map();
+  for (const [name, definition] of Object.entries(functionsModule)) {
+    if (!definition?.__kind || definition.requires === undefined) continue;
+    if (definition.auth !== 'authenticated') {
+      err('SNAPBACK_AUTH_ASSURANCE_REQUIRES_AUTHENTICATED', 'auth', `${name}: assurance requirements require auth: authenticated`, { function: name });
+      continue;
+    }
+    for (const requirement of definition.requires) {
+      const kinds = expand(requirement);
+      if (kinds === null) {
+        err('SNAPBACK_AUTH_ASSURANCE_REQUIREMENT_INVALID', 'auth', `${name}: unknown or cyclic assurance requirement ${requirement}`, { function: name, requirement });
+        continue;
+      }
+      for (const kind of kinds) {
+        if (!requiredByKind.has(kind)) requiredByKind.set(kind, []);
+        requiredByKind.get(kind).push(name);
+      }
+    }
+  }
+  const requiredAssuranceProducers = {};
+  for (const [kind, names] of [...requiredByKind].sort(([left], [right]) => left.localeCompare(right))) {
+    requiredAssuranceProducers[kind] = {
+      requiredBy: [...new Set(names)].sort(),
+      declaredDeliveryAdapters: kind === 'email_verified' ? declaredEmailAdapters : [],
+      importEnabled: false,
+      rehearsalAvailable: true,
+    };
+  }
+  const deliveryChannels = declaredEmailAdapters.length === 0 ? {} : {
+    email: {
+      declared: true,
+      configured: false,
+      available: false,
+      assuranceClass: 'contact-ownership',
+      missingSecretReferences: [],
+    },
+  };
+  const deliveryRequired = requiredByKind.has('email_verified') || requiredByKind.has('phone_verified');
+  return {
+    programVersion: 1,
+    catalogRequired: 3,
+    declarationValid: true,
+    assuranceRequirementsCompiled: true,
+    verifiedProvisioningCompiled: program.verifiedProvisioning !== undefined,
+    claimsProjectionCompiled: true,
+    requiredAssuranceProducers,
+    deliveryChannels,
+    noDeliveryCheck: { enforced: false, satisfied: !deliveryRequired },
+  };
+}
+
 function validApiOrigin(origin) {
   if (typeof origin !== 'string' || origin.includes('*') || !/^https?:\/\/[^/?#]+$/u.test(origin)) {
     return false;
@@ -1703,6 +1784,7 @@ export async function generateInProcess(backendDir, options = {}) {
     return { ok: false, diagnostics };
   }
   const authMode = validateSchemaAuthDefinition(schemaDef, err);
+  const authProgramReadiness = compileAuthProgramReadiness(schemaDef, functionsModule, err);
   const apiManifest = validateSchemaApiDefinition(schemaDef, authMode, err);
   const agentRegistrationWarning = schemaDef.auth?.agents?.mode === 'invited'
     && schemaDef.auth.agents.invitedBy === 'operators'
@@ -4654,6 +4736,8 @@ export async function generateInProcess(backendDir, options = {}) {
     appId,
     ...(appIdentity ? { app: appIdentity } : {}),
     ...(schemaDef.auth !== undefined ? { auth: schemaDef.auth } : {}),
+    ...(schemaDef.authProgram !== undefined ? { authProgram: schemaDef.authProgram } : {}),
+    ...(authProgramReadiness ? { authProgramReadiness } : {}),
     ...(apiManifest ? { api: apiManifest } : {}),
     ...(schemaAssetsPolicy ? { assets: schemaAssetsPolicy } : {}),
     ...(schemaDef.pushSeam ? { pushSeam: schemaDef.pushSeam } : {}),
