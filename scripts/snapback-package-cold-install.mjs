@@ -2960,16 +2960,20 @@ await build({
     ['export', '--platform', 'web', '--output-dir', join(mediaScaffoldRoot, 'dist'), '--clear'],
     { cwd: mediaScaffoldRoot, timeout: 300_000, env: { ...process.env, CI: '1', EXPO_NO_TELEMETRY: '1' } },
   );
-  const mediaGenerated = readFileSync(
-    join(mediaScaffoldRoot, 'snapback', 'generated', 'api.mjs'),
-    'utf8',
+  const mediaFunctions = JSON.parse(
+    readFileSync(join(mediaScaffoldRoot, 'snapback', 'generated', 'functions.manifest.json'), 'utf8'),
   );
-  if (
-    !mediaGenerated.includes('feedPhotoUpload')
-    || !mediaGenerated.includes('publishEntry')
-    || !existsSync(join(mediaScaffoldRoot, 'dist', 'index.html'))
-  ) {
-    fail('packed media feed omitted its generated upload command or web export');
+  if (!mediaFunctions.assetUploadIntents?.some(({ exportedName }) => exportedName === 'feedPhotoUpload')) {
+    fail('packed media feed codegen omitted the feedPhotoUpload asset-upload intent from functions.manifest.json');
+  }
+  const mediaDescriptor = JSON.parse(
+    readFileSync(join(mediaScaffoldRoot, 'snapback', 'generated', 'app.descriptor.json'), 'utf8'),
+  );
+  if (!mediaDescriptor.commands?.publishEntry) {
+    fail('packed media feed codegen omitted the publishEntry command from app.descriptor.json');
+  }
+  if (!existsSync(join(mediaScaffoldRoot, 'dist', 'index.html'))) {
+    fail('packed media feed expo web export did not produce dist/index.html');
   }
 
   // @ref LLP 0186#w2--context-injection-surface-owned-here — exercise the
