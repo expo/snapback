@@ -216,3 +216,14 @@ export interface ExpoDevSupervisor {
 }
 
 export function runExpoDev(options?: Readonly<Record<string, unknown>>): Promise<ExpoDevSupervisor>;
+
+export declare function resolveExpoMetroCommand(
+  command: unknown,
+  port: number,
+  platform?: string,
+): {
+  executable: string;
+  args: string[];
+  shell: boolean;
+  display: string;
+};

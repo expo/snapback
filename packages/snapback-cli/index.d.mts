@@ -576,3 +576,15 @@ export const __test: {
   scrubDynamicLoaderEnvironment: typeof scrubDynamicLoaderEnvironment;
   runtimeSpawnEnvironment: typeof runtimeSpawnEnvironment;
 };
+
+export declare function genericClientCommandAdvisory(command: unknown): Readonly<{
+  code: 'SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED';
+  severity: 'warning';
+  subsystem: 'cli';
+  message: string;
+  details: Readonly<{
+    command: string;
+    genericArm: string;
+    supervisedAlternative: string;
+  }>;
+}> | null;

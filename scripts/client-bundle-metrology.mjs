@@ -1837,6 +1837,65 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-react/offline.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.react-composition-merge-residue.v1.json',
+    profileFilename: 'sessions-custody-offline-queue-profiles.v1.json',
+    workloadVersion: 'react-composition-merge-residue.2026-08-10.v1',
+    profileIds: Object.freeze([
+      'public-subpath-react-binding',
+      'react-external',
+      'react-full-capabilities-positive',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.react-core-composition.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-react-binding',
+          'react-full-capabilities-positive',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.outbox-drain-controller.v1.json',
+        profileIds: Object.freeze(['react-external']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-10',
+      landing: '0fbdc5ff0688d1a9134eb1893bbd0448cb1bfb07',
+      classification: 'merge-composition residue across same-day landed features',
+      fix: 'The react-core composition receipt was minted pre-rebase; the '
+        + 'final merged tree composes it with the same-day optimistic-create '
+        + 'and outbox drain-controller landings, growing react-binding '
+        + '(+339 min), full-capabilities-positive (+189 min), and '
+        + 'react-external Brotli (+35). All three landings are receipted '
+        + 'features with their own rollovers; this entry ratifies only their '
+        + 'composition on the merged tree.',
+      ticket: 'issues/closed/20260806-react-optional-capability-composition.md',
+      standingPolicy: 'LLP 0145 Phase A, 2026-08-10 author ruling: attributed '
+        + 'growth from a landed, receipted fix takes an automatic blessed rollover.',
+      byteDeltas: 'public-subpath-react-binding min 65065->65404 (+339), gzip '
+        + '19570->19689 (+119), brotli 17322->17408 (+86); react-external '
+        + 'brotli 30484->30519 (+35), min/gzip unchanged; '
+        + 'react-full-capabilities-positive min 68023->68212 (+189), gzip '
+        + '22333->22409 (+76), brotli 19461->19530 (+69).',
+      summary: 'Ratify the merged-tree composition of the three same-day '
+        + 'receipted React landings; all other ceilings and both '
+        + 'predecessors remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'public-subpath-react-binding',
+      'react-external',
+      'react-full-capabilities-positive',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/package.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {
