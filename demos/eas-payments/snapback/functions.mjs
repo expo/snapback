@@ -112,6 +112,69 @@ export const listProducts = defineQuery({
   index: 'by_product',
 });
 
+// The two halves of the catalog graph, for the DEVELOPER rather than the app.
+//
+// An app never reads either of these: it asks "may this user do the thing" and
+// gets entitlements back, and the mapping that produced them is deliberately
+// invisible to it. A developer asks the opposite question — "which products
+// grant this entitlement, and what is each of them called in each store" — and
+// that is a management read, served under the /admin namespace (decision 11).
+//
+// Projected like listPurchases rather than `results.documents`, for the same
+// reason: the shape is a contract. A column added to `entitlements` later
+// cannot ride out to a dashboard because nobody re-read the payload.
+//
+// Both are bounded scans over an index with no equality bound, which is what a
+// catalog listing is. The `take` is an honest cap rather than pagination — a
+// products/entitlements catalog that outgrows it wants a real cursor, not a
+// bigger number.
+export const listEntitlements = defineJsQuery({
+  args: {},
+  reads: ['entitlements'],
+  result: results.records(v.object({
+    entitlementId: v.string(),
+    title: v.string(),
+  })),
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query('entitlements')
+      .withIndex('by_entitlement')
+      .order('entitlementId', 'asc')
+      .take(200)
+      .collect();
+    return rows.map((row) => ({
+      entitlementId: row.entitlementId,
+      title: row.title,
+    }));
+  },
+});
+
+// The join table itself, unaggregated. The dashboard renders one entitlement
+// with its granting products, and a developer debugging a mis-sold bundle
+// wants the raw edges — so this hands back edges and lets the reader group
+// them, rather than picking one direction of the many-to-many here and making
+// the other direction unavailable.
+export const listProductEntitlements = defineJsQuery({
+  args: {},
+  reads: ['productEntitlements'],
+  result: results.records(v.object({
+    productId: v.string(),
+    entitlementId: v.string(),
+  })),
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query('productEntitlements')
+      .withIndex('by_entitlement')
+      .order('entitlementId', 'asc')
+      .take(500)
+      .collect();
+    return rows.map((row) => ({
+      productId: row.productId,
+      entitlementId: row.entitlementId,
+    }));
+  },
+});
+
 // The purchase audit (slice 6). A consumable grants no entitlement, so
 // `getEntitlements` can never show that one was bought — the transaction row is
 // the only record, and this is the read that exposes it.

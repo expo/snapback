@@ -960,3 +960,113 @@ title.
   wave are not serialized with respect to each other, and name the
   send-then-record vs claim-then-send trade-off for outbound obligations,
   because the safe choice depends on which failure you can tolerate.
+
+## 2026-08-10 — the management read surface: the catalog graph
+
+### What this change is
+
+Not a new engine slice. The developer dashboard could show Catalog, Customers,
+and Activity, but it could not show the two things a developer actually debugs
+with: the store-product → product → entitlement graph, and what a given
+customer currently holds. That is two projected reads
+(`listEntitlements`, `listProductEntitlements`), two devserver management
+routes (`GET /admin/catalog`, `GET /admin/customer?userId=`), and a rewritten
+dashboard panel.
+
+### What felt good
+
+**The projection contract made "what may a management read expose" a
+non-decision.** `listPurchases` had already established the shape — a
+`results.records(v.object({...}))` contract with a handler that maps fields
+explicitly — so both new reads were written the same way in about thirty
+lines each, and the reason is in the type rather than in a reviewer's head. A
+column added to `entitlements` later cannot ride out to a dashboard because
+nobody thought about the payload. Two acceptance checks assert the projected
+key set directly (`Object.keys(row).sort()`), which is a cheap way to make
+that property regress loudly.
+
+**Adding functions cost one codegen run and nothing else.** Codegen went from
+21 operations to 23, the generated `api.mjs` picked up both refs, and the
+suite's existing "generated references load" check needed only the two new
+names appended. No migration, no route registration, no client rebuild.
+
+**`expectedChecks` is the right kind of friction.** Adding two checks means
+editing the declared count from 65 to 67, and a suite that runs fewer checks
+than it declares cannot report success. Two seconds of typing buys the
+guarantee that a check silently skipped by an early throw is a failure. I have
+worked on suites where the count was implicit and a whole file quietly stopped
+running for a month.
+
+### What was harder than it should have been
+
+**Whether an index can be used as an ordered full scan is not written down.**
+Both new reads are catalog listings with no equality bound — every
+entitlement, every mapping row — so I wanted
+`.withIndex('by_entitlement').order('entitlementId', 'asc').take(n)` with no
+`.eq(...)`. `guide/backend/queries.md` lists the complete builder chain and
+says the verbs come "in any order after `.withIndex(name)`", but every example
+in the guide narrows with `.eq(...)` first, and nothing states that the
+narrowing verbs are optional. I resolved it by grepping other demos and
+finding `demos/chirp` doing exactly that, which worked but is the wrong source
+of authority for "is this legal".
+
+**There is no read tier for management.** The authoring surface's closed auth
+vocabulary is `public | optional-user | authenticated` (LLP 0058), so a query
+that should be readable only by a project secret key has no way to say so.
+Both new reads are therefore unauthenticated at the engine and management-only
+by virtue of the devserver exposing them under `/admin/*` — the same shape as
+the existing `pollChanges`. This is the read-side face of the
+`PROTOTYPE AUTHORITY GAP` already recorded on `reconcileTransaction`: that one
+wanted system authority for a write, this one wants secret-tier authority for
+a read, and neither can be spelled today. In a real deployment the split is
+two APIs with two keys (decision 11), so the gap is confined to the POC — but
+it means the demo's management boundary is enforced by a proxy, not by the
+engine, and the code should not be read as claiming otherwise.
+
+### One design call worth recording
+
+**The join lives in the dashboard, not in the engine.** `/admin/catalog`
+returns three flat arrays — products, entitlements, mapping rows — and the
+page groups them. A server-side join would have been less code in the browser
+and is what I would reach for by reflex. It is the wrong answer here: a
+`productEntitlements` row naming a product that no longer exists is exactly
+the corruption a developer opens this panel to find, and a join that inner-
+joins it away shows a clean catalog with a silently missing edge. The page
+renders orphan edges in red instead. The same instinct drove the customer
+read: `/admin/customer` calls the *same* `getEntitlements` the app gates on,
+because a dashboard that derived its own answer could disagree with the user's
+device, and that disagreement is precisely the bug it would be hiding.
+
+### Compared to Convex / Supabase
+
+On Supabase this panel is one `select` with two embedded relations against the
+service key, and it would have taken ten minutes instead of forty. What that
+speed buys you is a payload whose shape is whatever the table currently has —
+adding an internal column to `entitlements` ships it to the dashboard, and to
+anything else holding that key, with no diff to review. The projected read is
+slower to write and is the artifact I would rather hand to someone auditing
+what a management key can see.
+
+Convex is closer: query functions with explicit returns are the same idea, and
+the ergonomics are comparable. The difference is that Convex's return
+validators are optional in practice, so the discipline holds only while the
+team keeps it; here `results.records(...)` is what makes the function a
+function, and the acceptance suite asserts the key set on top.
+
+The one place Snapback cost me time relative to both is the one above: on
+either alternative, "list this whole small table in order" is so ordinary that
+I would never have stopped to check whether the query builder allows it.
+
+### Guide gap worth filing
+
+Not filed as a ticket: this session was scoped to `demos/eas-payments/` plus
+this diary, and `issues/` is outside it. Per CLAUDE.md and LLP 0061 §5 it
+wants one, with `guide-gap` in the title.
+
+- **`guide/backend/queries.md` does not say that an index can be scanned with
+  no equality bound.** The complete-builder-chain table implies it and every
+  worked example contradicts it. One sentence plus a two-line example of an
+  ordered, `take`-bounded full scan over a small catalog table — and a note
+  that `take(n)` there is an honest cap rather than pagination — would close
+  it. The grep vocabulary a reader would use is "list all rows", "full scan",
+  "no eq", "catalog listing".

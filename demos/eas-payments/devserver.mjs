@@ -201,6 +201,40 @@ const proxy = createServer(async (req, res) => {
       return;
     }
 
+    // The catalog graph in one payload: entitlement definitions, products with
+    // their per-store ids, and the edges between them. Three reads rather than
+    // one join, because the join belongs to the dashboard — a developer looking
+    // at a mis-sold bundle wants to see an edge pointing at a product that does
+    // not exist, and a server-side join would silently drop it.
+    if (req.method === 'GET' && path === '/admin/catalog') {
+      const [products, entitlements, productEntitlements] = await Promise.all([
+        db.query(api.listProducts, {}),
+        db.query(api.listEntitlements, {}),
+        db.query(api.listProductEntitlements, {}),
+      ]);
+      send(res, 200, {
+        products: products.rows,
+        entitlements: entitlements.rows,
+        productEntitlements: productEntitlements.rows,
+      });
+      return;
+    }
+
+    // One customer's derived entitlements, read through the SAME query the app
+    // uses. The dashboard must not get a second opinion: if a developer and
+    // their user ever disagree about what is granted, the bug is real and this
+    // route would have hidden it behind a management-only derivation.
+    if (req.method === 'GET' && path === '/admin/customer') {
+      const userId = url.searchParams.get('userId');
+      if (!userId) {
+        send(res, 400, { error: 'userId is required' });
+        return;
+      }
+      const { rows } = await db.query(api.getEntitlements, { userId });
+      send(res, 200, { userId, entitlements: rows });
+      return;
+    }
+
     if (req.method === 'GET' && path === '/admin/customers') {
       // Cheap "customers we have seen", derived from the change feed rather
       // than a new backend query — the feed already names every user whose
@@ -255,6 +289,7 @@ await new Promise((resolve, reject) => {
 console.log(`[devserver] ready on :${PORT}`);
 console.log('[devserver]   runtime    GET /products  POST /buy  GET /entitlements?userId=  GET /purchases?userId=');
 console.log('[devserver]   management GET /admin/changes?sinceSeq=  GET /admin/customers  GET /admin/purchases?userId=');
+console.log('[devserver]              GET /admin/catalog  GET /admin/customer?userId=');
 console.log('[devserver]   dashboard  GET /  (serves ~/projects/eas-payments-dashboard/index.html)');
 
 const shutdown = async () => {

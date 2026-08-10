@@ -90,7 +90,7 @@ const STORE_KEY = 'fake-store-key-slice-2';
 const WRONG_STORE_KEY = 'not-the-store-key';
 const WEBHOOK_SECRET = 'developer-shared-secret-slice-5';
 
-const suite = createSuite('eas-payments / headless', { expectedChecks: 65 });
+const suite = createSuite('eas-payments / headless', { expectedChecks: 67 });
 const cleanups = [];
 let server = null;
 let db = null;
@@ -256,6 +256,8 @@ await runAcceptance(suite, async () => {
     for (const required of [
       'getEntitlements',
       'listProducts',
+      'listEntitlements',
+      'listProductEntitlements',
       'recordPurchase',
       'validateReceipt',
       'reconcileTransaction',
@@ -309,6 +311,39 @@ await runAcceptance(suite, async () => {
     const coins = products.rows.find((r) => r.productId === 'coins_100');
     assertEqual(coins.kind, 'consumable', 'consumable product kind');
     return { products: products.rows.length };
+  });
+
+  // The management side of the catalog: the graph a developer dashboard needs
+  // and an app deliberately never sees.
+  await suite.check('listEntitlements projects the entitlement definitions', async () => {
+    const { rows } = await db.query(api.listEntitlements, {});
+    assertEqual(
+      rows.map((r) => r.entitlementId),
+      ['plus', 'pro'],
+      'seeded entitlements, ordered by id',
+    );
+    const pro = rows.find((r) => r.entitlementId === 'pro');
+    assertEqual(pro.title, 'Pro features', 'entitlement title');
+    // Projected, not documents: the payload is exactly the declared contract,
+    // so a column added to the table later cannot leak into a management read.
+    assertEqual(Object.keys(pro).sort(), ['entitlementId', 'title'], 'projected shape');
+    return { entitlements: rows.length };
+  });
+
+  await suite.check('listProductEntitlements exposes the store-product graph', async () => {
+    const { rows } = await db.query(api.listProductEntitlements, {});
+    const byEntitlement = {};
+    for (const row of rows) {
+      (byEntitlement[row.entitlementId] ??= []).push(row.productId);
+    }
+    // Many-to-many in both directions is the whole reason this is a table:
+    // two products grant `pro`, and `plus` is granted by exactly one.
+    assertEqual(byEntitlement.pro.slice().sort(), ['pro_annual', 'pro_monthly'], 'pro is granted by two products');
+    assertEqual(byEntitlement.plus, ['plus_monthly'], 'plus is granted by one product');
+    // The consumable's absence from this table is what makes it a consumable.
+    assertEqual(rows.filter((r) => r.productId === 'coins_100'), [], 'a consumable grants nothing');
+    assertEqual(Object.keys(rows[0]).sort(), ['entitlementId', 'productId'], 'projected shape');
+    return { mappings: rows.length };
   });
 
   await suite.check('no purchase means no entitlement', async () => {
