@@ -131,3 +131,21 @@ source revision, so **the fix reaches external users only at the next release**
 — exactly as the 0.1.12 residue-portability repair did. Anyone running the
 current published 0.1.17 guide will still see the broken command until then.
 No consumer action is needed on an existing app.
+
+## Deferred registry question — answered 2026-08-10 (author ruling)
+
+The Resolution above put "claiming or shimming the unscoped `snapback` npm
+name" out of scope and said that if it were ever wanted it would need its own
+ticket and its own owner. Charlie ruled on 2026-08-10 that it is **not**
+wanted: Snapback goes with the `@expo` scope, and the unscoped name — owned by
+the third-party `snapback@0.9.0` DOM undo/redo package — is not pursued, both
+because it cannot be had on a fast timeline and because having *expo* in the
+name is desirable in its own right.
+
+So no successor ticket exists or will. The ruling is recorded at
+[LLP 0041 §Amendment (2026-08-10): npm naming is settled on the `@expo`
+scope](../../llp/0041-packaged-dev-loop.rfc.md), which owns packaging and
+publication naming. The practical effect on this ticket's subject matter: the
+guide-text fix landed here is the permanent mitigation, not a stopgap awaiting
+a registry acquisition, and `checkBootstrapResolvability` should stay enforcing
+rather than be relaxed later.

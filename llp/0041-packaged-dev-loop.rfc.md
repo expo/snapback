@@ -6,6 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (npm naming settled):** 2026-08-10 (author ruling: the `@expo`
+scope is the terminal *and* final npm naming answer; the unscoped `snapback`
+registry name is not pursued — see §Amendment (2026-08-10): npm naming is
+settled on the `@expo` scope.)
+
 **Revised:** 2026-08-09 (the fast path becomes a gated two-pass script: the
 packaged-store qualification receipt is minted and restaged by
 `scripts/snapback-fastpath-release.mjs`, a fail-closed staged-tarball gate
@@ -1438,3 +1443,47 @@ Because landing those fixes dirties the tree and the ceremony refuses a dirty
 tree, 0.1.17's own `latest` promotion was performed directly on the evidence the
 ceremony had already produced. That is a one-time exception recorded here rather
 than a precedent; the next cut promotes through the script.
+
+## Amendment (2026-08-10): npm naming is settled on the `@expo` scope — author ruling
+
+Ruled by the author (Charlie Cheever, 2026-08-10), recorded here because this
+document owns packaging and publication naming (decision 9's terminal scope is
+recorded in §Decision-9 terminal-scope migration).
+
+**We are going with the `@expo` scope. The unscoped `snapback` npm name is not
+pursued.** Verbatim in substance: the bare name is owned by a third party
+(`snapback@0.9.0`, a DOM undo/redo library, maintainer `lohfu`); it cannot be
+acquired on a fast timeline; and having *expo* in the name is good, not a
+compromise.
+
+This closes the naming question rather than deferring it. Three consequences
+follow:
+
+- **`@expo/snapback-*` is terminal and final.** §Package boundaries'
+  anticipated "a future organization-owned brand scope may replace only the
+  public alias" clause — already narrowed by decision 9, which renamed
+  authored imports too — is now fully discharged: the terminal scope *is* the
+  brand scope, and no further rename is planned or reserved.
+- **No name claim, no bin shim, no ticket.** Acquiring the unscoped name,
+  negotiating for it, or publishing a same-named shim package are all out of
+  scope, permanently and not just for the release at hand. The closed
+  guide-gap ticket
+  `issues/closed/20260809-guide-gap-npx-snapback-new-resolves-wrong-package.md`
+  explicitly deferred exactly this registry/ownership question to "its own
+  ticket and its own owner"; that ticket is now answered in the negative and
+  will not be opened.
+- **`npx snapback` failing in an empty directory is a permanent fact of the
+  world, and documentation owns the mitigation.** The bare `snapback` bin
+  stays correct only inside a project that already depends on
+  `@expo/snapback-cli`. Fresh-app instructions must carry their own package
+  identity (`npm create snapback-app my-app`, or the explicitly scoped
+  `npx --yes @expo/snapback-cli@latest new my-app --template expo-chat`), which
+  is what `guide/clients/react-expo.md` says today and what
+  `checkBootstrapResolvability` in `scripts/guide-lib.mjs` enforces. Neither
+  the guide text nor that check should be softened in anticipation of ever
+  owning the bare name.
+
+Unchanged by this ruling: the in-project bin name is still `snapback`; the
+source/import dialect is the same `@expo/snapback-*` names (no third dialect
+returns); and the recorded `@ccheever/snapback-*` publication lineage stays
+read-side valid per §Decision-9 terminal-scope migration.
