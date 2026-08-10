@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import { auditPackageTestInventories } from './check-package-test-inventory.mjs';
 import { auditGuideManifestInventory } from './guide-lib.mjs';
+import { auditDemoCatalog } from './demo-catalog.mjs';
 import { auditDemoInventory } from '../tests/demo_setup_v0.mjs';
 import { auditAgentSafePublicationLeafSet } from '../tests/agent_safe_publication_checker_v1.mjs';
 
@@ -42,6 +43,7 @@ export function runInventoryChecks({
   root = ROOT,
   packageOptions = {},
   demoOptions = {},
+  demoCatalogOptions = {},
   publicationOptions = {},
   guideOptions = {},
 } = {}) {
@@ -89,6 +91,28 @@ export function runInventoryChecks({
       lines: [`  ${error.message}`],
       registration:
         'repair demo.snapback.json metadata, then reconcile EXPECTED_DEMO_IDS in tests/demo_setup_v0.mjs',
+    });
+  }
+
+  try {
+    // @ref LLP 0015#acceptance-rules — each declared demo has one checked
+    // selection/documentation contract and explicit nonclaim boundary.
+    const audit = auditDemoCatalog({ root, ...demoCatalogOptions });
+    counts.demoCatalog = audit.catalogCount;
+    if (audit.errors.length > 0) {
+      failures.push({
+        id: 'demo-catalog',
+        lines: audit.errors.map((error) => `  ${error}`),
+        registration:
+          'join the manifest, demos/catalog.v1.json, demos/README.md, local README/evidence, and capabilityGapsBoundary against guide/capabilities.md',
+      });
+    }
+  } catch (error) {
+    failures.push({
+      id: 'demo-catalog',
+      lines: [`  ${error.message}`],
+      registration:
+        'repair demos/catalog.v1.json and its manifest/README/capability joins',
     });
   }
 
@@ -149,7 +173,8 @@ export function printInventoryCheckResult(result, output = process) {
   if (result.failures.length === 0) {
     output.stdout.write(
       `[check-inventories] PASS: ${result.counts.packageTests} package tests; `
-        + `${result.counts.demos} demos; ${result.counts.publicationLeaves} publication leaves; `
+        + `${result.counts.demos} demos/${result.counts.demoCatalog} catalog entries; `
+        + `${result.counts.publicationLeaves} publication leaves; `
         + `${result.counts.guidePages} guide pages/${result.counts.guideSnippets} snippets\n`,
     );
     return 0;

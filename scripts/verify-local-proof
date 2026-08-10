@@ -314,6 +314,7 @@ run drift-prone-gate-fixtures --requires generated-artifacts -- node --test test
 # @ref LLP 0061#3-verification-snippets-that-ran — published-closure fixtures
 # keep released, unreleased, stale-fence, banner, and record failures executable.
 run guide-published-closure-fixtures -- node --test scripts/guide-published-closure.test.mjs
+run guide-shell-command-fixtures -- node --test scripts/check-guide-shell-commands.test.mjs
 # LLP 0061: guide corpus — snippet transclusion-match, capability-index joins,
 # manifest staleness. Docs-only fast path: node scripts/check-guide.mjs.
 run guide --requires generated-artifacts -- node scripts/check-guide.mjs
@@ -351,6 +352,7 @@ run ibex-doctor --requires native-runtime-bootstrap -- \
 # Those are gitignored since 6e080ca2 (only artifacts.json stays tracked), so
 # on a clean checkout this test can only run after the regen gate above has
 # materialized them.
+run demo-catalog-fixtures -- node --test tests/check-inventories.test.mjs
 run demo-materialization --requires generated-artifacts -- node tests/demo_setup_v0.mjs
 # @ref LLP 0049#deployment-identity-freshness-gate-2026-07-25 — recompute the
 # committed Cloudflare deployment-identity manifests here so the commit that
@@ -594,6 +596,7 @@ run card-game-authority-scope --requires current-binary-readiness -- node demos/
 run rbac-acceptance --requires current-binary-readiness -- node demos/rbac/tests/acceptance/rbac.mjs
 run client-errors -- node demos/_kit/tests/client-errors.mjs
 run live-wire-schema -- node demos/_kit/tests/live-wire-schema.mjs
+run js-live-wire-fixtures -- node tests/conformance/js-live-wire-fixtures-v1.mjs
 run provenance-unit -- node demos/_kit/tests/provenance-unit.mjs
 run repo-layout-unit -- node demos/_kit/tests/repo-layout-unit.mjs
 run codegen-regressions -- node demos/_kit/tests/codegen-regressions.mjs

@@ -50,6 +50,12 @@
     "retained/offline membership-gated reads",
     "hosted target support"
   ],
+  "capabilityGapsBoundary": {
+    "status": "current-demo-scope",
+    "asOf": "2026-08-10",
+    "authority": "guide/capabilities.md",
+    "reason": "These entries describe capabilities this RBAC witness does not exercise or claim, not current platform GAP rows."
+  },
   "notClaiming": [
     "that application roster rows are directly readable; v1 keeps them private and exposes only authorization helpers",
     "role hierarchies or cross-declaration authority",

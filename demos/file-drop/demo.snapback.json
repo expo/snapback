@@ -52,6 +52,12 @@
     "hosted asset storage is not claimed by the current target",
     "dev-mode asset HTTP resolves anonymous, so the authenticated intent requires sessions custody; the browser sign-in code arrives through the trusted-local dev mailbox seam"
   ],
+  "capabilityGapsBoundary": {
+    "status": "current-demo-scope",
+    "asOf": "2026-08-10",
+    "authority": "guide/capabilities.md",
+    "reason": "These entries describe boundaries of this local asset demo, not current platform GAP rows."
+  },
   "notClaiming": [
     "private files or per-user sharing",
     "non-image uploads",

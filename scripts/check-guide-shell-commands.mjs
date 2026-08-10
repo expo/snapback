@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// issues/20260808-guide-shell-and-cli-examples-unverified: advisory checker
+// issues/20260808-guide-shell-and-cli-examples-unverified: strict checker
 // binding documented `snapback <subcommand>` spellings to the real CLI
 // surface.
 //
@@ -30,23 +30,27 @@
 // the control-catalog generator rather than from a fence.
 //
 // Validation depth and limitations:
-//   - the first token after `snapback` is always validated; the second token
-//     is validated only when the first names a command with registered
-//     subcommands (e.g. `store export`, `agent setup`) — commands whose
-//     first positional is free-form (`guide <query>`, `run <function>`,
-//     `generate <dir>`) are never second-token-checked;
-//   - third-level verbs (`backup create plan`, `hosted lifecycle <verb>`)
-//     are not validated;
-//   - flags are not validated;
+//   - registered command paths are validated recursively, including third-
+//     level verbs (`backup create plan`, `hosted lifecycle <verb>`); commands
+//     whose next token is a free-form positional stop at their registered
+//     path;
+//   - flags are checked against the union of packaged usage/dispatch spellings
+//     and native Clap `long` declarations. This rejects nonexistent flags but
+//     deliberately does not claim command-specific flag placement;
 //   - inline code spans in prose are not scanned (fences only), and
 //     backslash-continuation lines are treated as new lines, so a command
 //     split immediately after `snapback \` would be missed;
 //   - commented-out lines inside fences are skipped.
 //
-// Why warning-only: this is a standalone advisory harvest tool. It is
-// deliberately NOT wired into check-guide, check-inventories, CI, or hooks;
-// the orchestrator decides wiring. Exit 0 always by default; `--strict`
-// exits 1 when findings exist. Exit 2 = the check itself could not run.
+// Publication and starter facts are also source-bound: exact @expo/snapback-*
+// versions in shell examples must equal guide/published-closure.json's newest
+// published version, and non-global install commands must use the package
+// manager declared by every packaged template.
+//
+// Exceptions use fence attributes, never prose convention:
+//   ```sh shell-check=skip class="credentialed" reason="operator-only example"
+// Both class and reason are mandatory and the fence remains structurally
+// inspected for a well-formed exception, but its commands are not validated.
 //
 // Placeholders: tokens spelled `<like-this>`, `$VARS`, or listed in
 // ALLOWED_FIRST_TOKENS below are treated as legitimate illustrative
@@ -65,6 +69,8 @@ const PACKAGED_CLI_PATH = join(ROOT, 'packages', 'snapback-cli', 'index.mjs');
 const NATIVE_CLI_PATH = join(ROOT, 'src', 'cli.rs');
 const GUIDE_DIR = join(ROOT, 'guide');
 const GUIDE_FLAT_PATH = join(GUIDE_DIR, 'guide-flat.generated.md');
+const PUBLISHED_CLOSURE_PATH = join(GUIDE_DIR, 'published-closure.json');
+const TEMPLATE_DIR = join(ROOT, 'packages', 'snapback-cli', 'templates');
 const SKILL_PATHS = [
   join(ROOT, 'skills', 'snapback-authoring', 'SKILL.md'),
   join(ROOT, 'packages', 'snapback-cli', 'skills', 'snapback-authoring', 'SKILL.md'),
@@ -121,6 +127,39 @@ export function parsePackagedRegistry(source) {
   }
 
   return { top, paths };
+}
+
+/** Extract source-declared long flag spellings without executing the CLI. */
+export function parsePackagedFlags(source) {
+  return new Set([...source.matchAll(/--([a-z][a-z0-9-]*)/g)].map((match) => `--${match[1]}`));
+}
+
+/** Extract #[arg(long)] / #[arg(long = "...")] declarations from Clap source. */
+export function parseClapFlags(source) {
+  const flags = new Set(['--help', '--version']);
+  const lines = source.split('\n');
+  for (let index = 0; index < lines.length; index += 1) {
+    if (!lines[index].includes('#[arg(')) continue;
+    let attribute = lines[index].trim();
+    while (!attribute.includes(')]') && index + 1 < lines.length) {
+      index += 1;
+      attribute += lines[index].trim();
+    }
+    if (!/\blong\b/.test(attribute)) continue;
+    for (const alias of attribute.matchAll(/\bvisible_alias\s*=\s*"([a-z0-9-]+)"/g)) {
+      flags.add(`--${alias[1]}`);
+    }
+    const explicit = /\blong\s*=\s*"([a-z0-9-]+)"/.exec(attribute)?.[1];
+    if (explicit) {
+      flags.add(`--${explicit}`);
+      continue;
+    }
+    let fieldIndex = index + 1;
+    while (fieldIndex < lines.length && /^(\s*#|\s*\/\/|\s*$)/.test(lines[fieldIndex])) fieldIndex += 1;
+    const field = /\b(?:pub\s+)?([a-z][a-z0-9_]*)\s*:/.exec(lines[fieldIndex] ?? '')?.[1];
+    if (field) flags.add(`--${field.replaceAll('_', '-')}`);
+  }
+  return flags;
 }
 
 /**
@@ -204,7 +243,7 @@ export function parseClapTree(source) {
   return { enums, structNested, topEnumName };
 }
 
-/** Compose both truth sources into { topLevel: Set, children: Map<name, Set> }. */
+/** Compose both truth sources into a recursive command path and flag surface. */
 export function buildCommandSurface() {
   const packagedSource = readFileSync(PACKAGED_CLI_PATH, 'utf8');
   const nativeSource = readFileSync(NATIVE_CLI_PATH, 'utf8');
@@ -220,29 +259,86 @@ export function buildCommandSurface() {
   }
 
   const topLevel = new Set(packaged.top);
-  const children = new Map();
-  const addChild = (parent, child) => {
-    if (!children.has(parent)) children.set(parent, new Set(['help']));
-    children.get(parent).add(child);
+  const pathChildren = new Map();
+  const addPath = (path) => {
+    for (let index = 1; index < path.length; index += 1) {
+      const parent = path.slice(0, index).join(' ');
+      if (!pathChildren.has(parent)) pathChildren.set(parent, new Set(['help']));
+      pathChildren.get(parent).add(path[index]);
+    }
   };
 
-  for (const variant of clap.enums.get(clap.topEnumName)) {
-    topLevel.add(variant.cliName);
-    const nestedEnum = variant.nestedType ?? (variant.tupleType ? clap.structNested.get(variant.tupleType) : null);
-    if (nestedEnum && clap.enums.has(nestedEnum)) {
-      for (const child of clap.enums.get(nestedEnum)) addChild(variant.cliName, child.cliName);
+  const visitClap = (enumName, prefix = [], visited = new Set()) => {
+    const visitKey = `${enumName}:${prefix.join(' ')}`;
+    if (visited.has(visitKey)) return;
+    visited.add(visitKey);
+    for (const variant of clap.enums.get(enumName) ?? []) {
+      const path = [...prefix, variant.cliName];
+      topLevel.add(path[0]);
+      addPath(path);
+      const nestedEnum = variant.nestedType ?? (variant.tupleType ? clap.structNested.get(variant.tupleType) : null);
+      if (nestedEnum && clap.enums.has(nestedEnum)) visitClap(nestedEnum, path, visited);
     }
-  }
+  };
+  visitClap(clap.topEnumName);
   for (const path of packaged.paths) {
     topLevel.add(path[0]);
-    if (path.length >= 2) addChild(path[0], path[1]);
+    addPath(path);
   }
   topLevel.add('help'); // clap's implicit help subcommand
 
-  if (topLevel.size < 25 || !topLevel.has('dev') || !children.get('store')?.has('export')) {
+  const flags = new Set([
+    ...parsePackagedFlags(packagedSource),
+    ...parseClapFlags(nativeSource),
+  ]);
+
+  if (
+    topLevel.size < 25 || !topLevel.has('dev') ||
+    !pathChildren.get('store')?.has('export') ||
+    !pathChildren.get('backup create')?.has('plan') ||
+    flags.size < 50 || !flags.has('--json')
+  ) {
     abort('composed CLI surface failed sanity spot-checks (size, dev, store export) — parser drift');
   }
-  return { topLevel, children };
+  return { topLevel, pathChildren, flags };
+}
+
+export function loadSourceFacts() {
+  let closure;
+  try {
+    closure = JSON.parse(readFileSync(PUBLISHED_CLOSURE_PATH, 'utf8'));
+  } catch (error) {
+    abort(`could not read ${PUBLISHED_CLOSURE_PATH}: ${error.message}`);
+  }
+  if (
+    closure?.schemaVersion !== 'snapback-published-closure.v1' ||
+    !/^\d+\.\d+\.\d+$/.test(closure?.newestPublished ?? '')
+  ) {
+    abort(`${PUBLISHED_CLOSURE_PATH} does not carry a valid newestPublished version`);
+  }
+
+  const declarations = [];
+  for (const template of readdirSync(TEMPLATE_DIR).sort()) {
+    const packagePath = join(TEMPLATE_DIR, template, 'package.json');
+    if (!existsSync(packagePath)) continue;
+    const manifest = JSON.parse(readFileSync(packagePath, 'utf8'));
+    if (typeof manifest.packageManager !== 'string') {
+      abort(`${relative(ROOT, packagePath)} must declare packageManager`);
+    }
+    declarations.push({ template, packageManager: manifest.packageManager });
+  }
+  const packageManagers = new Set(declarations.map(({ packageManager }) => packageManager));
+  if (declarations.length < 3 || packageManagers.size !== 1) {
+    abort(`template packageManager declarations disagree: ${[...packageManagers].join(', ')}`);
+  }
+  const packageManager = declarations[0].packageManager;
+  const match = /^([a-z][a-z0-9-]*)@(\d+\.\d+\.\d+)$/.exec(packageManager);
+  if (!match) abort(`template packageManager must be an exact name@version declaration: ${packageManager}`);
+  return {
+    newestPublished: closure.newestPublished,
+    packageManager: match[1],
+    packageManagerVersion: match[2],
+  };
 }
 
 function listScanFiles() {
@@ -285,8 +381,12 @@ function invocationsInLine(line) {
   return found;
 }
 
-export function auditFiles({ commandSurface = buildCommandSurface(), files = null } = {}) {
-  const { topLevel, children } = commandSurface;
+export function auditFiles({
+  commandSurface = buildCommandSurface(),
+  sourceFacts = loadSourceFacts(),
+  files = null,
+} = {}) {
+  const { topLevel, pathChildren, flags } = commandSurface;
   const findings = [];
   const seen = new Set();
   let invocationCount = 0;
@@ -301,13 +401,30 @@ export function auditFiles({ commandSurface = buildCommandSurface(), files = nul
   for (const file of scanFiles) {
     const lines = readFileSync(file, 'utf8').split('\n');
     let fenceLang = null;
+    let fenceException = null;
     lines.forEach((line, index) => {
       const fence = /^\s*```(.*)$/.exec(line);
       if (fence) {
-        fenceLang = fenceLang === null ? (fence[1].trim().split(/\s+/)[0] || '') : null;
+        if (fenceLang === null) {
+          const info = fence[1].trim();
+          fenceLang = info.split(/\s+/)[0] || '';
+          if (/\bshell-check=skip\b/.test(info)) {
+            const cls = /\bclass="([^"]+)"/.exec(info)?.[1];
+            const reason = /\breason="([^"]+)"/.exec(info)?.[1];
+            if (!cls || !reason) {
+              addFinding(file, index + 1, 'invalid-exception', 'shell-check=skip requires class="..." and reason="..."', line);
+            } else {
+              fenceException = { class: cls, reason };
+            }
+          }
+        } else {
+          fenceLang = null;
+          fenceException = null;
+        }
         return;
       }
       if (fenceLang === null || !FENCE_LANGS.has(fenceLang)) return;
+      if (fenceException) return;
       for (const tokens of invocationsInLine(line)) {
         invocationCount += 1;
         const first = tokens[1];
@@ -321,15 +438,48 @@ export function auditFiles({ commandSurface = buildCommandSurface(), files = nul
           addFinding(file, index + 1, 'unknown-command', `snapback ${first}`, line);
           continue;
         }
-        const verbs = children.get(first);
-        const second = tokens[2];
-        if (
-          verbs && second !== undefined && !second.startsWith('-') &&
-          !PLACEHOLDER.test(second) && !second.includes('/') && !second.includes('.') &&
-          !verbs.has(second)
-        ) {
-          addFinding(file, index + 1, 'unknown-subcommand', `snapback ${first} ${second}`, line);
+        let path = first;
+        for (let tokenIndex = 2; pathChildren.has(path) && tokenIndex < tokens.length; tokenIndex += 1) {
+          const token = tokens[tokenIndex].replace(/[,)]$/, '');
+          if (token.startsWith('-') || PLACEHOLDER.test(token) || token.includes('/') || token.includes('.')) break;
+          if (!pathChildren.get(path).has(token)) {
+            addFinding(file, index + 1, 'unknown-subcommand', `snapback ${path} ${token}`, line);
+            break;
+          }
+          path = `${path} ${token}`;
         }
+        for (const token of tokens.slice(2)) {
+          if (!token.startsWith('--') || token === '--') continue;
+          const flag = token.split('=')[0].replace(/[,)]$/, '');
+          if (!flags.has(flag)) {
+            addFinding(file, index + 1, 'unknown-flag', flag, line);
+          }
+        }
+      }
+
+      for (const match of line.matchAll(/@expo\/snapback-[a-z0-9-]+@(latest|\d+\.\d+\.\d+)/g)) {
+        if (match[1] === 'latest') {
+          addFinding(file, index + 1, 'unbound-closure-version', match[0], line);
+        } else if (match[1] !== sourceFacts.newestPublished) {
+          addFinding(
+            file,
+            index + 1,
+            'stale-closure-version',
+            `${match[0]} (newest published: ${sourceFacts.newestPublished})`,
+            line,
+          );
+        }
+      }
+
+      const install = /^\s*(?:[$>]\s+)?(npm|pnpm|yarn|bun)\s+install\b(?!.*\s-g\b)/.exec(line);
+      if (install && install[1] !== sourceFacts.packageManager) {
+        addFinding(
+          file,
+          index + 1,
+          'package-manager-mismatch',
+          `${install[1]} install (templates declare ${sourceFacts.packageManager}@${sourceFacts.packageManagerVersion})`,
+          line,
+        );
       }
     });
   }
@@ -374,10 +524,11 @@ function main() {
       `scanned ${fileCount} file(s), ${invocationCount} snapback invocation(s) in shell fences; ` +
       `${findings.length} finding(s) ` +
       `(known CLI surface: ${commandSurface.topLevel.size} top-level commands, ` +
-      `${commandSurface.children.size} with validated subcommand verbs)`,
+      `${commandSurface.pathChildren.size} registered command paths, ` +
+      `${commandSurface.flags.size} source-declared flags)`,
     );
     if (findings.length > 0) {
-      log('advisory only: verify each spelling against `snapback --help` / the clap tree before editing docs');
+      log('repair each spelling or add a classed, reasoned shell-check exception');
     }
   }
 

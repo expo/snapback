@@ -67,6 +67,12 @@
     "sender-constrained browser credentials; bearer v1 remains explicitly XSS-exposed under LLP 0060",
     "complete game rules and UI"
   ],
+  "capabilityGapsBoundary": {
+    "status": "current-demo-scope",
+    "asOf": "2026-08-10",
+    "authority": "guide/capabilities.md",
+    "reason": "These entries describe capabilities this sessions witness does not exercise or claim, not current platform GAP rows."
+  },
   "notClaiming": [
     "protection from a hostile client that already possesses retained bytes or client-side encryption at rest",
     "the full permission-changing ACL and protected-room kick trace from LLP 0053",

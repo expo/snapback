@@ -1,6 +1,6 @@
 # guide-gap: agents cannot reliably select or interpret the demo portfolio
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 3
@@ -72,3 +72,10 @@ README/catalog contract, inventory-check coverage of catalog joins, and
 capability-contradiction detection. New observation: the crud-dashboard
 and media-feed templates (landed 2026-08-08, after the lane's scope froze)
 still lack READMEs.
+
+## Resolution — 2026-08-10
+
+The remainder landed: machine-checkable README/catalog contract, the
+inventory-check catalog joins (26/26 demos joined), capability-contradiction
+detection, and the crud-dashboard + media-feed READMEs. Demo inventory
+fixture suite 3/3.

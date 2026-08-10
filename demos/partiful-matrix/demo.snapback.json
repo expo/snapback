@@ -98,6 +98,12 @@
     "Exact Native iOS and Android Parity profiles remain pending",
     "hosted deployment and production authentication are outside this local comparison"
   ],
+  "capabilityGapsBoundary": {
+    "status": "current-demo-scope",
+    "asOf": "2026-08-10",
+    "authority": "guide/capabilities.md",
+    "reason": "These entries describe frozen matrix cells and comparison limits, not current platform GAP rows."
+  },
   "notClaiming": [
     "production auth, row-level security, or tenant isolation (personas are trusted local demo identities)",
     "equal realtime transports in the frozen matrix: polling is labeled in the Supabase, Convex, and SQLite cells; the two React-only direct follow-ups are partial evidence, not a completed cross-authoring matrix",

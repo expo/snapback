@@ -35,6 +35,19 @@ const runAll = flags.size === 0;
 const root = repoRoot();
 const preflightErrors = [];
 if (runAll || flags.has('--consistency')) {
+  // @ref LLP 0061#3-verification-snippets-that-ran — illustrative shell
+  // examples are source-bound to the packaged/Clap CLI, publication closure,
+  // and template package-manager authorities without executing the examples.
+  try {
+    execFileSync(
+      process.execPath,
+      [join(root, 'scripts/check-guide-shell-commands.mjs'), '--strict'],
+      { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+  } catch (error) {
+    const detail = `${error.stdout ?? ''}${error.stderr ?? ''}`.trim();
+    preflightErrors.push(`guide shell/CLI source binding failed${detail ? `:\n${detail}` : ''}`);
+  }
   try {
     execFileSync(
       process.execPath,

@@ -19,3 +19,6 @@ The resource-scoped form uses the same declaration with a required
 take `membershipResource.arg("projectId")` or
 `membershipResource.rowField("projectId")`; codegen refuses a different
 nominal id target before emitting artifacts.
+
+Not claiming: directly readable roster rows, role hierarchies,
+retained/offline membership reads, or hosted/multi-replica RBAC.

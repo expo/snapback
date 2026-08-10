@@ -1664,6 +1664,44 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/remediation.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.live-wire-replay-seam.v1.json',
+    profileFilename: 'sessions-custody-offline-queue-profiles.v1.json',
+    workloadVersion: 'live-wire-replay-seam.2026-08-10.v1',
+    profileIds: Object.freeze(['react-external']),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.lease-custody-and-remediation.v1.json',
+        profileIds: Object.freeze(['react-external']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-10',
+      landing: '3c0bec2d3e2dd24fe1f103bf5e67a049398260b1',
+      classification: 'ratify compressed-output-only drift',
+      fix: 'The live-wire fixture replay lane extracted a shared '
+        + 'live-wire-core seam from the client entry; minified and gzip '
+        + 'bytes are unchanged on react-external while Brotli shifts by '
+        + 'five bytes from content reordering. No new module enters the '
+        + 'React closure (the replay module is test-only).',
+      ticket: 'issues/20260808-integration-coverage-gaps.md',
+      standingPolicy: 'LLP 0145 Phase A, 2026-08-10 author ruling: attributed '
+        + 'growth from a landed, receipted fix takes an automatic blessed rollover.',
+      byteDeltas: 'react-external brotli 28483 -> 28488 (+5); minified and '
+        + 'gzip unchanged.',
+      summary: 'Advance only react-external Brotli for the landed replay-seam '
+        + 'content shift; every other ceiling and the predecessor remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze(['react-external']),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {

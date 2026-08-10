@@ -81,6 +81,12 @@
     "ephemeral_multi_instance_sticky_routing",
     "external_auth"
   ],
+  "capabilityGapsBoundary": {
+    "status": "current-demo-scope",
+    "asOf": "2026-08-10",
+    "authority": "guide/capabilities.md",
+    "reason": "These entries describe capabilities this web-presence demo does not exercise or claim, not current platform GAP rows."
+  },
   "notClaiming": [
     "durable drawing or stroke storage",
     "native app surface",

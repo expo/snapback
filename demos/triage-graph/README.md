@@ -23,3 +23,6 @@ Run the demo checks with `npm test --prefix demos/triage-graph`; run the full
 workload and retained receipt with
 `node tests/acceptance/triage-graph-move1-v1.mjs` and verify it later with
 `node tests/acceptance/triage-graph-move1-v1.mjs --check`.
+
+Not claiming: Fleet exit, snapshot-batch retained execution, public durable-
+registration authoring, or any capability/LLP status change.

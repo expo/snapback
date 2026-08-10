@@ -76,11 +76,13 @@ export {
   writeComparatorReceipt,
 } from './comparator-profile.mjs';
 export {
+  CLOUDFLARE_ACCEPTANCE_SCHEMA_VERSION,
   VERIFY_CONFIG_SCHEMA_VERSION,
   VERIFY_RECEIPT_SCHEMA_VERSION,
   VERIFY_STAGE_IDS,
   aggregateConformance,
   defaultVerifyConfig,
+  defineCloudflareVerifyProfile,
   defineStarterVerifyProfile,
   defineVerifyConfig,
   loadVerifyConfig,
@@ -92,6 +94,7 @@ export {
   writeVerifyReceipt,
 } from './verify.mjs';
 export type {
+  CloudflareVerifyProfileOptions,
   StarterVerifyProfileOptions,
   VerifyConfig,
   VerifyConformanceReport,

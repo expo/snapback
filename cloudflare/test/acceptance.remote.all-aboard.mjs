@@ -12,6 +12,7 @@
 // alarm runner (a full 60s scheduled cycle), eviction surrogate, and
 // key-redaction of every surfaced diagnostic. Expect ~3 minutes of runtime —
 // most of it waiting out one real warm-poll cadence.
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import { cloudflareClientOptions } from '../client-options.mjs';
@@ -23,7 +24,8 @@ if (!BASE || !ADMIN_TOKEN) {
   console.error('SNAPBACK_PROOF_URL and SNAPBACK_ADMIN_TOKEN are required');
   process.exit(2);
 }
-const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url), 'utf8'));
+const seedBytes = fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url));
+const seed = JSON.parse(seedBytes.toString('utf8'));
 const schemaManifest = JSON.parse(
   fs.readFileSync(new URL('../../demos/all-aboard/snapback/generated/schema.manifest.json', import.meta.url), 'utf8')
 );
@@ -402,6 +404,41 @@ async function main() {
   }
   console.log(`\nremote all-aboard acceptance against ${BASE}: ${checks}/${EXPECTED_CHECKS} checks passed`);
   console.log(JSON.stringify({ base: BASE, coldStartMs: coldMs, evidence }, null, 2));
+  const dataIdentity = `sha256:${createHash('sha256').update(JSON.stringify({
+    appId: schemaManifest.appId,
+    configGeneration: config.generation,
+    liveVersion: live.version,
+    feedVersion: feedLive.version,
+    scheduledRunId: scheduledRun?.runId ?? null,
+  })).digest('hex')}`;
+  // The final single line is the bounded machine contract consumed by
+  // defineCloudflareVerifyProfile. Human TAP-like output above is not proof.
+  // @ref LLP 0146#d2-snapback-verify--the-done-oracle — bind remote
+  // acceptance to the admitted artifact and observed target/data identity.
+  console.log(JSON.stringify({
+    schemaVersion: 'snapback.cloudflare-acceptance.v1',
+    status: evidence.some(({ skipped }) => skipped) ? 'passed-with-nonclaims' : 'passed',
+    expectedCheckCount: EXPECTED_CHECKS,
+    executedCheckCount: checks,
+    checks: evidence.map(({ label, detail, skipped }) => ({
+      label,
+      detail,
+      status: skipped ? 'skipped' : 'passed',
+    })),
+    target: {
+      origin: BASE,
+      platformBuildId: platformManifest.buildId,
+      configGeneration: config.generation,
+    },
+    artifact: {
+      appId: schemaManifest.appId,
+      schemaHash: schemaManifest.schemaHash,
+      bundleHash: functionsManifest.bundleHash,
+    },
+    dataIdentity,
+    seedIdentity: `sha256:${createHash('sha256').update(seedBytes).digest('hex')}`,
+    diagnostic: null,
+  }));
 }
 
 main().catch((error) => {

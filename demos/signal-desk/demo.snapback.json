@@ -96,6 +96,12 @@
     "production identity parity in this demo",
     "browser acceptance evidence in this run because the in-app browser connector failed before session setup"
   ],
+  "capabilityGapsBoundary": {
+    "status": "current-demo-scope",
+    "asOf": "2026-08-10",
+    "authority": "guide/capabilities.md",
+    "reason": "These entries describe boundaries of this dated comparison run, not current platform GAP rows."
+  },
   "notClaiming": [
     "throughput, latency, cost, or scale benchmark results",
     "production auth or authorization parity",

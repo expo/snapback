@@ -7,7 +7,13 @@ verification, Diagnostics, Schema and storage, Live queries, Developer
 experience
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-08 (D2 trust-seam amendment: the conventional
+**Revised:** 2026-08-10 (D2 Cloudflare adapter implementation: the
+package-owned `defineCloudflareVerifyProfile` executes a bounded remote runner,
+requires `snapback.cloudflare-acceptance.v1`, binds its app/schema/bundle facts
+to the regenerated artifact, and carries observed target/data identities into
+the verify receipt. The existing All Aboard remote runner now emits that
+machine contract. The adapter is unit-qualified; no credentialed live
+Cloudflare run was performed in this implementation lane.) 2026-08-08 (D2 trust-seam amendment: the conventional
 `snapback.verify.config.mjs` is auto-discovered from the invoking cwd; a
 zero-profile success is machine-distinct as `passed-without-acceptance`;
 profile execution has bounded CLI/env/profile timeout policy; non-local
@@ -573,8 +579,10 @@ That skip does not establish readiness for the remote runtime, and no hosted
 capability claim may treat it as doing so. Registered profiles have a bounded
 five-minute default, overridable per profile, by CLI, or by the documented
 environment setting; expiration fails with
-`SNAPBACK_VERIFY_PROFILE_TIMEOUT`. A target-specific Cloudflare acceptance
-adapter remains a separate unbuilt requirement.
+`SNAPBACK_VERIFY_PROFILE_TIMEOUT`. The target-specific Cloudflare adapter runs
+a bounded receipt-producing remote profile and binds its admitted artifact
+hashes plus observed target/data identities. Its unit proof does not substitute
+for a credentialed run against the deployment being claimed.
 
 Two boundaries. Application test execution stays in the CLI orchestrator,
 not inside the server, in v0. And `verify` proves "platform-ready under the

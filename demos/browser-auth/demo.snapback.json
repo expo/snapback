@@ -49,6 +49,12 @@
     "production challenge delivery and an admitted hosted auth target",
     "a platform-owned verified issuer/subject projection or privileged provisioning API"
   ],
+  "capabilityGapsBoundary": {
+    "status": "current-demo-scope",
+    "asOf": "2026-08-10",
+    "authority": "guide/capabilities.md",
+    "reason": "These entries describe capabilities this local witness does not exercise or claim, not current platform GAP rows."
+  },
   "notClaiming": [
     "a shared identity broker, generic OIDC implementation, or first-party provider integration",
     "hosted or production-ready authentication",

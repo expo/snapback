@@ -122,6 +122,12 @@
     "react_adapter",
     "ephemeral_hosted_adapter"
   ],
+  "capabilityGapsBoundary": {
+    "status": "frozen",
+    "asOf": "2026-03-31",
+    "authority": "guide/capabilities.md",
+    "reason": "Frozen snapback.v0 demo-scoping record; entries are historical demo nonclaims and may contradict current platform maturity."
+  },
   "capabilityGapsNote": "Frozen at demo-scoping time (2026-Q1, snapback.v0): entries record what this demo does not exercise, not current platform capability. Several have since shipped or partially shipped — react_adapter (clients.react shipped), assets (backend.assets partial), notifications (backend.expo-push-seam shipped; first-class backend.notifications remains a GAP), external_auth (auth.external-identity-broker partial). guide/capabilities.md is the current capability truth.",
   "notClaiming": [
     "offline-first / local handler replay (this is an Online-class integration)",

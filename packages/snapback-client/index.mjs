@@ -48,6 +48,7 @@ import { readInlineBootPayload as readInlineBootPayloadForRegistration } from '.
 import {
   deriveLegacyResumeAnswerV1,
 } from './answer-classes.mjs';
+import { applyLiveDeltaById, durableVersionAdvances } from './live-wire-core.mjs';
 export { parseSearchQueryV1, search } from './search.mjs';
 export { SnapbackCommandClient, createCommandClient } from './commands.mjs';
 export {
@@ -10807,10 +10808,10 @@ export class SnapbackClient {
       }
       if (update.kind === LIVE_DURABLE_KINDS.LIVE_REPLACE) {
         // Updates for a superseded (pre-resubscribe) subscription id are
-        // ignored; versions are non-decreasing per subscription (the global
+        // ignored; versions strictly increase per subscription (the global
         // durable commit version assigned at fan-out).
         if (update.subscription_id !== handle.subscriptionId) return;
-        if (typeof update.version === 'number' && update.version < handle.version) return;
+        if (!durableVersionAdvances(handle.version, update.version)) return;
         if (authorizationFaulted) return;
         if (authorizationFence) {
           try {
@@ -10886,21 +10887,14 @@ export class SnapbackClient {
         // DK-3 op-log delta (LLP 0008 §Decision DK-3): the server sends only
         // the rows that entered/left/changed this subscription's result, for
         // the analyzable unordered subset. Apply by _id: add/update upsert,
-        // remove drops. Same subscription-id and version-non-decreasing guards
+        // remove drops. Same subscription-id and strictly-newer version guards
         // as live_replace. Unordered by contract (ordered queries fall back to
         // live_replace), so preserving existing order and appending new rows is
         // correct.
         if (update.subscription_id !== handle.subscriptionId) return;
-        if (typeof update.version === 'number' && update.version < handle.version) return;
+        if (!durableVersionAdvances(handle.version, update.version)) return;
         if (authorizationFaulted) return;
-        const byId = new Map(
-          (Array.isArray(handle.rows) ? handle.rows : []).map((row) => [row?._id, row]),
-        );
-        for (const op of update.ops ?? []) {
-          if (op.op === 'remove') byId.delete(op.id);
-          else if (op.op === 'add' || op.op === 'update') byId.set(op.id, op.row);
-        }
-        const nextRows = [...byId.values()];
+        const nextRows = applyLiveDeltaById(handle.rows, update.ops);
         if (authorizationFence) {
           try {
             authorizationFence.applyLiveSnapshot({

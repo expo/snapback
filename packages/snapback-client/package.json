@@ -45,6 +45,7 @@
     "ir-evaluator.mjs",
     "lease-convergence.d.mts",
     "lease-convergence.mjs",
+    "live-wire-core.mjs",
     "local-read-admission.d.mts",
     "local-read-admission.mjs",
     "materialization-store.d.mts",

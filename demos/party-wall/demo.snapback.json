@@ -67,6 +67,12 @@
     "sessions-mode servers require the auth-client protocol header on every request, including public-immutable and signed URLs — public links are not yet plain-pasteable",
     "no operator verb drives the reference-GC sweep deterministically; the suite proves the edge-cleared state via explicit delete instead"
   ],
+  "capabilityGapsBoundary": {
+    "status": "current-demo-scope",
+    "asOf": "2026-08-10",
+    "authority": "guide/capabilities.md",
+    "reason": "These entries describe boundaries of this local asset consumer, not current platform GAP rows."
+  },
   "notClaiming": [
     "hosted target support (local-dev only)",
     "video walls (photo intents only; video finalization exists but is not exercised here)",

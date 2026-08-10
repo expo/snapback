@@ -34,6 +34,7 @@ export const VERIFY_CONFIG_SCHEMA_VERSION = 'snapback.verify-config.v1';
 export const VERIFY_RECEIPT_SCHEMA_VERSION = 'snapback.verify-receipt.v1';
 export const VERIFY_CONFIG_CONVENTION = 'snapback.verify.config.mjs';
 export const DEFAULT_VERIFY_PROFILE_TIMEOUT_MS = 300_000;
+export const CLOUDFLARE_ACCEPTANCE_SCHEMA_VERSION = 'snapback.cloudflare-acceptance.v1';
 
 export const VERIFY_STAGE_IDS = Object.freeze([
   'artifact-freshness',
@@ -388,6 +389,240 @@ export function defineStarterVerifyProfile({
         identityContext: context.identityContext,
         paths: normalizedPaths,
         timeoutMs,
+      });
+    },
+  });
+}
+
+function redactSecret(value, secret) {
+  const text = String(value ?? '');
+  return typeof secret === 'string' && secret.length > 0
+    ? text.replaceAll(secret, '[redacted]')
+    : text;
+}
+
+function normalizedRemoteOrigin(value) {
+  const parsed = new URL(value);
+  assert(
+    parsed.protocol === 'https:' || parsed.protocol === 'http:',
+    'Cloudflare proof URL must use http or https',
+  );
+  return parsed.href.replace(/\/$/u, '');
+}
+
+async function runCloudflareAcceptanceProfile({
+  acceptanceFile,
+  proofUrl,
+  adminToken,
+  artifact,
+  identityContext,
+  paths,
+  timeoutMs,
+  expectedCheckCount,
+}) {
+  const effectiveProofUrl = proofUrl ?? process.env.SNAPBACK_PROOF_URL ?? '';
+  const effectiveAdminToken = adminToken ?? process.env.SNAPBACK_ADMIN_TOKEN ?? '';
+  if (effectiveProofUrl.length === 0 || effectiveAdminToken.length === 0) {
+    return Object.freeze({
+      ok: false,
+      context: identityContext,
+      conformance: Object.freeze(unsupportedConformance(paths)),
+      diagnostics: Object.freeze([diagnostic(
+        'SNAPBACK_VERIFY_CLOUDFLARE_CREDENTIALS_MISSING',
+        'Cloudflare acceptance requires SNAPBACK_PROOF_URL and SNAPBACK_ADMIN_TOKEN',
+        { missingProofUrl: effectiveProofUrl.length === 0, missingAdminToken: effectiveAdminToken.length === 0 },
+      )]),
+    });
+  }
+
+  let origin;
+  try {
+    origin = normalizedRemoteOrigin(effectiveProofUrl);
+  } catch (error) {
+    return Object.freeze({
+      ok: false,
+      context: identityContext,
+      conformance: Object.freeze(unsupportedConformance(paths)),
+      diagnostics: Object.freeze([diagnostic(
+        'SNAPBACK_VERIFY_CLOUDFLARE_PROOF_URL_INVALID',
+        'Cloudflare acceptance proof URL is invalid',
+        foreignCauseDetails(error),
+      )]),
+    });
+  }
+
+  const child = spawn(process.execPath, [acceptanceFile], {
+    cwd: dirname(acceptanceFile),
+    env: {
+      ...process.env,
+      SNAPBACK_PROOF_URL: origin,
+      SNAPBACK_ADMIN_TOKEN: effectiveAdminToken,
+      SNAPBACK_VERIFY_PROFILE: 'cloudflare-acceptance',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  let stderr = '';
+  let overflow = false;
+  let timedOut = false;
+  let killTimeout = null;
+  const append = (current, chunk) => {
+    const next = `${current}${chunk.toString('utf8')}`;
+    if (Buffer.byteLength(next) > STARTER_ACCEPTANCE_MAX_OUTPUT_BYTES) {
+      overflow = true;
+      child.kill('SIGTERM');
+      return next.slice(-STARTER_ACCEPTANCE_MAX_OUTPUT_BYTES);
+    }
+    return next;
+  };
+  child.stdout.on('data', (chunk) => { stdout = append(stdout, chunk); });
+  child.stderr.on('data', (chunk) => { stderr = append(stderr, chunk); });
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    child.kill('SIGTERM');
+    killTimeout = setTimeout(() => child.kill('SIGKILL'), 5_000);
+  }, timeoutMs);
+  const exit = await new Promise((resolveExit) => {
+    child.once('error', (error) => resolveExit({ code: null, signal: null, error }));
+    child.once('close', (code, signal) => resolveExit({ code, signal, error: null }));
+  });
+  clearTimeout(timeout);
+  if (killTimeout !== null) clearTimeout(killTimeout);
+
+  let receipt = null;
+  for (const line of stdout.trim().split('\n').reverse()) {
+    try {
+      const candidate = JSON.parse(line);
+      if (candidate?.schemaVersion === CLOUDFLARE_ACCEPTANCE_SCHEMA_VERSION) {
+        receipt = candidate;
+        break;
+      }
+    } catch {
+      // Only the final single-line machine receipt is evidence. Human output
+      // from the remote runner is intentionally ignored.
+    }
+  }
+  const expectedArtifact = artifact?.identity ?? {};
+  const checks = Array.isArray(receipt?.checks) ? receipt.checks : [];
+  let receiptOrigin = null;
+  try {
+    receiptOrigin = normalizedRemoteOrigin(receipt?.target?.origin ?? '');
+  } catch {
+    // An absent or malformed observed origin makes the receipt incomplete.
+  }
+  const receiptComplete = ['passed', 'passed-with-nonclaims'].includes(receipt?.status)
+    && receipt?.expectedCheckCount === expectedCheckCount
+    && receipt?.executedCheckCount === expectedCheckCount
+    && checks.length === expectedCheckCount
+    && checks.every((check) => check?.status === 'passed' || check?.status === 'skipped')
+    && checks.some((check) => check?.status === 'passed')
+    && receiptOrigin === origin
+    && typeof receipt?.target?.platformBuildId === 'string'
+    && receipt.target.platformBuildId.length > 0
+    && receipt?.artifact?.appId === expectedArtifact.appId
+    && receipt?.artifact?.schemaHash === expectedArtifact.schemaHash
+    && receipt?.artifact?.bundleHash === expectedArtifact.bundleHash
+    && /^sha256:[0-9a-f]{64}$/u.test(receipt?.dataIdentity ?? '')
+    && /^sha256:[0-9a-f]{64}$/u.test(receipt?.seedIdentity ?? '')
+    && receipt?.diagnostic === null;
+  const ok = !overflow && !timedOut && exit.error === null && exit.code === 0 && receiptComplete;
+  const diagnosticCode = overflow
+    ? 'SNAPBACK_VERIFY_CLOUDFLARE_ACCEPTANCE_OUTPUT_LIMIT'
+    : timedOut
+      ? 'SNAPBACK_VERIFY_CLOUDFLARE_ACCEPTANCE_TIMEOUT'
+      : 'SNAPBACK_VERIFY_CLOUDFLARE_ACCEPTANCE_FAILED';
+  const diagnostics = ok
+    ? checks.some(({ status }) => status === 'skipped')
+      ? [diagnostic(
+          'SNAPBACK_VERIFY_CLOUDFLARE_ACCEPTANCE_NONCLAIM',
+          'Cloudflare acceptance passed with one or more explicit external-provider nonclaims',
+          { skippedChecks: checks.filter(({ status }) => status === 'skipped').map(({ label }) => label) },
+          'warning',
+        )]
+      : []
+    : [diagnostic(
+        diagnosticCode,
+        overflow
+          ? 'Cloudflare acceptance exceeded the bounded output limit'
+          : timedOut
+            ? `Cloudflare acceptance exceeded its ${timeoutMs}ms timeout`
+            : `Cloudflare acceptance exited ${exit.code ?? exit.signal ?? 'without a status'} or returned an incomplete receipt`,
+        {
+          acceptanceFile,
+          origin,
+          exitCode: exit.code,
+          signal: exit.signal,
+          receiptStatus: receipt?.status ?? null,
+          expectedCheckCount,
+          executedCheckCount: receipt?.executedCheckCount ?? null,
+          ...(typeof exit.error?.code === 'string' ? { causeCode: exit.error.code } : {}),
+          stderr: redactSecret(stderr.slice(-16_384), effectiveAdminToken),
+        },
+      )];
+  const context = ok
+    ? normalizeContext({
+        ...identityContext,
+        target: {
+          kind: 'cloudflare-deployment',
+          identity: `${origin}#${receipt.target.platformBuildId}`,
+        },
+        data: { kind: 'cloudflare-live-observation', identity: receipt.dataIdentity },
+        seed: { kind: 'authored-seed-bytes', identity: receipt.seedIdentity },
+      })
+    : identityContext;
+  return Object.freeze({
+    ok,
+    context,
+    conformance: Object.freeze(unsupportedConformance(paths)),
+    diagnostics: Object.freeze(diagnostics),
+  });
+}
+
+// @ref LLP 0146#d2-snapback-verify--the-done-oracle — the non-local runtime
+// skip is not evidence; Cloudflare readiness comes from an explicit remote
+// profile whose receipt binds the admitted app hashes and observed target.
+export function defineCloudflareVerifyProfile({
+  id,
+  title = id,
+  acceptanceFile,
+  additionalTestFiles = [],
+  requiredCapabilities = [],
+  paths = [],
+  proofUrl = null,
+  adminToken = null,
+  expectedCheckCount = 22,
+  timeoutMs = DEFAULT_VERIFY_PROFILE_TIMEOUT_MS,
+}) {
+  assert(typeof id === 'string' && id.length > 0, 'Cloudflare profile id must be a non-empty string');
+  assert(typeof title === 'string' && title.length > 0, 'Cloudflare profile title must be a non-empty string');
+  assert(Number.isInteger(expectedCheckCount) && expectedCheckCount > 0, 'Cloudflare expectedCheckCount must be a positive integer');
+  assert(Number.isInteger(timeoutMs) && timeoutMs > 0, 'Cloudflare profile timeoutMs must be a positive integer');
+  assert(proofUrl === null || (typeof proofUrl === 'string' && proofUrl.length > 0), 'Cloudflare proofUrl must be null or a non-empty string');
+  assert(adminToken === null || (typeof adminToken === 'string' && adminToken.length > 0), 'Cloudflare adminToken must be null or a non-empty string');
+  const resolvedAcceptanceFile = resolveStarterAcceptanceFile(acceptanceFile);
+  const resolvedAdditionalTestFiles = additionalTestFiles.map((file) => resolveStarterAcceptanceFile(file));
+  const normalizedPaths = Object.freeze(paths.map((path, index) => normalizePath(path, id, index)));
+  assert(
+    normalizedPaths.every(({ targetProfileId }) => targetProfileId === 'cloudflare-do-sqlite-v8'),
+    'Cloudflare profile paths must target cloudflare-do-sqlite-v8',
+  );
+  return Object.freeze({
+    id,
+    title,
+    testFiles: Object.freeze([resolvedAcceptanceFile, ...resolvedAdditionalTestFiles]),
+    requiredCapabilities: Object.freeze([...requiredCapabilities]),
+    paths: normalizedPaths,
+    timeoutMs,
+    run(context) {
+      return runCloudflareAcceptanceProfile({
+        acceptanceFile: resolvedAcceptanceFile,
+        proofUrl,
+        adminToken,
+        artifact: context.artifact,
+        identityContext: context.identityContext,
+        paths: normalizedPaths,
+        timeoutMs,
+        expectedCheckCount,
       });
     },
   });

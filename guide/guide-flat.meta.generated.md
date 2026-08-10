@@ -131,6 +131,9 @@ read the manifest first and refuse to combine resources whose identities differ.
 [capability index](./capabilities.md) first — it lists everything Snapback
 has, including what this guide doesn't cover yet (explicit GAP rows), so
 you never build around a feature because you didn't know it existed.
+When an example is the fastest route, use the checked
+[demo catalog](repo:demos/README.md) to choose by client, target, maturity,
+proof command, and honest nonclaims without opening every demo.
 
 ## The map
 

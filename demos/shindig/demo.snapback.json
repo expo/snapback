@@ -74,6 +74,12 @@
     "hosted target support",
     "offline retention of membership-gated results"
   ],
+  "capabilityGapsBoundary": {
+    "status": "current-demo-scope",
+    "asOf": "2026-08-10",
+    "authority": "guide/capabilities.md",
+    "reason": "These entries describe capabilities this event demo does not exercise or claim, not current platform GAP rows."
+  },
   "notClaiming": [
     "sessions-mode auth (this demo runs the trusted-local dev mode with a persona switcher)",
     "guest-list secrecy between members (every member sees every RSVP)",

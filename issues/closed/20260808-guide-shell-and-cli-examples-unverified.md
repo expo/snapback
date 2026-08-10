@@ -1,6 +1,6 @@
 # guide: shell commands and CLI facts have no mechanical source of truth
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 3
@@ -69,3 +69,11 @@ file, which the same landing cleared. Remains: wiring (recommended:
 `--strict` in the scheduled backstop for an observation period, then
 promote into check-guide), plus the ticket's deeper asks — flag
 validation, version/package-manager binding, depth-3 subcommands.
+
+## Resolution — 2026-08-10
+
+The remaining enumerated work landed: `--strict` wired into the scheduled
+backstop and into check-guide, flag validation against the CLI registry and
+clap enums, `published-closure.json` version binding, and depth-3
+subcommand coverage. Guide shell fixture suite 4/4; check-guide green at
+116 pages / 1,202 snippets with the shell-command join active.

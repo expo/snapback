@@ -95,6 +95,12 @@
     "claim-eligible hosted React and Contract deployments",
     "a complete product UI for every still-red pressure"
   ],
+  "capabilityGapsBoundary": {
+    "status": "current-demo-scope",
+    "asOf": "2026-08-10",
+    "authority": "guide/capabilities.md",
+    "reason": "These entries describe red pressures outside this local checkpoint, not current platform GAP rows."
+  },
   "notClaiming": [
     "STEP6.CHAT completion",
     "sessions-mode or hosted authentication",

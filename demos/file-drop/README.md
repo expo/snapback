@@ -40,3 +40,6 @@ real Vite dev server on ephemeral ports, then proves relay health, the
 system-route refusal, mailbox sessions sign-in, typed upload to `ready`,
 typed attachment, the live gallery update over the relayed WebSocket, and
 public rendition delivery through the relay.
+
+Not claiming: private/per-user sharing, non-image uploads, or hosted asset
+storage. This is a local pipeline witness.

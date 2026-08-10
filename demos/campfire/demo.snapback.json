@@ -46,6 +46,12 @@
     "portable full-text search",
     "hosted deployment claims"
   ],
+  "capabilityGapsBoundary": {
+    "status": "current-demo-scope",
+    "asOf": "2026-08-10",
+    "authority": "guide/capabilities.md",
+    "reason": "These entries bound the rerun arm's scope and are not current platform GAP assertions."
+  },
   "notClaiming": [
     "any capability-class change (registered boot is startup consistency, not offline support)",
     "live search (LLP 0136 is design-only; full_text_search_v1 stays non-live)",

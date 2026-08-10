@@ -31,3 +31,6 @@ server-side verifier; do not move verification or secrets into the browser.
 The bridge still depends on the local email-code capture mailbox. Snapback has
 no production mail adapter and no admitted hosted browser-auth target, so this
 demo is product-shaped authoring evidence, not production-ready auth.
+
+Not claiming: a shared identity broker, hosted authentication, production
+challenge delivery, or sender-constrained browser custody.

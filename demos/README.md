@@ -1,25 +1,26 @@
 # Demo catalog
 
-**Hand-maintained.** This table is compiled by reading each
-`demos/*/demo.snapback.json` (the machine-readable demo manifest). The
-registered id inventory lives in `tests/demo_setup_v0.mjs`
-(`EXPECTED_DEMO_IDS`) and `scripts/check-inventories.mjs` enforces that every
-metadata-declared demo is registered — but nothing regenerates this table, so
-update it when you add, retire, or reshape a declared demo. (It would be
-trivial to script from the manifests if it drifts.)
+**Checked projection.** This table is compiled by reading each
+`demos/*/demo.snapback.json` (the machine-readable demo manifest). The uniform
+selection contract lives in [`catalog.v1.json`](./catalog.v1.json): purpose,
+clients, targets, maturity, canonical run/proof commands, expected evidence,
+and README contract/waiver status. `scripts/check-inventories.mjs` joins the
+registered IDs, manifests, this table, that structured catalog, README files,
+evidence paths, and `guide/capabilities.md`; add or reshape all affected records
+together.
 
 Directories without a `demo.snapback.json` (research arms, bakeoff harnesses,
 fixtures such as `zero-bakeoff/`, `zerobugs/`, `chat-matrix/`,
-`expo-golden-path-fixture/`, `signal-desk/`) are deliberately outside the
+`expo-golden-path-fixture/`) are deliberately outside the
 declared inventory; their own directories document them.
 
 Per-demo columns: what it demonstrates (from the manifest `description`),
 the declared surfaces with their requirement labels (each surface names its
 runner/proof command in the manifest), and whether a local README exists.
-Manifests also carry `capabilityGaps`/`notClaiming` — for the older floor
-demos those are frozen at scoping time (see each manifest's
-`capabilityGapsNote`); `guide/capabilities.md` is the current capability
-truth.
+Manifests also carry `capabilityGaps`/`notClaiming`. Every nonempty gap list has
+a dated `capabilityGapsBoundary`: `frozen` and `current-demo-scope` entries are
+explicit demo nonclaims, while `current-platform` entries must resolve to GAP
+rows in `guide/capabilities.md`, the current capability truth.
 
 | Demo | What it demonstrates | Surfaces (requirement) | README |
 | --- | --- | --- | --- |

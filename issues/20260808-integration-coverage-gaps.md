@@ -53,3 +53,19 @@ the server/CLI surface) and C (push delivery state-machine integration) are
 larger test programs, appropriately tracked here as follow-ups rather than folded
 into the bug-fix sweep. No code landed for this ticket in the sweep; it stays
 open.
+
+## Progress (2026-08-10)
+
+Part A now has a dedicated JavaScript lane that replays all `poll/local` and
+`live/local` judgments in the shared format-v3 corpus against the production
+client's extracted version/delta reducer and a test model of the surrounding
+request and lifecycle edges. The gate is registered in the canonical local
+proof and classified for client changes. Parts B and C remain open.
+
+## Dated note — 2026-08-10 (item A landed)
+
+Item A landed: a dedicated JS lane replays `schemas/live.wire-fixtures.v1.json`
+against the JS client (50 fixtures, 78 local judgments; suite 23/23),
+registered and classified in the local proof. Items B (black-box
+`src/fork_promotion.rs` coverage) and C (push delivery state-machine
+integration) remain open — this ticket stays open for them.

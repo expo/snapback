@@ -22,6 +22,7 @@ import {
   VERIFY_RECEIPT_SCHEMA_VERSION,
   aggregateConformance,
   defaultVerifyConfig,
+  defineCloudflareVerifyProfile,
   defineStarterVerifyProfile,
   discoverVerifyConfig,
   loadVerifyConfig,
@@ -202,6 +203,79 @@ let cases = 0;
     assert.equal(outcome.ok, false);
     assert.equal(outcome.diagnostics[0].code, 'SNAPBACK_VERIFY_STARTER_ACCEPTANCE_FAILED');
     cases += 1;
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+{
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-cloudflare-verify-profile-'));
+  const acceptanceFile = join(scratch, 'cloudflare-acceptance.mjs');
+  const digest = `sha256:${'a'.repeat(64)}`;
+  writeFileSync(acceptanceFile, `
+const receipt = {
+  schemaVersion: 'snapback.cloudflare-acceptance.v1',
+  status: 'passed-with-nonclaims',
+  expectedCheckCount: 2,
+  executedCheckCount: 2,
+  checks: [
+    { label: 'remote query', status: 'passed' },
+    { label: 'provider route', status: 'skipped' },
+  ],
+  target: { origin: process.env.SNAPBACK_PROOF_URL, platformBuildId: 'build-fixture-1' },
+  artifact: { appId: 'app', schemaHash: 'sha256:schema', bundleHash: 'sha256:bundle' },
+  dataIdentity: '${digest}',
+  seedIdentity: '${digest}',
+  diagnostic: null,
+};
+process.stdout.write('human output\\n' + JSON.stringify(receipt) + '\\n');
+`);
+  try {
+    const paths = [{
+      id: 'cloudflare-query',
+      kind: 'success',
+      targetProfileId: 'cloudflare-do-sqlite-v8',
+    }];
+    const cloudflare = defineCloudflareVerifyProfile({
+      id: 'cloudflare-all-aboard',
+      acceptanceFile,
+      additionalTestFiles: [thisFile],
+      proofUrl: 'https://proof.example.test/',
+      adminToken: 'test-secret-token',
+      expectedCheckCount: 2,
+      paths,
+    });
+    assert.deepEqual(cloudflare.testFiles, [realpathSync(acceptanceFile), thisFile]);
+    const outcome = await cloudflare.run({ artifact: artifact(), identityContext: config().context });
+    assert.equal(outcome.ok, true);
+    assert.equal(outcome.context.target.kind, 'cloudflare-deployment');
+    assert.equal(outcome.context.target.identity, 'https://proof.example.test#build-fixture-1');
+    assert.equal(outcome.context.data.identity, digest);
+    assert.equal(outcome.context.seed.identity, digest);
+    assert.equal(outcome.diagnostics[0].code, 'SNAPBACK_VERIFY_CLOUDFLARE_ACCEPTANCE_NONCLAIM');
+    assert.deepEqual(outcome.conformance.map(({ pathId }) => pathId), ['cloudflare-query']);
+    cases += 1;
+
+    const missingCredentials = defineCloudflareVerifyProfile({
+      id: 'cloudflare-missing-credentials',
+      acceptanceFile,
+      expectedCheckCount: 2,
+    });
+    const previousProofUrl = process.env.SNAPBACK_PROOF_URL;
+    const previousAdminToken = process.env.SNAPBACK_ADMIN_TOKEN;
+    delete process.env.SNAPBACK_PROOF_URL;
+    delete process.env.SNAPBACK_ADMIN_TOKEN;
+    try {
+      const refused = await missingCredentials.run({ artifact: artifact(), identityContext: config().context });
+      assert.equal(refused.ok, false);
+      assert.equal(refused.diagnostics[0].code, 'SNAPBACK_VERIFY_CLOUDFLARE_CREDENTIALS_MISSING');
+      cases += 1;
+    } finally {
+      if (previousProofUrl === undefined) delete process.env.SNAPBACK_PROOF_URL;
+      else process.env.SNAPBACK_PROOF_URL = previousProofUrl;
+      if (previousAdminToken === undefined) delete process.env.SNAPBACK_ADMIN_TOKEN;
+      else process.env.SNAPBACK_ADMIN_TOKEN = previousAdminToken;
+    }
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

@@ -175,6 +175,12 @@
     "postgres",
     "cloudflare"
   ],
+  "capabilityGapsBoundary": {
+    "status": "current-demo-scope",
+    "asOf": "2026-08-10",
+    "authority": "guide/capabilities.md",
+    "reason": "These entries describe capabilities this demo does not exercise or claim, not current platform GAP rows."
+  },
   "temporaryPolicy": {
     "auth": "anonymous read-only; no login",
     "feed": "refreshFeed polls 511.org SIRI StopMonitoring for Caltrain when SNAPBACK_OUTBOUND_ACTIONS and caltrainFeed config are present, writing liveDepartures for real predicted board rows; otherwise it advances recorded fallback ticks and records lastError; 180s warm-poll cadence with a transactional one-poll-per-180s upstream budget (claimFeedPoll) and a 390s LIVE-badge freshness window (ENG-23642)",

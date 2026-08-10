@@ -805,6 +805,15 @@
       ]
     },
     {
+      "id": "js-live-wire-conformance-test",
+      "groups": [
+        "client"
+      ],
+      "files": [
+        "tests/conformance/js-live-wire-fixtures-v1.mjs"
+      ]
+    },
+    {
       "id": "conformance-tests",
       "groups": [
         "publication",
@@ -968,6 +977,7 @@
       "gates": [
         "generated-artifacts",
         "guide-published-closure-fixtures",
+        "guide-shell-command-fixtures",
         "guide"
       ]
     },
@@ -1016,6 +1026,7 @@
         "package-export-types-fixtures",
         "package-readme-funnel",
         "client-errors",
+        "js-live-wire-fixtures",
         "live-wire-schema",
         "provenance-unit",
         "repo-layout-unit",
@@ -1183,6 +1194,7 @@
         "codegen-regressions",
         "current-binary-build",
         "current-binary-readiness",
+        "demo-catalog-fixtures",
         "demo-materialization",
         "demo-surfaces",
         "exact-all-aboard-install",

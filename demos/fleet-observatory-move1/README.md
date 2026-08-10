@@ -33,3 +33,6 @@ The trusted composition activation and dated workload receipt are produced by
 `tests/acceptance/fleet-observatory-move1-v1.mjs`. Re-verify the latest retained
 receipt with its `--check` mode. The evidence is input to a separate carrier-GAP
 closure commit; this demo does not flip that row or any capability claim.
+
+Not claiming: retained/offline snapshot-batch execution, hosted or
+public-package support, or a revision of the frozen predecessor evidence.
