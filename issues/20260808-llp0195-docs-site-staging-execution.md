@@ -1,6 +1,6 @@
 # LLP 0195 execution: staged docs-site generator (public publication author-gated)
 
-**Status:** Open — STAGED COMPLETE; D1–D4 RULED 2026-08-08 (below); publication execution underway
+**Status:** Open — D1 LIVE; D3 IN-REPO COMPLETE 2026-08-10; D2 + D3 REDEPLOY EXTERNALLY OWNED
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 3
@@ -196,3 +196,45 @@ redirect, root `/llms.txt`; deployed via `eas deploy --prod` (project
 therefore ruled-and-executed as snapback.expo.app; the earlier
 docs.snapback.dev recommendation and its Zone-token blocker are moot.
 Redeploy recipe: `website/README.md`.
+
+## D3 in-repo execution — 2026-08-10
+
+Implemented the ruled snapshot policy without performing a deployment.
+`scripts/generate-docs-site.mjs` now derives the canonical
+`/v/<closure>/` route from `guide/published-closure.json`, records the D3
+snapshot and `/latest/` alias contract in `site-manifest.json`, emits canonical
+page links for a snapshot build, and refuses a versioned `--base` that does not
+match the published closure. `website/scripts/assemble-docs.mjs` generates at
+that exact base, installs `public/v/<closure>/` once, refuses to change an
+existing snapshot's bytes, and refreshes `/latest/` plus the compatibility
+`/guide/` route as byte-for-byte aliases. `/docs/`, the product-page guide
+link, and root `/llms.txt` now enter through the D3 routing policy.
+
+Local proof on Node 24.18.0:
+
+- `node scripts/generate-docs-site.mjs --check --base /v/0.1.17/` — **PASS**
+  (two deterministic builds; 118 pages, 18,555 internal links/assets, 937
+  stable anchors).
+- `node website/scripts/assemble-docs.mjs --check` — **PASS**. The temporary
+  assembly proved exact `/latest/` and `/guide/` aliases and proved that a
+  changed same-version snapshot is refused.
+- Existing generator checks at `/` and `/guide/` — **PASS**; the version-base
+  increment did not regress either supported base.
+- `npm run assemble` twice — **PASS** (`installed`, then `reused` for the same
+  immutable snapshot); `npm run export` — **PASS**, with the version, latest,
+  guide, docs, and root-agent files present in the static Expo output. The
+  `deploy` script now runs the D3 check before assembly/export, but was not run.
+- `node scripts/check-guide.mjs`, `node scripts/check-inventories.mjs`, and
+  `./ref-check --verbose` — **PASS** (the Guide checker retained its 62
+  pre-existing warning-only authority-drift notices).
+
+The ticket remains open. The remaining externally owned steps are:
+
+1. **D2:** create the separate MIT-licensed `snapback-examples` repository with
+   the ruled provenance/NOTICE and generated-single-owner posture.
+2. **D3 publication:** run the real EAS Hosting production redeploy and verify
+   `/v/0.1.17/`, `/latest/`, `/guide/`, `/docs/`, and root `/llms.txt` on
+   `snapback.expo.app`. No deploy was attempted by this in-repo lane.
+
+D4 remains ruled as a gate, not an unfinished first-publication action:
+benchmarks stay excluded until LLP 0197's admission requirements pass.

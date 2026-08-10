@@ -36,6 +36,7 @@ const SITE_DIGEST_DOMAIN = `${SITE_SCHEMA}\0content\0`;
 const OUTPUT_DIRECTORY = 'docs-site-dist';
 const SITE_MANIFEST_PATH = 'site-manifest.json';
 const DEFAULT_PORT = 4173;
+const LATEST_ALIAS_PATH = '/latest/';
 const INTERNAL_STATIC_TARGETS = new Map([
   ['guide/frontmatter.schema.json', '/frontmatter.schema.json'],
   [PUBLISHED_CLOSURE_PATH, '/published-closure.json'],
@@ -113,6 +114,31 @@ function normalizeBasePath(raw) {
 function atBase(basePath, target) {
   if (!target.startsWith('/')) fail(`cannot apply base path to non-root target ${target}`);
   return basePath === '/' ? target : `${basePath.slice(0, -1)}${target}`;
+}
+
+function snapshotBasePath(closureVersion) {
+  if (!/^\d+\.\d+\.\d+$/u.test(closureVersion)) {
+    fail(`cannot derive a snapshot path from invalid closure version ${closureVersion}`);
+  }
+  return `/v/${closureVersion}/`;
+}
+
+function publicationRoutes(closureVersion, basePath) {
+  const snapshot = snapshotBasePath(closureVersion);
+  if (basePath.startsWith('/v/') && basePath !== snapshot) {
+    fail(
+      `versioned base ${basePath} does not match published closure ${closureVersion}; ` +
+      `expected ${snapshot}`,
+    );
+  }
+  return {
+    policy: 'immutable-closure-snapshot-with-latest-alias',
+    snapshot,
+    latestAlias: LATEST_ALIAS_PATH,
+    renderedBase: basePath,
+    canonicalBase: snapshot,
+    immutableSnapshot: basePath === snapshot,
+  };
 }
 
 function parseArgs(argv) {
@@ -570,6 +596,7 @@ function renderPage({
   routesById,
   binding,
   basePath,
+  canonicalBasePath,
 }) {
   const rendered = renderMarkdown(body, {
     sourcePath,
@@ -596,6 +623,10 @@ function renderPage({
   }
   const targetLabel = Array.isArray(page.targets) ? page.targets.join(', ') : 'unspecified';
   const navigation = renderNavigation(manifest, routesById, page.id);
+  const canonicalRoute = pageRoute(sourcePath, canonicalBasePath);
+  const canonicalLink = basePath === canonicalBasePath
+    ? `  <link rel="canonical" href="${escapeAttribute(canonicalRoute)}">\n`
+    : '';
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -605,7 +636,7 @@ function renderPage({
   <meta name="snapback-published-closure" content="${escapeAttribute(binding.closure.version)}">
   <meta name="snapback-guide-content-sha256" content="${escapeAttribute(binding.guide.contentDigest)}">
   <title>${escapeHtml(page.title)} · Snapback Guide</title>
-  <link rel="icon" href="${atBase(basePath, '/assets/favicon.svg')}" type="image/svg+xml">
+${canonicalLink}  <link rel="icon" href="${atBase(basePath, '/assets/favicon.svg')}" type="image/svg+xml">
   <link rel="stylesheet" href="${atBase(basePath, '/assets/site.css')}">
 </head>
 <body>
@@ -907,6 +938,8 @@ function loadInputs(root) {
 function buildSite(root, basePath) {
   const inputs = loadInputs(root);
   const { closure, closureBytes, corpus, manifest, registry, registryBytes, diagnosticsBytes, binding } = inputs;
+  const publishedRoutes = publicationRoutes(binding.closure.version, basePath);
+  binding.closure.snapshotPath = publishedRoutes.snapshot;
   const files = new Map();
   const routesBySource = new Map();
   const routesById = new Map();
@@ -934,6 +967,7 @@ function buildSite(root, basePath) {
       routesById,
       binding,
       basePath,
+      canonicalBasePath: publishedRoutes.canonicalBase,
     });
     files.set(entry.outputPath, rendered.html);
     renderedFenceLabels.push(...rendered.fenceLabels.map((label) => ({ ...label, page: entry.page.id })));
@@ -990,6 +1024,7 @@ function buildSite(root, basePath) {
     generatedBy: 'scripts/generate-docs-site.mjs',
     publicationStatus: 'published-d1-ruled-2026-08-08',
     sourceBinding: binding,
+    publicationRoutes: publishedRoutes,
     availabilityFences: {
       total: renderedFenceLabels.length,
       released: renderedFenceLabels.filter((fence) => !fence.unreleased).length,
@@ -1011,7 +1046,17 @@ function buildSite(root, basePath) {
     },
   };
   files.set(SITE_MANIFEST_PATH, canonicalJson(siteManifest));
-  return { files, pages, routesBySource, siteManifest, closure, manifest, registry, basePath };
+  return {
+    files,
+    pages,
+    routesBySource,
+    siteManifest,
+    closure,
+    manifest,
+    registry,
+    basePath,
+    publicationRoutes: publishedRoutes,
+  };
 }
 
 function pathFromInternalUrl(rawUrl, fromPath, basePath) {
@@ -1205,6 +1250,10 @@ function printBuildSummary(build, validation, action) {
   );
   console.log(`[docs-site] site content ${build.siteManifest.site.contentDigest}`);
   console.log(`[docs-site] base path ${build.basePath}`);
+  console.log(
+    `[docs-site] D3 routes — immutable ${build.publicationRoutes.snapshot}, ` +
+    `latest alias ${build.publicationRoutes.latestAlias}`,
+  );
 }
 
 const options = parseArgs(process.argv.slice(2));

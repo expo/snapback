@@ -5,8 +5,9 @@
   "main": "expo-router/entry",
   "scripts": {
     "assemble": "node scripts/assemble-docs.mjs",
+    "check:docs": "node scripts/assemble-docs.mjs --check",
     "export": "expo export -p web",
-    "deploy": "npm run assemble && npm run export && eas deploy --prod"
+    "deploy": "npm run check:docs && npm run assemble && npm run export && eas deploy --prod"
   },
   "dependencies": {
     "expo": "~54.0.0",

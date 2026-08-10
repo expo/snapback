@@ -1,29 +1,34 @@
 # Snapback website — https://snapback.expo.app
 
-The public web surface (author-directed 2026-08-08): a placeholder
-product page at `/`, the published documentation projection at
-`/guide/`, `/docs/` redirecting to `/guide/`, and a root `/llms.txt`
-for agents. Hosted on EAS Hosting (project `@ccheever/snapback`,
-production URL `snapback.expo.app`); the earlier Cloudflare Pages
-deployment (`snapback-docs.pages.dev`) was taken down the same day.
+The public web surface (author-directed 2026-08-08): a placeholder product
+page at `/`, immutable documentation snapshots at `/v/<closure>/`, `/latest/`
+as the moving alias for the newest assembled snapshot, `/guide/` as a
+compatibility alias, `/docs/` redirecting to `/latest/`, and a root
+`/llms.txt` for agents. Hosted on EAS Hosting (project
+`@ccheever/snapback`, production URL `snapback.expo.app`); the earlier
+Cloudflare Pages deployment (`snapback-docs.pages.dev`) was taken down the
+same day.
 
 ## Redeploy
 
 ```bash
 cd website
 npm install
-npm run deploy   # assemble-docs → expo export -p web → eas deploy --prod
+npm run deploy   # check:docs → assemble → expo export -p web → eas deploy --prod
 ```
 
 `scripts/assemble-docs.mjs` runs the repo-root docs generator
-(`scripts/generate-docs-site.mjs`), mounts its output under
-`public/guide/` with links rebased to the `/guide/` base path, writes
-the root `llms.txt`, and emits the `/docs/` redirect. `public/guide/`
-and `public/llms.txt` are generated (gitignored); the generator remains
-the single content authority (LLP 0195). Redeploy on every closure
-publication so the site tracks the newest published closure (rapid-
-publication posture, LLP 0041).
+(`scripts/generate-docs-site.mjs`) with a base derived from
+`guide/published-closure.json`, for example `/v/0.1.17/`. It installs those
+bytes once at `public/v/<closure>/`, refuses to replace an existing snapshot
+with different bytes, and refreshes `public/latest/` and `public/guide/` as
+exact copies. The generated pages and manifest identify the versioned path as
+canonical; the aliases do not become independent content authorities.
 
-Follow-on: first-class `--base` support inside the generator so the
-link checker validates the rebased links themselves
-(`issues/20260808-docs-generator-base-path.md`).
+`public/v/`, `public/latest/`, `public/guide/`, and the root `public/llms.txt`
+are generated and gitignored. The assembler preserves older directories under
+`public/v/` and only adds or verifies the current closure. `npm run check:docs`
+assembles into a temporary directory, proves the aliases byte-for-byte, and
+probes the immutable-overwrite refusal without changing `website/public/`.
+Redeploy on every closure publication so `/latest/` tracks the newest
+published closure (rapid-publication posture, LLP 0041).

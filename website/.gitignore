@@ -1,5 +1,7 @@
 node_modules/
 dist/
 public/guide/
+public/latest/
+public/v/
 public/llms.txt
 .expo/

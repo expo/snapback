@@ -1,5 +1,6 @@
 // Placeholder product page for https://snapback.expo.app — the real
-// content lives at /guide (docs projection) until a fuller site exists.
+// content lives at /latest (the moving alias for the closure-bound docs
+// projection) until a fuller site exists. /guide remains a compatibility URL.
 import { View, Text, Pressable, StyleSheet, Linking, Platform } from "react-native";
 
 const open = (url) =>
@@ -16,7 +17,7 @@ export default function Home() {
           offline — with first-party Expo, React, Swift, and headless clients.
         </Text>
         <View style={s.row}>
-          <Pressable style={s.btn} onPress={() => open("/guide/")}>
+          <Pressable style={s.btn} onPress={() => open("/latest/")}>
             <Text style={s.btnText}>Read the guide</Text>
           </Pressable>
           <Pressable style={[s.btn, s.btnAlt]} onPress={() => open("/docs/")}>
