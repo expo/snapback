@@ -254,10 +254,13 @@ per LLP 0189, independent of this Plan's review state:
   2026-07-31 withdrawal, not a default). The unique-on-optional half landed
   2026-08-09: `issues/closed/20260809-unique-where-present-optional-fields.md`
   (LLP 0007 owner). The plain-data structured-value half (quoted preview,
-  poll options — the `v.json()` escapes) is now owned by LLP 0211 (Draft,
-  2026-08-09), which preserves the LLP 0044 withdrawal and excludes asset
-  refs; the stored-`v.object` silent-Json-degrade defect found during its
-  review is `issues/20260809-stored-vobject-silent-json-degrade.md`.
+  poll options — the `v.json()` escapes) LANDED 2026-08-09 under LLP 0211
+  (Review; super-refined, Phase A at `979f3aab5`): typed structured
+  stored values, experimental, support-flip pending — preserving the LLP
+  0044 withdrawal and excluding asset refs; the stored-`v.object`
+  silent-Json-degrade defect its review found is closed by the same
+  landing. Both G8 halves are now landed; only the multi-asset steering
+  ticket remains open.
 
 ### G9. No server-side connected-client predicate for push suppression
 

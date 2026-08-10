@@ -30,3 +30,9 @@ s5_d10 green. Mechanical; no behavior change.
 
 `cargo test --lib -- server::tests::s5_d10_production_diagnostic_inventory_cannot_drift`
 passes on main.
+
+## Resolution (2026-08-09)
+
+The rehearsal codes were classified on main the same day (fleet
+fix-forward); s5_d10 no longer reports them. The successor instance
+(D5(b) asset-grant codes) is issues/20260809-s5d10-asset-grant-codes-unclassified.md.

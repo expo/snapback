@@ -34,3 +34,9 @@ to the default verification scope.
 
 `cargo test --test local_v0 --test structural_validation_v0` compiles and
 passes on main.
+
+## Resolution (2026-08-09)
+
+Fixed forward by the fleet the same day: main now ports both suites
+through the versions/query-reads kernel accessors; both compile clean
+at 979f3aab5 (verified during the LLP 0211 landing).

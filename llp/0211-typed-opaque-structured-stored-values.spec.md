@@ -10,6 +10,12 @@ dispatch, persisted carrier, canonical storage path, observation refusals,
 experimental capability registration, and acceptance corpus. The OQ3 proposed
 ceilings are now frozen at 32 KiB per value, 48 KiB per row, depth 16, and
 1,024 elements; local support remains false pending its separate reviewed flip.
+Landing record (same day): Phase A LANDED at `979f3aab5`, after the
+unique-where-present landing (`0fdd8adde`) it composes with; the four
+signed-activation demos stay at their committed generation, and the
+carrier/receipt re-mint for today's three schema rotations is owned by the
+open S0-rotation ticket's single ceremony
+(`issues/20260809-signed-composition-activations-need-remint-after-s0-toolchain-rotation.md`).
 Prior: 2026-08-09, round-3 close-out revision (**this revision's
 delta is UNREVIEWED** — the 3-round budget is exhausted; round 3 at
 `a8e1d75df` returned one MATERIAL per family, both IN-DELTA, both fixed
