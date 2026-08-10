@@ -10,9 +10,10 @@ the live gate.
 Two defects in `scripts/check-module-ownership.mjs`, the enforcement arm of
 LLP 0199/0225:
 
-1. **Dependency extraction sees only `crate::`-prefixed textual references.**
-   `use super::…`, `use self::…`, grouped imports, aliases, and re-exports are
-   invisible. Live proof: `src/auth/provider.rs` (sync-realtime-engine)
+1. **Dependency extraction is blind to `super::`- and `self::`-rooted
+   references and to transitively chained re-exports.** (Grouped use-trees,
+   aliases, and `pub use crate::…` forms ARE parsed — corrected 2026-08-10
+   per the round-2/3 reviews.) Live proof: `src/auth/provider.rs` (sync-realtime-engine)
    imports `super::lifecycle` and `super::mailbox` (background-services) —
    forbidden sideways domain-service edges — and the gate passes with
    "0 unresolved references"; the baseline's provider.rs block contains

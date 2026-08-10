@@ -11,6 +11,8 @@ in `issues/20260809-password-credential-auth.md`)
 the one authorized transition; independent-loop topology)
 **Revised:** 2026-08-10 (c — round-1 revision; see Revision history)
 **Revised:** 2026-08-10 (d — round-2 revision; see Revision history)
+**Revised:** 2026-08-10 (e — post-round-3 closing fixes; **unreviewed** — see
+Revision history)
 **Related:** LLP 0057 (auth catalog and provider protocol — the substrate this
 extends), LLP 0151 (first-party identity integrations — tier-1
 username+password sketch and the identities-vs-credentials rule), LLP 0039
@@ -119,11 +121,17 @@ richer — `_auth_password_credentials` shape, credentials/assurances/recovery
 relations, and an explicit **no silent v1/v2 migration** rule), and its
 catalog-v3 floor is currently blocked on backup-format interactions
 (`issues/20260810-llp-0214-floor-catalog-v3-backup-blocked.md`). This RFC
-therefore mints **no catalog version of its own**: its two tables land as a
-strict subset of 0214's catalog progression, reconciled with 0214's owner —
-where 0214's password shape and this sketch differ, 0214's shape supersedes;
-if this slice ships before 0214's v3 unblocks, it lands under the next
-marker agreed with that owner. 0214's no-silent-migration rule is adopted
+therefore mints **no catalog version of its own**: this slice implements
+**the sketch DDL above**, landing under a marker agreed with 0214's owner
+(before or after 0214's v3 unblocks), and the two password designs are
+reconciled by that owner's program rather than by a blanket shape-deference
+— the named reconciliation items are (i) identifier class and its
+canonicalization bridge (this slice's `email-v1` canonical address vs
+0214's `username-v1` floor), (ii) identity-linked credential rows (this
+sketch) vs 0214's kind-based `_auth_credentials` (which would need an
+equivalent carrier for displacement's identity-retirement semantics),
+(iii) displacement-by-retirement vs 0214's `revoked_at_ms` lifecycle, and
+(iv) the attempt-ledger's place in the catalog descriptor. 0214's no-silent-migration rule is adopted
 (the earlier automatic-upgrade language is withdrawn); backup-manifest,
 reset, restore, and crash consequences ride 0214's ticket. Unchanged either
 way: an older binary refuses an unknown catalog per 0057's recognition
@@ -401,7 +409,7 @@ hosted auth target exists.
   credential responses `no-store`; body-capture logging disabled on these
   routes — all inherited LLP 0057 rules. Owner-authorized **physical**
   store custody deliberately carries the database bytes as-is: `snapback
-  store export`, whole-store backup, and replication ciphertext (LLP 0192)
+  store export`, whole-store backup (LLP 0192), and replication ciphertext (LLP 0188)
   produce faithful copies including credential hashes, while their
   manifests and diagnostics remain redacted.
 
@@ -449,7 +457,7 @@ the auth milestone **without hand-rolled hashing and without shelling out to
    CI-verified snippets; a **new** `auth.passwords` capability row is added
    with route witnesses (none exists today — the index gains the row rather
    than flipping one); `authProgramReadiness` gains a password-provider
-   facet including catalog-v3 readiness.
+   facet including readiness for the password tables' catalog marker.
 
 ## Open questions
 
@@ -470,12 +478,19 @@ the auth milestone **without hand-rolled hashing and without shelling out to
 
 ## Status
 
-Review (d). Commissioned 2026-08-10 from
+Review (e). Commissioned 2026-08-10 from
 `issues/20260809-password-credential-auth.md`. No implementation has begun.
 
 ## Revision history
 
 - **(a)** initial draft. **(b)** Draft → Review at loop start.
+- **(e — UNREVIEWED)** post-round-3 closing fixes applied after the review
+  budget closed and not seen by any reviewer: acceptance criterion 7 made
+  marker-neutral (the withdrawn catalog-v3 phrase removed); replication
+  ciphertext re-cited to LLP 0188; the 0214 deference clause replaced with
+  the pinned this-slice-implements-the-sketch formulation plus the four
+  enumerated reconciliation items both round-3 reviews demanded. Remaining
+  round-3 MATERIAL concerns are dispositioned in the loop's final report.
 - **(d)** round-2 revision from dual-family review: catalog authority
   deferred to LLP 0214 (no competing v3; no-silent-migration adopted;
   automatic-upgrade language withdrawn); reset pinned same-principal-only

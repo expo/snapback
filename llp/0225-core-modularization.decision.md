@@ -14,6 +14,8 @@ pre-push gate, and the landed first slice)
 the one authorized transition; independent-loop topology)
 **Revised:** 2026-08-10 (c — round-1 revision; see Revision history)
 **Revised:** 2026-08-10 (d — round-2 revision; see Revision history)
+**Revised:** 2026-08-10 (e — post-round-3 closing fixes; **unreviewed** — see
+Revision history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -174,8 +176,10 @@ an explicit **time-bounded waiver** — a worklist entry naming the edge, the
 inversion owner, and a deadline, referenced from this Decision's amendment
 record — matching LLP 0199 OQ5's accepted blocking rule. (The 2026-08-10
 `src/local.rs → src/connected_clients.rs` freeze predates this rule and is
-hereby reclassified as such a waiver: it is god-file-pattern coupling with
-inversion owed at the local.rs drainage slices.) The gate is required to
+reclassified as such a waiver — its formal record is worklist item 8 in
+`issues/20260809-0199-ownership-ratchet-worklist.md`, naming the edge, the
+inversion owner, and the bound; the parenthetical you are reading is a
+pointer, not the waiver.) The gate is required to
 enforce the comparison against the predecessor baseline at the push's
 merge-base and refuse silent growth
 (`issues/20260810-ownership-gate-analyzer-gaps.md` tracks the
@@ -267,8 +271,10 @@ forbidden edges — `→ src/auth/admission.rs` (it imports the
 `ModeCommitFailure` commit-verdict type from a sync-engine module; inversion:
 the verdict type belongs in the contract leaf) and `→ src/local.rs` (it holds
 the god-file handle directly; inversion: a coordinator-owned narrow port
-implemented above the service). Both are pre-existing-pattern edges frozen in
-the baseline with inversion owed at the kernel/leaf slices; neither is a
+implemented above the service). The verdict-type edge inverts at the
+contract-leaf completion slice; the port edge inverts at the `local.rs`
+drainage slices. Both are pre-existing-pattern edges frozen in the baseline;
+neither is a
 license for new sideways coupling.
 
 **Known raw-dev cut exceptions (recorded, with obligations).** Two
@@ -459,6 +465,25 @@ so slices can follow product priorities.
   adds the amendment-only rule for dependency direction and the OQ-A/OQ-B
   disposition questions.
 - **2026-08-10 (b).** Draft → Review at llp-super-refine loop start.
+- **2026-08-10 (c).** Round-1 revision from dual-family review: monotonic
+  baseline policy (§2, §4, §5) and the analyzer-gap disclosure + extractor
+  requirement (§5), both tracked in
+  `issues/20260810-ownership-gate-analyzer-gaps.md`; cross-service
+  composition clarified to orchestration-above / inert-below (§2); god-file
+  no-growth rule made operational (§1); gate failure shapes corrected to
+  three (§5); bypass-history wording corrected (one bypass, three selection
+  gaps); "while Draft" → "until Accepted"; acceptance handoff note added to
+  the OQ section.
+- **2026-08-10 (e — UNREVIEWED).** Post-round-3 closing fixes, applied
+  after the review budget closed and not seen by any reviewer: the
+  connected-clients waiver gains its formal worklist record (item 8,
+  `issues/20260809-0199-ownership-ratchet-worklist.md`) with owner and
+  bound, and the §2 parenthetical becomes a pointer to it (both round-3
+  reviews found the prior parenthetical violated the waiver rule it
+  instantiates); the analyzer-gap ticket's wording is corrected to match
+  §5's accurate disclosure; the two first-slice inversion dispositions name
+  their owning slices; revision history reordered. Remaining round-3
+  MATERIAL concerns are dispositioned in the loop's final report, not here.
 - **2026-08-10 (d).** Round-2 revision: the monotonic-baseline rule now
   distinguishes proven pre-existing edges (freezable with provenance) from
   genuinely new coupling (fix, or explicit time-bounded waiver with named
@@ -472,12 +497,3 @@ so slices can follow product priorities.
   prove; the analyzer-gap disclosure is corrected to `super::`/`self::`
   roots and chained re-exports (grouped/alias/`pub use crate::` forms are
   parsed today).
-- **2026-08-10 (c).** Round-1 revision from dual-family review: monotonic
-  baseline policy (§2, §4, §5) and the analyzer-gap disclosure + extractor
-  requirement (§5), both tracked in
-  `issues/20260810-ownership-gate-analyzer-gaps.md`; cross-service
-  composition clarified to orchestration-above / inert-below (§2); god-file
-  no-growth rule made operational (§1); gate failure shapes corrected to
-  three (§5); bypass-history wording corrected (one bypass, three selection
-  gaps); "while Draft" → "until Accepted"; acceptance handoff note added to
-  the OQ section.

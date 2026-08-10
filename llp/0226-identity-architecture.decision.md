@@ -10,6 +10,8 @@
 the one authorized transition; independent-loop topology)
 **Revised:** 2026-08-10 (c — round-1 revision; see Status)
 **Revised:** 2026-08-10 (d — round-2 revision; see Status)
+**Revised:** 2026-08-10 (e — post-round-3 closing fixes; **unreviewed** — see
+Status)
 **Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0011, LLP 0043, LLP 0057,
 LLP 0058, LLP 0081, LLP 0110, LLP 0129, LLP 0133, LLP 0135, LLP 0148,
 LLP 0151, LLP 0158, LLP 0163, LLP 0191,
@@ -229,9 +231,10 @@ folded in as the ruled direction:
 - **Bound and exhaustion:** LLP 0007's JavaScript-safe integer profile;
   fail-closed in-transaction refusal per M-4.
 - **Uniqueness and indexing:** no implicit index (LLP 0007's Index
-  Contract); the author declares one; the successor profile's
-  incarnation-prefix carrier applies where a constraint stores allocated
-  values (M-3).
+  Contract); the author declares one; a serial column's unique index uses
+  the bare numeric alone under M-3's no-restart contract — the
+  `(scopeId, relationIncarnation)` prefix remains a row-scoped LLP 0110/0135
+  mechanism only.
 - **The amendment must answer, explicitly:** reservation timing relative to
   the application transaction (LLP 0135's current allocator buffers the
   counter advance *into* the transaction, which un-burns values on
@@ -289,7 +292,9 @@ digest, namespaced to caller (authFingerprint hashes
 principal/session/user), instance (authorityInstanceId), operation
 (function + inputFingerprint), and — for issuance-bearing operations — the
 selected artifact (`artifactGenerationDigest`, LLP 0163), read-only,
-mutation-only (C-4, M-2). Remaining lane scope: guide absorption
+mutation-only (C-4, M-2). Remaining lane scope: reconciling LLP
+0043's own digest enumeration with the corrected preimages above (its text
+still omits `artifactGenerationDigest`; one-line amendment), guide absorption
 (`issues/20260808-guide-gap-mutation-settlement-identity.md`, closed), the
 hosted-arm asymmetry (hosted answers all-null today — an honest twin, not a
 conformance failure, but the capability claim stays local-target), and any
@@ -341,6 +346,14 @@ the table-scope carrier); M-4 pinned to LLP 0135 §1.5's in-transaction
 refusal shape; the schema amendment's mandatory question list added
 (reservation timing, assignment order, replay, contention evidence);
 Related gains 0008/0011/0057/0058/0133/0158.
+
+Revision (e — UNREVIEWED), post-round-3 closing fixes applied after the
+review budget closed and not seen by any reviewer: the ambiguous "(§3b)"
+cross-reference now names lane (b); lane (c) gains the LLP 0043
+digest-enumeration reconciliation task; the schema lane's leftover
+incarnation-prefix bullet is aligned with M-3's bare-numeric decision.
+Remaining round-3 MATERIAL concerns are dispositioned in the loop's final
+report.
 
 Revision (d), from dual-family round-2 review: M-2 rescoped to
 application/handler overrides with the C-7 protocol claim channels exempt

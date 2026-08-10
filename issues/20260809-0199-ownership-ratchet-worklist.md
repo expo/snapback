@@ -93,3 +93,12 @@ item 3's typed-input inversion family) and `storage/watches -> jobs`
 (kernel→background; joins item 1 — the `*_in_tx` helper relocation should
 absorb it). The two `local.rs -> watches`/`storage/watches` edges are
 unassigned-module freezes that drain with the local.rs remainder.
+
+8. **Waiver (time-bounded): `src/local.rs → src/connected_clients.rs`.**
+   Genuinely new god-file-pattern coupling frozen 2026-08-10 at the
+   connected-client landing, reclassified as a formal waiver by LLP 0225 §2
+   (revision d/e). Edge: unassigned → sync-realtime-engine. Inversion owner:
+   the `local.rs` drainage / coordinator-port slices (LLP 0225 §4 items 1
+   and 3). Bound: due with the sync-engine consolidation slice or
+   2026-09-15, whichever comes first; if unmet, escalate to the author as a
+   §2 violation rather than silently re-freezing.
