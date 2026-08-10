@@ -25103,7 +25103,9 @@ fn bounded_projection_result_contract(
                         dimensions: *dimensions,
                     },
                     FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
-                    FieldType::Json | FieldType::RelationIncarnation { .. } => {
+                    FieldType::Json
+                    | FieldType::Structured { .. }
+                    | FieldType::RelationIncarnation { .. } => {
                         unreachable!("non-portable projection refused before contract derivation")
                     }
                 };
@@ -25180,7 +25182,10 @@ fn snapshot_batch_relational_result_contract(
                 table: table.clone(),
             },
             FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
-            FieldType::Vector { .. } | FieldType::Json | FieldType::RelationIncarnation { .. } => {
+            FieldType::Vector { .. }
+            | FieldType::Json
+            | FieldType::Structured { .. }
+            | FieldType::RelationIncarnation { .. } => {
                 unreachable!("non-portable relational projection refused before derivation")
             }
         };
@@ -25387,6 +25392,28 @@ fn validate_function_schema_references(
             ))
         }
     };
+    let projection_field = |table_name: &str, field_name: &str| -> SnapbackResult<()> {
+        field(table_name, field_name)?;
+        if schema
+            .table(table_name)
+            .and_then(|declared| declared.field(field_name))
+            .is_some_and(|declared| {
+                matches!(
+                    declared.field_type,
+                    crate::manifest::FieldType::Structured { .. }
+                )
+            })
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATIONAL_PLAN_INVALID",
+                "runtime",
+                format!(
+                    "relational projections cannot observe opaque structured field {table_name}.{field_name}"
+                ),
+            ));
+        }
+        Ok(())
+    };
     let query = |plan: &QueryPlan| -> SnapbackResult<()> {
         crate::manifest::validate_query_plan_shape(plan)?;
         let table_manifest = table(&plan.table)?;
@@ -25426,18 +25453,42 @@ fn validate_function_schema_references(
         }
         for filter in &plan.filters {
             field(&plan.table, &filter.field)?;
+            if table_manifest
+                .field(&filter.field)
+                .is_some_and(|declared| {
+                    matches!(
+                        declared.field_type,
+                        crate::manifest::FieldType::Structured { .. }
+                    )
+                })
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE",
+                    "runtime",
+                    format!(
+                        "query filters and live matchers cannot observe opaque structured field {}.{}",
+                        plan.table, filter.field
+                    ),
+                ));
+            }
         }
         for order in &plan.order {
             field(&plan.table, &order.field)?;
             if table_manifest
                 .field(&order.field)
-                .is_some_and(|declared| declared.field_type == crate::manifest::FieldType::Json)
+                .is_some_and(|declared| {
+                    matches!(
+                        declared.field_type,
+                        crate::manifest::FieldType::Json
+                            | crate::manifest::FieldType::Structured { .. }
+                    )
+                })
             {
                 return Err(SnapbackError::error(
                     "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE",
                     "runtime",
                     format!(
-                        "query cannot order by Json field {}.{}",
+                        "query cannot order by opaque Json/Structured field {}.{}",
                         plan.table, order.field
                     ),
                 ));
@@ -25769,10 +25820,10 @@ fn validate_function_schema_references(
                 for leaf in &plan.projection {
                     match &leaf.source {
                         crate::manifest::ProjectionSource::RootField(name) => {
-                            field(&plan.root, name)?;
+                            projection_field(&plan.root, name)?;
                         }
                         crate::manifest::ProjectionSource::JoinedField(name) => {
-                            field(&plan.joined, name)?;
+                            projection_field(&plan.joined, name)?;
                         }
                         crate::manifest::ProjectionSource::Literal(_) => {}
                     }
@@ -26016,7 +26067,9 @@ fn validate_function_schema_references(
                                         // admission, not shape, is what
                                         // protects the field (LLP 0044).
                                         FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
-                                        FieldType::Json | FieldType::RelationIncarnation { .. } => {
+                                        FieldType::Json
+                                        | FieldType::Structured { .. }
+                                        | FieldType::RelationIncarnation { .. } => {
                                             unreachable!("non-portable projections refused above")
                                         }
                                     };
@@ -26313,10 +26366,10 @@ fn validate_function_schema_references(
                             for leaf in &node.projection {
                                 match &leaf.source {
                                     crate::manifest::ProjectionSource::RootField(name) => {
-                                        field(&node.root, name)?;
+                                        projection_field(&node.root, name)?;
                                     }
                                     crate::manifest::ProjectionSource::JoinedField(name) => {
-                                        field(&node.joined, name)?;
+                                        projection_field(&node.joined, name)?;
                                     }
                                     crate::manifest::ProjectionSource::Literal(_) => {}
                                 }
@@ -26563,6 +26616,35 @@ fn validate_maintained_projections(
         let root_table = table(&plan.root)?;
         let joined_table = table(&plan.joined)?;
         let output_table = table(&plan.output_table)?;
+        let is_structured = |declared: &crate::manifest::TableManifest, name: &str| {
+            declared.field(name).is_some_and(|field| {
+                matches!(
+                    field.field_type,
+                    crate::manifest::FieldType::Structured { .. }
+                )
+            })
+        };
+        for filter in &plan.root_filters {
+            if is_structured(root_table, &filter.field) {
+                return Err(invalid(
+                    &plan.id,
+                    format!(
+                        "root filter cannot observe opaque structured field {}.{}",
+                        plan.root, filter.field
+                    ),
+                ));
+            }
+        }
+        for pair in &plan.join_on {
+            if is_structured(root_table, &pair.root_field)
+                || is_structured(joined_table, &pair.joined_field)
+            {
+                return Err(invalid(
+                    &plan.id,
+                    "join equality cannot observe an opaque structured field".into(),
+                ));
+            }
+        }
         if output_table.membership.is_some() {
             return Err(invalid(
                 &plan.id,
@@ -26665,9 +26747,40 @@ fn validate_maintained_projections(
                 ));
             }
             field(&plan.output_table, &leaf.name)?;
+            if is_structured(output_table, &leaf.name) {
+                return Err(invalid(
+                    &plan.id,
+                    format!(
+                        "projection output cannot be opaque structured field {}.{}",
+                        plan.output_table, leaf.name
+                    ),
+                ));
+            }
             match &leaf.source {
-                ProjectionSource::RootField(name) => field(&plan.root, name)?,
-                ProjectionSource::JoinedField(name) => field(&plan.joined, name)?,
+                ProjectionSource::RootField(name) => {
+                    field(&plan.root, name)?;
+                    if is_structured(root_table, name) {
+                        return Err(invalid(
+                            &plan.id,
+                            format!(
+                                "projection cannot observe opaque structured field {}.{name}",
+                                plan.root
+                            ),
+                        ));
+                    }
+                }
+                ProjectionSource::JoinedField(name) => {
+                    field(&plan.joined, name)?;
+                    if is_structured(joined_table, name) {
+                        return Err(invalid(
+                            &plan.id,
+                            format!(
+                                "projection cannot observe opaque structured field {}.{name}",
+                                plan.joined
+                            ),
+                        ));
+                    }
+                }
                 ProjectionSource::Literal(_) => {}
             }
         }

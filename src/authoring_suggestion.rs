@@ -355,6 +355,7 @@ fn field_type_name(field_type: &FieldType) -> &'static str {
         FieldType::Real => "real",
         FieldType::Boolean => "boolean",
         FieldType::Json => "json",
+        FieldType::Structured { .. } => "structured",
         FieldType::Principal => "principal",
         FieldType::Id { .. } => "id",
         FieldType::RelationIncarnation { .. } => "relationIncarnation",

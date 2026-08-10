@@ -22,8 +22,9 @@ pub use crate::contract_types::{
     FunctionResultContract, IbexModule, IndexManifest, InvitedBy, JoinEquality, JoinKind,
     PermissionScopeExpr, ProjectionLeaf, ProjectionOutputKey, ProjectionSource,
     ProjectionVisibility, ResultObjectFieldContract, ResultRowsBound, ResultValueContract,
-    SchemaRefAuthority, SequenceDeclaration, SequenceExistingOwnerAccess, SequenceScopeAccess,
-    SourceSpan, StandardPatternIdentity, StandardPatternMembershipIdentity,
+    STORED_STRUCTURED_CONTRACT_VERSION_V1, STORED_STRUCTURED_ENCODING_V1, SchemaRefAuthority,
+    SequenceDeclaration, SequenceExistingOwnerAccess, SequenceScopeAccess, SourceSpan,
+    StandardPatternIdentity, StandardPatternMembershipIdentity, StoredStructuredContractV1,
     WriteActivityProvenanceFields, WriteActivityRelation, WriteWithActivityEffectFormula,
     WriteWithActivityMode, WriteWithActivitySourceOperation,
 };
@@ -2470,6 +2471,34 @@ pub(crate) fn args_contract_hash(contract: &FunctionArgsContract) -> SnapbackRes
     Ok(format!("sha256:{:x}", hash.finalize()))
 }
 
+/// Recompute the durable structured-field witness from the persisted carrier.
+///
+/// @ref LLP 0211#representation-and-write-path — the exact preimage is the
+///   UTF-8 domain plus one newline followed by the RFC 8785 bytes of the
+///   three-member `StoredStructuredContractV1` record.
+pub(crate) fn stored_structured_contract_hash(
+    contract: &StoredStructuredContractV1,
+) -> SnapbackResult<String> {
+    let value = serde_json::to_value(contract).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_STRUCTURED_CONTRACT_INVALID",
+            "schema",
+            "stored structured contract cannot be represented as canonical JSON",
+        )
+    })?;
+    let canonical = crate::rqs::jcs(&value).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_STRUCTURED_CONTRACT_INVALID",
+            "schema",
+            "stored structured contract is outside the canonical JSON profile",
+        )
+    })?;
+    let mut hash = Sha256::new();
+    hash.update(b"snapback:stored-structured-contract:v1\n");
+    hash.update(canonical.as_bytes());
+    Ok(format!("sha256:{:x}", hash.finalize()))
+}
+
 pub(crate) fn result_contract_hash(contract: &FunctionResultContract) -> SnapbackResult<String> {
     let value = serde_json::to_value(contract).map_err(|_| {
         SnapbackError::error(
@@ -2606,6 +2635,13 @@ fn union_has_disjoint_primitive_variants(variants: &[ResultValueContract]) -> bo
                 .is_some_and(|value| literals.insert(value))
         })
     })
+}
+
+pub(crate) fn stored_structured_union_is_disjoint(
+    variants: &[ResultValueContract],
+) -> bool {
+    union_has_disjoint_primitive_variants(variants)
+        || union_has_object_discriminator(variants)
 }
 
 fn validate_result_value_contract(
@@ -4537,9 +4573,12 @@ pub fn validate_vector_index_manifest(
                 index.name
             )));
         };
-        if matches!(stored.field_type, FieldType::Vector { .. }) {
+        if matches!(
+            stored.field_type,
+            FieldType::Vector { .. } | FieldType::Structured { .. }
+        ) {
             return Err(vector_manifest_invalid(format!(
-                "vector index {} storedFields must not expose vector field {name}",
+                "vector index {} storedFields must not expose vector or opaque structured field {name}",
                 index.name
             )));
         }
@@ -4657,6 +4696,9 @@ pub(crate) fn expected_search_result_contract(
                 max_depth: RESULT_CONTRACT_MAX_DEPTH,
                 max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
             },
+            FieldType::Structured { .. } => {
+                unreachable!("structured search storedFields refused before contract derivation")
+            }
             FieldType::Principal => ResultValueContract::Principal,
             FieldType::Id { table } => ResultValueContract::Id {
                 table: table.clone(),
@@ -4972,6 +5014,12 @@ pub(crate) fn expected_vector_result_contract(
             FieldType::Vector { .. } => {
                 return Err(vector_manifest_invalid(format!(
                     "vector index {} storedFields must not expose source vectors",
+                    index.name
+                )));
+            }
+            FieldType::Structured { .. } => {
+                return Err(vector_manifest_invalid(format!(
+                    "vector index {} storedFields must not expose structured values",
                     index.name
                 )));
             }
@@ -5394,6 +5442,9 @@ pub fn single_table_delta_contract_matches_schema(
                 max_depth: 16,
                 max_bytes: 1024 * 1024,
             },
+            // @ref LLP 0211#declaration-closed-dispatch-closed-interior — the
+            // persisted descriptor is also the exact logical document shape.
+            FieldType::Structured { contract, .. } => contract.descriptor.clone(),
             FieldType::Principal => ResultValueContract::Principal,
             FieldType::Id { table } => ResultValueContract::Id {
                 table: table.clone(),
@@ -9722,6 +9773,11 @@ pub enum TargetCapabilityId {
     VectorSearchV1,
     #[serde(rename = "result_contract_v1")]
     ResultContractV1,
+    /// Typed opaque structured stored values. The implementation carrier is
+    /// registered independently from target support so the eventual support
+    /// flip remains a separately reviewed LLP 0134 act.
+    #[serde(rename = "structured_stored_value_v1")]
+    StructuredStoredValueV1,
     #[serde(rename = "settlement.bounded_skew")]
     SettlementBoundedSkew,
     #[serde(rename = "args_contract_v1")]
@@ -9754,7 +9810,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 37] = [
+    pub const ALL: [Self; 38] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -9780,6 +9836,7 @@ impl TargetCapabilityId {
         Self::LiveFullTextSearchV1,
         Self::VectorSearchV1,
         Self::ResultContractV1,
+        Self::StructuredStoredValueV1,
         Self::SettlementBoundedSkew,
         Self::ArgsContractV1,
         Self::VersionedSeedInstallV1,
@@ -9821,6 +9878,7 @@ impl TargetCapabilityId {
             Self::LiveFullTextSearchV1 => "live_full_text_search_v1",
             Self::VectorSearchV1 => "vector_search_v1",
             Self::ResultContractV1 => "result_contract_v1",
+            Self::StructuredStoredValueV1 => "structured_stored_value_v1",
             Self::SettlementBoundedSkew => "settlement.bounded_skew",
             Self::ArgsContractV1 => "args_contract_v1",
             Self::VersionedSeedInstallV1 => "versioned_seed_install_v1",
@@ -9876,6 +9934,7 @@ impl TargetCapabilityId {
             | Self::LiveFullTextSearchV1
             | Self::VectorSearchV1
             | Self::ResultContractV1
+            | Self::StructuredStoredValueV1
             | Self::ArgsContractV1
             | Self::VersionedSeedInstallV1
             | Self::VersionedSeedResetV1
@@ -10139,6 +10198,12 @@ impl TargetCapabilityId {
                     && manifest.vector_search.as_ref() == Some(&VectorSearchFactsV1::local_v1())
             }
             Self::ResultContractV1 => facts.result_contract_v1_registered,
+            // @ref LLP 0211#capability-and-maturity-the-llp-0134-publication-contract
+            // — a plain local registration fact is the only support route;
+            // Phase A deliberately leaves it false pending the reviewed flip.
+            Self::StructuredStoredValueV1 => {
+                facts.structured_stored_value_v1_registered
+            }
             // @ref LLP 0133#the-bounded-skew-opt-in — this fact names only
             //   the lane-L declaration/admission/check/receipt policy. Lane Q
             //   remains the replay-accept pin and gains no data-bound claim.
@@ -11452,6 +11517,7 @@ pub struct TargetCapabilityFacts {
     jobs_one_off_v1_registered: bool,
     expo_push_seam_v1_registered: bool,
     result_contract_v1_registered: bool,
+    structured_stored_value_v1_registered: bool,
     settlement_bounded_skew_registered: bool,
     args_contract_v1_registered: bool,
     versioned_seed_install_v1_registered: bool,
@@ -11622,6 +11688,8 @@ impl TargetCapabilityFacts {
             jobs_one_off_v1_registered: true,
             expo_push_seam_v1_registered: true,
             result_contract_v1_registered: true,
+            // Phase A installs and proves the surface without advertising it.
+            structured_stored_value_v1_registered: false,
             settlement_bounded_skew_registered: true,
             args_contract_v1_registered: true,
             versioned_seed_install_v1_registered: true,

@@ -585,6 +585,10 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_JOB_ARGS_TOO_LARGE"
         | "SNAPBACK_EPHEMERAL_METADATA_TOO_LARGE"
         | "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE"
+        // @ref LLP 0211#representation-and-write-path — structured admission
+        //   ceilings are payload-size refusals, not schema defects.
+        | "SNAPBACK_STRUCTURED_ROW_BYTES_EXCEEDED"
+        | "SNAPBACK_STRUCTURED_VALUE_BYTES_EXCEEDED"
         | "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED"
         | "SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE"
         | "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE"
@@ -1148,6 +1152,13 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // client payload outside the declared contract; both are 4xx.
         | "SNAPBACK_FUNCTION_ARGS_CONTRACT_INVALID"
         | "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION"
+        // @ref LLP 0211#representation-and-write-path — malformed structured
+        //   carriers/declarations are author input, while a value-shape
+        //   refusal is caller input outside the declared stored contract.
+        | "SNAPBACK_SCHEMA_STRUCTURED_INDEX_UNSUPPORTED"
+        | "SNAPBACK_STRUCTURED_CONTRACT_HASH_INVALID"
+        | "SNAPBACK_STRUCTURED_CONTRACT_INVALID"
+        | "SNAPBACK_STRUCTURED_VALUE_INVALID"
         | "SNAPBACK_SEARCH_CURSOR_RESTART"
         | "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID"
         | "SNAPBACK_SEARCH_MAINTENANCE_LIMIT"
@@ -1344,6 +1355,10 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PROTECTED_ERASURE_TEST_CRASH_CUT"
         | "SNAPBACK_STORAGE_FIELD_CORRUPT"
         | "SNAPBACK_STORAGE_ROW_ID_CORRUPT"
+        // @ref LLP 0211#representation-and-write-path — every legitimate
+        //   structured writer supplies table/field context; absence is an
+        //   internal writer-integration defect, never caller input.
+        | "SNAPBACK_STRUCTURED_WRITE_CONTEXT_MISSING"
         | "SNAPBACK_TEST_OPERATION_CRASH_CUT" => StatusCode::INTERNAL_SERVER_ERROR,
         // @ref LLP 0158#implementation-path-local-v1-explored-2026-08-03 —
         // derived-fork request shape, lifecycle, custody, and subprocess

@@ -70,6 +70,27 @@
     use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
     use std::time::{Duration, Instant};
 
+    fn opaque_structured_field_type() -> FieldType {
+        let contract = crate::manifest::StoredStructuredContractV1 {
+            version: crate::manifest::STORED_STRUCTURED_CONTRACT_VERSION_V1,
+            descriptor: ResultValueContract::Object {
+                fields: vec![ResultObjectFieldContract {
+                    name: "label".to_owned(),
+                    required: true,
+                    value: ResultValueContract::String { max_bytes: 64 },
+                }],
+                allow_extra: false,
+            },
+            encoding: crate::manifest::STORED_STRUCTURED_ENCODING_V1.to_owned(),
+        };
+        let contract_hash =
+            crate::manifest::stored_structured_contract_hash(&contract).unwrap();
+        FieldType::Structured {
+            contract,
+            contract_hash,
+        }
+    }
+
     fn pending_live_test_entry(
         lane: PendingLiveLane,
         work: PendingLiveWork,
@@ -16221,6 +16242,165 @@ globalThis.__snapbackHandlers = {
         (schema, functions, plan)
     }
 
+    #[test]
+    fn structured_leaves_are_excluded_from_all_projection_families() {
+        use crate::manifest::{BoundedProjectionField, ProjectionSource};
+
+        let (mut bounded_schema, bounded_functions) =
+            bounded_children_publication_fixture(16);
+        bounded_schema
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "parents")
+            .unwrap()
+            .fields
+            .push(FieldManifest {
+                name: "opaque".to_owned(),
+                field_type: opaque_structured_field_type(),
+                optional: false,
+            });
+        let mut bounded_plan = match &bounded_functions.functions[0].runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => plan.clone(),
+            _ => panic!("bounded fixture"),
+        };
+        bounded_plan.parent_projection.push(BoundedProjectionField {
+            name: "opaque".to_owned(),
+            field: "opaque".to_owned(),
+        });
+        let bounded_error = validate_bounded_children_node_schema_references(
+            &bounded_plan,
+            bounded_schema.table("parents").unwrap(),
+            bounded_schema.table("children").unwrap(),
+            &BTreeSet::new(),
+        )
+        .expect_err("bounded projections refuse structured leaves");
+        assert_eq!(
+            bounded_error.diagnostic.code,
+            "SNAPBACK_BOUNDED_CHILDREN_PROJECTION_INVALID"
+        );
+
+        let (mut relational_schema, mut relational_functions) =
+            relational_live_fixture_functions(10);
+        relational_schema
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "books")
+            .unwrap()
+            .fields
+            .push(FieldManifest {
+                name: "opaque".to_owned(),
+                field_type: opaque_structured_field_type(),
+                optional: false,
+            });
+        let FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(relational_plan)) =
+            &mut relational_functions.functions[0].runtime
+        else {
+            panic!("relational fixture")
+        };
+        relational_plan.projection[0].source = ProjectionSource::RootField("opaque".to_owned());
+        let relational_error =
+            validate_function_schema_references(&relational_functions, &relational_schema)
+                .expect_err("relational projections refuse structured leaves");
+        assert_eq!(
+            relational_error.diagnostic.code,
+            "SNAPBACK_RELATIONAL_PLAN_INVALID"
+        );
+
+        let (mut maintained_schema, mut maintained_functions, _) = projection_fixture(2);
+        maintained_schema
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "books")
+            .unwrap()
+            .fields
+            .push(FieldManifest {
+                name: "opaque".to_owned(),
+                field_type: opaque_structured_field_type(),
+                optional: false,
+            });
+        maintained_functions.projections[0].projection[0].source =
+            ProjectionSource::RootField("opaque".to_owned());
+        let maintained_error =
+            validate_function_schema_references(&maintained_functions, &maintained_schema)
+                .expect_err("maintained projections refuse structured leaves");
+        assert_eq!(
+            maintained_error.diagnostic.code,
+            "SNAPBACK_PROJECTION_PLAN_INVALID"
+        );
+    }
+
+    #[test]
+    fn structured_value_survives_the_handler_read_your_writes_overlay() {
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async writeThenRead(ctx) {
+    const id = await ctx.db.insert('structuredRows', {
+      payload: { label: 'read-your-writes' },
+    });
+    const row = await ctx.db.get('structuredRows', id);
+    return row.payload;
+  },
+};
+"#;
+        let schema = SchemaManifest {
+            tables: vec![TableManifest {
+                name: "structuredRows".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "payload".to_owned(),
+                    field_type: opaque_structured_field_type(),
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+                history: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let mut function = FunctionDefinition::new(
+            "writeThenRead",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: SOURCE.to_owned(),
+                export: "writeThenRead".to_owned(),
+            }),
+        );
+        function.required_capabilities = vec![
+            "ibex_ctx_db_host_bridge".to_owned(),
+            "mutation_read_set_validation".to_owned(),
+        ];
+        function.write_set_summary.primary_table = Some("structuredRows".to_owned());
+        function.write_set_summary.tables = vec!["structuredRows".to_owned()];
+        function.write_set_summary.mode = Some("handlerDeclared".to_owned());
+
+        let mut snapback = LocalSnapback::memory().expect("memory structured RYW fixture");
+        snapback.apply_schema(schema).expect("apply structured schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![function],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "structured RYW function must activate: {diagnostics:?}"
+        );
+        let result = snapback
+            .invoke_mutation("writeThenRead", HandlerInput::default())
+            .expect("structured RYW mutation")
+            .result;
+        assert_eq!(
+            result,
+            json!({ "label": "read-your-writes" })
+        );
+    }
+
     // @ref LLP 0080#5-transactionally-maintained-projections — the
     //   maintenance engine end to end: source and output commit together
     //   at one version; the affected-key set closes over pre/post images;
@@ -26159,6 +26339,7 @@ globalThis.__snapbackHandlers = {
                     max_depth: 16,
                     max_bytes: 1024 * 1024,
                 },
+                FieldType::Structured { contract, .. } => contract.descriptor.clone(),
                 FieldType::Principal => ResultValueContract::Principal,
                 FieldType::Id { table } => ResultValueContract::Id {
                     table: table.clone(),

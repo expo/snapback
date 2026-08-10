@@ -1,11 +1,16 @@
 # LLP 0211: Typed opaque structured stored values
 
 **Type:** Spec
-**Status:** Review
+**Status:** Implemented
 **Systems:** Schema, Application data API, Storage, Code generation, Client SDK
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-09
-**Revised:** 2026-08-09, round-3 close-out revision (**this revision's
+**Revised:** 2026-08-09, Phase A implementation records the closed structured
+dispatch, persisted carrier, canonical storage path, observation refusals,
+experimental capability registration, and acceptance corpus. The OQ3 proposed
+ceilings are now frozen at 32 KiB per value, 48 KiB per row, depth 16, and
+1,024 elements; local support remains false pending its separate reviewed flip.
+Prior: 2026-08-09, round-3 close-out revision (**this revision's
 delta is UNREVIEWED** — the 3-round budget is exhausted; round 3 at
 `a8e1d75df` returned one MATERIAL per family, both IN-DELTA, both fixed
 here: the search-storedFields disclosure split by layer per the Rust

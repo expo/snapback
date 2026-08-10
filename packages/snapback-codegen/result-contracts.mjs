@@ -369,6 +369,16 @@ export function validatorResultValue(validator, {
   return value;
 }
 
+// Build and validate the exact recursive descriptor persisted by a
+// StoredStructuredContractV1 carrier. This deliberately runs the shared
+// LLP 0131 node/bounds/disjointness validator before the carrier is hashed.
+// @ref LLP 0211#declaration-closed-dispatch-closed-interior
+export function storedStructuredContractDescriptor(validator) {
+  const value = validatorResultValue(validator);
+  validateEffectiveResultContract({ kind: 'value', value });
+  return value;
+}
+
 function tableDocumentValue(table, tables) {
   const definition = tables[table];
   if (!definition) throw new TypeError(`result contract references unknown table ${table}`);
@@ -391,14 +401,16 @@ function tableDocumentValue(table, tables) {
     },
   ];
   for (const field of definition.fields ?? []) {
-    const stored = validatorResultValue({
-      __validator: true,
-      fieldType: field.field_type,
-      primitive: typeof field.field_type === 'string'
-        ? field.field_type.toLowerCase()
-        : 'string',
-      optional: false,
-    });
+    const stored = field.field_type?.Structured
+      ? structuredClone(field.field_type.Structured.contract.descriptor)
+      : validatorResultValue({
+          __validator: true,
+          fieldType: field.field_type,
+          primitive: typeof field.field_type === 'string'
+            ? field.field_type.toLowerCase()
+            : 'string',
+          optional: false,
+        });
     fields.push({
       name: field.name,
       // Storage materializes authored optionals as a present null.
@@ -414,14 +426,16 @@ function tableDocumentValue(table, tables) {
 }
 
 function tableFieldValue(field) {
-  const value = validatorResultValue({
-    __validator: true,
-    fieldType: field.field_type,
-    primitive: typeof field.field_type === 'string'
-      ? field.field_type.toLowerCase()
-      : 'string',
-    optional: false,
-  });
+  const value = field.field_type?.Structured
+    ? structuredClone(field.field_type.Structured.contract.descriptor)
+    : validatorResultValue({
+        __validator: true,
+        fieldType: field.field_type,
+        primitive: typeof field.field_type === 'string'
+          ? field.field_type.toLowerCase()
+          : 'string',
+        optional: false,
+      });
   // Search stores every declared projection key. An absent optional source
   // value is materialized as JSON null by the Rust authority.
   return field.optional

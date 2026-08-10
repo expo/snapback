@@ -374,7 +374,24 @@ pub struct FieldManifest {
     pub optional: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+/// The persisted logical descriptor and physical encoding identity for one
+/// typed opaque structured field.
+///
+/// @ref LLP 0211#representation-and-write-path — the complete recursive
+///   descriptor is durable validation authority; the encoding id is a
+///   separately versioned storage-generation input.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct StoredStructuredContractV1 {
+    pub version: u8,
+    pub descriptor: ResultValueContract,
+    pub encoding: String,
+}
+
+pub const STORED_STRUCTURED_CONTRACT_VERSION_V1: u8 = 1;
+pub const STORED_STRUCTURED_ENCODING_V1: &str = "canonical-json-text.v1";
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum FieldType {
     String,
     /// A closed, declaration-ordered domain of two through eight exact string
@@ -397,6 +414,21 @@ pub enum FieldType {
         dimensions: u32,
     },
     Json,
+    /// One closed, schema-declared plain-data value stored as RFC 8785
+    /// canonical JSON text. Its interior is intentionally opaque to indexes,
+    /// filters, ordering, matchers, search, and maintained projections.
+    ///
+    /// The externally tagged variant keeps the carrier physically inside the
+    /// field manifest, so both `contractHash` and `contract.encoding` enter
+    /// schema/storage-generation identity.
+    ///
+    /// @ref LLP 0211#declaration-closed-dispatch-closed-interior — only the
+    ///   closed structured-position leaf profile may reach this variant.
+    Structured {
+        contract: StoredStructuredContractV1,
+        #[serde(rename = "contractHash", alias = "contract_hash")]
+        contract_hash: String,
+    },
     /// `v.principal()` — nominal typing over the auth-principal id string space
     /// (the same space as `ctx.auth.userId`, including LLP 0055 agent
     /// principals). It stores and compares exactly like [`FieldType::String`];

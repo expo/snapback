@@ -1438,6 +1438,11 @@
           "type": "string"
         },
         {
+          "const": "structured_stored_value_v1",
+          "description": "Typed opaque structured stored values. The implementation carrier is\nregistered independently from target support so the eventual support\nflip remains a separately reviewed LLP 0134 act.",
+          "type": "string"
+        },
+        {
           "const": "agent_safe_storage_v1",
           "description": "Registry identity for the LLP 0162 `agentSafe.v1` extension/component\nfact vocabulary. It does not name the `AgentSafeV1` core aggregate and\nregistration does not imply that any target has passed the corpus.",
           "type": "string"

@@ -18913,6 +18913,12 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION",
     "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID",
     "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION",
+    // LLP 0211 structured declarations/carriers are authored schema, and a
+    // value-shape refusal is caller input outside that authored contract.
+    "SNAPBACK_SCHEMA_STRUCTURED_INDEX_UNSUPPORTED",
+    "SNAPBACK_STRUCTURED_CONTRACT_HASH_INVALID",
+    "SNAPBACK_STRUCTURED_CONTRACT_INVALID",
+    "SNAPBACK_STRUCTURED_VALUE_INVALID",
     "SNAPBACK_HANDLER_RESULT_INVALID",
     "SNAPBACK_HANDLER_STALE_CONTINUATION",
     "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
@@ -19489,6 +19495,9 @@ const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_JOB_ARGS_TOO_LARGE",
     "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
     "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE",
+    // LLP 0211 canonical-byte ceilings are request-payload bounds.
+    "SNAPBACK_STRUCTURED_ROW_BYTES_EXCEEDED",
+    "SNAPBACK_STRUCTURED_VALUE_BYTES_EXCEEDED",
     "SNAPBACK_VALUE_TOO_LARGE",
     "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE",
     "SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED",
@@ -19814,6 +19823,9 @@ const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_PROTECTED_ERASURE_TEST_CRASH_CUT",
     "SNAPBACK_STORAGE_FIELD_CORRUPT",
     "SNAPBACK_STORAGE_ROW_ID_CORRUPT",
+    // LLP 0211 requires context on every structured writer; missing context
+    // is a server integration invariant, not client-fixable input.
+    "SNAPBACK_STRUCTURED_WRITE_CONTEXT_MISSING",
     "SNAPBACK_TEST_OPERATION_CRASH_CUT",
     // LLP 0132: these are derived-state/server invariants, including the
     // query-time work limit that the declaration-time corpus proof should

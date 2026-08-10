@@ -1644,6 +1644,7 @@ fn validate_filter_values(table: &TableManifest, query: &SearchQueryAstV1) -> Sn
             FieldType::Integer => filter.value.as_i64().is_some(),
             FieldType::Real
             | FieldType::Json
+            | FieldType::Structured { .. }
             | FieldType::Vector { .. }
             | FieldType::RelationIncarnation { .. } => false,
         };

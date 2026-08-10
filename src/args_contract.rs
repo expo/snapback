@@ -178,6 +178,62 @@ pub fn validate_function_args(function: &FunctionDefinition, args: &Value) -> Sn
     }
 }
 
+/// Run the shared recursive value-contract validator for one stored
+/// structured field. The caller owns canonicalization and byte/row ceilings;
+/// this seam owns the exact shape and RFC 6901 refusal pointer.
+///
+/// @ref LLP 0211#representation-and-write-path — stored values reuse CV-4a's
+///   fail-closed recursive validator rather than growing a second runtime
+///   grammar.
+pub(crate) fn validate_stored_structured_value(
+    table: &str,
+    field: &str,
+    contract_hash: &str,
+    descriptor: &ResultValueContract,
+    value: &Value,
+) -> SnapbackResult<()> {
+    let mut budget = 0_usize;
+    match validate_node(value, descriptor, &[], 0, &mut budget) {
+        Ok(()) => Ok(()),
+        Err(ArgsFailure::Shape(shape)) => {
+            let ArgsViolation {
+                pointer,
+                expected,
+                actual,
+                failed_variants,
+                ..
+            } = shape;
+            let mut details = json!({
+                "table": table,
+                "field": field,
+                "contractHash": contract_hash,
+                "path": pointer,
+                "expected": expected,
+                "actual": actual,
+            });
+            if let (Some(map), Some(failed)) = (details.as_object_mut(), failed_variants) {
+                map.insert("failedVariants".to_owned(), json!(failed));
+            }
+            Err(SnapbackError::error(
+                "SNAPBACK_STRUCTURED_VALUE_INVALID",
+                "storage",
+                "stored structured value does not satisfy its declared shape",
+            )
+            .with_details(details))
+        }
+        Err(ArgsFailure::Delegated(_)) => Err(SnapbackError::error(
+            "SNAPBACK_STRUCTURED_CONTRACT_INVALID",
+            "schema",
+            "stored structured descriptors cannot delegate to platform schemas",
+        )
+        .with_details(json!({
+            "table": table,
+            "field": field,
+            "contractHash": contract_hash,
+        }))),
+    }
+}
+
 fn validate_args_root(args: &Value, contract: &FunctionArgsContract) -> Result<(), ArgsFailure> {
     // An absent-args invocation arrives as JSON null (`HandlerInput::default`);
     // it is the empty args object. Everything else must be one closed object

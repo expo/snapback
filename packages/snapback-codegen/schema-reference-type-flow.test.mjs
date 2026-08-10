@@ -302,25 +302,13 @@ try {
   `);
   generated = await generate(root);
   assert.equal(generated.ok, false);
-  const arrayDiagnostic = generated.diagnostics.find(({ code }) => (
+  assert(generated.diagnostics.some(({ code, capability }) => (
+    code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
+      && capability === 'structured_stored_value_v1'
+  )), JSON.stringify(generated.diagnostics));
+  assert(!generated.diagnostics.some(({ code }) => (
     code === 'SCHEMA_INVALID_VALIDATOR'
-  ));
-  assert(arrayDiagnostic, JSON.stringify(generated.diagnostics));
-  assert.match(
-    arrayDiagnostic.message,
-    /store the field as v\.json\(\)/u,
-    JSON.stringify(generated.diagnostics),
-  );
-  assert.match(
-    arrayDiagnostic.message,
-    /narrow it with v\.array\(\.\.\.\) in the result contract/u,
-    JSON.stringify(generated.diagnostics),
-  );
-  assert.match(
-    arrayDiagnostic.message,
-    /guide\/getting-started\/your-first-backend\.md#declare-the-schema/u,
-    JSON.stringify(generated.diagnostics),
-  );
+  )), JSON.stringify(generated.diagnostics));
 
   console.log('schema-reference type-flow checks passed');
 } finally {

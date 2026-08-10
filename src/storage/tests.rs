@@ -657,6 +657,628 @@ mod stored_enum_tests {
 }
 
 #[cfg(test)]
+mod stored_structured_value_tests {
+    use super::*;
+    use crate::manifest::{
+        IndexManifest, ResultObjectFieldContract, ResultValueContract, StoredStructuredContractV1,
+    };
+
+    fn member(name: &str, required: bool, value: ResultValueContract) -> ResultObjectFieldContract {
+        ResultObjectFieldContract {
+            name: name.to_owned(),
+            required,
+            value,
+        }
+    }
+
+    fn object(fields: Vec<ResultObjectFieldContract>) -> ResultValueContract {
+        ResultValueContract::Object {
+            fields,
+            allow_extra: false,
+        }
+    }
+
+    fn carrier(descriptor: ResultValueContract) -> (StoredStructuredContractV1, String) {
+        let contract = StoredStructuredContractV1 {
+            version: crate::manifest::STORED_STRUCTURED_CONTRACT_VERSION_V1,
+            descriptor,
+            encoding: crate::manifest::STORED_STRUCTURED_ENCODING_V1.to_owned(),
+        };
+        let hash = crate::manifest::stored_structured_contract_hash(&contract)
+            .expect("structured carrier hash");
+        (contract, hash)
+    }
+
+    fn field(name: &str, descriptor: ResultValueContract) -> FieldManifest {
+        let (contract, contract_hash) = carrier(descriptor);
+        FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::Structured {
+                contract,
+                contract_hash,
+            },
+            optional: false,
+        }
+    }
+
+    fn schema(fields: Vec<FieldManifest>) -> SchemaManifest {
+        SchemaManifest {
+            required_capabilities: vec!["structured_stored_value_v1".to_owned()],
+            tables: vec![TableManifest {
+                name: "items".to_owned(),
+                fields,
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+                history: None,
+            }],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn insert(db: &mut LocalDatabase, id: &str, values: Map<String, Value>) -> SnapbackResult<()> {
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Insert {
+                table: "items".to_owned(),
+                id: id.to_owned(),
+                values,
+            }],
+            Vec::new(),
+            Value::Null,
+        )?;
+        Ok(())
+    }
+
+    fn numeric_payload() -> ResultValueContract {
+        object(vec![
+            member(
+                "n",
+                true,
+                ResultValueContract::FiniteReal {
+                    min: -100.0,
+                    max: 100.0,
+                },
+            ),
+            member(
+                "nested",
+                true,
+                object(vec![member(
+                    "label",
+                    true,
+                    ResultValueContract::String { max_bytes: 64 },
+                )]),
+            ),
+        ])
+    }
+
+    #[test]
+    fn rust_and_js_share_the_exact_carrier_golden() {
+        let descriptor = object(vec![
+            member(
+                "quote",
+                true,
+                object(vec![
+                    member(
+                        "author",
+                        true,
+                        ResultValueContract::String { max_bytes: 64 },
+                    ),
+                    member("text", true, ResultValueContract::String { max_bytes: 512 }),
+                ]),
+            ),
+            member(
+                "options",
+                true,
+                ResultValueContract::Array {
+                    element: Box::new(object(vec![
+                        member("label", true, ResultValueContract::String { max_bytes: 80 }),
+                        member(
+                            "votes",
+                            true,
+                            ResultValueContract::Integer {
+                                min: 0,
+                                max: 9_007_199_254_740_991,
+                            },
+                        ),
+                        member(
+                            "note",
+                            false,
+                            ResultValueContract::String { max_bytes: 128 },
+                        ),
+                    ])),
+                    max_items: 32,
+                },
+            ),
+        ]);
+        let (contract, hash) = carrier(descriptor);
+        assert_eq!(
+            hash,
+            "sha256:0969c39c1a3f91259a7949665d61ea93314a6182de90d1f82443f3f8c842a01c"
+        );
+        assert_eq!(
+            crate::rqs::jcs(&serde_json::to_value(&contract).unwrap()).unwrap(),
+            "{\"descriptor\":{\"allowExtra\":false,\"fields\":[{\"name\":\"quote\",\"required\":true,\"value\":{\"allowExtra\":false,\"fields\":[{\"name\":\"author\",\"required\":true,\"value\":{\"kind\":\"string\",\"maxBytes\":64}},{\"name\":\"text\",\"required\":true,\"value\":{\"kind\":\"string\",\"maxBytes\":512}}],\"kind\":\"object\"}},{\"name\":\"options\",\"required\":true,\"value\":{\"element\":{\"allowExtra\":false,\"fields\":[{\"name\":\"label\",\"required\":true,\"value\":{\"kind\":\"string\",\"maxBytes\":80}},{\"name\":\"votes\",\"required\":true,\"value\":{\"kind\":\"integer\",\"max\":9007199254740991,\"min\":0}},{\"name\":\"note\",\"required\":false,\"value\":{\"kind\":\"string\",\"maxBytes\":128}}],\"kind\":\"object\"},\"kind\":\"array\",\"maxItems\":32}}],\"kind\":\"object\"},\"encoding\":\"canonical-json-text.v1\",\"version\":1}"
+        );
+    }
+
+    #[test]
+    fn ordinary_buffered_patch_and_seed_routes_canonicalize_integral_reals() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema(vec![field("payload", numeric_payload())]))
+            .expect("apply structured schema");
+        let declared: String = db
+            .conn
+            .query_row(
+                "SELECT type FROM pragma_table_info('items') WHERE name='payload'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(declared, "TEXT");
+
+        db.execute_mutation(
+            &MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values: BTreeMap::from([(
+                        "payload".to_owned(),
+                        ValueExpr::Literal(json!({ "nested": { "label": "first" }, "n": 5.0 })),
+                    )]),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            },
+            &HandlerInput::default(),
+        )
+        .expect("ordinary structured insert");
+        let inserted_id: String = db
+            .conn
+            .query_row("SELECT _id FROM items", [], |row| row.get(0))
+            .expect("ordinary inserted id");
+        let stored: String = db
+            .conn
+            .query_row(
+                "SELECT payload FROM items WHERE _id=?1",
+                [&inserted_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(stored, r#"{"n":5,"nested":{"label":"first"}}"#);
+        assert_eq!(
+            db.get("items", &inserted_id).unwrap().unwrap()["payload"]["n"],
+            json!(5)
+        );
+
+        db.execute_mutation(
+            &MutationPlan {
+                steps: vec![MutationStep::Patch {
+                    table: "items".to_owned(),
+                    id: ValueExpr::Literal(json!(inserted_id.clone())),
+                    values: BTreeMap::from([(
+                        "payload".to_owned(),
+                        ValueExpr::Literal(json!({ "nested": { "label": "patched" }, "n": 6.0 })),
+                    )]),
+                }],
+                return_value: None,
+            },
+            &HandlerInput::default(),
+        )
+        .expect("ordinary structured patch");
+        assert_eq!(
+            db.get("items", &inserted_id).unwrap().unwrap()["payload"],
+            json!({ "n": 6, "nested": { "label": "patched" } })
+        );
+
+        insert(
+            &mut db,
+            "buffered",
+            Map::from_iter([(
+                "payload".to_owned(),
+                json!({ "nested": { "label": "buffered" }, "n": 6.0 }),
+            )]),
+        )
+        .expect("buffered structured insert");
+        assert_eq!(
+            db.get("items", "buffered").unwrap().unwrap()["payload"]["n"],
+            json!(6)
+        );
+
+        db.reset_and_seed(Some(SeedData {
+            tables: BTreeMap::from([(
+                "items".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("seeded")),
+                    (
+                        "payload".to_owned(),
+                        json!({ "nested": { "label": "seed" }, "n": 7.0 }),
+                    ),
+                ])],
+            )]),
+        }))
+        .expect("structured seed");
+        assert_eq!(
+            db.get("items", "seeded").unwrap().unwrap()["payload"]["n"],
+            json!(7)
+        );
+    }
+
+    #[test]
+    fn privileged_import_routes_through_structured_admission() {
+        let mut declared = schema(vec![
+            FieldManifest {
+                name: "userId".to_owned(),
+                field_type: FieldType::Principal,
+                optional: false,
+            },
+            FieldManifest {
+                name: "role".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            },
+            field("profile", numeric_payload()),
+        ]);
+        let table = &mut declared.tables[0];
+        table.name = "app_roles".to_owned();
+        table.membership = Some(MembershipManifest {
+            id: Some("appRoles".to_owned()),
+            principal: "userId".to_owned(),
+            resource: None,
+            role: "role".to_owned(),
+            roles: vec!["admin".to_owned()],
+            pending_roles: None,
+            bootstrap_role: None,
+            last_holder: None,
+            expiry: None,
+            incidental: None,
+            provenance: None,
+            transitions: Vec::new(),
+            scope: MembershipScope::App,
+            resource_table: None,
+            principal_addressed_writes: None,
+        });
+
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(declared).expect("structured import schema");
+        let importer = MembershipWriter::Import {
+            granted_by_actor: "original-agent".to_owned(),
+            granted_by_effective: "original-user".to_owned(),
+            granted_by_grant: Some("historical-grant".to_owned()),
+        };
+        let plan = db
+            .plan_privileged_membership_insert(
+                &importer,
+                "app_roles",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("alice")),
+                    ("role".to_owned(), json!("admin")),
+                    (
+                        "profile".to_owned(),
+                        json!({ "nested": { "label": "imported" }, "n": 8.0 }),
+                    ),
+                ]),
+            )
+            .expect("privileged import plan");
+        db.commit_membership_plan(&importer, plan)
+            .expect("privileged structured import");
+        let stored: String = db
+            .conn
+            .query_row(
+                "SELECT profile FROM app_roles WHERE userId='alice'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("canonical imported profile");
+        assert_eq!(stored, r#"{"n":8,"nested":{"label":"imported"}}"#);
+    }
+
+    #[test]
+    fn invalid_shape_reports_an_rfc6901_pointer_and_writes_nothing() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema(vec![field("payload", numeric_payload())]))
+            .unwrap();
+        let error = insert(
+            &mut db,
+            "invalid",
+            Map::from_iter([(
+                "payload".to_owned(),
+                json!({ "n": "not-a-number", "nested": { "label": "x" } }),
+            )]),
+        )
+        .expect_err("invalid structured write refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STRUCTURED_VALUE_INVALID");
+        assert_eq!(error.diagnostic.details["path"], "/n");
+        assert!(db.get("items", "invalid").unwrap().is_none());
+    }
+
+    #[test]
+    fn carrier_hash_and_all_four_bounds_fail_closed() {
+        let mut hash_mismatch = field("payload", numeric_payload());
+        let FieldType::Structured { contract_hash, .. } = &mut hash_mismatch.field_type else {
+            unreachable!()
+        };
+        *contract_hash =
+            "sha256:0000000000000000000000000000000000000000000000000000000000000000".to_owned();
+        let mut db = LocalDatabase::memory().unwrap();
+        assert_eq!(
+            db.apply_schema(schema(vec![hash_mismatch]))
+                .expect_err("hash mismatch refuses")
+                .diagnostic
+                .code,
+            "SNAPBACK_STRUCTURED_CONTRACT_HASH_INVALID"
+        );
+
+        let text = object(vec![member(
+            "text",
+            true,
+            ResultValueContract::String {
+                max_bytes: 1024 * 1024,
+            },
+        )]);
+        let mut db = LocalDatabase::memory().unwrap();
+        db.apply_schema(schema(vec![field("payload", text.clone())]))
+            .unwrap();
+        let oversized = insert(
+            &mut db,
+            "oversized",
+            Map::from_iter([(
+                "payload".to_owned(),
+                json!({ "text": "x".repeat(MAX_STORED_STRUCTURED_VALUE_BYTES) }),
+            )]),
+        )
+        .expect_err("value byte ceiling refuses");
+        assert_eq!(
+            oversized.diagnostic.code,
+            "SNAPBACK_STRUCTURED_VALUE_BYTES_EXCEEDED"
+        );
+        assert_eq!(oversized.diagnostic.details["path"], "");
+
+        let arrays = ResultValueContract::Array {
+            element: Box::new(ResultValueContract::Integer {
+                min: 0,
+                max: 9_007_199_254_740_991,
+            }),
+            max_items: 1_024,
+        };
+        let mut db = LocalDatabase::memory().unwrap();
+        db.apply_schema(schema(vec![field("payload", arrays)]))
+            .unwrap();
+        let elements = insert(
+            &mut db,
+            "too-many-elements",
+            Map::from_iter([(
+                "payload".to_owned(),
+                Value::Array((0..1_025).map(|value| json!(value)).collect()),
+            )]),
+        )
+        .expect_err("element ceiling refuses");
+        assert_eq!(
+            elements.diagnostic.code,
+            "SNAPBACK_STRUCTURED_VALUE_INVALID"
+        );
+        assert!(elements.diagnostic.details["path"].is_string());
+
+        let mut nested = object(vec![]);
+        for index in 0..17 {
+            nested = object(vec![member(&format!("d{index}"), true, nested)]);
+        }
+        let mut db = LocalDatabase::memory().unwrap();
+        let depth = db
+            .apply_schema(schema(vec![field("payload", nested)]))
+            .expect_err("descriptor depth ceiling refuses");
+        assert_eq!(
+            depth.diagnostic.code,
+            "SNAPBACK_STRUCTURED_CONTRACT_INVALID"
+        );
+        assert!(
+            depth.diagnostic.details["reason"]
+                .as_str()
+                .unwrap()
+                .contains("depth")
+        );
+
+        let mut db = LocalDatabase::memory().unwrap();
+        db.apply_schema(schema(vec![
+            field("left", text.clone()),
+            field("right", text),
+        ]))
+        .unwrap();
+        let aggregate = insert(
+            &mut db,
+            "aggregate",
+            Map::from_iter([
+                ("left".to_owned(), json!({ "text": "l".repeat(25_000) })),
+                ("right".to_owned(), json!({ "text": "r".repeat(25_000) })),
+            ]),
+        )
+        .expect_err("row aggregate ceiling refuses");
+        assert_eq!(
+            aggregate.diagnostic.code,
+            "SNAPBACK_STRUCTURED_ROW_BYTES_EXCEEDED"
+        );
+        assert_eq!(aggregate.diagnostic.details["path"], "");
+        assert!(db.get("items", "aggregate").unwrap().is_none());
+    }
+
+    #[test]
+    fn rust_observation_gates_refuse_indexes_filters_orders_and_stored_fields() {
+        let payload = field(
+            "payload",
+            object(vec![member(
+                "label",
+                true,
+                ResultValueContract::String { max_bytes: 64 },
+            )]),
+        );
+        let mut indexed = schema(vec![payload.clone()]);
+        indexed.tables[0].indexes.push(IndexManifest {
+            name: "by_payload".to_owned(),
+            fields: vec!["payload".to_owned()],
+            unique: false,
+            where_applicable: false,
+        });
+        let mut db = LocalDatabase::memory().unwrap();
+        assert_eq!(
+            db.apply_schema(indexed)
+                .expect_err("ordinary structured index refuses")
+                .diagnostic
+                .code,
+            "SNAPBACK_SCHEMA_STRUCTURED_INDEX_UNSUPPORTED"
+        );
+
+        let table = schema(vec![payload.clone()]).tables.remove(0);
+        assert_eq!(
+            validate_query_filter_value(&table, "payload", &json!({ "label": "x" }))
+                .expect_err("structured filter refuses")
+                .diagnostic
+                .code,
+            "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE"
+        );
+        assert_eq!(
+            ensure_orderable_field(&table, "payload")
+                .expect_err("structured order refuses")
+                .diagnostic
+                .code,
+            "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE"
+        );
+
+        let vector_index = crate::vector::VectorIndexManifestV1 {
+            format_version: 1,
+            name: "by_embedding".to_owned(),
+            semantic_version: "structured-refusal.v1".to_owned(),
+            vector_field: "embedding".to_owned(),
+            dimensions: 2,
+            metric: crate::vector::VectorMetricV1::L2sq,
+            distance_profile: crate::vector::VECTOR_DISTANCE_PROFILE_ID.to_owned(),
+            ordering_profile: crate::vector::VECTOR_ORDERING_PROFILE_ID.to_owned(),
+            field_classifications: BTreeMap::from([
+                (
+                    "embedding".to_owned(),
+                    crate::vector::VectorFieldClassV1::Public,
+                ),
+                (
+                    "payload".to_owned(),
+                    crate::vector::VectorFieldClassV1::Public,
+                ),
+            ]),
+            equality_filters: Vec::new(),
+            stored_fields: vec!["payload".to_owned()],
+            visibility: crate::vector::VectorVisibilityV1::PublicRead,
+            tie_break: crate::vector::VectorTieBreakV1::IdAsc,
+            max_indexed_vectors_per_partition: 128,
+            max_scalar_pairs: 256,
+            maintenance_limits: crate::vector::VectorMaintenanceLimitsV1::default(),
+        };
+        let mut vector_table = table.clone();
+        vector_table.fields.push(FieldManifest {
+            name: "embedding".to_owned(),
+            field_type: FieldType::Vector { dimensions: 2 },
+            optional: false,
+        });
+        assert_eq!(
+            crate::manifest::validate_vector_index_manifest(&vector_table, &vector_index)
+                .expect_err("vector structured storedFields refuses")
+                .diagnostic
+                .code,
+            "SNAPBACK_VECTOR_INDEX_INVALID"
+        );
+
+        let search_index = crate::search::types::SearchIndexManifestV1 {
+            format_version: 1,
+            name: "by_title".to_owned(),
+            semantic_version: "structured-refusal.v1".to_owned(),
+            analyzer: crate::search::types::SEARCH_ANALYZER.to_owned(),
+            analyzer_tables_digest: crate::search::unicode17_generated::ANALYZER_TABLES_DIGEST
+                .to_owned(),
+            text_fields: BTreeMap::from([(
+                "title".to_owned(),
+                crate::search::types::SearchTextFieldV1 {
+                    weight: 1,
+                    classification: crate::search::types::SearchFieldClassV1::Public,
+                },
+            )]),
+            field_classifications: BTreeMap::from([(
+                "payload".to_owned(),
+                crate::search::types::SearchFieldClassV1::Public,
+            )]),
+            equality_filters: Vec::new(),
+            stored_fields: vec!["payload".to_owned()],
+            highlight_fields: Vec::new(),
+            visibility: crate::search::types::SearchVisibilityV1::PublicRead,
+            tie_break: "score-desc-row-id-asc.v1".to_owned(),
+            source_limits: Default::default(),
+            query_limits: Default::default(),
+            cursor_limits: Default::default(),
+            maintenance_limits: Default::default(),
+            live_limits: None,
+        };
+        let search_fields = vec![
+            payload.clone(),
+            FieldManifest {
+                name: "title".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            },
+        ];
+        let mut equality_search = search_index.clone();
+        equality_search.equality_filters = vec!["payload".to_owned()];
+        equality_search.stored_fields.clear();
+        let mut search_schema = schema(search_fields.clone());
+        search_schema.tables[0].search_indexes.push(equality_search);
+        let mut db = LocalDatabase::memory().unwrap();
+        assert_eq!(
+            db.apply_schema(search_schema)
+                .expect_err("search structured equality membership refuses")
+                .diagnostic
+                .code,
+            "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID"
+        );
+
+        let mut search_schema = schema(search_fields);
+        search_schema.tables[0].search_indexes.push(search_index);
+        let mut db = LocalDatabase::memory().unwrap();
+        assert_eq!(
+            db.apply_schema(search_schema)
+                .expect_err("search structured storedFields refuses")
+                .diagnostic
+                .code,
+            "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID"
+        );
+    }
+
+    #[test]
+    fn encoding_identity_change_is_a_plannable_successor_not_metadata_drift() {
+        let predecessor = schema(vec![field("payload", numeric_payload())]);
+        let mut successor = predecessor.clone();
+        let FieldType::Structured {
+            contract,
+            contract_hash,
+        } = &mut successor.tables[0].fields[0].field_type
+        else {
+            unreachable!()
+        };
+        contract.encoding = "canonical-json-text.v2".to_owned();
+        *contract_hash = crate::manifest::stored_structured_contract_hash(contract).unwrap();
+
+        let predecessor_identity =
+            crate::storage::migration_executor::schema_identity(&predecessor).unwrap();
+        let successor_identity =
+            crate::storage::migration_executor::schema_identity(&successor).unwrap();
+        assert_ne!(predecessor_identity, successor_identity);
+        let error = crate::migration::derive_intents(&predecessor, &successor)
+            .expect_err("an encoding change requires an explicit conversion generation");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_PLAN_INVALID");
+        assert!(error.diagnostic.message.contains("declare ConvertField"));
+    }
+}
+
+#[cfg(test)]
 mod guarded_commit_tests {
     use super::*;
     use std::cell::Cell;

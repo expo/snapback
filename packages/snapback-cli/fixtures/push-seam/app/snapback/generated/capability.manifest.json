@@ -177,6 +177,7 @@
       "s3-compatible"
     ],
     "maxChunkBytes": 8388608,
+    "maxGrantsPerApp": 1024,
     "maxOpenAttemptsPerApp": 64,
     "maxOpenAttemptsPerPrincipal": 8,
     "minAccountingUnitBytes": 4096,

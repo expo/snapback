@@ -44,6 +44,19 @@ ${body}
   return rerun.diagnostics;
 }
 
+async function structuredSchema(body) {
+  const { result } = await generateCase(`
+import { defineSchema, defineTable, v } from '${defineUrl}';
+${body}
+`);
+  assert.equal(result.ok, false, JSON.stringify(result.diagnostics));
+  assert(result.diagnostics.some(({ code, capability }) => (
+    code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
+      && capability === 'structured_stored_value_v1'
+  )), JSON.stringify(result.diagnostics));
+  assert(!result.diagnostics.some(({ code }) => code === 'SCHEMA_INVALID_VALIDATOR'));
+}
+
 try {
   const { root, result } = await generateCase(`
 import { defineSchema, defineTable, v } from '${defineUrl}';
@@ -116,12 +129,12 @@ export default defineSchema({
   }),
 });
 `);
-  await invalidSchema(`
+  await structuredSchema(`
 export default defineSchema({
   rows: defineTable({ state: v.union([v.literal('a'), v.integer()]) }),
 });
 `);
-  await invalidSchema(`
+  await structuredSchema(`
 export default defineSchema({
   rows: defineTable({ state: v.union([v.literal(1), v.literal(2)]) }),
 });

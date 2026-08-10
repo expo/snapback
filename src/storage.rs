@@ -8133,6 +8133,192 @@ fn sqlite_object_exists_row(tx: &Transaction<'_>, table: &str, id: &str) -> Snap
         .is_some())
 }
 
+#[derive(Clone, Copy)]
+enum StructuredDescriptorPosition {
+    Root,
+    Interior,
+    UnionVariant,
+}
+
+fn validate_stored_structured_contract(
+    table: &str,
+    field: &str,
+    contract: &crate::manifest::StoredStructuredContractV1,
+    contract_hash: &str,
+) -> SnapbackResult<()> {
+    let invalid = |reason: String| {
+        SnapbackError::error(
+            "SNAPBACK_STRUCTURED_CONTRACT_INVALID",
+            "schema",
+            "stored structured field carries an invalid contract",
+        )
+        .with_detail("table", table.to_owned())
+        .with_detail("field", field.to_owned())
+        .with_detail("reason", reason)
+    };
+    if contract.version != crate::manifest::STORED_STRUCTURED_CONTRACT_VERSION_V1 {
+        return Err(invalid(format!(
+            "version must be {}, got {}",
+            crate::manifest::STORED_STRUCTURED_CONTRACT_VERSION_V1,
+            contract.version
+        )));
+    }
+    if contract.encoding != crate::manifest::STORED_STRUCTURED_ENCODING_V1 {
+        return Err(invalid(format!(
+            "encoding must be {:?}, got {:?}",
+            crate::manifest::STORED_STRUCTURED_ENCODING_V1,
+            contract.encoding
+        )));
+    }
+    let mut object_fields = 0_usize;
+    validate_stored_structured_descriptor(
+        &contract.descriptor,
+        StructuredDescriptorPosition::Root,
+        0,
+        &mut object_fields,
+    )
+    .map_err(invalid)?;
+    let recomputed = crate::manifest::stored_structured_contract_hash(contract)?;
+    if recomputed != contract_hash {
+        return Err(SnapbackError::error(
+            "SNAPBACK_STRUCTURED_CONTRACT_HASH_INVALID",
+            "schema",
+            "stored structured contract hash does not authenticate its persisted carrier",
+        )
+        .with_detail("table", table.to_owned())
+        .with_detail("field", field.to_owned())
+        .with_detail("declaredHash", contract_hash.to_owned())
+        .with_detail("expectedHash", recomputed));
+    }
+    Ok(())
+}
+
+fn validate_stored_structured_descriptor(
+    descriptor: &crate::manifest::ResultValueContract,
+    position: StructuredDescriptorPosition,
+    depth: usize,
+    object_fields: &mut usize,
+) -> Result<(), String> {
+    use crate::manifest::ResultValueContract;
+    if depth > 16 {
+        return Err("descriptor depth exceeds 16".to_owned());
+    }
+    if matches!(position, StructuredDescriptorPosition::Root)
+        && !matches!(
+            descriptor,
+            ResultValueContract::Object { .. }
+                | ResultValueContract::Array { .. }
+                | ResultValueContract::Union { .. }
+        )
+    {
+        return Err("root must be object, array, or non-Enum union".to_owned());
+    }
+    match descriptor {
+        ResultValueContract::Null => {
+            if !matches!(position, StructuredDescriptorPosition::UnionVariant) {
+                return Err("null node is admitted only as a union variant".to_owned());
+            }
+        }
+        ResultValueContract::Boolean => {}
+        ResultValueContract::String { max_bytes } => {
+            if *max_bytes > 1024 * 1024 {
+                return Err("string maxBytes exceeds 1 MiB".to_owned());
+            }
+        }
+        ResultValueContract::Integer { min, max } => {
+            if min > max
+                || *min < PORTABLE_INTEGER_MIN
+                || *max > PORTABLE_INTEGER_MAX
+            {
+                return Err("integer bounds are outside the portable safe range".to_owned());
+            }
+        }
+        ResultValueContract::FiniteReal { min, max } => {
+            if !min.is_finite() || !max.is_finite() || min > max {
+                return Err("finiteReal bounds are invalid".to_owned());
+            }
+        }
+        ResultValueContract::Literal { value } => {
+            if value.is_array() || value.is_object() {
+                return Err("literal must be a JSON scalar".to_owned());
+            }
+        }
+        ResultValueContract::Array { element, max_items } => {
+            if *max_items > 1_024 {
+                return Err("array maxItems exceeds 1,024".to_owned());
+            }
+            validate_stored_structured_descriptor(
+                element,
+                StructuredDescriptorPosition::Interior,
+                depth + 1,
+                object_fields,
+            )?;
+        }
+        ResultValueContract::Union { variants } => {
+            if variants.len() < 2 || variants.len() > 8 {
+                return Err("union must contain 2–8 variants".to_owned());
+            }
+            if !crate::manifest::stored_structured_union_is_disjoint(variants) {
+                return Err("union variants are not syntactically disjoint".to_owned());
+            }
+            for variant in variants {
+                validate_stored_structured_descriptor(
+                    variant,
+                    StructuredDescriptorPosition::UnionVariant,
+                    depth + 1,
+                    object_fields,
+                )?;
+            }
+        }
+        ResultValueContract::Object {
+            fields,
+            allow_extra,
+        } => {
+            if *allow_extra {
+                return Err("objects must be closed (allowExtra false)".to_owned());
+            }
+            *object_fields = object_fields.saturating_add(fields.len());
+            if *object_fields > 128 {
+                return Err("contract exceeds 128 object fields".to_owned());
+            }
+            let mut names = BTreeSet::new();
+            for member in fields {
+                if member.name.is_empty() || !names.insert(member.name.as_str()) {
+                    return Err("object field names must be non-empty and unique".to_owned());
+                }
+                validate_stored_structured_descriptor(
+                    &member.value,
+                    StructuredDescriptorPosition::Interior,
+                    depth + 1,
+                    object_fields,
+                )?;
+            }
+        }
+        ResultValueContract::Principal => {
+            return Err("principal leaf is not admitted".to_owned());
+        }
+        ResultValueContract::AssetRef => {
+            return Err("assetRef leaf is not admitted".to_owned());
+        }
+        ResultValueContract::Id { .. } => {
+            return Err("id/relation reference leaf is not admitted".to_owned());
+        }
+        ResultValueContract::Json { .. } => {
+            return Err("json escape-hatch leaf is not admitted".to_owned());
+        }
+        ResultValueContract::Tuple { .. } => {
+            return Err("tuple leaf is not admitted".to_owned());
+        }
+        ResultValueContract::Vector { .. } => {
+            return Err("vector leaf is not admitted".to_owned());
+        }
+        ResultValueContract::PlatformSchemaRef { .. } => {
+            return Err("platform schema reference is not admitted".to_owned());
+        }
+    }
+    Ok(())
+}
+
 fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
     validate_collection_definitions(&manifest.ephemeral_collections).map_err(|error| {
         SnapbackError::error(error.code.diagnostic_code(), "ephemeral", error.message)
@@ -8229,6 +8415,18 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                     .with_detail("field", field.name.clone())
                     .with_detail("reason", reason));
                 }
+            }
+            if let FieldType::Structured {
+                contract,
+                contract_hash,
+            } = &field.field_type
+            {
+                validate_stored_structured_contract(
+                    &table.name,
+                    &field.name,
+                    contract,
+                    contract_hash,
+                )?;
             }
             if let FieldType::RelationIncarnation {
                 foreign_key_field,
@@ -8401,6 +8599,18 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                 .iter()
                 .map(|field| ensure_field(table, field))
                 .collect::<SnapbackResult<Vec<_>>>()?;
+            for (field, field_manifest) in index.fields.iter().zip(index_fields.iter()) {
+                if matches!(field_manifest.field_type, FieldType::Structured { .. }) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SCHEMA_STRUCTURED_INDEX_UNSUPPORTED",
+                        "schema",
+                        "ordinary indexes cannot observe opaque structured fields; declare a scalar projection when indexing is required",
+                    )
+                    .with_detail("table", table.name.clone())
+                    .with_detail("index", index.name.clone())
+                    .with_detail("field", field.clone()));
+                }
+            }
             let has_optional_field = index_fields.iter().any(|field| field.optional);
             let expected_where_applicable = index.unique && has_optional_field;
             if index.where_applicable != expected_where_applicable {
@@ -8499,7 +8709,10 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
             }
             for field in &search.stored_fields {
                 let declared = ensure_field(table, field)?;
-                if matches!(declared.field_type, FieldType::Json) {
+                if matches!(
+                    declared.field_type,
+                    FieldType::Json | FieldType::Structured { .. }
+                ) {
                     return Err(SnapbackError::error(
                         "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
                         "search",
@@ -8960,6 +9173,7 @@ fn field_type_name(field_type: &FieldType) -> &'static str {
         FieldType::Real => "Real",
         FieldType::Vector { .. } => "Vector",
         FieldType::Json => "Json",
+        FieldType::Structured { .. } => "Structured",
         FieldType::Principal => "Principal",
         FieldType::Id { .. } => "Id",
         FieldType::RelationIncarnation { .. } => "RelationIncarnation",
@@ -9748,7 +9962,10 @@ fn build_query_sql(
                         )
                         .with_detail("maxInItems", QUERY_MAX_IN_ITEMS as u64));
                     }
-                    if matches!(field_type, Some(FieldType::Json)) {
+                    if matches!(
+                        field_type,
+                        Some(FieldType::Json | FieldType::Structured { .. })
+                    ) {
                         validate_query_filter_value(table, &filter.field, &Value::Null)?;
                     }
                     add_query_filter_bindings(&mut filter_bindings, items.len(), &filter.field)?;
@@ -10003,15 +10220,21 @@ fn validate_query_filter_value(
     value: &Value,
 ) -> SnapbackResult<()> {
     if let Some(field) = table.field(field_name) {
-        if field.field_type == FieldType::Json {
+        if matches!(
+            field.field_type,
+            FieldType::Json | FieldType::Structured { .. }
+        ) {
             return Err(SnapbackError::error(
                 "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE",
                 "query",
                 format!(
-                    "query filter {}.{} has non-portable Json type",
+                    "query filter {}.{} has opaque Json/Structured type",
                     table.name, field_name
                 ),
-            ));
+            )
+            .with_detail("table", table.name.clone())
+            .with_detail("field", field_name.to_owned())
+            .with_detail("fieldType", field_type_name(&field.field_type)));
         }
         let compatible = if value.is_null() {
             field.optional
@@ -10027,7 +10250,9 @@ fn validate_query_filter_value(
                 FieldType::Integer => portable_integer_value(value).is_some(),
                 FieldType::Real => value.as_f64().is_some(),
                 FieldType::Vector { .. } => false,
-                FieldType::Json => unreachable!("Json filters returned above"),
+                FieldType::Json | FieldType::Structured { .. } => {
+                    unreachable!("opaque filters returned above")
+                }
             }
         };
         if compatible {
@@ -13260,6 +13485,7 @@ fn insert_document(
         SqlValue::Integer(timestamp_to_sql_millis(now_ms)?),
         SqlValue::Integer(timestamp_to_sql_millis(now_ms)?),
     ];
+    let mut structured_bytes = 0_usize;
 
     for field in &table.fields {
         let value = match relation_stamps
@@ -13280,17 +13506,23 @@ fn insert_document(
                 ));
             }
         };
-        values.push(json_to_sql_value_for_field(
-            &value,
-            &field.field_type,
-            &table.name,
-            &field.name,
-        )?);
+        let (normalized, sql_value, bytes) =
+            prepare_declared_field_value(&table.name, field, &value)?;
+        structured_bytes = structured_bytes.saturating_add(bytes);
+        values.push(sql_value);
         columns.push(field.name.clone());
-        document.insert(
-            field.name.clone(),
-            normalize_json_value(value, &field.field_type)?,
-        );
+        document.insert(field.name.clone(), normalized);
+    }
+    if structured_bytes > MAX_STORED_STRUCTURED_ROW_BYTES {
+        return Err(SnapbackError::error(
+            "SNAPBACK_STRUCTURED_ROW_BYTES_EXCEEDED",
+            "storage",
+            "row exceeds the aggregate structured canonical-byte ceiling",
+        )
+        .with_detail("table", table.name.clone())
+        .with_detail("path", "")
+        .with_detail("actualBytes", structured_bytes as u64)
+        .with_detail("maxBytes", MAX_STORED_STRUCTURED_ROW_BYTES as u64));
     }
 
     let placeholders = (0..columns.len())
@@ -14070,7 +14302,7 @@ fn patch_document(
             return Err(relation_incarnation_write_protected(table, field));
         }
         validate_declared_field_value(field_manifest, value)?;
-        json_to_sql_value_for_field(value, &field_manifest.field_type, &table.name, field)?;
+        prepare_declared_field_value(&table.name, field_manifest, value)?;
     }
 
     let current = get_document_from_tx(tx, table, id, version)?;
@@ -14113,9 +14345,21 @@ fn patch_document(
             }
         }
     }
+    let mut normalized_authored = Map::new();
+    let mut prepared_sql = BTreeMap::new();
+    for (field_name, value) in &authored {
+        let field_manifest = ensure_field(table, field_name)?;
+        let (normalized, sql_value, _) =
+            prepare_declared_field_value(&table.name, field_manifest, value)?;
+        normalized_authored.insert(field_name.clone(), normalized);
+        prepared_sql.insert(field_name.clone(), sql_value);
+    }
+    let mut candidate = current.clone();
+    candidate.extend(normalized_authored.clone());
+    validate_structured_row_aggregate(table, &candidate)?;
     // A patch is a source effect only when its persisted application fields
     // differ exactly. Empty and storage-equal patches are both no-ops.
-    if authored
+    if normalized_authored
         .iter()
         .all(|(field, value)| current.get(field) == Some(value))
     {
@@ -14127,7 +14371,7 @@ fn patch_document(
         SqlValue::Integer(timestamp_to_sql_millis(now_ms)?),
     ];
 
-    for (field, value) in &authored {
+    for (field, value) in &normalized_authored {
         if is_system_field(field) {
             return Err(SnapbackError::error(
                 "SNAPBACK_SYSTEM_FIELD_WRITE",
@@ -14139,12 +14383,11 @@ fn patch_document(
         validate_declared_field_value(field_manifest, value)?;
         validate_order_field_bound(order_field_bounds, table, id, field_manifest, value)?;
         assignments.push(format!("{} = ?", quote_ident(field)?));
-        values.push(json_to_sql_value_for_field(
-            value,
-            &field_manifest.field_type,
-            &table.name,
-            field,
-        )?);
+        values.push(
+            prepared_sql
+                .remove(field)
+                .expect("normalized authored field carries prepared SQL"),
+        );
     }
     values.push(SqlValue::Text(id.to_owned()));
 
@@ -14460,6 +14703,56 @@ fn sqlite_to_json_with_staged_null(
                     .with_detail("error", error.to_string())
             })
         }
+        (
+            FieldType::Structured {
+                contract,
+                contract_hash,
+            },
+            ValueRef::Text(bytes),
+        ) => {
+            let text = decode_storage_text(bytes, table, column)?;
+            if text.len() > MAX_STORED_STRUCTURED_VALUE_BYTES {
+                return Err(storage_field_corrupt(
+                    table,
+                    column,
+                    "bounded RFC 8785 JSON TEXT",
+                    ValueRef::Text(bytes),
+                ));
+            }
+            let value: Value = serde_json::from_str(&text).map_err(|error| {
+                storage_field_corrupt(
+                    table,
+                    column,
+                    "RFC 8785 JSON TEXT",
+                    ValueRef::Text(bytes),
+                )
+                .with_detail("error", error.to_string())
+            })?;
+            let canonical = crate::rqs::jcs(&value).map_err(|_| {
+                storage_field_corrupt(
+                    table,
+                    column,
+                    "RFC 8785 JSON TEXT",
+                    ValueRef::Text(bytes),
+                )
+            })?;
+            if canonical.as_bytes() != bytes {
+                return Err(storage_field_corrupt(
+                    table,
+                    column,
+                    "canonical RFC 8785 JSON TEXT",
+                    ValueRef::Text(bytes),
+                ));
+            }
+            crate::args_contract::validate_stored_structured_value(
+                table,
+                column,
+                contract_hash,
+                &contract.descriptor,
+                &value,
+            )?;
+            Ok(value)
+        }
         (FieldType::Vector { dimensions }, ValueRef::Blob(bytes)) => {
             let components = crate::vector::storage::decode_vector_binary64_le(bytes, *dimensions)?;
             Ok(Value::Array(
@@ -14528,6 +14821,12 @@ fn storage_field_corrupt(
 // @ref LLP 0007#data-model — portable v0 integers are JavaScript-safe signed integers.
 const PORTABLE_INTEGER_MAX: i64 = 9_007_199_254_740_991;
 const PORTABLE_INTEGER_MIN: i64 = -PORTABLE_INTEGER_MAX;
+
+// OQ3's implementation-time provisional numbers, frozen for Phase A.
+// @ref LLP 0211#representation-and-write-path — admission bounds the
+// structured contribution without claiming a complete live-envelope bound.
+pub(crate) const MAX_STORED_STRUCTURED_VALUE_BYTES: usize = 32 * 1024;
+pub(crate) const MAX_STORED_STRUCTURED_ROW_BYTES: usize = 48 * 1024;
 
 fn portable_integer_value(value: &Value) -> Option<i64> {
     value
@@ -14666,6 +14965,26 @@ fn json_to_sql_value_with_context(
             crate::vector::storage::encode_vector_binary64_le(&components, *dimensions)
                 .map(SqlValue::Blob)
         }
+        Some(FieldType::Structured {
+            contract,
+            contract_hash,
+        }) => {
+            let Some((table, field)) = write_context else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_STRUCTURED_WRITE_CONTEXT_MISSING",
+                    "storage",
+                    "structured values require their declared field context at admission",
+                ));
+            };
+            let (_, canonical) = canonicalize_stored_structured_value(
+                table,
+                field,
+                contract_hash,
+                &contract.descriptor,
+                value,
+            )?;
+            Ok(SqlValue::Text(canonical))
+        }
         Some(FieldType::Json) => {
             serde_json::to_string(value)
                 .map(SqlValue::Text)
@@ -14684,6 +15003,17 @@ fn json_to_sql_value_with_context(
 fn normalize_json_value(value: Value, field_type: &FieldType) -> SnapbackResult<Value> {
     match field_type {
         FieldType::Json => Ok(value),
+        FieldType::Structured {
+            contract,
+            contract_hash,
+        } => canonicalize_stored_structured_value(
+            "<internal>",
+            "<internal>",
+            contract_hash,
+            &contract.descriptor,
+            &value,
+        )
+        .map(|(value, _)| value),
         FieldType::Enum { .. } => {
             json_to_sql_value(&value, Some(field_type))?;
             Ok(value)
@@ -14728,6 +15058,124 @@ fn normalize_json_value(value: Value, field_type: &FieldType) -> SnapbackResult<
             Ok(value)
         }
     }
+}
+
+fn canonicalize_stored_structured_value(
+    table: &str,
+    field: &str,
+    contract_hash: &str,
+    descriptor: &crate::manifest::ResultValueContract,
+    value: &Value,
+) -> SnapbackResult<(Value, String)> {
+    crate::args_contract::validate_stored_structured_value(
+        table,
+        field,
+        contract_hash,
+        descriptor,
+        value,
+    )?;
+    let canonical = crate::rqs::jcs(value).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_STRUCTURED_VALUE_INVALID",
+            "storage",
+            "stored structured value is outside the RFC 8785 numeric/string profile",
+        )
+        .with_detail("table", table.to_owned())
+        .with_detail("field", field.to_owned())
+        .with_detail("contractHash", contract_hash.to_owned())
+        .with_detail("path", "")
+    })?;
+    if canonical.len() > MAX_STORED_STRUCTURED_VALUE_BYTES {
+        return Err(SnapbackError::error(
+            "SNAPBACK_STRUCTURED_VALUE_BYTES_EXCEEDED",
+            "storage",
+            "stored structured value exceeds the canonical-byte ceiling",
+        )
+        .with_detail("table", table.to_owned())
+        .with_detail("field", field.to_owned())
+        .with_detail("path", "")
+        .with_detail("actualBytes", canonical.len() as u64)
+        .with_detail(
+            "maxBytes",
+            MAX_STORED_STRUCTURED_VALUE_BYTES as u64,
+        ));
+    }
+    // Reparse the exact durable spelling. This is the admission-normalization
+    // step: an interior integral Real whose JCS spelling is `5` becomes the
+    // same logical integer-valued JSON number an immediate reload observes.
+    let normalized = serde_json::from_str(&canonical).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_STRUCTURED_VALUE_INVALID",
+            "storage",
+            "canonical structured value could not be reparsed",
+        )
+        .with_detail("table", table.to_owned())
+        .with_detail("field", field.to_owned())
+        .with_detail("path", "")
+        .with_detail("error", error.to_string())
+    })?;
+    Ok((normalized, canonical))
+}
+
+fn prepare_declared_field_value(
+    table: &str,
+    field: &FieldManifest,
+    value: &Value,
+) -> SnapbackResult<(Value, SqlValue, usize)> {
+    validate_declared_field_value(field, value)?;
+    if value.is_null() {
+        return Ok((Value::Null, SqlValue::Null, 0));
+    }
+    if let FieldType::Structured {
+        contract,
+        contract_hash,
+    } = &field.field_type
+    {
+        let (normalized, canonical) = canonicalize_stored_structured_value(
+            table,
+            &field.name,
+            contract_hash,
+            &contract.descriptor,
+            value,
+        )?;
+        let bytes = canonical.len();
+        return Ok((normalized, SqlValue::Text(canonical), bytes));
+    }
+    let sql = json_to_sql_value_for_field(value, &field.field_type, table, &field.name)?;
+    let normalized = normalize_json_value(value.clone(), &field.field_type)?;
+    Ok((normalized, sql, 0))
+}
+
+fn validate_structured_row_aggregate(
+    table: &TableManifest,
+    values: &Map<String, Value>,
+) -> SnapbackResult<usize> {
+    let mut total = 0_usize;
+    for field in &table.fields {
+        if !matches!(field.field_type, FieldType::Structured { .. }) {
+            continue;
+        }
+        let Some(value) = values.get(&field.name) else {
+            continue;
+        };
+        if value.is_null() {
+            continue;
+        }
+        let (_, _, bytes) = prepare_declared_field_value(&table.name, field, value)?;
+        total = total.saturating_add(bytes);
+    }
+    if total > MAX_STORED_STRUCTURED_ROW_BYTES {
+        return Err(SnapbackError::error(
+            "SNAPBACK_STRUCTURED_ROW_BYTES_EXCEEDED",
+            "storage",
+            "row exceeds the aggregate structured canonical-byte ceiling",
+        )
+        .with_detail("table", table.name.clone())
+        .with_detail("path", "")
+        .with_detail("actualBytes", total as u64)
+        .with_detail("maxBytes", MAX_STORED_STRUCTURED_ROW_BYTES as u64));
+    }
+    Ok(total)
 }
 
 fn validate_declared_field_value(field: &FieldManifest, value: &Value) -> SnapbackResult<()> {
@@ -14780,12 +15228,15 @@ fn ensure_field_or_system(table: &TableManifest, field: &str) -> SnapbackResult<
 
 fn ensure_orderable_field(table: &TableManifest, field: &str) -> SnapbackResult<()> {
     ensure_field_or_system(table, field)?;
-    if matches!(field_type(table, field), Some(FieldType::Json)) {
+    if matches!(
+        field_type(table, field),
+        Some(FieldType::Json | FieldType::Structured { .. })
+    ) {
         return Err(SnapbackError::error(
             "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE",
             "query",
             format!(
-                "query order field {}.{field} has non-portable Json type",
+                "query order field {}.{field} has opaque Json/Structured type",
                 table.name
             ),
         )
@@ -14809,6 +15260,7 @@ fn sqlite_type(field_type: &FieldType) -> &'static str {
         FieldType::String
         | FieldType::Enum { .. }
         | FieldType::Json
+        | FieldType::Structured { .. }
         | FieldType::Principal
         | FieldType::Id { .. }
         | FieldType::RelationIncarnation { .. }

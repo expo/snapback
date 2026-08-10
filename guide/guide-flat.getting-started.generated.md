@@ -8,14 +8,14 @@ title: Your first backend
 id: getting-started.your-first-backend
 order: 1
 audience: agent-first
-capabilities: [backend.schema, backend.stored-enums, backend.functions, backend.seed, backend.provisioning, backend.codegen]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0115-convex-parity-course-corrections.plan.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
-examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapback, packages/snapback-codegen/inline-result-contracts.test.mjs, packages/snapback-codegen/stored-enum-authoring.test.mjs]
+capabilities: [backend.schema, backend.structured-stored-fields, backend.stored-enums, backend.functions, backend.seed, backend.provisioning, backend.codegen]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0115-convex-parity-course-corrections.plan.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0211-typed-opaque-structured-stored-values.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, src/contract_types.rs, src/storage.rs]
+examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapback, packages/snapback-codegen/inline-result-contracts.test.mjs, packages/snapback-codegen/stored-enum-authoring.test.mjs, packages/snapback-codegen/structured-stored-values.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed: 2026-08-09
+reviewed-commit: HEAD
 ---
 
 # Your first backend
@@ -78,12 +78,20 @@ export default defineSchema({
 
 The core validators: `v.string()`, `v.principal()`, `v.id(table)`,
 `v.boolean()`, `v.integer()`, `v.real()` / `v.number()`, `v.json()`,
-`v.object({...})`, and `v.optional(inner)`. This inventory is deliberately
+`v.object({...})`, `v.array(inner)`, and `v.optional(inner)`. This inventory is deliberately
 partial: specialized validators — typed asset references (`v.assetRef`,
 [assets](../backend/assets.md)), result-side `v.doc(table)` references
 ([queries](../backend/queries.md)) — are taught with their features.
 
-<!-- since: 0.1.16 -->
+<!-- since: 0.1.18 unreleased -->
+
+> **Unreleased.** The typed-structured declaration grammar (stored
+> `v.object`/`v.array`/non-literal unions) is newer than the newest
+> published closure, 0.1.17, and is available on contributor-source local
+> builds. Structured storage is registered as experimental but
+> deliberately remains local-support-false until its separate
+> acceptance-review flip. Stored enum fields shipped in the published
+> closure and are not fenced.
 
 **Closed string domains (enums).** A field whose values come from a fixed set
 — a role, a status, a visibility — declares that set directly, instead of
@@ -116,18 +124,34 @@ every stored value already satisfies it; otherwise the whole activation
 refuses with `SNAPBACK_SCHEMA_ENUM_DOMAIN_BACKFILL_REQUIRED` naming an
 offending value, and neither the manifest nor the table moves.
 
-**Array-shaped table fields are a workaround, not a shipped structured-field
-capability.** A table field cannot use `v.array(...)` or `v.object(...)`
-directly. The immediate workaround is to store the value as opaque
-`v.json()`, then narrow every function result that exposes it with the
-appropriate `v.array(...)` result validator. That result contract validates
-the returned JSON shape; it does not add write-time item validation, array
-indexing, portable structured-field semantics, or sync-aware array behavior to
-the stored column. Native stored arrays and objects remain the explicit
-[`backend.structured-stored-fields` GAP](../capabilities.md) owned by
-[LLP 0115 CV-4b](repo:llp/0115-convex-parity-course-corrections.plan.md#cv-4-structured-collection-validators-split-arguments-then-storage);
-the closed-string-domain slice above is carved out of it and shipped. Do not
-describe the `v.json()` pairing as that missing capability.
+**Typed opaque arrays and objects.** At a table-field position,
+`v.object({...})`, `v.array(inner)`, and non-enum unions rooted in those nodes
+now compile to a persisted structured contract instead of silently degrading
+to `v.json()`. Objects are closed maps. Nested `v.optional(...)` is legal only
+for object members and means omission, not `null`; declare `v.null()` as a
+union variant when null is data. The admitted leaves are strings, booleans,
+the integer/real/finite-real/number spellings, scalar literals, arrays,
+objects, and syntactically disjoint unions. Generated document, handler, and
+client types preserve the declared shape exactly.
+
+The runtime carrier is `canonical-json-text.v1`: the server validates the
+whole value, normalizes integral Reals, writes canonical JSON `TEXT`, and
+reloads a logical object or array. Admission is atomic and bounded at 32 KiB
+per value, 48 KiB of structured data per row, depth 16, and 1,024 array
+elements. Structured values are opaque to observation in this phase: ordinary
+indexes, filters, orders, live matchers, search membership, search/vector
+`storedFields`, and bounded/relational/maintained projections refuse them.
+Project a scalar into an ordinary field when it must be queried.
+
+`structured_stored_value_v1` is currently registered experimental but
+support-false on the local target, so a schema using this grammar reaches the
+typed carrier and then refuses coherently at capability settlement until the
+separate reviewed support flip. This is intentional: maturity registration is
+not runtime support. `v.json()` remains the unchanged untyped escape hatch.
+The remaining [`backend.structured-stored-fields` GAP](../capabilities.md) is
+queryable structure—interior predicates, containment, and portable declared
+projections—owned by
+[LLP 0115 CV-4b](repo:llp/0115-convex-parity-course-corrections.plan.md#cv-4-structured-collection-validators-split-arguments-then-storage).
 
 **There is no numeric identity or default column.** A server-owned monotonic
 number (PostgreSQL's `GENERATED ... AS IDENTITY`, a `SERIAL`) has no

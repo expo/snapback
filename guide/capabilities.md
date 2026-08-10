@@ -4,13 +4,13 @@ id: meta.capabilities
 order: 2
 audience: agent-first
 capabilities: []
-authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0133-local-settlement.spec.md, llp/0154-minimal-observability.rfc.md, llp/0155-local-sync-product-direction.rfc.md, llp/0156-minimal-error-tracking.rfc.md, src/server.rs, src/admin.rs, src/telemetry_query.rs, src/errors_query.rs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
+authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0133-local-settlement.spec.md, llp/0154-minimal-observability.rfc.md, llp/0155-local-sync-product-direction.rfc.md, llp/0156-minimal-error-tracking.rfc.md, llp/0211-typed-opaque-structured-stored-values.spec.md, src/server.rs, src/admin.rs, src/telemetry_query.rs, src/errors_query.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed: 2026-08-09
+reviewed-commit: HEAD
 ---
 
 # Capability index
@@ -26,7 +26,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | id | What | Aliases | Targets | Maturity | Witness | Authorities | Page |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | backend.schema | Declare tables, fields, indexes, sync | schema, tables, model, field validators, v.json | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
-| backend.structured-stored-fields | Native stored arrays/objects with write-time element validation, portable indexing, sync semantics | table array, array field, v.array table field, structured storage, stored arrays | none | design-only | llp/0115-convex-parity-course-corrections.plan.md (CV-4b; no shipped witness) | llp/0115 | GAP (owner: LLP 0115 CV-4b, review: 2026-08-18; issue: issues/20260727-backend-bakeoff-improvement-program.md); getting-started/your-first-backend.md |
+| backend.structured-stored-fields | Typed opaque arrays/objects; interior not queryable | table array, v.array field, v.object field, structured storage | none | experimental | packages/snapback-codegen/structured-stored-values.test.mjs | llp/0211, llp/0115 | GAP (interior queries; owner: LLP 0115 CV-4b, review: 2026-08-18; issue: issues/20260727-backend-bakeoff-improvement-program.md); getting-started/your-first-backend.md |
 | backend.stored-enums | Closed string domains on stored fields: 2–7 literals, fail-closed at every writer, literal-union types, scanned narrowing | enum, stored enum, literal union field, closed domain, role enum, varchar enum, v.union table field | local | shipped | packages/snapback-codegen/stored-enum-authoring.test.mjs | llp/0004, llp/0007 | getting-started/your-first-backend.md |
 | backend.identity-columns | Server-owned monotonic numeric/default columns (SQL IDENTITY, SERIAL) declared on a field | identity column, serial, autoincrement, sequence column, default value, GENERATED AS IDENTITY | none | design-only | llp/0191-scale-architecture-revisits.research.md (§3; no shipped witness) | llp/0191, llp/0007 | GAP (owner: LLP 0191 identity Decision, review: 2026-09-15; issue: issues/20260808-numeric-identity-default-columns.md); getting-started/your-first-backend.md |
 | backend.migrations | Reviewed destructive schema evolution (LLP 0081): explicit intents, deterministic preview + digested observation, digest-acknowledged approval, restore-derived rehearsal, apply with consumed rehearsal receipt, receipt-vs-journal verify; `rollback` declared-but-unbuilt | migration, schema migration, alter column, rename column, drop field, backfill, snapback migrate | local | shipped | `MigrateCommand` in src/cli.rs | llp/0081 | backend/migrations.md |

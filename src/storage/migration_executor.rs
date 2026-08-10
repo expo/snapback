@@ -29,7 +29,9 @@ use crate::commit_envelope::{
     StreamQualifiedVersionV1, derive_host_operation_id,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::manifest::{BinaryOp, HandlerInput, SchemaManifest, TableManifest, UnaryOp, ValueExpr};
+use crate::manifest::{
+    BinaryOp, FieldManifest, HandlerInput, SchemaManifest, TableManifest, UnaryOp, ValueExpr,
+};
 use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationAudienceV1, MigrationExecutionStrategy,
     MigrationPlanArtifactV1, MigrationStep, admission_digest, approval_digest,
@@ -2937,6 +2939,7 @@ impl LocalDatabase {
                         successor_schema,
                         constants,
                         publication_version,
+                        step_id,
                         &journal_step_wrapper(
                             &operation_id,
                             &plan_id,
@@ -3567,13 +3570,21 @@ impl LocalDatabase {
                     None,
                     "migration/backfill-expression",
                 )?;
+                let field_manifest = table.field(field).ok_or_else(|| {
+                    step_failed(step_id, "backfill destination field is undeclared")
+                })?;
+                let (normalized, sql_value, _) =
+                    prepare_migration_field_value(&table.name, field_manifest, &value, step_id)?;
                 let existing = row.get(field).cloned().unwrap_or(Value::Null);
-                if existing == value {
+                if existing == normalized {
                     continue;
                 }
-                let field_manifest = table.field(field);
-                let sql_value =
-                    super::json_to_sql_value(&value, field_manifest.map(|f| &f.field_type))?;
+                let mut candidate = row
+                    .as_object()
+                    .cloned()
+                    .ok_or_else(|| journal_corrupt("backfill row is not an object".to_owned()))?;
+                candidate.insert(field.to_owned(), normalized);
+                validate_migration_structured_row_aggregate(table, &candidate, step_id)?;
                 tx.execute(
                     &format!(
                         "UPDATE {} SET {} = ?1, _version = ?2, _updatedAt = ?3 WHERE _id = ?4",
@@ -3689,6 +3700,7 @@ impl LocalDatabase {
                     version,
                     created_at,
                     updated_at,
+                    step_id,
                 )?;
                 rows_copied += 1;
             }
@@ -3724,6 +3736,7 @@ impl LocalDatabase {
         successor_schema: &SchemaManifest,
         constants: &crate::migration::MigrationConstants,
         publication_version: u64,
+        step_id: &str,
         journal_step: &JournalStepFn<'_>,
     ) -> SnapbackResult<Value> {
         let source_schema = self.schema.clone();
@@ -3763,9 +3776,22 @@ impl LocalDatabase {
                     None,
                     "migration/copy-expression",
                 )?;
-                let field_manifest = dest_table.field(field);
-                let sql_value =
-                    super::json_to_sql_value(&value, field_manifest.map(|f| &f.field_type))?;
+                let field_manifest = dest_table
+                    .field(field)
+                    .ok_or_else(|| step_failed(step_id, "copy destination field is undeclared"))?;
+                let (normalized, sql_value, _) = prepare_migration_field_value(
+                    &dest_table.name,
+                    field_manifest,
+                    &value,
+                    step_id,
+                )?;
+                if let Some(mut candidate) =
+                    super::get_document_from_tx(&tx, dest_table, &id, publication_version)?
+                        .and_then(|value| value.as_object().cloned())
+                {
+                    candidate.insert(field.to_owned(), normalized);
+                    validate_migration_structured_row_aggregate(dest_table, &candidate, step_id)?;
+                }
                 let written = tx.execute(
                     &format!(
                         "UPDATE {} SET {} = ?1, _version = ?2, _updatedAt = ?3 \
@@ -4702,6 +4728,7 @@ fn insert_staged_row(
     version: u64,
     created_at_ms: u64,
     updated_at_ms: u64,
+    step_id: &str,
 ) -> SnapbackResult<()> {
     let mut columns = vec![
         "_id".to_owned(),
@@ -4721,15 +4748,19 @@ fn insert_staged_row(
         SqlValue::Integer(timestamp_to_sql_millis(created_at_ms)?),
         SqlValue::Integer(timestamp_to_sql_millis(updated_at_ms)?),
     ];
+    let mut normalized_fields = Map::new();
     for (name, value) in fields {
-        let manifest = staged.field(name);
+        let manifest = staged
+            .field(name)
+            .ok_or_else(|| step_failed(step_id, "staged destination field is undeclared"))?;
+        let (normalized, sql_value, _) =
+            prepare_migration_field_value(&staged.name, manifest, value, step_id)?;
         columns.push(name.clone());
         placeholders.push(format!("?{}", values.len() + 1));
-        values.push(super::json_to_sql_value(
-            value,
-            manifest.map(|f| &f.field_type),
-        )?);
+        values.push(sql_value);
+        normalized_fields.insert(name.clone(), normalized);
     }
+    validate_migration_structured_row_aggregate(staged, &normalized_fields, step_id)?;
     let column_sql = columns
         .iter()
         .map(|column| quote_ident(column))
@@ -4744,6 +4775,51 @@ fn insert_staged_row(
         super::params_from_iter(values.iter()),
     )?;
     Ok(())
+}
+
+/// Migration destinations remain physically nullable until their explicit
+/// `ValidateRequired` step. All other declared-value admission still runs at
+/// the row write, and its client/schema diagnostic is nested under the typed
+/// migration-step failure required by the executor protocol.
+///
+/// @ref LLP 0081#3-typed-migration-steps — staged nullability is discharged by
+///   ValidateRequired; per-row write failures belong to the executing step.
+/// @ref LLP 0211#representation-and-write-path — migration writers still use
+///   the central fail-closed structured admission and canonicalization seam.
+fn prepare_migration_field_value(
+    table: &str,
+    field: &FieldManifest,
+    value: &Value,
+    step_id: &str,
+) -> SnapbackResult<(Value, SqlValue, usize)> {
+    let mut staged_field = field.clone();
+    staged_field.optional = true;
+    super::prepare_declared_field_value(table, &staged_field, value)
+        .map_err(|error| migration_admission_failed(step_id, error))
+}
+
+fn validate_migration_structured_row_aggregate(
+    table: &TableManifest,
+    values: &Map<String, Value>,
+    step_id: &str,
+) -> SnapbackResult<()> {
+    super::validate_structured_row_aggregate(table, values)
+        .map(|_| ())
+        .map_err(|error| migration_admission_failed(step_id, error))
+}
+
+fn migration_admission_failed(step_id: &str, error: SnapbackError) -> SnapbackError {
+    let cause_code = error.diagnostic.code;
+    let cause_message = error.diagnostic.message;
+    let cause_details = error.diagnostic.details;
+    step_failed(
+        step_id,
+        &format!("row admission refused by {cause_code}: {cause_message}"),
+    )
+    .with_details(json!({
+        "causeCode": cause_code,
+        "causeDetails": cause_details,
+    }))
 }
 
 /// The effective schema during the barrier: the predecessor's tables with
@@ -5307,7 +5383,8 @@ pub(crate) fn latest_state_for_test(
 mod tests {
     use super::*;
     use crate::manifest::{
-        FieldManifest, FieldType, HandlerInput, SchemaManifest, SeedData, TableManifest, ValueExpr,
+        FieldManifest, FieldType, HandlerInput, ResultObjectFieldContract, ResultValueContract,
+        SchemaManifest, SeedData, StoredStructuredContractV1, TableManifest, ValueExpr,
     };
     use crate::migration::{
         CompatibilityPosture, MIGRATION_APPROVAL_SCHEMA_VERSION, MIGRATION_PLAN_SCHEMA_VERSION,
@@ -5355,6 +5432,117 @@ mod tests {
             tables: vec![table("items", vec![("title", false), ("note", false)])],
             ..SchemaManifest::default()
         }
+    }
+
+    #[test]
+    fn staged_migration_copy_canonicalizes_structured_values_before_insert() {
+        let contract = StoredStructuredContractV1 {
+            version: crate::manifest::STORED_STRUCTURED_CONTRACT_VERSION_V1,
+            descriptor: ResultValueContract::Object {
+                fields: vec![
+                    ResultObjectFieldContract {
+                        name: "label".to_owned(),
+                        required: true,
+                        value: ResultValueContract::String { max_bytes: 64 },
+                    },
+                    ResultObjectFieldContract {
+                        name: "n".to_owned(),
+                        required: true,
+                        value: ResultValueContract::FiniteReal {
+                            min: -100.0,
+                            max: 100.0,
+                        },
+                    },
+                ],
+                allow_extra: false,
+            },
+            encoding: crate::manifest::STORED_STRUCTURED_ENCODING_V1.to_owned(),
+        };
+        let contract_hash = crate::manifest::stored_structured_contract_hash(&contract).unwrap();
+        let schema = SchemaManifest {
+            tables: vec![TableManifest {
+                name: "migrationRows".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "payload".to_owned(),
+                    field_type: FieldType::Structured {
+                        contract,
+                        contract_hash,
+                    },
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+                history: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let mut db = LocalDatabase::memory().unwrap();
+        db.apply_schema(schema).unwrap();
+        let table = db.schema().table("migrationRows").unwrap().clone();
+        let tx = db.conn.transaction().unwrap();
+        set_version(&tx, 7).expect("align migration row with storage head");
+        let refused = insert_staged_row(
+            &tx,
+            &table,
+            "migration-refused",
+            &serde_json::Map::from_iter([(
+                "payload".to_owned(),
+                json!({ "label": "missing required n" }),
+            )]),
+            7,
+            10,
+            11,
+            "copy-structured",
+        )
+        .expect_err("invalid staged structured value must refuse");
+        assert_eq!(refused.diagnostic.code, "SNAPBACK_MIGRATION_STEP_FAILED");
+        assert_eq!(
+            refused.diagnostic.details["causeCode"],
+            "SNAPBACK_STRUCTURED_VALUE_INVALID"
+        );
+        let refused_rows: u64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM migrationRows WHERE _id='migration-refused'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(refused_rows, 0, "refused admission must write no row");
+        insert_staged_row(
+            &tx,
+            &table,
+            "migration-copy",
+            &serde_json::Map::from_iter([(
+                "payload".to_owned(),
+                json!({ "n": 8.0, "label": "copied" }),
+            )]),
+            7,
+            10,
+            11,
+            "copy-structured",
+        )
+        .expect("staged structured copy");
+        tx.commit().unwrap();
+        let raw: String = db
+            .conn
+            .query_row(
+                "SELECT payload FROM migrationRows WHERE _id='migration-copy'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(raw, r#"{"label":"copied","n":8}"#);
+        assert_eq!(
+            db.get("migrationRows", "migration-copy").unwrap().unwrap()["payload"],
+            json!({ "label": "copied", "n": 8 })
+        );
     }
 
     const PUBLICATION_TS: u64 = 1_900_000_000_000;

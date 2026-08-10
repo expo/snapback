@@ -301,6 +301,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'snapshot-batch-v2-authoring.test.mjs',
       'standard-patterns.test.mjs',
       'stored-enum-authoring.test.mjs',
+      'structured-stored-values.test.mjs',
       'typed-search-wrapper.test.mjs',
       'vector-authoring.test.mjs',
       'vector-distance-profile.test.mjs',
@@ -452,7 +453,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 241,
+  expectedTotal = 242,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -752,6 +753,9 @@ export function checkPackageTestInventories(options = {}) {
 // suite for plain and resource-scoped generated search references.
 // 240 -> 241 (2026-08-09, LLP 0200 Phase 2): @expo/snapback-client gains the
 // same-envelope authorization resolution and no-resolution quarantine suite.
+// 241 -> 242 (2026-08-09, LLP 0211 Phase A): @expo/snapback-codegen gains the
+// typed opaque structured stored-value carrier, dispatch, refusal, type-flow,
+// and retained-client round-trip acceptance corpus.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

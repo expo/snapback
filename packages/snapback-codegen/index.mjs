@@ -89,6 +89,7 @@ import {
   resultContractHash,
   resultContractType,
   searchPageResultType,
+  storedStructuredContractDescriptor,
   VECTOR_COMPONENT_ABS_MAX,
   vectorPageResultType,
   validatorResultValue,
@@ -141,6 +142,17 @@ const compositionDomainHash = (domain, value) => `sha256:${createHash('sha256')
   .update(domain)
   .update(canonicalResultJson(value))
   .digest('hex')}`;
+
+export const STORED_STRUCTURED_ENCODING_V1 = 'canonical-json-text.v1';
+
+// @ref LLP 0211#representation-and-write-path — exact domain-string,
+// newline separator, three-member record, JCS bytes, and lowercase hex.
+export function storedStructuredContractHash(contract) {
+  return `sha256:${createHash('sha256')
+    .update('snapback:stored-structured-contract:v1\n')
+    .update(canonicalResultJson(contract))
+    .digest('hex')}`;
+}
 
 const TRUSTED_COMPOSITION_ACTIVATION_FILE = 'trusted-composition-activation.json';
 
@@ -916,6 +928,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'snapshot_batch_v1',
   'snapshot_batch_v2',
   'single_table_v1',
+  'structured_stored_value_v1',
   'result_contract_v1',
   'args_contract_v1',
   'settlement.bounded_skew',
@@ -953,6 +966,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'snapshot_batch_v1',
   'snapshot_batch_v2',
   'single_table_v1',
+  'structured_stored_value_v1',
   'registered_bundle_boot_v1',
   'result_contract_v1',
   'versioned_seed_install_v1',
@@ -1746,13 +1760,63 @@ export async function generateInProcess(backendDir, options = {}) {
         err('SCHEMA_DUPLICATE_FIELD', 'schema', `duplicate field ${name}.${fieldName}`, { table: name, field: fieldName });
       }
       seenFields.add(fieldName);
-      const storedEnum = validateStoredLiteralUnion(val, `${name}.${fieldName}`, (message) => {
-        err('SCHEMA_INVALID_VALIDATOR', 'schema', message, { table: name, field: fieldName });
-      });
+      const storedEnum = isStoredLiteralUnionCandidate(val)
+        ? validateStoredLiteralUnion(val, `${name}.${fieldName}`, (message) => {
+            err('SCHEMA_INVALID_VALIDATOR', 'schema', message, { table: name, field: fieldName });
+          })
+        : { matched: false, values: null };
       if (!storedEnum.matched) {
-        validateAuthoringValidator(val, `${name}.${fieldName}`, (message) => {
-          err('SCHEMA_INVALID_VALIDATOR', 'schema', message, { table: name, field: fieldName });
-        });
+        const structured = val?.primitive === 'object'
+          || val?.resultKind === 'array'
+          || val?.resultKind === 'union';
+        if (structured) {
+          checkObjectValidatorFieldIdents(val, `${name}.${fieldName}`, (invalidName, where) => {
+            err(
+              'SCHEMA_STRUCTURED_OBJECT_FIELD_INVALID',
+              'schema',
+              `${where} contains invalid object-member identifier ${JSON.stringify(invalidName)}`,
+              { table: name, field: fieldName, member: invalidName },
+            );
+          });
+          const valid = validateStoredStructuredValidator(
+            val,
+            `${name}.${fieldName}`,
+            (code, message, details = {}) => err(
+              code,
+              'schema',
+              message,
+              { table: name, field: fieldName, ...details },
+            ),
+          );
+          if (valid) {
+            try {
+              const contract = {
+                version: 1,
+                descriptor: storedStructuredContractDescriptor(val),
+                encoding: STORED_STRUCTURED_ENCODING_V1,
+              };
+              val.fieldType = {
+                Structured: {
+                  contract,
+                  contractHash: storedStructuredContractHash(contract),
+                },
+              };
+              const hint = structuredNullableScalarHint(val, `${name}.${fieldName}`);
+              if (hint) diagnostics.push(hint);
+            } catch (error) {
+              err(
+                'SCHEMA_STRUCTURED_CONTRACT_INVALID',
+                'schema',
+                `${name}.${fieldName} could not produce a closed stored structured contract: ${error.message}`,
+                { table: name, field: fieldName },
+              );
+            }
+          }
+        } else {
+          validateAuthoringValidator(val, `${name}.${fieldName}`, (message) => {
+            err('SCHEMA_INVALID_VALIDATOR', 'schema', message, { table: name, field: fieldName });
+          });
+        }
       } else if (storedEnum.values !== null) {
         val.fieldType = { Enum: { values: storedEnum.values } };
       }
@@ -1803,6 +1867,13 @@ export async function generateInProcess(backendDir, options = {}) {
       for (const f of index.fields) {
         if (!seenFields.has(f)) {
           err('SCHEMA_UNKNOWN_FIELD', 'schema', `index ${name}.${index.name} references unknown field ${f}`, { table: name, index: index.name, field: f });
+        } else if (table.fields[f].fieldType?.Structured) {
+          err(
+            'SCHEMA_STRUCTURED_INDEX_UNSUPPORTED',
+            'schema',
+            `index ${name}.${index.name} cannot observe opaque structured field ${f}; declare a scalar projection when indexing is required`,
+            { table: name, index: index.name, field: f },
+          );
         }
       }
       // @ref LLP 0007#index-contract — optional unique keys automatically use
@@ -1901,6 +1972,16 @@ export async function generateInProcess(backendDir, options = {}) {
           err('SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID', 'search', `search index ${name}.${search.name} equality filter ${field} has a non-portable type`, { table: name, index: search.name, field });
         }
       }
+      for (const field of search.storedFields ?? []) {
+        if (table.fields[field]?.fieldType?.Structured) {
+          err(
+            'SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID',
+            'search',
+            `search index ${name}.${search.name} stored field ${field} must be a bounded scalar display field; opaque structured fields cannot be projected`,
+            { table: name, index: search.name, field, reason: 'structured-stored-field-opaque' },
+          );
+        }
+      }
       if (search.visibility.kind === 'owner') {
         const owner = table.fields[search.visibility.field];
         if (!owner || owner.optional || !['String', 'Principal'].includes(owner.fieldType)) {
@@ -1963,6 +2044,7 @@ export async function generateInProcess(backendDir, options = {}) {
       }
       for (const field of vector.storedFields ?? []) {
         if (table.fields[field]?.fieldType?.Vector) fail(`storedFields must not expose vector field ${field}`, { field });
+        if (table.fields[field]?.fieldType?.Structured) fail(`storedFields must not expose opaque structured field ${field}`, { field, reason: 'structured-stored-field-opaque' });
       }
       if (vector.visibility?.kind === 'owner') {
         const owner = table.fields[vector.visibility.field];
@@ -2260,6 +2342,17 @@ export async function generateInProcess(backendDir, options = {}) {
     && !schemaRequiredCapabilities.includes('vector_search_v1')
   ) {
     schemaRequiredCapabilities.push('vector_search_v1');
+  }
+  if (
+    Object.values(tables).some((table) => (
+      table.fields.some((field) => field.field_type?.Structured)
+    ))
+    && !schemaRequiredCapabilities.includes('structured_stored_value_v1')
+  ) {
+    // @ref LLP 0211#capability-and-maturity-the-llp-0134-publication-contract
+    // — an older runtime must refuse the schema instead of treating the
+    // externally tagged carrier as Json or an unknown ignorable field.
+    schemaRequiredCapabilities.push('structured_stored_value_v1');
   }
   if (
     schemaDef.pushSeam?.ledger
@@ -3253,11 +3346,29 @@ export async function generateInProcess(backendDir, options = {}) {
           err('QUERY_UNKNOWN_FIELD', 'function', `${name}: authScopeField references unknown field ${t}.${def.authScopeField}`, { function: name, table: t, field: def.authScopeField });
         }
         for (const filter of def.plan.filters) {
-          if (!isKnownField(t, filter.field)) err('QUERY_UNKNOWN_FIELD', 'function', `${name}: filter on unknown field ${t}.${filter.field}`, { function: name, table: t, field: filter.field });
+          if (!isKnownField(t, filter.field)) {
+            err('QUERY_UNKNOWN_FIELD', 'function', `${name}: filter on unknown field ${t}.${filter.field}`, { function: name, table: t, field: filter.field });
+          } else if (tables[t].fields.find((field) => field.name === filter.field)?.field_type?.Structured) {
+            err(
+              'SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE',
+              'function',
+              `${name}: filters and live matchers cannot observe opaque structured field ${t}.${filter.field}`,
+              { function: name, table: t, field: filter.field, fieldType: 'Structured' },
+            );
+          }
           checkExpr(filter.value, `filter ${filter.field}`);
         }
         for (const order of def.plan.order) {
-          if (!isKnownField(t, order.field)) err('QUERY_UNKNOWN_FIELD', 'function', `${name}: order by unknown field ${t}.${order.field}`, { function: name, table: t, field: order.field });
+          if (!isKnownField(t, order.field)) {
+            err('QUERY_UNKNOWN_FIELD', 'function', `${name}: order by unknown field ${t}.${order.field}`, { function: name, table: t, field: order.field });
+          } else if (tables[t].fields.find((field) => field.name === order.field)?.field_type?.Structured) {
+            err(
+              'SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE',
+              'function',
+              `${name}: ordering cannot observe opaque structured field ${t}.${order.field}`,
+              { function: name, table: t, field: order.field, fieldType: 'Structured' },
+            );
+          }
         }
         if (def.plan.index && !tables[t].indexes.some((i) => i.name === def.plan.index)) {
           err('QUERY_UNKNOWN_INDEX', 'function', `${name}: unknown index ${t}.${def.plan.index}`, { function: name, table: t, index: def.plan.index });
@@ -6129,6 +6240,15 @@ function checkObjectValidatorFieldIdents(val, where, report) {
 // schema-field position. Keep this pre-check separate so no other closed
 // position (ephemeral scope/value or legacy result) inherits the widening.
 // @ref LLP 0004#dated-alignment-stored-literal-union-domains-2026-08-08
+function isStoredLiteralUnionCandidate(val) {
+  return val?.resultKind === 'union'
+    && Array.isArray(val.variants)
+    && val.variants.length > 0
+    && val.variants.every((variant) => (
+      variant?.resultKind === 'literal' && typeof variant.literal === 'string'
+    ));
+}
+
 function validateStoredLiteralUnion(val, where, report) {
   if (val?.resultKind !== 'union') return { matched: false, values: null };
   const fail = (message) => {
@@ -6178,6 +6298,184 @@ function validateStoredLiteralUnion(val, where, report) {
     values.push(variant.literal);
   }
   return { matched: true, values };
+}
+
+function structuredNullableScalarHint(val, where) {
+  if (val?.resultKind !== 'union' || !Array.isArray(val.variants)) return null;
+  const nulls = val.variants.filter((variant) => variant?.resultKind === 'null');
+  if (nulls.length !== 1) return null;
+  const nonNull = val.variants.filter((variant) => variant?.resultKind !== 'null');
+  const literalDomain = nonNull.length >= 2 && nonNull.every((variant) => (
+    variant?.resultKind === 'literal' && typeof variant.literal === 'string'
+  ));
+  if (literalDomain) {
+    return {
+      code: 'SCHEMA_STRUCTURED_NULLABLE_LITERAL_UNION_HINT',
+      severity: 'warning',
+      subsystem: 'schema',
+      message: `${where} is stored as opaque structured JSON; if this is a nullable closed string domain, use v.optional(v.union([...string literals])) to retain the Enum path`,
+      details: { field: where, suggestedValidator: 'v.optional(v.union([...string literals]))' },
+    };
+  }
+  if (nonNull.length === 1 && ['String', 'Boolean', 'Integer', 'Real'].includes(nonNull[0]?.fieldType)) {
+    return {
+      code: 'SCHEMA_STRUCTURED_NULLABLE_SCALAR_HINT',
+      severity: 'warning',
+      subsystem: 'schema',
+      message: `${where} is stored as opaque structured JSON; if this is a nullable scalar column, use v.optional(<scalar>) to retain scalar predicates and indexes`,
+      details: { field: where, suggestedValidator: 'v.optional(<scalar>)' },
+    };
+  }
+  return null;
+}
+
+// Storage-position admissibility is deliberately narrower than the shared
+// argument/result grammar. Keep every refused class explicit: adding a new
+// builder must choose a row here instead of falling through to Json.
+// @ref LLP 0211#declaration-closed-dispatch-closed-interior
+function validateStoredStructuredValidator(
+  val,
+  where,
+  report,
+  seen = new Set(),
+  position = 'root',
+) {
+  const fail = (code, reason, details = {}) => {
+    report(code, `${where} ${reason}; structured stored interiors are closed by LLP 0211`, details);
+    return false;
+  };
+  if (!val || typeof val !== 'object' || val.__validator !== true) {
+    return fail('SCHEMA_STRUCTURED_VALIDATOR_INVALID', 'must be a Snapback validator');
+  }
+  if (seen.has(val)) {
+    return fail('SCHEMA_STRUCTURED_VALIDATOR_CYCLIC', 'contains a cyclic validator shape');
+  }
+  if (typeof val.optional !== 'boolean') {
+    return fail('SCHEMA_STRUCTURED_OPTIONAL_POSITION_INVALID', 'must carry boolean optionality');
+  }
+  if (val.optional && position !== 'root' && position !== 'objectMember') {
+    return fail(
+      'SCHEMA_STRUCTURED_OPTIONAL_POSITION_INVALID',
+      'uses v.optional(...) outside the top-level column or an object-member position; omission is not an array/union value',
+      { position },
+    );
+  }
+  if (val.resultKind === 'vector' || val.fieldType?.Vector !== undefined) {
+    return fail(
+      'SCHEMA_STRUCTURED_VECTOR_INTERIOR_UNSUPPORTED',
+      'contains v.vector(), whose binary64 representation, dimensions, and index eligibility cannot hide in canonical JSON',
+    );
+  }
+  if (val.fieldType?.AssetRef !== undefined) {
+    return fail(
+      'SCHEMA_STRUCTURED_ASSET_REF_INTERIOR_UNSUPPORTED',
+      'contains v.assetRef(), whose authority and lifecycle machinery requires an addressable top-level field',
+    );
+  }
+  if (val.fieldType?.Id !== undefined) {
+    return fail(
+      'SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED',
+      'contains v.id(), whose referential-integrity lifecycle cannot hide in an opaque value',
+    );
+  }
+  if (val.fieldType?.RelationIncarnation !== undefined) {
+    return fail(
+      'SCHEMA_STRUCTURED_RELATION_INTERIOR_UNSUPPORTED',
+      'contains v.relationIncarnationOf(), which is framework-authored lifecycle state',
+    );
+  }
+  if (val.fieldType === 'Principal') {
+    return fail(
+      'SCHEMA_STRUCTURED_PRINCIPAL_INTERIOR_UNSUPPORTED',
+      'contains v.principal(), whose auth-relevant nominal type is not an opaque plain-data leaf',
+    );
+  }
+  if (val.primitive === 'platformSchemaRef' || val.primitive === 'appSchemaRef'
+      || val.fieldType?.PlatformSchemaRef !== undefined || val.fieldType?.AppSchemaRef !== undefined) {
+    return fail(
+      'SCHEMA_STRUCTURED_PLATFORM_REF_INTERIOR_UNSUPPORTED',
+      'contains a platform/application schema reference, which is not an admitted stored plain-data leaf',
+    );
+  }
+  if (val.resultKind === 'tuple') {
+    return fail(
+      'SCHEMA_STRUCTURED_TUPLE_INTERIOR_UNSUPPORTED',
+      'contains v.tuple(), which is deferred from stored structured v1',
+    );
+  }
+  if (val.resultKind === 'null') {
+    return position === 'unionVariant'
+      ? true
+      : fail(
+          'SCHEMA_STRUCTURED_NULL_POSITION_INVALID',
+          'contains v.null() outside a union variant; explicit null is a union member',
+          { position },
+        );
+  }
+  if (val.resultKind === 'literal') {
+    const literal = val.literal;
+    return literal === null || typeof literal === 'string' || typeof literal === 'boolean'
+      || (typeof literal === 'number' && Number.isFinite(literal))
+      || fail('SCHEMA_STRUCTURED_LITERAL_INVALID', 'contains a non-finite or non-scalar literal');
+  }
+
+  const recurse = (children) => {
+    seen.add(val);
+    let valid = true;
+    for (const [childWhere, child, childPosition] of children) {
+      if (!validateStoredStructuredValidator(child, childWhere, report, seen, childPosition)) {
+        valid = false;
+      }
+    }
+    seen.delete(val);
+    return valid;
+  };
+  if (val.resultKind === 'array') {
+    if (!val.element?.__validator) {
+      return fail('SCHEMA_STRUCTURED_ARRAY_INVALID', 'array node has no element validator');
+    }
+    const maxItems = val.resultOptions?.maxItems;
+    if (maxItems !== undefined
+        && (!Number.isSafeInteger(maxItems) || maxItems < 0 || maxItems > 1_024)) {
+      return fail('SCHEMA_STRUCTURED_ARRAY_INVALID', 'array maxItems must be in 0..1024');
+    }
+    return recurse([[`${where}[]`, val.element, 'arrayElement']]);
+  }
+  if (val.resultKind === 'union') {
+    if (!Array.isArray(val.variants) || val.variants.length < 2 || val.variants.length > 8) {
+      return fail('SCHEMA_STRUCTURED_UNION_INVALID', 'union must carry 2–8 variants');
+    }
+    return recurse(val.variants.map((variant, index) => [
+      `${where}|${index}`,
+      variant,
+      'unionVariant',
+    ]));
+  }
+  if (val.primitive === 'object') {
+    if (!val.fields || typeof val.fields !== 'object' || Array.isArray(val.fields)) {
+      return fail('SCHEMA_STRUCTURED_OBJECT_INVALID', 'object node must carry a fields object');
+    }
+    return recurse(Object.entries(val.fields).map(([name, field]) => [
+      `${where}.${name}`,
+      field,
+      'objectMember',
+    ]));
+  }
+  if (val.fieldType === 'Json' || val.primitive === 'unknown') {
+    return fail(
+      'SCHEMA_STRUCTURED_JSON_INTERIOR_UNSUPPORTED',
+      'contains v.json(), an unvalidated escape hatch inside a declared validated value',
+    );
+  }
+  const admittedScalar = (
+    (val.fieldType === 'String' && val.primitive === 'string')
+    || (val.fieldType === 'Boolean' && val.primitive === 'boolean')
+    || (['Integer', 'Real'].includes(val.fieldType) && val.primitive === 'number')
+  );
+  return admittedScalar || fail(
+    'SCHEMA_STRUCTURED_INTERIOR_UNSUPPORTED',
+    `contains unsupported validator primitive/field type ${JSON.stringify(val.primitive)}/${JSON.stringify(val.fieldType)}`,
+  );
 }
 
 // One recursive gate for every authoring position that accepts a validator:
@@ -6720,6 +7018,14 @@ function rowDescriptor(table) {
     _updatedAt: { shape: 'primitive', name: 'number' },
   });
   for (const f of table.fields) {
+    if (f.field_type?.Structured) {
+      const descriptor = resultValueContractDescriptor(
+        f.field_type.Structured.contract.descriptor,
+      );
+      if (f.optional) descriptor.optional = true;
+      fields[f.name] = descriptor;
+      continue;
+    }
     if (f.field_type?.Enum) {
       const descriptor = {
         shape: 'union',
@@ -6755,6 +7061,40 @@ function rowDescriptor(table) {
     fields[f.name] = descriptor;
   }
   return { shape: 'object', fields };
+}
+
+function resultValueContractDescriptor(contract) {
+  if (!contract || typeof contract !== 'object') return { shape: 'unknown' };
+  if (contract.kind === 'null') return { shape: 'literal', value: null };
+  if (contract.kind === 'literal') return { shape: 'literal', value: contract.value };
+  if (contract.kind === 'boolean') return { shape: 'primitive', name: 'boolean' };
+  if (contract.kind === 'string') return { shape: 'primitive', name: 'string' };
+  if (contract.kind === 'integer' || contract.kind === 'finiteReal') {
+    return { shape: 'primitive', name: 'number' };
+  }
+  if (contract.kind === 'array') {
+    return {
+      shape: 'array',
+      items: resultValueContractDescriptor(contract.element),
+      maxItems: contract.maxItems,
+    };
+  }
+  if (contract.kind === 'union') {
+    return {
+      shape: 'union',
+      variants: (contract.variants ?? []).map(resultValueContractDescriptor),
+    };
+  }
+  if (contract.kind === 'object') {
+    const nested = dict();
+    for (const field of contract.fields ?? []) {
+      const value = resultValueContractDescriptor(field.value);
+      if (!field.required) value.optional = true;
+      nested[field.name] = value;
+    }
+    return { shape: 'object', fields: nested };
+  }
+  return { shape: 'unknown' };
 }
 
 function boundedChildrenRowDescriptor(plan, tables) {
