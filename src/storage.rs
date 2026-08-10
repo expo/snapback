@@ -58,6 +58,8 @@ mod checkpoints;
 #[path = "storage/auth.rs"]
 pub(crate) mod auth;
 mod connections;
+#[path = "storage/generation_commit.rs"]
+pub(crate) mod generation_commit;
 pub(crate) mod jobs;
 mod membership_plans;
 mod membership_reads;
@@ -87,6 +89,7 @@ pub use connections::{PooledReader, ReaderPool};
 pub(crate) use connections::{
     RegisteredSystemWriterPurposeV1, RegisteredSystemWriterV1, open_registered_system_writer_v1,
 };
+pub(crate) use generation_commit::CommitFunctionGeneration;
 pub use jobs::{JobsKernel, JobsReadKernel};
 pub use membership_plans::{MembershipPlansKernel, MembershipPlansReadKernel};
 pub use membership_reads::MembershipReadsKernel;
@@ -1181,26 +1184,6 @@ pub struct LocalDatabase {
     /// scope table; handler calls retain their exact function-local access
     /// proof in the runtime context.
     sequence_declarations: Arc<BTreeMap<String, crate::manifest::SequenceDeclaration>>,
-}
-
-/// Typed input to the raw-dev generation's single durable activation cut.
-pub(crate) struct CommitFunctionGeneration {
-    pub(crate) manifest: crate::manifest::FunctionManifest,
-    pub(crate) trusted_active_generation: bool,
-    pub(crate) projection_publications: Vec<PendingProjectionPublication>,
-}
-
-/// Boot-safe durable identity of the latest raw-dev function generation.
-/// The content digests identify what was admitted; `generation_high_water`
-/// orders commits across process restarts where the process fence resets.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct FunctionGenerationRecord {
-    pub(crate) format_version: u32,
-    pub(crate) generation_high_water: u64,
-    pub(crate) function_manifest_digest: String,
-    pub(crate) sequence_declarations_digest: String,
-    pub(crate) committed_at_ms: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -2576,162 +2559,6 @@ impl LocalDatabase {
         tx.commit()?;
         self.install_committed_sequence_declarations(declarations);
         Ok(())
-    }
-
-    fn sequence_activation_predecessor(
-        &self,
-        declarations: &BTreeMap<String, crate::manifest::SequenceDeclaration>,
-        trusted_active_generation: bool,
-    ) -> (
-        BTreeMap<String, crate::manifest::SequenceDeclaration>,
-        BTreeSet<String>,
-    ) {
-        let mut predecessor = BTreeMap::new();
-        if trusted_active_generation {
-            predecessor.extend(self.sequence_declarations.as_ref().clone());
-            predecessor.extend(declarations.clone());
-        }
-        let trusted_relation_parent_tables = schema_relation_parent_tables(&self.schema)
-            .into_iter()
-            .map(ToOwned::to_owned)
-            .collect();
-        (predecessor, trusted_relation_parent_tables)
-    }
-
-    /// Commit every durable raw-dev generation member in one immediate
-    /// transaction. Process publication is intentionally a caller-owned
-    /// postcondition and must not occur inside this operation.
-    ///
-    /// @ref LLP 0225#1-ownership-map — the storage kernel owns the
-    ///   composite commit primitive; the activation coordinator owns ordering
-    ///   and installs process state only after this durable fact commits.
-    pub(crate) fn commit_function_generation(
-        &mut self,
-        commit: CommitFunctionGeneration,
-    ) -> SnapbackResult<FunctionGenerationRecord> {
-        let CommitFunctionGeneration {
-            manifest,
-            trusted_active_generation,
-            projection_publications,
-        } = commit;
-        let sequence_declarations = sequence_declarations_from_function_manifest(&manifest);
-        let function_manifest_digest = crate::manifest::canonical_content_identity(&manifest)
-            .ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_FUNCTION_GENERATION_INVALID",
-                    "storage",
-                    "function generation manifest is not canonically digestible",
-                )
-            })?;
-        let sequence_declarations_digest = crate::manifest::canonical_content_identity(
-            &sequence_declarations,
-        )
-        .ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_FUNCTION_GENERATION_INVALID",
-                "storage",
-                "sequence declarations are not canonically digestible",
-            )
-        })?;
-        let (predecessor, trusted_relation_parent_tables) =
-            self.sequence_activation_predecessor(&sequence_declarations, trusted_active_generation);
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        preflight_sequence_enrollments(
-            &tx,
-            &self.schema,
-            &trusted_relation_parent_tables,
-            &predecessor,
-            &sequence_declarations,
-        )?;
-        projection_rebuild::apply_projection_publication_in(&tx, &projection_publications)?;
-        let previous: Option<String> = tx
-            .query_row(
-                "SELECT value FROM _snapback_meta WHERE key = ?1",
-                params![META_FUNCTION_GENERATION],
-                |row| row.get(0),
-            )
-            .optional()?;
-        let previous = previous
-            .map(|raw| {
-                serde_json::from_str::<FunctionGenerationRecord>(&raw).map_err(|_| {
-                    SnapbackError::error(
-                        "SNAPBACK_FUNCTION_GENERATION_STATE_CORRUPT",
-                        "storage",
-                        "persisted function generation record is corrupt",
-                    )
-                })
-            })
-            .transpose()?;
-        let generation_high_water = previous.map_or(Ok(1), |record| {
-            record.generation_high_water.checked_add(1).ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_FUNCTION_GENERATION_EXHAUSTED",
-                    "storage",
-                    "function generation high-water is exhausted",
-                )
-            })
-        })?;
-        let record = FunctionGenerationRecord {
-            format_version: 1,
-            generation_high_water,
-            function_manifest_digest,
-            sequence_declarations_digest,
-            committed_at_ms: now_millis(),
-        };
-        tx.execute(
-            "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params![
-                META_FUNCTION_GENERATION,
-                serde_json::to_string(&record).map_err(|_| {
-                    SnapbackError::error(
-                        "SNAPBACK_FUNCTION_GENERATION_INVALID",
-                        "storage",
-                        "function generation record does not serialize",
-                    )
-                })?
-            ],
-        )?;
-        // Keep activation validation inside the same cut and after every
-        // candidate durable member has been staged. A refusal therefore proves
-        // rollback of enrollments, pins, and the generation record together.
-        validate_sequence_activation(&tx, &self.schema, &sequence_declarations)?;
-        tx.commit()?;
-        Ok(record)
-    }
-
-    #[allow(dead_code)] // retained kernel surface; the staged sequence-declaration callers land next
-    pub(crate) fn function_generation_record(
-        &self,
-    ) -> SnapbackResult<Option<FunctionGenerationRecord>> {
-        let stored: Option<String> = self
-            .conn
-            .query_row(
-                "SELECT value FROM _snapback_meta WHERE key = ?1",
-                params![META_FUNCTION_GENERATION],
-                |row| row.get(0),
-            )
-            .optional()?;
-        stored
-            .map(|raw| {
-                serde_json::from_str(&raw).map_err(|_| {
-                    SnapbackError::error(
-                        "SNAPBACK_FUNCTION_GENERATION_STATE_CORRUPT",
-                        "storage",
-                        "persisted function generation record is corrupt",
-                    )
-                })
-            })
-            .transpose()
-    }
-
-    pub(crate) fn install_committed_sequence_declarations(
-        &mut self,
-        declarations: BTreeMap<String, crate::manifest::SequenceDeclaration>,
-    ) {
-        self.sequence_declarations = Arc::new(declarations);
     }
 
     #[cfg(test)]

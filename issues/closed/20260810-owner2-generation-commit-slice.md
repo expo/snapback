@@ -38,4 +38,15 @@ owner #5 / the asset-prepare follow-up.
 
 ## Resolution
 
-(pending)
+**Resolved 2026-08-10 — landed with the slice.** All three scope items
+shipped as one landing: `src/storage/generation_commit.rs` holds the moved
+commit-primitive family (the two commit-path methods narrowed to
+`pub(super)`) plus the six-operation `GenerationCommitOps` typed view;
+`generation_database_mut` is deleted and the coordinator composes the typed
+surface; the manifest gained the module assignment. Baseline: one
+provenance-stated relocation re-key (`local.rs ->
+storage/generation_commit.rs`), plus the auth-floor unmanifested-module
+catch-up (identity_core -> leaf, storage/auth_identity -> kernel), both
+recorded in the ratchet worklist. LLP 0225 §4 records the slice as executed.
+Affected-scope tests match the merge-base exactly (the auth-catalog main
+reds are pre-existing at e6d0fe270 and ticketed separately).

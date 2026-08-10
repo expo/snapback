@@ -5226,8 +5226,10 @@ impl LocalSnapback {
         self.app_generation
     }
 
-    pub(crate) fn generation_database_mut(&mut self) -> &mut LocalDatabase {
-        &mut self.db
+    pub(crate) fn generation_commit_ops(
+        &mut self,
+    ) -> crate::storage::generation_commit::GenerationCommitOps<'_> {
+        self.db.generation_commit_ops()
     }
 
     pub(crate) fn publish_generation_ephemeral_collections(&mut self) {
