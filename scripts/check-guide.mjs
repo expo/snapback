@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Guide corpus checks: snippet transclusion-match, consistency (frontmatter,
-// links, capability index + surface joins, reachability), reviewed-commit
-// freshness (warning-only), and manifest staleness.
+// links, capability index + surface joins, reachability, bootstrap-command
+// resolvability), reviewed-commit freshness (warning-only), and manifest
+// staleness.
 // @ref LLP 0061#3-verification-snippets-that-ran — the registered guide checks.
 //
 // Usage: node scripts/check-guide.mjs [--snippets] [--consistency]
@@ -15,6 +16,7 @@ import {
   buildFlatGuide,
   buildManifest,
   buildSectionFlatGuides,
+  checkBootstrapResolvability,
   checkCapabilityIndex,
   checkFreshness,
   checkGuideMcpProjection,
@@ -72,6 +74,7 @@ if (runAll || flags.has('--consistency')) {
   index = parseCapabilityIndex(root, errors);
   surfaces = checkCapabilityIndex(root, index, pageInfo, errors);
   checkPublishedClosure(root, pageInfo, pageBodies, errors);
+  checkBootstrapResolvability(pageBodies, errors);
   checkFreshness(root, pageInfo, warnings, infos);
   // @ref LLP 0184#3-completeness-and-parity-rules — rule 9: Guide control
   // inventories and counts are checked projections of the build catalog.

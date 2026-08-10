@@ -2759,10 +2759,29 @@ rather than component state plus a local counter delta.
 <!-- since: 0.1.11 -->
 
 For a **new** Expo app, start from the Expo-native `expo-chat` template
-instead of assembling packages by hand: `npx snapback new my-app --template
-expo-chat`, or `npm create snapback-app`, whose default template is the same
-one. It ships the conventional `snapback/` backend and the root
+instead of assembling packages by hand. In an empty directory nothing is
+installed yet, so use a command that carries its own package identity:
+
+```sh
+npm create snapback-app my-app
+# equivalently: npx --yes create-snapback-app my-app
+#               bun create snapback-app my-app
+#               pnpm create snapback-app my-app
+# scoped CLI spelling, same scaffolder:
+#   npx --yes @expo/snapback-cli@latest new my-app --template expo-chat
+```
+
+`expo-chat` is `create-snapback-app`'s default template, so `--template` is
+optional here; it ships the conventional `snapback/` backend and the root
 file-store/crypto registration described below already wired.
+
+Do **not** reach for the bare `npx snapback new …` spelling before the CLI is
+installed. `npx` resolves the unscoped registry name `snapback`, which belongs
+to an unrelated third-party package with no `bin`, and the failure is
+`npm error could not determine executable to run` — an error that names
+neither Snapback nor the package it actually downloaded. The bare `snapback`
+bin is correct only once `@expo/snapback-cli` is a dependency of the project
+you are standing in, as it is in the existing-app flow below.
 
 When adding Snapback to an **existing** standalone Expo 57 app, install the
 package roots that the app imports plus the native file, random, and picker

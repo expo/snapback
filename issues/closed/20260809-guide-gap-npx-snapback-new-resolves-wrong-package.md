@@ -1,6 +1,7 @@
 # guide-gap: the guide's first fresh-app command resolves to an unrelated npm package
 
-**Status:** Open — found by the LLP 0176 G4 external rerun against live 0.1.16
+**Status:** Closed 2026-08-09 — guide text repaired in this repository; reaches
+external readers at the next published closure (see "Resolution")
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 5
@@ -89,3 +90,44 @@ At 0.1.17 the rest of the path is clean — 99 seconds to a generated,
 type-checking app and 15 minutes to a committed, rendered image send, with zero
 hand-edited files — so this refusal is now the **only** thing standing between a
 new author and an unbroken paved path.
+
+## Resolution — 2026-08-09
+
+Fixed as a **guide-text** change. `guide/clients/react-expo.md`'s fresh-app
+instruction now leads with the command the 0.1.17 quarry actually used after
+its `D1` decision — `npm create snapback-app my-app` — with the package-manager
+equivalents and the explicitly scoped
+`npx --yes @expo/snapback-cli@latest new my-app --template expo-chat` beside it,
+and a short paragraph naming the `npm error could not determine executable to
+run` failure so a reader who already hit it recognises the cause. The bare
+`npx snapback new …` spelling survives only in the existing-app flow further
+down the page, where `@expo/snapback-cli` is already a project dependency.
+
+**Claiming or shimming the unscoped `snapback` npm name was explicitly out of
+scope for this fix.** The name belongs to a third party (`snapback@0.9.0`,
+"DOM Undo/Redo", maintainer `lohfu`); acquiring it, or publishing a
+same-named bin shim, is a registry/ownership decision, not a documentation
+one. If that is ever wanted it needs its own ticket and its own owner. Nothing
+here depends on it.
+
+**Acceptance, item by item.**
+
+- Fresh-app instruction works with nothing installed — done; the page leads
+  with `npm create snapback-app` and offers the scoped `npx` form.
+- `guide/guide-flat.generated.md` regenerated from the fixed source — done,
+  along with `guide-flat.clients.generated.md` and the guide manifest.
+- A guide check that the fresh-app command does not depend on an unscoped bare
+  `snapback` bin resolution — done: `checkBootstrapResolvability` in
+  `scripts/guide-lib.mjs`, wired into `scripts/check-guide.mjs`'s consistency
+  pass. The rule is positional rather than lexical: a bare
+  `npx [flags] snapback …` occurrence is an error unless the page has already
+  mentioned the scoped `@expo/snapback-cli` package name above it. Verified
+  against the exact pre-fix prose, which the check rejects, and the post-fix
+  prose, which it accepts.
+
+**Delivery boundary.** This repair is in the repository's guide corpus. The
+published corpus an external author reads is generated from the closure's
+source revision, so **the fix reaches external users only at the next release**
+— exactly as the 0.1.12 residue-portability repair did. Anyone running the
+current published 0.1.17 guide will still see the broken command until then.
+No consumer action is needed on an existing app.

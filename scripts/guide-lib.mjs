@@ -528,6 +528,35 @@ export function checkReachability(pages, graph, errors) {
   }
 }
 
+// issues/20260809-guide-gap-npx-snapback-new-resolves-wrong-package: `npx
+// snapback …` resolves the UNSCOPED registry name `snapback` — an unrelated
+// third-party package with no `bin` — unless `@expo/snapback-cli` is already
+// a dependency of the directory the reader is standing in. A guide page that
+// offers the bare spelling before it has told the reader to install the
+// scoped CLI hands an author `npm error could not determine executable to
+// run` on their first command. The invariant is positional, not lexical: the
+// bare bin may only appear after the page's first mention of the scoped
+// package name.
+const BARE_NPX_SNAPBACK = /npx\s+(?:-{1,2}[A-Za-z][\w-]*\s+)*snapback[\s`]/g;
+const SCOPED_CLI_PACKAGE = '@expo/snapback-cli';
+
+export function checkBootstrapResolvability(pageBodies, errors) {
+  for (const [path, body] of pageBodies) {
+    const scopedAt = body.indexOf(SCOPED_CLI_PACKAGE);
+    BARE_NPX_SNAPBACK.lastIndex = 0;
+    for (const match of body.matchAll(BARE_NPX_SNAPBACK)) {
+      if (scopedAt !== -1 && match.index > scopedAt) continue;
+      const line = body.slice(0, match.index).split('\n').length;
+      errors.push(
+        `${path}:${line}: \`${match[0].trim()}\` relies on the unscoped \`snapback\` bin ` +
+          `before the page installs ${SCOPED_CLI_PACKAGE} — in a fresh directory npx resolves an ` +
+          'unrelated registry package. Lead with `npm create snapback-app` or ' +
+          `\`npx --yes ${SCOPED_CLI_PACKAGE}@latest new …\`.`,
+      );
+    }
+  }
+}
+
 function parseTable(lines, startIdx) {
   const rows = [];
   let i = startIdx;
