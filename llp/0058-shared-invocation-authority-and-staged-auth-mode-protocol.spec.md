@@ -5,7 +5,10 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-09 (managed-development cold-successor amendment: an
+**Revised:** 2026-08-10 (LLP 0204 commissioned the sealed
+`CapabilityLinkPossessor` resolved-authority addition for granted-operation
+capability links; design only, with no implementation or capability claim —
+see the dated amendment.) 2026-08-09 (managed-development cold-successor amendment: an
 ordinary settled-sessions start remains exact-pair pinned, while the explicit
 pre-bind `--activate-startup-successor` opt-in may activate a different complete,
 valid, seedless sessions pair through the same guarded same-mode durable cut;
@@ -117,7 +120,7 @@ DTO closure, cross-process handshake-cache invalidation, handshake UUIDv7/versio
 exactness, truly-empty seed classification, content-verified deployment
 identities, and operator-recovery diagnostics). Full triage in §Review triage.)
 2026-07-14 (admitted-body ingestion: managed-route request buffering gains a 20000 ms monotonic ingest deadline strictly below the quiescence deadline plus epoch-close cancellation, ENG-24988). 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.codex.md` and applied its editorial corrections — carrier hard-link rule, contract-data v1 exception, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24987: kit-side offer/echo closure — handshake validation compares each `clientProtocols` echo with the exact per-request offer tuple and rejects unsolicited echoes with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; Contract cross-checks echoed axes against the transport's published offer). 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0041, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0057, LLP 0059, LLP 0060, LLP 0074, LLP 0076, LLP 0108, LLP 0174, LLP 0176
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0041, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0057, LLP 0059, LLP 0060, LLP 0074, LLP 0076, LLP 0108, LLP 0150, LLP 0174, LLP 0176, LLP 0204
 
 ## Summary
 
@@ -2133,6 +2136,160 @@ catalog activation stays behind this Spec's stage/consume fence (the
 membership fixture lane landed 2026-08-01, LLP 0109 §18). This amendment
 records the specified composition and the deferral; it claims no
 `StartupArtifactsV2` implementation.
+
+## Dated amendment: LLP 0204 granted capability links (2026-08-10)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md), D9.4,
+the OQ9 ruling, and the 2026-08-10 author sitting's full granted-operation
+extension; authority semantics are owned by LLP 0055's matching
+[dated amendment](./0055-agent-principals-and-scoped-grants.rfc.md#dated-amendment-llp-0204-granted-capability-links-2026-08-10).
+
+**Status:** commissioned design only. This section amends the closed type and
+gate contract; it does not claim that any target constructs or admits this
+variant.
+
+### Sealed resolved-authority addition
+
+[§`ResolvedAppAuthority`](#resolvedappauthority) is amended from six variants
+to exactly seven:
+
+```text
+Anonymous
+Session { ... }
+DevImpersonation { ... }
+ServicePrincipal { ... }
+CapabilityLinkPossessor { ... }
+AdminBypass { ... }
+System
+```
+
+`CapabilityLinkPossessor` is a named service-principal authority class, not an
+alias for `ServicePrincipal`, `Anonymous`, or `Session`. Its closed payload is:
+
+```text
+CapabilityLinkPossessor {
+  linkId,
+  linkGrantId,
+  minterAuthorityRef,
+  effectiveUserId,
+  functionId,
+  functionKind,
+  scopeBasis,
+  useOrdinal,
+  deadline,
+}
+```
+
+`minterAuthorityRef` is the sealed union defined by LLP 0055: either the exact
+parent delegated-grant lineage or the exact direct-session mint lineage. The
+payload contains no agent `actorUserId`, credential id, credential generation,
+token id, session bearer, URL token, or bearer hash. `useOrdinal` and `deadline`
+are server-derived invocation facts; the request cannot select either.
+
+This explicit addition opens the otherwise closed set for exactly this carrier.
+There is no catch-all bearer variant, structural duck-typing into
+`ServicePrincipal`, or extension point by which a future secret class inherits
+it. The Rust enum and its exhaustive source registry remain the source of truth.
+
+### Construction and shared-gate order
+
+Only the registered granted-link **POST invoke** operation may construct the
+variant. The matching `CapabilityLinkBearer` resolver runs after route-level
+request-secret capture/redaction and before function preparation. It must, in
+one admission decision:
+
+1. classify and hash-resolve the bearer without placing raw URL bytes in any
+   authority or diagnostic object;
+2. resolve the exact link and immutable link grant;
+3. revalidate expiry, direct revocation, optional use bound, exposed function,
+   kind and scope basis, argument-template binding, effective principal,
+   minter authority and parent grant where present, integration status where
+   present, and the local/trusted-local target gate;
+4. atomically reserve the next use ordinal, or create the approval-pending
+   result without executing, under the mutation rule; and
+5. construct `PreparedAuthority`, then call `prepare_function` for the single
+   bound function.
+
+The inert **GET landing** operation resolves no app authority and remains
+`InvocationAuthority::None`; mint and revoke resolve their ordinary session or
+service minter rather than a possessor. No bare finite route, `/api/v1` route,
+MCP tool, connection act, WebSocket operation, host operation, nested body,
+cron source, local test entry, or anonymous fallback may construct this
+variant.
+
+The variant enforces the same effective-principal non-widening rule as a
+delegated `ServicePrincipal`: every host-mediated read, write, trusted check,
+and effect must pass both the possessor projection and the direct effective-
+principal projection, with the stricter answer winning. The link grant's exact
+scope is an additional intersection. Nested calls inherit the immutable
+prepared authority and cannot replace its link/link-grant facts; the ordinary
+entry-point and permission-backing effect rules continue to apply.
+
+### Sealed handler and authorization projections
+
+The handler-visible projection for this variant is exactly:
+
+```ts
+{
+  userId: <effectiveUserId>,
+  sessionId: null,
+  isAuthenticated: true,
+  provider: "capability-link",
+  roles: [],
+  kind: <effective principal's durable kind>,
+  actor: {
+    kind: "capability-link",
+    linkId: <linkId>,
+    grantId: <linkGrantId>
+  }
+}
+```
+
+This amends `HandlerAuthProjection.actor` into a sealed two-member union: the
+existing agent actor `{ userId, kind: "agent", grantId }`, or the exact
+capability-link actor above. The link actor deliberately has no `userId`; a URL
+possessor is not a principal, and copying the minter's id here would falsely
+attribute the call. The projection remains a deep-frozen null-prototype object
+with exact own keys. It contains neither `minterAuthorityRef` nor bearer
+material.
+
+For declarative authorization, `auth.userId` and `auth.kind` are the effective
+principal's facts, `auth.isDelegated` is `true`, and `auth.actorKind` is the
+closed value `"capability-link"`. The direct baseline contains no actor, as for
+ordinary delegated authority. Consequently the existing `isDirectHuman`
+conjunction remains fail-closed: a link acting for a human has an actor and is
+not a direct human session.
+
+The server-derived attribution block names `actorKind: "capability-link"`,
+`linkId`, `linkGrantId`, effective principal, and minter/parent lineage as
+separate fields. It must not synthesize an agent actor id or report the minter
+as the caller. Less-authorized projections may redact lineage, but may not
+change the actor class.
+
+### Mutation and plane fences
+
+For a mutation or action, `prepare_function` can return only an approval-
+pending result or a single-use prepared invocation. Approval execution
+reconstructs this same variant from the frozen link snapshot after current
+lineage revalidation; it never substitutes the approving session as execution
+authority. Every `authorityCreating` and app-policy check remains conjunctive.
+
+The hosted refusal is part of authority preparation, before link-use
+reservation or handler evaluation. The variant is local/trusted-local only
+until an explicit LLP 0055 hosted-plane amendment lands; target/profile names,
+anonymous-link support, or absence of a capability gap cannot open it.
+
+### Exhaustiveness obligations
+
+An implementing spec must extend the enum match, handler-projection exactness
+corpus, source registry, body-authority sweep, response attribution schema,
+direct-projection non-widening fixtures, nested-call inheritance fixtures,
+pending-effect reconstruction, and hosted admission matrix. Negatives must
+prove that the same raw token on GET, a bare finite route, a wrong token class,
+an expired/revoked/used link, a dead parent grant, a rotated token carrier with
+a still-live parent grant, a terminally re-credentialed parent, a foreign
+effective principal, and every hosted target either resolve exactly as LLP 0055
+requires or fail before a handler marker is reached.
 
 ## Status
 
