@@ -98,7 +98,9 @@ unassigned-module freezes that drain with the local.rs remainder.
    Genuinely new god-file-pattern coupling frozen 2026-08-10 at the
    connected-client landing, reclassified as a formal waiver by LLP 0225 §2
    (revision d/e). Edge: unassigned → sync-realtime-engine. Inversion owner:
-   the `local.rs` drainage / coordinator-port slices (LLP 0225 §4 items 1
-   and 3). Bound: due with the sync-engine consolidation slice or
+   **`sync-realtime-engine`** (the accountable manifest owner — it owns the
+   registry; the chosen resolution is a sync-owned port that `local.rs`
+   consumes, not an adapter reclassification); vehicle: the `local.rs`
+   drainage / coordinator-port slices (LLP 0225 §4 items 1 and 3). Bound: due with the sync-engine consolidation slice or
    2026-09-15, whichever comes first; if unmet, escalate to the author as a
    §2 violation rather than silently re-freezing.

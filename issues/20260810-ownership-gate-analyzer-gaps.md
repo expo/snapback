@@ -41,3 +41,9 @@ new violations.
    the last GREEN baseline, and file/refresh the backstop ticket naming the
    stale edges on every ALLOWED-WITH-STALENESS push (LLP 0225 §5, revision
    f).
+
+4. **The `unassigned` bucket accepts new modules** (round-4 probe: a
+   synthetic module added to the bucket validates). Required: freeze the
+   legacy unassigned set (four entries) shrink-only via predecessor
+   comparison; every new module must take a real owner (LLP 0225 §5,
+   revision g).

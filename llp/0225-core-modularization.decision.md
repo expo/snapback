@@ -18,6 +18,7 @@ the one authorized transition; independent-loop topology)
 Revision history)
 **Revised:** 2026-08-10 (f — round-3 revision under the author's extended
 budget; see Revision history)
+**Revised:** 2026-08-10 (g — round-4 revision; see Revision history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -194,8 +195,14 @@ violation of this Decision even where the tooling fails to catch it.
 This section states the commit authority the extraction exists to create; it
 incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
 
-1. **Only the storage/migration kernel owns SQLite transactions.** There is
-   one durable writer (LLP 0059) and one commit primitive; every other owner
+1. **Only the storage/migration kernel owns SQLite transactions in the
+   canonical application/auth/schema store.** The rule's scope is the
+   store behind the global writer (LLP 0059); independently governed
+   owner-local sidecar stores — today telemetry's sibling database (LLP
+   0154), which deliberately opens its own connection and transactions —
+   remain their owner's, and may never join or imply application
+   atomicity claims. Within the canonical store there is one durable
+   writer and one commit primitive; every other owner
    commits by *composing* typed kernel operations
    (`CommitFunctionGeneration`, the classified mode-deployment commits, the
    `*_in_tx` families as they relocate into `src/storage/`), never by opening
@@ -288,10 +295,14 @@ is folding it into the kernel commit as the complete-pair lane already does,
 and until then it is a recorded §3 exception carrying recovery and
 injected-failure test obligations, not part of the atomic-set claim; (2) the
 persisted generation record is the recovery *authority*, but production
-reopen today constructs inert function state and does not consume the record
-— the contract going forward is verified artifact reload against the record
-on open (or an explicit inert-until-reload contract), decided and tested at
-the owning slice. The characterization-envelope claims below are scoped to
+reopen today constructs inert function state and does not consume the
+record. The two candidate contracts — automatic verified artifact reload on
+open, or an explicit inert-until-reload contract in which the record
+validates and fences the next explicit reload — produce different
+externally observable recovery behavior, and the record stores digests and
+a high-water, not artifact bytes, so automatic reload also needs an
+authoritative artifact source. This is a product choice, raised as
+**OQ-C** below rather than delegated silently. The characterization-envelope claims below are scoped to
 what the landed tests prove (kernel-level reopen against `LocalDatabase`),
 not to a full-process recovery claim.
 
@@ -370,12 +381,17 @@ requires its named worklist record in the same landing.
   document's own revision-(d) commit the gate was red with two committed
   forbidden edges, allowed by the runner's pre-existing-staleness rule. Two
   enforcement requirements therefore bind alongside the analyzer upgrade:
-  (i) staleness attribution for this gate compares the push against the
-  **last green baseline**, not merely its merge-base — otherwise one
-  allowed red converts every later push's NEW edges into "pre-existing"
-  (the masking path); (ii) every ALLOWED-WITH-STALENESS push must file or
-  refresh the backstop ticket naming the exact stale edges, so a red on
-  main is always a tracked object. "Fixed forward at the next landing" is
+  (i) staleness attribution for this gate is **set-based, not
+  pass/fail-based**: the gate emits canonical edge fingerprints, compares
+  the pushed revision's forbidden set `V(P)` against the merge-base's
+  actual set `V(B)`, blocks `V(P) − V(B)` unless each member is covered by
+  an exact approved waiver, and admits inherited members only while a
+  committed open ticket names that exact set and its observation revision
+  — a Boolean last-green comparison cannot distinguish inherited from
+  introduced reds and is not compliant; (ii) every ALLOWED-WITH-STALENESS
+  push must reference (or the next landing must commit) the backstop ticket
+  naming the exact stale edge set, so a red on main is always a tracked
+  object — the hook itself never creates uncommitted state. "Fixed forward at the next landing" is
   a convention this Decision makes auditable, not a property the arm yet
   enforces; `issues/20260810-ownership-gate-analyzer-gaps.md` tracks both.
 - **Known analyzer gap, and the requirement that closes it.** The current
@@ -406,9 +422,14 @@ Normative rules bound to this Decision:
   require amendment — but they are bound by §2's monotonic-baseline rule,
   and every baseline growth event is recorded in the ratchet worklist, as is
   current practice.
-- **New modules are assigned at landing.** The gate makes an unassigned
-  module a hard red on push; `unassigned` is reserved for the pre-existing
-  god-file residue, which only shrinks.
+- **New modules are assigned at landing.** The gate reds an *unlisted*
+  module; today it does **not** prevent a new module from being placed into
+  the `unassigned` bucket (verified by probe). The rule is therefore a
+  requirement on the arm: the legacy `unassigned` set (its current four
+  entries) is frozen shrink-only, enforced by predecessor comparison, and
+  every new module must take one of the seven real owners —
+  `issues/20260810-ownership-gate-analyzer-gaps.md` item 4 tracks it.
+  Until enforced, review carries the rule.
 - **Bypass is exceptional and loud** (`SNAPBACK_DRIFT_GATES_BYPASS=1`, per
   CLAUDE.md); a gate red on main is fixed forward at the next landing, as
   the four recorded occurrences were (one deliberate bypass; three selection
@@ -461,6 +482,15 @@ These are different activities and this Decision keeps them distinct:
   manifest edits require a prose amendment *first* — or relax to
   same-landing co-amendment.
 
+- **OQ-C.** The full-process reopen contract (§4's recorded exception):
+  **automatic verified reload on open** (needs an authoritative artifact
+  source + digest verification + failure behavior), or
+  **inert-until-reload** (the record validates and fences the next explicit
+  reload; matches today's implementation). Recommendation:
+  inert-until-reload, with the record-fenced reload test as the slice's
+  acceptance — automatic reload can be layered later without changing the
+  authority claim.
+
 Whichever way OQ-A/OQ-B are ruled, acceptance carries a same-landing
 handoff: `ownership.manifest.json`'s `governedBy` gains this document, the
 stale `mixedModuleScopes` prose (e.g. `local.rs`'s activation scope still
@@ -493,6 +523,16 @@ so slices can follow product priorities.
   three (§5); bypass-history wording corrected (one bypass, three selection
   gaps); "while Draft" → "until Accepted"; acceptance handoff note added to
   the OQ section.
+- **2026-08-10 (g).** Round-4 revision: §5's attribution requirement made a
+  complete set-based protocol (canonical edge fingerprints, V(P)−V(B)
+  blocking, waiver coverage, committed-ticket-named inherited sets); the
+  unassigned-bucket claim made honest (probe-verified gap; frozen
+  shrink-only legacy set required, analyzer ticket item 4); §3.1's
+  transaction rule scoped to the canonical store with the sidecar-store
+  exemption (telemetry, LLP 0154) that may never imply app atomicity; the
+  reopen contract raised as OQ-C (recommendation: inert-until-reload)
+  instead of silent delegation; waiver item 8 gains its accountable
+  manifest owner.
 - **2026-08-10 (f).** Round-3 revision under the author's extended budget:
   the "honest state of the arm" paragraph (§5) records that the gate was red
   at the revision-(d) commit and binds two enforcement requirements —
