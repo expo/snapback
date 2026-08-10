@@ -13,6 +13,7 @@ pre-push gate, and the landed first slice)
 **Revised:** 2026-08-10 (b — Draft → Review at llp-super-refine loop start,
 the one authorized transition; independent-loop topology)
 **Revised:** 2026-08-10 (c — round-1 revision; see Revision history)
+**Revised:** 2026-08-10 (d — round-2 revision; see Revision history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -163,17 +164,24 @@ standing burn-down of the grandfathered upward edges (kernel→background job
 helpers, kernel→sync auth call-ups, leaf residues, and their recorded
 growth). Inversions ride the owner slices that touch the same code.
 
-**Baseline updates are monotonic.** A baseline re-freeze may *remove*
-forbidden-edge exceptions, and may re-key a proven pre-existing edge whose
-module relocated; it may **add** a forbidden edge only when the landing
-carries an explicit reviewed frozen-edge record — a worklist entry naming the
-edge and why it is being frozen rather than fixed. The gate is required to
-enforce this by comparing the candidate baseline's forbidden-exception set
-against its predecessor and refusing silent growth
-(`issues/20260810-ownership-gate-analyzer-gaps.md` tracks the implementation;
-today `--update-baseline` overwrites unconditionally, which is a defect of
-the arm, not a license). An unrecorded baseline growth is a violation of this
-Decision even where the tooling fails to catch it.
+**Baseline updates are monotonic, and provenance decides what may be
+frozen.** A baseline re-freeze may *remove* forbidden-edge exceptions, and
+may re-key or newly record a **proven pre-existing** edge — one that existed
+before the landing and became visible through analyzer improvement or module
+relocation — with provenance stated. **Genuinely new forbidden coupling is
+never freezable by note**: it is fixed before the re-baseline, or it carries
+an explicit **time-bounded waiver** — a worklist entry naming the edge, the
+inversion owner, and a deadline, referenced from this Decision's amendment
+record — matching LLP 0199 OQ5's accepted blocking rule. (The 2026-08-10
+`src/local.rs → src/connected_clients.rs` freeze predates this rule and is
+hereby reclassified as such a waiver: it is god-file-pattern coupling with
+inversion owed at the local.rs drainage slices.) The gate is required to
+enforce the comparison against the predecessor baseline at the push's
+merge-base and refuse silent growth
+(`issues/20260810-ownership-gate-analyzer-gaps.md` tracks the
+implementation; today `--update-baseline` overwrites unconditionally, which
+is a defect of the arm, not a license). An unrecorded baseline growth is a
+violation of this Decision even where the tooling fails to catch it.
 
 ## 3. Transaction and commit boundaries — who may commit what
 
@@ -253,6 +261,32 @@ implementation. The extraction boundary, concretely:
   `local.rs` stays `unassigned` with its activation scope recorded in
   `mixedModuleScopes` until later slices drain it.
 
+**Honest boundary disposition.** The first slice was *behavior* extraction,
+not yet a direction-clean boundary: the coordinator itself carries two frozen
+forbidden edges — `→ src/auth/admission.rs` (it imports the
+`ModeCommitFailure` commit-verdict type from a sync-engine module; inversion:
+the verdict type belongs in the contract leaf) and `→ src/local.rs` (it holds
+the god-file handle directly; inversion: a coordinator-owned narrow port
+implemented above the service). Both are pre-existing-pattern edges frozen in
+the baseline with inversion owed at the kernel/leaf slices; neither is a
+license for new sideways coupling.
+
+**Known raw-dev cut exceptions (recorded, with obligations).** Two
+code-verified gaps against this section's contract are tracked in
+`issues/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`:
+(1) raw-dev's stream-transcript catalog activation currently commits in a
+*separate* transaction after `commit_function_generation` — the required fix
+is folding it into the kernel commit as the complete-pair lane already does,
+and until then it is a recorded §3 exception carrying recovery and
+injected-failure test obligations, not part of the atomic-set claim; (2) the
+persisted generation record is the recovery *authority*, but production
+reopen today constructs inert function state and does not consume the record
+— the contract going forward is verified artifact reload against the record
+on open (or an explicit inert-until-reload contract), decided and tested at
+the owning slice. The characterization-envelope claims below are scoped to
+what the landed tests prove (kernel-level reopen against `LocalDatabase`),
+not to a full-process recovery claim.
+
 **Characterization-test envelope** (the slice's acceptance, held in the local
 proof's activation/storage tests and binding on any future change to this
 boundary):
@@ -260,9 +294,11 @@ boundary):
 - *Failed-activation-then-retry:* after an injected commit failure, the live
   manifest, projection pins/digests, and sequence state agree exactly with
   what physically committed, and a retry converges to the successor.
-- *Crash/reopen:* recovery reads only the persisted generation record — for
-  both complete-pair and raw-dev paths — never the process fence or an
-  in-memory schema; raw-dev content digests and the monotonic durable
+- *Crash/reopen:* the persisted generation record is the sole recovery
+  authority — never the process fence or an in-memory schema; the landed
+  tests prove kernel-level reopen against it (complete-pair and raw-dev
+  record paths), with the full-process reopen contract owed per the recorded
+  exception above; raw-dev content digests and the monotonic durable
   high-water stay boot-safe across a process-counter reset.
 - *Atomicity:* no path commits a projection digest pin, sequence install, or
   auth publication outside the owning generation transaction.
@@ -318,19 +354,20 @@ requires its named worklist record in the same landing.
   invalid baselines) — which is what makes a naive god-file rename a gate
   red (§6).
 - **Known analyzer gap, and the requirement that closes it.** The current
-  extractor observes only `crate::`-prefixed textual references; `use
-  super::…`, `use self::…`, grouped imports, aliases, and re-exports are
-  invisible to it, so its "blocking" claim is today scoped to `crate::`-form
-  edges (a live counterexample — `src/auth/provider.rs`'s `super::lifecycle`
-  / `super::mailbox` sideways edges — is recorded in
-  `issues/20260810-ownership-gate-analyzer-gaps.md`). This Decision requires
-  the extractor to resolve at least `crate`/`super`/`self`, grouped imports,
-  aliases, and re-exports relative to each module, with an adversarial
-  fixture per supported form; when the upgrade lands, the baseline and
-  worklist are re-derived from the complete graph, and newly *visible*
-  pre-existing edges are frozen with attribution — they are not new
-  violations. Until then, review carries the difference: a non-`crate::`
-  cross-owner import is a §2 violation whether or not the gate sees it.
+  extractor resolves `crate::`-rooted forms, including grouped use-trees,
+  aliases, and `pub use crate::…` re-exports — but **`super::`- and
+  `self::`-rooted references are invisible to it** (a live counterexample —
+  `src/auth/provider.rs`'s `super::lifecycle` / `super::mailbox` sideways
+  edges — is recorded in
+  `issues/20260810-ownership-gate-analyzer-gaps.md`), and transitively
+  chained re-export resolution is unimplemented. This Decision requires the
+  extractor to resolve `super`/`self` roots relative to each module and
+  chained re-exports, with an adversarial fixture per supported form; when
+  the upgrade lands, the baseline and worklist are re-derived from the
+  complete graph, and newly *visible* pre-existing edges are frozen with
+  attribution — they are not new violations. Until then, review carries the
+  difference: a non-`crate::` cross-owner import is a §2 violation whether
+  or not the gate sees it.
 
 Normative rules bound to this Decision:
 
@@ -422,6 +459,19 @@ so slices can follow product priorities.
   adds the amendment-only rule for dependency direction and the OQ-A/OQ-B
   disposition questions.
 - **2026-08-10 (b).** Draft → Review at llp-super-refine loop start.
+- **2026-08-10 (d).** Round-2 revision: the monotonic-baseline rule now
+  distinguishes proven pre-existing edges (freezable with provenance) from
+  genuinely new coupling (fix, or explicit time-bounded waiver with named
+  inversion owner — never a bare note), reclassifying the 2026-08-10
+  connected-clients freeze as such a waiver; the first slice's own two
+  frozen forbidden edges are named with their inversion dispositions; the
+  raw-dev transcript split-cut and reopen-inertness code findings are
+  recorded as tracked exceptions
+  (`issues/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`)
+  and the crash/reopen envelope claim is narrowed to what the landed tests
+  prove; the analyzer-gap disclosure is corrected to `super::`/`self::`
+  roots and chained re-exports (grouped/alias/`pub use crate::` forms are
+  parsed today).
 - **2026-08-10 (c).** Round-1 revision from dual-family review: monotonic
   baseline policy (§2, §4, §5) and the analyzer-gap disclosure + extractor
   requirement (§5), both tracked in
