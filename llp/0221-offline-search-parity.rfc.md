@@ -387,8 +387,8 @@ per-candidate release re-derivation dominates — the fixture proves
 correctness, budget, and no-regression, while the scan-elimination
 effect scales with partition vocabulary (the pilot's ~10k-message chat
 implies a term partition an order of magnitude larger, scanned twice per
-query before the fix); an envelope-scale measured before/after is the
-recorded follow-through below; (iii) a broad-match membership scale
+query before the fix); the envelope-scale measured before/after is
+recorded in the next entry; (iii) a broad-match membership scale
 budget test (2,000 rows all matching) guarding the batched release path;
 (iv) `prefix_upper_bound` unit vectors; (v) the full `search::sqlite`
 module green. Disclosed deviation: this phase named the Clique
@@ -399,6 +399,18 @@ remains open and belongs to the next Clique run alongside O5 ceiling
 calibration; `issues/20260809-membership-search-envelope-latency.md` is
 closed on the landed code fix with the envelope-scale measurement and
 pilot rerun noted as residual follow-through.
+
+**2026-08-10 — Phase 0(b) envelope-scale before/after recorded.** The
+selective-prefix fixture scaled to the pilot envelope's posting volume
+(24,000 rows, ~216k-term partition vocabulary, 50 matches; constants
+scaled in-place for measurement only, not committed), run on the same
+machine and debug toolchain, best-of-5: **pre-fix (`ca7119ed5`)
+135.3 ms; fixed (`4f7fe2ca7`) 25.5 ms — 5.3×**, post-landing evidence
+against the landed commit per LLP 0189. This substantiates the
+scan-elimination claim the committed CI-sized fixture deliberately does
+not: at ~10× the committed vocabulary the pre-fix substr scan dominates
+and the range seek removes it. Residual follow-through is now only the
+Clique pilot probe rerun (next Clique run, O5 calibration).
 
 **2026-08-10 — Phase 1 spec artifact extracted.** LLP 0229 (Spec, Draft)
 now owns the semantic-profile identity (binding analyzer, matcher,
