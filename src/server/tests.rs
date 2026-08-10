@@ -10826,9 +10826,23 @@ async fn hosted_sender_shared_throttle_charges_denials_before_proof_and_body() {
         .expect("shared throttle denial");
     assert_eq!(denied.status(), StatusCode::TOO_MANY_REQUESTS);
     assert_eq!(denied.headers()[header::RETRY_AFTER], "2");
+    let denied = response_json(denied).await;
     assert_eq!(
-        response_json(denied).await["diagnostic"]["code"],
+        denied["diagnostic"]["code"],
         "SNAPBACK_AUTH_THROTTLED",
+    );
+    assert_eq!(
+        denied["diagnostic"]["details"]["budgetName"],
+        "auth.enumeration",
+    );
+    assert_eq!(
+        denied["diagnostic"]["details"]["retryAfter"]["kind"],
+        "at",
+    );
+    assert!(
+        denied["diagnostic"]["details"]["correlationId"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty())
     );
 
     state
@@ -20212,6 +20226,7 @@ const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
 
 const CONFLICT_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_EFFECT_BINDING_STALE",
+    "SNAPBACK_AUTH_IDEMPOTENCY_CONFLICT",
     // @ref LLP 0146#oq6-author-ruling--2026-08-10 — stale remediation
     // bindings are conflicts, independent of the refusal that carried them.
     "SNAPBACK_REMEDIATION_ARTIFACT_STALE",
@@ -20420,6 +20435,8 @@ const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
 
 const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_WATCH_BUDGET_EXHAUSTED",
+    "SNAPBACK_AUTH_RATE_BUDGET",
+    "SNAPBACK_AUTH_QUOTA_BUDGET",
     "SNAPBACK_WATCH_OWNER_EVALUATION_LIMIT",
     "SNAPBACK_ASSET_GRANT_QUOTA_EXCEEDED",
     "SNAPBACK_CAPABILITY_LINK_LIMIT_EXCEEDED",
@@ -20517,6 +20534,7 @@ const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] = &[
 
 const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_WEBHOOK_TARGET_UNAVAILABLE",
+    "SNAPBACK_AUTH_BUDGET_AUTHORITY_UNAVAILABLE",
     "SNAPBACK_WEBHOOK_DELIVERY_RETRYABLE",
     "SNAPBACK_AUTH_REHEARSAL_NAMESPACE_UNAVAILABLE",
     "SNAPBACK_AUTH_REHEARSAL_REACHABILITY_INVALID",
@@ -20623,6 +20641,7 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
 // diagnostics that never normally become an `ApiError`. If one does reach
 // that boundary, the fail-safe class is still 500 rather than a false 4xx.
 const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
     "SNAPBACK_EFFECT_CATALOG_CORRUPT",
     "SNAPBACK_WATCH_CATALOG_CORRUPT",
     "SNAPBACK_WATCH_JOB_INVALID",
@@ -21329,6 +21348,28 @@ fn s5_d10_all_emitted_diagnostics_have_reviewed_http_status() {
             StatusCode::INTERNAL_SERVER_ERROR
         );
     }
+}
+
+#[test]
+fn effect_budget_diagnostics_pin_http_recovery_classes() {
+    for code in ["SNAPBACK_AUTH_RATE_BUDGET", "SNAPBACK_AUTH_QUOTA_BUDGET"] {
+        assert_eq!(
+            status_for_diagnostic_code(code),
+            StatusCode::TOO_MANY_REQUESTS
+        );
+    }
+    assert_eq!(
+        status_for_diagnostic_code("SNAPBACK_AUTH_IDEMPOTENCY_CONFLICT"),
+        StatusCode::CONFLICT
+    );
+    assert_eq!(
+        status_for_diagnostic_code("SNAPBACK_AUTH_BUDGET_AUTHORITY_UNAVAILABLE"),
+        StatusCode::SERVICE_UNAVAILABLE
+    );
+    assert_eq!(
+        status_for_diagnostic_code("SNAPBACK_AUTH_BUDGET_POLICY_INVALID"),
+        StatusCode::INTERNAL_SERVER_ERROR
+    );
 }
 
 /// LLP 0132 vector errors distinguish unchanged-request terminal classes,

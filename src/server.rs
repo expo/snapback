@@ -12271,7 +12271,7 @@ async fn charge_hosted_sender_attempt(
     match result {
         Ok(decision) if decision.admitted => Ok(()),
         Ok(decision) => {
-            Err(ApiError::auth_throttled(decision.retry_after_ms.div_ceil(1_000)).into_response())
+            Err(ApiError::auth_budget_throttled(decision).into_response())
         }
         Err(_) => {
             let mut response = ApiError::from(SnapbackError::error(

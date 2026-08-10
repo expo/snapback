@@ -1564,7 +1564,41 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PROOF_DOMAIN_MISMATCH"
         | "SNAPBACK_PROOF_EXPECTED_DERIVATION_MISSING"
         | "SNAPBACK_PROOF_ROWS_NOT_CANONICAL" => StatusCode::INTERNAL_SERVER_ERROR,
-        _ => StatusCode::INTERNAL_SERVER_ERROR,
+        _ => auth_budget_status(code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+fn auth_budget_status(code: &str) -> Option<StatusCode> {
+    match code {
+        "SNAPBACK_AUTH_RATE_BUDGET" | "SNAPBACK_AUTH_QUOTA_BUDGET" => {
+            Some(StatusCode::TOO_MANY_REQUESTS)
+        }
+        "SNAPBACK_AUTH_IDEMPOTENCY_CONFLICT" => Some(StatusCode::CONFLICT),
+        "SNAPBACK_AUTH_BUDGET_AUTHORITY_UNAVAILABLE" => Some(StatusCode::SERVICE_UNAVAILABLE),
+        "SNAPBACK_AUTH_BUDGET_POLICY_INVALID" => Some(StatusCode::INTERNAL_SERVER_ERROR),
+        _ => None,
+    }
+}
+
+impl ApiError {
+    pub(super) fn auth_budget_throttled(
+        decision: crate::auth::throttle::AuthenticationThrottleDecision,
+    ) -> Self {
+        let retry_after_seconds = decision.retry_after_ms.div_ceil(1_000).max(1);
+        let refusal = decision.refusal.unwrap_or_else(|| {
+            crate::auth::throttle::AuthBudgetRefusal::rate_duration(
+                decision.budget_name,
+                decision.retry_after_ms,
+            )
+        });
+        Self::api_throttled(
+            refusal.legacy_error(
+                "SNAPBACK_AUTH_THROTTLED",
+                "auth",
+                "authentication request rate limit exceeded",
+            ),
+            retry_after_seconds,
+        )
     }
 }
 
@@ -1572,6 +1606,16 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let status = status_for_diagnostic_code(self.0.diagnostic.code.as_str());
         let telemetry_code = TelemetryDiagnosticCode(self.0.diagnostic.code.clone());
+        let retry_after_seconds = self.2.or_else(|| {
+            self.0
+                .diagnostic
+                .details
+                .get("retryAfter")
+                .filter(|retry| retry.get("kind").and_then(Value::as_str) == Some("duration"))
+                .and_then(|retry| retry.get("milliseconds"))
+                .and_then(Value::as_u64)
+                .map(|milliseconds| milliseconds.div_ceil(1_000).max(1))
+        });
         let mut response = (
             status,
             Json(ErrorResponse {
@@ -1583,7 +1627,7 @@ impl IntoResponse for ApiError {
             }),
         )
             .into_response();
-        if let Some(seconds) = self.2
+        if let Some(seconds) = retry_after_seconds
             && let Ok(value) = HeaderValue::from_str(&seconds.to_string())
         {
             response.headers_mut().insert(header::RETRY_AFTER, value);

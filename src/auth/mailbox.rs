@@ -12,6 +12,7 @@
 //!   still held.
 
 use crate::auth::crypto::{CanonicalAddress, ChallengeId, VerificationCode};
+use crate::auth::throttle::{AuthBudgetName, AuthBudgetRefusal};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use std::collections::HashMap;
 use std::fmt;
@@ -19,7 +20,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 /// Published entries plus pre-commit reservations may never exceed this cap.
-pub const CAPTURE_MAILBOX_CAPACITY: usize = 1_024;
+pub use crate::auth::throttle::AUTH_CAPTURE_MAILBOX_CAPACITY as CAPTURE_MAILBOX_CAPACITY;
 
 /// Complete ephemeral delivery payload. It is deliberately not cloneable or
 /// serializable; only `with_published` lends its secret fields to a gated seam.
@@ -108,6 +109,7 @@ struct MailboxState {
 struct CaptureMailboxInner {
     state: Mutex<MailboxState>,
     clock: Arc<dyn Fn() -> Instant + Send + Sync>,
+    capacity: usize,
 }
 
 /// Cloneable process-local mailbox handle. Plaintext lives only in the shared
@@ -129,6 +131,17 @@ impl CaptureMailbox {
     }
 
     pub(crate) fn new_with_clock(clock: Arc<dyn Fn() -> Instant + Send + Sync>) -> Self {
+        Self::new_with_clock_and_capacity(clock, CAPTURE_MAILBOX_CAPACITY)
+    }
+
+    pub(crate) fn new_with_clock_and_capacity(
+        clock: Arc<dyn Fn() -> Instant + Send + Sync>,
+        capacity: usize,
+    ) -> Self {
+        assert!(
+            capacity > 0,
+            "resolved mailbox budget is finite and positive"
+        );
         Self {
             inner: Arc::new(CaptureMailboxInner {
                 state: Mutex::new(MailboxState {
@@ -136,6 +149,7 @@ impl CaptureMailbox {
                     next_reservation_id: 1,
                 }),
                 clock,
+                capacity,
             }),
         }
     }
@@ -152,12 +166,14 @@ impl CaptureMailbox {
                 "capture delivery cannot reserve an already-expired challenge",
             ));
         }
-        if state.entries.len() >= CAPTURE_MAILBOX_CAPACITY {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_THROTTLED",
-                "auth-mailbox",
-                "the capture mailbox is at capacity",
-            ));
+        if state.entries.len() >= self.inner.capacity {
+            return Err(
+                AuthBudgetRefusal::occupancy(AuthBudgetName::ChallengeAllocation).legacy_error(
+                    "SNAPBACK_AUTH_THROTTLED",
+                    "auth-mailbox",
+                    "the capture mailbox is at capacity",
+                ),
+            );
         }
         if state.entries.contains_key(&entry.challenge_id) {
             return Err(mailbox_unavailable(
@@ -594,6 +610,14 @@ mod tests {
             .reserve(entry(10_000, "person@example.com", base))
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_THROTTLED");
+        assert_eq!(
+            error.diagnostic.details["budgetName"],
+            "auth.challenge-allocation"
+        );
+        assert_eq!(
+            error.diagnostic.details["retryAfter"]["kind"],
+            "resource-release"
+        );
         reservations.pop();
         mailbox
             .reserve(entry(10_001, "person@example.com", base))

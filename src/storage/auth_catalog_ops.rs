@@ -11,7 +11,84 @@ use crate::auth::provider::{
     ProviderRevocationPlan, ProviderSessionIssuanceCommitPlan, ProviderTokenRotationCommitPlan,
     RejectedExchangeOutcome, RequestInsertOutcome, SessionCandidate, StepUpBinding,
 };
-use rusqlite::{OptionalExtension, params};
+use crate::auth::throttle::{
+    AuthBudgetName, AuthBudgetRefusal, RecipientRuleDisposition,
+    ResolvedCompatibilityAuthBudgetPolicy, RollingWindowBudgetTerms,
+};
+use rusqlite::{OptionalExtension, Transaction, params};
+
+/// Resolve the two LLP 0057 rolling-window rules from the named compatibility
+/// policy. Both are successful-effect counters: this helper runs inside the
+/// same transaction that will insert the challenge, and a refusal rolls back
+/// without charging either rule.
+///
+/// @ref LLP 0215#12-llp-0057-migration — compatibility preserves the existing
+/// half-open windows and request-code commit boundary exactly.
+fn request_code_budget_refusal(
+    transaction: &Transaction<'_>,
+    address: &CanonicalAddress,
+    now_ms: u64,
+    policy: ResolvedCompatibilityAuthBudgetPolicy,
+) -> SnapbackResult<Option<AuthBudgetRefusal>> {
+    fn exhausted_rule(
+        transaction: &Transaction<'_>,
+        sql: &str,
+        parameters: impl rusqlite::Params,
+        now_ms: u64,
+        terms: RollingWindowBudgetTerms,
+        budget_name: AuthBudgetName,
+    ) -> SnapbackResult<Option<(u64, AuthBudgetName)>> {
+        let (count, oldest): (i64, Option<i64>) =
+            transaction.query_row(sql, parameters, |row| Ok((row.get(0)?, row.get(1)?)))?;
+        if count < terms.limit as i64 {
+            return Ok(None);
+        }
+        let oldest = oldest
+            .and_then(|value| u64::try_from(value).ok())
+            .ok_or_else(crate::auth::provider::internal_state_snapback)?;
+        let retry_after_ms = oldest
+            .checked_add(terms.window_ms)
+            .ok_or_else(crate::auth::provider::internal_state_snapback)?
+            .saturating_sub(now_ms)
+            .max(1);
+        Ok(Some((retry_after_ms, budget_name)))
+    }
+
+    let global = policy.global();
+    let global_lower = now_ms as i64 - global.window_ms as i64;
+    let mut exhausted = exhausted_rule(
+        transaction,
+        "SELECT COUNT(*), MIN(requested_at_ms) FROM _auth_verification_codes
+         WHERE requested_at_ms > ?1 AND requested_at_ms <= ?2",
+        params![global_lower, now_ms as i64],
+        now_ms,
+        global,
+        AuthBudgetName::ChallengeAllocation,
+    )?;
+
+    if let RecipientRuleDisposition::Applied(recipient) = policy.recipient() {
+        let recipient_lower = now_ms as i64 - recipient.window_ms as i64;
+        let recipient_exhausted = exhausted_rule(
+            transaction,
+            "SELECT COUNT(*), MIN(requested_at_ms) FROM _auth_verification_codes
+             WHERE canonical_address = ?1
+               AND requested_at_ms > ?2 AND requested_at_ms <= ?3",
+            params![address.as_str(), recipient_lower, now_ms as i64],
+            now_ms,
+            recipient,
+            AuthBudgetName::Delivery,
+        )?;
+        if recipient_exhausted
+            .is_some_and(|candidate| exhausted.is_none_or(|selected| candidate.0 > selected.0))
+        {
+            exhausted = recipient_exhausted;
+        }
+    }
+
+    Ok(exhausted.map(|(retry_after_ms, budget_name)| {
+        AuthBudgetRefusal::rate_duration(budget_name, retry_after_ms)
+    }))
+}
 
 impl LocalDatabase {
     pub(super) fn auth_step_up_address(
@@ -266,7 +343,7 @@ impl LocalDatabase {
         key_id: &str,
         now_ms: u64,
         expires_at_ms: u64,
-        exempts_capture_address_request_budget: bool,
+        budget_policy: &ResolvedCompatibilityAuthBudgetPolicy,
     ) -> SnapbackResult<RequestInsertOutcome> {
         self.with_auth_transaction(|transaction| {
             let live_address = transaction
@@ -297,31 +374,10 @@ impl LocalDatabase {
                 return Err(crate::auth::provider::auth_required().into_snapback_error());
             }
 
-            let global_lower =
-                now_ms as i64 - crate::auth::provider::AUTH_GLOBAL_REQUEST_WINDOW_MS as i64;
-            let global_count: i64 = transaction.query_row(
-                "SELECT COUNT(*) FROM _auth_verification_codes
-                 WHERE requested_at_ms > ?1 AND requested_at_ms <= ?2",
-                params![global_lower, now_ms as i64],
-                |row| row.get(0),
-            )?;
-            if global_count >= crate::auth::provider::AUTH_GLOBAL_REQUEST_LIMIT as i64 {
-                return Err(crate::auth::provider::throttled_snapback());
-            }
-
-            let address_lower =
-                now_ms as i64 - crate::auth::provider::AUTH_ADDRESS_REQUEST_WINDOW_MS as i64;
-            let address_count: i64 = transaction.query_row(
-                "SELECT COUNT(*) FROM _auth_verification_codes
-                 WHERE canonical_address = ?1
-                   AND requested_at_ms > ?2 AND requested_at_ms <= ?3",
-                params![address.as_str(), address_lower, now_ms as i64],
-                |row| row.get(0),
-            )?;
-            if !exempts_capture_address_request_budget
-                && address_count >= crate::auth::provider::AUTH_ADDRESS_REQUEST_LIMIT as i64
+            if let Some(refusal) =
+                request_code_budget_refusal(transaction, address, now_ms, *budget_policy)?
             {
-                return Err(crate::auth::provider::throttled_snapback());
+                return Err(crate::auth::provider::throttled_snapback(refusal));
             }
 
             transaction.execute(
@@ -341,7 +397,7 @@ impl LocalDatabase {
                     address.as_str(),
                     digest.as_bytes().as_slice(),
                     key_id,
-                    crate::auth::provider::AUTH_MAXIMUM_ATTEMPTS as i64,
+                    budget_policy.challenge_attempts().limit as i64,
                     now_ms as i64,
                     expires_at_ms as i64,
                 ],
@@ -364,35 +420,14 @@ impl LocalDatabase {
         key_id: &str,
         now_ms: u64,
         expires_at_ms: u64,
-        exempts_capture_address_request_budget: bool,
+        budget_policy: &ResolvedCompatibilityAuthBudgetPolicy,
         rehearsal_window: Option<&crate::auth::rehearsal::AuthRehearsalWindowV1>,
     ) -> SnapbackResult<RequestInsertOutcome> {
         self.with_auth_transaction(|transaction| {
-            let global_lower =
-                now_ms as i64 - crate::auth::provider::AUTH_GLOBAL_REQUEST_WINDOW_MS as i64;
-            let global_count: i64 = transaction.query_row(
-                "SELECT COUNT(*) FROM _auth_verification_codes
-                 WHERE requested_at_ms > ?1 AND requested_at_ms <= ?2",
-                params![global_lower, now_ms as i64],
-                |row| row.get(0),
-            )?;
-            if global_count >= crate::auth::provider::AUTH_GLOBAL_REQUEST_LIMIT as i64 {
-                return Err(crate::auth::provider::throttled_snapback());
-            }
-
-            let address_lower =
-                now_ms as i64 - crate::auth::provider::AUTH_ADDRESS_REQUEST_WINDOW_MS as i64;
-            let address_count: i64 = transaction.query_row(
-                "SELECT COUNT(*) FROM _auth_verification_codes
-                 WHERE canonical_address = ?1
-                   AND requested_at_ms > ?2 AND requested_at_ms <= ?3",
-                params![address.as_str(), address_lower, now_ms as i64],
-                |row| row.get(0),
-            )?;
-            if !exempts_capture_address_request_budget
-                && address_count >= crate::auth::provider::AUTH_ADDRESS_REQUEST_LIMIT as i64
+            if let Some(refusal) =
+                request_code_budget_refusal(transaction, address, now_ms, *budget_policy)?
             {
-                return Err(crate::auth::provider::throttled_snapback());
+                return Err(crate::auth::provider::throttled_snapback(refusal));
             }
 
             transaction.execute(
@@ -413,7 +448,7 @@ impl LocalDatabase {
                     address.as_str(),
                     digest.as_bytes().as_slice(),
                     key_id,
-                    crate::auth::provider::AUTH_MAXIMUM_ATTEMPTS as i64,
+                    budget_policy.challenge_attempts().limit as i64,
                     now_ms as i64,
                     expires_at_ms as i64,
                 ],
@@ -2027,7 +2062,7 @@ impl<'a> AuthCatalogKernel<'a> {
         key_id: &str,
         now_ms: u64,
         expires_at_ms: u64,
-        exempts_capture_address_request_budget: bool,
+        budget_policy: &ResolvedCompatibilityAuthBudgetPolicy,
     ) -> SnapbackResult<RequestInsertOutcome> {
         self.write_db().auth_insert_step_up_challenge(
             binding,
@@ -2037,7 +2072,7 @@ impl<'a> AuthCatalogKernel<'a> {
             key_id,
             now_ms,
             expires_at_ms,
-            exempts_capture_address_request_budget,
+            budget_policy,
         )
     }
 
@@ -2050,7 +2085,7 @@ impl<'a> AuthCatalogKernel<'a> {
         key_id: &str,
         now_ms: u64,
         expires_at_ms: u64,
-        exempts_capture_address_request_budget: bool,
+        budget_policy: &ResolvedCompatibilityAuthBudgetPolicy,
     ) -> SnapbackResult<RequestInsertOutcome> {
         self.write_db().auth_insert_verification_challenge(
             address,
@@ -2059,7 +2094,7 @@ impl<'a> AuthCatalogKernel<'a> {
             key_id,
             now_ms,
             expires_at_ms,
-            exempts_capture_address_request_budget,
+            budget_policy,
             None,
         )
     }
@@ -2073,7 +2108,7 @@ impl<'a> AuthCatalogKernel<'a> {
         key_id: &str,
         now_ms: u64,
         expires_at_ms: u64,
-        exempts_capture_address_request_budget: bool,
+        budget_policy: &ResolvedCompatibilityAuthBudgetPolicy,
         window: &crate::auth::rehearsal::AuthRehearsalWindowV1,
     ) -> SnapbackResult<RequestInsertOutcome> {
         self.write_db().auth_insert_verification_challenge(
@@ -2083,7 +2118,7 @@ impl<'a> AuthCatalogKernel<'a> {
             key_id,
             now_ms,
             expires_at_ms,
-            exempts_capture_address_request_budget,
+            budget_policy,
             Some(window),
         )
     }

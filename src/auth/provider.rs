@@ -39,6 +39,11 @@ use super::lifecycle::KeyringGcResult;
 use super::mailbox::{CaptureMailbox, CaptureMailboxEntry};
 use super::session_projection::ProjectedSessionInsert;
 use super::session_projection::{RevocationReason, TokenDigest};
+use super::throttle::{
+    AuthBudgetDeploymentProfile, AuthBudgetName, AuthBudgetRefusal,
+    ResolvedCompatibilityAuthBudgetPolicy, ServerVerifiedAuthTrustEvidence,
+    derive_auth_trust_tier,
+};
 use super::wire::{
     CredentialResponse, FamilyAlarmResponse, MailboxResponse, RequestCodeResponse, SessionResponse,
 };
@@ -52,11 +57,10 @@ pub const AUTH_CHALLENGE_TTL_MS: u64 = 10 * 60 * 1_000;
 // @ref LLP 0039#dated-amendment-operation-bound-step-up-2026-07-15 — the
 // non-production proof is deliberately shorter than an ordinary login code.
 pub const AUTH_STEP_UP_TTL_MS: u64 = 5 * 60 * 1_000;
-pub const AUTH_MAXIMUM_ATTEMPTS: u32 = 5;
-pub const AUTH_ADDRESS_REQUEST_LIMIT: usize = 5;
-pub const AUTH_ADDRESS_REQUEST_WINDOW_MS: u64 = 10 * 60 * 1_000;
-pub const AUTH_GLOBAL_REQUEST_LIMIT: usize = 120;
-pub const AUTH_GLOBAL_REQUEST_WINDOW_MS: u64 = 60 * 1_000;
+pub use super::throttle::{
+    AUTH_ADDRESS_REQUEST_LIMIT, AUTH_ADDRESS_REQUEST_WINDOW_MS, AUTH_GLOBAL_REQUEST_LIMIT,
+    AUTH_GLOBAL_REQUEST_WINDOW_MS, AUTH_MAXIMUM_ATTEMPTS,
+};
 pub const AUTH_SESSION_SLIDING_WINDOW_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
 pub const AUTH_SESSION_ABSOLUTE_WINDOW_MS: u64 = 90 * 24 * 60 * 60 * 1_000;
 pub const AUTH_SESSION_REFRESH_CADENCE_MS: u64 = 7 * 24 * 60 * 60 * 1_000;
@@ -105,16 +109,16 @@ impl AuthProviderProfile {
     fn permits_capture(self) -> bool {
         matches!(self, Self::Dev | Self::Test | Self::Demo)
     }
+}
 
-    /// Dev/demo codes never leave the bounded in-process capture mailbox, so
-    /// repeated local ceremonies cannot send mail to or otherwise burden the
-    /// canonical address. Test deliberately retains the production-shaped
-    /// per-address budget so its exact-boundary coverage stays meaningful.
-    ///
-    /// @ref LLP 0057#request-code-transaction — the capture-only profile
-    /// exception leaves the global and mailbox budgets in force.
-    fn exempts_capture_address_request_budget(self) -> bool {
-        matches!(self, Self::Dev | Self::Demo)
+impl From<AuthProviderProfile> for AuthBudgetDeploymentProfile {
+    fn from(profile: AuthProviderProfile) -> Self {
+        match profile {
+            AuthProviderProfile::Dev => Self::Dev,
+            AuthProviderProfile::Test => Self::Test,
+            AuthProviderProfile::Demo => Self::Demo,
+            AuthProviderProfile::Prod => Self::Prod,
+        }
     }
 }
 
@@ -1187,6 +1191,7 @@ pub(crate) enum PlannedExchange {
 
 pub struct AuthProvider {
     profile: AuthProviderProfile,
+    budgets: ResolvedCompatibilityAuthBudgetPolicy,
     keyring: Arc<AuthKeyringStore>,
     mailbox: CaptureMailbox,
     random: Arc<dyn RandomSource>,
@@ -1244,10 +1249,20 @@ impl AuthProvider {
             SessionBearer::generate(random.as_ref()).map_err(|_| provider_unavailable())?;
         let dummy_token_hash = dummy_bearer.token_hash();
         let mailbox_clock = clock.clone();
-        let mailbox =
-            CaptureMailbox::new_with_clock(Arc::new(move || mailbox_clock.monotonic_now()));
+        // Compatibility starts at the anonymous tier. Stronger server-derived
+        // evidence has a sealed derivation seam in the budget layer, but this
+        // migration intentionally applies one finite term table to every tier.
+        let budgets = ResolvedCompatibilityAuthBudgetPolicy::resolve(
+            profile.into(),
+            derive_auth_trust_tier(ServerVerifiedAuthTrustEvidence::Anonymous),
+        );
+        let mailbox = CaptureMailbox::new_with_clock_and_capacity(
+            Arc::new(move || mailbox_clock.monotonic_now()),
+            budgets.mailbox().limit as usize,
+        );
         Ok(Self {
             profile,
+            budgets,
             keyring,
             mailbox,
             random,
@@ -1266,6 +1281,10 @@ impl AuthProvider {
 
     pub fn profile(&self) -> AuthProviderProfile {
         self.profile
+    }
+
+    pub(crate) fn budget_policy(&self) -> ResolvedCompatibilityAuthBudgetPolicy {
+        self.budgets
     }
 
     /// CSPRNG dependency shared with the agent-secret storage transactions.
@@ -2399,9 +2418,7 @@ impl AddressAdmission {
                 &key_id,
                 now_ms,
                 expires_at_ms,
-                self.provider()
-                    .profile
-                    .exempts_capture_address_request_budget(),
+                &self.provider().budget_policy(),
             );
 
             match outcome {
@@ -2512,9 +2529,7 @@ impl AddressAdmission {
                         &key_id,
                         now_ms,
                         expires_at_ms,
-                        self.provider()
-                            .profile
-                            .exempts_capture_address_request_budget(),
+                        &self.provider().budget_policy(),
                         window,
                     ),
                 None => database.auth_catalog().insert_verification_challenge(
@@ -2524,9 +2539,7 @@ impl AddressAdmission {
                     &key_id,
                     now_ms,
                     expires_at_ms,
-                    self.provider()
-                        .profile
-                        .exempts_capture_address_request_budget(),
+                    &self.provider().budget_policy(),
                 ),
             };
 
@@ -5214,11 +5227,13 @@ pub(crate) fn sender_key_bound() -> ProviderError {
 }
 
 pub(crate) fn code_locked() -> ProviderError {
-    ProviderError::new(SnapbackError::error(
-        "SNAPBACK_AUTH_CODE_LOCKED",
-        "auth",
-        "verification code attempt budget is exhausted",
-    ))
+    ProviderError::new(
+        AuthBudgetRefusal::fixed_total(AuthBudgetName::Guessing).legacy_error(
+            "SNAPBACK_AUTH_CODE_LOCKED",
+            "auth",
+            "verification code attempt budget is exhausted",
+        ),
+    )
 }
 
 pub(crate) fn auth_required() -> ProviderError {
@@ -5274,8 +5289,8 @@ fn mailbox_entry_not_found() -> ProviderError {
     ))
 }
 
-pub(crate) fn throttled_snapback() -> SnapbackError {
-    SnapbackError::error(
+pub(crate) fn throttled_snapback(refusal: AuthBudgetRefusal) -> SnapbackError {
+    refusal.legacy_error(
         "SNAPBACK_AUTH_THROTTLED",
         "auth",
         "authentication request rate limit exceeded",
@@ -5753,6 +5768,17 @@ mod tests {
             .request_code(&mut database, 0)
             .expect_err("sixth rolling-window request must throttle");
         assert_eq!(error.diagnostic().code, "SNAPBACK_AUTH_THROTTLED");
+        assert_eq!(error.diagnostic().details["budgetName"], "auth.delivery");
+        assert_eq!(error.diagnostic().details["retryAfter"]["kind"], "duration");
+        assert_eq!(
+            error.diagnostic().details["retryAfter"]["milliseconds"],
+            AUTH_ADDRESS_REQUEST_WINDOW_MS
+        );
+        assert!(
+            error.diagnostic().details["correlationId"]
+                .as_str()
+                .is_some_and(|value| !value.is_empty())
+        );
         drop(admission);
 
         let first = provider
@@ -5865,6 +5891,14 @@ mod tests {
             .request_code(&mut database, 0)
             .expect_err("global overrun throttles");
         assert_eq!(global.diagnostic().code, "SNAPBACK_AUTH_THROTTLED");
+        assert_eq!(
+            global.diagnostic().details["budgetName"],
+            "auth.challenge-allocation"
+        );
+        assert_eq!(
+            global.diagnostic().details["retryAfter"]["milliseconds"],
+            AUTH_GLOBAL_REQUEST_WINDOW_MS
+        );
         provider
             .admit_email("global-recovered@example.com")
             .await
@@ -5895,6 +5929,14 @@ mod tests {
             )
             .expect_err("mailbox overrun throttles");
         assert_eq!(capacity.diagnostic().code, "SNAPBACK_AUTH_THROTTLED");
+        assert_eq!(
+            capacity.diagnostic().details["budgetName"],
+            "auth.challenge-allocation"
+        );
+        assert_eq!(
+            capacity.diagnostic().details["retryAfter"]["kind"],
+            "resource-release"
+        );
         let durable: i64 = capacity_database
             .auth_catalog_read()
             .verification_challenge_count_for_test()
@@ -5986,6 +6028,11 @@ mod tests {
             .exchange(&mut database, &wrong, now_ms + AUTH_MAXIMUM_ATTEMPTS as u64)
             .expect_err("wrong fifth attempt locks");
         assert_eq!(fifth.diagnostic().code, "SNAPBACK_AUTH_CODE_LOCKED");
+        assert_eq!(fifth.diagnostic().details["budgetName"], "auth.guessing");
+        assert_eq!(
+            fifth.diagnostic().details["retryAfter"]["kind"],
+            "new-authority-required"
+        );
         let later = exchange
             .exchange(
                 &mut database,

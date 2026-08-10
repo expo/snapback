@@ -2,17 +2,17 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "859557564cae52fbcce0b70c7af7bd305c9143cb",
-    "sourceDigest": "sha256:44a439c496e2aa55df614dbf38a2f45d850bad4b78cf75d4d4c11657124e8fb6"
+    "commit": "66e676f2ad8ef19307e5f78b098b33235eddd6d9",
+    "sourceDigest": "sha256:9c07288d481cb67a243f223504b07f30eb36327a7afe2c1ae263860025761d42"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 2947,
+    "codes": 2952,
     "sourceFiles": 406,
-    "emittingSites": 10015,
-    "httpClassified": 922,
+    "emittingSites": 10028,
+    "httpClassified": 925,
     "guideAnchored": 339
   },
   "diagnostics": {
@@ -12950,7 +12950,7 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5645,
+          "line": 5660,
           "column": 14
         },
         {
@@ -13180,7 +13180,7 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 1391,
+          "line": 1410,
           "column": 18
         },
         {
@@ -13210,7 +13210,7 @@
       "sites": [
         {
           "file": "src/auth/provider.rs",
-          "line": 5190,
+          "line": 5203,
           "column": 10
         },
         {
@@ -14523,6 +14523,46 @@
         "/_snapback/guide/auth/sessions-and-principals.md#queries-are-scoped-by-the-server-not-by-arguments"
       ]
     },
+    "SNAPBACK_AUTH_BUDGET_AUTHORITY_UNAVAILABLE": {
+      "code": "SNAPBACK_AUTH_BUDGET_AUTHORITY_UNAVAILABLE",
+      "subsystem": "auth",
+      "sites": [
+        {
+          "file": "src/auth/throttle.rs",
+          "line": 988,
+          "column": 52
+        },
+        {
+          "file": "src/server/api_error.rs",
+          "line": 1577,
+          "column": 10
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_AUTH_BUDGET_POLICY_INVALID": {
+      "code": "SNAPBACK_AUTH_BUDGET_POLICY_INVALID",
+      "subsystem": "auth",
+      "sites": [
+        {
+          "file": "src/auth/throttle.rs",
+          "line": 990,
+          "column": 31
+        },
+        {
+          "file": "src/server/api_error.rs",
+          "line": 1578,
+          "column": 10
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
     "SNAPBACK_AUTH_CATALOG_CORRUPT": {
       "code": "SNAPBACK_AUTH_CATALOG_CORRUPT",
       "subsystem": "auth",
@@ -14809,37 +14849,37 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5198,
+          "line": 5211,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5930,
+          "line": 5972,
           "column": 50
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5944,
+          "line": 5986,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5983,
+          "line": 6025,
           "column": 50
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6077,
+          "line": 6124,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6096,
+          "line": 6143,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6134,
+          "line": 6181,
           "column": 47
         },
         {
@@ -14874,17 +14914,17 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5218,
-          "column": 10
+          "line": 5232,
+          "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5988,
+          "line": 6030,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5996,
+          "line": 6043,
           "column": 46
         },
         {
@@ -15074,22 +15114,22 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5255,
+          "line": 5270,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6285,
+          "line": 6332,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6360,
+          "line": 6407,
           "column": 18
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6455,
+          "line": 6502,
           "column": 14
         },
         {
@@ -16484,6 +16524,31 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_AUTH_IDEMPOTENCY_CONFLICT": {
+      "code": "SNAPBACK_AUTH_IDEMPOTENCY_CONFLICT",
+      "subsystem": "auth",
+      "sites": [
+        {
+          "file": "src/auth/throttle.rs",
+          "line": 989,
+          "column": 43
+        },
+        {
+          "file": "src/auth/throttle.rs",
+          "line": 1983,
+          "column": 14
+        },
+        {
+          "file": "src/server/api_error.rs",
+          "line": 1576,
+          "column": 10
+        }
+      ],
+      "httpStatus": 409,
+      "httpStatusClass": "4xx",
       "guideAnchor": null,
       "guideAnchors": []
     },
@@ -17904,22 +17969,22 @@
       "sites": [
         {
           "file": "src/auth/provider.rs",
-          "line": 5271,
+          "line": 5286,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5764,
+          "line": 5790,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5952,
+          "line": 5994,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6750,
+          "line": 6797,
           "column": 14
         },
         {
@@ -19643,42 +19708,42 @@
         },
         {
           "file": "src/auth/mailbox.rs",
-          "line": 360,
+          "line": 376,
           "column": 10
         },
         {
           "file": "src/auth/mailbox.rs",
-          "line": 523,
+          "line": 539,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 2680,
+          "line": 2693,
           "column": 22
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5166,
+          "line": 5179,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5422,
+          "line": 5437,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6024,
+          "line": 6071,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6051,
+          "line": 6098,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6774,
+          "line": 6821,
           "column": 14
         },
         {
@@ -19743,12 +19808,12 @@
         },
         {
           "file": "src/storage/auth_catalog_ops.rs",
-          "line": 122,
+          "line": 199,
           "column": 26
         },
         {
           "file": "src/storage/auth_catalog_ops.rs",
-          "line": 522,
+          "line": 557,
           "column": 22
         },
         {
@@ -19942,6 +20007,51 @@
       "guideAnchor": null,
       "guideAnchors": []
     },
+    "SNAPBACK_AUTH_QUOTA_BUDGET": {
+      "code": "SNAPBACK_AUTH_QUOTA_BUDGET",
+      "subsystem": "auth",
+      "sites": [
+        {
+          "file": "src/auth/throttle.rs",
+          "line": 566,
+          "column": 47
+        },
+        {
+          "file": "src/server/api_error.rs",
+          "line": 1573,
+          "column": 40
+        }
+      ],
+      "httpStatus": 429,
+      "httpStatusClass": "4xx",
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_AUTH_RATE_BUDGET": {
+      "code": "SNAPBACK_AUTH_RATE_BUDGET",
+      "subsystem": "auth",
+      "sites": [
+        {
+          "file": "src/auth/throttle.rs",
+          "line": 565,
+          "column": 46
+        },
+        {
+          "file": "src/auth/throttle.rs",
+          "line": 1755,
+          "column": 47
+        },
+        {
+          "file": "src/server/api_error.rs",
+          "line": 1573,
+          "column": 10
+        }
+      ],
+      "httpStatus": 429,
+      "httpStatusClass": "4xx",
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
     "SNAPBACK_AUTH_REFRESH_SUPERSEDED": {
       "code": "SNAPBACK_AUTH_REFRESH_SUPERSEDED",
       "subsystem": "auth",
@@ -19963,22 +20073,22 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5263,
+          "line": 5278,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6152,
+          "line": 6199,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6274,
+          "line": 6321,
           "column": 47
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6348,
+          "line": 6395,
           "column": 18
         },
         {
@@ -20643,7 +20753,7 @@
       "sites": [
         {
           "file": "src/auth/provider.rs",
-          "line": 5158,
+          "line": 5171,
           "column": 10
         },
         {
@@ -20711,17 +20821,17 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 2422,
+          "line": 2439,
           "column": 57
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5226,
+          "line": 5241,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6303,
+          "line": 6350,
           "column": 50
         },
         {
@@ -21711,12 +21821,12 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5205,
+          "line": 5218,
           "column": 36
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5210,
+          "line": 5223,
           "column": 10
         },
         {
@@ -21891,67 +22001,67 @@
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5243,
+          "line": 5258,
           "column": 14
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6218,
+          "line": 6265,
           "column": 48
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6222,
+          "line": 6269,
           "column": 47
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6290,
+          "line": 6337,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6298,
+          "line": 6345,
           "column": 48
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6367,
+          "line": 6414,
           "column": 18
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6377,
+          "line": 6424,
           "column": 52
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6416,
+          "line": 6463,
           "column": 48
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6506,
+          "line": 6553,
           "column": 48
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6532,
+          "line": 6579,
           "column": 48
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6593,
+          "line": 6640,
           "column": 49
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6682,
+          "line": 6729,
           "column": 48
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 6686,
+          "line": 6733,
           "column": 47
         },
         {
@@ -22301,7 +22411,7 @@
       "sites": [
         {
           "file": "src/auth/provider.rs",
-          "line": 5174,
+          "line": 5187,
           "column": 10
         },
         {
@@ -22323,7 +22433,7 @@
       "sites": [
         {
           "file": "src/auth/provider.rs",
-          "line": 5182,
+          "line": 5195,
           "column": 10
         },
         {
@@ -22562,57 +22672,57 @@
       "sites": [
         {
           "file": "src/auth/mailbox.rs",
-          "line": 157,
-          "column": 18
+          "line": 172,
+          "column": 22
         },
         {
           "file": "src/auth/mailbox.rs",
-          "line": 596,
+          "line": 612,
           "column": 44
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 2388,
+          "line": 2407,
           "column": 57
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 2419,
+          "line": 2436,
           "column": 57
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 2496,
+          "line": 2513,
           "column": 57
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 2545,
+          "line": 2558,
           "column": 57
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5279,
+          "line": 5294,
           "column": 10
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5755,
+          "line": 5770,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5816,
+          "line": 5842,
           "column": 46
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5867,
+          "line": 5893,
           "column": 47
         },
         {
           "file": "src/auth/provider.rs",
-          "line": 5897,
+          "line": 5931,
           "column": 49
         },
         {
@@ -22649,6 +22759,11 @@
           "file": "src/server/api_error.rs",
           "line": 617,
           "column": 12
+        },
+        {
+          "file": "src/server/api_error.rs",
+          "line": 1596,
+          "column": 18
         }
       ],
       "httpStatus": 429,

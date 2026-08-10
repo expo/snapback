@@ -5,7 +5,10 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-08 (dated amendment: the operator-locus startup
+**Revised:** 2026-08-10 (dated amendment: LLP 0215 wave 2c replaces four
+independent throttle constants with the named compatibility budget policy,
+without changing limits, transaction boundaries, profiles, or legacy
+diagnostics). 2026-08-08 (dated amendment: the operator-locus startup
 `SNAPBACK_AUTH_PROVIDER_UNAVAILABLE` diagnostic names the missing
 `<db>.auth-keyring.json` sidecar path and cause class, while the request-path
 503 stays redacted — see LLP 0192 D-4 and the dated amendment). 2026-08-06 (dated amendment drafted at the author's
@@ -85,7 +88,7 @@ compatibility, and reserved-source name reachability) as defect obligations;
 pinned the **`generation` domain** and the JS-safe **timestamp schema bound**;
 and softened the **no-ready-file impersonation stdin** path to a named
 obligation. Full triage in §Review triage.) 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0057-auth-provider-protocol.codex.md` and applied its editorial corrections — composed credential-response example, address-exposure wording, future-import incarnation rule, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24981 backup-staging audit: bind the SQLite backup image to its exact descriptor-created inode, pin the staging directory and every staged child inode, and revalidate them immediately before and after publication so a replaced or symlinked staging path fails closed before any source page is copied). 2026-07-14 (implementation-vs-review reconciliation: ENG-24596/item 3 and its executable evidence have landed, while this security-sensitive Spec remains Draft pending author ratification and an appropriately scaled review). 2026-07-13 (ENG-24596 restore audit: serialize every supported file-backed startup with restore, carry the target-directory identity through database open, and bind staged children plus publication/cleanup to their exact inodes); 2026-07-13 (ENG-24596 final audit: enforced rescue's frozen dev/test-only profile and reconciled the LLP 0045 handoff boundary); 2026-07-13 (ENG-24596 implementation reconciliation: aligned owning LLPs, review findings, restore exclusion, redaction/ACL/GC hardening, and executable evidence); 2026-07-13 (implementation review: separate due key rotation from request admission; pin public no-store classification)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051, LLP 0053, LLP 0055, LLP 0058, LLP 0059, LLP 0060, LLP 0192
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0037, LLP 0039, LLP 0045, LLP 0051, LLP 0053, LLP 0055, LLP 0058, LLP 0059, LLP 0060, LLP 0192, LLP 0215
 
 ## Summary
 
@@ -168,7 +171,10 @@ In particular, LLP 0055 owns the current marker, the agent columns and six agent
 tables, reset/restore effects for those authority classes, and the rule that a
 fresh catalog is v2. LLP 0058 remains authoritative for staged auth-mode state,
 and LLP 0059 remains authoritative for the durable clock, projection, and
-composed lock protocol.
+composed lock protocol. LLP 0215 owns the named effect-budget vocabulary,
+policy resolution, counter classes, retry identity, and refusal shape. This
+Spec retains authority over the email-code state machine and its exact
+compatibility terms and transaction boundaries.
 
 The closed version policy is:
 
@@ -216,7 +222,7 @@ stored generation is already at that maximum is catalog corruption, failed
 closed, never a wrap. The handshake-only `sessionGeneration: 0` is the
 anonymous/no-session sentinel and is never a durable session generation.
 
-| Name | Base/current value |
+| Name | Base/current value or named compatibility policy |
 |---|---:|
 | `AUTH_CATALOG_VERSION_V1` (legacy-recognition marker) | `1` |
 | `AUTH_CATALOG_VERSION` (fresh/current, LLP 0055) | `2` |
@@ -225,11 +231,11 @@ anonymous/no-session sentinel and is never a durable session generation.
 | Canonical address limit | 320 UTF-8 bytes |
 | Verification code | 6 ASCII digits, uniformly sampled |
 | Challenge TTL | 10 minutes |
-| Maximum attempts | 5 total submitted attempts |
-| Per-address request budget | 5 accepted requests per rolling 10 minutes in `test` and `prod`; exempt in capture-only `dev` and `demo` |
-| Global request budget | 120 accepted requests per rolling 60 seconds |
+| Maximum attempts | LLP 0215 `auth.guessing`, `credential + provider + app + deployment`, `ATTEMPT` fixed-total: 5 total submitted attempts |
+| Per-address request budget | LLP 0215 `auth.delivery`, `recipient + provider + app + deployment`, `SUCCESSFUL_EFFECT` rolling-window: 5 accepted requests per rolling 10 minutes in `test` and `prod`; the rule is `not-applicable` under the `dev`/`demo` overlay |
+| Global request budget | LLP 0215 `auth.challenge-allocation`, `app + deployment`, `SUCCESSFUL_EFFECT` rolling-window: 120 accepted requests per rolling 60 seconds in every profile |
 | Address coordination | 256 fixed mutex stripes |
-| Capture mailbox capacity | 1,024 published or reserved entries |
+| Capture mailbox capacity | LLP 0215 `auth.challenge-allocation`, `provider + app + deployment`, `SUCCESSFUL_EFFECT` occupancy: 1,024 published or reserved entries |
 | Session bearer entropy | 256 random bits |
 | Sliding session window | 30 days |
 | Absolute session window | 90 days |
@@ -243,8 +249,12 @@ anonymous/no-session sentinel and is never a durable session generation.
 | Auth GC batch | 512 rows per table per pass |
 | Impersonation bearer lifetime | one server process |
 
-Except for the catalog marker explicitly superseded by LLP 0055, these are the
-shared v1-base/current constants. Constants are not configuration entries.
+Except for the catalog marker explicitly superseded by LLP 0055 and the four
+named budget rows governed by LLP 0215, these are the shared v1-base/current
+constants. The four budget rows resolve from LLP 0215's source-controlled base
+policy plus deployment-profile overlay; they are not independent numeric
+authorities or mutable operator settings. Other constants are not
+configuration entries.
 Changing a cryptographic encoding, digest domain, catalog shape, or keyring
 shape is a version change. Operational constant changes require an acceptance
 update and an explicit compatibility decision; they do not silently
@@ -698,20 +708,22 @@ from reordering. The flow is:
 
 1. Canonicalize and validate the address.
 2. Revalidate/rotate the keyring and generate challenge id, code, and digest.
-3. Reserve one mailbox slot. A reservation counts against the 1,024 cap;
-   capacity refusal is `SNAPBACK_AUTH_THROTTLED` and mutates neither the auth
-   catalog nor mailbox. A due key rotation already durably published by step 2
-   is an independent maintenance effect and is not rolled back merely because
-   later request admission refuses. Any pre-commit refusal releases the
-   reservation.
+3. Reserve one mailbox slot under LLP 0215's
+   `auth.challenge-allocation` occupancy rule. A reservation counts against the
+   1,024 cap; capacity refusal is `SNAPBACK_AUTH_THROTTLED` and mutates neither
+   the auth catalog nor mailbox. A due key rotation already durably published
+   by step 2 is an independent maintenance effect and is not rolled back merely
+   because later request admission refuses. Any pre-commit refusal releases
+   the reservation.
 4. In one `IMMEDIATE` transaction, count retained rows for the rolling global
    and per-address half-open windows `(now - window, now]`. The global budget
-   applies in every profile. The per-address budget applies in `test` and
-   `prod`; `dev` and `demo` are exempt because their capture provider never
-   delivers to a recipient. At an applicable limit, roll back and return
-   `SNAPBACK_AUTH_THROTTLED`. The bounded capture mailbox remains in force for
-   every non-production profile. A request exactly one full window after an
-   older request no longer counts that older row.
+   applies in every profile. The `test` and `prod` overlays apply the
+   per-address rule; the `dev` and `demo` overlays declare that rule
+   `not-applicable`, covered by the finite global rule, because their capture
+   provider never delivers to a recipient. At an applicable limit, roll back
+   and return `SNAPBACK_AUTH_THROTTLED`. The bounded capture mailbox remains in
+   force for every non-production profile. A request exactly one full window
+   after an older request no longer counts that older row.
 5. Mark every active challenge for the address with
    `superseded_by = new_challenge_id`, then insert the new challenge. The partial
    unique index is the concurrency backstop.
@@ -1897,6 +1909,60 @@ keep their neutral layout and destructive declared-restore semantics;
 LLP 0192's `snapback store export` is a separate, non-revoking, directly
 bootable copy that reuses this Spec's descriptor-bound capture and three-state
 publication contract.
+
+## Dated amendment: named effect-budget compatibility policy (2026-08-10)
+
+[LLP 0215](./0215-effect-budgets.spec.md) wave 2c replaces the four independent
+numeric authorities for request-code admission, challenge attempts, and
+capture-mailbox occupancy with one named compatibility budget policy. This is
+an ownership and vocabulary migration, not a limit change.
+
+**Named ownership and classes.** The exact mappings are the four budget rows in
+§Normative vocabulary and constants. Per-recipient delivery, global challenge
+allocation, and mailbox occupancy are `SUCCESSFUL_EFFECT` rules. The
+per-challenge guessing total is an `ATTEMPT` rule. Their axes, harms, recovery
+classes, server-derived trust-tier shape, complete normalized-request retry
+identity, and structured refusal fields are governed by LLP 0215. The active
+compatibility policy currently resolves the same finite terms for all six
+server-derived trust tiers; later tier scaling requires an explicit policy
+amendment and cannot arrive from a request header or other client carrier.
+
+**Profile overlay.** The base policy keeps the global 120-per-60-second rule,
+five-attempt challenge total, and 1,024-entry mailbox occupancy finite in every
+profile. The `dev` and `demo` overlays declare only the per-recipient
+`auth.delivery` rule `not-applicable`, covered by the finite global
+`auth.challenge-allocation` rule. The `test` and `prod` overlays apply the
+per-recipient five-per-10-minute rule. No profile or trust tier is represented
+as unlimited.
+
+**Exact behavioral compatibility.** §Request-code transaction and §Challenge
+states and exchange remain authoritative without reinterpretation:
+
+- rolling rows still occupy `(now - window, now]`, so an event exactly one
+  window old is excluded;
+- the request-code rules charge only when the challenge transaction commits,
+  and an admission refusal inserts no row;
+- mailbox reservation is the occupancy charge, counts before durable challenge
+  creation, and is released by every pre-commit refusal;
+- wrong active-challenge submissions still commit attempts one through five,
+  a correct fifth submission still succeeds, and the fixed total saturates
+  rather than overflowing after lock;
+- unknown, expired, consumed, and superseded challenges gain no new local
+  credential charge; and
+- due key rotation published before a later admission refusal remains the same
+  independent maintenance effect.
+
+**Diagnostics and hosted composition.** `SNAPBACK_AUTH_THROTTLED` and
+`SNAPBACK_AUTH_CODE_LOCKED` remain the public compatibility codes and retain
+their existing statuses and non-enumerating messages. They now carry LLP
+0215's structured `budgetName`, truthful `retryAfter`, and fresh opaque
+`correlationId` fields. LLP 0060 §D3's hosted source/global GCRA transaction
+continues to compose outside these local compatibility counters: all applicable
+hosted attempt buckets charge atomically on denial and fail closed when their
+shared authority is unavailable. This amendment neither duplicates nor
+weakens that hosted authority. LLP 0213 continues to own rehearsal grant/window
+state and numeric rehearsal policy; ordinary compatibility budgets do not
+rename or borrow those counters.
 
 ## Open questions
 
