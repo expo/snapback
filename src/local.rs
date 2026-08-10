@@ -1320,6 +1320,7 @@ pub(crate) struct AdmittedJobClaim {
 pub(crate) enum WatchJobExecution {
     Complete(Value),
     Action(PreparedWatchAction),
+    Webhook(PreparedWatchWebhook),
 }
 
 pub(crate) struct PreparedWatchAction {
@@ -1331,6 +1332,15 @@ pub(crate) struct PreparedWatchAction {
     pub(crate) input: HandlerInput,
     pub(crate) metadata: CronRunMetadata,
     pub(crate) staged: StagedAction,
+}
+
+#[derive(Clone)]
+pub(crate) struct PreparedWatchWebhook {
+    pub(crate) watch_id: String,
+    pub(crate) job_id: String,
+    pub(crate) ordinal: u64,
+    pub(crate) owner_principal_id: String,
+    pub(crate) delivery: crate::storage::webhooks::DeliveryRecord,
 }
 
 pub(crate) struct WatchJobContext {
@@ -17984,7 +17994,7 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         request: crate::watches::CreateWatchSpec,
         now_ms: u64,
-    ) -> SnapbackResult<crate::storage::watches::WatchRecord> {
+    ) -> SnapbackResult<crate::watches::CreatedWatch> {
         authority.validate_admission("watch creation")?;
         if authority.source() != InvocationSource::WatchManagement {
             return Err(SnapbackError::error(
@@ -17993,24 +18003,50 @@ impl LocalSnapback {
                 "watch creation requires the registered management source",
             ));
         }
-        let (owner_principal_id, owner_authority_instance_id) = match authority.resolved() {
+        let (
+            owner_principal_id,
+            owner_authority_instance_id,
+            owner_kind,
+            authority_mode,
+            installation_grant_id,
+            anchor_effective_user_id,
+        ) = match authority.resolved() {
             ResolvedAppAuthority::Session {
                 user_id,
                 authority_instance_id,
                 ..
-            } => (user_id.clone(), authority_instance_id.clone()),
-            ResolvedAppAuthority::ServicePrincipal { .. } => {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_WATCH_INTEGRATION_CREATION_DEFERRED",
-                    "watches",
-                    "integration-owned watch creation is deferred until capturedGrant issuance ships; see LLP 0055's 2026-08-08 watch-anchor amendment",
-                ));
+            } => (
+                user_id.clone(), authority_instance_id.clone(),
+                crate::watches::WatchOwnerKind::User,
+                crate::watches::WatchAuthorityMode::RevalidatePrincipal,
+                None, None,
+            ),
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id,
+                grant_id,
+                effective_user_id: Some(effective_user_id),
+                integration_status: Some(crate::storage::auth_integrations::IntegrationStatus::Active),
+                ..
+            } => {
+                let integration = self.db.integration_record_if_present(actor_user_id)?
+                    .filter(|record| record.status == crate::storage::auth_integrations::IntegrationStatus::Active)
+                    .ok_or_else(|| SnapbackError::error(
+                        "SNAPBACK_WATCH_OWNER_DENIED",
+                        "watches",
+                        "integration watch creation requires an active integration registration",
+                    ))?;
+                (
+                    actor_user_id.clone(), integration.integration_id,
+                    crate::watches::WatchOwnerKind::Integration,
+                    crate::watches::WatchAuthorityMode::CapturedGrant,
+                    Some(grant_id.clone()), Some(effective_user_id.clone()),
+                )
             }
             _ => {
                 return Err(SnapbackError::error(
                     "SNAPBACK_WATCH_OWNER_DENIED",
                     "watches",
-                    "durable watch creation requires a human provider session",
+                    "durable watch creation requires a human session or active delegated integration",
                 ));
             }
         };
@@ -18024,48 +18060,93 @@ impl LocalSnapback {
             ));
         }
         self.validate_external_api_function(&request.query_function)?;
-        self.validate_external_api_function(&request.reaction_function)?;
         let query = self.function(&request.query_function)?.clone();
         if query.kind != FunctionKind::LiveQuery {
             return Err(crate::watches::input_invalid(
                 "watch query must be an exposed LiveQuery",
             ));
         }
-        let reaction = self.function(&request.reaction_function)?.clone();
-        if reaction.kind == FunctionKind::LiveQuery {
-            return Err(crate::watches::input_invalid(
-                "watch reaction must be a finite query, mutation, or action",
-            ));
-        }
-        // Both exact functions pass the ordinary invocation chokepoint under
-        // the creating session. Mutating reactions therefore cannot smuggle
-        // authority the owner lacked at creation.
         InvocationGate::prepare_function(
             authority.watch_function_authority(InvocationSource::WatchEvaluation)?,
             &query,
         )?;
-        InvocationGate::prepare_function(
-            authority.watch_function_authority(InvocationSource::WatchReaction)?,
-            &reaction,
-        )?;
-        crate::args_contract::validate_function_args(&reaction, &request.reaction_args)?;
         let query_basis = self
             .db
             .current_auth_scope_basis(&query.id, &query.kind, query.authority_creating)?
             .ok_or_else(|| watch_basis_missing("query"))?;
-        let reaction_basis = self
-            .db
-            .current_auth_scope_basis(
-                &reaction.id,
-                &reaction.kind,
-                reaction.authority_creating,
-            )?
-            .ok_or_else(|| watch_basis_missing("reaction"))?;
         let (predicate, predicate_json) = crate::watches::parse_predicate(&request.predicate)?;
         let (query_args_json, query_args_digest) =
             crate::watches::canonical_args(&request.query_args)?;
-        let (reaction_args_json, reaction_args_digest) =
-            crate::watches::canonical_args(&request.reaction_args)?;
+        let mut generated_webhook_secret = None;
+        let (
+            reaction_kind, reaction_function_id, reaction_function_name,
+            reaction_function_kind, reaction_basis, reaction_args_json,
+            reaction_args_digest, webhook_url, webhook_secret,
+        ) = match request.reaction {
+            crate::watches::WatchReactionSpec::Function { function, args } => {
+                self.validate_external_api_function(&function)?;
+                let reaction = self.function(&function)?.clone();
+                if reaction.kind == FunctionKind::LiveQuery {
+                    return Err(crate::watches::input_invalid(
+                        "watch reaction must be a finite query, mutation, or action",
+                    ));
+                }
+                InvocationGate::prepare_function(
+                    authority.watch_function_authority(InvocationSource::WatchReaction)?,
+                    &reaction,
+                )?;
+                crate::args_contract::validate_function_args(&reaction, &args)?;
+                let basis = self.db.current_auth_scope_basis(
+                    &reaction.id,
+                    &reaction.kind,
+                    reaction.authority_creating,
+                )?.ok_or_else(|| watch_basis_missing("reaction"))?;
+                let (args_json, args_digest) = crate::watches::canonical_args(&args)?;
+                let kind = match reaction.kind {
+                    FunctionKind::Query => crate::watches::WatchFunctionKind::Query,
+                    FunctionKind::Mutation => crate::watches::WatchFunctionKind::Mutation,
+                    FunctionKind::Action => crate::watches::WatchFunctionKind::Action,
+                    FunctionKind::LiveQuery => unreachable!("rejected above"),
+                };
+                (
+                    crate::watches::WatchReactionKind::Function,
+                    reaction.id, reaction.name, kind, basis, args_json, args_digest,
+                    None, None,
+                )
+            }
+            crate::watches::WatchReactionSpec::Webhook { url, secret } => {
+                crate::webhooks::prepare_target(&url)?;
+                let secret = match secret {
+                    Some(secret) if (16..=4_096).contains(&secret.len())
+                        && !secret.chars().any(char::is_control) => secret,
+                    Some(_) => return Err(crate::watches::input_invalid(
+                        "webhook secret must be 16..4096 bytes without control characters",
+                    )),
+                    None => {
+                        let mut bytes = [0_u8; 32];
+                        getrandom::fill(&mut bytes).map_err(|_| SnapbackError::error(
+                            "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE",
+                            "webhooks",
+                            "a webhook signing secret could not be generated",
+                        ))?;
+                        let secret = base64::Engine::encode(
+                            &base64::engine::general_purpose::URL_SAFE_NO_PAD,
+                            bytes,
+                        );
+                        generated_webhook_secret = Some(secret.clone());
+                        secret
+                    }
+                };
+                let (binding_json, binding_digest) = crate::watches::canonical_args(
+                    &json!({ "url": url }),
+                )?;
+                (
+                    crate::watches::WatchReactionKind::Webhook,
+                    String::new(), String::new(), crate::watches::WatchFunctionKind::Action,
+                    0, binding_json, binding_digest, Some(url), Some(secret),
+                )
+            }
+        };
         let initial = self.invoke_query_with_dependencies_prepared(
             &query.name,
             HandlerInput {
@@ -18078,12 +18159,6 @@ impl LocalSnapback {
             crate::watches::catalog_corrupt()
         })?;
         let initial_predicate_state = crate::watches::evaluate(&predicate, &initial_document);
-        let reaction_function_kind = match reaction.kind {
-            FunctionKind::Query => crate::watches::WatchFunctionKind::Query,
-            FunctionKind::Mutation => crate::watches::WatchFunctionKind::Mutation,
-            FunctionKind::Action => crate::watches::WatchFunctionKind::Action,
-            FunctionKind::LiveQuery => unreachable!("rejected above"),
-        };
         let anchor_expires_at_ms = now_ms
             .checked_add(crate::watches::ANCHOR_LIFETIME_MS)
             .filter(|value| *value <= 9_007_199_254_740_991)
@@ -18093,13 +18168,43 @@ impl LocalSnapback {
         // commit; nesting it around the query would self-deadlock the same
         // admission lease and would not strengthen the serialized app cut.
         let _effect = authority.effect_guard("watch creation transaction")?;
-        self.db.create_watch(crate::storage::watches::CreateWatchRecord {
-            id: crate::ids::mint_time_ordered(crate::ids::Kind::Watch),
-            owner_kind: crate::watches::WatchOwnerKind::User,
+        let watch_id = crate::ids::mint_time_ordered(crate::ids::Kind::Watch);
+        let anchor_grant_id = (owner_kind == crate::watches::WatchOwnerKind::Integration)
+            .then(|| crate::ids::mint_time_ordered(crate::ids::Kind::Grant));
+        let webhook_secret_ref = webhook_secret.as_ref().map(|_| format!("_snapback.webhook.{watch_id}"));
+        if let (Some(secret_ref), Some(secret)) = (webhook_secret_ref.as_deref(), webhook_secret.as_ref()) {
+            self.config.set(secret_ref, vec![secret.clone()], false, "watchAnchor", now_ms)?;
+        }
+        let mut anchor_scopes = vec![crate::storage::auth_grants::ExactGrantScope {
+            function_id: query.id.clone(),
+            kind: crate::storage::auth_grants::ScopedFunctionKind::LiveQuery,
+            basis: query_basis,
+            authority_creating: query.authority_creating,
+        }];
+        if reaction_kind == crate::watches::WatchReactionKind::Function {
+            let reaction = self.function(&reaction_function_name)?.clone();
+            anchor_scopes.push(crate::storage::auth_grants::ExactGrantScope {
+                function_id: reaction.id,
+                kind: crate::storage::auth_grants::ScopedFunctionKind::from_function_kind(&reaction.kind)
+                    .ok_or_else(crate::watches::catalog_corrupt)?,
+                basis: reaction_basis,
+                authority_creating: reaction.authority_creating,
+            });
+        }
+        anchor_scopes.sort();
+        if owner_kind == crate::watches::WatchOwnerKind::User {
+            anchor_scopes.clear();
+        }
+        let create = self.db.create_watch(crate::storage::watches::CreateWatchRecord {
+            id: watch_id.clone(),
+            owner_kind,
             owner_principal_id,
             owner_authority_instance_id,
-            authority_mode: crate::watches::WatchAuthorityMode::RevalidatePrincipal,
-            anchor_grant_id: None,
+            authority_mode,
+            anchor_grant_id,
+            installation_grant_id,
+            anchor_effective_user_id,
+            anchor_scopes,
             anchor_expires_at_ms,
             query_function_id: query.id,
             query_function_name: query.name,
@@ -18108,16 +18213,32 @@ impl LocalSnapback {
             query_args_digest,
             read_dependencies: initial.read_dependencies,
             predicate_json,
-            reaction_function_id: reaction.id,
-            reaction_function_name: reaction.name,
+            reaction_kind,
+            reaction_function_id,
+            reaction_function_name,
             reaction_function_kind,
             reaction_basis,
             reaction_args_json,
             reaction_args_digest,
+            webhook_url,
+            webhook_secret_ref: webhook_secret_ref.clone(),
             daily_firing_budget: request.daily_firing_budget,
             debounce_ms: request.debounce_ms,
             initial_predicate_state,
             now_ms,
+        });
+        let watch = match create {
+            Ok(watch) => watch,
+            Err(error) => {
+                if let Some(secret_ref) = webhook_secret_ref.as_deref() {
+                    let _ = self.config.unset(secret_ref);
+                }
+                return Err(error);
+            }
+        };
+        Ok(crate::watches::CreatedWatch {
+            watch,
+            webhook_secret: generated_webhook_secret,
         })
     }
 
@@ -18148,6 +18269,32 @@ impl LocalSnapback {
             .watch_for_owner(id, &owner)?
             .or(Some(record))
             .ok_or_else(crate::storage::watches::watch_not_found)
+    }
+
+    pub(crate) fn renew_watch(
+        &mut self,
+        authority: &PreparedAuthority,
+        id: &str,
+        ttl_ms: u64,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::storage::watches::WatchRecord> {
+        authority.validate_admission("watchAnchor renewal")?;
+        if authority.source() != InvocationSource::WatchManagement {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "watches",
+                "watchAnchor renewal requires the registered management source",
+            ));
+        }
+        let ResolvedAppAuthority::Session { user_id, .. } = authority.resolved() else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_WATCH_RENEWAL_DENIED",
+                "watches",
+                "watchAnchor renewal requires fresh user session consent",
+            ));
+        };
+        let _effect = authority.effect_guard("watchAnchor renewal transaction")?;
+        self.db.renew_watch_anchor_for_user(id, user_id, ttl_ms, now_ms)
     }
 
     /// Evaluate one internal watch job under credential-free, freshly
@@ -18188,7 +18335,10 @@ impl LocalSnapback {
         let owner_principal_id = record.owner_principal_id.clone();
         self.acquire_watch_evaluation(&record.owner_principal_id)?;
         let outcome = self.prepare_watch_job_inner(&claim, record, now_ms);
-        if !matches!(outcome, Ok(WatchJobExecution::Action(_))) {
+        if !matches!(
+            outcome,
+            Ok(WatchJobExecution::Action(_) | WatchJobExecution::Webhook(_))
+        ) {
             self.release_watch_evaluation(&owner_principal_id);
         }
         outcome
@@ -18200,15 +18350,20 @@ impl LocalSnapback {
         record: crate::storage::watches::WatchRecord,
         now_ms: u64,
     ) -> SnapbackResult<WatchJobExecution> {
-        if !self.db.watch_owner_is_active(&record.owner_principal_id)? {
+        let Some(evaluation_authority) = self.watch_execution_authority(
+            claim,
+            &record,
+            InvocationSource::WatchEvaluation,
+            now_ms,
+        )? else {
             self.db.mark_watch_dead(
                 &record.id,
-                "principal_deleted_or_deactivated",
+                "principal_or_captured_authority_dead",
                 "SNAPBACK_WATCH_AUTHORITY_DEAD",
                 now_ms,
             )?;
             return Ok(WatchJobExecution::Complete(watch_outcome(&record.id, "dead")));
-        }
+        };
         let (query, reaction) = match self.current_watch_functions(&record)? {
             Some(functions) => functions,
             None => {
@@ -18224,22 +18379,8 @@ impl LocalSnapback {
         if record.pending_firing_job_id.as_deref() == Some(&claim.job_id)
             && let Some(ordinal) = record.pending_firing_ordinal
         {
-            return self.dispatch_watch_reaction(claim, &record, &reaction, ordinal, now_ms);
+            return self.dispatch_watch_reaction(claim, &record, reaction.as_ref(), ordinal, now_ms);
         }
-        let evaluation_authority = InvocationGate::prepare_admitted_authority(
-            InvocationSource::WatchEvaluation,
-            AuthMode::Sessions,
-            ServerProfile::Dev,
-            claim.admission.clone(),
-            &WireAuthorityFields::default(),
-            ResolvedAppAuthority::RevalidatedPrincipal {
-                user_id: record.owner_principal_id.clone(),
-                authority_instance_id: record.owner_authority_instance_id.clone(),
-            },
-        )?
-        .with_caller_attribution(crate::telemetry::CallerAttributionV1::owner(
-            record.owner_principal_id.clone(),
-        ));
         let invocation = match self.invoke_query_with_dependencies_prepared(
             &query.name,
             HandlerInput {
@@ -18281,7 +18422,7 @@ impl LocalSnapback {
             now_ms,
         )? {
             crate::storage::watches::EvaluationDecision::Fire { ordinal } => {
-                self.dispatch_watch_reaction(claim, &record, &reaction, ordinal, now_ms)
+                self.dispatch_watch_reaction(claim, &record, reaction.as_ref(), ordinal, now_ms)
             }
             crate::storage::watches::EvaluationDecision::SuspendedBudget => Ok(
                 WatchJobExecution::Complete(watch_outcome(&record.id, "budget_suspended")),
@@ -18298,27 +18439,17 @@ impl LocalSnapback {
     fn current_watch_functions(
         &self,
         record: &crate::storage::watches::WatchRecord,
-    ) -> SnapbackResult<Option<(FunctionDefinition, FunctionDefinition)>> {
+    ) -> SnapbackResult<Option<(FunctionDefinition, Option<FunctionDefinition>)>> {
         let Some(query) = self.functions.function(&record.query_function_name).cloned() else {
-            return Ok(None);
-        };
-        let Some(reaction) = self.functions.function(&record.reaction_function_name).cloned() else {
             return Ok(None);
         };
         let query_exposed = query
             .api_exposure
             .as_ref()
             .is_some_and(|exposure| exposure.expose);
-        let reaction_exposed = reaction
-            .api_exposure
-            .as_ref()
-            .is_some_and(|exposure| exposure.expose);
         if query.id != record.query_function_id
             || query.kind != FunctionKind::LiveQuery
-            || reaction.id != record.reaction_function_id
-            || reaction.kind == FunctionKind::LiveQuery
             || !query_exposed
-            || !reaction_exposed
         {
             return Ok(None);
         }
@@ -18327,39 +18458,141 @@ impl LocalSnapback {
             &query.kind,
             query.authority_creating,
         )?;
+        if query_basis != Some(record.query_basis) {
+            return Ok(None);
+        }
+        if record.reaction_kind == crate::watches::WatchReactionKind::Webhook {
+            let Some(url) = record.webhook_url.as_deref() else { return Ok(None) };
+            crate::webhooks::prepare_target(url)?;
+            return Ok(Some((query, None)));
+        }
+        let Some(reaction) = self.functions.function(&record.reaction_function_name).cloned() else {
+            return Ok(None);
+        };
+        let reaction_exposed = reaction.api_exposure.as_ref().is_some_and(|exposure| exposure.expose);
         let reaction_basis = self.db.current_auth_scope_basis(
             &reaction.id,
             &reaction.kind,
             reaction.authority_creating,
         )?;
-        if query_basis != Some(record.query_basis) || reaction_basis != Some(record.reaction_basis) {
+        if reaction.id != record.reaction_function_id
+            || reaction.kind == FunctionKind::LiveQuery
+            || !reaction_exposed
+            || reaction_basis != Some(record.reaction_basis)
+        {
             return Ok(None);
         }
-        Ok(Some((query, reaction)))
+        Ok(Some((query, Some(reaction))))
+    }
+
+    fn watch_execution_authority(
+        &mut self,
+        claim: &WatchJobContext,
+        record: &crate::storage::watches::WatchRecord,
+        source: InvocationSource,
+        now_ms: u64,
+    ) -> SnapbackResult<Option<PreparedAuthority>> {
+        let resolved = match record.owner_kind {
+            crate::watches::WatchOwnerKind::User => {
+                if !self.db.watch_owner_is_active(&record.owner_principal_id)? {
+                    return Ok(None);
+                }
+                ResolvedAppAuthority::RevalidatedPrincipal {
+                    user_id: record.owner_principal_id.clone(),
+                    authority_instance_id: record.owner_authority_instance_id.clone(),
+                }
+            }
+            crate::watches::WatchOwnerKind::Integration => {
+                let Some(anchor) = self.db.revalidate_watch_anchor(record, now_ms)? else {
+                    return Ok(None);
+                };
+                ResolvedAppAuthority::ServicePrincipal {
+                    actor_user_id: anchor.actor_user_id,
+                    credential_id: format!("watchAnchor:{}", record.id),
+                    credential_generation: 0,
+                    grant_id: anchor.grant_id,
+                    token_id: format!("watch:{}", record.id),
+                    effective_user_id: Some(anchor.effective_user_id),
+                    scopes: anchor.scopes.into_iter()
+                        .map(crate::auth::invocation::ResolvedGrantScope::from_exact)
+                        .collect(),
+                    token_expires_at_ms: anchor.expires_at_ms,
+                    integration_status: Some(anchor.integration_status),
+                }
+            }
+        };
+        Ok(Some(InvocationGate::prepare_admitted_authority(
+            source,
+            AuthMode::Sessions,
+            ServerProfile::Dev,
+            claim.admission.clone(),
+            &WireAuthorityFields::default(),
+            resolved,
+        )?
+        .with_caller_attribution(crate::telemetry::CallerAttributionV1::owner(
+            record.owner_principal_id.clone(),
+        ))))
     }
 
     fn dispatch_watch_reaction(
         &mut self,
         claim: &WatchJobContext,
         record: &crate::storage::watches::WatchRecord,
-        reaction: &FunctionDefinition,
+        reaction: Option<&FunctionDefinition>,
         ordinal: u64,
         now_ms: u64,
     ) -> SnapbackResult<WatchJobExecution> {
-        let authority = InvocationGate::prepare_admitted_authority(
+        let Some(authority) = self.watch_execution_authority(
+            claim,
+            record,
             InvocationSource::WatchReaction,
-            AuthMode::Sessions,
-            ServerProfile::Dev,
-            claim.admission.clone(),
-            &WireAuthorityFields::default(),
-            ResolvedAppAuthority::RevalidatedPrincipal {
-                user_id: record.owner_principal_id.clone(),
-                authority_instance_id: record.owner_authority_instance_id.clone(),
-            },
-        )?
-        .with_caller_attribution(crate::telemetry::CallerAttributionV1::owner(
-            record.owner_principal_id.clone(),
-        ));
+            now_ms,
+        )? else {
+            self.db.mark_watch_dead(
+                &record.id,
+                "captured_authority_dead_before_reaction",
+                "SNAPBACK_WATCH_AUTHORITY_DEAD",
+                now_ms,
+            )?;
+            return Ok(WatchJobExecution::Complete(watch_outcome(&record.id, "dead")));
+        };
+        if record.reaction_kind == crate::watches::WatchReactionKind::Webhook {
+            let payload = crate::watches::canonical_json(&json!({
+                "event": "watch.fired",
+                "watchId": record.id,
+                "firingOrdinal": ordinal,
+                "firedAtMs": record.last_fired_at_ms.unwrap_or(now_ms),
+            }))?;
+            let delivery_id = format!("webhook:{}:{ordinal}", record.id);
+            let idempotency_key = format!("watch:{}:{ordinal}", record.id);
+            let delivery = self.db.reserve_webhook_delivery(
+                crate::storage::webhooks::ReserveDelivery {
+                    id: delivery_id,
+                    consumer_id: record.id.clone(),
+                    event_ordinal: ordinal,
+                    owner_principal_id: record.owner_principal_id.clone(),
+                    target_url: record.webhook_url.clone().ok_or_else(crate::watches::catalog_corrupt)?,
+                    payload_digest: crate::webhooks::payload_digest(&payload),
+                    payload_json: payload,
+                    secret_ref: record.webhook_secret_ref.clone().ok_or_else(crate::watches::catalog_corrupt)?,
+                    idempotency_key,
+                    max_attempts: claim.max_attempts,
+                    now_ms,
+                },
+            )?;
+            if delivery.state == "succeeded" {
+                self.db.settle_watch_firing(&record.id, &claim.job_id, ordinal, "succeeded", None, now_ms)?;
+                return Ok(WatchJobExecution::Complete(watch_outcome(&record.id, "succeeded")));
+            }
+            return Ok(WatchJobExecution::Webhook(PreparedWatchWebhook {
+                watch_id: record.id.clone(),
+                job_id: claim.job_id.clone(),
+                ordinal,
+                owner_principal_id: record.owner_principal_id.clone(),
+                delivery,
+            }));
+        }
+        let reaction = reaction.ok_or_else(crate::watches::catalog_corrupt)?;
         let input = HandlerInput {
             args: record.reaction_args.clone(),
             ..HandlerInput::default()
@@ -18487,6 +18720,148 @@ impl LocalSnapback {
             "watchId": watch_id,
             "outcome": "succeeded",
         }))
+    }
+
+    /// Final authority/target/secret recheck immediately before the detached
+    /// transport begins. No bearer or plaintext secret is persisted in the
+    /// watch or delivery ledger.
+    ///
+    /// @ref LLP 0036#runtime-exposure-d5-d8 — the signing secret exits the
+    /// owner-only config store only into this bounded host operation.
+    /// @ref LLP 0070#webhook-work — DNS is resolved and pinned at
+    /// the final effect boundary; the delivery ledger supplies immutable
+    /// payload and idempotency identity.
+    pub(crate) fn revalidate_watch_webhook_delivery(
+        &mut self,
+        prepared: &PreparedWatchWebhook,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::webhooks::DeliveryRequest> {
+        let record = self.db.watch_for_execution(&prepared.watch_id)?
+            .ok_or_else(crate::storage::watches::watch_not_found)?;
+        if record.status != crate::watches::WatchStatus::Active
+            || record.owner_principal_id != prepared.owner_principal_id
+            || record.pending_firing_ordinal != Some(prepared.ordinal)
+            || record.pending_firing_job_id.as_deref() != Some(&prepared.job_id)
+            || record.reaction_kind != crate::watches::WatchReactionKind::Webhook
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_WATCH_AUTHORITY_DEAD",
+                "watches",
+                "watch authority ended before webhook initiation",
+            ));
+        }
+        match record.owner_kind {
+            crate::watches::WatchOwnerKind::User => {
+                if !self.db.watch_owner_is_active(&record.owner_principal_id)? {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_WATCH_AUTHORITY_DEAD",
+                        "watches",
+                        "watch owner ended before webhook initiation",
+                    ));
+                }
+            }
+            crate::watches::WatchOwnerKind::Integration => {
+                if self.db.revalidate_watch_anchor(&record, now_ms)?.is_none() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_WATCH_AUTHORITY_DEAD",
+                        "watches",
+                        "watchAnchor ended before webhook initiation",
+                    ));
+                }
+            }
+        }
+        if self.current_watch_functions(&record)?.is_none() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_WATCH_AUTHORITY_DEAD",
+                "watches",
+                "watch query scope changed before webhook initiation",
+            ));
+        }
+        if prepared.delivery.owner_principal_id != record.owner_principal_id
+            || prepared.delivery.event_ordinal != prepared.ordinal
+            || record.webhook_url.as_deref() != Some(&prepared.delivery.target_url)
+            || record.webhook_secret_ref.as_deref() != Some(&prepared.delivery.secret_ref)
+        {
+            return Err(crate::webhooks::DeliveryOutcome::Permanent {
+                code: "SNAPBACK_WEBHOOK_DELIVERY_INVALID",
+                http_status: None,
+            }.into_error());
+        }
+        let secret = self.config.values(&prepared.delivery.secret_ref)
+            .filter(|values| values.len() == 1)
+            .and_then(|values| values.first())
+            .cloned()
+            .ok_or_else(|| SnapbackError::error(
+                "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE",
+                "webhooks",
+                "webhook signing secret is unavailable",
+            ))?;
+        Ok(crate::webhooks::DeliveryRequest {
+            delivery_id: prepared.delivery.id.clone(),
+            idempotency_key: prepared.delivery.idempotency_key.clone(),
+            target: crate::webhooks::prepare_target(&prepared.delivery.target_url)?,
+            canonical_payload: prepared.delivery.payload_json.clone(),
+            signing_secret: secret,
+        })
+    }
+
+    pub(crate) fn settle_watch_webhook(
+        &mut self,
+        prepared: PreparedWatchWebhook,
+        outcome: crate::webhooks::DeliveryOutcome,
+        attempt: u32,
+        max_attempts: u32,
+        now_ms: u64,
+    ) -> SnapbackResult<Value> {
+        let result = match outcome {
+            crate::webhooks::DeliveryOutcome::Succeeded { http_status } => {
+                self.db.settle_webhook_attempt(
+                    &prepared.delivery.id, attempt, "succeeded", Some(http_status), None, now_ms,
+                )?;
+                self.db.settle_watch_firing(
+                    &prepared.watch_id, &prepared.job_id, prepared.ordinal,
+                    "succeeded", None, now_ms,
+                )?;
+                Ok(watch_outcome(&prepared.watch_id, "succeeded"))
+            }
+            crate::webhooks::DeliveryOutcome::Retryable { code, http_status }
+                if attempt < max_attempts => {
+                self.db.settle_webhook_attempt(
+                    &prepared.delivery.id, attempt, "retryable", http_status, Some(code), now_ms,
+                )?;
+                self.db.record_watch_firing_retry(
+                    &prepared.watch_id, &prepared.job_id, prepared.ordinal, code, now_ms,
+                )?;
+                Err(SnapbackError::error(code, "webhooks", "webhook delivery will retry"))
+            }
+            crate::webhooks::DeliveryOutcome::Retryable { http_status, .. } => {
+                let code = "SNAPBACK_WEBHOOK_DEAD_LETTERED";
+                self.db.settle_webhook_attempt(
+                    &prepared.delivery.id, attempt, "dead", http_status, Some(code), now_ms,
+                )?;
+                self.db.settle_watch_firing(
+                    &prepared.watch_id, &prepared.job_id, prepared.ordinal,
+                    "failed", Some(code), now_ms,
+                )?;
+                Err(SnapbackError::error(code, "webhooks", "webhook exhausted its bounded attempts"))
+            }
+            crate::webhooks::DeliveryOutcome::Permanent { code, http_status } => {
+                self.db.settle_webhook_attempt(
+                    &prepared.delivery.id, attempt, "dead", http_status, Some(code), now_ms,
+                )?;
+                self.db.settle_watch_firing(
+                    &prepared.watch_id, &prepared.job_id, prepared.ordinal,
+                    "refused", Some(code), now_ms,
+                )?;
+                Ok(json!({
+                    "watchId": prepared.watch_id,
+                    "outcome": "refused",
+                    "diagnosticCode": code,
+                }))
+            }
+        };
+        self.release_watch_evaluation(&prepared.owner_principal_id);
+        result
     }
 
     fn acquire_watch_evaluation(&mut self, owner: &str) -> SnapbackResult<()> {
@@ -30643,10 +31018,17 @@ fn watch_management_owner(authority: &PreparedAuthority) -> SnapbackResult<(Stri
             authority_instance_id,
             ..
         } => Ok((user_id.clone(), authority_instance_id.clone())),
+        ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id,
+            grant_id,
+            effective_user_id: Some(_),
+            integration_status: Some(crate::storage::auth_integrations::IntegrationStatus::Active),
+            ..
+        } => Ok((actor_user_id.clone(), grant_id.clone())),
         _ => Err(SnapbackError::error(
             "SNAPBACK_WATCH_OWNER_DENIED",
             "watches",
-            "watch management requires a human provider session",
+            "watch management requires a human session or active delegated integration",
         )),
     }
 }

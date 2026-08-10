@@ -159,6 +159,7 @@ here (or listed here but gone from the code).
 | /effects/{id}/deny | api.external-exposure |
 | /watches | api.external-exposure |
 | /watches/{id} | api.external-exposure |
+| /watches/{id}/renew | api.external-exposure |
 | /watches/{id}/resume | api.external-exposure |
 | /watches/{id}/suspend | api.external-exposure |
 | /client-mutations/acknowledge | sync.offline |

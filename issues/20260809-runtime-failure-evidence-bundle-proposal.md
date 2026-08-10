@@ -48,3 +48,10 @@ convention (a bundle that leaks a staged secret once is worse than no
 bundle). First task for the amendment author: verify fit with 0156's
 exemplar/raw-tier machinery before committing to the shape — the review loop
 assumed that fit without verifying it.
+
+**2026-08-10:** Amendment drafted — LLP 0156 §Amendment (2026-08-10):
+runtime-failure evidence bundle (E1.5). Fit verdict: inherits the raw tier's
+governance but lands as a sibling table, not an exemplar-schema extension;
+both fences carried (local-capture-only v1; redaction as a tested
+seeded-sentinel invariant, fail-closed); replay stays dead per the 0207
+review record.

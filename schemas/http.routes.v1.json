@@ -1588,7 +1588,7 @@
     },
     {
       "class": "AppData",
-      "credential_resolution": "RequiredSessionBearer",
+      "credential_resolution": "RequiredSessionOrScopedToken",
       "inputSchema": null,
       "method": "GET",
       "outputSchema": null,
@@ -1597,7 +1597,7 @@
     },
     {
       "class": "AppData",
-      "credential_resolution": "RequiredSessionBearer",
+      "credential_resolution": "RequiredSessionOrScopedToken",
       "inputSchema": null,
       "method": "POST",
       "outputSchema": null,
@@ -1606,7 +1606,7 @@
     },
     {
       "class": "AppData",
-      "credential_resolution": "RequiredSessionBearer",
+      "credential_resolution": "RequiredSessionOrScopedToken",
       "inputSchema": null,
       "method": "DELETE",
       "outputSchema": null,
@@ -1619,12 +1619,21 @@
       "inputSchema": null,
       "method": "POST",
       "outputSchema": null,
+      "path": "/watches/{id}/renew",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionOrScopedToken",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
       "path": "/watches/{id}/resume",
       "path_policy": "SessionAuth"
     },
     {
       "class": "AppData",
-      "credential_resolution": "RequiredSessionBearer",
+      "credential_resolution": "RequiredSessionOrScopedToken",
       "inputSchema": null,
       "method": "POST",
       "outputSchema": null,

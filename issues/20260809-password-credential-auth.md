@@ -24,3 +24,7 @@ non-interactively, a declared and testable lockout/rate posture, composing
 with server-derived principals and the external-identity-broker custody
 rules (LLP 0057/0151). Scope fence: exactly email+password on the sessions
 surface — this commission is not a general OAuth/identity-provider program.
+
+2026-08-10: RFC drafted as `llp/0227-password-credential-auth.rfc.md`
+(Draft; open questions left for the author: production signup enumeration
+posture, operator unlock verb, `SNAPBACK_PASSWORD` env carrier).

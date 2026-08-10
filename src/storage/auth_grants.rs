@@ -774,6 +774,7 @@ impl LocalDatabase {
                  WHERE grant_id = ?2 AND revoked_at_ms IS NULL",
                     params![now_ms as i64, grant_id],
                 )?;
+                super::watches::mark_watches_dead_for_grant_on(tx, grant_id, now_ms)?;
                 body_outcome = Some(GrantRevocation {
                     grant_id: grant_id.to_owned(),
                     token_ids: token_ids.clone(),
@@ -883,6 +884,9 @@ impl LocalDatabase {
                    AND revoked_at_ms IS NULL",
                     params![now_ms as i64, effective_user_id, actor_user_id],
                 )?;
+                for grant_id in &grant_ids {
+                    super::watches::mark_watches_dead_for_grant_on(tx, grant_id, now_ms)?;
+                }
                 body_outcome = Some(BulkGrantRevocation {
                     grant_ids,
                     token_ids: token_ids.clone(),
@@ -1213,7 +1217,7 @@ fn record_failed_pairing_attempt_on(
     Ok(())
 }
 
-fn parse_scopes_json(encoded: &str) -> SnapbackResult<Vec<ExactGrantScope>> {
+pub(super) fn parse_scopes_json(encoded: &str) -> SnapbackResult<Vec<ExactGrantScope>> {
     let scopes: Vec<ExactGrantScope> =
         serde_json::from_str(encoded).map_err(|_| grant_state_corrupt())?;
     if scopes.is_empty()

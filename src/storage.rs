@@ -180,6 +180,12 @@ pub(crate) mod pending_effects;
 #[path = "storage/watches.rs"]
 pub(crate) mod watches;
 
+// @ref LLP 0070#webhook-work — logical deliveries and bounded
+// attempts are manifest-owned protected evidence; the LLP 0070 jobs table
+// remains the scheduler and claim authority.
+#[path = "storage/webhooks.rs"]
+pub(crate) mod webhooks;
+
 #[path = "storage/ask_spend.rs"]
 pub(crate) mod ask_spend;
 

@@ -19229,6 +19229,9 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_API_APPROVAL_QUERY_INVALID",
     "SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE",
     "SNAPBACK_WATCH_INPUT_INVALID",
+    "SNAPBACK_WATCH_RENEWAL_INVALID",
+    "SNAPBACK_WEBHOOK_TARGET_INVALID",
+    "SNAPBACK_WEBHOOK_SSRF_REFUSED",
     "SNAPBACK_ASSET_GRANT_INPUT_INVALID",
     "SNAPBACK_CAPABILITY_LINK_ARGS_CONTRACT_REQUIRED",
     "SNAPBACK_CAPABILITY_LINK_EXPIRY_INVALID",
@@ -19740,7 +19743,9 @@ const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
 const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_EFFECT_APPROVAL_DENIED",
     "SNAPBACK_WATCH_AUTHORITY_DEAD",
+    "SNAPBACK_WATCH_ANCHOR_SCOPE_MISMATCH",
     "SNAPBACK_WATCH_OWNER_DENIED",
+    "SNAPBACK_WATCH_RENEWAL_DENIED",
     "SNAPBACK_ASSET_GRANT_FORBIDDEN",
     "SNAPBACK_CAPABILITY_LINK_CALLER_ARG_DENIED",
     "SNAPBACK_CAPABILITY_LINK_FUNCTION_NOT_ANONYMOUS",
@@ -20175,6 +20180,8 @@ const GATEWAY_TIMEOUT_DIAGNOSTICS: &[&str] = &[
 // distinct reviewed family: the upstream failed or is ambiguous, which is
 // neither author fault nor Snapback's own internal failure.
 const BAD_GATEWAY_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_WEBHOOK_DELIVERY_REJECTED",
+    "SNAPBACK_WEBHOOK_DEAD_LETTERED",
     "SNAPBACK_API_ASK_UPSTREAM_FAILED",
     "SNAPBACK_API_ASK_UPSTREAM_INVALID",
     "SNAPBACK_ADMIN_RELAY_UPSTREAM_FAILED",
@@ -20191,12 +20198,13 @@ const BAD_GATEWAY_DIAGNOSTICS: &[&str] = &[
 
 const MISDIRECTED_REQUEST_DIAGNOSTICS: &[&str] = &["SNAPBACK_ADMIN_RELAY_HOST_REFUSED"];
 const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] = &[
-    "SNAPBACK_WATCH_INTEGRATION_CREATION_DEFERRED",
     "SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE",
     "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED",
 ];
 
 const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_WEBHOOK_TARGET_UNAVAILABLE",
+    "SNAPBACK_WEBHOOK_DELIVERY_RETRYABLE",
     "SNAPBACK_AUTH_REHEARSAL_NAMESPACE_UNAVAILABLE",
     "SNAPBACK_AUTH_REHEARSAL_REACHABILITY_INVALID",
     "SNAPBACK_AUTH_REHEARSAL_PRODUCER_PARITY",
@@ -20305,6 +20313,9 @@ const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_EFFECT_CATALOG_CORRUPT",
     "SNAPBACK_WATCH_CATALOG_CORRUPT",
     "SNAPBACK_WATCH_JOB_INVALID",
+    "SNAPBACK_WEBHOOK_CATALOG_CORRUPT",
+    "SNAPBACK_WEBHOOK_DELIVERY_INVALID",
+    "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE",
     "SNAPBACK_CAPABILITY_LINK_CATALOG_CORRUPT",
     "SNAPBACK_CTX_LEDGER_ID_KIND_MISMATCH",
     "SNAPBACK_REPLICATION_ACCESS_KEY_ID",
@@ -29388,6 +29399,28 @@ fn s1_route_registry_matches_the_invariant() {
             }
         }
     }
+}
+
+#[test]
+fn watch_anchor_renewal_route_is_session_only_and_surface_mapped() {
+    let matching = route_registry()
+        .into_iter()
+        .filter(|route| route.method == "POST" && route.path == "/watches/{id}/renew")
+        .collect::<Vec<_>>();
+    assert_eq!(matching.len(), 1, "renewal has exactly one registered route");
+    let route = matching[0];
+    assert_eq!(route.class, RouteClass::AppData);
+    assert_eq!(route.policy, RoutePolicy::SessionAuth);
+    assert_eq!(
+        route.credential_resolution,
+        super::CredentialResolution::RequiredSessionBearer,
+        "fresh recurring consent cannot be supplied by an integration carrier",
+    );
+    assert_eq!(
+        super::registered_invocation_source(route),
+        Some(InvocationSource::WatchManagement),
+        "the surface map must prepare renewal under watch management authority",
+    );
 }
 
 /// LLP 0031 §Enforcement — the retired/moved privileged operations must not

@@ -244,12 +244,27 @@ first-ordered multi-rejection authority now ships locally with the complete
 ordered carrier retained in raw failure details and singular observation,
 group-count, metering, and exemplar semantics; fingerprint scheme v1 remains
 current because its exception tuple and normalizer did not change.)
+**Revised:** 2026-08-10 (dated scope amendment — the sanitized
+**runtime-failure evidence bundle** proposed from the LLP 0207
+dissolution (`issues/20260809-runtime-failure-evidence-bundle-proposal.md`)
+is accepted into this document per the 2026-08-10 author ruling, with the
+ruling's two fences: v1 is local-capture-only, and the redaction contract
+is a tested invariant. The mandated fit check ran first: the bundle
+inherits the raw tier's governance (CE3 authority, raw retention floor,
+generation binding, budget/flag discipline, observation-keyed identity)
+but is a **sibling raw-tier table**, not an exemplar-schema extension —
+the pinned exemplar budget accounting and the 8 KiB details allocator
+cannot carry it. Capture is a second stated CE1 exception. The bundle is
+inspection-only; deterministic replay stays dead per the 0207 review
+record. See §Amendment (2026-08-10).)
 **Related:** LLP 0154 (minimal observability; the substrate this layers
 on — spans, the telemetry sibling store, flush-path maintenance, typed
 operations, the variance envelope; this RFC amends its registry, D2
 allowlist, and D3 buffer by dated amendment), LLP 0000 (explainer),
 LLP 0010 (inspect loop), LLP 0017 (packaged console), LLP 0024
-(host-operations style), LLP 0031 (route registry), LLP 0072 (hosted
+(host-operations style), LLP 0031 (route registry), LLP 0036 (runtime
+exposure; the staged-value redactor the evidence bundle's redaction
+invariant extends), LLP 0072 (hosted
 logs surface), LLP 0093 (client protocol; Phase E3 crash ingest
 touches it), LLP 0104 (metering; shares 0154's seams, not this RFC's),
 LLP 0108 (inline handlers and result contracts; declared application
@@ -1463,6 +1478,248 @@ singular. The E0/E1 raw-only fail-safe recorded in the implementation
 record above (no guessed fingerprint, `malformed_error_stamp_count`
 incremented) stands until an implementation lands this rule; the ticket
 stays open as an implementable follow-up.
+
+## Amendment (2026-08-10): runtime-failure evidence bundle (E1.5)
+
+Accepted scope amendment per the 2026-08-10 author ruling on
+`issues/20260809-runtime-failure-evidence-bundle-proposal.md` (origin:
+the LLP 0207 dissolution; both 0207 review families independently
+proposed capture-without-replay as the honest residue of the killed S5
+replay workstream). Two fences from the ruling bind everything below:
+**v1 is local-capture-only**, and **the redaction contract is a tested
+invariant, not a convention** — a bundle that leaks a staged secret once
+is worse than no bundle.
+
+### Fit with the exemplar/raw-tier machinery (the ruling's first task)
+
+Verified against the E1 store as accepted and implemented, not assumed.
+Verdict: **the bundle fits the raw-tier *frame* but not the exemplar
+*table* — it lands as a sibling raw-tier table inheriting the tier's
+governance, with one honestly-stated CE1 exception for capture.**
+
+What the bundle inherits verbatim from the exemplar machinery:
+
+- **Tier and authority (CE3):** bundle content is raw-class —
+  `AdminSecretRead` lease + `no-store`, never in the `OperatorMetadata`
+  projection, never in webhook or Sentry-bridge payloads.
+- **Retention:** the same read-time boundary and floor as
+  `error_exemplars` — a bundle never outlives the raw window its source
+  row lived in; groups keep structural identity after bundles age out,
+  and responses label the staleness.
+- **Identity:** observation-keyed, generation-bound, swept by the same
+  flush-path maintenance, visible only through `*_visible`-style views
+  (current generation, `max_days > 0` guard).
+- **Bounded-writes discipline (CE4):** byte budgets, ring replacement,
+  per-field truncation flags, counted suppressions in `telemetry_meta`.
+
+What it cannot inherit, and why a parallel table is the honest shape:
+
+1. **The exemplar schema and budget are pinned.** `error_exemplars`
+   carries exactly `title_template` + `stack_head` under a 32 KiB
+   per-group budget whose accounting is normatively defined over those
+   two columns' UTF-8 bytes (2026-08-02 store amendment) and enforced by
+   the acceptance corpus. Request shape, principal class, readiness
+   facts, and log excerpts cannot inhabit those columns without
+   re-opening the pinned budget arithmetic and every exemplar fixture.
+2. **The flush-path carrier cannot carry it.** Exemplar content arrives
+   stamped on the failed record inside 0154's 8 KiB `details` allocator
+   (E0.2). A bundle with bounded logs is an order of magnitude larger;
+   forcing it through the allocator would evict the carrier fields the
+   allocator exists to protect. The bundle therefore does not ride the
+   D3 buffer or the flush transaction at all.
+3. **Capture is a second stated CE1 exception.** Bundle materialization
+   is a direct, bounded, serialized write on the telemetry connection at
+   the failure render seam — the same exception class as E1.3's authored
+   transitions (short transaction, serialized with the flusher, never on
+   the app-DB lane). CE1's *spirit* holds: every bundle input is data
+   the process already holds at that seam — the stamped failure record,
+   the runtime-readiness receipt, the correlated recent rows in the D3
+   buffer/`telemetry_events` — so **no new observation seam exists**;
+   what is new is one more non-flush write path, recorded here rather
+   than smuggled.
+
+### Purpose
+
+Convert failure-state **reconstruction** (the expensive diagnosis mode:
+an agent re-deriving what the failing state must have been from the
+diagnostic alone) into **inspection**: on runtime failure the system
+mints a sanitized, identity-bound local bundle recording what the
+failing state *was*. The bundle answers "what was true when this
+failed"; it deliberately cannot answer "run it again" (see below).
+
+### Capture point, eligibility, and storm bounds
+
+Capture runs at the failure render seam, after E0.1 classification and
+fingerprinting, for **issue-eligible** records only (same eligibility
+bit; opted-in refusal codes follow their opt-in). Storm bounds, all
+counted in `telemetry_meta` and visible in the variance envelope:
+
+- per-fingerprint capture **cooldown** (default 60 s;
+  `bundle_cooldown_suppressed_count`);
+- per-fingerprint **ring depth** (default 2; oldest bundle replaced);
+- **global cap** (default 200 bundles per generation; at the cap new
+  captures fold into `bundle_cap_fold_count`, no eviction);
+- whole-bundle serialized cap **32 KiB**; an assembly that cannot fit
+  after per-section truncation drops the bundle, counted.
+
+### Bundle store
+
+```sql
+CREATE TABLE error_evidence_bundles ( -- raw tier (CE3): retention = raw floor
+  generation       TEXT NOT NULL,
+  observation      TEXT NOT NULL,     -- obs_… correlation root of the failure
+  fp_version       INTEGER NOT NULL,  -- join key to error_groups: capture
+  fp_hash          BLOB NOT NULL,     --   precedes the flush that mints iss_,
+                                      --   so bundles carry the fingerprint
+                                      --   key, never a guessed issue id
+  recorded_ts_ms   INTEGER NOT NULL,
+  recorded_seq     INTEGER NOT NULL,  -- failing record's enqueue sequence
+  release          TEXT,
+  bundle_version   INTEGER NOT NULL,  -- versioned serialized shape
+  bundle           BLOB NOT NULL,     -- ≤ 32 KiB serialized
+  truncation_flags INTEGER NOT NULL DEFAULT 0, -- per-section flags
+  PRIMARY KEY (generation, observation)
+);
+```
+
+### Contents (normative bounds)
+
+| section | contents | bound |
+|---------|----------|-------|
+| diagnostic | platform code / `appCode` / validated `errorClass`, structural title, `failure_disposition`, classifier + fingerprint stamps | grammar-bounded; never truncated |
+| closure/build identity | generation, release (bundle hash), `fp_version`/`classifier_version`, runtime-readiness receipt digest | fixed-size; never truncated |
+| redacted request shape | key-structure skeleton only — key names plus type placeholders (`string`/`number`/`bool`/`null`/`object`/`array(n)`), **never leaf values** | ≤ 2 KiB; UTF-8-safe truncation, flagged; un-skeletonizable input drops the section whole, flagged |
+| principal class | one value from a closed enum (admin / app-authenticated / anonymous / system; membership pinned at implementation as a registry-style vocabulary) — never a principal id, subject, or token | fixed |
+| readiness facts | receipt validity + qualification age, runtime contract version, binary digest — the facts `scripts/ibex-doctor` reads, not the receipt file | ≤ 1 KiB |
+| bounded recent logs | rows correlated to the failing observation available at capture (D3 buffer + `telemetry_events`), oldest dropped first, **each line passed through the LLP 0036 staged-value redactor** before entering the bundle | ≤ 50 rows and ≤ 16 KiB total; ≤ 512 bytes per line; truncations counted + flagged |
+
+The logs section deliberately duplicates content `telemetry.events` can
+reconstruct while raw rows live: the bundle's copy is bound at capture
+time, so it survives telemetry shedding (CE5) and answers the
+breadcrumbs question even when the raw rows were shed after capture.
+Within the raw window the correlation query remains the richer view; the
+bundle is the bounded snapshot, not a second log store.
+
+### The redaction contract (tested invariant, normative)
+
+Three classes of values MUST NOT appear in any byte of a serialized
+bundle:
+
+1. **staged secret values** — every class the LLP 0036 staged-value
+   redactor covers;
+2. **credential material** — admin secrets, webhook HMAC secrets, auth
+   tokens, DSN keys, `Authorization`-class header values;
+3. **raw application values** — request/argument leaf values,
+   row/document field values, `appDetails` values. Shapes,
+   grammar-validated names, and type placeholders only.
+
+The enforcement is a fixture matrix, not a review convention, in the
+existing seeded-secret pattern
+(`staged_secret_values_are_scrubbed_from_stream_error_envelopes`,
+`tests/action_stream_envelope_v0.rs`):
+
+- **Seeded-sentinel scrub matrix:** distinct sentinel values are seeded
+  into every input source that feeds bundle assembly — staged config
+  secrets, request body/query/header leaf values, principal token
+  material, a handler throw embedding a sentinel in its
+  message/stack, and correlated log lines embedding a sentinel — an
+  eligible failure forces capture, and the test asserts **byte-level
+  absence of every sentinel over the whole serialized bundle**, plus
+  `[REDACTED]`-class scrub witnesses wherever redaction rewrote text.
+- **Value-freedom fixture:** the request-shape section parses to a
+  skeleton whose every leaf is in the placeholder vocabulary — no
+  application value survives structurally, not just no *seeded* value.
+- **Fail closed:** if any redaction step cannot run to completion, no
+  bundle row is written and `bundle_redaction_failed_count` advances —
+  the ruling's asymmetry made mechanical: a missing bundle is
+  acceptable; a leaking bundle is not.
+
+The invariant matrix is a landing gate for the capability-row flip, the
+same way the adversarial carrier matrix gates E0.
+
+### Identity binding and discovery
+
+A bundle belongs to exactly one failure: its `observation` correlation
+root — the `obs_…` id the rendered diagnostic already carries to the
+caller. The agent's path from refusal to bundle is therefore one hop:
+take the observation id off the failure, ask
+`errors.bundle {observation}` (projected onto the admin routes,
+`snapback errors bundle <obs_…>`, and the control MCP — raw-tier
+authority, same lease discipline as `errors.issue`). `errors.issue`
+additionally lists the issue's live bundles beside its exemplars,
+joined through `(generation, fp_version, fp_hash)` — capture precedes
+the flush that mints `iss_`, so bundles carry the fingerprint key and
+the join happens at read time.
+
+### Local-capture-only v1 (fence)
+
+Bundles are written to and read from the local telemetry sibling store
+only. **No hosted upload exists in v1** — the hosted retention/privacy
+design defers with it, per the ruling. Bundle content never enters
+alert-outbox payloads, webhook bodies, or Sentry-bridge envelopes (CE3
+already excludes the raw tier from those surfaces; restated normatively
+here because a bundle is the most concentrated raw-tier object this
+document defines). The container-VM arm inherits this section verbatim
+whenever it runs E1 (same binary, same sibling file); the Cloudflare
+arm remains `unsupported` per OQ-D.
+
+### Retention and rotation
+
+Raw retention floor, identical to exemplars: a bundle is invisible at
+read time once past `max(raw boundary, retention_floor)` and is
+physically swept by flush-path maintenance; `max_days = 0` empties the
+bundle view; generation rotation orphans nothing (bundles are
+generation-keyed and rotated-away rows are swept, not read). The ring,
+global cap, and cooldown bound live volume. Triage-state durability
+caveats (OQ-B) apply unchanged: the telemetry file is deletable, and a
+bundle is part of the same accepted loss class.
+
+### What the bundle deliberately does not enable
+
+**Replay.** The LLP 0207 review loop evaluated and killed deterministic
+replay from a receipt across both model families
+(`llp/reviews/0207-agent-efficiency-round-two.gpt-5.md` round 1
+concern 5; `….claude.md` round 1 concern 3): a state digest verifies
+state identity but cannot reconstruct state, and honest replay would
+require the executable artifact, a data snapshot, principal,
+environment, time, randomness, and external-service responses — a
+privacy/retention design far out of proportion. Nothing in the bundle
+captures any of those, and no future field may drift toward
+replayability inside this amendment's scope: if replay ever returns it
+is a **per-operation-class replayability matrix** under this document,
+gated on the bundle proving insufficient in practice — a new dated
+amendment with its own review, not an extension of this one.
+
+### Deliverables (extends the E0+E1 checklist)
+
+8. **Bundle store:** `error_evidence_bundles` DDL + visible view,
+   caps/cooldown/fold/redaction-failure counters in `telemetry_meta`,
+   maintenance sweep at the raw floor.
+9. **Capture:** assembly at the failure render seam as a serialized
+   telemetry-connection write (the second CE1 exception), the request
+   skeletonizer, staged-value redactor integration on every log line,
+   per-section bounds and truncation flags, storm bounds.
+10. **The redaction invariant matrix** (seeded-sentinel scrub +
+    value-freedom + fail-closed fixtures) — a landing gate for the
+    capability row.
+11. **Surface:** `errors.bundle` typed operation + route/CLI/MCP
+    projections, bundle listing in `errors.issue`, guide note, and a
+    `backend.error-evidence-bundle-v1` capability-index row (GAP row
+    until landing).
+
+### Open questions (author ruling needed)
+
+- **OQ-EB1 — eligibility breadth.** As specified, capture follows issue
+  eligibility uniformly — including `timeout`/`overload` storms and
+  opted-in refusal `appCode`s, whose request shapes are the most
+  application-specific data the bundle touches. Ring + cooldown bound
+  the write cost either way; the ruling needed is signal policy:
+  default-on for all eligible dispositions, or `fault`-only with config
+  opt-in for the rest?
+- **OQ-EB2 — per-bundle purge.** The telemetry file is deletable
+  wholesale (OQ-B), but there is no verb to delete individual bundles
+  ahead of retention. Is a purge verb (privacy hygiene after an
+  accidental capture) v1 surface, or deferred until asked for?
 
 ## Alternatives considered
 

@@ -226,6 +226,10 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("DELETE", "/watches/{id}"),
         ("POST", "/watches/{id}/suspend"),
         ("POST", "/watches/{id}/resume"),
+        ("POST", "/watches/{id}/renew"),
+        ("GET", "/effects"),
+        ("POST", "/effects/{id}/approve"),
+        ("POST", "/effects/{id}/deny"),
         ("POST", "/auth/oauth/register"),
         ("GET", "/auth/oauth/authorize"),
         ("POST", "/auth/oauth/authorize"),
@@ -589,19 +593,28 @@ fn capability_link_rows_pin_the_closed_policy_tuples() {
 }
 
 #[test]
-fn durable_watch_rows_pin_the_session_only_policy_tuples() {
+fn durable_watch_rows_pin_integration_management_and_session_only_renewal() {
     let routes = route_registry()
         .into_iter()
         .filter(|route| route.path.starts_with("/watches"))
         .collect::<Vec<_>>();
-    assert_eq!(routes.len(), 5);
+    assert_eq!(routes.len(), 6);
     for route in routes {
         assert_eq!(route.class, RouteClass::AppData);
         assert_eq!(route.path_policy, RoutePolicy::SessionAuth);
-        assert_eq!(
-            route.credential_resolution,
-            CredentialResolution::RequiredSessionBearer
-        );
+        if route.path == "/watches/{id}/renew" {
+            assert_eq!(
+                route.credential_resolution,
+                CredentialResolution::RequiredSessionBearer,
+                "renewal is fresh user consent",
+            );
+        } else {
+            assert_eq!(
+                route.credential_resolution,
+                CredentialResolution::RequiredSessionOrScopedToken,
+                "integration credentials can manage their owned watches",
+            );
+        }
         assert_eq!(route.invocation_authority, InvocationAuthority::ResolvedCaller);
         assert!(matches!(
             route.response_sensitivity,
@@ -2238,6 +2251,38 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             ("POST", "/watches/{id}/resume"),
             SessionBodyProbe {
                 uri: "/watches/wtch_policy_probe/resume",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/watches/{id}/renew"),
+            SessionBodyProbe {
+                uri: "/watches/wtch_policy_probe/renew",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("GET", "/effects"),
+            SessionBodyProbe {
+                uri: "/effects",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/effects/{id}/approve"),
+            SessionBodyProbe {
+                uri: "/effects/pfx_policy_probe/approve",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/effects/{id}/deny"),
+            SessionBodyProbe {
+                uri: "/effects/pfx_policy_probe/deny",
                 base: json!({}),
                 forbidden_fields: handler_fields(),
             },

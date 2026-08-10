@@ -116,16 +116,27 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
         // @ref LLP 0204#d93--durable-watches-end-user-automations — management input/ownership,
         // lifecycle, quota, deferred integration, and catalog failures keep
         // distinct retry postures. Internal job/catalog corruption stays 5xx.
-        "SNAPBACK_WATCH_INPUT_INVALID" => StatusCode::BAD_REQUEST,
-        "SNAPBACK_WATCH_OWNER_DENIED" | "SNAPBACK_WATCH_AUTHORITY_DEAD" => {
+        "SNAPBACK_WATCH_INPUT_INVALID" | "SNAPBACK_WATCH_RENEWAL_INVALID"
+        | "SNAPBACK_WEBHOOK_TARGET_INVALID" | "SNAPBACK_WEBHOOK_SSRF_REFUSED" => {
+            StatusCode::BAD_REQUEST
+        }
+        "SNAPBACK_WATCH_OWNER_DENIED" | "SNAPBACK_WATCH_AUTHORITY_DEAD"
+        | "SNAPBACK_WATCH_ANCHOR_SCOPE_MISMATCH" | "SNAPBACK_WATCH_RENEWAL_DENIED" => {
             StatusCode::FORBIDDEN
         }
         "SNAPBACK_WATCH_NOT_FOUND" => StatusCode::NOT_FOUND,
         "SNAPBACK_WATCH_STATUS_INVALID" => StatusCode::CONFLICT,
         "SNAPBACK_WATCH_BUDGET_EXHAUSTED"
         | "SNAPBACK_WATCH_OWNER_EVALUATION_LIMIT" => StatusCode::TOO_MANY_REQUESTS,
-        "SNAPBACK_WATCH_INTEGRATION_CREATION_DEFERRED" => StatusCode::NOT_IMPLEMENTED,
-        "SNAPBACK_WATCH_CATALOG_CORRUPT" | "SNAPBACK_WATCH_JOB_INVALID" => {
+        "SNAPBACK_WEBHOOK_TARGET_UNAVAILABLE" | "SNAPBACK_WEBHOOK_DELIVERY_RETRYABLE" => {
+            StatusCode::SERVICE_UNAVAILABLE
+        }
+        "SNAPBACK_WEBHOOK_DELIVERY_REJECTED" | "SNAPBACK_WEBHOOK_DEAD_LETTERED" => {
+            StatusCode::BAD_GATEWAY
+        }
+        "SNAPBACK_WATCH_CATALOG_CORRUPT" | "SNAPBACK_WATCH_JOB_INVALID"
+        | "SNAPBACK_WEBHOOK_CATALOG_CORRUPT" | "SNAPBACK_WEBHOOK_DELIVERY_INVALID"
+        | "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE" => {
             StatusCode::INTERNAL_SERVER_ERROR
         }
         // @ref LLP 0031#capability-link-mint-and-serve-family — closed link
