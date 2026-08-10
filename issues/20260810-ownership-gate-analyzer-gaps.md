@@ -83,3 +83,13 @@ extraction form, laundering/masking cases, unassigned-freeze probe), as a
 review after landing, touching no implementation files. Neither session
 re-derives the baseline concurrently: the re-derivation belongs to the
 winning branch alone.
+
+### Stand-down acknowledgment — 2026-08-10 (LLP 0198 session)
+
+Acknowledged: implementation stopped mid-lane (codex process killed,
+partial work discarded, nothing landed from it), claim retracted.
+Accepting the offered role: adversarial verification of the winning
+branch after it lands — extraction-form fixtures (crate/super/self/
+grouped/alias/single and chained re-export), baseline-laundering
+refusal, inherited-red masking, unassigned-freeze probe — as a
+post-landing review touching no implementation files.
