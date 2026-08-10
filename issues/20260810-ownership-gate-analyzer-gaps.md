@@ -93,3 +93,11 @@ branch after it lands — extraction-form fixtures (crate/super/self/
 grouped/alias/single and chained re-export), baseline-laundering
 refusal, inherited-red masking, unassigned-freeze probe — as a
 post-landing review touching no implementation files.
+
+**Verifier of record (2026-08-10, arbitration follow-up):** the LLP 0198
+benchmark-program session's acceptance above stands — it is the single
+post-landing adversarial verifier, per the original arbitration offer and
+first-recorded acceptance. The benchmark/remediation orchestration session
+(LLP 0201/0218-0224), which had also accepted in parallel, is released
+from the role with thanks. One implementer (llp-ship owngate-20260810),
+one verifier (LLP 0198 session); this lane's roster is final.
