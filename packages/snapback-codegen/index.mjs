@@ -77,6 +77,7 @@ import {
   canonicalSeedArtifactJson,
   parseSeedSourceV1,
 } from './seed-artifact.mjs';
+import { withCodegenGenerationLock } from './generation-lock.mjs';
 import {
   extractInlineHandlers,
   renderInlineOperationModule,
@@ -1597,7 +1598,7 @@ function codegenWorkerEnvironment() {
   return environment;
 }
 
-export async function generateInProcess(backendDir, options = {}) {
+export async function generateInProcess(backendDir, options = {}, testHooks = undefined) {
   const diagnostics = [];
   // Non-blocking info diagnostics carried into the generated function
   // manifest (today: the MUTATION_OUTGREW_IR tier-ladder declarations).
@@ -1622,6 +1623,35 @@ export async function generateInProcess(backendDir, options = {}) {
     err('CODEGEN_BACKEND_UNREADABLE', 'codegen', `backend directory ${backendDir} could not be resolved: ${error.message}`, { path: backendDir });
     return { ok: false, diagnostics };
   }
+  try {
+    return await withCodegenGenerationLock(
+      backendRoot,
+      () => generateInProcessLocked({
+        backendRoot,
+        targetProfile,
+        targetConfig,
+        diagnostics,
+        infoDiagnostics,
+        err,
+        testHooks,
+      }),
+      testHooks?.generationLock,
+    );
+  } catch (error) {
+    if (!error?.codegenGenerationLockFailure) throw error;
+    return { ok: false, diagnostics: [error.diagnostic] };
+  }
+}
+
+async function generateInProcessLocked({
+  backendRoot,
+  targetProfile,
+  targetConfig,
+  diagnostics,
+  infoDiagnostics,
+  err,
+  testHooks,
+}) {
   const schemaPath = join(backendRoot, 'schema.mjs');
   const functionsPath = join(backendRoot, 'functions.mjs');
   const seedPath = join(backendRoot, 'seed.json');
@@ -5151,6 +5181,7 @@ export async function generateInProcess(backendDir, options = {}) {
       cacheGraphRoot: codegenCacheGraphRoot(backendRoot, inputsHash),
       materializedRoot: outDir,
       reviewManifest: artifactIndex,
+      testHooks: testHooks?.publication,
     });
   } catch (error) {
     rmSync(tmpOutDir, { recursive: true, force: true });

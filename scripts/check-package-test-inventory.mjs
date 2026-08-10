@@ -269,6 +269,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'effect-ceiling.test.mjs',
       'function-id.test.mjs',
       'generated-mutation-ir.test.mjs',
+      'generation-lock.test.mjs',
       'guide-pointer.test.mjs',
       'identifier-validation.test.mjs',
       'inline-helper-sharing.test.mjs',
@@ -453,7 +454,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 242,
+  expectedTotal = 243,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -756,6 +757,9 @@ export function checkPackageTestInventories(options = {}) {
 // 241 -> 242 (2026-08-09, LLP 0211 Phase A): @expo/snapback-codegen gains the
 // typed opaque structured stored-value carrier, dispatch, refusal, type-flow,
 // and retained-client round-trip acceptance corpus.
+// 242 -> 243 (2026-08-10, generated-directory regeneration serialization):
+// @expo/snapback-codegen gains deterministic overlapping-writer and killed
+// stale-lock-holder coverage for the LLP 0041 watch/codegen boundary.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

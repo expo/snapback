@@ -6,6 +6,13 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (cooperative regeneration lock):** 2026-08-10 (all codegen writers
+for one canonical backend directory now share a dependency-free advisory lock,
+so the managed watch loop, explicit `generateApp` calls, and separate codegen
+processes cannot overlap the generated-directory replacement window; dead or
+bounded-age holders are reclaimed and live waiters fail closed after a bounded
+wait rather than proceeding concurrently.)
+
 **Revised (npm naming settled):** 2026-08-10 (author ruling: the `@expo`
 scope is the terminal *and* final npm naming answer; the unscoped `snapback`
 registry name is not pursued — see §Amendment (2026-08-10): npm naming is
@@ -916,6 +923,18 @@ Watch mode coalesces edits and performs:
 3. schema/function load into the running server;
 4. stale artifact checks;
 5. optional surface rebuild.
+
+The debounce queue controls *when the managed loop asks* for regeneration; a
+backend-local cooperative lock controls *which writer may publish*. Every
+codegen entry point takes `.generated.regenerate.lock` beside `generated/`
+before reading inputs and holds it through cache and materialized-directory
+publication. This includes one-shot generation and callers outside the managed
+loop, including other processes. An uncontended one-shot retains its existing
+result contract and removes the lock before returning. A waiter never proceeds
+unlocked: it reclaims a dead-PID, malformed-old, or bounded-age holder, and
+otherwise returns a structured timeout after a bounded wait. This keeps watch
+coalescing unchanged while making generated-graph atomicity a property of the
+writer rather than of one scheduler instance.
 
 A failed push to a running server must not make offline codegen fail. The result
 should distinguish "generated but not loaded" from "generation failed."

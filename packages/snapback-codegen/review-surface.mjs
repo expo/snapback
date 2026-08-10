@@ -390,6 +390,7 @@ export function publishGeneratedGraph({
   cacheGraphRoot,
   materializedRoot,
   reviewManifest,
+  testHooks = undefined,
 }) {
   const cacheParent = dirname(cacheGraphRoot);
   mkdirSync(cacheParent, { recursive: true });
@@ -400,7 +401,11 @@ export function publishGeneratedGraph({
   const materializedTmp = `${materializedRoot}.tmp-${process.pid}-${Date.now()}`;
   rmSync(materializedTmp, { recursive: true, force: true });
   cpSync(cacheGraphRoot, materializedTmp, { recursive: true, errorOnExist: true });
-  atomicReplaceDirectory(materializedTmp, materializedRoot);
+  atomicReplaceDirectory(
+    materializedTmp,
+    materializedRoot,
+    testHooks?.afterMaterializedBackup,
+  );
   return verifyGeneratedGraph(materializedRoot);
 }
 
@@ -506,12 +511,13 @@ function assertPortableRelativePath(path, label) {
   }
 }
 
-function atomicReplaceDirectory(tmpDir, outDir) {
+function atomicReplaceDirectory(tmpDir, outDir, afterBackup = undefined) {
   const backupDir = `${outDir}.bak-${process.pid}-${Date.now()}`;
   rmSync(backupDir, { recursive: true, force: true });
   const hadExisting = existsSync(outDir);
   if (hadExisting) renameSync(outDir, backupDir);
   try {
+    if (hadExisting) afterBackup?.({ backupDir, outDir, tmpDir });
     renameSync(tmpDir, outDir);
     rmSync(backupDir, { recursive: true, force: true });
   } catch (error) {
