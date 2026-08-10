@@ -1,6 +1,6 @@
 # LLP 0194 execution: canonical symbol registry + generated API reference
 
-**Status:** Open — native/Rust projections and OQ2 ctx ownership implemented locally; final landing and non-OQ2 follow-ons remain
+**Status:** Resolved 2026-08-10 — native/Rust projections and OQ2 ctx ownership implemented locally; final landing and non-OQ2 follow-ons remain
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 2
@@ -394,3 +394,13 @@ check active; bootstrap page retired. Acceptance status: 1-4 complete;
 5 remains PARTIAL only on the not-yet-deployed LLP 0195 public
 projection (D1 ruled publish-soon) — flip LLP 0194 to Implemented when
 the public surface serves the same identities.
+
+## Resolution — 2026-08-10
+
+Acceptance item 5's remaining condition is now met: the LLP 0195 public
+projection is deployed and serving the registry identities —
+https://snapback.expo.app exposes the generated API reference pages and
+`/guide/reference/registry.json` (`snapback-symbol-registry.v1`, currently
+52 modules across the five packages, grown from the 41 at dd4126140 as
+later landings added modules). LLP 0194 flipped to Implemented in this
+landing. Items 1–4 were complete at dd4126140.
