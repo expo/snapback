@@ -46,6 +46,12 @@ import {
 } from './carrier-kit.mjs';
 
 const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'snapback-cli-package-')));
+// issues/closed/20260810-expo-chat-template-pins-trail-the-closure: scaffoldApp
+// substitutes `__SNAPBACK_VERSION__` with a caret on the CLI's OWN version, so
+// a scaffold is self-consistent with the closure that produced it by
+// construction. Assert that identity rather than the `^x.y.z` shape — a shape
+// match passes on any stamped version, including a hardcoded one.
+const SCAFFOLD_PIN = `^${JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version}`;
 try {
   const packagedSkillContent = readFileSync(
     new URL('./skills/snapback-authoring/SKILL.md', import.meta.url),
@@ -290,7 +296,7 @@ console.log(JSON.stringify({
   assert.equal(scaffold.ok, true);
   assertScaffoldedAuthoringSkill(project, scaffold);
   const manifest = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8'));
-  assert.match(manifest.dependencies['@expo/snapback-cli'], /^\^\d+\.\d+\.\d+/);
+  assert.equal(manifest.dependencies['@expo/snapback-cli'], SCAFFOLD_PIN);
   assert.equal(manifest.scripts.test, 'node acceptance.mjs');
   assert.equal(manifest.scripts['test:static'], 'node acceptance.static.mjs');
   assert.equal(manifest.scripts['test:live'], manifest.scripts.test);
@@ -416,8 +422,8 @@ console.log(JSON.stringify({
   assert.equal(chatScaffold.ok, true);
   assertScaffoldedAuthoringSkill(chatProject, chatScaffold);
   const chatManifest = JSON.parse(readFileSync(join(chatProject, 'package.json'), 'utf8'));
-  assert.match(chatManifest.dependencies['@expo/snapback-expo'], /^\^\d+\.\d+\.\d+/);
-  assert.match(chatManifest.dependencies['@expo/snapback-cli'], /^\^\d+\.\d+\.\d+/);
+  assert.equal(chatManifest.dependencies['@expo/snapback-expo'], SCAFFOLD_PIN);
+  assert.equal(chatManifest.dependencies['@expo/snapback-cli'], SCAFFOLD_PIN);
   assert.equal(chatManifest.dependencies['@expo/metro-runtime'], '~57.0.8');
   assert.equal(chatManifest.dependencies['react-dom'], '19.2.3');
   assert.equal(chatManifest.dependencies['react-native-web'], '^0.21.2');
