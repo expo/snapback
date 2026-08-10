@@ -54,7 +54,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense `ctx.sequence.allocate` with replay/contention/exhaustion evidence; contributor-source local only | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public/hosted qualification; owner: Charlie, review: 2026-09-30; issue: issues/20260808-main-drift-sequence-allocation-publication.md); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated local asset lifecycle: generated intents, resumable upload, trusted image/video finalization, renditions, typed attachment, strict/signed/public delivery, reference GC, callbacks, receipts, logical consistent cuts, signing-key rotation, and admission-frozen recipient grants. Grant ops provide commit-atomic owner mint, recipient activation, owner/recipient revoke, active-edge read/GC authority, live revoke blanking, typed refusals, and a 1,024-edge per-app ceiling; app-owned `via-references` rows remain the filterable fallback. Byte-level backup, transcoding, and hosted targets remain nonclaims. | files, images, video, asset grant, grants: true, ctx.assets.grant, ctx.assets.activate, ctx.assets.revoke, pending grant, view once, object storage, browser upload, native upload, SVG, Expo ImagePicker, asset export, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json + `asset_grant_ops_pilot_strict_signed_and_lifecycle` / `asset_grant_commit_wakes_and_revoke_blanks_live_projection` / `asset_cut_carries_grants_at_the_same_consistent_cut` in src/local/tests.rs + tests/acceptance/asset-conformance-v1.mjs + demos/file-drop/tests/acceptance/browser-relay.mjs | llp/0044, llp/0210 | backend/assets.md |
+| backend.assets | Authenticated local asset lifecycle: generated intents, resumable upload, trusted image/video finalization, renditions, typed attachment, strict/signed/public delivery, reference GC, callbacks, receipts, logical consistent cuts, signing-key rotation, and admission-frozen recipient grants. Grant ops provide commit-atomic owner mint, recipient activation, owner/recipient revoke, active-edge read/GC authority, live revoke blanking, typed refusals, and a 1,024-edge per-app ceiling; app-owned `via-references` rows remain the filterable fallback. Byte-level backup, transcoding, and hosted targets remain nonclaims; the paved view-once recipe is recipes/view-once-media.md. | files, images, video, asset grant, grants: true, ctx.assets.grant, ctx.assets.activate, ctx.assets.revoke, pending grant, view once, object storage, browser upload, native upload, SVG, Expo ImagePicker, asset export, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json + `asset_grant_ops_pilot_strict_signed_and_lifecycle` / `asset_grant_commit_wakes_and_revoke_blanks_live_projection` / `asset_cut_carries_grants_at_the_same_consistent_cut` in src/local/tests.rs + tests/acceptance/asset-conformance-v1.mjs + demos/file-drop/tests/acceptance/browser-relay.mjs + demos/messaging-snapback/tests/acceptance/headless.mjs (view-once grant probes) | llp/0044, llp/0210, llp/0220 | backend/assets.md |
 | clients.asset-signed-delivery | Signed issuance, TTL-refresh store, React hook | signed URL, assets.signedUrl, issuedUrlStore, useSnapbackAssetUrl, expiresAt | local | shipped | packages/snapback-react/assets.test.mjs | llp/0210 | backend/assets.md |
 | clients.asset-upload | One-call File/Blob/picker upload; `task.done` settles on ready/rejected/cancelled/failed and only ready succeeds | assets.upload, task.done, upload terminal status, SNAPBACK_ASSET_RETRY_INELIGIBLE | local | shipped | packages/snapback-client/assets.test.mjs | llp/0210 | backend/assets.md |
 | backend.expo-push-seam | Local Expo seam: session-bound token custody, host-authorized `ctx.push.send`, crash-safe handoff/receipt ledger, and advisory `ctx.realtime.hasFreshClient` input for skipping an attempt. Connectivity never proves observation or exactly-once delivery. Hosted remains a GAP. | device token, expo push token, ctx.push.send, connected client, skip push, DeviceNotRegistered | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`, `connectedClientPredicate`) + packages/snapback-cli/fake-expo-push.test.mjs | llp/0143, llp/0222, llp/0045, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
@@ -318,9 +318,12 @@ you never build around a feature because you didn't know it existed.
 - [Assets](./backend/assets.md) — generated upload intents, one-call
   File/Blob/picker upload, signed-URL issuance with a shared TTL-refresh
   controller and React hook, TUS resumable transfer, typed `v.assetRef`
-  attachment, private delivery, the view-once grant-row recipe,
+  attachment, private delivery, per-recipient grants and view-once guidance,
   consistent-cut logical export, and signing-key rotation (local target;
   byte-level backup remains a nonclaim).
+- [View-once media with per-recipient access](./recipes/view-once-media.md) —
+  local grant-edge recipe for disappearing photos: atomic send/open/close,
+  product-owned consumption, delete-for-everyone, and strict revocation.
 - [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture
   identity, non-destructive matching, explicit reset-install/clear, and
   migration boundaries (experimental).
@@ -478,6 +481,10 @@ you never build around a feature because you didn't know it existed.
   — generated mutation IR, durable intent identity, typed provisional
   presentation, logical-mint mapping, and ambiguous retry (Contention
   Calendar, distilled).
+- [View-once media with per-recipient access](./recipes/view-once-media.md) —
+  disappearing photos and ephemeral media with one pending grant per
+  recipient, a unique consumption row, close versus delete-for-everyone, and
+  next-request denial (messaging-snapback, distilled; local-only).
 - [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
   — worked-example translations of common Convex/Supabase journeys into
   Snapback, CI-verified against real demo sources (LLP 0186 W2).
@@ -6151,6 +6158,11 @@ The paved view-once recipe uses first-class asset grants. Opt the upload intent
 in explicitly, keep its ordinary policy owner-only so the grant is the
 recipient's sole authority path, and choose a revocable delivery profile:
 
+For the complete send → open → close/delete → delivery composition, use the
+[view-once media recipe](../recipes/view-once-media.md). This section is the
+operation reference; the recipe carries the application-owned consumption and
+live-edge bookkeeping that make "view once" a product behavior.
+
 ```js fragment reason="view-once intent showing the grants opt-in and sole-authority constraint"
 export const messageImageUpload = defineAssetUpload({
   auth: 'authenticated',
@@ -6646,11 +6658,12 @@ records expose the canonical `digest`, `digestAlgorithm`, and
   terminal row.** Use [`assets.upload()`](#upload-when-you-only-need-the-ready-asset-id)
   for settle-or-reject behavior, or branch on all four raw terminal statuses.
 - **Do not add a second recipient-readable reference to view-once media.** Keep
-  the [per-recipient grant row](#portable-fallback-app-owned-grant-rows)
-  as the sole authority edge and retain a typed reverse reference until open
-  or cancellation.
-- **Do not call the designed grant operations yet.** LLP 0210 D5(b) is a
-  design reference, not a shipped API; use the row composition above.
+  either the [first-class grant edge](#grant-and-revoke-per-recipient-access)
+  from the [view-once media recipe](../recipes/view-once-media.md), or the
+  [fallback app-owned grant row](#portable-fallback-app-owned-grant-rows), as
+  the recipient's sole authority path. Retain an owner-only typed reverse
+  reference through the pending window so reference GC cannot reclaim the
+  asset before open or cancellation.
 
 ---
 
@@ -20796,6 +20809,355 @@ for both backends, actually running," not as application code to copy.
 
 ---
 
+<!-- snapback-guide-source: guide/recipes/view-once-media.md -->
+---
+title: "Recipe: view-once media with per-recipient access"
+id: recipes.view-once-media
+order: 8
+audience: agent-first
+capabilities: [backend.assets]
+authorities: [llp/0220-recipient-bound-asset-grants.plan.md, llp/0210-asset-upload-dx-closure.rfc.md, llp/0044-asset-storage-pipeline.rfc.md, src/storage/asset_grants.rs, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/snapback/functions.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
+examples: [demos/messaging-snapback]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-10
+reviewed-commit: HEAD
+---
+
+# Recipe: view-once media with per-recipient access
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Use this recipe for **view once**, a **disappearing photo**, or other
+**ephemeral media** that needs independently revocable **per-recipient
+access**. It composes an application-owned consumption record with Snapback's
+first-class recipient grant edge. The grant surface is claimed only on the
+local target, so this page is partial: a hosted deployment must capability-gate
+the feature rather than infer support from the local recipe.
+
+Read [Grant and revoke per-recipient access](../backend/assets.md#grant-and-revoke-per-recipient-access)
+for the complete operation, authorization, GC, quota, and delivery semantics.
+If a target lacks first-class grants or the application needs filterable grant
+metadata as product state, use the separately documented
+[portable app-owned grant-row fallback](../backend/assets.md#portable-fallback-app-owned-grant-rows).
+Do not implement both authority paths for the same recipient.
+
+The registered [`messaging-snapback` demo](repo:demos/messaging-snapback) is
+the executable witness. Its
+[`headless.mjs` acceptance suite](repo:demos/messaging-snapback/tests/acceptance/headless.mjs)
+proves pending and outsider denial, one successful open, repeated and
+race-concurrent second-open refusal from product consumption state, strict
+denial after close, two-recipient delete-for-everyone, and close-then-delete.
+
+## 1. Send the view-once or disappearing photo
+
+Attach the asset once and keep that typed reference on the message row. The
+reference is storage-integrity state: pending grants confer no authority and
+do **not** protect the asset from reference GC. Keep a private, owner-visible
+`grants` map from `recipientPrincipal` to opaque `grantId` beside it so later
+close and delete operations can find only the live edges they own.
+
+The demo's durable model makes those two roles explicit and gives the
+consumption record a unique `(message, principal)` identity:
+
+```js source=demos/messaging-snapback/snapback/schema.mjs
+export const viewOnceMessages = defineTable({
+  conversationId: v.id('conversations'),
+  authorPrincipal: v.string(),
+  // This typed reverse reference, not the pending grants, protects the asset
+  // from reference GC until every recipient has had a chance to open it.
+  asset: v.assetRef({ upload: 'viewOnceImageUpload' }),
+  // OWNER-VISIBLE liveness bookkeeping: recipient principal -> live grantId.
+  grants: v.json(),
+  caption: v.string(),
+  createdAt: v.integer(),
+})
+  .index('by_conversation', ['conversationId']);
+
+export const viewOnceConsumptions = defineTable({
+  viewOnceMessageId: v.id('viewOnceMessages'),
+  principal: v.string(),
+  openedAt: v.integer(),
+})
+  // Product state, not asset state: this is what makes a second logical open
+  // refuse even while the first activation remains live.
+  .index('by_message_principal', ['viewOnceMessageId', 'principal'], { unique: true });
+```
+
+The demo's inspection query deliberately relaxes message policy so its
+headless suite can inspect this bookkeeping. That is witness scaffolding, not
+the product rule: a real query must keep the grants map owner-visible and let
+recipients reach only authorized open/close mutations.
+
+In one authorized owner mutation, attach first, insert the message with its
+typed reference, mint one **pending** grant per recipient, and persist the map.
+The staged app-row writes and grant operations commit or abort together:
+
+```js source=demos/messaging-snapback/snapback/functions.mjs
+export const sendViewOnce = defineJsMutation({
+  args: {
+    conversationId: v.id('conversations'),
+    assetId: v.string(),
+    recipients: v.array(v.string()),
+    caption: v.optional(v.string()),
+  },
+  auth: 'authenticated',
+  refusals: ['VIEW_ONCE_RECIPIENTS_EMPTY', 'VIEW_ONCE_RECIPIENT_DUPLICATE'],
+  result: results.value(v.id('viewOnceMessages')),
+  reads: ['conversations'],
+  writes: ['viewOnceMessages'],
+  handler: async (ctx, args) => {
+    const owner = ctx.auth.userId;
+    if (args.recipients.length === 0) {
+      ctx.refuse('VIEW_ONCE_RECIPIENTS_EMPTY');
+    }
+    const recipients = Array.from(new Set(args.recipients));
+    if (recipients.length !== args.recipients.length) {
+      ctx.refuse('VIEW_ONCE_RECIPIENT_DUPLICATE');
+    }
+    const conversation = await ctx.db.get('conversations', args.conversationId);
+    if (!conversation) throw new Error('conversation not found');
+    const asset = await ctx.assets.attach(args.assetId, { upload: 'viewOnceImageUpload' });
+    const messageId = await ctx.db.insert('viewOnceMessages', {
+      conversationId: args.conversationId,
+      authorPrincipal: owner,
+      asset,
+      grants: {},
+      caption: String(args.caption ?? '').trim(),
+      createdAt: ctx.runtime.now(),
+    });
+    const grantEntries = [];
+    for (const recipient of recipients) {
+      const { grantId } = await ctx.assets.grant(args.assetId, recipient, { state: 'pending' });
+      grantEntries.push([recipient, grantId]);
+    }
+    const grants = Object.fromEntries(grantEntries);
+    await ctx.db.patch('viewOnceMessages', messageId, { grants });
+    return messageId;
+  },
+});
+```
+
+`grants: true` is admission-frozen. Adding it to an upload intent later does
+not make already-admitted assets grantable; upload those bytes under the
+grant-enabled intent from the start.
+
+## 2. Open ephemeral media exactly once
+
+The recipient's authorized mutation must establish product consumption
+**first**, then activate that recipient's pending grant. Verify the caller is
+in the private grants map, look up the unique consumption row, refuse if it
+exists, insert it, and only then stage `ctx.assets.activate(grantId)`:
+
+```js source=demos/messaging-snapback/snapback/functions.mjs
+export const openViewOnce = defineJsMutation({
+  args: { viewOnceMessageId: v.id('viewOnceMessages') },
+  auth: 'authenticated',
+  refusals: ['VIEW_ONCE_NOT_RECIPIENT', 'VIEW_ONCE_ALREADY_CONSUMED'],
+  result: results.value(v.boolean()),
+  reads: ['viewOnceMessages', 'viewOnceConsumptions'],
+  writes: ['viewOnceConsumptions'],
+  handler: async (ctx, args) => {
+    const principal = ctx.auth.userId;
+    const message = await ctx.db.get('viewOnceMessages', args.viewOnceMessageId);
+    let grantId = null;
+    for (const [recipient, recipientGrantId] of Object.entries(message?.grants ?? {})) {
+      if (recipient === principal) grantId = recipientGrantId;
+    }
+    if (typeof grantId !== 'string') {
+      ctx.refuse('VIEW_ONCE_NOT_RECIPIENT');
+    }
+
+    // @ref LLP 0220#design-detail-the-recipe-this-plan-pages — product
+    // consumption must refuse before activation is staged, so a fresh second
+    // open never falls through to SNAPBACK_ASSET_GRANT_STATE_INVALID.
+    const consumed = await ctx.db
+      .query('viewOnceConsumptions')
+      .withIndex('by_message_principal')
+      .eq('viewOnceMessageId', args.viewOnceMessageId)
+      .eq('principal', principal)
+      .first();
+    if (consumed) {
+      ctx.refuse('VIEW_ONCE_ALREADY_CONSUMED', { openedAt: consumed.openedAt });
+    }
+    await ctx.db.insert('viewOnceConsumptions', {
+      viewOnceMessageId: args.viewOnceMessageId,
+      principal,
+      openedAt: ctx.runtime.now(),
+    });
+    await ctx.assets.activate(grantId);
+    return true;
+  },
+});
+```
+
+The consumption row is product state, not a substitute spelling of the grant.
+A bare second activation refuses separately with
+`SNAPBACK_ASSET_GRANT_STATE_INVALID`. A retry with the same mutation
+`clientKey` replays the original result. Neither behavior prevents a fresh
+second logical open, so the unique consumption check must run before
+activation is staged. The unique index also makes concurrent opens settle as
+one successful consumption and one application refusal.
+
+## 3. Close one recipient or delete for everyone
+
+These are two distinct verbs.
+
+**Recipient close** revokes only the caller's grant and clears the matching
+entry from the owner-visible grants map in the same mutation:
+
+```js source=demos/messaging-snapback/snapback/functions.mjs
+export const closeViewOnce = defineJsMutation({
+  args: { viewOnceMessageId: v.id('viewOnceMessages') },
+  auth: 'authenticated',
+  refusals: ['VIEW_ONCE_NOT_RECIPIENT'],
+  result: results.value(v.boolean()),
+  reads: ['viewOnceMessages'],
+  writes: ['viewOnceMessages'],
+  handler: async (ctx, args) => {
+    const principal = ctx.auth.userId;
+    const message = await ctx.db.get('viewOnceMessages', args.viewOnceMessageId);
+    let grantId = null;
+    for (const [recipient, recipientGrantId] of Object.entries(message?.grants ?? {})) {
+      if (recipient === principal) grantId = recipientGrantId;
+    }
+    if (typeof grantId !== 'string') {
+      ctx.refuse('VIEW_ONCE_NOT_RECIPIENT');
+    }
+    const grants = Object.fromEntries(
+      Object.entries(message.grants).filter(([recipient]) => recipient !== principal),
+    );
+
+    // @ref LLP 0220#design-detail-the-recipe-this-plan-pages — revoke removes
+    // the system edge, so clearing its id in the same mutation keeps a later
+    // owner delete-for-everyone from staging an unknown-grant refusal.
+    await ctx.assets.revoke(grantId);
+    await ctx.db.patch('viewOnceMessages', args.viewOnceMessageId, { grants });
+    return true;
+  },
+});
+```
+
+Revoke removes the edge rather than recording a `revoked` state. A later
+operation on that `grantId` refuses as unknown, and one staged refusal aborts
+the whole mutation. Clearing the map entry is therefore what keeps a later
+owner delete executable.
+
+**Owner delete-for-everyone** derives the remaining live grant IDs from that
+map, revokes each one, removes the consumption rows, and deletes the message's
+typed reference in one mutation:
+
+```js source=demos/messaging-snapback/snapback/functions.mjs
+export const deleteViewOnceForEveryone = defineJsMutation({
+  args: { viewOnceMessageId: v.id('viewOnceMessages') },
+  auth: 'authenticated',
+  refusals: ['VIEW_ONCE_NOT_FOUND', 'VIEW_ONCE_NOT_AUTHOR'],
+  result: results.value(v.boolean()),
+  reads: ['viewOnceMessages', 'viewOnceConsumptions'],
+  writes: ['viewOnceMessages', 'viewOnceConsumptions'],
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get('viewOnceMessages', args.viewOnceMessageId);
+    if (!message) {
+      ctx.refuse('VIEW_ONCE_NOT_FOUND');
+    }
+    if (message.authorPrincipal !== ctx.auth.userId) {
+      ctx.refuse('VIEW_ONCE_NOT_AUTHOR');
+    }
+    // The map contains only still-live edges because recipient close clears
+    // its entry atomically with revoke.
+    for (const grantId of Object.values(message.grants)) {
+      await ctx.assets.revoke(grantId);
+    }
+    const consumptions = await ctx.db
+      .query('viewOnceConsumptions')
+      .withIndex('by_message_principal')
+      .eq('viewOnceMessageId', args.viewOnceMessageId)
+      .take(1024)
+      .collect();
+    for (const consumption of consumptions) {
+      await ctx.db.delete('viewOnceConsumptions', consumption._id);
+    }
+    await ctx.db.delete('viewOnceMessages', args.viewOnceMessageId);
+    return true;
+  },
+});
+```
+
+`ctx.assets.revoke` takes one grant ID. Independent grants survive a sibling's
+revoke, so revoking one edge and deleting the message would leave every other
+recipient authorized. Delete-for-everyone must revoke **every still-live
+edge** before removing the typed reference.
+
+Explicit close is not crash-safe. If the recipient process crashes after
+activation and before close, the grant stays active until the owner revokes it
+or deletes the message. The local surface has no activation TTL or crash lease;
+do not claim that this recipe bounds that gap.
+
+## 4. Deliver through the grant alone and revoke media access
+
+The grant must be the recipient's **sole authority path**. Admit the asset with
+`grants: true`, an `owner-only` read policy, and `private-strict` delivery so
+close or delete denies the next governed byte request:
+
+```js source=demos/messaging-snapback/snapback/functions.mjs
+export const viewOnceImageUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  reads: [],
+  accept: { mediaTypes: ['image/jpeg', 'image/png'], maxBytes: 8_000_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'owner-only' },
+  grants: true,
+  image: { location: 'strip' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+A public URL, a recipient-visible `via-references` row, an app-owned fallback
+grant row beside the first-class edge, or any other readable reference bypasses
+pending activation and revoke. The [Deliver section](../backend/assets.md#deliver)
+has the route and cache contract. Under `private-signed`, revoke stops new URL
+issuance, but an already-issued bearer URL remains usable until its TTL;
+`private-strict` is the profile for next-request denial. Neither profile can
+retract bytes already delivered. Do not place view-once bytes in a durable
+client, image, filesystem, service-worker, or application cache.
+
+## Limits and capability gate
+
+- **The 1,024-edge ceiling is global per app.** It counts all outstanding
+  pending plus active grants across every asset, not the fanout for one
+  message. Revoke releases capacity. Sustained large audiences are not a fit
+  for per-recipient edges; they belong to the membership-backed authority
+  program rather than this recipe.
+- **View once is a product behavior, not DRM.** It cannot prevent screen
+  capture, another camera, or byte retention after delivery.
+- **Grant support is local-only today.** Hosted targets are a nonclaim. Check
+  the target's `backend.assets` capability before enabling the product and
+  refuse or hide it when recipient grants are absent.
+
+## Anti-patterns
+
+- **Do not give the asset a second recipient-visible authority path.** Use
+  either the first-class grant edge or the
+  [portable fallback row](../backend/assets.md#portable-fallback-app-owned-grant-rows),
+  never both, and keep the message's typed reference owner-only.
+- **Do not skip or reorder the unique consumption row.** Activation state and
+  `clientKey` replay do not prevent a fresh second logical open.
+- **Do not revoke one edge and call the message deleted.** Revoke every
+  still-live grant and remove the typed reverse reference in the same owner
+  mutation.
+- **Do not retain dead grant IDs.** Recipient close removes the edge, so clear
+  its owner-visible bookkeeping entry in the same mutation.
+- **Do not durably cache view-once bytes.** Revocation controls future governed
+  requests, not bytes the client already copied.
+- **Do not call explicit close crash-safe or hosted-ready.** The active edge
+  survives a crash gap, and the shipped recipient-grant claim is local-only.
+
+---
+
 <!-- snapback-guide-source: guide/reference/diagnostics.md -->
 ---
 title: Diagnostic code registry
@@ -20809,7 +21171,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-diagnostics-registry.mjs. Never hand-edit. -->
@@ -21127,7 +21489,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-app-generation-exhausted"></a>`SNAPBACK_APP_GENERATION_EXHAUSTED` | application | — | — | `src/local.rs:162` | 2 |
 | <a id="diagnostic-snapback-app-refusal"></a>`SNAPBACK_APP_REFUSAL` | application | 400 | [guide](../backend/declarative-plans.md#anti-patterns) | `packages/snapback-harness/envelope.mjs:80` | 20 |
 | <a id="diagnostic-snapback-app-session-bearer"></a>`SNAPBACK_APP_SESSION_BEARER` | application | — | — | `packages/snapback-app-cli/auth.mjs:43` | 2 |
-| <a id="diagnostic-snapback-args--"></a>`SNAPBACK_ARGS__` | server | — | — | `src/runtime.rs:4450` | 1 |
+| <a id="diagnostic-snapback-args--"></a>`SNAPBACK_ARGS__` | server | — | — | `src/runtime.rs:4453` | 1 |
 | <a id="diagnostic-snapback-argument-validation-failed"></a>`SNAPBACK_ARGUMENT_VALIDATION_FAILED` | client | — | [guide](../backend/trusted-runtime-values.md#keep-generated-fields-out-of-operation-arguments) | `packages/snapback-client/index.mjs:13529` | 1 |
 | <a id="diagnostic-snapback-arg-missing"></a>`SNAPBACK_ARG_MISSING` | codegen | 400 | — | `packages/snapback-codegen/data-tier-corpus.mjs:555` | 8 |
 | <a id="diagnostic-snapback-artifact-encoding-unexpected"></a>`SNAPBACK_ARTIFACT_ENCODING_UNEXPECTED` | client | — | — | `packages/snapback-client/app-data.mjs:242` | 1 |
@@ -21160,7 +21522,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-asset-grant-forbidden"></a>`SNAPBACK_ASSET_GRANT_FORBIDDEN` | assets | 403 | — | `src/runtime.rs:2155` | 7 |
 | <a id="diagnostic-snapback-asset-grant-input-invalid"></a>`SNAPBACK_ASSET_GRANT_INPUT_INVALID` | assets | 400 | — | `src/runtime.rs:2133` | 3 |
 | <a id="diagnostic-snapback-asset-grant-quota-exceeded"></a>`SNAPBACK_ASSET_GRANT_QUOTA_EXCEEDED` | assets | 429 | — | `src/server/api_error.rs:916` | 4 |
-| <a id="diagnostic-snapback-asset-grant-state-invalid"></a>`SNAPBACK_ASSET_GRANT_STATE_INVALID` | assets | 409 | — | `src/server/api_error.rs:896` | 3 |
+| <a id="diagnostic-snapback-asset-grant-state-invalid"></a>`SNAPBACK_ASSET_GRANT_STATE_INVALID` | assets | 409 | [guide](../recipes/view-once-media.md#2-open-ephemeral-media-exactly-once) | `src/server/api_error.rs:896` | 3 |
 | <a id="diagnostic-snapback-asset-grant-unknown"></a>`SNAPBACK_ASSET_GRANT_UNKNOWN` | assets | 404 | — | `src/server/api_error.rs:841` | 4 |
 | <a id="diagnostic-snapback-asset-host-op-input-invalid"></a>`SNAPBACK_ASSET_HOST_OP_INPUT_INVALID` | assets | — | — | `src/local.rs:8570` | 4 |
 | <a id="diagnostic-snapback-asset-host-op-unknown"></a>`SNAPBACK_ASSET_HOST_OP_UNKNOWN` | assets | — | — | `src/local.rs:8277` | 1 |
@@ -21501,7 +21863,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-transport-insecure"></a>`SNAPBACK_AUTH_TRANSPORT_INSECURE` | auth | — | — | `src/admin.rs:139` | 3 |
 | <a id="diagnostic-snapback-auth-undeclarable-retention"></a>`SNAPBACK_AUTH_UNDECLARABLE_RETENTION` | auth | 400 | [guide](../backend/relational-queries.md#recognize-the-messaging-shape) | `packages/snapback-codegen/define.mjs:2707` | 5 |
 | <a id="diagnostic-snapback-auth-user-missing"></a>`SNAPBACK_AUTH_USER_MISSING` | auth | 400 | [guide](../sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority) | `packages/snapback-contract/derived-overlay.mjs:371` | 4 |
-| <a id="diagnostic-snapback-auth--"></a>`SNAPBACK_AUTH__` | auth | — | — | `src/runtime.rs:4451` | 1 |
+| <a id="diagnostic-snapback-auth--"></a>`SNAPBACK_AUTH__` | auth | — | — | `src/runtime.rs:4454` | 1 |
 | <a id="diagnostic-snapback-backup-id-collision"></a>`SNAPBACK_BACKUP_ID_COLLISION` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2484` | 1 |
 | <a id="diagnostic-snapback-backup-id-invalid"></a>`SNAPBACK_BACKUP_ID_INVALID` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2493` | 1 |
 | <a id="diagnostic-snapback-backup-manifest-invalid"></a>`SNAPBACK_BACKUP_MANIFEST_INVALID` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2497` | 2 |
@@ -21642,7 +22004,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-capability-miniflare-missing"></a>`SNAPBACK_CAPABILITY_MINIFLARE_MISSING` | capabilities | — | — | `src/bin/snapback-conformance-twin.rs:806` | 2 |
 | <a id="diagnostic-snapback-capability-unsupported"></a>`SNAPBACK_CAPABILITY_UNSUPPORTED` | capabilities | — | [guide](../backend/streamed-actions.md#read-the-refusal-codes) | `packages/snapback-codegen/index.mjs:1464` | 24 |
 | <a id="diagnostic-snapback-capability-workerd-missing"></a>`SNAPBACK_CAPABILITY_WORKERD_MISSING` | capabilities | — | — | `src/bin/snapback-conformance-twin.rs:786` | 4 |
-| <a id="diagnostic-snapback-captured-read-invalid"></a>`SNAPBACK_CAPTURED_READ_INVALID` | server | 400 | — | `src/runtime.rs:4758` | 6 |
+| <a id="diagnostic-snapback-captured-read-invalid"></a>`SNAPBACK_CAPTURED_READ_INVALID` | server | 400 | — | `src/runtime.rs:4761` | 6 |
 | <a id="diagnostic-snapback-captured-read-serialize-failed"></a>`SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED` | server | — | — | `src/live_matcher.rs:77` | 4 |
 | <a id="diagnostic-snapback-checkpoint-copy-budget-exceeded"></a>`SNAPBACK_CHECKPOINT_COPY_BUDGET_EXCEEDED` | server | 413 | — | `src/proof_checkpoint.rs:2042` | 3 |
 | <a id="diagnostic-snapback-checkpoint-copy-failed"></a>`SNAPBACK_CHECKPOINT_COPY_FAILED` | server | — | — | `src/proof_checkpoint.rs:2454` | 2 |
@@ -22098,7 +22460,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-ephemeral-unknown-collection"></a>`SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION` | server | 400 | — | `src/ephemeral.rs:1208` | 5 |
 | <a id="diagnostic-snapback-ephemeral-unsubscribe-failed"></a>`SNAPBACK_EPHEMERAL_UNSUBSCRIBE_FAILED` | client | — | — | `packages/snapback-client/index.mjs:8596` | 1 |
 | <a id="diagnostic-snapback-ephemeral-value-too-large"></a>`SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE` | react | 413 | — | `packages/snapback-react/index.mjs:1587` | 3 |
-| <a id="diagnostic-snapback-epoch--"></a>`SNAPBACK_EPOCH__` | server | — | — | `src/runtime.rs:4455` | 1 |
+| <a id="diagnostic-snapback-epoch--"></a>`SNAPBACK_EPOCH__` | server | — | — | `src/runtime.rs:4458` | 1 |
 | <a id="diagnostic-snapback-errors-query-invalid"></a>`SNAPBACK_ERRORS_QUERY_INVALID` | server | 400 | — | `src/errors_query.rs:882` | 3 |
 | <a id="diagnostic-snapback-errors-query-serialization-failed"></a>`SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED` | server | — | — | `src/server.rs:21335` | 4 |
 | <a id="diagnostic-snapback-error-group-state-invalid"></a>`SNAPBACK_ERROR_GROUP_STATE_INVALID` | server | — | — | `src/errors_query.rs:49` | 5 |
@@ -22117,7 +22479,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-expected-string"></a>`SNAPBACK_EXPECTED_STRING` | client | 400 | — | `packages/snapback-client/ir-evaluator.mjs:235` | 4 |
 | <a id="diagnostic-snapback-explain-kind-unimplemented"></a>`SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED` | server | 400 | — | `src/host_ops.rs:203` | 3 |
 | <a id="diagnostic-snapback-explain-kind-unknown"></a>`SNAPBACK_EXPLAIN_KIND_UNKNOWN` | server | 400 | — | `src/host_ops.rs:2462` | 2 |
-| <a id="diagnostic-snapback-export--"></a>`SNAPBACK_EXPORT__` | server | — | — | `src/runtime.rs:4449` | 1 |
+| <a id="diagnostic-snapback-export--"></a>`SNAPBACK_EXPORT__` | server | — | — | `src/runtime.rs:4452` | 1 |
 | <a id="diagnostic-snapback-expo-adb-inventory-failed"></a>`SNAPBACK_EXPO_ADB_INVENTORY_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:307` | 1 |
 | <a id="diagnostic-snapback-expo-adb-reverse-failed"></a>`SNAPBACK_EXPO_ADB_REVERSE_FAILED` | cli | — | [guide](../clients/react-expo.md#choose-simulator-emulator-or-usb-routing) | `packages/snapback-cli/expo-dev.mjs:655` | 3 |
 | <a id="diagnostic-snapback-expo-adb-reverse-remove-failed"></a>`SNAPBACK_EXPO_ADB_REVERSE_REMOVE_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:712` | 2 |
@@ -22293,14 +22655,14 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-handler-host-call-failed"></a>`SNAPBACK_HANDLER_HOST_CALL_FAILED` | harness | — | — | `packages/snapback-harness/workerd/handler-server.mjs:481` | 1 |
 | <a id="diagnostic-snapback-handler-host-call-headers-too-large"></a>`SNAPBACK_HANDLER_HOST_CALL_HEADERS_TOO_LARGE` | server | — | — | `src/workerd_exec.rs:1146` | 1 |
 | <a id="diagnostic-snapback-handler-host-call-invalid"></a>`SNAPBACK_HANDLER_HOST_CALL_INVALID` | server | 400 | — | `src/runtime.rs:1631` | 12 |
-| <a id="diagnostic-snapback-handler-host-call-invalid-json"></a>`SNAPBACK_HANDLER_HOST_CALL_INVALID_JSON` | server | 400 | — | `src/runtime.rs:4320` | 4 |
-| <a id="diagnostic-snapback-handler-host-call-malformed"></a>`SNAPBACK_HANDLER_HOST_CALL_MALFORMED` | server | 400 | — | `src/runtime.rs:4305` | 6 |
-| <a id="diagnostic-snapback-handler-host-call-panic"></a>`SNAPBACK_HANDLER_HOST_CALL_PANIC` | server | — | — | `src/runtime.rs:4358` | 1 |
+| <a id="diagnostic-snapback-handler-host-call-invalid-json"></a>`SNAPBACK_HANDLER_HOST_CALL_INVALID_JSON` | server | 400 | — | `src/runtime.rs:4323` | 4 |
+| <a id="diagnostic-snapback-handler-host-call-malformed"></a>`SNAPBACK_HANDLER_HOST_CALL_MALFORMED` | server | 400 | — | `src/runtime.rs:4308` | 6 |
+| <a id="diagnostic-snapback-handler-host-call-panic"></a>`SNAPBACK_HANDLER_HOST_CALL_PANIC` | server | — | — | `src/runtime.rs:4361` | 1 |
 | <a id="diagnostic-snapback-handler-host-call-serialize-failed"></a>`SNAPBACK_HANDLER_HOST_CALL_SERIALIZE_FAILED` | server | — | — | `src/runtime.rs:1694` | 1 |
 | <a id="diagnostic-snapback-handler-host-call-unauthorized"></a>`SNAPBACK_HANDLER_HOST_CALL_UNAUTHORIZED` | server | — | — | `src/workerd_exec.rs:1142` | 1 |
 | <a id="diagnostic-snapback-handler-host-call-unknown"></a>`SNAPBACK_HANDLER_HOST_CALL_UNKNOWN` | server | 400 | — | `src/runtime.rs:2802` | 2 |
 | <a id="diagnostic-snapback-handler-host-call-without-context"></a>`SNAPBACK_HANDLER_HOST_CALL_WITHOUT_CONTEXT` | server | — | — | `src/runtime.rs:3594` | 2 |
-| <a id="diagnostic-snapback-handler-input-serialize-failed"></a>`SNAPBACK_HANDLER_INPUT_SERIALIZE_FAILED` | server | — | — | `src/runtime.rs:4983` | 1 |
+| <a id="diagnostic-snapback-handler-input-serialize-failed"></a>`SNAPBACK_HANDLER_INPUT_SERIALIZE_FAILED` | server | — | — | `src/runtime.rs:4986` | 1 |
 | <a id="diagnostic-snapback-handler-invocation-epoch-exhausted"></a>`SNAPBACK_HANDLER_INVOCATION_EPOCH_EXHAUSTED` | server | — | — | `src/runtime.rs:1033` | 4 |
 | <a id="diagnostic-snapback-handler-rejection-detection-unavailable"></a>`SNAPBACK_HANDLER_REJECTION_DETECTION_UNAVAILABLE` | server | — | — | `src/runtime.rs:3794` | 1 |
 | <a id="diagnostic-snapback-handler-rejection-inspection-invalid"></a>`SNAPBACK_HANDLER_REJECTION_INSPECTION_INVALID` | server | — | — | `src/runtime.rs:3812` | 1 |
@@ -22419,10 +22781,10 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-host-stop-unverifiable"></a>`SNAPBACK_HOST_STOP_UNVERIFIABLE` | server | — | — | `src/cli.rs:6626` | 2 |
 | <a id="diagnostic-snapback-host-token"></a>`SNAPBACK_HOST_TOKEN` | harness | — | — | `packages/snapback-harness/workerd/handler-server.mjs:440` | 4 |
 | <a id="diagnostic-snapback-http-error"></a>`SNAPBACK_HTTP_ERROR` | admin-client | — | — | `packages/snapback-admin-client/index.mjs:254` | 2 |
-| <a id="diagnostic-snapback-ibex"></a>`SNAPBACK_IBEX` | runtime | — | — | `src/runtime.rs:5002` | 1 |
+| <a id="diagnostic-snapback-ibex"></a>`SNAPBACK_IBEX` | runtime | — | — | `src/runtime.rs:5005` | 1 |
 | <a id="diagnostic-snapback-ibex-cli-unavailable"></a>`SNAPBACK_IBEX_CLI_UNAVAILABLE` | runtime | — | — | `src/local/auth_room_kick_acceptance.rs:114` | 4 |
 | <a id="diagnostic-snapback-ibex-functions-loaded"></a>`SNAPBACK_IBEX_FUNCTIONS_LOADED` | runtime | — | — | `src/local.rs:5210` | 4 |
-| <a id="diagnostic-snapback-ibex-global-deny-incomplete"></a>`SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE` | runtime | — | — | `src/runtime.rs:4673` | 1 |
+| <a id="diagnostic-snapback-ibex-global-deny-incomplete"></a>`SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE` | runtime | — | — | `src/runtime.rs:4676` | 1 |
 | <a id="diagnostic-snapback-ibex-host-unsupported"></a>`SNAPBACK_IBEX_HOST_UNSUPPORTED` | runtime | — | [guide](../getting-started/the-authoring-loop.md#the-authoring-loop) | `packages/snapback-cli/index.mjs:254` | 4 |
 | <a id="diagnostic-snapback-ibex-runtime-load-failed"></a>`SNAPBACK_IBEX_RUNTIME_LOAD_FAILED` | runtime | — | [guide](../operating/diagnostics.md#diagnose-the-vendored-ibex-runtime-first) | `packages/snapback-cli/index.mjs:433` | 2 |
 | <a id="diagnostic-snapback-ibex-runtime-receipt-invalid"></a>`SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID` | runtime | — | [guide](../operating/diagnostics.md#diagnose-the-vendored-ibex-runtime-first) | `packages/snapback-cli/runtime-readiness.mjs:21` | 3 |
@@ -22660,7 +23022,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-membership-provenance-field-reserved"></a>`SNAPBACK_MEMBERSHIP_PROVENANCE_FIELD_RESERVED` | server | 400 | — | `src/server/api_error.rs:1122` | 2 |
 | <a id="diagnostic-snapback-membership-provenance-row-invalid"></a>`SNAPBACK_MEMBERSHIP_PROVENANCE_ROW_INVALID` | server | — | — | `src/storage.rs:12978` | 1 |
 | <a id="diagnostic-snapback-membership-provenance-unavailable"></a>`SNAPBACK_MEMBERSHIP_PROVENANCE_UNAVAILABLE` | server | — | — | `src/storage.rs:12932` | 1 |
-| <a id="diagnostic-snapback-membership-raw-write-denied"></a>`SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED` | server | 403 | [guide](../auth/scoped-roles.md#change-membership-through-generated-methods) | `src/runtime.rs:6592` | 3 |
+| <a id="diagnostic-snapback-membership-raw-write-denied"></a>`SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED` | server | 403 | [guide](../auth/scoped-roles.md#change-membership-through-generated-methods) | `src/runtime.rs:6595` | 3 |
 | <a id="diagnostic-snapback-membership-read-private"></a>`SNAPBACK_MEMBERSHIP_READ_PRIVATE` | server | 403 | — | `src/data_patch.rs:531` | 5 |
 | <a id="diagnostic-snapback-membership-reserved-role"></a>`SNAPBACK_MEMBERSHIP_RESERVED_ROLE` | server | 400 | — | `src/server/api_error.rs:1123` | 2 |
 | <a id="diagnostic-snapback-membership-resource-axis-required"></a>`SNAPBACK_MEMBERSHIP_RESOURCE_AXIS_REQUIRED` | server | 400 | — | `src/server/api_error.rs:1124` | 2 |
@@ -22735,7 +23097,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-migration-target-mismatch"></a>`SNAPBACK_MIGRATION_TARGET_MISMATCH` | migrations | 400 | [guide](../backend/migrations.md#handle-migration-refusals) | `src/server/api_error.rs:1225` | 3 |
 | <a id="diagnostic-snapback-migration-upgrade-required"></a>`SNAPBACK_MIGRATION_UPGRADE_REQUIRED` | migrations | 409 | [guide](../backend/migrations.md#handle-migration-refusals) | `packages/snapback-client/index.mjs:177` | 5 |
 | <a id="diagnostic-snapback-migration-verification-failed"></a>`SNAPBACK_MIGRATION_VERIFICATION_FAILED` | migrations | 409 | [guide](../backend/migrations.md#handle-migration-refusals) | `src/server/api_error.rs:498` | 6 |
-| <a id="diagnostic-snapback-mode--"></a>`SNAPBACK_MODE__` | server | — | — | `src/runtime.rs:4452` | 1 |
+| <a id="diagnostic-snapback-mode--"></a>`SNAPBACK_MODE__` | server | — | — | `src/runtime.rs:4455` | 1 |
 | <a id="diagnostic-snapback-mutation-conflict"></a>`SNAPBACK_MUTATION_CONFLICT` | server | 409 | [guide](../backend/mutations.md#anti-patterns) | `src/bench.rs:1381` | 14 |
 | <a id="diagnostic-snapback-mutation-refused"></a>`SNAPBACK_MUTATION_REFUSED` | client | — | — | `packages/snapback-client/index.mjs:7872` | 1 |
 | <a id="diagnostic-snapback-mutation-settlement-unavailable"></a>`SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE` | harness | 400 | [guide](../backend/actions-and-fetch.md#keep-network-io-outside-the-transaction) | `packages/snapback-harness/envelope.mjs:29` | 6 |
@@ -23353,7 +23715,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-runtime-package-missing"></a>`SNAPBACK_RUNTIME_PACKAGE_MISSING` | runtime | — | — | `packages/snapback-cli/index.mjs:264` | 1 |
 | <a id="diagnostic-snapback-runtime-package-qualification-failed"></a>`SNAPBACK_RUNTIME_PACKAGE_QUALIFICATION_FAILED` | runtime | — | — | `packages/snapback-cli/runtime-readiness.mjs:47` | 3 |
 | <a id="diagnostic-snapback-runtime-source-binary"></a>`SNAPBACK_RUNTIME_SOURCE_BINARY` | runtime | — | — | `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs:20` | 1 |
-| <a id="diagnostic-snapback-run--"></a>`SNAPBACK_RUN__` | server | — | — | `src/runtime.rs:4453` | 1 |
+| <a id="diagnostic-snapback-run--"></a>`SNAPBACK_RUN__` | server | — | — | `src/runtime.rs:4456` | 1 |
 | <a id="diagnostic-snapback-s3-test-"></a>`SNAPBACK_S3_TEST_` | server | — | — | `src/assets_s3.rs:836` | 1 |
 | <a id="diagnostic-snapback-s3-test-access-key-id"></a>`SNAPBACK_S3_TEST_ACCESS_KEY_ID` | server | — | — | `src/assets_s3.rs:1573` | 1 |
 | <a id="diagnostic-snapback-s3-test-bucket"></a>`SNAPBACK_S3_TEST_BUCKET` | server | — | — | `src/assets_s3.rs:1570` | 1 |
@@ -23393,7 +23755,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-search-request-schema-mismatch"></a>`SNAPBACK_SEARCH_REQUEST_SCHEMA_MISMATCH` | codegen | — | — | `packages/snapback-codegen/index.mjs:3038` | 1 |
 | <a id="diagnostic-snapback-search-source-limit"></a>`SNAPBACK_SEARCH_SOURCE_LIMIT` | server | 400 | — | `src/search/sqlite.rs:302` | 4 |
 | <a id="diagnostic-snapback-search-work-limit"></a>`SNAPBACK_SEARCH_WORK_LIMIT` | server | 400 | [guide](../backend/text-search.md#handle-bounded-refusals) | `src/search/sqlite.rs:1542` | 4 |
-| <a id="diagnostic-snapback-secrets--"></a>`SNAPBACK_SECRETS__` | server | — | — | `src/runtime.rs:4454` | 1 |
+| <a id="diagnostic-snapback-secrets--"></a>`SNAPBACK_SECRETS__` | server | — | — | `src/runtime.rs:4457` | 1 |
 | <a id="diagnostic-snapback-seed-asset-fixtures-invalid"></a>`SNAPBACK_SEED_ASSET_FIXTURES_INVALID` | seeds | — | — | `packages/snapback-codegen/index.mjs:4079` | 12 |
 | <a id="diagnostic-snapback-seed-asset-fixture-not-ingested"></a>`SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED` | seeds | 409 | — | `src/assets.rs:4167` | 3 |
 | <a id="diagnostic-snapback-seed-asset-fixture-placement-invalid"></a>`SNAPBACK_SEED_ASSET_FIXTURE_PLACEMENT_INVALID` | seeds | 400 | — | `packages/snapback-codegen/index.mjs:4440` | 3 |
@@ -23772,7 +24134,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -23780,7 +24142,7 @@ reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
 # Generated API reference
 
 One build-bound projection of 914 public symbols (374 runtime values and 540 explicit type-only symbols).
-Registry identity: `sha256:1b855071690673bc7c71c0a7971248842305442c2eb371722d24b88a2e504a5e`; source commit: `5204f4e92b444891862034026657f9f52dd2d151`.
+Registry identity: `sha256:1b855071690673bc7c71c0a7971248842305442c2eb371722d24b88a2e504a5e`; source commit: `b5a07f1390e67b016e79fda23957bab70c5c9b00`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -23847,7 +24209,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -32549,7 +32911,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33074,7 +33436,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33308,7 +33670,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33951,7 +34313,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34058,7 +34420,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34513,7 +34875,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34652,7 +35014,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35014,7 +35376,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35105,7 +35467,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35474,7 +35836,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35624,7 +35986,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36127,7 +36489,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36628,7 +36990,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36862,7 +37224,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37225,7 +37587,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37339,7 +37701,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37937,7 +38299,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38242,7 +38604,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38689,7 +39051,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38815,7 +39177,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38987,7 +39349,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39392,7 +39754,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39859,7 +40221,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40116,7 +40478,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40506,7 +40868,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41126,7 +41488,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41274,7 +41636,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41482,7 +41844,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41675,7 +42037,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41928,7 +42290,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42513,7 +42875,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44385,7 +44747,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44498,7 +44860,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47155,7 +47517,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47437,7 +47799,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47561,7 +47923,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47716,7 +48078,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47840,7 +48202,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -48010,7 +48372,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -48386,7 +48748,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5204f4e92b444891862034026657f9f52dd2d151
+reviewed-commit: b5a07f1390e67b016e79fda23957bab70c5c9b00
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
