@@ -54,12 +54,17 @@ const LEO = 'user_leo';
 const MIA = 'user_mia';
 const NIA = 'user_nia';
 const OMAR = 'user_omar';
+// Slice 6. Grace is the fully-entitled buyer (holds pro AND plus), so a
+// consumable purchase by her is the sharpest form of "this granted nothing":
+// her entitlement set is non-empty before and identical after. Pat is a fresh
+// buyer whose subscription proves the feed still ticks.
+const PAT = 'user_pat';
 
 const STORE_KEY = 'fake-store-key-slice-2';
 const WRONG_STORE_KEY = 'not-the-store-key';
 const WEBHOOK_SECRET = 'developer-shared-secret-slice-5';
 
-const suite = createSuite('eas-payments / headless', { expectedChecks: 36 });
+const suite = createSuite('eas-payments / headless', { expectedChecks: 41 });
 const cleanups = [];
 let server = null;
 let db = null;
@@ -132,6 +137,11 @@ const pollChanges = async (sinceSeq) => {
 const changeCursor = async () => {
   const rows = await pollChanges(0);
   return rows.length === 0 ? 0 : rows[rows.length - 1].seq;
+};
+// The purchase audit (slice 6). Auth-scoped, so this is that user's own rows.
+const purchases = async (userId) => {
+  const { rows } = await db.query(api.listPurchases, { userId });
+  return rows;
 };
 
 // Per-job cron facts live on the AdminRead projection, not the public
@@ -228,12 +238,16 @@ await runAcceptance(suite, async () => {
     const products = await db.query(api.listProducts, {});
     assertEqual(
       products.rows.map((r) => r.productId),
-      ['plus_monthly', 'pro_annual', 'pro_monthly'],
+      ['coins_100', 'plus_monthly', 'pro_annual', 'pro_monthly'],
       'seeded products',
     );
     const proMonthly = products.rows.find((r) => r.productId === 'pro_monthly');
     assertEqual(proMonthly.kind, 'subscription', 'product kind');
     assertEqual(proMonthly.appleId, 'com.example.app.pro.monthly', 'per-platform apple id');
+    // The consumable is catalogued like anything else; what makes it a
+    // consumable is the productEntitlements row it deliberately does NOT have.
+    const coins = products.rows.find((r) => r.productId === 'coins_100');
+    assertEqual(coins.kind, 'consumable', 'consumable product kind');
     return { products: products.rows.length };
   });
 
@@ -844,6 +858,150 @@ await runAcceptance(suite, async () => {
     assertEqual(seqs[0], 1, 'the feed starts at 1');
     assertEqual(seqs[seqs.length - 1], seqs.length, 'dense: every seq accounted for');
     return { changes: seqs.length };
+  });
+
+  // --- Slice 6: consumables -----------------------------------------------------
+  //
+  // Everything above sells subscriptions, where a purchase moves an entitlement.
+  // A consumable is the opposite case: `coins_100` has no productEntitlements
+  // row, so deriveGrant finds nothing to justify and the purchase writes a
+  // transaction and stops there. The silence that follows — no grant, no feed
+  // row, no ping — is the property, not an omission.
+  //
+  // Fixture artifact: the fake store stamps every new receipt with
+  // `expiresAt = now + 30d`, so these consumable transactions carry an expiry a
+  // real coin pack would not have. It is inert here — nothing derives a grant
+  // from them, so nothing can expire.
+
+  await suite.check('a consumable purchase records a transaction and grants nothing', async () => {
+    // Grace already holds pro AND plus, so "granted nothing" is a claim about
+    // an unchanged non-empty set, not about a user who never had anything.
+    const before = await activeEntitlementIds(GRACE);
+    assertEqual(before, ['plus', 'pro'], 'grace is fully entitled before buying coins');
+    const purchasesBefore = await purchases(GRACE);
+
+    const res = await validate({
+      productId: 'coins_100',
+      store: 'apple',
+      receipt: 'receipt_grace_coins_1',
+      environment: 'sandbox',
+    }, GRACE);
+    assert(res.ok, `validateReceipt failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.status, 'active', 'the store sold the coins');
+    assertEqual(res.result.deduped, false, 'a first consumable buy is not a dedupe');
+
+    // The transaction is real...
+    const after = await purchases(GRACE);
+    assertEqual(after.length, purchasesBefore.length + 1, 'exactly one new transaction');
+    const coins = after.filter((row) => row.productId === 'coins_100');
+    assertEqual(coins.length, 1, 'the coin purchase is in the audit');
+    assertEqual(coins[0].storeTxnId, 'apple:receipt_grace_coins_1', 'recorded under the store id');
+    // ...and it granted nothing.
+    assertEqual(await activeEntitlementIds(GRACE), before, 'entitlements are untouched');
+    return { purchases: after.length };
+  });
+
+  await suite.check('a consumable purchase appends nothing to the change feed', async () => {
+    // No entitlement moved, so there is nothing for a developer to re-read.
+    // A feed row here would be a false wake-up on every coin pack sold.
+    const cursor = await changeCursor();
+    const res = await validate({
+      productId: 'coins_100',
+      store: 'apple',
+      receipt: 'receipt_grace_coins_2',
+      environment: 'sandbox',
+    }, GRACE);
+    assert(res.ok, `validateReceipt failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(await pollChanges(cursor), [], 'the consumable buy is silent on the feed');
+    // The outbound ping is scheduled inside appendChange, so an empty page here
+    // is also the proof that no delivery was enqueued — there is one append
+    // site, and it was never reached. (Asserting on the delivery ledger instead
+    // would race the expiry sweep's still-queued jobs from the cron check.)
+    assertEqual(res.result.deduped, false, 'and it really was a new purchase, not a no-op');
+  });
+
+  await suite.check('consumables are repeatable: two buys are two transactions', async () => {
+    // Re-purchase is normal for a consumable, so the dedupe that protects a
+    // re-delivered subscription must not collapse two genuine coin packs into
+    // one. Distinct receipts mean distinct storeTxnIds, which is the whole
+    // mechanism — dedupe is keyed on the store's identity, not the product.
+    const before = (await purchases(GRACE)).filter((row) => row.productId === 'coins_100');
+    assertEqual(before.length, 2, 'two coin packs bought so far');
+
+    const third = await validate({
+      productId: 'coins_100',
+      store: 'apple',
+      receipt: 'receipt_grace_coins_3',
+      environment: 'sandbox',
+    }, GRACE);
+    assert(third.ok, `validateReceipt failed: ${JSON.stringify(third.diagnostic)}`);
+    assertEqual(third.result.deduped, false, 'a distinct receipt is a distinct purchase');
+
+    const after = (await purchases(GRACE)).filter((row) => row.productId === 'coins_100');
+    assertEqual(after.length, 3, 'three coin packs recorded');
+    assertEqual(new Set(after.map((row) => row.storeTxnId)).size, 3, 'three distinct store ids');
+
+    // Dedupe still protects a RE-DELIVERED consumable: same receipt, no new row.
+    const replay = await validate({
+      productId: 'coins_100',
+      store: 'apple',
+      receipt: 'receipt_grace_coins_3',
+      environment: 'sandbox',
+    }, GRACE);
+    assertEqual(replay.result.deduped, true, 'the same receipt twice is still one purchase');
+    assertEqual(
+      (await purchases(GRACE)).filter((row) => row.productId === 'coins_100').length,
+      3,
+      'a replay adds no fourth row',
+    );
+    return { coinPacks: after.length };
+  });
+
+  await suite.check('listPurchases is a user-scoped audit of store facts only', async () => {
+    const rows = await purchases(GRACE);
+    assert(rows.length > 0, 'grace has purchases, so this check is not vacuous');
+    // The projection is the contract: store facts, nothing derived. An
+    // entitlement field here would be a second answer to a question
+    // getEntitlements already owns.
+    for (const row of rows) {
+      assertEqual(
+        Object.keys(row).sort(),
+        ['createdAt', 'environment', 'productId', 'status', 'store', 'storeTxnId'],
+        'purchase row shape',
+      );
+      assert(row.createdAt > 0, 'the server stamped the row');
+    }
+    // Both halves of her history are here: subscriptions and consumables.
+    const products = new Set(rows.map((row) => row.productId));
+    assert(products.has('coins_100'), 'the consumable buys are in the audit');
+    assert(products.has('pro_monthly') || products.has('plus_monthly'), 'so are the subscriptions');
+
+    // Scoped to the caller: Ada's purchases are not in Grace's audit.
+    const adaRows = await purchases(ADA);
+    assert(adaRows.length > 0, 'ada has purchases of her own');
+    const graceTxnIds = new Set(rows.map((row) => row.storeTxnId));
+    for (const row of adaRows) {
+      assert(!graceTxnIds.has(row.storeTxnId), `ada's ${row.storeTxnId} leaked into grace's audit`);
+    }
+    return { rows: rows.length, adaRows: adaRows.length };
+  });
+
+  await suite.check('a subscription still ticks the feed after the consumable path', async () => {
+    // The guard on the two checks above: they prove silence, and silence is
+    // only meaningful if the feed still speaks when an entitlement really moves.
+    const cursor = await changeCursor();
+    const res = await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_pat_pro',
+      environment: 'sandbox',
+    }, PAT);
+    assert(res.ok, `validateReceipt failed: ${JSON.stringify(res.diagnostic)}`);
+    const page = await pollChanges(cursor);
+    assertEqual(page.length, 1, 'exactly one change for the subscription');
+    assertEqual(page[0].userId, PAT, 'named the buyer');
+    assertEqual(await activeEntitlementIds(PAT), ['pro'], 'and pat really holds pro');
+    return { seq: page[0].seq };
   });
 
   await suite.check('an ordinary query is honestly reported as NOT live', async () => {

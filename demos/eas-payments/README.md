@@ -93,6 +93,43 @@ a grant goes away, and they are independent:
 A grant with no `activeUntil` (a non-consumable) is perpetual and is never
 swept.
 
+## Consumables (slice 6)
+
+`coins_100` is the case where re-purchase is normal, and it exercises the
+derivation rule from the other side. The product is catalogued like any other,
+but it has **no `productEntitlements` row** — so `deriveGrant` finds nothing to
+justify, `applyProductEntitlements` recomputes nothing, and the purchase writes
+a `transactions` row and stops.
+
+Three consequences follow from that one absence, and the acceptance asserts each:
+
+- **It grants no entitlement.** `getEntitlements` is unchanged across a
+  consumable buy, including for a user who already holds `pro` and `plus`.
+- **It appends nothing to the change feed.** `appendChange` is reached only when
+  a grant actually moves, so a consumable is silent — and because the outbound
+  ping is enqueued inside `appendChange`, it schedules no delivery either. A
+  feed row here would be a false wake-up on every coin pack sold.
+- **It is repeatable.** Each buy carries a distinct receipt, so a distinct
+  `storeTxnId`, so a distinct row. Dedupe is keyed on the store's identity, not
+  on the product, which is exactly why it still collapses a *re-delivered*
+  consumable while admitting a genuine second purchase.
+
+`listPurchases` is the read that exposes them: a user-scoped, projected audit of
+store facts (`{ productId, store, storeTxnId, status, environment, createdAt }`)
+with nothing derived in it. That split is deliberate — `getEntitlements` answers
+"may this user do the thing", `listPurchases` answers "what did the store sell
+them", and a consumable only ever appears in the second.
+
+**We keep an audit, not a wallet.** Nothing here holds a balance. The demo
+client counts `coins_100` rows and multiplies by 100; a real developer credits
+coins on their own side. Holding the number ourselves would make us the
+authority on a value no store could ever reconcile us against.
+
+Fixture artifact: the fake store stamps every new receipt with
+`expiresAt = now + 30d`, so these consumable transactions carry an expiry a real
+coin pack would not have. It is inert — nothing derives a grant from them, so
+nothing can expire.
+
 ## The outbound change feed
 
 The mirror image of the notification rule. Just as we refuse to trust a store's

@@ -95,6 +95,47 @@ export const listProducts = defineQuery({
   index: 'by_product',
 });
 
+// The purchase audit (slice 6). A consumable grants no entitlement, so
+// `getEntitlements` can never show that one was bought — the transaction row is
+// the only record, and this is the read that exposes it.
+//
+// Deliberately an audit and not a wallet: we hand back what the store told us
+// happened, and the developer credits coins on their side. Holding a balance
+// would make us the authority on a number no store could reconcile us against.
+//
+// Projected rather than `results.documents`, so the shape is a contract: this
+// read returns store facts, never anything derived from them.
+export const listPurchases = defineJsQuery({
+  args: {},
+  reads: ['transactions'],
+  authScopeField: 'userId',
+  result: results.records(v.object({
+    productId: v.string(),
+    store: v.string(),
+    storeTxnId: v.string(),
+    status: v.string(),
+    environment: v.string(),
+    createdAt: v.integer(),
+  })),
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query('transactions')
+      .withIndex('by_user')
+      .eq('userId', ctx.auth.userId)
+      .order('_createdAt', 'asc')
+      .collect();
+    return rows.map((row) => ({
+      productId: row.productId,
+      store: row.store,
+      storeTxnId: row.storeTxnId,
+      status: row.status,
+      environment: row.environment,
+      // The server owns the timestamp; the handler never mints one.
+      createdAt: row._createdAt,
+    }));
+  },
+});
+
 // --- Derivation ---------------------------------------------------------------
 
 // "Entitlements are derived from transactions" is only true if there is one

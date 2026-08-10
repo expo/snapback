@@ -27,6 +27,15 @@
         "appleId": "com.example.app.plus.monthly",
         "googleId": "plus_monthly",
         "stripePriceId": "price_plus_monthly"
+      },
+      {
+        "_id": "seed_product_coins_100",
+        "productId": "coins_100",
+        "title": "100 Coins",
+        "kind": "consumable",
+        "appleId": "com.example.app.coins.100",
+        "googleId": "coins_100",
+        "stripePriceId": "price_coins_100"
       }
     ],
     "entitlements": [

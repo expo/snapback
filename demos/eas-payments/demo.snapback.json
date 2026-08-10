@@ -36,7 +36,7 @@
     "profile": "deterministic",
     "file": "snapback/seed.json",
     "rows": {
-      "products": 3,
+      "products": 4,
       "entitlements": 2,
       "productEntitlements": 3
     },
@@ -53,7 +53,8 @@
       "user_leo",
       "user_mia",
       "user_nia",
-      "user_omar"
+      "user_omar",
+      "user_pat"
     ]
   },
   "surfaces": {
@@ -101,6 +102,11 @@
       "a grant past activeUntil flips off on a scheduler tick",
       "the expiry sweep participates in the feed, one seq per user",
       "the feed is monotonic and dense across every writer",
+      "a consumable purchase records a transaction and grants nothing",
+      "a consumable purchase appends nothing to the change feed",
+      "consumables are repeatable: two buys are two transactions",
+      "listPurchases is a user-scoped audit of store facts only",
+      "a subscription still ticks the feed after the consumable path",
       "an ordinary query is honestly reported as NOT live"
     ]
   },
@@ -115,12 +121,12 @@
     "metering"
   ],
   "notClaiming": [
-    "real store validation — validateReceipt and applyStoreState perform real outbound fetches, but against a fake local store fixture, not Apple/Google/Stripe, and with no signature or JWS verification",
-    "production auth — the slice runs in dev auth mode; sessions mode is out of scope",
-    "system-authority fencing for the reconcile path — reconcileTransaction takes userId as an argument because a store notification carries no session, and dev auth cannot restrict it to system authority",
-    "webhook body signing — the ping authenticates the sender with a shared-secret bearer but does not bind the payload; the handler surface exposes no digest primitive to build an HMAC with",
-    "SSRF fencing — webhook endpoint registration checks only the http/https scheme, not loopback or link-local targets",
-    "concurrency-safe change-feed sequencing — seq is minted read-max-plus-one inside the mutation; ctx.sequence.allocate exists but permits one allocation per mutation, and the expiry sweep appends a row per user in one commit",
-    "metering or billing — transactions carry an environment tag so sandbox rows can be excluded later, and nothing consumes it yet"
+    "real store validation \u2014 validateReceipt and applyStoreState perform real outbound fetches, but against a fake local store fixture, not Apple/Google/Stripe, and with no signature or JWS verification",
+    "production auth \u2014 the slice runs in dev auth mode; sessions mode is out of scope",
+    "system-authority fencing for the reconcile path \u2014 reconcileTransaction takes userId as an argument because a store notification carries no session, and dev auth cannot restrict it to system authority",
+    "webhook body signing \u2014 the ping authenticates the sender with a shared-secret bearer but does not bind the payload; the handler surface exposes no digest primitive to build an HMAC with",
+    "SSRF fencing \u2014 webhook endpoint registration checks only the http/https scheme, not loopback or link-local targets",
+    "concurrency-safe change-feed sequencing \u2014 seq is minted read-max-plus-one inside the mutation; ctx.sequence.allocate exists but permits one allocation per mutation, and the expiry sweep appends a row per user in one commit",
+    "metering or billing \u2014 transactions carry an environment tag so sandbox rows can be excluded later, and nothing consumes it yet"
   ]
 }
