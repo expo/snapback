@@ -14,3 +14,13 @@ new modules assigned and one reviewed frozen edge; guide/check-inventories/
 ref-check/diary-identity/contract-meta PASS; deployment-identity
 regenerated; full targeted Rust + JS suites and clippy all-targets green).
 The scheduled backstop continues to dedupe against this open ticket.
+
+## Precedent #4 — 2026-08-10 (acceptance + reconciliation landing)
+
+The 0225/0226 acceptances and the 0214/0227 reconciliation regenerate
+`packages/snapback-client/diagnostic-codes.d.mts` (diagnostics registry
+grew from concurrent fleet landings), staling the retained receipts in the
+same blocked class. Same posture as precedents #1–#3: guide/ref-check/
+inventory checks green manually; module-ownership's one live red is
+tracked (`issues/20260810-main-module-ownership-red-rehearsal-edges.md`);
+pushed with the documented loud bypass; the backstop dedupes here.
