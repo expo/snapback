@@ -5,7 +5,11 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-09, third same-day entry (LLP 0210 D5(b) recipient
+**Revised:** 2026-08-10 (local finalize choreography amendment: Phase B's
+idempotent canonical object put now runs outside the global Local writer,
+between a lock-held `planned` commit and a separately lock-held
+`staged`/publication commit; crash cuts and maintenance convergence remain
+unchanged). Prior: 2026-08-09, third same-day entry (LLP 0210 D5(b) recipient
 grants implemented on the local target, including the four recorded
 pipeline obligations: invalidation, consistent-cut system-record
 custody, active-only reference-GC protection, and the 1,024-edge
@@ -734,14 +738,15 @@ finalizer, but “verify where available” is not a correctness contract.
 
 #### Local finalize lock choreography (implemented 2026-08-09)
 
-The local HTTP finalize route is a three-part choreography over the same
-lifecycle and publication kernels. A first `with_snapback` call performs the
-existing idempotency/current-attempt checks, loads the frozen intent artifact,
-checks generation revocation, and returns either the already-complete response
-or an immutable prepare ticket. The ticket carries the attempt and lifecycle
-generation fence, frozen intent and callback policy, schema/quota/capability
-facts, and a config-derived clone-shared byte-store handle; it carries no
-`LocalSnapback` or database borrow.
+The local HTTP finalize route is a five-stage choreography over three global
+writer windows and the same lifecycle and publication kernels. A first
+`with_snapback` call performs the existing idempotency/current-attempt checks,
+loads the frozen intent artifact, checks generation revocation, and returns
+either the already-complete response or an immutable prepare ticket. The
+ticket carries the attempt and lifecycle generation fence, frozen intent and
+callback policy, schema/quota/capability facts, and a config-derived
+clone-shared byte-store handle; it carries no `LocalSnapback` or database
+borrow.
 
 The route then releases the global Local writer and runs the repeatable prepare
 on the blocking pool. Staging hash/read, trusted detection, canonical rewrite,
@@ -751,23 +756,42 @@ only write is the repeatable canonical rewrite under restricted staging
 custody, and required-variant outputs remain uncommitted bytes in the
 preparation result.
 
-A second `with_snapback` call commits. Before Phase A it rechecks the admitted
-intent generation's revocation bit and reloads the attempt through the same
-authority/lifecycle/current-state gates. A revocation that lands while prepare
-runs therefore refuses fail-closed with `SNAPBACK_ASSET_INTENT_REVOKED`, before
-any publication record is planned; this is the deliberate behavioral delta
-from the former single-lock hold, which made that interleaving impossible. Two
-finalizers may both preflight and prepare, but their commits serialize: the
-first publishes and the second observes the existing complete attempt and
-returns the ordinary idempotent completion outcome without another completion
-receipt.
+A second `with_snapback` call executes Phase A. It rechecks the admitted intent
+generation's revocation bit and reloads the attempt through the same
+authority/lifecycle/current-state gates before committing `planned`. A
+revocation that lands while prepare runs therefore refuses fail-closed with
+`SNAPBACK_ASSET_INTENT_REVOKED`, before any publication record is planned; this
+is the deliberate behavioral delta from the former single-lock hold, which
+made that interleaving impossible.
+
+**Dated amendment (2026-08-10).** After Phase A commits, the route releases the
+writer again and performs Phase B's idempotent canonical object put plus
+digest/length verification on the blocking pool. A third `with_snapback` call
+then reloads the attempt before Phase C, commits `staged` only after the put was
+acknowledged, and runs Phase D publication. Two prepared finalizers can both
+serialize through Phase A while the first put is in flight: the first creates
+`planned`, the other receives its exact key, and both puts are idempotent to
+that key. Whichever reaches Phase C first publishes; the other reloads the
+complete attempt and returns the ordinary idempotent completion outcome, with
+no second completion receipt.
 
 Crash cuts remain unchanged. Phase A still commits `planned` before Phase B's
 object put; Phase C still commits `staged` before Phase D publishes the blob,
-renditions, and asset readiness. Phase B deliberately remains under the global
-writer in this slice. The retained in-process `asset_attempt_finalize` runs
-preflight → prepare → commit inline for callers already inside an outer Local
-guard, including seed-fixture ingestion.
+renditions, and asset readiness. A crash after Phase A and before the put leaves
+a re-drivable `planned` record without an object; a crash after the acknowledged
+put and before Phase C leaves `planned` plus a verified object for recovery to
+stage. The retained in-process `asset_attempt_finalize` composes the same phases
+inline for callers already inside an outer Local guard, including seed-fixture
+ingestion.
+
+No maintenance grace changes accompany the longer unlocked window.
+`publication_maintain` does not condemn an objectless or not-yet-verifying
+`planned` record while its attempt remains current; once the object verifies it
+may safely advance the record to `staged`, which Phase C accepts. The separate
+pending-asset grace also excludes assets with a live `finalizing` attempt. The
+six-hour attempt expiry remains the intentional overall transfer/finalize
+bound: if a put outlives it and the GC sweep expires the attempt, Phase C keeps
+the existing terminal refusal and publication maintenance condemns the orphan.
 
 Deterministic prepare refusals (byte/policy refusals and required-variant
 render refusals over trusted canonical bytes) do not error out of the route:

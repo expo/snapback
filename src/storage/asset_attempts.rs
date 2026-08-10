@@ -653,7 +653,19 @@ impl LocalDatabase {
                 )?;
             }
             match assets::open_publication_for_attempt(tx, attempt_id)? {
-                Some(existing) if existing.digest == digest => Ok(existing),
+                Some(existing) if existing.digest == digest => {
+                    // Phase B runs without the global Local writer, so two
+                    // prepared finalizers can serialize through this Phase A
+                    // transaction while the first racer's put is still in
+                    // flight. The first creates `planned`; the loser must get
+                    // that exact record/key and perform the same idempotent
+                    // put. Phase-A victory is not a publication lease: either
+                    // racer may reach Phase C first. Exactly one publishes;
+                    // Phase C's attempt reload gives the other the same
+                    // ordinary idempotent completion as the old serialized
+                    // choreography, never a new key or contention error.
+                    Ok(existing)
+                }
                 Some(mut divergent) => {
                     // A re-drive can only carry the same staged bytes; a
                     // divergent digest means the record belongs to bytes that

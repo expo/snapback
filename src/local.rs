@@ -2659,7 +2659,8 @@ pub struct LocalSnapback {
 }
 
 pub(crate) use crate::assets::{
-    FinalizePreflightV1, FinalizePreparationV1, FinalizePrepareTicketV1,
+    FinalizeCommitTicketV1, FinalizePhaseAOutcomeV1, FinalizePreflightV1, FinalizePreparationV1,
+    FinalizePrepareTicketV1, FinalizePutTicketV1,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -9123,16 +9124,25 @@ impl LocalSnapback {
         }))
     }
 
-    /// Lock-held commit half. Revocation is rechecked before any Phase A
-    /// durable state so a generation revoked while prepare ran fails closed.
-    pub(crate) fn asset_attempt_finalize_commit(
+    /// Lock-held Phase A. Revocation and lifecycle state are rechecked before
+    /// the durable `planned` record commits.
+    pub(crate) fn asset_attempt_finalize_plan(
         &mut self,
         authority: &PreparedAuthority,
         ticket: FinalizePrepareTicketV1,
         preparation: FinalizePreparationV1,
+    ) -> SnapbackResult<FinalizePhaseAOutcomeV1> {
+        self.asset_attempt_finalize_plan_inner(authority, ticket, preparation, None)
+    }
+
+    /// Lock-held Phase C/D. The attempt is reloaded before `staged` so a
+    /// concurrent completion retains the ordinary idempotent retry outcome.
+    pub(crate) fn asset_attempt_finalize_complete(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: FinalizeCommitTicketV1,
     ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
-        let response =
-            self.asset_attempt_finalize_commit_inner(authority, ticket, preparation, None)?;
+        let response = self.asset_attempt_finalize_complete_inner(authority, ticket, None)?;
         self.notify_asset_record_change(std::slice::from_ref(&response.task.asset_id));
         Ok(response)
     }
@@ -9217,13 +9227,9 @@ impl LocalSnapback {
         // repeatable from restricted staging.
         //
         // @ref LLP 0044#local-finalize-lock-choreography-implemented-2026-08-09 —
-        //   the route releases Local across this repeatable prepare while
-        //   in-process callers may retain an outer guard.
-        // OQ #4 follow-up implemented: the HTTP route now runs this prepare
-        // between two `with_snapback` calls, so no LocalSnapback guard spans
-        // staging hash/read, canonical rewrite, media CPU, ThumbHash, or
-        // variant renders. This inline path deliberately remains available
-        // for seed-fixture and other callers already inside an outer guard.
+        //   the route releases Local across this repeatable prepare and again
+        //   across Phase B's canonical put; in-process callers may retain an
+        //   outer guard while using this compatibility composition.
         let preparation = ticket.prepare()?;
         self.asset_attempt_finalize_commit_inner(authority, ticket, preparation, crash_after)
     }
@@ -9235,6 +9241,22 @@ impl LocalSnapback {
         preparation: FinalizePreparationV1,
         crash_after: Option<AssetFinalizeCrashPoint>,
     ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
+        match self.asset_attempt_finalize_plan_inner(authority, ticket, preparation, crash_after)? {
+            FinalizePhaseAOutcomeV1::AlreadyComplete(response) => Ok(response),
+            FinalizePhaseAOutcomeV1::Proceed(ticket) => {
+                let ticket = Self::asset_attempt_finalize_put_inner(*ticket, crash_after)?;
+                self.asset_attempt_finalize_complete_inner(authority, ticket, crash_after)
+            }
+        }
+    }
+
+    fn asset_attempt_finalize_plan_inner(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: FinalizePrepareTicketV1,
+        preparation: FinalizePreparationV1,
+        crash_after: Option<AssetFinalizeCrashPoint>,
+    ) -> SnapbackResult<FinalizePhaseAOutcomeV1> {
         use crate::assets;
 
         // The old single-lock choreography made this check immovable between
@@ -9268,9 +9290,11 @@ impl LocalSnapback {
                 .db
                 .asset_attempts()
                 .attempt_finalize_load_asset(&attempt.asset_id)?;
-            return Ok(crate::assets::AssetFinalizeResponseV1 {
-                task: asset_task_state(&attempt, asset.as_ref()),
-            });
+            return Ok(FinalizePhaseAOutcomeV1::AlreadyComplete(
+                crate::assets::AssetFinalizeResponseV1 {
+                    task: asset_task_state(&attempt, asset.as_ref()),
+                },
+            ));
         }
         self.db.asset_attempts().attempt_require_current(&attempt)?;
 
@@ -9280,28 +9304,11 @@ impl LocalSnapback {
                 return self.asset_fail_attempt(&attempt, failure.asset_outcome, failure.refusal);
             }
         };
-        let FinalizePrepareTicketV1 {
-            request,
-            frozen_intent,
-            on_ready,
-            store,
-            image_finalization_enabled,
-            app_id,
-            app_quota,
-            schema,
-            ..
-        } = ticket;
-        let staged_digest = prepared.staged_digest;
-        let detected = prepared.detected_content_type;
-        let canonical = prepared.canonical;
-        let image_media_facts = prepared.media_facts;
-        let rendered_required = prepared.required_variants;
-
         // The integrity grade is honest: end-to-end verified only when every
         // chunk carried a checksum or an authenticated whole-upload digest
         // matched; a freshly computed digest alone names the received bytes.
         let grade = if attempt.all_chunks_checksummed
-            || request.declared_digest.as_deref() == Some(staged_digest.as_str())
+            || ticket.request.declared_digest.as_deref() == Some(prepared.staged_digest.as_str())
         {
             assets::AssetIntegrityGrade::EndToEndVerified
         } else {
@@ -9313,9 +9320,9 @@ impl LocalSnapback {
         // commits before any canonical object write.
         let now = now_millis();
         let attempt_id = attempt.attempt_id.clone();
-        let digest = canonical.digest.clone();
-        let mut publication = self.db.asset_attempts().attempt_finalize_commit_plan(
-            &app_id,
+        let digest = prepared.canonical.digest.clone();
+        let publication = self.db.asset_attempts().attempt_finalize_commit_plan(
+            &ticket.app_id,
             &attempt_id,
             &digest,
             now,
@@ -9324,24 +9331,89 @@ impl LocalSnapback {
             return Err(asset_test_crash());
         }
 
-        // Phase B — idempotent object put: copy staging to the recorded
-        // opaque key and verify the copy by digest before anything durable
-        // points at it.
-        store.copy_from_staging(canonical.object.as_ref(), &publication.planned_key)?;
-        let copied = store.hash(crate::assets_store::AssetObjectRef::Blob(
-            &publication.planned_key,
-        ))?;
-        if copied.digest != digest || copied.byte_length != canonical.byte_length {
-            let _ = store.delete_blob(&publication.planned_key);
-            return Err(SnapbackError::error(
-                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
-                "assets",
-                "the published object did not verify against the canonical digest",
-            ));
-        }
+        Ok(FinalizePhaseAOutcomeV1::Proceed(Box::new(
+            FinalizePutTicketV1 {
+                ticket,
+                prepared,
+                publication,
+                grade,
+            },
+        )))
+    }
+
+    fn asset_attempt_finalize_put_inner(
+        ticket: FinalizePutTicketV1,
+        crash_after: Option<AssetFinalizeCrashPoint>,
+    ) -> SnapbackResult<FinalizeCommitTicketV1> {
+        // Phase B — the idempotent canonical object put and verification own
+        // no LocalSnapback/database borrow. `planned` already committed.
+        let ticket = ticket.put()?;
         if crash_after == Some(AssetFinalizeCrashPoint::AfterObjectPut) {
             return Err(asset_test_crash());
         }
+        Ok(ticket)
+    }
+
+    fn asset_attempt_finalize_complete_inner(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: FinalizeCommitTicketV1,
+        crash_after: Option<AssetFinalizeCrashPoint>,
+    ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
+        use crate::assets;
+
+        let FinalizeCommitTicketV1 {
+            put:
+                FinalizePutTicketV1 {
+                    ticket,
+                    prepared,
+                    mut publication,
+                    grade,
+                },
+        } = ticket;
+        let attempt_id = ticket.attempt.attempt_id.clone();
+
+        // Phase A releases Local before the put, so either finalizer may
+        // complete first from their shared `planned` key. Reloading here
+        // preserves the former serialized behavior for whichever arrives
+        // second: it returns the ordinary idempotent completion and cannot
+        // stage/publish again. Cancellation/expiry likewise retains its
+        // existing closed-table refusal.
+        let attempt = self.asset_attempt_for_caller(authority, &attempt_id)?;
+        if attempt.lifecycle_generation != ticket.request.lifecycle_generation {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_GENERATION_STALE",
+                "assets",
+                "the request carries a stale lifecycle generation",
+            ));
+        }
+        if attempt.state == assets::AssetAttemptState::Complete {
+            let asset = self
+                .db
+                .asset_attempts()
+                .attempt_finalize_load_asset(&attempt.asset_id)?;
+            return Ok(crate::assets::AssetFinalizeResponseV1 {
+                task: asset_task_state(&attempt, asset.as_ref()),
+            });
+        }
+        self.db.asset_attempts().attempt_require_current(&attempt)?;
+
+        let FinalizePrepareTicketV1 {
+            frozen_intent,
+            on_ready,
+            store,
+            image_finalization_enabled,
+            app_id,
+            app_quota,
+            schema,
+            ..
+        } = ticket;
+        let detected = prepared.detected_content_type;
+        let canonical = prepared.canonical;
+        let image_media_facts = prepared.media_facts;
+        let rendered_required = prepared.required_variants;
+        let digest = canonical.digest.clone();
+        let now = now_millis();
 
         // Phase C — the object write is acknowledged: `planned → staged`.
         if publication.state == assets::AssetPublicationState::Planned {
@@ -9578,12 +9650,12 @@ impl LocalSnapback {
     /// stated availability (`Pending` keeps it retry-eligible; `Rejected`
     /// is reserved for a policy the intent can never satisfy), receipts are
     /// written, and the refusal is returned. Always errors.
-    fn asset_fail_attempt(
+    fn asset_fail_attempt<T>(
         &mut self,
         attempt: &crate::assets::AssetAttemptRecordV1,
         asset_outcome: crate::assets::AssetAvailability,
         refusal: SnapbackError,
-    ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
+    ) -> SnapbackResult<T> {
         let now = now_millis();
         let attempt_id = attempt.attempt_id.clone();
         // The rejected callback resolves from the deployed intent; a removed

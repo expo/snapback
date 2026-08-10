@@ -619,6 +619,57 @@ pub(crate) enum FinalizePreparationV1 {
     Refused(AssetFinalizePrepareFailure),
 }
 
+/// Phase A either observes an already-complete concurrent finalization or
+/// hands the database-free canonical object put to the caller. The `Proceed`
+/// ticket is created only after its `planned` publication record commits.
+pub(crate) enum FinalizePhaseAOutcomeV1 {
+    AlreadyComplete(AssetFinalizeResponseV1),
+    Proceed(Box<FinalizePutTicketV1>),
+}
+
+/// Type-state handoff from lock-held Phase A to lock-free Phase B. It owns the
+/// immutable prepare result, exact publication key, and clone-shared store;
+/// it carries no `LocalSnapback` or database borrow.
+pub(crate) struct FinalizePutTicketV1 {
+    pub(crate) ticket: FinalizePrepareTicketV1,
+    pub(crate) prepared: AssetFinalizePreparation,
+    pub(crate) publication: AssetPublicationRecordV1,
+    pub(crate) grade: AssetIntegrityGrade,
+}
+
+/// Proof that Phase B's object put returned and the recorded key verified.
+/// Only this ticket is accepted by lock-held Phase C/D.
+pub(crate) struct FinalizeCommitTicketV1 {
+    pub(crate) put: FinalizePutTicketV1,
+}
+
+impl FinalizePutTicketV1 {
+    /// Phase B of the write-ahead publication protocol. This method is
+    /// deliberately database-free so transports can run remote/object-store
+    /// latency without retaining the global Local writer.
+    pub(crate) fn put(self) -> SnapbackResult<FinalizeCommitTicketV1> {
+        let planned_key = &self.publication.planned_key;
+        self.ticket
+            .store
+            .copy_from_staging(self.prepared.canonical.object.as_ref(), planned_key)?;
+        let copied = self
+            .ticket
+            .store
+            .hash(crate::assets_store::AssetObjectRef::Blob(planned_key))?;
+        if copied.digest != self.prepared.canonical.digest
+            || copied.byte_length != self.prepared.canonical.byte_length
+        {
+            let _ = self.ticket.store.delete_blob(planned_key);
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                "the published object did not verify against the canonical digest",
+            ));
+        }
+        Ok(FinalizeCommitTicketV1 { put: self })
+    }
+}
+
 impl FinalizePrepareTicketV1 {
     pub(crate) fn prepare(&self) -> SnapbackResult<FinalizePreparationV1> {
         let image_location = self

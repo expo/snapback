@@ -28,3 +28,23 @@ Requirements for that slice:
 
 Not urgent until large-object hosted profiles are the bottleneck; recorded so
 the deliberate scope cut is not mistaken for an invariant.
+
+## Resolution (2026-08-10)
+
+Implemented the third Local writer window. The managed HTTP finalize route now
+commits Phase A (`planned`), releases the writer for the idempotent canonical
+object put and verification, then reacquires it for Phase C/D
+(`staged`/publication). Phase C reloads lifecycle state so double-finalize
+racers sharing the exact planned key still converge on one completion and the
+second observable outcome remains the ordinary idempotent response.
+
+Characterization coverage retains both write-ahead crash cuts and adds a
+test-store-gated slow-put race. That race also exercises
+`publication_maintain` before the object appears and after the put is
+acknowledged; current work is not condemned, and recovery-staged work is
+accepted by Phase C. No grace constant changed: current-attempt status, rather
+than planned-record age, is the convergence fence, while the existing six-hour
+attempt expiry remains the intentional outer bound.
+
+Resolved; the orchestrator should move this file to `issues/closed/` when it
+commits the change.

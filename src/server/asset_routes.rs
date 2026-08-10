@@ -171,8 +171,22 @@ pub(super) async fn asset_attempt_finalize_route(
     .await
     .expect("asset finalization preparation task panicked");
     let preparation = preparation?;
+    let phase_a_authority = authority.clone();
+    let phase_a = with_snapback(&state, move |snapback| {
+        snapback.asset_attempt_finalize_plan(&phase_a_authority, ticket, preparation)
+    })
+    .await?;
+    let put_ticket = match phase_a {
+        crate::assets::FinalizePhaseAOutcomeV1::AlreadyComplete(response) => {
+            return Ok(Json(response));
+        }
+        crate::assets::FinalizePhaseAOutcomeV1::Proceed(ticket) => ticket,
+    };
+    let commit_ticket = tokio::task::spawn_blocking(move || put_ticket.put())
+        .await
+        .expect("asset canonical object put task panicked")?;
     let response = with_snapback(&state, move |snapback| {
-        snapback.asset_attempt_finalize_commit(&authority, ticket, preparation)
+        snapback.asset_attempt_finalize_complete(&authority, commit_ticket)
     })
     .await?;
     Ok(Json(response))

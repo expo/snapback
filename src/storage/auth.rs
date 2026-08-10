@@ -2585,12 +2585,11 @@ mod tests {
         let foreign_keys = table_foreign_keys(&conn, child).expect("foreign keys");
         assert_eq!(foreign_keys.len(), 1);
         assert_eq!(foreign_keys[0].target_table, parent);
-        assert_eq!(
-            index_list_entry(&conn, child, index)
+        assert!(
+            !index_list_entry(&conn, child, index)
                 .expect("index list")
                 .expect("index present")
-                .0,
-            false
+                .0
         );
         assert!(
             index_columns(&conn, index)

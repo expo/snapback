@@ -18365,8 +18365,7 @@ fn auth_mint_input_refusals_are_contextual_without_reflecting_args() {
             &request,
             Some(&super::MINT_SESSION_REFUSAL_CONTEXT),
         )
-        .err()
-        .expect("mint input refuses");
+        .expect_err("mint input refuses");
         assert_eq!(refusal.diagnostic.code, "SNAPBACK_AUTH_REQUEST_INVALID");
         assert_eq!(refusal.diagnostic.subsystem, "auth");
         assert_eq!(
@@ -18400,8 +18399,7 @@ fn auth_mint_input_refusals_are_contextual_without_reflecting_args() {
     let rescue_refusal = super::auth_host_operation_input::<
         crate::auth::wire::RescueCollidingTableRequest,
     >(&rescue_request, None)
-    .err()
-    .expect("rescue request refuses");
+    .expect_err("rescue request refuses");
     assert_eq!(rescue_refusal.diagnostic.details, serde_json::json!({}));
 }
 

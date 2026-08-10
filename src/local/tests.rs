@@ -4,19 +4,19 @@ use super::{
     BEFORE_ACTION_RESULT_HANDOFF_HOOK, BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK,
     BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation,
     DetachedMutationRead, DiagnosticBoundary, EnsureAppMode, FAIL_NEXT_ADDITIONAL_JOB_ADMISSION,
-    FAIL_NEXT_LIVE_SCOPE_REGISTRATION, FAIL_NEXT_SCOPE_RETIREMENT_AUTH, FinalizePreflightV1,
-    INJECT_NEXT_PUBLICATION_WARNING, LiveInvalidationAdmission, LiveResumeInput,
-    LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
-    MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MY_MEMBERSHIPS_LIVE_FUNCTION, MaintenanceOperation,
-    PendingLiveFanout, PendingLiveLane, PendingLiveScheduler, PendingLiveWork, PublicInspect,
-    RetryEpisodeKey, RetryReservationKind, SnapbackError, SnapbackResult, StagedMutationExecution,
-    StagedNestedMutation, StagedRecordedMutation, bounded_projection_result_contract,
-    enforce_snapshot_batch_cursor_budget, next_secret_read_reset_generation, now_millis,
-    order_field_bounds_from_functions, refuse_unprovenanced_host_plan_authority_creation,
-    reserve_unique_generation, settlement_id_map, snapshot_batch_max_boundary,
-    snapshot_batch_max_plaintext_len, telemetry_correlation,
-    validate_bounded_children_node_schema_references, validate_bounded_children_schema_plan,
-    validate_function_schema_references,
+    FAIL_NEXT_LIVE_SCOPE_REGISTRATION, FAIL_NEXT_SCOPE_RETIREMENT_AUTH, FinalizePhaseAOutcomeV1,
+    FinalizePreflightV1, INJECT_NEXT_PUBLICATION_WARNING, LiveInvalidationAdmission,
+    LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback,
+    MAX_LIVE_SUBSCRIPTIONS, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MY_MEMBERSHIPS_LIVE_FUNCTION,
+    MaintenanceOperation, PendingLiveFanout, PendingLiveLane, PendingLiveScheduler,
+    PendingLiveWork, PublicInspect, RetryEpisodeKey, RetryReservationKind, SnapbackError,
+    SnapbackResult, StagedMutationExecution, StagedNestedMutation, StagedRecordedMutation,
+    bounded_projection_result_contract, enforce_snapshot_batch_cursor_budget,
+    next_secret_read_reset_generation, now_millis, order_field_bounds_from_functions,
+    refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
+    settlement_id_map, snapshot_batch_max_boundary, snapshot_batch_max_plaintext_len,
+    telemetry_correlation, validate_bounded_children_node_schema_references,
+    validate_bounded_children_schema_plan, validate_function_schema_references,
 };
 use crate::admin::ServerProfile;
 use crate::auth::admission::AdmissionController;
@@ -1989,6 +1989,99 @@ fn asset_test_snapback() -> LocalSnapback {
         "intent manifest must load: {diagnostics:?}"
     );
     snapback
+}
+
+/// Test-store gate for the canonical copy only. The first copy announces that
+/// it entered the store and waits for an explicit release; every other store
+/// operation delegates immediately. This makes the Phase B interleaving
+/// deterministic without production sleeps or timing assumptions.
+struct BlockFirstCanonicalCopyStore {
+    inner: Arc<dyn crate::assets_store::AssetStore>,
+    entered: std::sync::Mutex<Option<std::sync::mpsc::Sender<()>>>,
+    release: std::sync::Mutex<std::sync::mpsc::Receiver<()>>,
+}
+
+impl crate::assets_store::AssetStore for BlockFirstCanonicalCopyStore {
+    fn kind(&self) -> &'static str {
+        self.inner.kind()
+    }
+
+    fn append_staging(&self, key: &str, offset: u64, chunk: &[u8]) -> SnapbackResult<()> {
+        self.inner.append_staging(key, offset, chunk)
+    }
+
+    fn write_canonical(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
+        self.inner.write_canonical(key, bytes)
+    }
+
+    fn put_blob_idempotent(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
+        self.inner.put_blob_idempotent(key, bytes)
+    }
+
+    fn copy_from_staging(
+        &self,
+        source: crate::assets_store::AssetObjectRef<'_>,
+        blob_key: &str,
+    ) -> SnapbackResult<()> {
+        let entered = self.entered.lock().expect("copy gate lock").take();
+        if let Some(entered) = entered {
+            entered.send(()).expect("announce blocked canonical copy");
+            self.release
+                .lock()
+                .expect("copy release lock")
+                .recv()
+                .expect("release blocked canonical copy");
+        }
+        self.inner.copy_from_staging(source, blob_key)
+    }
+
+    fn read(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Vec<u8>> {
+        self.inner.read(object)
+    }
+
+    fn read_chunk(
+        &self,
+        object: crate::assets_store::AssetObjectRef<'_>,
+        offset: u64,
+        max_len: usize,
+    ) -> SnapbackResult<Vec<u8>> {
+        self.inner.read_chunk(object, offset, max_len)
+    }
+
+    fn hash(
+        &self,
+        object: crate::assets_store::AssetObjectRef<'_>,
+    ) -> SnapbackResult<crate::assets_store::AssetObjectDigest> {
+        self.inner.hash(object)
+    }
+
+    fn exists(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<bool> {
+        self.inner.exists(object)
+    }
+
+    fn len(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Option<u64>> {
+        self.inner.len(object)
+    }
+
+    fn delete_blob(&self, key: &str) -> SnapbackResult<()> {
+        self.inner.delete_blob(key)
+    }
+
+    fn delete_staging_pair(&self, key: &str) -> SnapbackResult<()> {
+        self.inner.delete_staging_pair(key)
+    }
+
+    fn list_staging_keys(&self) -> SnapbackResult<Vec<String>> {
+        self.inner.list_staging_keys()
+    }
+
+    fn copy_blob(&self, from: &str, to: &str) -> SnapbackResult<()> {
+        self.inner.copy_blob(from, to)
+    }
+
+    fn wipe_all(&self) -> SnapbackResult<()> {
+        self.inner.wipe_all()
+    }
 }
 
 #[test]
@@ -6014,9 +6107,10 @@ fn asset_finalize_revocation_between_preflight_and_commit_refuses_before_phase_a
         .test_revoke_intent_generation("app:avatarUpload", generation)
         .expect("revoke the admitted generation in the unlocked window");
 
-    let error = snapback
-        .asset_attempt_finalize_commit(&authority, ticket, preparation)
-        .expect_err("commit must fail closed after mid-flight revocation");
+    let error = match snapback.asset_attempt_finalize_plan(&authority, ticket, preparation) {
+        Err(error) => error,
+        Ok(_) => panic!("commit must fail closed after mid-flight revocation"),
+    };
     assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_REVOKED");
     let attempt = snapback
         .db
@@ -6062,12 +6156,26 @@ fn asset_finalize_double_preflight_commits_one_winner_and_one_idempotent_retry()
     let first_preparation = first_ticket.prepare().expect("first prepare succeeds");
     let second_preparation = second_ticket.prepare().expect("second prepare succeeds");
 
+    let first_put = match snapback
+        .asset_attempt_finalize_plan(&authority, first_ticket, first_preparation)
+        .expect("first serialized Phase A wins")
+    {
+        FinalizePhaseAOutcomeV1::Proceed(ticket) => ticket,
+        FinalizePhaseAOutcomeV1::AlreadyComplete(_) => panic!("first Phase A must plan"),
+    };
+    let first_commit = first_put.put().expect("first put succeeds");
     let winner = snapback
-        .asset_attempt_finalize_commit(&authority, first_ticket, first_preparation)
-        .expect("first serialized commit wins");
-    let retry = snapback
-        .asset_attempt_finalize_commit(&authority, second_ticket, second_preparation)
-        .expect("loser receives the existing idempotent completion outcome");
+        .asset_attempt_finalize_complete(&authority, first_commit)
+        .expect("first Phase C/D publishes");
+    let retry = match snapback
+        .asset_attempt_finalize_plan(&authority, second_ticket, second_preparation)
+        .expect("second Phase A observes completion")
+    {
+        FinalizePhaseAOutcomeV1::AlreadyComplete(response) => response,
+        FinalizePhaseAOutcomeV1::Proceed(_) => {
+            panic!("the serialized loser cannot plan after completion")
+        }
+    };
 
     assert_eq!(
         winner.task.attempt_state,
@@ -6089,6 +6197,119 @@ fn asset_finalize_double_preflight_commits_one_winner_and_one_idempotent_retry()
             .count(),
         1,
         "the idempotent loser cannot publish a second completion: {events:?}",
+    );
+}
+
+#[test]
+fn asset_publication_maintain_slow_put_releases_writer_and_double_finalize_converges() {
+    let mut snapback = asset_test_snapback();
+    let created = asset_upload(&mut snapback, "user_a", b"slow-canonical-put", true);
+    let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+    let request = crate::assets::AssetFinalizeRequestV1 {
+        attempt_id: created.task.attempt_id.clone(),
+        lifecycle_generation: 1,
+        declared_digest: None,
+    };
+    let mut first_ticket = match snapback
+        .asset_attempt_finalize_preflight(&authority, request.clone())
+        .expect("first preflight proceeds")
+    {
+        FinalizePreflightV1::Proceed(ticket) => ticket,
+        FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
+    };
+    let mut second_ticket = match snapback
+        .asset_attempt_finalize_preflight(&authority, request)
+        .expect("second preflight proceeds")
+    {
+        FinalizePreflightV1::Proceed(ticket) => ticket,
+        FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
+    };
+    let first_preparation = first_ticket.prepare().expect("first prepare succeeds");
+    let second_preparation = second_ticket.prepare().expect("second prepare succeeds");
+
+    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let gated_store: Arc<dyn crate::assets_store::AssetStore> =
+        Arc::new(BlockFirstCanonicalCopyStore {
+            inner: first_ticket.store.clone(),
+            entered: std::sync::Mutex::new(Some(entered_tx)),
+            release: std::sync::Mutex::new(release_rx),
+        });
+    first_ticket.store = gated_store.clone();
+    second_ticket.store = gated_store;
+
+    let first_put = match snapback
+        .asset_attempt_finalize_plan(&authority, first_ticket, first_preparation)
+        .expect("first Phase A commits planned")
+    {
+        FinalizePhaseAOutcomeV1::Proceed(ticket) => ticket,
+        FinalizePhaseAOutcomeV1::AlreadyComplete(_) => panic!("first Phase A must plan"),
+    };
+    let first_publication_id = first_put.publication.publication_id.clone();
+    let first_planned_key = first_put.publication.planned_key.clone();
+    let first_put_thread = std::thread::spawn(move || {
+        first_put
+            .put()
+            .expect("first idempotent put completes after release")
+    });
+    entered_rx
+        .recv()
+        .expect("first put reaches the injected slow store");
+
+    let in_flight_maintenance = snapback
+        .asset_publication_maintain(now_millis())
+        .expect("maintenance overlaps the missing-object put window");
+    assert_eq!(
+        in_flight_maintenance,
+        super::AssetPublicationMaintenanceReport::default(),
+        "a current re-drivable planned record is never condemned while its put is in flight",
+    );
+
+    // The first put owns no Local borrow: the other racer enters Phase A,
+    // receives the exact winner record/key, and can safely drive the same
+    // idempotent put while the first call remains blocked in the test store.
+    let second_put = match snapback
+        .asset_attempt_finalize_plan(&authority, second_ticket, second_preparation)
+        .expect("second Phase A remains available while the first put is in flight")
+    {
+        FinalizePhaseAOutcomeV1::Proceed(ticket) => ticket,
+        FinalizePhaseAOutcomeV1::AlreadyComplete(_) => {
+            panic!("the first put has not reached Phase C")
+        }
+    };
+    assert_eq!(second_put.publication.publication_id, first_publication_id);
+    assert_eq!(second_put.publication.planned_key, first_planned_key);
+    let second_commit = second_put
+        .put()
+        .expect("the shared-key loser put is idempotent");
+
+    let acknowledged_maintenance = snapback
+        .asset_publication_maintain(now_millis())
+        .expect("maintenance overlaps the acknowledged-put window");
+    assert_eq!(acknowledged_maintenance.staged, 1);
+    assert_eq!(acknowledged_maintenance.condemned, 0);
+    let second_response = snapback
+        .asset_attempt_finalize_complete(&authority, second_commit)
+        .expect("Phase C accepts the sweep-staged record and publishes once");
+
+    release_tx.send(()).expect("release first canonical copy");
+    let first_commit = first_put_thread.join().expect("first put thread joins");
+    let first_response = snapback
+        .asset_attempt_finalize_complete(&authority, first_commit)
+        .expect("the Phase A winner observes ordinary idempotent completion");
+
+    assert_eq!(
+        first_response.task.primary_rendition_id,
+        second_response.task.primary_rendition_id
+    );
+    let events = asset_receipt_events(&mut snapback, &created.task.asset_id);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.as_str() == "attempt-completed")
+            .count(),
+        1,
+        "the double-finalize interleaving publishes one completion: {events:?}",
     );
 }
 
