@@ -145,6 +145,8 @@ pub(crate) mod operation_detail;
 #[doc(hidden)]
 pub mod operation_ledger;
 #[doc(hidden)]
+pub mod operational_readiness;
+#[doc(hidden)]
 pub mod proof_checkpoint;
 #[doc(hidden)]
 pub mod push;

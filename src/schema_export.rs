@@ -88,6 +88,9 @@ use crate::manifest::{
     FunctionManifest, FunctionResponse, MutationAcknowledgementRequest,
     MutationAcknowledgementResponse, MutationRequest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
 };
+use crate::operational_readiness::{
+    ApplicationReadyReceiptV1, ExpectedActivationTargetV1, OperationalReadinessV1,
+};
 use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationPlanArtifactV1,
     MigrationPreviewObservationV1, MigrationRehearsalPlanV1,
@@ -793,6 +796,18 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "host-ready.schema.json",
             schemars::schema_for!(HostReadyDescriptor),
+        ),
+        finish(
+            "expected-activation-target.schema.json",
+            schemars::schema_for!(ExpectedActivationTargetV1),
+        ),
+        finish(
+            "operational-readiness.schema.json",
+            schemars::schema_for!(OperationalReadinessV1),
+        ),
+        finish(
+            "application-ready.schema.json",
+            schemars::schema_for!(ApplicationReadyReceiptV1),
         ),
         // The mutationDryRun report (LLP 0051 D8 / Increment 4): the
         // function.explain result the Exact-side Acto dry-run wraps. Embeds

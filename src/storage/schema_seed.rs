@@ -1285,6 +1285,22 @@ impl<'a> SchemaSeedKernel<'a> {
         self.db.preview_versioned_seed(request)
     }
 
+    pub fn active_seed_identity(
+        &mut self,
+    ) -> SnapbackResult<Option<crate::seed_identity::ActiveSeedIdentityV1>> {
+        let tx = self.db.conn.transaction()?;
+        let current = crate::seed_identity::strict_current_data_version_stream(&tx)?;
+        let identity = match current {
+            None => None,
+            Some(stream) => match crate::seed_identity::active_identity(&tx, &stream)? {
+                crate::seed_identity::ActiveSeedStateV1::Absent => None,
+                crate::seed_identity::ActiveSeedStateV1::Installed(identity) => Some(identity),
+            },
+        };
+        tx.rollback()?;
+        Ok(identity)
+    }
+
     pub fn seed(&mut self, seed: SeedData) -> SnapbackResult<MutationOutput> {
         self.db.seed(seed)
     }

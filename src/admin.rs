@@ -204,6 +204,10 @@ pub(crate) fn operation_profile_requirement(
     has_dev_user: bool,
 ) -> OperationProfileRequirement {
     match operation {
+        // Operational readiness is an authenticated control-plane fact with
+        // the same all-profile inspection posture as app.inspect. The active
+        // network profile is recorded by the evaluator, never used as a gate.
+        "app.inspect" | "app.readiness.v1" => OperationProfileRequirement::Any,
         // @ref LLP 0167#authority-one-activation-chokepoint — reads are
         // available in every profile and writes must reach the network-profile
         // activation gate so its finer hosted/Prod policy and refusal codes
@@ -2421,6 +2425,11 @@ pub struct AppState {
     /// by the bootstrap handshake. It is captured once so one response cannot
     /// accidentally combine facts from different startup identities.
     pub(crate) server_startup_nonce: Arc<str>,
+    /// Launcher-declared activation target for the server-owned operational
+    /// predicate. Process-local by design: every fresh process begins
+    /// undeclared and therefore fails readiness closed.
+    expected_activation_target:
+        Arc<StdRwLock<Option<Arc<crate::operational_readiness::ExpectedActivationTargetV1>>>>,
     /// Single process-local registry shared by every router clone. Raw apply
     /// tokens never leave this registry except in the one preview response.
     pub(crate) data_patch_tokens: crate::data_patch::DataPatchTokenStore,
@@ -2612,6 +2621,7 @@ impl AppState {
                         .startup_nonce
                         .into_boxed_str(),
                 ),
+                expected_activation_target: Arc::new(StdRwLock::new(None)),
                 data_patch_tokens: crate::data_patch::DataPatchTokenStore::default(),
                 allow_insecure_dev_auth: false,
                 secret_reads,
@@ -3092,6 +3102,27 @@ impl AppState {
 
     pub fn server_startup_nonce(&self) -> &str {
         self.server_startup_nonce.as_ref()
+    }
+
+    pub(crate) fn expected_activation_target(
+        &self,
+    ) -> Option<Arc<crate::operational_readiness::ExpectedActivationTargetV1>> {
+        self.expected_activation_target
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
+    }
+
+    pub(crate) fn declare_expected_activation_target(
+        &self,
+        target: crate::operational_readiness::ExpectedActivationTargetV1,
+    ) -> Arc<crate::operational_readiness::ExpectedActivationTargetV1> {
+        let target = Arc::new(target);
+        *self
+            .expected_activation_target
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(target.clone());
+        target
     }
 
     /// Pre-bind transport validation used by the CLI composition lane. The

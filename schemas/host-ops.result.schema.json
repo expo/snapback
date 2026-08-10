@@ -35,6 +35,7 @@
       "type": "string"
     },
     "HostOpsArtifacts": {
+      "additionalProperties": false,
       "properties": {
         "bundleHash": {
           "type": [

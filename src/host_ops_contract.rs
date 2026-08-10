@@ -75,13 +75,15 @@ pub struct HostOpsAuthority {
     pub reason: Option<String>,
 }
 
+// @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — the artifact
+//   identity carrier is embedded in the closed readiness fact and receipt, so
+//   it is a closed carrier itself: unknown fields are refused everywhere it
+//   appears.
 #[derive(Clone, Debug, Default, Deserialize, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HostOpsArtifacts {
-    #[serde(rename = "schemaHash")]
     pub schema_hash: Option<String>,
-    #[serde(rename = "bundleHash")]
     pub bundle_hash: Option<String>,
-    #[serde(rename = "databaseVersion")]
     #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub database_version: Option<u64>,
 }

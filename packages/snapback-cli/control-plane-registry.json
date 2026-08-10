@@ -12,6 +12,96 @@
       "responseSensitivity": "CredentialSecret"
     },
     {
+      "method": "GET",
+      "path": "/_snapback/api/auth/integrations",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/auth/integrations/{id}/retire",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "AgentDestroyCapability",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/auth/integrations/{id}/suspend",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/auth/integrations/{id}/resume",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "GET",
+      "path": "/_snapback/api/auth/declared-clients",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/auth/declared-clients/bless",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/auth/declared-clients/suspend",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/auth/declared-clients/resume",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/auth/declared-clients/delete",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
       "method": "POST",
       "path": "/_snapback/api/schema/load",
       "class": "SystemApi",
@@ -640,6 +730,17 @@
       "responseSensitivity": "SensitiveApplicationData"
     },
     {
+      "operation": "host_ops.app.readiness.v1",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "None",
+      "effectPolicy": "None",
+      "responseSensitivity": "SensitiveApplicationData"
+    },
+    {
       "operation": "host_ops.cron.list",
       "parentPath": "/_snapback/api/host-ops",
       "transport": "HostOps",
@@ -1113,6 +1214,50 @@
       "responseSensitivity": "CredentialSecret"
     },
     {
+      "operation": "host_ops.auth.rehearsal.mint",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "ImpersonationCapability",
+      "responseSensitivity": "CredentialSecret"
+    },
+    {
+      "operation": "host_ops.auth.rehearsal.exercise",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "Public",
+      "credentialResolution": "RehearsalCapability",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "RehearsalGrant",
+      "responseSensitivity": "CredentialSecret"
+    },
+    {
+      "operation": "host_ops.auth.rehearsal.revoke",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "ImpersonationCapability",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "operation": "host_ops.auth.rehearsal.status",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
       "operation": "host_ops.auth.rescueCollidingTable",
       "parentPath": "/_snapback/api/host-ops",
       "transport": "HostOps",
@@ -1121,6 +1266,39 @@
       "credentialResolution": "AdminCredential",
       "invocationAuthority": "Operator",
       "effectPolicy": "ImpersonationCapability",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "operation": "host_ops.auth.integrationRetire",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "AgentDestroyCapability",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "operation": "host_ops.auth.integrationSuspend",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "operation": "host_ops.auth.integrationResume",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
       "responseSensitivity": "OperatorMetadata"
     },
     {
@@ -1226,6 +1404,7 @@
   "hostOpsIdentities": {
     "served": [
       "app.inspect",
+      "app.readiness.v1",
       "cron.list",
       "app.reset",
       "app.seed.ensure.v1",
@@ -1238,7 +1417,14 @@
       "function.explain",
       "remediation.apply",
       "auth.mintSession",
+      "auth.rehearsal.mint",
+      "auth.rehearsal.exercise",
+      "auth.rehearsal.revoke",
+      "auth.rehearsal.status",
       "auth.rescueCollidingTable",
+      "auth.integrationRetire",
+      "auth.integrationSuspend",
+      "auth.integrationResume",
       "telemetry.stats",
       "telemetry.events",
       "telemetry.export",

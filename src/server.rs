@@ -17323,6 +17323,15 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             EffectPolicy::None,
             SessionModeOverlay::secret_read(),
         ),
+        // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — the
+        //   operational fact stays on app.inspect's authenticated,
+        //   fail-closed tier and is never promoted to public inspection.
+        host(
+            "host_ops.app.readiness.v1",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::secret_read(),
+        ),
         // @ref LLP 0184#p1-read-and-diagnose — cron.list is a narrow
         // OperatorMetadata projection of the scheduler facts already held by
         // app.inspect; it adds no scheduler state or mutation authority.
@@ -18133,6 +18142,7 @@ pub(crate) fn host_ops_operation_spec(
 ) -> Option<OperationSpec> {
     let name = match operation {
         "app.inspect" => "host_ops.app.inspect",
+        "app.readiness.v1" => "host_ops.app.readiness.v1",
         "cron.list" => "host_ops.cron.list",
         "debug.networkProfileGet" => "host_ops.debug.networkProfileGet",
         "debug.networkProfileSet" => "host_ops.debug.networkProfileSet",
@@ -20565,6 +20575,38 @@ async fn execute_auth_host_operation(
     }
 }
 
+fn operational_readiness_runtime_facts(
+    runtime: &AppState,
+) -> crate::operational_readiness::OperationalReadinessRuntimeFactsV1 {
+    crate::operational_readiness::OperationalReadinessRuntimeFactsV1 {
+        startup_nonce: runtime.server_startup_nonce().to_owned(),
+        evaluated_at_ms: now_millis(),
+        auth_mode_state: (*runtime.auth_mode_state()).clone(),
+        auth_program_readiness: runtime.auth_program_readiness().clone(),
+        // @ref LLP 0167#observation-semantics--what-a-delay-means — readiness
+        //   reads the undelayed control plane and only records the active name.
+        network_profile: runtime.network_profiles.active().profile.name.clone(),
+    }
+}
+
+async fn evaluate_operational_readiness_for_runtime(
+    runtime: &AppState,
+) -> Result<crate::operational_readiness::OperationalReadinessV1, SnapbackError> {
+    let runtime_facts = operational_readiness_runtime_facts(runtime);
+    let expected = runtime.expected_activation_target();
+    with_snapback(&runtime.snapback, move |snapback| {
+        let facts = crate::operational_readiness::capture_operational_readiness_facts(
+            snapback,
+            runtime_facts,
+        )?;
+        Ok(crate::operational_readiness::evaluate_operational_readiness(
+            &facts,
+            expected.as_deref(),
+        ))
+    })
+    .await
+}
+
 /// Record function runs and schema/function artifact loads in the process-wide
 /// bounded ring, and project that ring into `app.inspect`'s
 /// `data.recentInvocations`. Dispatch itself lives in
@@ -20588,7 +20630,7 @@ async fn host_ops_handler(
     let started_at = crate::host_ops::iso8601_utc_ms(now_millis());
     let started = std::time::Instant::now();
     let result = host_ops_handler_inner(
-        State(runtime),
+        State(runtime.clone()),
         route_admission,
         authority,
         impersonation,
@@ -20631,16 +20673,41 @@ async fn host_ops_handler(
             conformance,
         });
     }
+    let operational_readiness = if operation == "app.inspect"
+        && matches!(&result, Ok(Json(envelope)) if envelope.ok)
+    {
+        Some(evaluate_operational_readiness_for_runtime(&runtime).await)
+    } else {
+        None
+    };
     match result {
         Ok(Json(mut envelope)) => {
-            if operation == "app.inspect"
-                && envelope.ok
-                && let Some(data) = envelope.data.as_object_mut()
-            {
-                data.insert(
-                    "recentInvocations".to_owned(),
-                    serde_json::to_value(ring.snapshot()).unwrap_or_default(),
-                );
+            if operation == "app.inspect" && envelope.ok {
+                // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean —
+                //   splice the fresh core fact only on authenticated host-ops;
+                //   InspectState/PublicInspect and public GET /inspect stay unchanged.
+                let readiness = match operational_readiness {
+                    Some(Ok(readiness)) => Some(readiness),
+                    Some(Err(error)) => {
+                        envelope.ok = false;
+                        envelope.data = Value::Object(Default::default());
+                        envelope.diagnostics.push(error.diagnostic);
+                        return Ok(Json(envelope));
+                    }
+                    None => None,
+                };
+                if let Some(data) = envelope.data.as_object_mut() {
+                    if let Some(readiness) = readiness {
+                        data.insert(
+                            "operationalReadiness".to_owned(),
+                            serde_json::to_value(readiness).unwrap_or_default(),
+                        );
+                    }
+                    data.insert(
+                        "recentInvocations".to_owned(),
+                        serde_json::to_value(ring.snapshot()).unwrap_or_default(),
+                    );
+                }
             }
             Ok(Json(envelope))
         }
@@ -20681,6 +20748,93 @@ async fn host_ops_handler_inner(
             profile,
         )
         .await?;
+        return Ok(Json(result));
+    }
+
+    if request.operation == "app.readiness.v1" {
+        crate::admin::authorize_host_operation(
+            &ctx,
+            &headers,
+            &request.operation,
+            None,
+            false,
+            policy_mode,
+            &secret_reads,
+            None,
+        )?;
+        crate::admin::require_operation_profile(&ctx, &request.operation, false)?;
+        let readiness_scopes = std::collections::BTreeSet::from([
+            crate::admin_secret_read::SecretReadScope::AdminInspect,
+        ]);
+        if policy_mode == PolicyAuthMode::Sessions {
+            crate::admin::preflight_secret_read(
+                &secret_reads,
+                &headers,
+                readiness_scopes.clone(),
+            )?;
+        }
+
+        let expected = if crate::host_ops::versioned_seed_wrapper_has_forbidden_siblings(&request)
+        {
+            Err(SnapbackError::error(
+                crate::operational_readiness::READINESS_DECLARATION_INVALID_CODE,
+                "app-readiness",
+                "app.readiness.v1 accepts its body only under input",
+            ))
+        } else {
+            match request.input.clone() {
+                None => Ok(runtime.expected_activation_target()),
+                Some(input) => serde_json::from_value::<
+                    crate::operational_readiness::OperationalReadinessHostInputV1,
+                >(input)
+                .map_err(|_| {
+                    SnapbackError::error(
+                        crate::operational_readiness::READINESS_DECLARATION_INVALID_CODE,
+                        "app-readiness",
+                        "app.readiness.v1 input is not the closed expected-target carrier",
+                    )
+                })
+                .and_then(|input| {
+                    crate::operational_readiness::validate_expected_activation_target(
+                        &input.expected_target,
+                    )?;
+                    Ok(Some(
+                        runtime.declare_expected_activation_target(input.expected_target),
+                    ))
+                }),
+            }
+        };
+        let runtime_facts = operational_readiness_runtime_facts(&runtime);
+        let result = with_snapback(&state, move |snapback| {
+            let outcome = expected.and_then(|expected| {
+                let facts =
+                    crate::operational_readiness::capture_operational_readiness_facts(
+                        snapback,
+                        runtime_facts,
+                    )?;
+                Ok(crate::operational_readiness::evaluate_operational_readiness(
+                    &facts,
+                    expected.as_deref(),
+                ))
+            });
+            crate::host_ops::operational_readiness_result(
+                snapback,
+                &request,
+                server_url,
+                profile,
+                outcome,
+            )
+        })
+        .await;
+        if policy_mode == PolicyAuthMode::Sessions {
+            crate::admin::reserve_secret_read_json(
+                &secret_reads,
+                &headers,
+                readiness_scopes,
+                0,
+                &result,
+            )?;
+        }
         return Ok(Json(result));
     }
 

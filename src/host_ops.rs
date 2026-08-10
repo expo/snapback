@@ -45,8 +45,9 @@ pub const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE: usize = 64 * 1024;
 /// `require_operation_profile`. These groups are fully served today; they
 /// belong here so `host_op_diagnostic` recognizes their spelling instead of
 /// rewriting it to `"unrecognized"` in diagnostics.
-pub const SERVED_HOST_OPS: [&str; 48] = [
+pub const SERVED_HOST_OPS: [&str; 49] = [
     "app.inspect",
+    "app.readiness.v1",
     "cron.list",
     "app.reset",
     "app.seed.ensure.v1",
@@ -752,6 +753,44 @@ pub(crate) fn network_profile_result(
             profile,
             false,
             authority,
+            Value::Object(Default::default()),
+            vec![error.diagnostic],
+        ),
+    }
+}
+
+/// Project the AppState-aware operational predicate through the ordinary
+/// host-ops envelope. A successful evaluation is `ok: true` even when its
+/// application-level `ready` predicate is false.
+pub(crate) fn operational_readiness_result(
+    snapback: &LocalSnapback,
+    request: &HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+    outcome: Result<crate::operational_readiness::OperationalReadinessV1, SnapbackError>,
+) -> HostOpsResult {
+    let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
+    let operation = request.operation.clone();
+    match outcome {
+        Ok(readiness) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            true,
+            authority_none(),
+            json!({ "operationalReadiness": readiness }),
+            Vec::new(),
+        ),
+        Err(error) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            false,
+            authority_none(),
             Value::Object(Default::default()),
             vec![error.diagnostic],
         ),

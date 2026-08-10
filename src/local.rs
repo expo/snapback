@@ -6155,6 +6155,55 @@ impl LocalSnapback {
         self.functions.bundle_hash.clone()
     }
 
+    pub(crate) fn loaded_route_manifest_hash(&self) -> Option<String> {
+        self.routes_manifest_hash.clone()
+    }
+
+    /// The active envelope identity bound to the active deployment's inputs.
+    /// This is mode-independent so dev-generated readiness can verify the
+    /// exact same persisted ensureApp fact as sessions discovery.
+    pub(crate) fn loaded_api_envelope_hash(&self) -> SnapbackResult<Option<String>> {
+        let snapshot = self.db.auth_mode_snapshot()?;
+        let Some(deployment) = snapshot.state.active_deployment else {
+            return Ok(None);
+        };
+        let Some(current) = self
+            .db
+            .api_envelope_read()
+            .load_api_envelope_state()?
+            .and_then(|state| state.current)
+            .filter(|current| current.inputs_hash == deployment.inputs_hash)
+        else {
+            return Ok(None);
+        };
+        let Some(canonical) = self
+            .db
+            .api_envelope_read()
+            .load_api_envelope_bytes(&current.digest)?
+        else {
+            return Ok(None);
+        };
+        let (_, observed) = crate::api_envelope::parse_and_validate(canonical.as_bytes())
+            .map_err(|refusal| {
+                SnapbackError::error(
+                    "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                    "app-api",
+                    "the active API envelope failed readiness verification",
+                )
+                .with_details(json!({
+                    "envelopeCode": refusal.code,
+                    "error": refusal.message,
+                }))
+            })?;
+        Ok((observed == current.digest).then_some(current.digest))
+    }
+
+    pub(crate) fn active_seed_identity(
+        &mut self,
+    ) -> SnapbackResult<Option<crate::seed_identity::ActiveSeedIdentityV1>> {
+        self.db.schema_seed().active_seed_identity()
+    }
+
     /// Validate one existing-row patch by executing the ordinary buffered
     /// writer in rollback mode. The returned row image therefore reflects
     /// storage normalization, relation stamps, uniqueness checks, and every

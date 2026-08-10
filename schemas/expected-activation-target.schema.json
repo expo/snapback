@@ -1,0 +1,245 @@
+{
+  "$defs": {
+    "AuthMode": {
+      "description": "The authority mode declared by a schema artifact. The enum is deliberately\nclosed: a mode changes who is allowed to supply invocation authority and an\nunknown spelling therefore cannot be treated as an additive field.\n\n@ref LLP 0058#closed-auth-mode — auth mode is a must-understand closed value.",
+      "enum": [
+        "dev",
+        "sessions"
+      ],
+      "type": "string"
+    },
+    "DeclaredObligationV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "schema",
+              "type": "string"
+            },
+            "schemaHash": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "schemaHash"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "bundleHash": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "functions",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "bundleHash"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "routes",
+              "type": "string"
+            },
+            "routeManifestHash": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "routeManifestHash"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "envelopeHash": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "apiEnvelope",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "envelopeHash"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "idempotent": {
+              "type": "boolean"
+            },
+            "kind": {
+              "const": "seed",
+              "type": "string"
+            },
+            "seedDigest": {
+              "type": "string"
+            },
+            "seedVersion": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "seedVersion",
+            "seedDigest",
+            "idempotent"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "DeploymentIdentity": {
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "authMode": {
+              "const": "dev"
+            },
+            "bundleHash": {
+              "not": {
+                "pattern": "^snapback\\.v1:"
+              }
+            },
+            "inputsHash": {
+              "not": {
+                "pattern": "^snapback\\.v1:"
+              }
+            },
+            "schemaHash": {
+              "not": {
+                "pattern": "^snapback\\.v1:"
+              }
+            },
+            "schemaVersion": {
+              "const": "snapback.v0"
+            }
+          }
+        },
+        {
+          "properties": {
+            "authMode": {
+              "const": "sessions"
+            },
+            "bundleHash": {
+              "pattern": "^snapback\\.v1:sessions:function:sha256:[0-9a-f]{64}$"
+            },
+            "inputsHash": {
+              "pattern": "^snapback\\.v1:sessions:inputs:sha256:[0-9a-f]{64}$"
+            },
+            "schemaHash": {
+              "pattern": "^snapback\\.v1:sessions:schema:sha256:[0-9a-f]{64}$"
+            },
+            "schemaVersion": {
+              "const": "snapback.v1"
+            }
+          }
+        }
+      ],
+      "properties": {
+        "appId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "authMode": {
+          "$ref": "#/$defs/AuthMode"
+        },
+        "bundleHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "inputsHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "authMode",
+        "appId",
+        "schemaHash",
+        "bundleHash",
+        "inputsHash"
+      ],
+      "type": "object"
+    },
+    "PendingMigrationDeclarationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "identifier": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "identifier"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/expected-activation-target.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "declaredObligations": {
+      "items": {
+        "$ref": "#/$defs/DeclaredObligationV1"
+      },
+      "type": "array"
+    },
+    "deployment": {
+      "$ref": "#/$defs/DeploymentIdentity"
+    },
+    "formatVersion": {
+      "type": "string"
+    },
+    "obligationsDigest": {
+      "type": "string"
+    },
+    "pendingMigration": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PendingMigrationDeclarationV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "targetProfile": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "formatVersion",
+    "deployment",
+    "targetProfile",
+    "declaredObligations",
+    "obligationsDigest"
+  ],
+  "title": "ExpectedActivationTargetV1",
+  "type": "object"
+}

@@ -1,0 +1,268 @@
+{
+  "$defs": {
+    "AppDataAvailability": {
+      "enum": [
+        "available",
+        "refusedPending"
+      ],
+      "type": "string"
+    },
+    "AuthMode": {
+      "description": "The authority mode declared by a schema artifact. The enum is deliberately\nclosed: a mode changes who is allowed to supply invocation authority and an\nunknown spelling therefore cannot be treated as an additive field.\n\n@ref LLP 0058#closed-auth-mode — auth mode is a must-understand closed value.",
+      "enum": [
+        "dev",
+        "sessions"
+      ],
+      "type": "string"
+    },
+    "AuthModeStatus": {
+      "enum": [
+        "settled",
+        "pendingRestart",
+        "quarantined"
+      ],
+      "type": "string"
+    },
+    "DeploymentIdentity": {
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "authMode": {
+              "const": "dev"
+            },
+            "bundleHash": {
+              "not": {
+                "pattern": "^snapback\\.v1:"
+              }
+            },
+            "inputsHash": {
+              "not": {
+                "pattern": "^snapback\\.v1:"
+              }
+            },
+            "schemaHash": {
+              "not": {
+                "pattern": "^snapback\\.v1:"
+              }
+            },
+            "schemaVersion": {
+              "const": "snapback.v0"
+            }
+          }
+        },
+        {
+          "properties": {
+            "authMode": {
+              "const": "sessions"
+            },
+            "bundleHash": {
+              "pattern": "^snapback\\.v1:sessions:function:sha256:[0-9a-f]{64}$"
+            },
+            "inputsHash": {
+              "pattern": "^snapback\\.v1:sessions:inputs:sha256:[0-9a-f]{64}$"
+            },
+            "schemaHash": {
+              "pattern": "^snapback\\.v1:sessions:schema:sha256:[0-9a-f]{64}$"
+            },
+            "schemaVersion": {
+              "const": "snapback.v1"
+            }
+          }
+        }
+      ],
+      "properties": {
+        "appId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "authMode": {
+          "$ref": "#/$defs/AuthMode"
+        },
+        "bundleHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "inputsHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaHash": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "schemaVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "authMode",
+        "appId",
+        "schemaHash",
+        "bundleHash",
+        "inputsHash"
+      ],
+      "type": "object"
+    },
+    "HostOpsArtifacts": {
+      "additionalProperties": false,
+      "properties": {
+        "bundleHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "databaseVersion": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "schemaHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "OperationalReadinessAuthV1": {
+      "additionalProperties": false,
+      "properties": {
+        "active": {
+          "$ref": "#/$defs/AuthMode"
+        },
+        "appDataAvailability": {
+          "$ref": "#/$defs/AppDataAvailability"
+        },
+        "desired": {
+          "$ref": "#/$defs/AuthMode"
+        },
+        "modeState": {
+          "$ref": "#/$defs/AuthModeStatus"
+        },
+        "sessionActivationReady": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "active",
+        "desired",
+        "modeState",
+        "appDataAvailability"
+      ],
+      "type": "object"
+    },
+    "OperationalReadinessTargetV1": {
+      "additionalProperties": false,
+      "properties": {
+        "deployment": {
+          "$ref": "#/$defs/DeploymentIdentity"
+        },
+        "obligationsDigest": {
+          "type": "string"
+        },
+        "targetProfile": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "deployment",
+        "obligationsDigest",
+        "targetProfile"
+      ],
+      "type": "object"
+    },
+    "UnsatisfiedConditionV1": {
+      "additionalProperties": false,
+      "properties": {
+        "condition": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "condition",
+        "detail"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/operational-readiness.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "appId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "artifacts": {
+      "$ref": "#/$defs/HostOpsArtifacts"
+    },
+    "auth": {
+      "$ref": "#/$defs/OperationalReadinessAuthV1"
+    },
+    "capabilityManifestDigest": {
+      "type": "string"
+    },
+    "evaluatedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "formatVersion": {
+      "type": "string"
+    },
+    "networkProfile": {
+      "type": "string"
+    },
+    "ready": {
+      "type": "boolean"
+    },
+    "startupNonce": {
+      "type": "string"
+    },
+    "target": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OperationalReadinessTargetV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "unsatisfied": {
+      "items": {
+        "$ref": "#/$defs/UnsatisfiedConditionV1"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "formatVersion",
+    "ready",
+    "startupNonce",
+    "evaluatedAtMs",
+    "unsatisfied",
+    "auth",
+    "capabilityManifestDigest",
+    "artifacts",
+    "networkProfile"
+  ],
+  "title": "OperationalReadinessV1",
+  "type": "object"
+}
