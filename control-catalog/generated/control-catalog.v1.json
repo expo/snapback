@@ -2,10 +2,10 @@
   "schemaVersion": "snapback.control-catalog.v1",
   "catalogDigest": "sha256:d1b47fa8301e0d50dc5b9d69d061f74412313c3ef8d9051b86b29b932f04c7be",
   "buildIdentity": {
-    "sourceCommit": "591e7af32b27974e01fbb09ed576e9de45b1c15e",
+    "sourceCommit": "0a54ede9bb4bc08ba242c4f788061f702472f55f",
     "dirty": false
   },
-  "generatedAtCommit": "591e7af32b27974e01fbb09ed576e9de45b1c15e",
+  "generatedAtCommit": "0a54ede9bb4bc08ba242c4f788061f702472f55f",
   "entries": [
     {
       "operation": "acceptance.run",
