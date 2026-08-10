@@ -488,6 +488,11 @@ test('same principal on a new authority instance strands pending and failed reco
     assert.equal(record.rerecordable, true);
   }
   assert.equal((await client.outboxStatus()).stranded, 2);
+  assert.deepEqual(
+    await client.mutationStatus(pending.clientMutationId),
+    { status: 'stranded' },
+  );
+  assert.equal(Object.isFrozen(await client.mutationStatus(pending.clientMutationId)), true);
   fixture.offlineMutations = false;
   const replay = await client.replayQueuedMutations();
   assert.equal(replay.replayed, 0);
@@ -549,6 +554,10 @@ test('principal switch deletes every predecessor disposition before successor ob
     quarantined: 0,
     resultGone: 0,
     replaying: false,
+    oldestPendingAtMs: null,
+    drainPhase: 'idle',
+    nextRetryAtMs: null,
+    blockedReason: null,
   });
   assert.notEqual(first.clientMutationId, second.clientMutationId);
 });

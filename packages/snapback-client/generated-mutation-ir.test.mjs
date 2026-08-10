@@ -203,7 +203,9 @@ test('generated mutate degrades to server dispatch without durable outbox compos
   const settlement = await storelessClient.mutate(reference, { args });
   assert.equal(calls, 1, 'store-less generated mutation dispatches');
   assertPlainBody(requestBody);
-  assert.deepEqual(settlement, mockedSettlement);
+  // LLP 0218 §4.1: the dispatch union stamps the settled discriminant onto
+  // the resolved value; wire fields pass through unchanged.
+  assert.deepEqual(settlement, { ...mockedSettlement, status: 'settled' });
   assert.equal(Object.hasOwn(settlement, 'optimistic'), false);
 
   calls = 0;
@@ -230,7 +232,7 @@ test('generated mutate degrades to server dispatch without durable outbox compos
   };
   assert.deepEqual(
     await durableClient.mutate(reference, { args, queue: false }),
-    mockedSettlement,
+    { ...mockedSettlement, status: 'settled' },
   );
   assertPlainBody(requestBody);
   assert.deepEqual(await durableStore.outboxRecords(), []);
@@ -258,7 +260,7 @@ test('generated mutate degrades to server dispatch without durable outbox compos
   };
   const custodySettlement = await custodyClient.mutate(reference, { args });
   assertPlainBody(requestBody);
-  assert.deepEqual(custodySettlement, mockedSettlement);
+  assert.deepEqual(custodySettlement, { ...mockedSettlement, status: 'settled' });
   assert.equal(Object.hasOwn(custodySettlement, 'optimistic'), false);
 
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };

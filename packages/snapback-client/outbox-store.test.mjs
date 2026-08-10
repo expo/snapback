@@ -122,8 +122,8 @@ const grantingLocks = {
   request: (_name, _options, callback) => Promise.resolve(callback({ mode: 'exclusive' })),
 };
 
-const createDurableTestStore = () => {
-  const store = createMemoryRqsResumeStore();
+const createDurableTestStore = (options = undefined) => {
+  const store = createMemoryRqsResumeStore(options);
   store.durability = () => ({ implementation: 'memory-test-double', durable: true });
   return store;
 };
@@ -725,7 +725,9 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
   // Offline: fetch refuses at the transport (TypeError, like undici).
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   const queued = await client.mutate('createThing', { args: { title: 'offline' } });
+  assert.equal(queued.status, 'queued');
   assert.equal(queued.queued, true);
+  assert.equal(queued.presentation, 'withheld');
   assert.match(queued.clientMutationId, /^mut_[0-9a-hjkmnp-tv-z]{26}$/u);
   assert.equal(queued.sequence, 1);
   const queuedUpdate = await client.mutate('updateThing', { args: { title: 'later' } });
@@ -1723,7 +1725,9 @@ test('explicit-id online publication is durable before delivery and retires only
     authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
   }));
   const result = await delivery;
+  assert.equal(result.status, 'settled');
   assert.deepEqual(result.result, { id: 'thing_1' });
+  assert.equal(result.version, 4);
   const retained = (await store.outboxRecords()).find(
     (record) => record.id === 'cm-online-durable',
   );
@@ -2113,6 +2117,9 @@ test('committed result-expired becomes durable result-gone and blocks ordered su
     {
       supported: true, pending: 1, failed: 0, stranded: 0,
       quarantined: 0, resultGone: 1, replaying: false,
+      oldestPendingAtMs: (await store.outboxRecords())
+        .find((record) => record.status === 'pending').enqueuedAt,
+      drainPhase: 'idle', nextRetryAtMs: null, blockedReason: null,
     },
   );
 });
@@ -2171,6 +2178,9 @@ test('recreated file-backed client preserves result-gone without redelivery', as
     {
       supported: true, pending: 1, failed: 0, stranded: 0,
       quarantined: 0, resultGone: 1, replaying: false,
+      oldestPendingAtMs: (await reopenedStore.outboxRecords())
+        .find((record) => record.status === 'pending').enqueuedAt,
+      drainPhase: 'idle', nextRetryAtMs: null, blockedReason: null,
     },
   );
   const replay = await recreatedClient.replayQueuedMutations();
@@ -2332,6 +2342,178 @@ test('connectivity classification excludes custody and answered refusals', () =>
   assert.equal(isConnectivityFailureError(dispatchFailure), true);
 });
 
+test('mutationStatus reports pending durable intent without inferring outcome-unknown', async () => {
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({ id: 'cm-status-pending', function: 'createThing' });
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+
+  const disposition = await client.mutationStatus('cm-status-pending');
+  assert.deepEqual(disposition, { status: 'pending', blockedReason: null });
+  assert.equal(Object.isFrozen(disposition), true);
+});
+
+test('restart settlement recovery reports settled with the complete retained payload', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const first = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  globalThis.fetch = async () => { throw new TypeError('offline'); };
+  const queued = await first.mutate('createThing', { args: { title: 'restart' } });
+  const settlement = {
+    version: 17,
+    changed_count: 1,
+    result: { id: 'thing_restart' },
+    receipt: { kind: 'mutation', outcome: 'CONFIRMED' },
+    authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+  };
+  globalThis.fetch = async () => Response.json(settlement);
+  assert.equal((await first.replayQueuedMutations()).replayed, 1);
+
+  const restarted = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  const disposition = await restarted.mutationStatus(queued.clientMutationId);
+  assert.equal(disposition.status, 'settled');
+  assert.deepEqual(disposition.settlement, settlement);
+  assert.equal(Number.isSafeInteger(disposition.settledAt), true);
+  assert.equal(Object.isFrozen(disposition), true);
+  assert.equal(Object.isFrozen(disposition.settlement), true);
+});
+
+test('mutationStatus reports a retained terminal failure', async () => {
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({ id: 'cm-status-failed', function: 'createThing' });
+  await store.outboxMarkFailed('cm-status-failed', {
+    code: 'SNAPBACK_TEST_REFUSAL',
+    message: 'fixture refusal',
+  });
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+
+  assert.deepEqual(await client.mutationStatus('cm-status-failed'), {
+    status: 'failed',
+    failure: { code: 'SNAPBACK_TEST_REFUSAL', message: 'fixture refusal' },
+  });
+});
+
+test('mutationStatus reports a payload-free quarantined disposition', async () => {
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({ id: 'cm-status-quarantined', function: 'createThing' });
+  await store.outboxMarkQuarantined('cm-status-quarantined', {
+    code: 'SNAPBACK_TEST_UPGRADE_REQUIRED',
+  });
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+
+  assert.deepEqual(
+    await client.mutationStatus('cm-status-quarantined'),
+    { status: 'quarantined' },
+  );
+});
+
+test('mutationStatus maps result-gone and carries its retained outcome facts', async () => {
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({ id: 'cm-status-result-gone', function: 'createThing' });
+  const receiptDigest = `sha256:${'d'.repeat(64)}`;
+  await store.outboxMarkResultGone('cm-status-result-gone', {
+    outcome: 'committed',
+    receiptDigest,
+  });
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+
+  assert.deepEqual(await client.mutationStatus('cm-status-result-gone'), {
+    status: 'resultGone',
+    disposition: 'result-expired',
+    outcome: 'committed',
+    receiptDigest,
+  });
+});
+
+test('mutationStatus reports unknown after ACK consumption and collection', async () => {
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({ id: 'cm-status-collected', function: 'createThing' });
+  await store.outboxDurablyConsume('cm-status-collected', {
+    version: 1,
+    changed_count: 1,
+    result: { ok: true },
+    receipt: { kind: 'mutation', outcome: 'CONFIRMED' },
+    authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+  });
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  assert.equal((await client.mutationStatus('cm-status-collected')).status, 'settled');
+  await client.markMutationSettlementsConsumed(['cm-status-collected']);
+  assert.equal(await store.outboxConfirmAcknowledgements(['cm-status-collected']), 1);
+
+  const disposition = await client.mutationStatus('cm-status-collected');
+  assert.deepEqual(disposition, { status: 'unknown' });
+  assert.equal(Object.isFrozen(disposition), true);
+});
+
+test('subscribeMutation delivers current pending then settled during replay', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  globalThis.fetch = async () => { throw new TypeError('offline'); };
+  const queued = await client.mutate('createThing', { args: { title: 'subscribe' } });
+
+  const statuses = [];
+  let subscribing = true;
+  const unsubscribe = client.subscribeMutation(queued.clientMutationId, (disposition) => {
+    assert.equal(subscribing, false, 'initial mutation disposition is never sync-reentrant');
+    statuses.push(disposition.status);
+  });
+  const unsubscribeThrowing = client.subscribeMutation(
+    queued.clientMutationId,
+    () => { throw new Error('observer failure'); },
+  );
+  assert.deepEqual(statuses, []);
+  subscribing = false;
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(statuses, ['pending']);
+
+  globalThis.fetch = async () => Response.json({
+    version: 2,
+    changed_count: 1,
+    result: { ok: true },
+    receipt: { kind: 'mutation', outcome: 'CONFIRMED' },
+    authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+  });
+  assert.equal((await client.replayQueuedMutations()).replayed, 1);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(statuses, ['pending', 'settled']);
+  assert.equal((await client.mutationStatus(queued.clientMutationId)).status, 'settled');
+  unsubscribe();
+  unsubscribeThrowing();
+});
+
+test('mutation observation never consumes settlement or changes ACK eligibility', async () => {
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({ id: 'cm-status-observed', function: 'createThing' });
+  await store.outboxDurablyConsume('cm-status-observed', {
+    version: 3,
+    changed_count: 1,
+    result: { observed: true },
+    receipt: { kind: 'mutation', outcome: 'CONFIRMED' },
+    authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+  });
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  const recoveredBefore = await client.settledMutations();
+  assert.deepEqual(await store.outboxPendingAcknowledgements(null, 64), []);
+
+  assert.equal((await client.mutationStatus('cm-status-observed')).status, 'settled');
+  const observed = [];
+  const unsubscribe = client.subscribeMutation(
+    'cm-status-observed',
+    (disposition) => observed.push(disposition.status),
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  unsubscribe();
+  assert.deepEqual(observed, ['settled']);
+  assert.deepEqual(await client.settledMutations(), recoveredBefore);
+  assert.deepEqual(await store.outboxPendingAcknowledgements(null, 64), []);
+
+  await client.markMutationSettlementsConsumed(['cm-status-observed']);
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    ['cm-status-observed'],
+  );
+});
+
 test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-arm seam)', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -2344,6 +2526,8 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
     {
       supported: false, pending: 0, failed: 0, stranded: 0,
       quarantined: 0, resultGone: 0, replaying: false,
+      oldestPendingAtMs: null, drainPhase: 'idle', nextRetryAtMs: null,
+      blockedReason: null,
     },
   );
 
@@ -2354,6 +2538,8 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
     {
       supported: true, pending: 0, failed: 0, stranded: 0,
       quarantined: 0, resultGone: 0, replaying: false,
+      oldestPendingAtMs: null, drainPhase: 'idle', nextRetryAtMs: null,
+      blockedReason: null,
     },
   );
 
@@ -2362,11 +2548,16 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
   const a = await client.mutate('createThing', { args: { n: 1 } });
   await client.mutate('createThing', { args: { n: 2 } });
   assert(events.length >= 2, 'queue transitions notified subscribers');
+  const queuedStatus = await client.outboxStatus();
+  const oldestPendingAtMs = Math.min(...(await store.outboxPending())
+    .map((record) => record.enqueuedAt));
   assert.deepEqual(
-    { ...(await client.outboxStatus()) },
+    { ...queuedStatus },
     {
       supported: true, pending: 2, failed: 0, stranded: 0,
       quarantined: 0, resultGone: 0, replaying: false,
+      oldestPendingAtMs, drainPhase: 'idle', nextRetryAtMs: null,
+      blockedReason: null,
     },
   );
 
@@ -2392,6 +2583,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
     true,
     'the single-flight drain is visible while it runs',
   );
+  assert.equal((await client.outboxStatus()).drainPhase, 'replaying');
   await replayTask;
   assert(events.length > drained, 'replay transitions notified subscribers');
   assert.deepEqual(
@@ -2399,6 +2591,8 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
     {
       supported: true, pending: 0, failed: 1, stranded: 0,
       quarantined: 0, resultGone: 0, replaying: false,
+      oldestPendingAtMs: null, drainPhase: 'idle', nextRetryAtMs: null,
+      blockedReason: null,
     },
     'failed records stay visible; settled records leave the counts',
   );

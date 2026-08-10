@@ -298,6 +298,40 @@ export interface MutationOutput<Result> {
   }>;
 }
 
+export type MutationDispatchOutcome<Result> =
+  | (MutationOutput<Result> & { readonly status: 'settled' })
+  | {
+    readonly status: 'queued';
+    readonly clientMutationId: string;
+    readonly sequence: number;
+    readonly presentation: 'installed' | 'withheld' | 'unavailable';
+    /** @deprecated LLP 0218 P6 removes this alias. */
+    readonly queued?: true;
+    readonly operationCoverageDisposition?: string;
+    readonly operationHash?: string;
+  };
+
+export type MutationDisposition =
+  | { readonly status: 'pending'; readonly blockedReason: string | null }
+  | {
+    readonly status: 'settled';
+    readonly settlement: MutationOutput<unknown>;
+    readonly settledAt: number;
+  }
+  | {
+    readonly status: 'failed';
+    readonly failure: Readonly<{ readonly code: string; readonly message: string }>;
+  }
+  | { readonly status: 'stranded' }
+  | { readonly status: 'quarantined' }
+  | {
+    readonly status: 'resultGone';
+    readonly disposition: 'result-expired';
+    readonly outcome: 'committed' | 'refused';
+    readonly receiptDigest: `sha256:${string}`;
+  }
+  | { readonly status: 'unknown' };
+
 export interface OptimisticMutationViewSnapshot {
   readonly format: 'snapback.optimistic-rebase-snapshot.v1';
   readonly revision: number;
@@ -957,6 +991,10 @@ export interface OutboxStatus {
    * are not replayable failures and keep ordered successors fenced. */
   readonly resultGone: number;
   readonly replaying: boolean;
+  readonly oldestPendingAtMs: number | null;
+  readonly drainPhase: 'idle' | 'replaying';
+  readonly nextRetryAtMs: null;
+  readonly blockedReason: string | null;
 }
 
 /** Terminal-auth fact (0137 A6 f3): pure projection of the client's own
@@ -1339,7 +1377,7 @@ export class SnapbackClient {
       readonly authorityCapture?: unknown;
       readonly queue?: 'auto' | boolean;
     },
-  ): Promise<MutationOutput<FunctionResult<Ref>>>;
+  ): Promise<MutationDispatchOutcome<FunctionResult<Ref>>>;
   mutate<Result = unknown>(
     ref: NamedReference,
     options?: {
@@ -1355,7 +1393,7 @@ export class SnapbackClient {
       readonly authorityCapture?: unknown;
       readonly queue?: 'auto' | boolean;
     },
-  ): Promise<MutationOutput<Result>>;
+  ): Promise<MutationDispatchOutcome<Result>>;
   /** The resolved persistence store's implementation/durability facts. */
   readonly rqsStoreInfo: RqsStoreInfo;
   /** Drain the durable outbox in sequence order (single-flight). */
@@ -1402,6 +1440,13 @@ export class SnapbackClient {
   }): Promise<unknown>;
   /** Live queued-intent facts for UI projection (LLP 0114 React arm). */
   outboxStatus(): Promise<OutboxStatus>;
+  /** Non-consuming durable disposition for one mutation identity. */
+  mutationStatus(clientMutationId: string): Promise<MutationDisposition>;
+  /** Delivers the current durable disposition asynchronously, then changes. */
+  subscribeMutation(
+    clientMutationId: string,
+    listener: (disposition: MutationDisposition) => void,
+  ): () => void;
   /** Fires after every outbox transition (queue/replay/settle-failure) and
    * around each drain; returns the unsubscribe. Listeners observe only. */
   subscribeOutbox(listener: () => void): () => void;

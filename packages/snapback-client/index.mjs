@@ -6277,6 +6277,10 @@ export class SnapbackClient {
         quarantined: 0,
         resultGone: 0,
         replaying: false,
+        oldestPendingAtMs: null,
+        drainPhase: 'idle',
+        nextRetryAtMs: null,
+        blockedReason: null,
       });
     }
     let pending = 0;
@@ -6284,15 +6288,26 @@ export class SnapbackClient {
     let stranded = 0;
     let quarantined = 0;
     let resultGone = 0;
+    let oldestPendingAtMs = null;
+    let blockedReason = typeof store.isWriter === 'function' && store.isWriter() !== true
+      ? 'not-writer'
+      : null;
     try {
       const custody = await this.#reconcileQueueCustody(store);
+      if (!custody.settled && blockedReason === null) blockedReason = 'custody-unsettled';
       if (!custody.settled) throw custody.error;
       const records = typeof store.outboxRecords === 'function'
         ? await store.outboxRecords()
         : await store.outboxPending();
       for (const record of records) {
         if (record?.status === 'failed') failed += 1;
-        else if (record?.status === 'pending') pending += 1;
+        else if (record?.status === 'pending') {
+          pending += 1;
+          if (
+            Number.isSafeInteger(record.enqueuedAt)
+            && (oldestPendingAtMs === null || record.enqueuedAt < oldestPendingAtMs)
+          ) oldestPendingAtMs = record.enqueuedAt;
+        }
         else if (record?.status === 'stranded') stranded += 1;
         else if (record?.status === 'quarantined') quarantined += 1;
         else if (record?.status === 'result-gone') resultGone += 1;
@@ -6306,7 +6321,94 @@ export class SnapbackClient {
       quarantined,
       resultGone,
       replaying: this.__outboxReplayTask !== null,
+      oldestPendingAtMs,
+      drainPhase: this.__outboxReplayTask !== null ? 'replaying' : 'idle',
+      nextRetryAtMs: null,
+      blockedReason,
     });
+  }
+
+  /// Non-consuming projection of one durable outbox record. This deliberately
+  /// does not use settledMutations() or cross the ACK-eligibility cut.
+  ///
+  /// @ref LLP 0218#41-the-dispatch-union-headless-contract — durable mutation
+  ///   disposition is independently observable without licensing settlement
+  ///   inference when no retained record exists.
+  async mutationStatus(clientMutationId) {
+    if (typeof clientMutationId !== 'string' || clientMutationId.length === 0) {
+      throw new TypeError('mutationStatus requires a client mutation id');
+    }
+    let store = null;
+    try { store = this.#offlineQueueStore(); } catch { store = null; }
+    if (!store || typeof store.outboxRecords !== 'function') {
+      return Object.freeze({ status: 'unknown' });
+    }
+    const notWriter = typeof store.isWriter === 'function' && store.isWriter() !== true;
+    const custody = await this.#reconcileQueueCustody(store);
+    if (!custody.settled && !notWriter) return Object.freeze({ status: 'unknown' });
+    let record;
+    try {
+      record = (await store.outboxRecords())
+        .find((candidate) => candidate?.id === clientMutationId);
+    } catch {
+      return Object.freeze({ status: 'unknown' });
+    }
+    if (!record) return Object.freeze({ status: 'unknown' });
+    if (record.status === 'pending') {
+      // LLP 0218 §4.1: the current store records no durable
+      // identity-horizon-passed marker, so outcome-unknown cannot be inferred
+      // from a merely pending record and blockedReason remains null.
+      return Object.freeze({ status: 'pending', blockedReason: null });
+    }
+    if (record.status === 'settled') {
+      return freezeDeep({
+        status: 'settled',
+        settlement: structuredClone(record.settlement),
+        settledAt: record.settledAt,
+      });
+    }
+    if (record.status === 'failed') {
+      return freezeDeep({
+        status: 'failed',
+        failure: structuredClone(record.failure),
+      });
+    }
+    if (record.status === 'stranded') return Object.freeze({ status: 'stranded' });
+    if (record.status === 'quarantined') return Object.freeze({ status: 'quarantined' });
+    if (record.status === 'result-gone') {
+      return freezeDeep({ status: 'resultGone', ...structuredClone(record.resultGone) });
+    }
+    return Object.freeze({ status: 'unknown' });
+  }
+
+  /// Observe one durable mutation disposition over the existing outbox seam.
+  /// Initial delivery is promise-task asynchronous; listener failures remain
+  /// observational and cannot perturb queue state.
+  subscribeMutation(clientMutationId, listener) {
+    if (typeof clientMutationId !== 'string' || clientMutationId.length === 0) {
+      throw new TypeError('subscribeMutation requires a client mutation id');
+    }
+    if (typeof listener !== 'function') {
+      throw new TypeError('subscribeMutation requires a listener function');
+    }
+    let active = true;
+    let lastStatus = null;
+    let observations = Promise.resolve();
+    const observe = () => {
+      observations = observations.then(async () => {
+        if (!active) return;
+        const disposition = await this.mutationStatus(clientMutationId);
+        if (!active || disposition.status === lastStatus) return;
+        lastStatus = disposition.status;
+        try { listener(disposition); } catch { /* observation cannot own the queue */ }
+      }).catch(() => { /* a transient unreadable store is not queue authority */ });
+    };
+    const unsubscribeOutbox = this.subscribeOutbox(observe);
+    observe();
+    return () => {
+      active = false;
+      unsubscribeOutbox();
+    };
   }
 
   /// Stable, payload-free LLP 0081 tombstones. The durable store privately
@@ -6751,10 +6853,14 @@ export class SnapbackClient {
         clientMutationId: stored.id,
         sequence: stored.sequence,
       });
+      // @ref LLP 0218#41-the-dispatch-union-headless-contract — connectivity
+      //   relinquishment, not durable insertion, is the queued dispatch cut.
       return {
+        status: 'queued',
         queued: true,
         clientMutationId: stored.id,
         sequence: stored.sequence,
+        presentation: 'withheld',
       };
     } catch (error) {
       this.#recordOutboxDiagnostic({
@@ -6996,11 +7102,16 @@ export class SnapbackClient {
           queue: false,
           },
         );
+        // @ref LLP 0218#41-the-dispatch-union-headless-contract — `status` is
+        //   the process-local dispatch discriminant, not a settlement fact:
+        //   the durable record retains the raw wire settlement (LLP 0043 owns
+        //   that family), so strip the stamp before persisting.
+        const { status: _dispatchStatus, ...retainedSettlement } = settlement;
         let consumed;
         try {
           consumed = await store.outboxDurablyConsume(
             record.id,
-            settlement,
+            retainedSettlement,
             record.userId ?? null,
           );
         } catch (error) {
@@ -7597,10 +7708,14 @@ export class SnapbackClient {
                     ? 'authenticated-epoch-capacity'
                     : 'connectivity',
                 });
+                // @ref LLP 0218#41-the-dispatch-union-headless-contract — an
+                //   uncovered range relinquishes foreground dispatch as queued.
                 return {
+                  status: 'queued',
                   queued: true,
                   clientMutationId: stored.id,
                   sequence: stored.sequence,
+                  presentation: 'withheld',
                   operationCoverageDisposition: 'uncovered-range-exhausted',
                 };
               }
@@ -7749,10 +7864,13 @@ export class SnapbackClient {
             attempts: attempt,
           });
         }
+        // @ref LLP 0218#41-the-dispatch-union-headless-contract — foreground
+        //   settlement stays settled even though durable custody was committed first.
         return generatedMutation === null
-          ? json
+          ? { ...json, status: 'settled' }
           : {
             ...json,
+            status: 'settled',
             clientMutationId,
             optimistic: {
               operationHash: generatedMutation.operationHash,

@@ -336,7 +336,9 @@ registrations.
   // Offline: fetch refuses at the transport (TypeError, like undici).
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   const queued = await client.mutate('createThing', { args: { title: 'offline' } });
+  assert.equal(queued.status, 'queued');
   assert.equal(queued.queued, true);
+  assert.equal(queued.presentation, 'withheld');
 ```
 
 ## Preserve pending work across a desktop sidecar swap

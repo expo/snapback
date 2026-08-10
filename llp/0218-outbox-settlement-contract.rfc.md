@@ -379,6 +379,32 @@ replaces the queued rejection) lands with P3.
    of caller absorption (the §4.5 primary-vs-fallback trigger is P1's
    pre-publication audit; this one is closure evidence).
 
+## Implementation notes
+
+**P1 pre-publication absorption audit (2026-08-10, recorded at P1
+implementation).** Repo-wide caller scan over demos, CLI templates, guide
+snippets, and packages: ~676 `mutate(` call sites total, of which the
+React-arm resolved-value break reaches only surfaces that consume the
+resolved value of `useSnapbackMutation`/`invokeSnapbackMutation`/bound
+mutations. Live-linked consumers (`file:../../packages/snapback-react`):
+12 demo apps (browser-local-first, chirp, file-drop,
+fleet-observatory-move1, messaging-snapback, signal-desk, warble,
+zerobugs/control, zero-bakeoff contention-calendar + latency-kanban,
+relay-room-bakeoff snapback-expo, tandem-expo-bakeoff) plus the 4 CLI
+templates (react, crud-dashboard, expo-chat, media-feed). Frozen bakeoff
+evidence directories pin tarballs/published versions and are exempt.
+Every affected surface is in-repo and migrated by the P3 sweep; package
+skew is handled by the §4.5 lockstep peer-range floor in the release that
+carries the union. **Ruling: primary path (in-place return-type
+migration) selected; the churn is absorbable; the new-hook fallback is
+not triggered.**
+
+**Phase status.** P1 headless union: implemented (this landing). P2
+drain controller, P3 React contract, P4 propagation + diagnostic, P5
+docs: see the dated notes below as they land. P6 deprecation closure is
+window-gated: it runs after the deprecation window of the release
+carrying the union, tracked by a filesystem ticket at the P5 landing.
+
 ## Open questions
 
 - Deprecation window for the `queued:true` alias and the compatibility

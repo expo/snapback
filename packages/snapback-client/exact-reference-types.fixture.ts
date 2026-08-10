@@ -78,7 +78,16 @@ client.query(listTodos, { args: { owner: 'ada' } }).then((output) => {
   output.rows[0]?.title.toUpperCase();
 });
 client.mutate(createTodo, { args: { title: 'ship it' } }).then((output) => {
-  output.result.toUpperCase();
+  // @ts-expect-error mutate outcomes must be narrowed before settled fields are read.
+  output.result;
+  if (output.status === 'settled') {
+    output.result.toUpperCase();
+  } else {
+    output.clientMutationId.toUpperCase();
+    output.sequence.toFixed();
+    const presentation: 'installed' | 'withheld' | 'unavailable' = output.presentation;
+    void presentation;
+  }
 });
 client.liveQuery(listTodos, {
   connectionId: 'fixture',
