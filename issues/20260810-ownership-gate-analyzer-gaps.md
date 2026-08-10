@@ -1,6 +1,7 @@
 # Ownership gate: analyzer blind to non-`crate::` dependency forms; baseline updates can launder forbidden edges
 
-**Status:** Open
+**Status:** Open — CLAIMED 2026-08-10 (Claude session, agentic-audit lane;
+implementing items 1–4 now)
 **Date:** 2026-08-10
 **Systems:** Proof/gates, Rust core
 **Source:** LLP 0225 super-refine round 1, gpt-5 family review
