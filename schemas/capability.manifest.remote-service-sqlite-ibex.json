@@ -125,6 +125,7 @@
     "live_full_text_search_v1",
     "assets",
     "notifications.expoPushSeam",
+    "realtime.connected-client-predicate",
     "write_activity_v1",
     "sequence_allocation_v1",
     "snapshot_batch_v1",
@@ -139,6 +140,7 @@
     "jobs_one_off_v1": "experimental",
     "registered_bundle_boot_v1": "experimental",
     "result_contract_v1": "experimental",
+    "structured_stored_value_v1": "experimental",
     "versioned_seed_install_v1": "experimental",
     "versioned_seed_reset_v1": "experimental"
   },
@@ -288,6 +290,7 @@
     "relational_query_v1",
     "migration_keyset_scan_v1",
     "result_contract_v1",
+    "structured_stored_value_v1",
     "settlement.bounded_skew",
     "args_contract_v1",
     "versioned_seed_install_v1",

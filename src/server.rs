@@ -1088,6 +1088,8 @@ pub(crate) fn expo_push_fixture_clock_allowed(profile: ServerProfile) -> bool {
 /// hold the global write mutex for the duration of the run.
 struct DetachedActionHost {
     state: SharedSnapback,
+    connected_clients: crate::connected_clients::ConnectedClientRegistry,
+    connected_client_predicate_available: bool,
     abandoned: Arc<AtomicBool>,
     commit_gate: Arc<StdMutex<()>>,
     /// The one room-reservation wait currently owned by this action worker.
@@ -1869,6 +1871,21 @@ impl IbexActionHost for DetachedActionHost {
                 output
             }
         }
+    }
+
+    fn has_fresh_client(&mut self, principal_id: &str) -> SnapbackResult<bool> {
+        if !self.connected_client_predicate_available {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CONNECTED_CLIENT_PREDICATE_UNAVAILABLE",
+                "realtime",
+                "realtime.hasFreshClient requires a session-auth application",
+            ));
+        }
+        // @ref LLP 0222#semantics-pinned — false means only that no exact
+        // transport witness remains inside the fixed monotonic-time budget.
+        Ok(self
+            .connected_clients
+            .has_fresh_client(principal_id, Instant::now()))
     }
 
     fn open_response_stream(
@@ -3005,6 +3022,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     stream_initiator,
                     stream_started,
                     ephemeral,
+                    connected_clients,
+                    connected_client_predicate_available,
                     telemetry,
                     module,
                     grants,
@@ -3029,6 +3048,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 );
                 let mut host = DetachedActionHost {
                     state,
+                    connected_clients,
+                    connected_client_predicate_available,
                     abandoned,
                     commit_gate,
                     active_reservation,
@@ -4479,6 +4500,14 @@ impl PreparedConnectionOpenAuthority {
 }
 
 impl PreparedConnectionAct {
+    fn session_principal_id(&self) -> Option<&str> {
+        match &self.bound {
+            BoundGrantAuthority::Session { user_id, .. } => Some(user_id.as_str()),
+            BoundGrantAuthority::Anonymous { .. }
+            | BoundGrantAuthority::ServicePrincipal { .. } => None,
+        }
+    }
+
     fn verify_ephemeral_authority_instance(&self, presented: Option<&str>) -> Result<(), ApiError> {
         if self.hosted_ephemeral_authority_required
             && self.ephemeral_authority_protocol
@@ -4559,6 +4588,24 @@ impl PreparedConnectionAct {
     }
 }
 
+fn record_authenticated_poll_witness(
+    runtime: &AppState,
+    connection_act: &PreparedConnectionAct,
+) -> Result<(), ApiError> {
+    let Some(principal_id) = connection_act.session_principal_id() else {
+        return Ok(());
+    };
+    runtime
+        .connected_clients
+        .register_or_refresh_authenticated_poll(
+            principal_id,
+            &connection_act.connection_id,
+            &connection_act.grant_id,
+            Instant::now(),
+        )
+        .map_err(ApiError::from)
+}
+
 #[must_use = "authority work must remain reserved through Local finalization"]
 struct ConnectionAuthorityWorkPermit {
     _publication: FencedAuthorityWorkPermit,
@@ -4630,6 +4677,7 @@ impl BoundConnectionTerminalCapture {
 #[derive(Clone)]
 pub(crate) struct AuthTerminalLifecycle {
     connections: ConnectionRegistry,
+    connected_clients: crate::connected_clients::ConnectedClientRegistry,
     delivery: Arc<crate::ephemeral::DeliveryNotifier>,
     ephemeral: EphemeralApi,
     snapback: SharedSnapback,
@@ -4723,6 +4771,9 @@ fn spawn_mint_only_retired_connection_cleanup(
 async fn cleanup_retired_connection(runtime: AppState, capture: BoundConnectionTerminalCapture) {
     let connection_id = capture.connection_id.clone();
     debug_assert!(capture.whole_id_cleanup_safe);
+    runtime
+        .connected_clients
+        .remove_grant(&capture.connection_id, &capture.grant_id);
     let delivery = runtime.ephemeral.delivery_notifier();
     let _ = delivery.retire_bound(&connection_id, &capture.grant_id);
     cleanup_mint_only_retired_connection(runtime.ephemeral, runtime.snapback, capture).await;
@@ -4791,6 +4842,7 @@ async fn join_retired_connection_cleanup_batch(
 impl AuthTerminalLifecycle {
     pub(crate) fn new(
         connections: ConnectionRegistry,
+        connected_clients: crate::connected_clients::ConnectedClientRegistry,
         ephemeral: &EphemeralApi,
         snapback: SharedSnapback,
     ) -> Self {
@@ -4798,7 +4850,9 @@ impl AuthTerminalLifecycle {
         let retirement_delivery = delivery.clone();
         let retirement_ephemeral = ephemeral.clone();
         let retirement_snapback = snapback.clone();
+        let retirement_connected_clients = connected_clients.clone();
         connections.install_retirement_sink(move |capture| {
+            retirement_connected_clients.remove_grant(&capture.connection_id, &capture.grant_id);
             purge_connection_capture(&retirement_ephemeral, &capture, true);
             let _ = retirement_delivery.retire_bound(&capture.connection_id, &capture.grant_id);
             let _ = spawn_mint_only_retired_connection_cleanup(
@@ -4809,6 +4863,7 @@ impl AuthTerminalLifecycle {
         });
         Self {
             connections,
+            connected_clients,
             delivery,
             ephemeral: ephemeral.clone(),
             snapback,
@@ -5005,6 +5060,8 @@ impl AuthTerminalLifecycle {
             .connections
             .clear_after_committed_reset_with_terminal(&self.delivery, event);
         for capture in &captures {
+            self.connected_clients
+                .remove_grant(&capture.connection_id, &capture.grant_id);
             purge_connection_capture(&self.ephemeral, capture, false);
             debug_assert!(capture.whole_id_cleanup_safe);
             self.ephemeral
@@ -5028,6 +5085,8 @@ impl AuthTerminalLifecycle {
 
     fn cleanup_terminalized_captures(&self, captures: Vec<BoundConnectionTerminalCapture>) {
         for capture in captures {
+            self.connected_clients
+                .remove_grant(&capture.connection_id, &capture.grant_id);
             purge_connection_capture(&self.ephemeral, &capture, false);
             let _ = spawn_mint_only_retired_connection_cleanup(
                 self.ephemeral.clone(),
@@ -13675,6 +13734,25 @@ async fn enforce_registered_route_policy_inner(
                 );
             }
         }
+    }
+
+    // Every successfully authenticated connection-scoped HTTP act is a
+    // client-originated poll-lane signal. The WebSocket upgrade is excluded:
+    // its exact generation is registered only after the upgrade succeeds, so
+    // a known socket close cannot leave an upgrade-request witness behind.
+    //
+    // @ref LLP 0222#open-questions — the real headless client uses HTTP poll;
+    // semanticsVersion 2 therefore widens the witness transport explicitly.
+    if spec.path != "/live/{connection_id}/stream"
+        && let Some(prepared) = prepared_connection_act.as_ref()
+        && let Err(error) = record_authenticated_poll_witness(&runtime, prepared)
+    {
+        return finish_registered_response(
+            response_policy,
+            error.into_response(),
+            route_admission.as_ref(),
+            None,
+        );
     }
 
     let invocation_source =
@@ -27377,7 +27455,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
     let Ok((generation, waker)) =
         connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || {
             notify
-                .register_bound(&connection_id, terminal_capture.grant_id)
+                .register_bound(&connection_id, terminal_capture.grant_id.clone())
                 .map_err(ApiError::from)
         })
     else {
@@ -27386,6 +27464,24 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         // observing predecessor state; the client reconnect policy retries.
         return;
     };
+    // @ref LLP 0222#implementation-sketch-repo-verified — witness registration happens
+    // only after the exact notifier generation is installed. Anonymous and
+    // scoped-service grants intentionally create no principal witness.
+    if let Some(principal_id) = connection_act.session_principal_id()
+        && runtime
+            .connected_clients
+            .register_managed_websocket(
+                principal_id,
+                &connection_id,
+                &terminal_capture.grant_id,
+                generation,
+                Instant::now(),
+            )
+            .is_err()
+    {
+        notify.unregister(&connection_id, generation);
+        return;
+    }
     let socket_observation = LiveSocketObservation::new(runtime.telemetry.start_classified_span(
         crate::telemetry_contract::OperationClassIdV1::STREAM_CONNECT,
         "/live/{connection_id}/stream",
@@ -27555,6 +27651,12 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         {
                             break 'stream;
                         }
+                        runtime.connected_clients.refresh_managed_websocket(
+                            &connection_id,
+                            &terminal_capture.grant_id,
+                            generation,
+                            Instant::now(),
+                        );
                         let room_authorization = match authorize_live_socket_room(
                             &runtime,
                             &connection_id,
@@ -27678,6 +27780,12 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         {
                             break 'stream;
                         }
+                        runtime.connected_clients.refresh_managed_websocket(
+                            &connection_id,
+                            &terminal_capture.grant_id,
+                            generation,
+                            Instant::now(),
+                        );
                         let deadline = match record_connection_authenticated_use(
                             &runtime,
                             connection_act.authenticated_use_key(),
@@ -27721,6 +27829,12 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         {
                             break 'stream;
                         }
+                        runtime.connected_clients.refresh_managed_websocket(
+                            &connection_id,
+                            &terminal_capture.grant_id,
+                            generation,
+                            Instant::now(),
+                        );
                         None
                     },
                 }
@@ -28089,6 +28203,11 @@ async fn teardown_live_stream(
     else {
         return;
     };
+    runtime.connected_clients.remove_managed_websocket(
+        connection_id,
+        &connection_act.grant_id,
+        generation,
+    );
 
     let cleanup_runtime = runtime.clone();
     let capture = connection_act.terminal_capture();

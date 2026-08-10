@@ -2413,6 +2413,8 @@ pub struct AppState {
     /// Per-connection capability grants (ENG-23442): connection-scoped routes
     /// demand the token minted by `POST /connection/open`.
     pub connections: ConnectionRegistry,
+    /// Shared advisory connectivity witnesses for this exact app process.
+    pub(crate) connected_clients: crate::connected_clients::ConnectedClientRegistry,
     /// Pending-registration owners for bundle register mode plus the
     /// per-authority bundle rate limiter (LLP 0031 dated LLP 0090 amendment;
     /// LLP 0092 §0D.4 bounds and reaping). Public for the acceptance suite;
@@ -2561,13 +2563,12 @@ impl AppState {
         let auth_admission = read.admission_controller();
         let connections = ConnectionRegistry::default();
         let network_profiles = crate::network_profile::NetworkProfileState::new();
-        let auth_terminal_lifecycle =
-            AuthTerminalLifecycle::new(connections.clone(), &ephemeral, snapback.clone());
         let (
             service_authority_fences,
             telemetry,
             derived_instance_identity,
             auth_rehearsal_live_grants,
+            connected_clients,
         ) = {
             let mut instance = snapback.try_lock().map_err(|_| {
                 SnapbackError::error(
@@ -2579,6 +2580,7 @@ impl AppState {
             let telemetry = instance.telemetry();
             let derived_instance_identity = instance.derived_fork_identity().cloned();
             let auth_rehearsal_live_grants = instance.auth_rehearsal_live_registry();
+            let connected_clients = instance.connected_client_registry();
             let service_authority_fences = {
                 let database = instance.auth_database_mut();
                 if !database.claim_app_state_graph() {
@@ -2596,8 +2598,15 @@ impl AppState {
                 telemetry,
                 derived_instance_identity,
                 auth_rehearsal_live_grants,
+                connected_clients,
             )
         };
+        let auth_terminal_lifecycle = AuthTerminalLifecycle::new(
+            connections.clone(),
+            connected_clients.clone(),
+            &ephemeral,
+            snapback.clone(),
+        );
         Ok((
             Self {
                 snapback,
@@ -2609,6 +2618,7 @@ impl AppState {
                 network_profiles,
                 live_fanout_coalescer: None,
                 connections,
+                connected_clients,
                 bundle_pending: crate::bundle::PendingBundleRegistry::default(),
                 auth_terminal_lifecycle,
                 service_authority_fences,

@@ -6,7 +6,7 @@
 Deployment, Testing, Documentation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-03 (PUSH-01 Exit: a physical iOS development build
+**Revised:** 2026-08-10 (LLP 0222 connected-client predicate recorded as advisory push-policy input, never exactly-once settlement). 2026-08-03 (PUSH-01 Exit: a physical iOS development build
 returned an allowlisted Expo ticket and receipt with `ok` status; the local
 `notifications.expoPushSeam` integration seam is shipped, while hosted remains
 Missing and the first-class LLP 0045 `notifications` boolean remains false.)
@@ -1017,6 +1017,22 @@ to Implemented. It leaves the complete hosted conjunction Missing and keeps
 the distinct LLP 0045 `notifications` boolean false. Nothing here claims
 device delivery, display, read state, exactly-once behavior, latency,
 availability, or an SLA.
+
+### 2026-08-10 — connected-client advisory policy input
+
+LLP 0222 now supplies `ctx.realtime.hasFreshClient({ principalId })` to local
+session-auth actions. A push action may use this advisory fact to skip an
+immediate Expo attempt when at least one authenticated client transport is
+fresh inside the fixed 15-second budget. The predicate is existential across
+devices, and `false` means only “no fresh witness,” not “offline.”
+
+This does not widen any D3 receipt or exactly-once claim. In particular, a
+fresh client may disconnect before observing the event, so the predicate must
+not settle or cancel a durable notification intent; LLP 0045's 2026-08-10
+amendment assigns live-vs-push arbitration requiring exactly-once behavior to
+that durable lifecycle. Hosted use remains unavailable until the hosted
+session/push conjunction and a sound single-authority or shared aggregation
+route both exist.
 
 ## Prior art
 

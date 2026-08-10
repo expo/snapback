@@ -920,6 +920,13 @@
       ctx.runMutation = function(mutationName, mutationArgs) {
         return host("action.runMutation", { name: mutationName, args: mutationArgs || {} });
       };
+      // @ref LLP 0222#design-detail — connectivity is an
+      // action-only host observation; no durable db view is exposed.
+      ctx.realtime = {
+        hasFreshClient: function(request) {
+          return host("realtime.hasFreshClient", request || {});
+        }
+      };
       // @ref LLP 0143#d2-the-send-lane — actions address a generated audience
       // reference; token resolution, authorization, batching, and provider
       // custody stay entirely behind this host operation.

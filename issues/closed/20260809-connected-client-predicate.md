@@ -27,3 +27,20 @@ LLP 0045 now. Problems surfaced by the maximal implementation are worked
 through as tickets, not fenced out of scope in advance. (Ruling recorded here
 rather than in `llp/0222` because a live super-refine loop holds uncommitted
 edits to that file; the loop should fold this ruling into the RFC.)
+
+## Resolution — 2026-08-10
+
+Implemented the enabled-by-default local target surface: a bounded 15-second
+server witness index for managed WebSockets and authenticated poll acts,
+session-action `ctx.realtime.hasFreshClient`, conditional generated typings,
+structured semantics-v2 capability facts, lifecycle fencing/removal, the push
+skip acceptance slice, and the named LLP/guide amendments. The implementation
+proves multi-device existence, exact expiry/generation behavior, hard capacity,
+high-churn stability, restart clearing, grant retirement, and zero durable
+version advancement.
+
+The sound aggregation posture reached in this lane is single-authority routing:
+all local client acts and handlers share one app-instance process. Remote and
+Cloudflare targets remain Missing rather than returning process-local false
+negatives. The remaining hosted shared-union/routing proof is tracked in
+`issues/20260810-connected-client-hosted-aggregation.md`.

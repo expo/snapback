@@ -9,13 +9,13 @@ id: realtime.live-queries
 order: 1
 audience: agent-first
 capabilities: [realtime.live-queries, realtime.durable-push]
-authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, src/connected_clients.rs, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-client/index.mjs]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/party-wall]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed: 2026-08-10
+reviewed-commit: bbfb871f14c3cefbda2e1e143770b5c25eadb94f
 ---
 
 # Live queries
@@ -231,6 +231,34 @@ data, marked); `closed → disconnected`. Defaults:
 reconnect backoff 250ms → 10s. The
 [headless client](../clients/headless.md) owns this state machine; the
 [Contract adapter](../clients/contract-adapter.md) and React arm consume it.
+
+## Ask whether a principal has a fresh client
+
+In a session-auth action, use
+`ctx.realtime.hasFreshClient({ principalId })` when an advisory routing choice
+depends on whether any client for that opaque principal has contacted this app
+authority recently:
+
+```ts fragment reason="Representative action policy; applications supply their own generated action and push audience types"
+const connected = await ctx.realtime.hasFreshClient({ principalId });
+if (connected) return { skipped: true, reason: 'connected' };
+return ctx.push.send(pushRequest);
+```
+
+The answer is existential across devices. It is `true` when at least one
+session-authenticated managed WebSocket or authenticated poll-lane act has a
+client-originated signal inside the fixed 15-second monotonic budget. Known
+socket close, grant/session retirement, reset, and process restart remove the
+relevant witness; otherwise expiry makes it false. Anonymous and scoped-service
+clients never count.
+
+Treat both answers narrowly: `false` means “no fresh witness,” not “offline,”
+and `true` does not prove that the client observed a live event. The predicate
+is action-only, non-durable, and does not join a query read set or advance a
+database version. Local serving uses one app-instance authority. Hosted or
+multi-instance targets must either route both client activity and the action to
+one declared authority or implement a sound shared union; targets without that
+property omit the capability instead of returning a process-local lie.
 
 ## Anti-patterns
 

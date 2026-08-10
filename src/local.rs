@@ -1388,6 +1388,8 @@ pub(crate) struct DetachedIbexAction {
     /// allowing the HTTP request to return while execution continues.
     pub stream_started: Option<tokio::sync::oneshot::Sender<String>>,
     pub ephemeral: EphemeralApi,
+    pub connected_clients: crate::connected_clients::ConnectedClientRegistry,
+    pub connected_client_predicate_available: bool,
     pub telemetry: crate::telemetry::Telemetry,
     pub module: crate::manifest::IbexModule,
     pub grants: Value,
@@ -2431,6 +2433,10 @@ pub struct LocalSnapback {
     telemetry_store_identity: Option<crate::telemetry::TelemetryStoreIdentity>,
     runtime: RuntimeManager,
     ephemeral: LocalEphemeralBackend,
+    /// Process-local, clone-shared connected-client witnesses. This is kept
+    /// beside (not inside) durable storage so handler reads never advance an
+    /// app version.
+    connected_clients: crate::connected_clients::ConnectedClientRegistry,
     /// Clone-shared process-local profile selector installed by AppState.
     network_profiles: crate::network_profile::NetworkProfileState,
     /// Prepared live-lane carrier for the commit currently producing frames.
@@ -3299,6 +3305,8 @@ struct LocalIbexActionHost<'a> {
     // call after the nested invocation returns without losing or aliasing context.
     snapback: *mut LocalSnapback,
     authority: PreparedAuthority,
+    connected_clients: crate::connected_clients::ConnectedClientRegistry,
+    connected_client_predicate_available: bool,
     _marker: PhantomData<&'a mut LocalSnapback>,
 }
 
@@ -3326,6 +3334,19 @@ impl IbexActionHost for LocalIbexActionHost<'_> {
             .authority
             .inherit_for(InvocationSource::NestedMutation)?;
         unsafe { (&mut *self.snapback).invoke_mutation_with_authority(name, input, authority) }
+    }
+
+    fn has_fresh_client(&mut self, principal_id: &str) -> SnapbackResult<bool> {
+        if !self.connected_client_predicate_available {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CONNECTED_CLIENT_PREDICATE_UNAVAILABLE",
+                "realtime",
+                "realtime.hasFreshClient requires a session-auth application",
+            ));
+        }
+        Ok(self
+            .connected_clients
+            .has_fresh_client(principal_id, Instant::now()))
     }
 }
 
@@ -4896,6 +4917,7 @@ impl LocalSnapback {
             app_generation,
         );
         self.warm_vms.clear();
+        self.connected_clients.clear();
         self.terminalize_all_local_live_effects();
         // ENG-23333: capture the live subscriptions being dropped so their
         // clients can be told. Clearing the map alone leaves every connected
@@ -16791,6 +16813,9 @@ impl LocalSnapback {
                     },
                     stream_started: None,
                     ephemeral: self.ephemeral_api(),
+                    connected_clients: self.connected_clients.clone(),
+                    connected_client_predicate_available: self.db.schema().effective_auth_mode()
+                        == AuthMode::Sessions,
                     telemetry: self.telemetry.clone(),
                     module: module.clone(),
                     // @ref LLP 0036#runtime-exposure-d5-d8 — grants are
@@ -19939,6 +19964,7 @@ impl LocalSnapback {
             telemetry_store_identity,
             runtime,
             ephemeral: LocalEphemeralBackend::new(),
+            connected_clients: crate::connected_clients::ConnectedClientRegistry::default(),
             network_profiles: crate::network_profile::NetworkProfileState::new(),
             current_live_network_egress: None,
             managed_local_handoff: Arc::new(crate::exec_guard::ManagedLocalHandoff::default()),
@@ -19997,6 +20023,12 @@ impl LocalSnapback {
         state: crate::network_profile::NetworkProfileState,
     ) {
         self.network_profiles = state;
+    }
+
+    pub(crate) fn connected_client_registry(
+        &self,
+    ) -> crate::connected_clients::ConnectedClientRegistry {
+        self.connected_clients.clone()
     }
 
     pub(crate) fn function(
@@ -21404,6 +21436,12 @@ impl LocalSnapback {
                     let mut host = LocalIbexActionHost {
                         snapback,
                         authority: prepared.authority().clone(),
+                        connected_clients: self.connected_clients.clone(),
+                        connected_client_predicate_available: self
+                            .db
+                            .schema()
+                            .effective_auth_mode()
+                            == AuthMode::Sessions,
                         _marker: PhantomData,
                     };
                     runtime.invoke_ibex_action_prepared(

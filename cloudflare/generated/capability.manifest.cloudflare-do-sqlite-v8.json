@@ -190,6 +190,7 @@
     "snapshot_batch_v2",
     "notifications",
     "notifications.expoPushSeam",
+    "realtime.connected-client-predicate",
     "cron",
     "ephemeral_realtime",
     "code_hot_load",

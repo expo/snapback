@@ -66,6 +66,28 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
+#[test]
+fn connected_client_witnesses_do_not_advance_the_durable_version() {
+    let snapback = LocalSnapback::memory().expect("connected-client storage fixture");
+    let before = snapback
+        .durable_version()
+        .expect("durable version before witness");
+    let registry = snapback.connected_client_registry();
+    let now = Instant::now();
+    registry
+        .register_managed_websocket("user-1", "connection-1", "grant-1", 1, now)
+        .expect("register transport witness");
+    assert!(registry.has_fresh_client("user-1", now));
+    registry.remove_grant("connection-1", "grant-1");
+    assert_eq!(
+        snapback
+            .durable_version()
+            .expect("durable version after witness"),
+        before,
+        "process-local connectivity observation must not write durable state"
+    );
+}
+
 fn opaque_structured_field_type() -> FieldType {
     let contract = crate::manifest::StoredStructuredContractV1 {
         version: crate::manifest::STORED_STRUCTURED_CONTRACT_VERSION_V1,

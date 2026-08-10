@@ -300,6 +300,14 @@ export interface TargetCapabilityManifest {
     authMode?: string;
   }>>;
   readonly supportedCapabilities?: readonly string[];
+  readonly connectedClientPredicate?: Readonly<{
+    capabilityId: 'realtime.connected-client-predicate';
+    semanticsVersion: number;
+    freshnessBudgetMs: number;
+    transport: readonly ('managed-websocket' | 'authenticated-poll')[];
+    authorityScope: string;
+    aggregationMode: 'single-authority-routing';
+  }>;
   readonly agentSafe?: AgentSafeCapabilityExtensionV1;
   readonly [fact: string]: unknown;
 }

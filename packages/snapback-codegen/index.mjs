@@ -921,6 +921,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'mutation_read_set_validation',
   'mixed_bundle_boot_v2',
   'notifications.expoPushSeam',
+  'realtime.connected-client-predicate',
   'permission_epoch_resync',
   'registered_bundle_boot_v1',
   'relational_query_v1',
@@ -963,6 +964,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'jobs_one_off_v1',
   'live_full_text_search_v1',
   'mixed_bundle_boot_v2',
+  'realtime.connected-client-predicate',
   'sequence_allocation_v1',
   'snapshot_batch_v1',
   'snapshot_batch_v2',
@@ -4972,6 +4974,7 @@ async function generateInProcessLocked({
     providerBindingMetadata,
     routesManifest,
     assetUploadIntents,
+    capabilityManifest,
   );
   const microArtifacts = buildMicroArtifacts({
     backendRoot,
@@ -11044,6 +11047,7 @@ function renderApiTypes(
   providerBindingMetadata,
   routesManifest,
   assetUploadIntents = [],
+  capabilityManifest = null,
 ) {
   const hasSearchFunction = functions.some(
     (fn) => fn.runtime?.HostPlan?.SearchQuery !== undefined,
@@ -11068,6 +11072,8 @@ function renderApiTypes(
   const pushAudiences = Object.entries(schemaDef.pushSeam?.audiences ?? {});
   const pushAudienceNames = pushAudiences.map(([name]) => name);
   const hasPushSend = schemaDef.pushSeam?.ledger !== undefined && pushAudiences.length > 0;
+  const hasConnectedClientPredicate = schemaDef.auth?.mode === 'sessions'
+    && capabilityManifest?.supportedCapabilities?.includes('realtime.connected-client-predicate');
   const pushAudienceReferenceType = ([name, audience]) => {
     const args = new Map();
     for (const clause of [audience.resolve, audience.authorize]) {
@@ -11088,7 +11094,7 @@ function renderApiTypes(
   };
   const lines = [
     HEADER,
-    `import type { ActionContext, AnonymousAuthContext, AssetsContext, AuthContext, AuthenticatedAuthContext, Handler, HandlerSchema, JobsContext, MutationContext, MutationDatabase, MutationIdentityContext, MutationSettlement, QueryBuilder, QueryContext, QueryDatabase, RuntimeContext, SecretsContext, SequenceContext } from '${CTX_DECLARATION_MODULE}';`,
+    `import type { ActionContext, AnonymousAuthContext, AssetsContext, AuthContext, AuthenticatedAuthContext, Handler, HandlerSchema, JobsContext, MutationContext, MutationDatabase, MutationIdentityContext, MutationSettlement, QueryBuilder, QueryContext, QueryDatabase, RealtimeContext, RuntimeContext, SecretsContext, SequenceContext } from '${CTX_DECLARATION_MODULE}';`,
     `export type * from '${CTX_DECLARATION_MODULE}';`,
     ...(hasSearchFunction
       ? ["import type { SearchPageV1 as ClientSearchPageV1 } from '@expo/snapback-client';"]
@@ -11422,7 +11428,7 @@ function renderApiTypes(
   lines.push(
     'export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = QueryContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, any, GeneratedRuntimeContext>;',
     'export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext>;',
-    `export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, ${hasPushSend ? 'GeneratedPush' : 'never'}>;`,
+    `export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, ${hasPushSend ? 'GeneratedPush' : 'never'}, ${hasConnectedClientPredicate ? 'RealtimeContext' : 'never'}>;`,
     'export interface GeneratedFunctionContexts {',
   );
   for (const fn of functions) {

@@ -129,6 +129,7 @@ const TARGET_CAPABILITIES = new Set([
   'live_subscriptions',
   'mutation_read_set_validation',
   'notifications.expoPushSeam',
+  'realtime.connected-client-predicate',
   'settlement.bounded_skew',
   'permission_epoch_resync',
   'full_text_search_v1',

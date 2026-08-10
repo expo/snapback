@@ -5,7 +5,7 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-08 (post-commit fan-out coalescing: backlogged commits'
+**Revised:** 2026-08-10 (LLP 0222 connected-client witness amendment: action-only, session-authenticated, fixed-budget, transport-attested, and non-durable). 2026-08-08 (post-commit fan-out coalescing: backlogged commits'
 data fan-out may be merged into one pending frame delivered once at the
 latest version — LLP 0191 §1 rung 1, evidence-driven by the zb5-hot 74 s
 median; see the dated decision section for the deferral rule, exclusions,
@@ -1009,6 +1009,23 @@ decision above is otherwise unchanged; its inline-flush starvation rule is
 superseded by scheduler-enforced bounds. Contracts, classifier, fence, and
 gate: LLP 0200 §2. The strict per-commit inline path remains behind
 `SNAPBACK_LIVE_SCHEDULER_DISABLED=1` (A/B and embedder fallback).
+
+## Dated amendment — handler-visible fresh-client witnesses (2026-08-10)
+
+LLP 0222 adds an action-only observation over this managed transport lane:
+`ctx.realtime.hasFreshClient({ principalId })`. The local authority indexes
+only session-authenticated client-originated activity, with a fixed 15-second
+monotonic freshness budget. Its semantics version 2 counts the managed
+WebSocket and authenticated poll lanes; anonymous and scoped-service carriers
+do not create a principal witness.
+
+The index is process-local, generation/grant fenced, bounded, and cleared on
+restart/reset. Known socket close and grant/session retirement remove the
+exact witness immediately. It is not a subscription, durable presence row,
+read-set input, or delivery acknowledgment, and it never advances the durable
+database version. A target may advertise it only when client traffic and
+actions share one authority (including explicit single-authority routing); no
+cross-instance union may be inferred from a process-local index.
 
 ## Status
 

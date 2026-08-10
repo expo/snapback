@@ -136,6 +136,26 @@ export const probe = defineAction({
 });
 `;
 
+// @ref LLP 0222#design-detail — target support is necessary but
+// not sufficient: dev-auth generated actions omit the session-only predicate.
+{
+  const result = await validCase({
+    functions: jsActionFunctions,
+    handlers: {
+      'handler.mjs': 'globalThis.__snapbackHandlers = { async probe() { return null; } };\n',
+    },
+  });
+  const apiTypes = readFileSync(join(result.outDir, 'api.d.ts'), 'utf8');
+  assert(apiTypes.includes(
+    'GeneratedRuntimeContext, any, SecretsContext<any>, unknown, never, never>;',
+  ));
+  assert.equal(
+    apiTypes.includes('never, RealtimeContext>;'),
+    false,
+    'dev-auth action contexts omit the connected-client predicate',
+  );
+}
+
 // LLP 0143 registry declaration is explicit, session-only, and closed. It
 // does not imply the later send/ledger slices.
 {
@@ -170,8 +190,8 @@ export default defineSchema(
   });
   const apiTypes = readFileSync(join(result.outDir, 'api.d.ts'), 'utf8');
   assert(
-    apiTypes.includes('GeneratedRuntimeContext, any, SecretsContext<any>, unknown, never>;'),
-    'registry-only declaration instantiates the shared action context without a send surface',
+    apiTypes.includes('GeneratedRuntimeContext, any, SecretsContext<any>, unknown, never, RealtimeContext>;'),
+    'session target instantiates the connected-client action surface without inventing push send',
   );
 }
 
@@ -308,7 +328,7 @@ export const pushLedger = definePushLedgerQuery({ auth: 'authenticated' });
   ));
   assert(apiTypes.includes('export type GeneratedPushAudienceName = "guests" | "selectedGuests";'));
   assert(apiTypes.includes(
-    'GeneratedRuntimeContext, any, SecretsContext<any>, unknown, GeneratedPush>;',
+    'GeneratedRuntimeContext, any, SecretsContext<any>, unknown, GeneratedPush, RealtimeContext>;',
   ));
   assert(apiTypes.includes('send(request: GeneratedPushSendRequest): Promise<GeneratedPushSendResult>;'));
   assert(apiTypes.includes('readonly redriveAmbiguous?: boolean'));

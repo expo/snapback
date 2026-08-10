@@ -5,7 +5,7 @@
 **Systems:** Notifications, Runtime, API, Security, Auth, Cron, Developer experience, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-13 (ENG-24596 final audit: retained this RFC's auth-mailbox handoff and durability-boundary ownership while delegating the exact process-local protocol to LLP 0057); 2026-07-13 (ENG-24596: reassigned auth challenge capture to LLP 0057's process-local mailbox and prohibited plaintext auth codes in durable notification intents); 2026-07-07 (cross-family review revisions, ratified by Charlie — see
+**Revised:** 2026-08-10 (LLP 0222 OQ3 ruling: connected-client freshness is not exactly-once live-vs-push arbitration; durable notification intent owns that lifecycle). 2026-07-13 (ENG-24596 final audit: retained this RFC's auth-mailbox handoff and durability-boundary ownership while delegating the exact process-local protocol to LLP 0057); 2026-07-13 (ENG-24596: reassigned auth challenge capture to LLP 0057's process-local mailbox and prohibited plaintext auth codes in durable notification intents); 2026-07-07 (cross-family review revisions, ratified by Charlie — see
 `reviews/0045-notifications-outbox.claude.md`: runner pinned to 0028's cron
 machinery, delivery grants grounded in 0036's `uses` model, auth-code handoff
 with 0039 recorded; initial same day)
@@ -183,6 +183,20 @@ arm without sessions routes remains unable to authenticate native users.
 - What is the first push provider and how are device tokens modeled?
 - Does scheduled (future) delivery need anything beyond the sweep's due-time
   claim, or is the cron sweep sufficient until volume proves otherwise?
+
+### Dated amendment — connectivity is not delivery arbitration (2026-08-10)
+
+LLP 0222's `ctx.realtime.hasFreshClient` predicate is advisory routing input
+only. It MUST NOT arbitrate exactly-once behavior between live delivery and
+push, cancel a durable notification intent, or prove that a user observed an
+event. A client may disconnect immediately after a fresh witness, reconnect on
+another device, or receive both lanes.
+
+Any live-vs-push suppression that needs exactly-once product behavior belongs
+to this RFC's durable notification-intent lifecycle: the intent, claim,
+attempt, cancellation, idempotency, and terminal settlement records are the
+authority. The connected-client predicate may inform an attempt policy, but a
+`true` or `false` result is never that lifecycle's durable settlement fact.
 
 ## Status
 

@@ -67,6 +67,7 @@ pub mod cli;
 pub mod commit_envelope;
 #[doc(hidden)]
 pub mod completeness;
+pub(crate) mod connected_clients;
 #[doc(hidden)]
 pub mod config;
 pub mod conformance;

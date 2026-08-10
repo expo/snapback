@@ -22436,6 +22436,8 @@ fn held_action_host(
 ) -> DetachedActionHost {
     DetachedActionHost {
         state,
+        connected_clients: action.connected_clients.clone(),
+        connected_client_predicate_available: action.connected_client_predicate_available,
         abandoned: Arc::new(AtomicBool::new(false)),
         commit_gate: Arc::new(StdMutex::new(())),
         active_reservation: Arc::new(StdMutex::new(None)),

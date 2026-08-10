@@ -5600,13 +5600,13 @@ id: backend.expo-push-seam
 order: 46
 audience: agent-first
 capabilities: [backend.expo-push-seam]
-authorities: [llp/0143-expo-push-notification-seam.rfc.md, src/push.rs, src/server.rs, src/admin.rs, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-client/push-registry.mjs, packages/snapback-cli/fake-expo-push.mjs]
+authorities: [llp/0143-expo-push-notification-seam.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0045-notifications-outbox.rfc.md, src/push.rs, src/connected_clients.rs, src/server.rs, src/admin.rs, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-client/push-registry.mjs, packages/snapback-cli/fake-expo-push.mjs]
 examples: [packages/snapback-cli/fixtures/push-seam]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed: 2026-08-10
+reviewed-commit: bbfb871f14c3cefbda2e1e143770b5c25eadb94f
 ---
 
 # Expo push notifications
@@ -5811,6 +5811,33 @@ contains opaque intent, batch, message, and token-row ids plus timing, state,
 ticket id, allowlisted error code, and retirement effect. It never contains
 token bytes, title/body/data, dedupe key, audience arguments, config, or Expo
 prose. Do not query the protected ledger tables directly.
+
+## Skip an immediate push when a client is fresh
+
+Session-auth action contexts on the local target include
+`ctx.realtime.hasFreshClient({ principalId })`. You may use it before
+`ctx.push.send` as an advisory policy input:
+
+```ts fragment reason="Representative action policy; the generated app supplies its audience-specific push request"
+if (await ctx.realtime.hasFreshClient({ principalId })) {
+  return { skipped: true, reason: 'connected' };
+}
+return ctx.push.send(pushRequest);
+```
+
+The local capability manifest names `semanticsVersion: 2`, a fixed
+`freshnessBudgetMs: 15000`, and the `managed-websocket` plus
+`authenticated-poll` transports. The fact is existential across the
+principal's devices and tied to this app-instance authority. `false` means
+only that no qualifying witness is fresh; it is not proof that the user is
+offline. `true` does not prove that a live event was rendered or acknowledged.
+
+Do not use this branch as exactly-once live-vs-push arbitration or to settle a
+durable notification intent. That requires LLP 0045's durable intent,
+idempotency, attempt, cancellation, and terminal-settlement lifecycle, which
+is still a GAP. Hosted targets omit this predicate until their session/push
+conjunction and a sound single-authority route or shared aggregation index both
+exist.
 
 ## Treat ambiguity as possible duplicate display
 

@@ -254,6 +254,15 @@ pub trait IbexActionHost {
     /// not only a nested mutation commit, to its staging app generation.
     fn validate_host_call(&mut self, op: &str) -> SnapbackResult<()>;
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput>;
+    /// Advisory transport witness for one opaque session principal. Targets
+    /// without a truthful authority must refuse, never answer false.
+    fn has_fresh_client(&mut self, _principal_id: &str) -> SnapbackResult<bool> {
+        Err(SnapbackError::error(
+            "SNAPBACK_CONNECTED_CLIENT_PREDICATE_UNAVAILABLE",
+            "realtime",
+            "this invocation target does not provide an authoritative connected-client witness index",
+        ))
+    }
     // @ref LLP 0076#target-contract — a target that does not implement the
     // bounded response-stream profile must refuse with the stable
     // `_UNSUPPORTED` code rather than buffering or silently degrading.
@@ -2777,6 +2786,18 @@ impl<'a> IbexHostContext<'a> {
                     )
                 })
             }
+            // @ref LLP 0222#design-detail — the predicate is an
+            // action-only host read. Query/mutation contexts receive no
+            // surface, and the dispatcher independently enforces the cut.
+            "realtime.hasFreshClient" => {
+                self.ensure_action("realtime.hasFreshClient")?;
+                let principal_id = required_string(&args, "principalId")?;
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                Ok(Value::Bool(host.has_fresh_client(&principal_id)?))
+            }
             _ => Err(SnapbackError::error(
                 "SNAPBACK_HANDLER_HOST_CALL_UNKNOWN",
                 "runtime",
@@ -5058,14 +5079,20 @@ fn is_executable(path: &Path) -> bool {
 
 #[cfg(test)]
 mod action_db_boundary_tests {
-    use super::{IbexActionHost, IbexHostContext};
+    use super::{IbexActionHost, IbexHostContext, run_ibex_handler_with_context};
+    use crate::connected_clients::ConnectedClientRegistry;
     use crate::cron::{CronRunMetadata, CronRunTrigger};
     use crate::diagnostic::{SnapbackError, SnapbackResult};
-    use crate::manifest::{HandlerInput, MutationOutput};
+    use crate::manifest::{HandlerInput, IbexModule, MutationOutput};
     use serde_json::json;
+    use std::time::Instant;
 
     struct MutationOnlyHost;
     struct StaleGenerationHost;
+    struct ConnectedPredicateHost {
+        registry: ConnectedClientRegistry,
+        now: Instant,
+    }
 
     impl IbexActionHost for MutationOnlyHost {
         fn validate_host_call(&mut self, _op: &str) -> SnapbackResult<()> {
@@ -5096,6 +5123,32 @@ mod action_db_boundary_tests {
             _input: HandlerInput,
         ) -> SnapbackResult<MutationOutput> {
             panic!("generation denial must precede action host dispatch")
+        }
+    }
+
+    impl IbexActionHost for ConnectedPredicateHost {
+        fn validate_host_call(&mut self, _op: &str) -> SnapbackResult<()> {
+            Ok(())
+        }
+
+        fn run_mutation(
+            &mut self,
+            _name: &str,
+            _input: HandlerInput,
+        ) -> SnapbackResult<MutationOutput> {
+            panic!("the connected-client push branch performs no mutation")
+        }
+
+        fn has_fresh_client(&mut self, principal_id: &str) -> SnapbackResult<bool> {
+            assert_eq!(principal_id, "principal-1");
+            Ok(self.registry.has_fresh_client(principal_id, self.now))
+        }
+
+        fn push_send(
+            &mut self,
+            _request: crate::push::PushSendRequestV1,
+        ) -> SnapbackResult<crate::push::PushSendReservationResponseV1> {
+            panic!("a connected principal must skip push.send")
         }
     }
 
@@ -5153,6 +5206,41 @@ mod action_db_boundary_tests {
                 .expect_err("stale outer action cannot retain non-mutation host power");
             assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_GENERATION_CONFLICT");
         }
+    }
+
+    #[test]
+    fn action_handler_skips_push_for_a_connected_principal() {
+        let registry = ConnectedClientRegistry::default();
+        let now = Instant::now();
+        registry
+            .register_managed_websocket("principal-1", "connection-1", "grant-1", 1, now)
+            .expect("install the server-side connected-client witness");
+        let mut host = ConnectedPredicateHost { registry, now };
+        let mut context = IbexHostContext::new_action(
+            HandlerInput::default(),
+            metadata(),
+            &mut host,
+            json!(null),
+        )
+        .expect("action context");
+        let module = IbexModule {
+            source: r#"
+                globalThis.__snapbackHandlers = {
+                  async notify(ctx) {
+                    const connected = await ctx.realtime.hasFreshClient({ principalId: 'principal-1' });
+                    if (connected) return { skipped: true, reason: 'connected' };
+                    await ctx.push.send({ audience: { audience: 'all', args: {} }, notification: { title: 'hello' } });
+                    return { skipped: false };
+                  }
+                };
+            "#
+            .to_owned(),
+            export: "notify".to_owned(),
+        };
+
+        let output = run_ibex_handler_with_context(&module, &mut context, None)
+            .expect("connected branch completes without entering push.send");
+        assert_eq!(output, json!({ "skipped": true, "reason": "connected" }));
     }
 }
 

@@ -285,6 +285,11 @@ export interface ActionContextBase<
   refuse(code: string, details?: unknown): never;
 }
 
+/** Advisory, fixed-budget connected-client facts available to actions. */
+export interface RealtimeContext {
+  hasFreshClient(request: Readonly<{ principalId: string }>): Promise<boolean>;
+}
+
 /** Action handler context. `push` exists in types only when codegen admits it. */
 export type ActionContext<
   Auth extends AuthContext = AuthContext,
@@ -293,8 +298,10 @@ export type ActionContext<
   Secrets = SecretsContext,
   Run = unknown,
   Push = never,
+  Realtime = never,
 > = ActionContextBase<Auth, Runtime, Assets, Secrets, Run>
-  & ([Push] extends [never] ? object : { readonly push: Push });
+  & ([Push] extends [never] ? object : { readonly push: Push })
+  & ([Realtime] extends [never] ? object : { readonly realtime: Realtime });
 
 /** Generic handler function shape instantiated by each generated API. */
 export type Handler<Context, Args, Result> = (

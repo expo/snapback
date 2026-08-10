@@ -9811,6 +9811,8 @@ pub enum TargetCapabilityId {
     JobsOneOffV1,
     #[serde(rename = "notifications.expoPushSeam")]
     ExpoPushSeamV1,
+    #[serde(rename = "realtime.connected-client-predicate")]
+    ConnectedClientPredicate,
     #[serde(rename = "live_subscriptions")]
     LiveSubscriptions,
     #[serde(rename = "mutation_read_set_validation")]
@@ -9888,7 +9890,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 38] = [
+    pub const ALL: [Self; 39] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -9899,6 +9901,7 @@ impl TargetCapabilityId {
         Self::InlineHandlerV1,
         Self::JobsOneOffV1,
         Self::ExpoPushSeamV1,
+        Self::ConnectedClientPredicate,
         Self::LiveSubscriptions,
         Self::MutationReadSetValidation,
         Self::MixedBundleBootV2,
@@ -9941,6 +9944,7 @@ impl TargetCapabilityId {
             Self::InlineHandlerV1 => "inline_handler_v1",
             Self::JobsOneOffV1 => "jobs_one_off_v1",
             Self::ExpoPushSeamV1 => "notifications.expoPushSeam",
+            Self::ConnectedClientPredicate => "realtime.connected-client-predicate",
             Self::LiveSubscriptions => "live_subscriptions",
             Self::MutationReadSetValidation => "mutation_read_set_validation",
             Self::MixedBundleBootV2 => "mixed_bundle_boot_v2",
@@ -10024,6 +10028,8 @@ impl TargetCapabilityId {
             | Self::AssetReferenceGcV1
             | Self::AgentSafeStorageV1
             | Self::AgentSafeDerivedDeploymentForkV1 => CapabilityMaturity::Experimental,
+            // LLP 0222 remains in Review while this implementation lands.
+            Self::ConnectedClientPredicate => CapabilityMaturity::Experimental,
             Self::AuthSessionsV1
             | Self::BoundedResponseStreamV1
             | Self::Cron
@@ -10147,6 +10153,28 @@ impl TargetCapabilityId {
                                     "receipt-maintenance",
                                 ]
                     })
+            }
+            Self::ConnectedClientPredicate => {
+                facts.connected_client_predicate_registered
+                    && manifest.live_subscriptions
+                    && manifest
+                        .connected_client_predicate
+                        .as_ref()
+                        .is_some_and(|descriptor| {
+                            descriptor.capability_id == "realtime.connected-client-predicate"
+                                && descriptor.semantics_version == 2
+                                && descriptor.freshness_budget_ms == 15_000
+                                && descriptor.transport
+                                    == ["managed-websocket", "authenticated-poll"]
+                                && descriptor.authority_scope == "app-instance-process"
+                                && descriptor.aggregation_mode == "single-authority-routing"
+                        })
+                    && manifest
+                        .supported_artifact_auth_pairs
+                        .contains(&SupportedArtifactAuthPair {
+                            schema_version: ArtifactVersion::V1,
+                            auth_mode: AuthMode::Sessions,
+                        })
             }
             Self::LiveSubscriptions => manifest.live_subscriptions,
             Self::MutationReadSetValidation => {
@@ -11592,6 +11620,7 @@ pub struct TargetCapabilityFacts {
     inline_handler_v1_registered: bool,
     jobs_one_off_v1_registered: bool,
     expo_push_seam_v1_registered: bool,
+    connected_client_predicate_registered: bool,
     result_contract_v1_registered: bool,
     structured_stored_value_v1_registered: bool,
     settlement_bounded_skew_registered: bool,
@@ -11763,6 +11792,7 @@ impl TargetCapabilityFacts {
             // experimental maturity carries the Draft-status honesty.
             jobs_one_off_v1_registered: true,
             expo_push_seam_v1_registered: true,
+            connected_client_predicate_registered: true,
             result_contract_v1_registered: true,
             // @ref LLP 0211#capability-and-maturity-the-llp-0134-publication-contract
             //   — the support flip is the separate reviewed act the Spec
@@ -11815,6 +11845,7 @@ impl TargetCapabilityFacts {
             // fail closed like the other local-only registrations.
             jobs_one_off_v1_registered: false,
             expo_push_seam_v1_registered: false,
+            connected_client_predicate_registered: false,
             write_activity_v1_registered: false,
             local_relation_activity_publication_v1_verified: false,
             local_sequence_allocation_publication_v1_verified: false,
@@ -12545,6 +12576,16 @@ pub struct CapabilityManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub expo_push_seam: Option<ExpoPushSeamFactsV1>,
+    /// Advisory connected-client predicate facts. `single-authority-routing`
+    /// means every relevant client act and handler must reach this exact app
+    /// authority; multi-instance targets may not infer aggregation from it.
+    #[serde(
+        default,
+        rename = "connectedClientPredicate",
+        alias = "connected_client_predicate",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub connected_client_predicate: Option<ConnectedClientPredicateFactsV2>,
     #[serde(rename = "supportedQueryForms", alias = "supported_query_forms")]
     pub supported_query_forms: Vec<String>,
     #[serde(rename = "portabilityOptOuts", alias = "portability_opt_outs")]
@@ -12713,6 +12754,39 @@ pub struct ExpoPushSeamFactsV1 {
     pub adaptive_pacing: bool,
     #[serde(rename = "neverClaims")]
     pub never_claims: Vec<String>,
+}
+
+/// Machine-readable semantics for LLP 0222's advisory connectivity fact.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConnectedClientPredicateFactsV2 {
+    #[serde(rename = "capabilityId")]
+    pub capability_id: String,
+    #[serde(rename = "semanticsVersion")]
+    pub semantics_version: u32,
+    #[serde(rename = "freshnessBudgetMs")]
+    pub freshness_budget_ms: u64,
+    pub transport: Vec<String>,
+    #[serde(rename = "authorityScope")]
+    pub authority_scope: String,
+    #[serde(rename = "aggregationMode")]
+    pub aggregation_mode: String,
+}
+
+impl ConnectedClientPredicateFactsV2 {
+    fn single_authority_v2() -> Self {
+        Self {
+            capability_id: "realtime.connected-client-predicate".to_owned(),
+            semantics_version: 2,
+            freshness_budget_ms: 15_000,
+            transport: ["managed-websocket", "authenticated-poll"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+            authority_scope: "app-instance-process".to_owned(),
+            aggregation_mode: "single-authority-routing".to_owned(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -13352,6 +13426,7 @@ impl CapabilityManifest {
             cron: true,
             notifications: false,
             expo_push_seam: Some(ExpoPushSeamFactsV1::local_v1()),
+            connected_client_predicate: Some(ConnectedClientPredicateFactsV2::single_authority_v2()),
             migration: Some(MigrationTargetFacts::local_v1()),
             relational_queries: Some(RelationalQueryFacts::local_v1()),
             standard_patterns: Some(StandardPatternFacts::local_v1()),
@@ -13542,9 +13617,13 @@ impl CapabilityManifest {
         // withheld rather than inherited from the local declaration.
         manifest.app_cli_target = None;
         manifest.expo_push_seam = None;
+        manifest.connected_client_predicate = None;
         manifest
             .capability_gaps
             .push("notifications.expoPushSeam".to_owned());
+        manifest
+            .capability_gaps
+            .push("realtime.connected-client-predicate".to_owned());
         ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
         let mut facts = TargetCapabilityFacts::local_auth_aware()
             .with_relation_activity_publication_withheld()
@@ -13589,9 +13668,13 @@ impl CapabilityManifest {
         // surface: it serves no envelopes and has no row in §4's matrix.
         manifest.app_cli_target = None;
         manifest.expo_push_seam = None;
+        manifest.connected_client_predicate = None;
         manifest
             .capability_gaps
             .push("notifications.expoPushSeam".to_owned());
+        manifest
+            .capability_gaps
+            .push("realtime.connected-client-predicate".to_owned());
         for withheld in [
             TargetCapabilityId::AssetLifecycleV1,
             TargetCapabilityId::AssetImageFinalizationV1,
@@ -13666,6 +13749,7 @@ impl CapabilityManifest {
         // does not have.
         manifest.app_cli_target = None;
         manifest.expo_push_seam = None;
+        manifest.connected_client_predicate = None;
         manifest.supported_artifact_versions = vec![ArtifactVersion::V0];
         manifest.supported_auth_modes = vec![AuthMode::Dev];
         manifest.supported_artifact_auth_pairs = vec![SupportedArtifactAuthPair {
@@ -13738,6 +13822,7 @@ impl CapabilityManifest {
             "snapshot_batch_v2".to_owned(),
             "notifications".to_owned(),
             "notifications.expoPushSeam".to_owned(),
+            "realtime.connected-client-predicate".to_owned(),
             "cron".to_owned(),
             "ephemeral_realtime".to_owned(),
             "code_hot_load".to_owned(),
