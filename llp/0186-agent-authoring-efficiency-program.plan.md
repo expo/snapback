@@ -841,8 +841,10 @@ command with optional image upload, typing presence, the raw asset lane), seeded
 Expo/React Native chat screen driving everything through `useSurface` — plus the starter
 acceptance pair (`acceptance.mjs` live receipt, `acceptance.static.mjs` coherence) and an
 `AGENTS.md` funnel per LLP 0187 T4. It deliberately omits the fixture's G2/G3 emit probes and
-witness reporting, the inbox/memberships/reactions/replies breadth, and sessions auth (the
-template keeps the dev auth profile with an explicit pointer to the auth guide; the fixture
+witness reporting, and the inbox/memberships/reactions/replies breadth (staleness fix
+2026-08-10, found by the LLP 0223 review loop: the shipped template now declares
+`auth: { mode: 'sessions' }` in its schema — the dev-auth-profile description below is
+historical v1 prose; the fixture
 remains the full sessions-mode surface). CI coverage: `packages/snapback-cli/package.test.mjs`
 scaffolds the template, runs codegen over it (asserting zero degraded results and that the
 `conversation` surface generates), and executes its static acceptance; the live acceptance was

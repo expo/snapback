@@ -1,10 +1,30 @@
 # LLP 0224: Prepared standalone operation and the application-readiness receipt
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Server lifecycle, Host operations, Packaged dev loop, CLI, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-10 (Review → Accepted — accepted to begin Phase 1 implementation only (author direction in-session, 2026-08-10); verdicts bind revision (c), the (d) tail is unreviewed and disclosed; the projection-tier OQ and OQ2/OQ5 remain open author questions — Phase 1 builds the conservative authenticated fail-closed posture)
+**Revised:** 2026-08-10 (d — UNREVIEWED delta-convergence revision: both
+round-2 reviews found pre-existing text clean with in-delta-only
+MATERIALs; this revision fixes them — readiness evaluated against a
+closed expected activation target; supported-capability authority is the
+executing runtime's target-profile registry; start plan constructed
+deterministically inside native `start` from the verified release;
+standalone successor activation stays behind LLP 0058's explicit
+`--activate-startup-successor` opt-in with the narrow scope amendment in
+Phase 2; 0058 predicate-binding amendment moved to Phase 1. Post-dates
+the round-2 reviews in
+`llp/reviews/0224-prepared-standalone-operation.rfc.{gpt-5,claude}.md`)
+**Revised:** 2026-08-10 (c — round-1 super-refine: activation-eligibility
+honesty + start-plan qualification step; v1-carrier-from-release story;
+receipt authority unified on server-owned `OperationalReadinessV1` with
+lifecycle and `wait` cross-check; LLP 0058 invariant corrected; pilot
+labeled calibration-only. Per GPT-5.6-sol M1–M5 and Claude M1–M3,
+`llp/reviews/0224-prepared-standalone-operation.rfc.{gpt-5,claude}.md`)
+**Revised:** 2026-08-10 (b — Draft → Review at llp-super-refine loop start,
+the one authorized transition; sub-orchestrated loop)
 **Revised:** 2026-08-10 (a — initial draft, synthesized from the Clique P2
 pilot evidence and a GPT-5.6-sol design consultation)
 **Related:** LLP 0030 (managed dev — ready-file handshake this layers on),
@@ -15,30 +35,38 @@ diagnostic codes and runtime-readiness receipts), LLP 0109 (closed
 `StartupArtifacts` v1; V2 deferred), LLP 0123 (readiness ≠ presence),
 LLP 0103 (hosted lifecycle state machine precedent), LLP 0114 (React
 façade boundary), LLP 0167 (network profiles perturb observation, never
-settlement), `benchmarks/records/2026-08-09-social-messenger-p2-pilot.md`
+settlement), LLP 0189 (landing/verification cadence the phases follow),
+`benchmarks/records/2026-08-09-social-messenger-p2-pilot.md`
 (B11 row), `~/clique-runs/p2-pilot/snapback-lane/scores.md` §B11 and
 `~/clique-runs/p2-pilot/snapback-lane/clique/tools/scale-run.mjs` (retry
-loop), `guide/capabilities.md` (operating.server-lifecycle,
+loop), `~/clique-runs/p2-pilot/convex-lane/scores.md` §B11 (`--once`
+lifetime coupling), `guide/capabilities.md` (operating.server-lifecycle,
 operating.packaged-dev-loop rows)
 
 ## Summary
 
-The Clique P2 pilot scored Snapback B11 (operations and maturity) at 74 —
-above Convex's 52, but with two concrete lifecycle gaps recorded in the lane
-evidence. First, standalone `snapback start` **refused a capability the dev
-supervisor grants**, forcing the scale lane onto supervisor-managed
-instances even though it wanted a plain long-lived server process. Second,
-the supervisor **reports ready before sessions settle**: the ready file is
-by design a host handshake published after listener bind and instance-lock
-recording (LLP 0030; `schemas/host-ready.schema.json`), while `runDev`
-performs `loadGenerated` *afterwards* (`packages/snapback-cli/index.mjs`,
-managed-loop body), so the pilot's scale driver saw `ready === true`,
-issued its first authority-bearing call, failed, and had to wrap it in a
-20-attempt retry loop (`scale-run.mjs`, "The supervisor reports ready
-before the sessions deployment fully settles"). The Convex lane hit the
-mirror-image failure — `convex dev --once` exiting killed the backend,
-because backend lifetime is coupled to the dev CLI process — which is the
-trap Snapback must not reproduce under a different flag.
+The Clique P2 pilot (calibration evidence only, not claim-eligible — the
+run record's own label) scored Snapback B11 (operations and maturity) at
+74, above Convex's 52 and just under Supabase's 75, with two concrete
+lifecycle gaps recorded in the lane evidence. First, standalone
+`snapback start` **refused a capability the dev supervisor grants**,
+forcing the scale lane onto supervisor-managed instances even though it
+wanted a plain long-lived server process. Second, the supervisor **reports
+ready before the application deployment finishes provisioning**: the ready
+file is by design a host handshake published after listener bind and
+instance-lock recording (LLP 0030; `schemas/host-ready.schema.json`),
+while `runDev` performs `loadGenerated` *afterwards*
+(`packages/snapback-cli/index.mjs`, managed-loop body), so the pilot's
+scale driver saw `ready === true`, issued its first authority-bearing
+call, failed, and had to wrap it in a 20-attempt retry loop
+(`scale-run.mjs`; the driver's comment blames "the sessions deployment",
+but LLP 0058 forces sessions activation before listener bind and the loop
+swallowed the failed response — the demonstrated gap is post-bind
+package-level provisioning settlement, not necessarily auth). The Convex
+lane hit the mirror-image failure — `convex dev --once` exiting killed
+the backend, lifetime coupled to the dev CLI process
+(`convex-lane/scores.md` §B11) — the trap Snapback must not reproduce
+under a different flag.
 
 The capability index already tells this story structurally:
 `operating.server-lifecycle` is shipped and `operating.packaged-dev-loop`
@@ -55,12 +83,15 @@ kills the pilot's retry-loop race.
 From the design consultation, compressed:
 
 - **A. Prepared standalone mode.** `snapback deploy build` already produces
-  an immutable, capability-validated release; add a native consumer,
-  `snapback start --release <digest-dir>`. Real single-service lifecycle
-  with no watcher and no client arm; capability admission derives from the
-  same release manifests instead of a supervisor grant. Cost: the largest
-  option — native startup must consume declared startup obligations
-  (routes, API envelope), not just today's schema/functions carrier.
+  an immutable, content-addressed, integrity-verified release closure; add
+  a native consumer, `snapback start --release <digest-dir>`. Real
+  single-service lifecycle with no watcher and no client arm; capability
+  admission derives from the same release manifests instead of a
+  supervisor grant. Cost: the largest option — today's release is *not
+  yet activation-eligible* (`ReleaseVerification.activationEligible` is
+  fixed `false`), so native startup must consume declared startup
+  obligations (routes, API envelope, requested initialization), not just
+  today's schema/functions carrier.
 - **B. Headless dev-supervisor profile** (`snapback dev --headless
   --stay-alive`, publish readiness after `generated-and-loaded`). Smallest
   change; most code exists. **Rejected as the story**: it leaves the exact
@@ -97,9 +128,10 @@ snapback start --release .snapback/releases/<digest> \
 ```
 
 `snapback dev` remains the authoring/watch supervisor. `dev --no-watch` is
-**not** reinterpreted: today it loads once and closes its managed server
-(`runCliDev` no-watch branch), and turning that into a production-like
-service would make an already ambiguous flag worse. A convenience
+**not** reinterpreted: its declared lifecycle is "long-running unless
+--no-watch", exiting 0 on a successful one-shot load (command registry,
+`packages/snapback-cli/index.mjs`), and turning that into a
+production-like service would make an already ambiguous flag worse. A convenience
 `snapback serve <backend-dir>` may build the local release and hand off to
 the standalone path, but it is sugar over A, not a third lifecycle.
 
@@ -109,50 +141,112 @@ the standalone path, but it is sugar over A, not a third lifecycle.
 
 - **`HostReadyDescriptor` is unchanged and host-only**: process owns the
   database, listener bound, startup nonce/lock recorded, runtime
-  prerequisites passed. Its schema, timing, and security posture
-  (out-of-band file, no bearer authority) stay exactly as LLP 0030 and
-  `schemas/host-ready.schema.json` specify — existing consumers keep
-  working, and old `--ready-file` timing is never silently changed.
-- **New `snapback.application-ready.v1` receipt**, written to
-  `--application-ready-file` only when the server-owned operational
-  predicate is true: the exact requested release/generation is active;
-  required capabilities were admitted; schema/functions/routes are active;
-  auth has `requested == active` with `modeState == settled`; sessions
-  mode has a positive `sessionActivationReady`. LLP 0058 already forces
+  prerequisites passed. Its schema, timing, and security posture stay
+  exactly as LLP 0030 and `schemas/host-ready.schema.json` specify — an
+  out-of-band, owner-only trusted file, no bearer bytes though it may
+  locate authority sidecars. Existing consumers keep working; old
+  `--ready-file` timing is never silently changed.
+- **One authority: the server-owned `OperationalReadinessV1` fact**,
+  surfaced through `app.inspect`/host-ops (the authenticated tier;
+  `wait` reuses the ready-file-located admin handoff it already has and
+  fails closed — the fact is not added to the public surface). The
+  server core evaluates the operational predicate **against a closed
+  expected activation target** — release/generation identity plus the
+  complete declared-obligation digest, supplied by the launcher
+  (`runDev` in Phase 1, native `start` in Phase 2) — so it can
+  distinguish an undeclared obligation from an omitted one; the result
+  states readiness for that exact target and names unsatisfied
+  obligations. The predicate: the target release/generation is active;
+  required capabilities were admitted; declared schema/functions/routes
+  obligations are active; auth is settled per LLP 0058's invariant
+  (`active == desired`, `requestedDeployment == null`, `modeState ==
+  settled`, availability `available`), sessions mode additionally
+  requiring a positive `sessionActivationReady`. LLP 0058 already forces
   sessions activation, coordinators, and workers before listener bind;
-  this receipt additionally covers the later package-level provisioning
+  this fact additionally covers the later package-level provisioning
   (`loadGenerated`) that produced the pilot race.
-- The receipt binds `startupNonce`, the host-descriptor digest,
-  release/deployment identity, target profile, artifact hashes, auth
-  state, capability-manifest digest, active network-profile name, and
-  `settledAtMs`. It carries no bearer or sidecar authority. Readiness
+- **The `snapback.application-ready.v1` receipt is a projection of that
+  fact**, never an independent derivation. In Phase 1, `runDev` triggers
+  provisioning, reads `OperationalReadinessV1` from the server, and
+  atomically publishes the file bound to the returned nonce and digests —
+  never manufacturing readiness from its own promise completions. In
+  Phase 2 the native start writes the same format from the same
+  evaluator. Publication follows the LLP 0030 ready-file discipline: the
+  Phase-1 JS publisher replicates atomic rename and owner-only mode; the
+  full server-side discipline (pinned parent, alias/inode checks)
+  applies when the server publishes it natively in Phase 2.
+- **Receipt lifecycle:** every launch, watch reload, restart, and
+  dev-fresh reset removes the application-ready file *before* work
+  begins, republishing only on settlement — absence is the honest
+  intermediate state, even within a single process whose `startupNonce`
+  has not changed.
+- The receipt binds `startupNonce`, the host-descriptor digest, the
+  mode-discriminated application identity (generated-deployment identity
+  in dev; release/start-plan identity in standalone), target profile,
+  artifact hashes, auth state, capability-manifest digest, active
+  network-profile name, and `settledAtMs`. It carries no bearer or sidecar authority. Readiness
   evaluation uses the undelayed control plane and merely *records* the
   active network profile (LLP 0167: profiles perturb observation, never
   state or settlement).
 - **`snapback wait --ready-file <host> --level host|application`**
-  validates the receipt(s) plus the live nonce, so application scripts and
-  harnesses stop writing bespoke retry loops.
+  locates the receipt at a deterministic sibling of the host ready file
+  unless `--application-ready-file` overrides it, validates the host
+  descriptor plus live nonce, and at application level requires the live
+  `OperationalReadinessV1` evaluation to be positive for the receipt's
+  bound target — digest comparison alone detects neither a same-process
+  reload in progress nor a predicate that has since gone false. Scripts
+  and harnesses stop writing bespoke retry loops.
 - This is **one-time launch settlement, not continuous health**. The
   predicate gates launch obligations only — active generation, capability
   admission, auth/sessions settlement, explicitly requested initialization
   — never cron idleness, connected clients, or empty background queues
   (LLP 0123: presence and identity are not behavioral readiness; LLP 0103:
-  lifecycle completion is a state transition with component results). A
-  receipt goes stale after a dev reload; it is digest-bound, and later
-  health flows through the dev event stream.
+  lifecycle completion is a state transition with component results).
+  Later health flows through `/health` and inspection — the dev event
+  stream is the supervisor-specific projection — never the receipt.
 
 ### Prepared-release capability story
 
-Standalone capability admission reuses `buildRelease`'s existing
-required-vs-supported validation (`SNAPBACK_DEPLOY_CAPABILITY_MISMATCH`
-against the target-profile capability manifest) — no supervisor-only grant
-path is invented, and no blanket "dev alignment" authority appears in
-standalone mode. A closed, versioned `snapback.start-plan.v1` references
-the immutable release and names its startup obligations; older binaries
-refuse an unknown plan version with a structured diagnostic rather than
-partially decoding it. The closed `StartupArtifacts` v1 stays untouched —
-LLP 0109 deferred V2, and routes/seed data must not be smuggled into v1 as
-unknown fields. LLP 0010 runtime qualification and the
+Today's release is an integrity-verified, content-addressed closure that
+is explicitly *not* activation-qualified, and its required-vs-supported
+validation (`SNAPBACK_DEPLOY_CAPABILITY_MISMATCH` against the
+target-profile capability manifest) derives requirements from schema and
+functions only. **Start-plan preparation is the explicit qualification
+step**: it resolves the release's applicable blocking gaps and derives
+required capabilities from *every* declared startup obligation — routes,
+API envelope, requested initialization. The **support authority is the
+executing runtime's server-owned target-profile registry**, not the
+release's self-assertion: the release declares its requirements and
+intended target profile, and native `start` compares them against its
+own supported set, recording the admission decision in
+`OperationalReadinessV1`; no supervisor-only grant path and no blanket
+"dev alignment" authority appear in standalone mode. The closed,
+versioned `snapback.start-plan.v1` is **constructed deterministically
+inside native `start` from the verified release** — no third artifact,
+preserving the two-command flow — with its digest bound into readiness;
+"unknown plan version" means the release declares an obligation-schema
+version newer than the binary understands. Native `start` refuses that,
+a release integrity failure, an unknown target profile, an unresolved
+activation gap, or an unsupported obligation, each with a structured
+diagnostic rather than partial decoding. **Successor activation stays
+fail-closed per LLP 0058**: `start --release` never implies activation
+authority — it refuses a differing settled sessions deployment unless
+the explicit `--activate-startup-successor` operator opt-in is supplied;
+extending that flag's scope from managed-dev-only to prepared standalone
+is a named narrow LLP 0058 amendment in Phase 2.
+
+The carrier story keeps LLP 0058's semantics fail-closed and LLP 0109
+untouched: native `start --release` derives the unchanged
+`StartupArtifacts` v1 pair from the release's schema/functions manifests
+— a byte-deterministic derivation, so one release yields one carrier
+identity across starts — satisfying LLP 0058's every-settled-start
+`--startup-artifacts` requirement; routes and API
+envelope (and any requested seed, pending OQ2) are *post-bind*
+obligations executed from the release through the same host-ops core
+`loadGenerated` uses, before the receipt publishes — never pre-bind,
+never smuggled into v1 as unknown fields. LLP 0109 §3.1.1 specifies a
+`StartupArtifactsV2` carrier; its implementation remains deferred and
+this RFC does not reopen it. LLP 0010 runtime qualification and the
 `SNAPBACK_IBEX_RUNTIME_*` receipt discipline remain prerequisites exactly
 as for every served binary; application-settlement failures get their own
 `SNAPBACK_*` operational codes instead of being mislabeled as bootstrap
@@ -166,32 +260,44 @@ grant.
 ## Phases
 
 - **Phase 1 — application-readiness receipt (Option D, immediate).**
-  `runDev` publishes `snapback.application-ready.v1` after its existing
-  `loadGenerated` succeeds; add `snapback wait --level host|application`;
-  export `schemas/application-ready.schema.json` via `src/schema_export.rs`;
-  surface the same fact as `OperationalReadinessV1` in
-  `app.inspect`/host-ops results (`src/host_ops.rs`) so CLI/HTTP/future
-  MCP projections share one core fact (LLP 0024). **Proof:** process tests
-  for no-early-receipt (receipt absent between host-ready and settlement),
-  stale nonce, and settled restart; the Clique scale launcher and the
-  generated acceptance harness converted to `wait --level application`
-  with their retry loops deleted.
+  Add `OperationalReadinessV1` to `app.inspect`/host-ops results
+  (`src/host_ops.rs`) as the one core fact (LLP 0024); after its existing
+  `loadGenerated` succeeds, `runDev` reads that fact and projects it as
+  `snapback.application-ready.v1` (removal-before-work per the lifecycle
+  above); add `snapback wait --level host|application`; export
+  `schemas/application-ready.schema.json` and the core fact's schema via
+  `src/schema_export.rs`. Narrow amendments to LLPs 0030 (receipt file
+  alongside the ready file), 0024 (new core fact), and 0058 (binding the
+  operational predicate to its existing settlement facts) land with this
+  phase, since it changes their surfaces. **Proof:** process tests for no-early-receipt (receipt absent
+  between host-ready and settlement), stale nonce, settled restart,
+  stale-after-reload within one process, and supervisor reattach over an
+  existing server; the generated acceptance harness converted to
+  `wait --level application` with its retry loop deleted; the Clique
+  scale launcher converted the same way as a demonstration rerun (an
+  external artifact, not a repo-gated check).
 - **Phase 2 — prepared standalone start (Option A core).** Reproduce and
   classify the pilot's standalone capability refusal; add
   `snapback.start-plan.v1` and native `start --release` +
   `--application-ready-file` in `src/cli.rs`, consuming and revalidating
-  the release capability manifest; factor release/start-plan construction
-  out of `runDev`. **Proof:** fresh-session, hard-kill/restart-over-
-  existing-database, unsupported-capability refusal, and explicit
+  the release capability manifest; extract shared startup-obligation
+  planning/evaluation so dev and standalone consume one implementation,
+  without routing dev through release construction or changing
+  `StartupArtifacts` v1; land the named narrow LLP 0058 amendment
+  extending `--activate-startup-successor` scope to prepared standalone.
+  **Proof:** fresh-session, hard-kill/restart-over-existing-database,
+  unsupported-capability refusal, release-tamper refusal,
+  unknown-plan-version refusal, non-function-obligation admission,
+  differing-successor refusal without the explicit flag, and explicit
   successor-activation process tests against a `deploy build` release;
   the scale lane rerun standalone with zero retries.
 - **Phase 3 — convenience and surface truth.** `snapback serve` (build +
   hand off), typed exports in `index.d.mts`, guide updates
-  (authoring-loop, host-ops, acceptance pages), capability rows moved off
-  their B11 caveats, and amendments to LLPs 0030/0041/0024 plus a narrow
-  0058 amendment binding the operational predicate to its existing
-  settlement facts. **Proof:** `node scripts/check-guide.mjs` green over
-  the updated rows; ref-check clean.
+  (authoring-loop, host-ops, acceptance pages), capability rows updated
+  to sanction the standalone lifecycle, and the LLP 0041 amendment (the
+  0058 amendments having landed with Phases 1 and 2). **Proof:**
+  `node scripts/check-guide.mjs` green over the updated rows; ref-check
+  clean.
 
 Per LLP 0189, each phase lands promptly after review and verifies against
 the landed commit; no phase gates on a quiet `main`.
@@ -213,3 +319,7 @@ the landed commit; no phase gates on a quiet `main`.
    successor repair, the wanted product is a deployment supervisor, not a
    standalone server — that outcome would reopen Option B as an explicit,
    separately named profile rather than a reinterpretation of `dev`.
+5. Where does `snapback wait` live — the native binary (standalone
+   environments have no JS toolchain; it is a thin read/validate over
+   server-owned facts), the package CLI, or native with package
+   delegation? Phase 1 needs the answer before landing the command.

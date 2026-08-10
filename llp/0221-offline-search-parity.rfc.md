@@ -1,10 +1,48 @@
 # LLP 0221: Offline search parity — generated local evaluators toward an owned offline-search capability
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Search, Client integration, Sync, Codegen
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-10 (Review → Accepted — accepted to begin implementation (author direction in-session, 2026-08-10); final verdicts bind revision (c), the (d) tail is unreviewed and disclosed; Phases 2+ remain gated as written)
+**Revised:** 2026-08-10 (d — round-2 delta-convergence closure;
+**UNREVIEWED** — final verdicts bind revision (c): dual NOT READY with all
+remaining MATERIALs IN-DELTA and pre-existing text reported clean by both
+families (`llp/reviews/0221-offline-search-parity.rfc.{claude,gpt-5}.md`,
+round 2). Fixes the three in-delta MATERIALs: the public-data-only
+prototype now explicitly does not precede Phase 4's owner-amendment
+condition (in-store materialization of the derived record waits; only
+out-of-store spikes are unrestricted); the new profile's delta now
+includes benchmark-compatible token boundaries (internal apostrophes),
+with a boundary conformance vector; `prefer-online` fallback is defined as
+connectivity/transport failure before a semantic server response only —
+authorization/custody/contract/corruption/work-limit refusals never
+trigger fallback. Cheap MINORs: `unknown` qualified against `refused`,
+additive facts confined to the rotated offline-capable surface with legacy
+`SearchPageV1` unchanged, LLP 0126 citation made exact (OQ6 +
+§Relationship, OQ7 only for the embedded-runtime alternative), OQ2
+admission-gate conformance note)
+**Revised:** 2026-08-10 (c — round-1 super-refine revision; verdicts bind
+revision (b): dual NOT READY
+(`llp/reviews/0221-offline-search-parity.rfc.{claude,gpt-5}.md`, round 1).
+Fixes all four MATERIALs: Phase 4 now explicitly conditioned on an
+owner-approved successor amendment advancing the LLP 0155 OQ2 / LLP 0157
+§D7 source-row evaluation gate, with the corpus scoped as a query/partition
+derived record and no cross-query normalization admission; completeness
+vocabulary corrected to LLP 0166 §D4's closed classes (`unknown`, no new
+class; partiality lives in the orthogonal `coverage` fact); the
+semantic-profile identity now binds logical work units, counting rules, and
+effective ceilings with at-limit/one-over conformance vectors; OQ2
+constrained so a Unicode-table subset is a distinct profile identity or
+fails closed, with non-Latin/edge-codepoint conformance vectors required.
+Also lands the cheap MINORs: pilot evidence labeled N=1
+builder-scored calibration, per-app cache claim narrowed, duplicate ticket
+named, client delegation location added, Phase 2 restart-test scope
+clarified, prefix-atom note, `prefer-online` continuation divergence, LLP
+0126 OQ6/OQ7 citation)
+**Revised:** 2026-08-10 (b — Draft → Review at llp-super-refine loop start,
+the one authorized transition; sub-orchestrated loop)
 **Revised:** 2026-08-10 (a — initial draft, synthesized from the Clique P2
 pilot evidence and a GPT-5.6-sol design consultation)
 **Related:** LLP 0073 (portable full-text search — the online profile this
@@ -12,8 +50,9 @@ extends; offline search is its explicit nonclaim), LLP 0043 (offline &
 lease custody), LLP 0053 (the lease), LLP 0129 (JS-arm persistence
 Phase 0), LLP 0131 (structured argument contracts — 2026-08-09 typed-search
 amendment), LLP 0155 (local-sync product direction), LLP 0166 (local
-persistent store — completeness-honest answers), LLP 0126 (local-first
-research OQ6), LLP 0201 (Clique benchmark),
+persistent store — completeness-honest answers), LLP 0157 (composition
+algebra — §D7 holds the source-row evaluation gate with LLP 0155 OQ2),
+LLP 0126 (local-first research OQ6/OQ7), LLP 0201 (Clique benchmark),
 `benchmarks/records/2026-08-09-social-messenger-p2-pilot.md`,
 `issues/20260809-typed-search-contract-hash-skew.md`,
 `issues/20260809-membership-search-envelope-latency.md`,
@@ -23,8 +62,10 @@ research OQ6), LLP 0201 (Clique benchmark),
 
 The Clique P2 pilot scored Snapback's search dimension B6 at 55 — behind
 Convex (58) and Supabase (65) despite Snapback being the only lane with a
-server-authoritative portable search profile. Three distinct problems
-produced that score, and this RFC deliberately treats them as three:
+server-authoritative portable search profile. (The record labels these
+scores N=1, builder-scored, calibration-only evidence; they motivate, they
+do not measure.) Three distinct problems contributed to that score, and
+this RFC deliberately treats them as three:
 
 1. **A shipped bug.** Typed `client.search()` in npm 0.1.15 refuses its
    own release's generated membership-search references with
@@ -39,9 +80,10 @@ produced that score, and this RFC deliberately treats them as three:
 3. **A capability gap.** `full-text-search-v1` is explicitly online-only
    (LLP 0073 line ~1034 keeps offline search a nonclaim), and the local
    persistent store retains opaque result fragments, not searchable source
-   rows (LLP 0155 §Store model). Every pilot that wanted offline search
-   reimplemented matching over an application-owned cache, with the
-   semantic drift and weak completeness that implies.
+   rows (LLP 0155 §Store model). The pilot lane reimplemented matching
+   over an application-owned cache, and any app wanting offline search
+   today must do the same, with the semantic drift and weak completeness
+   that implies.
 
 The RFC's destination is the **full offline-search capability**: local
 search that owns corpus authorization, completeness, retention, and
@@ -108,9 +150,16 @@ current profile as NFC/newest-first; add an opt-in, versioned
 word-prefix/recency profile (or a declared timestamp-ordering extension)
 with an exact tie-break; preserve existing `full-text-search-v1`
 references and ordering unchanged; run Rust and JS against one generated
-conformance corpus. Exact **evaluator** equivalence is achievable; exact
-whole-operation equivalence is not — local corpus state and cursors
-necessarily differ.
+conformance corpus. (Prefix matching itself already ships as a query atom
+— `SearchMatchAtomV1::Prefix` — so the new profile's actual deltas versus
+the brief are the analyzer and ordering, not prefix support. The analyzer
+delta is normalization *and* token boundaries: the brief splits words on
+punctuation while the shipped analyzer keeps internal apostrophes inside
+tokens, so `can't` tokenizes differently even after normalization is
+pinned — the new profile must pin benchmark-compatible boundaries
+explicitly.) Exact
+**evaluator** equivalence is achievable; exact whole-operation equivalence
+is not — local corpus state and cursors necessarily differ.
 
 ### Surfaces
 
@@ -133,12 +182,27 @@ necessarily differ.
 - **Client API**: `client.search()` stays online by default; an explicit
   `execution: "online" | "local" | "prefer-online"` option opts in.
   Results carry additive facts — `execution`, `freshness`, `completeness`,
-  `coverage`, `corpusVersion`. Server and local cursors are distinct
-  formats and never cross execution modes; partitions are registered
-  explicitly, never inferred as "all chats" from cached rows.
+  `coverage`, `corpusVersion`. The additive facts ride only the rotated
+  offline-capable reference/result surface; legacy online `client.search()`
+  calls keep LLP 0073's closed `SearchPageV1` shape
+  (`{items, cursor, hasMore}`) unchanged. `prefer-online` falls back to
+  local execution only on connectivity/transport failure before a semantic
+  server response; authorization, custody, contract, corruption, and
+  work-limit refusals never trigger fallback — falling back there would
+  mask a stronger server decision — and the local path still passes its
+  own witness, fence, and lease checks. Server and local cursors are
+  distinct formats and never cross execution modes — so a `prefer-online`
+  pagination that loses connectivity mid-sequence cannot resume locally
+  from a server cursor (a documented continuation divergence, surfaced
+  where the option is documented); partitions are registered explicitly,
+  never inferred as "all chats" from cached rows.
 - **Answer honesty**: a local no-hit is authoritative only when the scope
-  has an exact completeness proof; otherwise it reports
-  `unknown`/`partial`, per LLP 0166 §D4's completeness-honest answer rule.
+  has an exact completeness proof; otherwise — when evaluation is admitted
+  but completeness is unproved — it reports `completeness: "unknown"`
+  (established refusal states remain `refused`), per LLP 0166 §D4's
+  completeness-honest answer rule. §D4's answer classes are closed — this RFC adds no new class;
+  partiality is expressed only through the orthogonal `coverage` fact
+  (which scopes were searched), never as a completeness value.
 
 Compatibility is additive throughout: existing references keep online
 semantics; opting into local search rotates the semantic/artifact identity
@@ -159,9 +223,13 @@ generate a separate `searchRequestContractHash` excluding the resource
 sibling (`packages/snapback-codegen/index.mjs` ~10661), carry
 `searchResourceArg` explicitly, and have `client.search()` validate the
 dedicated marker then delegate full validation to `query()`
-(`packages/snapback-client/index.mjs` ~321). Remaining closure is
+(reference validation `packages/snapback-client/index.mjs` ~321;
+delegation inside `client.search()` ~5618). Remaining closure is
 operational: a qualified lockstep client/codegen release superseding
-0.1.15, plus closing the duplicate ticket. Proof: the landed
+0.1.15, plus closing the still-open
+`issues/20260809-typed-search-contract-hash-skew.md` (its twin,
+`issues/closed/20260809-typed-search-reference-hash-skew.md`, is already
+closed). Proof: the landed
 `typed-search-wrapper.test.mjs` matrix (plain + membership references,
 corrupted-hash and missing-resource refusals) green in that release.
 (b) *Membership-search envelope latency (806 ms p95).* Membership
@@ -179,27 +247,57 @@ search p95 rejoining the flat probes, plus a scale regression gate.
 
 **Phase 1 — semantic profile and conformance spec.** Specify the offline
 profile, evaluator artifact format, and the generated dual Rust/JS
-Unicode/match/ranking/highlight conformance corpus. Proof: the committed
-corpus, both runtimes green on identical outcomes.
+Unicode/match/ranking/highlight conformance corpus. The semantic-profile
+version/hash binds not just analyzer, matcher, scorer, and highlighter but
+also the logical work units, their counting rules, and every effective
+ceiling — otherwise two evaluators under one profile name could diverge on
+the promised work-limit outcomes (LLP 0073 makes work accounting and
+exact-or-refuse semantic). Proof: the committed corpus, both runtimes
+green on identical outcomes, with the corpus required to include
+at-limit and one-over-limit work-ceiling vectors, token-boundary vectors
+(including internal-apostrophe words like `can't`), and non-Latin /
+edge-codepoint vectors that exercise the Unicode table boundary (the
+motivating benchmark corpus is Latin-only and would be blind to analyzer
+divergence there).
 
 **Phase 2 — evaluator kernel (first shipping rung).** Pure JS evaluator
 over caller-supplied rows; no protected-data retention; additive client
 facts; distinct local cursors. Explicitly documented as not parity — the
 qualified promise only. Proof: conformance corpus green in the client
-package; IndexedDB and Node restart tests for the non-protected path.
+package; IndexedDB and Node restart tests exercising evaluator-artifact
+determinism over caller-persisted rows — the kernel itself persists
+nothing; §Surfaces' derived corpus/index record is Phase 4 work (a
+public-data-only prototype may precede the Phase 3 custody gate, per
+Phase 3 — but never Phase 4's owner-amendment condition).
 
 **Phase 3 — custody gate (sequencing, not work).** Protected corpus
 retention MUST NOT land before JS-arm lease custody (leg 1 of the
 2026-07-31 ticket: query-authorization namespaces, signed
 `AuthorizedLease` custody, equality-expiry deletion-before-render) is
 implemented and witnessed. A public-data-only prototype may precede this
-gate; membership-message offline search may not.
+custody gate — but it does not precede Phase 4's owner-amendment
+condition: any materialization of the derived corpus/index record in the
+shipped store waits for that amendment; only out-of-store spike
+prototypes (no shipped store record) are unrestricted by it.
+Membership-message offline search may precede neither.
 
 **Phase 4 — owned corpus.** Protected corpus storage, local indexing,
 explicit partition registration, completeness facts, membership/global
-coverage. Proof: lease equality expiry, membership revocation, principal
-change, disappearing-message purge, delete-before-render, partial
-multi-chat coverage, and authoritative no-hit negative witnesses.
+coverage. A locally searchable document corpus is source-row evaluation
+territory: LLP 0155 OQ2 / LLP 0157 §D7 gate it, and LLP 0166 explicitly
+does not advance that gate (no cross-query normalization, no local
+execution of a plan's source-row pipeline). Phase 4 therefore lands only
+through an owner-approved successor amendment to the owning store Spec
+advancing that gate for this shape — and the shape it asks for is narrow:
+a single-purpose derived corpus record scoped to one search plan ×
+resource partition × authority partition, with separately authorized
+corpus projections, no cross-query row sharing, and no authority ever
+inferred from indexed fields. It is not an admission of general
+cross-query normalization; if the gate's owner rules the narrow exception
+unacceptable, Phase 4 blocks rather than routing around the gate. Proof:
+lease equality expiry, membership revocation, principal change,
+disappearing-message purge, delete-before-render, partial multi-chat
+coverage, and authoritative no-hit negative witnesses.
 
 **Phase 5 — capability publication.** Publish under LLP 0189 claim gating
 only after restart, revocation, expiry, completeness, and pilot-envelope
@@ -211,10 +309,19 @@ witnesses pass, with 10k-document local CPU/storage/bundle metrology.
    benchmark, or does a benchmark-specific profile risk becoming permanent
    platform complexity (consultation risk list)?
 2. What bundle-size budget bounds the JS Unicode tables for micro-clients,
-   and is a table subset acceptable for the kernel rung?
+   and is a table subset acceptable for the kernel rung? Constraint on any
+   answer: a subset ships only as (a) a distinct declared
+   semantic-profile/artifact identity, or (b) fail-closed refusal on
+   out-of-subset input — never silent divergence under the same profile
+   version, which would falsify the qualified parity promise. A
+   fail-closed subset is a declared input-admission gate: conformance for
+   that identity requires both runtimes applying the identical gate, with
+   in-range, boundary, and out-of-range vectors.
 3. Is "all chats" completeness (complete seat set × complete per-resource
    corpus establishment) worth its cost, or does v1 scope completeness to
    explicitly registered partitions only?
 4. Does recency ordering land as a new profile or as LLP 0073's
    declared-timestamp scorer extension — and which document owns offline
-   search (LLP 0126 OQ6 left the owner unresolved)?
+   search (LLP 0126 OQ6 left the mechanism and capability id unresolved,
+   and its §Relationship section requires a named owning document; OQ7
+   applies only if the embedded-runtime front absorbs this)?
