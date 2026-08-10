@@ -5,6 +5,12 @@
 **Systems:** Client SDK, Client integration, Packaging, Code generation, Realtime, Auth, Offline sync, React, Developer experience, Testing, Competitive analysis
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-01
+**Revised (standing growth disposition):** 2026-08-10 (author ruling: flagged
+client-bundle growth now has a standing disposition — automatic blessed
+rollover when the growth is attributed to a landed, receipted feature,
+attribution review otherwise — replacing per-instance author rulings. See
+§Phase A → "2026-08-10 author ruling — standing disposition for flagged
+growth". No ceiling, ledger, or instrument rule changes.)
 **Revised:** 2026-08-01 (v0.2, round-1 super-refine corrections — both families
 NOT READY; reviews in `reviews/0145-client-bundle-architecture.codex.md` and
 `reviews/0145-client-bundle-architecture.fable.md`. Substantive changes: the
@@ -1591,6 +1597,54 @@ exactly those profiles, SHA-256-binds the finite-carrier predecessor, and runs
 all four shared Channel B resume arms in addition to the package/browser/React
 behavior checks. The predecessor and the unaffected materialization-store
 ceiling remain immutable.
+
+#### 2026-08-10 author ruling — standing disposition for flagged growth
+
+Ruled by the author (Charlie Cheever, 2026-08-10). Recorded here because Phase A
+owns the ratchet instrument and every dated disposition above.
+
+**When client-bundle metrology flags growth, the disposition is:**
+
+- **Automatic blessed rollover** when the growth is *attributed to a landed,
+  receipted feature* — the attribution names the landing commit(s) and the
+  governing accepted LLP or receipt for the capability whose bytes those are.
+  No author sitting is required; the operator mints the declared prospective
+  successor ledger under the existing rules and lands it with the measurement.
+- **Attribution review otherwise.** Growth that cannot be tied to a landed,
+  receipted feature — unexplained closure creep, a dependency that arrived
+  without a decision, or an accidental static import of development-only or
+  environment-specific code — is *not* absorbed. It goes to review first, and
+  the presumption there is repair, not a new ceiling.
+
+**This replaces per-instance author rulings.** The 2026-08-04/05 precedent
+(`issues/closed/20260804-bundle-closure-growth-review.md`, ruled 2026-08-05:
+"the Full/root growth is spec-governed feature mass; the rollover stands") is
+now the standing rule rather than a case decided one at a time. Tickets should
+stop blocking on "Charlie size review required" for the attributed case.
+
+Nothing else about the instrument changes, and three constraints are worth
+restating because "automatic" could be misread as loosening:
+
+- **LLP 0063's never-loosen rule still binds.** A blessed rollover is a
+  declared, prospective successor ledger — exactly the mechanism §Workstream 8
+  already permits when a governed workload version changes. It never edits or
+  raises a historical ceiling, predecessors stay byte-identical and
+  independently provenance-valid, and a profile still has exactly one active
+  ceiling. All the 2026-08-03 rollover-receipt conditions continue to apply.
+- **The behavior train is still mandatory.** A rollover that freezes bytes
+  which cannot boot, authenticate, stream, or invalidate is failing, blessed or
+  not.
+- **A rollover records cost; it does not bless architecture.** Absorbing
+  attributed feature mass never discharges a separately commissioned
+  composition or size-remediation lane, exactly as the 2026-08-06 batched
+  rollover said of the static-capability-composition work.
+
+The 2026-08-06 accidental-HMR case is the canonical example of the second
+branch: the bytes were real and the gate correctly refused them, but they
+belonged to a development-only closure that had been statically imported by
+mistake. Under this policy that case still goes to attribution review and is
+still repaired rather than rolled over; only the residue that attribution
+proves is landed feature mass rolls forward.
 
 ### Phase B — take the low-risk savings
 
