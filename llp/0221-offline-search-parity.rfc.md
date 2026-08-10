@@ -5,6 +5,12 @@
 **Systems:** Search, Client integration, Sync, Codegen
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-10 (e — Phase 0 executed and recorded closed (a: the
+qualified-release and ticket closures are facts, recorded in §Execution
+log; b: the envelope-latency fix landed with a generated-fixture proof and
+the deviation from the named Clique-rerun proof disclosed); the Phase 1
+spec artifact is extracted to LLP 0229 (Draft) with its corpus proof
+obligation explicitly not yet delivered)
 **Revised:** 2026-08-10 (Review → Accepted — accepted to begin implementation (author direction in-session, 2026-08-10); final verdicts bind revision (c), the (d) tail is unreviewed and disclosed; Phases 2+ remain gated as written)
 **Revised:** 2026-08-10 (d — round-2 delta-convergence closure;
 **UNREVIEWED** — final verdicts bind revision (c): dual NOT READY with all
@@ -325,3 +331,83 @@ witnesses pass, with 10k-document local CPU/storage/bundle metrology.
    search (LLP 0126 OQ6 left the mechanism and capability id unresolved,
    and its §Relationship section requires a named owning document; OQ7
    applies only if the embedded-runtime front absorbs this)?
+
+## Execution log
+
+**2026-08-10 — Phase 0(a) closed.** The operational closure this phase
+named has happened, most of it by the time execution started, and the
+record is now complete rather than "still open":
+
+- The fix (`f8e8892af`, LLP 0131's 2026-08-09 typed-search amendment) is
+  an ancestor of `0e6bf1842a`, the clean-`main` cut of npm **0.1.17** —
+  the qualified lockstep eleven-package fastpath release (retained ledger
+  `~/snapback-release-ledgers/fastpath-ledger-0.1.17-0e6bf1842a.json`,
+  byte-verified, receipts bound; LLP 0041 §0.1.17), now `latest` on npm.
+  0.1.16 (2026-08-09) also postdates the fix; both supersede 0.1.15.
+- `issues/20260809-typed-search-contract-hash-skew.md` was closed
+  2026-08-10 as a duplicate of the already-closed
+  `issues/closed/20260809-typed-search-reference-hash-skew.md`; both now
+  live in `issues/closed/` with resolutions recorded.
+- The named proof, `packages/snapback-codegen/typed-search-wrapper.test.mjs`
+  (plain + membership references composed through `client.search()`,
+  corrupted-hash and missing-resource refusals), runs green on current
+  `main` (re-verified in this execution, 1 pass / 0 fail).
+
+**2026-08-10 — Phase 0(b) landed.** Both diagnosed bottlenecks in
+`src/search/sqlite.rs` are fixed, public semantics unchanged (an LLP 0073
+implementation fix, as this phase requires):
+
+- *Sargable prefix traversal.* The two prefix predicates
+  (`COUNT(DISTINCT token)` vocabulary-ceiling probe and candidate
+  traversal) replaced `substr(token,1,length(?))=?` — which forced a full
+  token scan of the partition — with the half-open successor range
+  `token>=?5 AND token<?6` (open-ended when the prefix has no successor),
+  which seeks on the `_snapback_search_terms_anchor` covering index.
+  UTF-8 byte order under SQLite's BINARY collation equals code-point
+  order, so the range returns exactly the substr row set; the
+  `prefix_upper_bound` successor handles the surrogate gap and trailing
+  `char::MAX`. Both ceilings trip at exactly the prior thresholds.
+- *Batched release rechecks.* Candidate release now fetches retained
+  source records and authoritative rows in deterministic IN-list chunks
+  (400 ids) instead of two point queries per candidate. The per-candidate
+  authoritative re-derivation, RFC 8785 digest tamper/drift rechecks, and
+  all-or-nothing release with the same refusal codes are preserved
+  unchanged — batching removes SQL round trips only.
+
+Proof, as executed: (i) a deterministic `EXPLAIN QUERY PLAN` regression
+gate (`prefix_candidate_plan_uses_anchor_token_range`) pinning the
+anchor-index token-range SEARCH and refusing a terms-table SCAN — this,
+not wall-clock, is the durable sargability witness; (ii) a
+selective-prefix membership fixture (4,000 rows, ~21k-term partition
+vocabulary, 50 matches) measured before/after, reported honestly: at
+this committed-fixture size old and fixed traversal are equal within
+noise (best-of-5, debug build: 53.5 ms old vs 56.4 ms fixed) because a
+~21k-row scan costs single-digit milliseconds and the semantic
+per-candidate release re-derivation dominates — the fixture proves
+correctness, budget, and no-regression, while the scan-elimination
+effect scales with partition vocabulary (the pilot's ~10k-message chat
+implies a term partition an order of magnitude larger, scanned twice per
+query before the fix); an envelope-scale measured before/after is the
+recorded follow-through below; (iii) a broad-match membership scale
+budget test (2,000 rows all matching) guarding the batched release path;
+(iv) `prefix_upper_bound` unit vectors; (v) the full `search::sqlite`
+module green. Disclosed deviation: this phase named the Clique
+10k-message/166k-action scale probe rerun as proof; execution
+substituted the generated-fixture evidence above plus the plan gate
+(program direction in-session, 2026-08-10). The pilot-envelope rerun
+remains open and belongs to the next Clique run alongside O5 ceiling
+calibration; `issues/20260809-membership-search-envelope-latency.md` is
+closed on the landed code fix with the envelope-scale measurement and
+pilot rerun noted as residual follow-through.
+
+**2026-08-10 — Phase 1 spec artifact extracted.** LLP 0229 (Spec, Draft)
+now owns the semantic-profile identity (binding analyzer, matcher,
+scorer/ordering, highlighter, logical work units, counting rules, every
+effective ceiling, and refusal mapping), the canonical evaluator artifact
+descriptor/hash, and the dual Rust/JS conformance-corpus format with the
+required at-limit/one-over, token-boundary (internal apostrophe),
+non-Latin/edge-codepoint, and subset-admission vector classes. Per this
+phase's proof clause, the committed generated corpus with both runtimes
+green is the execution proof and is *not yet delivered*: it lands with
+the Phase 2 evaluator kernel, and LLP 0229 states that obligation
+explicitly. OQ1/OQ2/OQ4 remain open and are only pointed at, not ruled.

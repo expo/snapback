@@ -8,9 +8,12 @@ use crate::search::highlight::{SearchOccurrence, highlights};
 use crate::search::scorer::{atom_frequency, atom_score};
 use crate::search::types::*;
 use crate::storage::{ChangeOp, ChangedRow};
-use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use rusqlite::types::Value as SqlValue;
+use rusqlite::{Connection, OptionalExtension, Transaction, params, params_from_iter};
 use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet};
+
+const SEARCH_RELEASE_BATCH_ROWS: usize = 400;
 
 fn diagnostic(code: &'static str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(code, "search", message)
@@ -1182,6 +1185,56 @@ fn parse_source(raw: RawIndexedSource) -> SnapbackResult<IndexedSource> {
     })
 }
 
+fn load_candidate_sources(
+    conn: &Connection,
+    table: &str,
+    index: &SearchIndexManifestV1,
+    generation: u64,
+    partition: &str,
+    candidate_ids: &[String],
+) -> SnapbackResult<Vec<IndexedSource>> {
+    let mut raw_sources = BTreeMap::new();
+    for chunk in candidate_ids.chunks(SEARCH_RELEASE_BATCH_ROWS) {
+        let placeholders = vec!["?"; chunk.len()].join(",");
+        let sql = format!(
+            "SELECT row_id,source_version,partition_key,row_json,filters_json,fields_json,
+                    tombstone,tokens_json,content_digest
+             FROM _snapback_search_sources
+             WHERE table_name=? AND index_name=? AND generation=?
+               AND partition_key=? AND row_id IN ({placeholders})
+             ORDER BY row_id"
+        );
+        let mut parameters = vec![
+            SqlValue::Text(table.to_owned()),
+            SqlValue::Text(index.name.clone()),
+            SqlValue::Integer(generation as i64),
+            SqlValue::Text(partition.to_owned()),
+        ];
+        parameters.extend(chunk.iter().cloned().map(SqlValue::Text));
+        let mut statement = conn.prepare(&sql)?;
+        let mut rows = statement.query(params_from_iter(parameters.iter()))?;
+        while let Some(row) = rows.next()? {
+            let raw = decode_raw_source(row)?;
+            raw_sources.insert(raw.row_id.clone(), raw);
+        }
+    }
+
+    candidate_ids
+        .iter()
+        .map(|row_id| {
+            raw_sources
+                .remove(row_id)
+                .ok_or_else(|| {
+                    diagnostic(
+                        "SNAPBACK_SEARCH_INDEX_CORRUPT",
+                        "search posting references a missing source record",
+                    )
+                })
+                .and_then(parse_source)
+        })
+        .collect()
+}
+
 fn authoritative_indexed_source(
     index: &SearchIndexManifestV1,
     row_id: &str,
@@ -1226,24 +1279,45 @@ fn authoritative_indexed_source(
     })
 }
 
-fn load_authoritative_row(
+fn load_authoritative_rows(
     conn: &Connection,
     table: &TableManifest,
-    row_id: &str,
-) -> SnapbackResult<Option<Value>> {
+    row_ids: &[String],
+) -> SnapbackResult<BTreeMap<String, Value>> {
     let quoted = crate::storage::quote_ident(&table.name)?;
-    let mut statement =
-        conn.prepare(&format!("SELECT * FROM {quoted} WHERE \"_id\"=?1 LIMIT 1"))?;
-    let columns = statement
-        .column_names()
-        .into_iter()
-        .map(ToOwned::to_owned)
-        .collect::<Vec<_>>();
-    let mut rows = statement.query(params![row_id])?;
-    let Some(row) = rows.next()? else {
-        return Ok(None);
-    };
-    Ok(Some(crate::storage::row_to_document(row, table, &columns)?))
+    let mut documents = BTreeMap::new();
+    for chunk in row_ids.chunks(SEARCH_RELEASE_BATCH_ROWS) {
+        let placeholders = vec!["?"; chunk.len()].join(",");
+        let sql =
+            format!("SELECT * FROM {quoted} WHERE \"_id\" IN ({placeholders}) ORDER BY \"_id\"");
+        let parameters = chunk
+            .iter()
+            .cloned()
+            .map(SqlValue::Text)
+            .collect::<Vec<_>>();
+        let mut statement = conn.prepare(&sql)?;
+        let columns = statement
+            .column_names()
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        let mut rows = statement.query(params_from_iter(parameters.iter()))?;
+        while let Some(row) = rows.next()? {
+            let document = crate::storage::row_to_document(row, table, &columns)?;
+            let row_id = document
+                .get("_id")
+                .and_then(Value::as_str)
+                .ok_or_else(|| {
+                    diagnostic(
+                        "SNAPBACK_SEARCH_INDEX_CORRUPT",
+                        "search posting references a missing authoritative source row",
+                    )
+                })?
+                .to_owned();
+            documents.insert(row_id, document);
+        }
+    }
+    Ok(documents)
 }
 
 fn verify_source_derived(
@@ -1500,6 +1574,65 @@ fn cursor_restart() -> SnapbackError {
     )
 }
 
+fn prefix_upper_bound(prefix: &str) -> Option<String> {
+    let mut scalars = prefix.chars().collect::<Vec<_>>();
+    while let Some(last) = scalars.pop() {
+        if last == char::MAX {
+            continue;
+        }
+        let mut next = u32::from(last) + 1;
+        if (0xD800..=0xDFFF).contains(&next) {
+            next = 0xE000;
+        }
+        scalars.push(char::from_u32(next).expect("next Unicode scalar is valid"));
+        return Some(scalars.into_iter().collect());
+    }
+    None
+}
+
+const PREFIX_TERM_COUNT_BOUNDED_SQL: &str = "SELECT COUNT(DISTINCT token)
+     FROM _snapback_search_terms
+     WHERE table_name=?1 AND index_name=?2 AND generation=?3
+       AND partition_key=?4 AND token>=?5 AND token<?6
+       AND (?7 IS NULL OR field_name=?7)";
+
+const PREFIX_TERM_COUNT_OPEN_SQL: &str = "SELECT COUNT(DISTINCT token)
+     FROM _snapback_search_terms
+     WHERE table_name=?1 AND index_name=?2 AND generation=?3
+       AND partition_key=?4 AND token>=?5
+       AND (?6 IS NULL OR field_name=?6)";
+
+const PREFIX_CANDIDATES_BOUNDED_SQL: &str = "SELECT DISTINCT row_id
+     FROM _snapback_search_terms
+     WHERE table_name=?1 AND index_name=?2 AND generation=?3
+       AND partition_key=?4 AND token>=?5 AND token<?6
+       AND (?7 IS NULL OR field_name=?7)
+     ORDER BY row_id";
+
+const PREFIX_CANDIDATES_OPEN_SQL: &str = "SELECT DISTINCT row_id
+     FROM _snapback_search_terms
+     WHERE table_name=?1 AND index_name=?2 AND generation=?3
+       AND partition_key=?4 AND token>=?5
+       AND (?6 IS NULL OR field_name=?6)
+     ORDER BY row_id";
+
+fn collect_candidate_rows(
+    mut rows: rusqlite::Rows<'_>,
+    max_candidate_work: u32,
+) -> SnapbackResult<BTreeSet<String>> {
+    let mut candidates = BTreeSet::new();
+    while let Some(row) = rows.next()? {
+        candidates.insert(row.get(0)?);
+        if candidates.len() > max_candidate_work as usize {
+            return Err(diagnostic(
+                "SNAPBACK_SEARCH_WORK_LIMIT",
+                "search posting anchor exceeds the declared exact-ranking ceiling",
+            ));
+        }
+    }
+    Ok(candidates)
+}
+
 fn posting_candidates_for_atom(
     conn: &Connection,
     table: &str,
@@ -1521,64 +1654,89 @@ fn posting_candidates_for_atom(
     };
     let prefix = matches!(atom, SearchMatchAtomV1::Prefix(_));
     if prefix {
-        let term_count: i64 = conn.query_row(
-            "SELECT COUNT(DISTINCT token)
-             FROM _snapback_search_terms
-             WHERE table_name=?1 AND index_name=?2 AND generation=?3
-               AND partition_key=?4 AND substr(token,1,length(?5))=?5
-               AND (?6 IS NULL OR field_name=?6)",
-            params![
-                table,
-                index.name,
-                generation as i64,
-                partition,
-                anchor,
-                field,
-            ],
-            |row| row.get(0),
-        )?;
+        // SQLite's BINARY collation compares UTF-8 bytes, whose order matches
+        // Unicode scalar order. The half-open successor range is therefore
+        // exactly equivalent to the previous substr prefix test for every
+        // already-analyzed valid token, while remaining index-sargable.
+        // @ref LLP 0221#phases — Phase 0(b): sargable prefix range; public
+        // semantics and logical work ceilings are unchanged.
+        let upper_bound = prefix_upper_bound(anchor);
+        let term_count: i64 = match upper_bound.as_deref() {
+            Some(upper_bound) => conn.query_row(
+                PREFIX_TERM_COUNT_BOUNDED_SQL,
+                params![
+                    table,
+                    index.name,
+                    generation as i64,
+                    partition,
+                    anchor,
+                    upper_bound,
+                    field,
+                ],
+                |row| row.get(0),
+            )?,
+            None => conn.query_row(
+                PREFIX_TERM_COUNT_OPEN_SQL,
+                params![
+                    table,
+                    index.name,
+                    generation as i64,
+                    partition,
+                    anchor,
+                    field,
+                ],
+                |row| row.get(0),
+            )?,
+        };
         if term_count > index.query_limits.max_prefix_terms as i64 {
             return Err(diagnostic(
                 "SNAPBACK_SEARCH_WORK_LIMIT",
                 "search prefix vocabulary exceeds the declared partition-local ceiling",
             ));
         }
-    }
-    let sql = if prefix {
-        "SELECT DISTINCT row_id
-         FROM _snapback_search_terms
-         WHERE table_name=?1 AND index_name=?2 AND generation=?3
-           AND partition_key=?4 AND substr(token,1,length(?5))=?5
-           AND (?6 IS NULL OR field_name=?6)
-         ORDER BY row_id"
+        let mut statement = conn.prepare(match upper_bound {
+            Some(_) => PREFIX_CANDIDATES_BOUNDED_SQL,
+            None => PREFIX_CANDIDATES_OPEN_SQL,
+        })?;
+        let rows = match upper_bound.as_deref() {
+            Some(upper_bound) => statement.query(params![
+                table,
+                index.name,
+                generation as i64,
+                partition,
+                anchor,
+                upper_bound,
+                field,
+            ])?,
+            None => statement.query(params![
+                table,
+                index.name,
+                generation as i64,
+                partition,
+                anchor,
+                field,
+            ])?,
+        };
+        collect_candidate_rows(rows, index.query_limits.max_candidate_work)
     } else {
-        "SELECT DISTINCT row_id
-         FROM _snapback_search_terms
-         WHERE table_name=?1 AND index_name=?2 AND generation=?3
-           AND partition_key=?4 AND token=?5
-           AND (?6 IS NULL OR field_name=?6)
-         ORDER BY row_id"
-    };
-    let mut statement = conn.prepare(sql)?;
-    let mut rows = statement.query(params![
-        table,
-        index.name,
-        generation as i64,
-        partition,
-        anchor,
-        field,
-    ])?;
-    let mut candidates = BTreeSet::new();
-    while let Some(row) = rows.next()? {
-        candidates.insert(row.get(0)?);
-        if candidates.len() > index.query_limits.max_candidate_work as usize {
-            return Err(diagnostic(
-                "SNAPBACK_SEARCH_WORK_LIMIT",
-                "search posting anchor exceeds the declared exact-ranking ceiling",
-            ));
-        }
+        let mut statement = conn.prepare(
+            "SELECT DISTINCT row_id
+             FROM _snapback_search_terms
+             WHERE table_name=?1 AND index_name=?2 AND generation=?3
+               AND partition_key=?4 AND token=?5
+               AND (?6 IS NULL OR field_name=?6)
+             ORDER BY row_id",
+        )?;
+        let rows = statement.query(params![
+            table,
+            index.name,
+            generation as i64,
+            partition,
+            anchor,
+            field,
+        ])?;
+        collect_candidate_rows(rows, index.query_limits.max_candidate_work)
     }
-    Ok(candidates)
 }
 
 fn posting_candidates(
@@ -1861,32 +2019,26 @@ pub fn query_search_on(
         // keeps outsider, revoked, and nonexistent-resource observations equal.
         BTreeSet::new()
     };
-    let mut statement = conn.prepare(
-        "SELECT row_id,source_version,partition_key,row_json,filters_json,fields_json,
-                tombstone,tokens_json,content_digest
-         FROM _snapback_search_sources
-         WHERE table_name=?1 AND index_name=?2 AND generation=?3
-           AND partition_key=?4 AND row_id=?5",
+    let candidate_ids = candidate_ids.into_iter().collect::<Vec<_>>();
+    // @ref LLP 0221#phases — Phase 0(b): batched release SQL rechecks; the
+    // per-row authoritative derivation, digest checks, and all-or-nothing
+    // release semantics remain unchanged.
+    let retained_sources = load_candidate_sources(
+        conn,
+        &table.name,
+        index,
+        generation,
+        &partition,
+        &candidate_ids,
     )?;
+    let mut authoritative_rows = load_authoritative_rows(conn, table, &candidate_ids)?;
     let mut sources = Vec::new();
-    for row_id in candidate_ids {
-        let source = statement
-            .query_row(
-                params![table.name, index.name, generation as i64, partition, row_id],
-                decode_raw_source,
-            )
-            .optional()?
-            .ok_or_else(|| {
-                diagnostic(
-                    "SNAPBACK_SEARCH_INDEX_CORRUPT",
-                    "search posting references a missing source record",
-                )
-            })
-            .and_then(parse_source)?;
+    for source in retained_sources {
         // @ref LLP 0073#authorization-and-result-release — release replays the
         // canonical derivation from the authoritative row, rather than trusting
         // even well-formed stored/filter/source-field/token payloads.
-        let authoritative = load_authoritative_row(conn, table, &source.row_id)?
+        let authoritative = authoritative_rows
+            .remove(&source.row_id)
             .ok_or_else(|| {
                 diagnostic(
                     "SNAPBACK_SEARCH_INDEX_CORRUPT",
@@ -2512,6 +2664,68 @@ mod tests {
             resource_arg: resource_arg.map(ToOwned::to_owned),
         };
         view.search(&plan, input, &authority)
+    }
+
+    #[test]
+    fn prefix_upper_bound_advances_the_last_available_unicode_scalar() {
+        assert_eq!(prefix_upper_bound("abc"), Some("abd".to_owned()));
+        assert_eq!(prefix_upper_bound("café"), Some("cafê".to_owned()));
+        assert_eq!(
+            prefix_upper_bound(&format!("a{}", char::MAX)),
+            Some("b".to_owned())
+        );
+        assert_eq!(
+            prefix_upper_bound(&format!("{}{}", char::MAX, char::MAX)),
+            None
+        );
+        assert_eq!(prefix_upper_bound("\u{D7FF}"), Some("\u{E000}".to_owned()));
+        assert_eq!(prefix_upper_bound(""), None);
+    }
+
+    #[test]
+    fn prefix_candidate_plan_uses_anchor_token_range() {
+        let db = seeded(SearchVisibilityV1::PublicRead);
+        let details = db
+            .query_reads_read()
+            .with_pinned_read_view(|view| {
+                let table = view.schema().table("incidents").expect("fixture table");
+                let index = table.search_indexes.first().expect("fixture search index");
+                let (generation, _, _) = active_generation(view.conn(), &table.name, &index.name)?;
+                let prefix = "check";
+                let upper_bound = prefix_upper_bound(prefix).expect("bounded ASCII prefix");
+                let mut statement = view.conn().prepare(&format!(
+                    "EXPLAIN QUERY PLAN {PREFIX_CANDIDATES_BOUNDED_SQL}"
+                ))?;
+                let rows = statement.query_map(
+                    params![
+                        table.name,
+                        index.name,
+                        generation as i64,
+                        "public",
+                        prefix,
+                        upper_bound,
+                        Option::<String>::None,
+                    ],
+                    |row| row.get::<_, String>(3),
+                )?;
+                Ok(rows.collect::<Result<Vec<_>, _>>()?)
+            })
+            .expect("explain prefix candidate query");
+
+        assert!(
+            details.iter().any(|detail| {
+                detail.contains("SEARCH")
+                    && detail.contains("_snapback_search_terms_anchor")
+                    && (detail.contains("token>") || detail.contains("token<"))
+            }),
+            "prefix candidates must use the anchor index token range: {details:?}"
+        );
+        assert!(
+            details
+                .iter()
+                .all(|detail| !detail.contains("SCAN _snapback_search_terms")),
+            "prefix candidates must not full-scan search terms: {details:?}"
+        );
     }
 
     #[test]
@@ -3315,6 +3529,237 @@ mod tests {
                 .collect::<Vec<_>>(),
             (0..50)
                 .map(|index| format!("incident-{index:04}"))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn membership_prefix_search_stays_within_local_sqlite_scale_budget() {
+        const CORPUS_ROWS: usize = 2_000;
+        const BUILD_CHUNK_ROWS: usize = 200;
+        const BUILD_BUDGET: Duration = Duration::from_secs(30);
+        // Every corpus row matches the prefix, so this query's cost is
+        // dominated by the semantic per-candidate authoritative re-derivation
+        // that release requires (LLP 0073 §Authorization and result release),
+        // not by posting traversal: a debug build spends roughly a second on
+        // 2k candidates. The budget guards order-of-magnitude regressions in
+        // the batched release path; the sargability guarantee itself is pinned
+        // deterministically by `prefix_candidate_plan_uses_anchor_token_range`
+        // and by `selective_prefix_membership_query_is_fast_at_scale` below.
+        const QUERY_BUDGET: Duration = Duration::from_secs(5);
+
+        let build_started = Instant::now();
+        let mut db = LocalDatabase::memory().expect("membership scale database");
+        db.schema_seed()
+            .apply_schema(search_schema(membership_visibility(None)))
+            .expect("membership scale schema");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "rooms".to_owned(),
+                    vec![
+                        json!({"_id": "room-scale", "name": "Scale room"})
+                            .as_object()
+                            .expect("room object")
+                            .clone(),
+                    ],
+                )]),
+            })
+            .expect("membership scale resource");
+        grant_seat(&mut db, "carol", "room-scale", "member");
+        for start in (0..CORPUS_ROWS).step_by(BUILD_CHUNK_ROWS) {
+            let end = (start + BUILD_CHUNK_ROWS).min(CORPUS_ROWS);
+            let rows = (start..end)
+                .map(|row| {
+                    json!({
+                        "_id": format!("message-{row:04}"),
+                        "title": format!("sharedprefix{:02} alpha beta", row % 32),
+                        "summary": format!("deterministic membership message {row:04}"),
+                        "status": "open",
+                        "owner": "alice",
+                        "resource": "room-scale"
+                    })
+                    .as_object()
+                    .expect("message object")
+                    .clone()
+                })
+                .collect();
+            db.schema_seed()
+                .seed(SeedData {
+                    tables: BTreeMap::from([("incidents".to_owned(), rows)]),
+                })
+                .expect("membership scale corpus chunk");
+        }
+        let build_elapsed = build_started.elapsed();
+        assert!(
+            build_elapsed <= BUILD_BUDGET,
+            "membership scale build exceeded preregistered budget: {build_elapsed:?}"
+        );
+
+        let mut input = HandlerInput {
+            args: serde_json::to_value(SearchRequestV1 {
+                query: SearchQueryAstV1 {
+                    all: vec![SearchClauseV1::Prefix(SearchTermV1 {
+                        value: "shared".to_owned(),
+                        field: None,
+                    })],
+                },
+                limit: Some(50),
+                after: None,
+            })
+            .expect("prefix request serializes"),
+            ..HandlerInput::default()
+        };
+        input
+            .args
+            .as_object_mut()
+            .expect("membership request object")
+            .insert("resourceId".to_owned(), json!("room-scale"));
+
+        let query_started = Instant::now();
+        let page = run(&db, &input, Some("carol")).expect("membership prefix scale query");
+        let query_elapsed = query_started.elapsed();
+        eprintln!(
+            "membership prefix scale: rows={CORPUS_ROWS} build={build_elapsed:?} query={query_elapsed:?}"
+        );
+        assert!(
+            query_elapsed <= QUERY_BUDGET,
+            "membership prefix query exceeded preregistered budget: {query_elapsed:?}"
+        );
+        assert_eq!(page.rows.len(), 50);
+        assert!(page.cursor.is_some());
+        assert_eq!(
+            page.rows
+                .iter()
+                .map(|row| row["rowId"].as_str().unwrap_or_default().to_owned())
+                .collect::<Vec<_>>(),
+            (0..50)
+                .map(|row| format!("message-{row:04}"))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    /// A scaled-down cut of the Clique pilot defect envelope
+    /// (`issues/closed/20260809-membership-search-envelope-latency.md`): a
+    /// per-partition posting vocabulary where the query prefix matches only a
+    /// small slice. Before the Phase 0(b) fix the two prefix predicates used
+    /// `substr(token,1,length(?))=?`, forcing a full token scan of the
+    /// partition per query; the half-open range seeks instead. At this
+    /// committed size the scan itself is cheap — the budget here pins
+    /// correctness and absence of regression, while the sargability witness
+    /// is the EXPLAIN plan gate above. The timed query takes the minimum of
+    /// five runs to shed scheduler noise.
+    /// @ref LLP 0221#phases — Phase 0(b) proof: selective-prefix fixture
+    /// evidence; the plan gate is the durable scan/seek witness.
+    #[test]
+    fn selective_prefix_membership_query_is_fast_at_scale() {
+        const CORPUS_ROWS: usize = 4_000;
+        const NEEDLE_STRIDE: usize = 80;
+        const BUILD_CHUNK_ROWS: usize = 200;
+        const BUILD_BUDGET: Duration = Duration::from_secs(90);
+        const QUERY_RUNS: usize = 5;
+        const QUERY_BUDGET: Duration = Duration::from_secs(1);
+
+        let build_started = Instant::now();
+        let mut db = LocalDatabase::memory().expect("selective scale database");
+        db.schema_seed()
+            .apply_schema(search_schema(membership_visibility(None)))
+            .expect("selective scale schema");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "rooms".to_owned(),
+                    vec![
+                        json!({"_id": "room-scale", "name": "Scale room"})
+                            .as_object()
+                            .expect("room object")
+                            .clone(),
+                    ],
+                )]),
+            })
+            .expect("selective scale resource");
+        grant_seat(&mut db, "carol", "room-scale", "member");
+        for start in (0..CORPUS_ROWS).step_by(BUILD_CHUNK_ROWS) {
+            let end = (start + BUILD_CHUNK_ROWS).min(CORPUS_ROWS);
+            let rows = (start..end)
+                .map(|row| {
+                    let mut title =
+                        format!("filler{row:04}a filler{row:04}b filler{row:04}c filler{row:04}d");
+                    if row % NEEDLE_STRIDE == 0 {
+                        title.push_str(&format!(" needleword{row:04}"));
+                    }
+                    json!({
+                        "_id": format!("message-{row:04}"),
+                        "title": title,
+                        "summary": format!("deterministic selective message {row:04}"),
+                        "status": "open",
+                        "owner": "alice",
+                        "resource": "room-scale"
+                    })
+                    .as_object()
+                    .expect("message object")
+                    .clone()
+                })
+                .collect();
+            db.schema_seed()
+                .seed(SeedData {
+                    tables: BTreeMap::from([("incidents".to_owned(), rows)]),
+                })
+                .expect("selective scale corpus chunk");
+        }
+        let build_elapsed = build_started.elapsed();
+        assert!(
+            build_elapsed <= BUILD_BUDGET,
+            "selective scale build exceeded preregistered budget: {build_elapsed:?}"
+        );
+
+        let mut input = HandlerInput {
+            args: serde_json::to_value(SearchRequestV1 {
+                query: SearchQueryAstV1 {
+                    all: vec![SearchClauseV1::Prefix(SearchTermV1 {
+                        value: "needle".to_owned(),
+                        field: None,
+                    })],
+                },
+                limit: Some(50),
+                after: None,
+            })
+            .expect("selective prefix request serializes"),
+            ..HandlerInput::default()
+        };
+        input
+            .args
+            .as_object_mut()
+            .expect("membership request object")
+            .insert("resourceId".to_owned(), json!("room-scale"));
+
+        let mut best = Duration::MAX;
+        let mut page = None;
+        for _ in 0..QUERY_RUNS {
+            let query_started = Instant::now();
+            let result = run(&db, &input, Some("carol")).expect("selective prefix scale query");
+            best = best.min(query_started.elapsed());
+            page = Some(result);
+        }
+        let page = page.expect("at least one query run");
+        eprintln!(
+            "selective prefix scale: rows={CORPUS_ROWS} matches={} build={build_elapsed:?} best-of-{QUERY_RUNS} query={best:?}",
+            CORPUS_ROWS / NEEDLE_STRIDE
+        );
+        assert!(
+            best <= QUERY_BUDGET,
+            "selective prefix query exceeded preregistered budget: {best:?}"
+        );
+        assert_eq!(page.rows.len(), CORPUS_ROWS / NEEDLE_STRIDE);
+        assert!(page.cursor.is_none());
+        assert_eq!(
+            page.rows
+                .iter()
+                .map(|row| row["rowId"].as_str().unwrap_or_default().to_owned())
+                .collect::<Vec<_>>(),
+            (0..CORPUS_ROWS)
+                .step_by(NEEDLE_STRIDE)
+                .map(|row| format!("message-{row:04}"))
                 .collect::<Vec<_>>()
         );
     }

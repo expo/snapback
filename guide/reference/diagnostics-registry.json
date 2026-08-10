@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "21dcba6ccabb1abb4effc42b99bfefe2e0c25797",
-    "sourceDigest": "sha256:29ee06a7c09e9574555856626b1a87a6450f22f5d2bf9c6cde83ad1ffbe5f44f"
+    "commit": "ca7119ed50aeba30d44d9f432f16106256d5a2f5",
+    "sourceDigest": "sha256:8d430f28438a0e1f9642d0b0fa4a75e863e3c26ed622fdbbb9f753680b9b21cd"
   },
   "limits": {
     "lookupBytes": 16384
@@ -11,7 +11,7 @@
   "counts": {
     "codes": 2963,
     "sourceFiles": 409,
-    "emittingSites": 10074,
+    "emittingSites": 10075,
     "httpClassified": 929,
     "guideAnchored": 340
   },
@@ -12860,7 +12860,7 @@
       "sites": [
         {
           "file": "src/search/sqlite.rs",
-          "line": 1788,
+          "line": 1946,
           "column": 30
         },
         {
@@ -70489,27 +70489,27 @@
       "sites": [
         {
           "file": "src/search/sqlite.rs",
-          "line": 1498,
+          "line": 1572,
           "column": 10
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 2576,
+          "line": 2790,
           "column": 44
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 2634,
+          "line": 2848,
           "column": 44
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 2732,
+          "line": 2946,
           "column": 44
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 2762,
+          "line": 2976,
           "column": 44
         },
         {
@@ -70537,142 +70537,147 @@
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 232,
+          "line": 235,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 373,
+          "line": 376,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 379,
+          "line": 382,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 387,
+          "line": 390,
           "column": 18
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 406,
+          "line": 409,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 474,
+          "line": 477,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1150,
+          "line": 1153,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1192,
-          "column": 14
-        },
-        {
-          "file": "src/search/sqlite.rs",
-          "line": 1271,
-          "column": 14
-        },
-        {
-          "file": "src/search/sqlite.rs",
-          "line": 1320,
-          "column": 14
-        },
-        {
-          "file": "src/search/sqlite.rs",
-          "line": 1346,
-          "column": 14
-        },
-        {
-          "file": "src/search/sqlite.rs",
-          "line": 1391,
-          "column": 18
-        },
-        {
-          "file": "src/search/sqlite.rs",
-          "line": 1881,
-          "column": 22
-        },
-        {
-          "file": "src/search/sqlite.rs",
-          "line": 1892,
-          "column": 22
-        },
-        {
-          "file": "src/search/sqlite.rs",
-          "line": 1899,
+          "line": 1229,
           "column": 26
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1923,
+          "line": 1245,
+          "column": 14
+        },
+        {
+          "file": "src/search/sqlite.rs",
+          "line": 1312,
+          "column": 26
+        },
+        {
+          "file": "src/search/sqlite.rs",
+          "line": 1345,
+          "column": 14
+        },
+        {
+          "file": "src/search/sqlite.rs",
+          "line": 1394,
+          "column": 14
+        },
+        {
+          "file": "src/search/sqlite.rs",
+          "line": 1420,
+          "column": 14
+        },
+        {
+          "file": "src/search/sqlite.rs",
+          "line": 1465,
           "column": 18
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1934,
+          "line": 2044,
+          "column": 22
+        },
+        {
+          "file": "src/search/sqlite.rs",
+          "line": 2051,
+          "column": 26
+        },
+        {
+          "file": "src/search/sqlite.rs",
+          "line": 2075,
           "column": 18
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1960,
+          "line": 2086,
+          "column": 18
+        },
+        {
+          "file": "src/search/sqlite.rs",
+          "line": 2112,
           "column": 41
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1974,
+          "line": 2126,
           "column": 45
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 2037,
+          "line": 2189,
           "column": 18
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 2055,
+          "line": 2207,
           "column": 18
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 2945,
+          "line": 3159,
           "column": 44
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 2977,
+          "line": 3191,
           "column": 44
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 3015,
+          "line": 3229,
           "column": 44
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 3043,
+          "line": 3257,
           "column": 44
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 3066,
+          "line": 3280,
           "column": 44
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 3083,
+          "line": 3297,
           "column": 50
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 3545,
+          "line": 3990,
           "column": 44
         }
       ],
@@ -70804,27 +70809,27 @@
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 242,
+          "line": 245,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 248,
+          "line": 251,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 805,
+          "line": 808,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 2819,
+          "line": 3033,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 3180,
+          "line": 3394,
           "column": 18
         },
         {
@@ -70931,52 +70936,52 @@
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 180,
+          "line": 183,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 190,
+          "line": 193,
           "column": 18
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 226,
+          "line": 229,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 740,
+          "line": 743,
           "column": 22
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1677,
+          "line": 1835,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1737,
+          "line": 1895,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1773,
+          "line": 1931,
           "column": 30
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1780,
+          "line": 1938,
           "column": 22
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 2061,
+          "line": 2213,
           "column": 18
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 2096,
+          "line": 2248,
           "column": 22
         },
         {
@@ -71020,42 +71025,42 @@
       "sites": [
         {
           "file": "src/search/sqlite.rs",
-          "line": 263,
+          "line": 266,
           "column": 22
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 273,
+          "line": 276,
           "column": 22
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 333,
+          "line": 336,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 550,
+          "line": 553,
           "column": 22
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 556,
+          "line": 559,
           "column": 22
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 572,
+          "line": 575,
           "column": 22
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 578,
+          "line": 581,
           "column": 22
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1411,
+          "line": 1485,
           "column": 22
         }
       ],
@@ -71070,12 +71075,12 @@
       "sites": [
         {
           "file": "src/search/sqlite.rs",
-          "line": 702,
+          "line": 705,
           "column": 18
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 716,
+          "line": 719,
           "column": 18
         },
         {
@@ -71140,57 +71145,57 @@
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1514,
+          "line": 1647,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1607,
+          "line": 1765,
           "column": 18
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1633,
+          "line": 1791,
           "column": 18
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1653,
+          "line": 1811,
           "column": 18
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1684,
+          "line": 1842,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1700,
+          "line": 1858,
           "column": 26
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1714,
+          "line": 1872,
           "column": 22
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1727,
+          "line": 1885,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1753,
+          "line": 1911,
           "column": 22
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1762,
+          "line": 1920,
           "column": 22
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 3218,
+          "line": 3432,
           "column": 44
         },
         {
@@ -71337,17 +71342,17 @@
       "sites": [
         {
           "file": "src/search/sqlite.rs",
-          "line": 302,
+          "line": 305,
           "column": 14
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 542,
+          "line": 545,
           "column": 22
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 2924,
+          "line": 3138,
           "column": 44
         },
         {
@@ -71367,17 +71372,17 @@
       "sites": [
         {
           "file": "src/search/sqlite.rs",
-          "line": 1542,
+          "line": 1628,
           "column": 18
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1576,
+          "line": 1693,
           "column": 18
         },
         {
           "file": "src/search/sqlite.rs",
-          "line": 1618,
+          "line": 1776,
           "column": 18
         },
         {
