@@ -16,6 +16,8 @@ Revision history)
 **Revised:** 2026-08-10 (f — round-3 revision under the author's extended
 budget; see Revision history)
 **Revised:** 2026-08-10 (g — round-4 revision; see Revision history)
+**Revised:** 2026-08-10 (h — round-5 closing revision; loop terminal — see
+Revision history)
 **Related:** LLP 0057 (auth catalog and provider protocol — the substrate this
 extends), LLP 0151 (first-party identity integrations — tier-1
 username+password sketch and the identities-vs-credentials rule), LLP 0039
@@ -150,7 +152,14 @@ reset, restore, and crash consequences ride 0214's ticket.
 **Implementation gate:** no code lands until the 0214 reconciliation has
 produced **one exact composed catalog descriptor and marker** — activation,
 v1/v2 behavior, backup/restore/reset, readiness refusal,
-identity-to-credential linkage, and the displacement lifecycle included.
+identity-to-credential linkage, and the displacement lifecycle included —
+plus two more deliverables of the same program: (v) the public refusal-code
+family reconciled (this RFC's `SNAPBACK_AUTH_PASSWORD_*` vs 0214's uniform
+`SNAPBACK_AUTH_CREDENTIAL_INVALID`), and (vi) the exact LLP 0031
+route-policy tuples for the four routes, minted against the reconciled
+credential-resolution cases (the tuple *obligation* is this RFC's; the
+tuple *values* depend on the reconciled resolution enum and land with the
+descriptor).
 This RFC contributes requirements to that descriptor; it does not mint it,
 because today's binary rejects unknown markers and treats extra `_auth_*`
 tables as corruption, so there is no unilateral marker this slice could
@@ -291,7 +300,10 @@ every later refresh with no new column and no DTO change.
   `'email-code'` identity** (`identityId`), which must belong to the acting
   principal (ownership validated in the transaction; refused otherwise), so
   a multi-email principal's set is unambiguous and a single-email
-  principal's is exact. A stolen bearer alone can neither
+  principal's is exact. The proof is acquired end-to-end through the
+  existing surface: `POST /auth/request-code` against the target
+  identity's address mints the challenge (one-active-challenge rules
+  apply), and the set call consumes it via `stepUp`. A stolen bearer alone can neither
   rotate nor create the credential. Set on an address whose `'password'`
   identity belongs to a *different* principal **displaces** that identity
   and its credential — email proof outranks an unverified squat.
@@ -377,7 +389,7 @@ assertable-refusal discipline as the rest of the auth surface:
 | `SNAPBACK_AUTH_PASSWORD_LOCKED` | credential lockout — **internal + authenticated observability only, never on the public wire** (a locked credential answers `PASSWORD_INVALID`, byte- and timing-identical) | 10 consecutive failures → locked 15 minutes |
 | `SNAPBACK_AUTH_PASSWORD_EXISTS` | signup on an address that already resolves to an account (local profiles; see §Threat notes) | — |
 | `SNAPBACK_AUTH_PASSWORD_WEAK` | screening refusal at signup/change | length < 8, > 1024 bytes, or blocklist hit |
-| `SNAPBACK_AUTH_THROTTLED` | windowed budget or KDF-concurrency cap | reuses LLP 0057's budget machinery |
+| `SNAPBACK_AUTH_THROTTLED` | windowed budget or KDF-concurrency cap | LLP 0215 named budgets (declared parameters; annotated prerequisite while 0215 is wave-1a) |
 
 **Failure accounting is address-keyed and account-existence-blind; budgets
 are LLP 0215's.** The attempt ledger (§Credential storage) holds **lockout
@@ -396,16 +408,22 @@ diverge across allowed histories and disclose successful-authentication
 activity). Lock state surfaces only through the authenticated admin
 projection and `authProgramReadiness`-class observability (LLP 0151's
 non-oracular rule; LLP 0214's uniform password-result contract). The address-level lockout-DoS tradeoff is stated in
-§Credential storage. Accounting is transactional; admission (budget + lock
-check) happens **before** KDF work is spent — note the boundary case: the
+§Credential storage. Accounting is transactional. Only **budget** refusals short-circuit
+before KDF (`THROTTLED` is a typed public code anyway); **lock-window
+attempts spend uniform KDF cost** — dummy or real, exactly as
+nonexistent-address signins do — before the uniform refusal, or the
+fast-path itself becomes the lock-state timing oracle. The lock check
+still runs at admission — note the boundary case: the
 10th attempt admits (only 9 failures exist at admission), spends its KDF,
-fails, and the same transaction that records the 10th failure returns
-`PASSWORD_LOCKED`; success resets `failed_count` only; lock expiry reopens
-without operator action. Signup and signin also
-count against per-address and global rolling windows via 0057's existing
-budget transaction shape — but note 0057's current budget substrate counts
-retained challenge rows, which password signin does not create, so the
-attempt ledger above is the declared substrate for password-path budgets.
+fails, and the same transaction that records the 10th failure classifies
+it internally as `PASSWORD_LOCKED` (the wire still answers the uniform
+`PASSWORD_INVALID`); success resets `failed_count` only; a `failed_count` below threshold
+decays when its window rolls (declared v1 window: 15 minutes, a profile
+parameter like every threshold here); lock expiry reopens without
+operator action. Signup and signin rate metering is entirely LLP 0215's: the named
+password budgets (per-address and global axes) are declared there, and
+neither 0057's challenge-row substrate (which password signin does not
+create) nor this RFC's attempt ledger carries any budget counter.
 
 **Every threshold is a declared profile parameter, not a fixed constant.** The
 pilot's Supabase lane lost ≈2.6 h of an envelope run to GoTrue's
@@ -536,12 +554,26 @@ the auth milestone **without hand-rolled hashing and without shelling out to
 
 ## Status
 
-Review (g). Commissioned 2026-08-10 from
+Review (h). Commissioned 2026-08-10 from
 `issues/20260809-password-credential-auth.md`. No implementation has begun.
 
 ## Revision history
 
 - **(a)** initial draft. **(b)** Draft → Review at loop start.
+- **(h — closing revision, loop terminal)** round-5 convergent fixes from
+  both families: the two surviving (f)-era budget-substrate sentences
+  removed (LLP 0215 is the sole budget authority — the propagation gap both
+  reviews caught); lock-window attempts spend uniform KDF (only budget
+  refusals short-circuit — closing the timing oracle); the 10th-attempt
+  wire answer corrected to uniform `PASSWORD_INVALID`; the lockout window
+  declared (15 min v1, profile parameter) with sub-threshold decay; the set
+  proof's end-to-end acquisition stated; the implementation gate widened
+  with reconciliation deliverables (v) refusal-code family and (vi) LLP
+  0031 tuples. The loop ends here for this document: its remaining
+  round-5 MATERIALs are reconciliation-program work with LLP 0214/0215's
+  owners, which further solo revision cannot converge — that program is
+  the recommended next step, and this revision is final-unreviewed with
+  respect to it.
 - **(g)** round-4 revision: lock state made internal with a uniform public
   `PASSWORD_INVALID` (a visible lock is an oracle across
   owner-sign-in histories — LLP 0214's uniform-result contract; acceptance
