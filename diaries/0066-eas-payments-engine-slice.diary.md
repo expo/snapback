@@ -800,3 +800,163 @@ the title.
   `storeBaseUrl` as an action argument does not generalize to queued work.
   Config plus `expose()` is the answer and I had to derive it;
   `guide/backend/jobs.md` is where a reader would look.
+
+## 2026-08-10 — slice 9: the after-sale money lifecycle
+
+### What the slice is
+
+A sale is not final. Money moves back — voluntarily (the user asks, the store
+agrees) or involuntarily (a bank disputes the charge) — and then forward again
+when either is reversed. Plus one inverted obligation: Apple's
+CONSUMPTION_REQUEST, where the store asks US for data before deciding a refund
+and gives us a window to answer.
+
+`transactions.refundState` became a second axis alongside `status`, and a small
+`consumptionRequests` table makes the deadline durable state rather than a
+timer.
+
+65/65 green, stable across four consecutive runs.
+
+### What felt good
+
+**Two axes was the right call and the acceptance proved it in one check.** The
+sharpest case is a dispute closing LOST: `status` is 'revoked' before and after
+— it does not move at all — so `refundState` is the only thing that changes.
+With a single axis that transition is invisible and the row keeps claiming the
+dispute is open forever. Writing `assertEqual(res.result.changed, false)` next
+to `assertEqual(res.result.refundState, 'dispute_lost')` in the same check is
+the whole argument for the split, compressed into two lines.
+
+The other half is that access derives from `status` alone, so nothing on the
+money axis can accidentally change what a user may do. That separation made the
+whole slice feel low-risk in a way slice 7's single-axis widening did not.
+
+**The reverse direction needed no new code at all.** I expected re-granting
+after a refund reversal to be the hard part. It was zero lines: `deriveGrant`
+already recomputes from every transaction, `applyDerivedGrant` already keeps
+the grant row when it goes inactive and patches it back, and slice 7's
+`(active, activeUntil, state)` change key already ticks the feed for it. The
+reversal check passed the first time and asserts the SAME grant `_id` comes
+back rather than a second row appearing — which is only true because the
+derived read model was built as a projection from the start.
+
+This is the clearest payoff yet from slice 3's insistence on one derivation.
+Four slices later, a genuinely new business event (reversal) required only that
+the store be able to say it.
+
+**No new mechanism for any of the four money transitions.** Refund, reversal,
+dispute open, dispute close — all four arrive through slice 3's re-fetch
+reconcile. I added store seams and a vocabulary; the engine path was untouched.
+When an architecture absorbs a whole new domain concept without a new code
+path, that is the architecture being right rather than the feature being easy.
+
+**Durable deadlines beat timers, and made the claim checkable.** Putting
+`requestedAt` / `deadlineAt` / `respondedAt` in a row means the property "we
+answered on time" is a comparison anyone can run after the fact, not an
+inference from log timing. The two consumption checks assert `respondedAt <
+deadlineAt` directly and report the margin (~3.6M ms), which is the kind of
+evidence that survives someone asking "but did it really?".
+
+### What felt bad, or needed thought
+
+**I shipped a duplicate-delivery race and the acceptance caught it.** This was
+the real work of the slice.
+
+My first design enqueued TWO jobs per consumption request: an eager attempt at
+`delayMs: 0` so we could answer the moment the developer supplied data, and a
+deadline alarm. Both became due in the same drain wave, both ran
+`settleConsumptionRequest` phase 'resolve', both saw `respondedAt` unset, and
+the store received **two** consumption POSTs. Check 7 caught it immediately,
+and check 3 caught it too.
+
+The fix is not obvious, because the obvious fix is wrong. Claiming the response
+before the POST — stamp `respondedAt`, then send — closes the race and
+introduces a strictly worse failure: a POST that fails leaves the request
+looking answered, so the retry declines to send and we silently miss a deadline
+whose entire purpose is not being missed. **Send-then-record is mandatory
+here**, which means concurrent resolvers cannot be made safe, which means there
+must not be concurrent resolvers.
+
+So: exactly one job. The eager attempt was my addition, not the brief's, and it
+bought a property nobody needs — Apple does not care where in a 12-hour window
+the answer lands. The obligation is "answer before the deadline", not "answer
+instantly". Deleting the second enqueue fixed both checks and made the design
+smaller.
+
+Two things I want to record about this. First, the two-job version would very
+plausibly have shipped: it passes any test that drains twice, and only fails
+when both jobs land in one wave. Second, the residual exposure is real and I
+documented it rather than implying it away — execution is at-least-once, so if
+the POST succeeds and the record mutation then fails, the retry re-sends.
+`jobs.md` warns about exactly this ("do not treat idempotent enqueue as
+exactly-once execution") and it is now a `notClaiming` line.
+
+**The phase-switched mutation, again, and with a better justification.** Slice
+8 hit "an action cannot read durable state" and solved it by resolving at
+enqueue time. That does not work here: the developer's data may arrive
+*between* the request and the alarm, so it cannot be baked into a job's
+arguments — the read has to happen at execution time.
+
+So `settleConsumptionRequest` takes a `phase` of 'resolve' | 'record'. I
+disliked this shape in slice 8 and I like it here, and the difference is worth
+naming: the two halves are one operation that *must* straddle an outbound call,
+and the alternative is declaring `writes: ['consumptionRequests']` on a resolve
+function that never writes. Keeping them in one function makes the declaration
+truthful. The platform constraint is still a gap (filed in slice 8), but this
+is the right local answer to it rather than a workaround.
+
+**Adding a field to a projection is a codegen input, and I forgot.** Six checks
+failed at once with `refundState: undefined` because I added the field to
+`listPurchases`'s result contract and mapping but ran the suite before codegen.
+The suite loads generated artifacts, so it was reading the previous shape.
+Third time this session that an unregenerated artifact produced a confusing
+multi-check failure (slice 7's `v.optional()` null, slice 8's none, this). The
+lesson has stopped being "remember to regenerate" and started being "any edit
+under `snapback/` invalidates the suite until codegen runs" — worth a
+pre-flight check in the run loop rather than discipline.
+
+**Checking an existing `@ref` was not a formality.** Slice 7 left an `@ref` on
+LLP 0069 asserting our vocabulary and that RFC's are "disjoint on purpose".
+Adding `refundState` made that partly false: 0069's `refunded`,
+`partiallyRefunded`, and `disputed` are the same events this axis tracks.
+AGENTS.md's rule about re-checking refs you modify near caught a comment that
+would have quietly become wrong, and the corrected version says something more
+useful than the original — that `refundState`, not `status`, is the side an
+adapter maps onto.
+
+### Compared to Convex / Supabase
+
+The two-axis modelling would be identical anywhere; nothing about it is
+Snapback-specific. Two differences showed up in the *obligation* half.
+
+- **Transactional enqueue plus declared writes made the race diagnosable rather
+  than mysterious.** Once the duplicate POST appeared, the enqueue site and the
+  two idempotency keys were the only two places it could come from, both
+  visible in one function. On a queue-plus-worker stack I would have been
+  reading worker logs to find out whether two workers claimed the same row.
+- **At-least-once is stated, not discovered.** `guide/backend/jobs.md` says
+  plainly that execution is at-least-once with fenced attempts and that
+  enqueue-side dedup is not execution-side exactly-once. Having that written
+  down is why I reached the "there must not be concurrent resolvers" conclusion
+  in minutes rather than after a second bug. Convex documents its scheduler's
+  guarantees similarly; Supabase-plus-pgmq leaves it to you.
+
+Against both, the `v.optional()`-is-not-nullable rule from slice 7 has now
+saved time twice — I wrote every optional-arg payload as omit-not-null without
+thinking about it, which is the sign a papercut has become internalized
+knowledge rather than a recurring cost.
+
+### Guide gap worth filing
+
+Not filed as a ticket: this session was scoped to `demos/eas-payments/` plus
+this diary. Per CLAUDE.md and LLP 0061 §5 it wants one, with `guide-gap` in the
+title.
+
+- **Nothing warns that two jobs which can be due simultaneously are concurrent
+  resolvers.** `guide/backend/jobs.md` documents at-least-once execution,
+  pinned claim order, and the 64-per-wave claim batch, but a reader designing
+  an eager-attempt-plus-deadline-alarm pair will not learn from it that both
+  can execute before either commits. The page should say that jobs within a
+  wave are not serialized with respect to each other, and name the
+  send-then-record vs claim-then-send trade-off for outbound obligations,
+  because the safe choice depends on which failure you can tolerate.

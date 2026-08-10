@@ -138,6 +138,9 @@ export async function startFakeStore({ apiKey, now = Date.now(), ackDeadlineMs =
   // storeTxnIds whose ack/consume endpoint should refuse, so a test can watch
   // what happens when the obligation is never met.
   const suppressed = new Set();
+  // Consumption responses the store has received (slice 9), in arrival order, so
+  // a test can prove we answered once and with what.
+  const consumptionResponses = [];
   // The store's own clock for deadline purposes only. Deliberately separate from
   // `now`, which existing checks use for expiry arithmetic and which must not
   // move under them.
@@ -158,6 +161,9 @@ export async function startFakeStore({ apiKey, now = Date.now(), ackDeadlineMs =
     // transaction is never auto-refunded for want of a server ack.
     storeName,
     purchasedAtMs: now,
+    // The after-sale money axis (slice 9). Independent of `status`: the store
+    // moves both, and only it decides refund outcomes.
+    refundState: 'none',
   });
 
   const send = (res, status, body) => {
@@ -242,11 +248,47 @@ export async function startFakeStore({ apiKey, now = Date.now(), ackDeadlineMs =
       return;
     }
 
+    // The consumption endpoint (slice 9). Records what we sent and when, which
+    // is the store's side of the deadline claim.
+    if (req.method === 'POST' && url.pathname.startsWith('/consumption/')) {
+      const storeTxnId = decodeURIComponent(url.pathname.slice('/consumption/'.length));
+      const found = transactions.get(storeTxnId);
+      if (!found) {
+        send(res, 404, { error: 'unknown transaction' });
+        return;
+      }
+      let body;
+      try {
+        body = JSON.parse(await readBody(req));
+      } catch {
+        send(res, 400, { error: 'invalid json' });
+        return;
+      }
+      consumptionResponses.push({
+        storeTxnId,
+        consumptionStatus: body.consumptionStatus ?? null,
+        deliveryStatus: body.deliveryStatus ?? null,
+        refundPreference: body.refundPreference ?? null,
+      });
+      send(res, 200, { received: true });
+      return;
+    }
+
     send(res, 404, { error: 'unknown route' });
   });
 
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address();
+
+  // The after-sale seams all patch an existing transaction. Throwing on an
+  // unknown id keeps a typo'd receipt in a test from silently creating a new
+  // transaction in some half-specified state.
+  const patchOrThrow = (storeTxnId, patch) => {
+    const current = transactions.get(storeTxnId);
+    if (!current) throw new Error('unknown transaction: ' + storeTxnId);
+    transactions.set(storeTxnId, applyPatch(current, patch));
+    return transactions.get(storeTxnId);
+  };
 
   return {
     baseUrl: `http://127.0.0.1:${port}`,
@@ -268,6 +310,92 @@ export async function startFakeStore({ apiKey, now = Date.now(), ackDeadlineMs =
     },
 
     ackDeadlineMs,
+
+    // --- The after-sale money lifecycle (slice 9) ------------------------------
+    //
+    // Every one of these is the STORE changing its mind about money it already
+    // took. None of them is something the Engine may decide, which is why they
+    // are store seams and not engine functions: our only job is to notice.
+    //
+    // Each moves `status` (does this still grant access) and `refundState` (what
+    // is happening to the money) together, because the store really does report
+    // both — and the two axes disagree often enough that keeping them separate is
+    // the whole point.
+
+    /** Apple/Google granted the user's refund request. Access ends. */
+    grantRefund(storeTxnId) {
+      return patchOrThrow(storeTxnId, {
+        status: 'revoked',
+        refundState: 'granted',
+        expiresAt: now - 1_000,
+      });
+    },
+
+    /** The user asked; nobody has decided yet. Access is untouched. */
+    requestRefund(storeTxnId) {
+      return patchOrThrow(storeTxnId, { refundState: 'requested' });
+    },
+
+    /**
+     * The refund or chargeback was REVERSED, so the purchase is good again and
+     * the access we removed must come back. Restores a live window, because a
+     * reversal without a horizon would re-grant nothing.
+     */
+    reverseRefund(storeTxnId) {
+      return patchOrThrow(storeTxnId, {
+        status: 'active',
+        refundState: 'reversed',
+        expiresAt: now + THIRTY_DAYS_MS,
+        graceUntil: null,
+        resumesAt: null,
+      });
+    },
+
+    /**
+     * A bank-initiated dispute (chargeback). Involuntary: the user did not ask us
+     * and the store did not decide — the money is simply gone pending the
+     * outcome, so access ends immediately.
+     */
+    openDispute(storeTxnId) {
+      return patchOrThrow(storeTxnId, {
+        status: 'revoked',
+        refundState: 'disputed',
+        expiresAt: now - 1_000,
+      });
+    },
+
+    /**
+     * The dispute resolved. 'won' means the charge stands, so access returns;
+     * 'lost' means it does not, and the transaction stays exactly as revoked as
+     * it already was — only the money axis moves.
+     */
+    closeDispute(storeTxnId, outcome) {
+      if (outcome !== 'won' && outcome !== 'lost') {
+        throw new Error('dispute outcome must be won or lost');
+      }
+      if (outcome === 'won') {
+        return patchOrThrow(storeTxnId, {
+          status: 'active',
+          refundState: 'dispute_won',
+          expiresAt: now + THIRTY_DAYS_MS,
+          graceUntil: null,
+          resumesAt: null,
+        });
+      }
+      return patchOrThrow(storeTxnId, {
+        status: 'revoked',
+        refundState: 'dispute_lost',
+        expiresAt: now - 1_000,
+      });
+    },
+
+    /** Consumption responses the store has received, in arrival order. */
+    consumptionResponses,
+
+    /** What the store received for one transaction. */
+    consumptionFor(storeTxnId) {
+      return consumptionResponses.filter((entry) => entry.storeTxnId === storeTxnId);
+    },
 
     /**
      * Make the ack/consume endpoint refuse for one transaction, so a test can

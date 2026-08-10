@@ -78,12 +78,19 @@ const BEA = 'user_bea'; // consumable: consume, then re-buy
 const CHEN = 'user_chen'; // ack suppressed, so the deadline auto-refunds
 const DEV = 'user_dev'; // double acknowledgement
 const ELIF = 'user_elif'; // apple: no server ack is owed
+// Slice 9 — the after-sale money lifecycle. A sale is not final.
+const FARID = 'user_farid'; // refund granted, then reversed
+const GITA = 'user_gita'; // consumption request answered from developer data
+const HUGO = 'user_hugo'; // consumption request with no data: the deadline default
+const IRIS = 'user_iris'; // dispute opened, then won
+const JUNO = 'user_juno'; // dispute opened, then lost
+const KAI = 'user_kai'; // the control: buys once, must never move
 
 const STORE_KEY = 'fake-store-key-slice-2';
 const WRONG_STORE_KEY = 'not-the-store-key';
 const WEBHOOK_SECRET = 'developer-shared-secret-slice-5';
 
-const suite = createSuite('eas-payments / headless', { expectedChecks: 56 });
+const suite = createSuite('eas-payments / headless', { expectedChecks: 65 });
 const cleanups = [];
 let server = null;
 let db = null;
@@ -257,6 +264,8 @@ await runAcceptance(suite, async () => {
       'expireGrantsSweep',
       'acknowledgePurchase',
       'markAcknowledged',
+      'handleConsumptionRequest',
+      'setConsumptionData',
     ]) {
       assert(names.includes(required), `missing function ${required} in ${names}`);
     }
@@ -1030,7 +1039,7 @@ await runAcceptance(suite, async () => {
         [
           // Slice 8 added the two acknowledgement facts. Still store facts, so
           // the audit's "nothing derived" contract holds.
-          'ackState', 'createdAt', 'environment', 'productId',
+          'ackState', 'createdAt', 'environment', 'productId', 'refundState',
           'serverAckRequired', 'status', 'store', 'storeTxnId',
         ],
         'purchase row shape',
@@ -1700,6 +1709,337 @@ await runAcceptance(suite, async () => {
     );
     assertEqual(await activeEntitlementIds(ELIF), ['pro'], 'the grant is unaffected throughout');
     return { serverAckRequired: false, ackCalls: 0 };
+  });
+
+  // --- Slice 9: the after-sale money lifecycle ----------------------------------
+  //
+  // A sale is not final. Money can move back — voluntarily (the user asks and the
+  // store agrees), involuntarily (a bank disputes the charge), and then move
+  // forward again when either is reversed.
+  //
+  // Two things make this tractable. First, `refundState` is a SECOND axis:
+  // `status` answers "does this grant access" and refundState answers "what is
+  // happening to the money". A granted refund and an opened dispute both land on
+  // status 'revoked', and only refundState says which. Access derives from status
+  // alone, so nothing on the money axis can accidentally change what a user may
+  // do. Second, every transition arrives the same way it has since slice 3: the
+  // store changes its mind, and we find out by re-fetching. There is no new
+  // mechanism here at all, which is the point.
+  //
+  // We never adjudicate. Every seam below is the STORE deciding.
+
+  // The control buyer, registered before the churn so isolation is a claim about
+  // a grant that existed throughout.
+  await validate({
+    productId: 'plus_monthly',
+    store: 'stripe',
+    receipt: 'receipt_kai_plus',
+    environment: 'sandbox',
+  }, KAI);
+  const kaiGrantBefore = await grantFor(KAI, 'plus');
+
+  // Apple's window is 12 hours; this is the compressed stand-in. Large enough
+  // that the drain seam's injected clock (which advances two virtual minutes per
+  // round) cannot push a response past the deadline and make an on-time answer
+  // look late.
+  const CONSUMPTION_WINDOW_MS = 3_600_000;
+  const CONSUMPTION_ALARM_MS = 1_000;
+  const openConsumption = (storeTxnId) => db.mutate(api.openConsumptionRequest, {
+    args: {
+      storeTxnId,
+      windowMs: CONSUMPTION_WINDOW_MS,
+      alarmDelayMs: CONSUMPTION_ALARM_MS,
+    },
+  });
+  const consumptionRow = async (storeTxnId) => {
+    const { rows } = await db.query(api.listConsumptionRequests, {});
+    return rows.find((row) => row.storeTxnId === storeTxnId) ?? null;
+  };
+
+  await suite.check('a granted refund revokes access and records it on the money axis', async () => {
+    // The regression half of slice 7's 'revoked': this already worked, and it
+    // must keep working now that a second axis rides alongside it.
+    await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_farid_pro',
+      environment: 'sandbox',
+    }, FARID);
+    assertEqual(await activeEntitlementIds(FARID), ['pro'], 'farid holds pro');
+    assertEqual(
+      (await purchaseOf(FARID, 'apple:receipt_farid_pro')).refundState,
+      'none',
+      'a fresh purchase has nothing happening to its money',
+    );
+
+    const cursor = await changeCursor();
+    store.grantRefund('apple:receipt_farid_pro');
+    const res = await notify({ userId: FARID, store: 'apple', storeTxnId: 'apple:receipt_farid_pro' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.status, 'revoked', 'the store revoked the purchase');
+    assertEqual(res.result.refundState, 'granted', 'and says the refund was granted');
+
+    assertEqual(await activeEntitlementIds(FARID), [], 'access is OFF');
+    assertEqual(
+      (await purchaseOf(FARID, 'apple:receipt_farid_pro')).refundState,
+      'granted',
+      'the money axis is recorded',
+    );
+    assertEqual(
+      (await pollChanges(cursor)).map((r) => r.userId),
+      [FARID],
+      'the developer is told access moved',
+    );
+    return { refundState: res.result.refundState };
+  });
+
+  await suite.check('a reversal restores the access the refund removed, and ticks the feed', async () => {
+    // The direction slices 1-8 never had. A reversal is not a new purchase — the
+    // same transaction becomes good again, so the SAME grant row must come back
+    // rather than a second one appearing beside it.
+    assertEqual(await activeEntitlementIds(FARID), [], 'farid starts revoked');
+    const revokedGrant = await db.query(api.getEntitlements, { userId: FARID });
+    assertEqual(revokedGrant.rows.length, 0, 'and holds nothing');
+
+    const cursor = await changeCursor();
+    store.reverseRefund('apple:receipt_farid_pro');
+    const res = await notify({ userId: FARID, store: 'apple', storeTxnId: 'apple:receipt_farid_pro' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.status, 'active', 'the purchase is good again');
+    assertEqual(res.result.refundState, 'reversed', 'and the money came back');
+
+    assertEqual(await activeEntitlementIds(FARID), ['pro'], 'access is RESTORED');
+    const grant = await grantFor(FARID, 'pro');
+    assertEqual(grant.state, 'active', 'as a fully active grant');
+    assert(grant.activeUntil > store.now, 'with a live window again');
+    assertEqual(
+      (await purchaseOf(FARID, 'apple:receipt_farid_pro')).refundState,
+      'reversed',
+      'the money axis records the reversal',
+    );
+    assertEqual(
+      (await pollChanges(cursor)).map((r) => r.userId),
+      [FARID],
+      'exactly one tick for the restoration',
+    );
+    return { refundState: res.result.refundState, state: grant.state };
+  });
+
+  await suite.check('a consumption request is answered from developer data, before the deadline', async () => {
+    // The store asks US, and we have a window to answer. This is an outbound
+    // obligation, not a state change: nothing about the transaction moves because
+    // Apple is thinking about a refund.
+    await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_gita_pro',
+      environment: 'sandbox',
+    }, GITA);
+    const opened = await openConsumption('apple:receipt_gita_pro');
+    const request = opened.result ?? opened;
+    assertEqual(request.deduped, false, 'a first request is not a duplicate');
+
+    const row = await consumptionRow('apple:receipt_gita_pro');
+    assert(row, 'the request is durable, not a timer in a job');
+    assert(row.deadlineAt > row.requestedAt, 'and carries a real window');
+    assertEqual(row.respondedAt ?? null, null, 'nothing answered yet');
+
+    // We hold no wallet, so the developer supplies the facts.
+    await db.mutate(api.setConsumptionData, {
+      args: {
+        storeTxnId: 'apple:receipt_gita_pro',
+        consumptionStatus: 'partially_consumed',
+        deliveryStatus: 'delivered',
+        refundPreference: 'no_preference',
+      },
+    });
+    await drain();
+
+    const sent = store.consumptionFor('apple:receipt_gita_pro');
+    assertEqual(sent.length, 1, 'exactly one consumption response was POSTed');
+    assertEqual(sent[0].consumptionStatus, 'partially_consumed', "the developer's facts were sent");
+    assertEqual(sent[0].deliveryStatus, 'delivered', 'including delivery');
+    assertEqual(sent[0].refundPreference, 'no_preference', 'and we express no preference');
+
+    const answered = await consumptionRow('apple:receipt_gita_pro');
+    assertEqual(answered.outcome, 'reported', 'recorded as a real report, not a default');
+    assert(answered.respondedAt > 0, 'respondedAt is stamped');
+    assert(
+      answered.respondedAt < answered.deadlineAt,
+      `answered before the deadline (${answered.respondedAt} < ${answered.deadlineAt})`,
+    );
+    // Being asked changes nothing about access.
+    assertEqual(await activeEntitlementIds(GITA), ['pro'], 'the request did not touch access');
+    return { outcome: answered.outcome, marginMs: answered.deadlineAt - answered.respondedAt };
+  });
+
+  await suite.check('with no developer data the deadline alarm sends the documented default', async () => {
+    // The failure this exists to prevent is silence. Missing the deadline means
+    // Apple decides with no input from us; answering with an explicit abstention
+    // means Apple decides with our non-answer on the record, on time. The second
+    // is strictly better, and the alarm is what guarantees it.
+    await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_hugo_pro',
+      environment: 'sandbox',
+    }, HUGO);
+    await openConsumption('apple:receipt_hugo_pro');
+    // Deliberately no setConsumptionData: the developer never answers.
+
+    await drain();
+
+    const sent = store.consumptionFor('apple:receipt_hugo_pro');
+    assertEqual(sent.length, 1, 'the deadline alarm still answered exactly once');
+    assertEqual(sent[0].consumptionStatus, 'unknown', 'the documented default: we do not know');
+    assertEqual(sent[0].deliveryStatus, 'unknown', 'nor whether it was delivered');
+    assertEqual(sent[0].refundPreference, 'no_preference', 'and we do not adjudicate');
+
+    const answered = await consumptionRow('apple:receipt_hugo_pro');
+    assertEqual(answered.outcome, 'default', 'recorded as a default, distinguishable from a report');
+    assert(
+      answered.respondedAt < answered.deadlineAt,
+      `the deadline was MET (${answered.respondedAt} < ${answered.deadlineAt})`,
+    );
+    assertEqual(await activeEntitlementIds(HUGO), ['pro'], 'access is untouched throughout');
+    return { outcome: answered.outcome, marginMs: answered.deadlineAt - answered.respondedAt };
+  });
+
+  await suite.check('an opened dispute revokes access and signals the feed', async () => {
+    // Involuntary: the user did not ask us and the store did not decide. A bank
+    // pulled the money, so access ends immediately and the outcome comes later.
+    await validate({
+      productId: 'pro_monthly',
+      store: 'stripe',
+      receipt: 'receipt_iris_pro',
+      environment: 'sandbox',
+    }, IRIS);
+    assertEqual(await activeEntitlementIds(IRIS), ['pro'], 'iris holds pro');
+
+    const cursor = await changeCursor();
+    store.openDispute('stripe:receipt_iris_pro');
+    const res = await notify({ userId: IRIS, store: 'stripe', storeTxnId: 'stripe:receipt_iris_pro' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.status, 'revoked', 'a dispute revokes on open');
+    assertEqual(res.result.refundState, 'disputed', 'and the money axis says why');
+
+    assertEqual(await activeEntitlementIds(IRIS), [], 'access is OFF while the dispute is open');
+    assertEqual(
+      (await pollChanges(cursor)).map((r) => r.userId),
+      [IRIS],
+      'the developer gets the signal',
+    );
+    // The distinction the second axis buys: same status as a refund, different story.
+    assertEqual(
+      (await purchaseOf(IRIS, 'stripe:receipt_iris_pro')).refundState,
+      'disputed',
+      'not "granted" — nobody granted anything',
+    );
+    return { refundState: res.result.refundState };
+  });
+
+  await suite.check('a dispute won restores access', async () => {
+    const cursor = await changeCursor();
+    store.closeDispute('stripe:receipt_iris_pro', 'won');
+    const res = await notify({ userId: IRIS, store: 'stripe', storeTxnId: 'stripe:receipt_iris_pro' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.refundState, 'dispute_won', 'the charge stands');
+    assertEqual(await activeEntitlementIds(IRIS), ['pro'], 'so access comes back');
+    assertEqual((await grantFor(IRIS, 'pro')).state, 'active', 'as an active grant');
+    assertEqual(
+      (await pollChanges(cursor)).map((r) => r.userId),
+      [IRIS],
+      'one tick for the restoration',
+    );
+    return { refundState: res.result.refundState };
+  });
+
+  await suite.check('a dispute lost leaves access off and moves only the money axis', async () => {
+    // The sharpest case for two axes. `status` is 'revoked' before and after —
+    // it does not move at all — so refundState is the ONLY thing that changes.
+    // With one axis this transition would be invisible.
+    await validate({
+      productId: 'pro_monthly',
+      store: 'stripe',
+      receipt: 'receipt_juno_pro',
+      environment: 'sandbox',
+    }, JUNO);
+    store.openDispute('stripe:receipt_juno_pro');
+    await notify({ userId: JUNO, store: 'stripe', storeTxnId: 'stripe:receipt_juno_pro' });
+    assertEqual(await activeEntitlementIds(JUNO), [], 'access off while disputed');
+
+    const cursor = await changeCursor();
+    store.closeDispute('stripe:receipt_juno_pro', 'lost');
+    const res = await notify({ userId: JUNO, store: 'stripe', storeTxnId: 'stripe:receipt_juno_pro' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.status, 'revoked', 'still revoked, exactly as before');
+    assertEqual(res.result.refundState, 'dispute_lost', 'and now recorded as lost');
+    assertEqual(res.result.changed, false, 'no entitlement moved, because none could');
+    assertEqual(await activeEntitlementIds(JUNO), [], 'access stays OFF');
+    assertEqual(
+      (await purchaseOf(JUNO, 'stripe:receipt_juno_pro')).refundState,
+      'dispute_lost',
+      'the transaction stopped claiming the dispute is open',
+    );
+    // No feed row: nothing the developer needs to re-read. Access did not move.
+    assertEqual(await pollChanges(cursor), [], 'a money-only change is silent on the feed');
+    return { refundState: res.result.refundState };
+  });
+
+  await suite.check('duplicate after-sale triggers are no-ops', async () => {
+    // Every one of these arrives as an at-least-once notification, so a
+    // re-delivered refund, reversal, dispute, or consumption request must change
+    // nothing and append nothing.
+    const cursor = await changeCursor();
+    for (const [userId, storeName, storeTxnId] of [
+      [FARID, 'apple', 'apple:receipt_farid_pro'],
+      [IRIS, 'stripe', 'stripe:receipt_iris_pro'],
+      [JUNO, 'stripe', 'stripe:receipt_juno_pro'],
+    ]) {
+      const again = await notify({ userId, store: storeName, storeTxnId });
+      assert(again.ok, `applyStoreState failed for ${userId}: ${JSON.stringify(again.diagnostic)}`);
+      assertEqual(again.result.changed, false, `${userId}: re-delivery moved nothing`);
+    }
+    assertEqual(await pollChanges(cursor), [], 'three redundant re-deliveries appended nothing');
+
+    // A re-delivered consumption request is one obligation, not two: the original
+    // deadline stands and no second response is sent.
+    const before = await consumptionRow('apple:receipt_gita_pro');
+    const reopened = await openConsumption('apple:receipt_gita_pro');
+    assertEqual((reopened.result ?? reopened).deduped, true, 'the same request, not a new one');
+    assertEqual(
+      (reopened.result ?? reopened).deadlineAt,
+      before.deadlineAt,
+      'the original deadline is kept, not extended',
+    );
+    await drain(2);
+    assertEqual(
+      store.consumptionFor('apple:receipt_gita_pro').length,
+      1,
+      'still exactly one POST after a duplicate request and two drains',
+    );
+    const after = await consumptionRow('apple:receipt_gita_pro');
+    assertEqual(after.respondedAt, before.respondedAt, 'respondedAt was not moved later');
+    assertEqual(after.outcome, 'reported', 'and the outcome was not downgraded to a default');
+    return { reconciles: 3 };
+  });
+
+  await suite.check('the after-sale lifecycle left the control buyer untouched', async () => {
+    // Isolation across refunds, reversals, disputes, and two consumption windows.
+    const after = await grantFor(KAI, 'plus');
+    assert(after, 'kai still holds his grant');
+    assertEqual(await activeEntitlementIds(KAI), ['plus'], "kai's access is unchanged");
+    assertEqual(after._version, kaiGrantBefore._version, "kai's grant was never rewritten");
+    assertEqual(after._id, kaiGrantBefore._id, 'and it is the same row');
+    assertEqual(
+      (await purchaseOf(KAI, 'stripe:receipt_kai_plus')).refundState,
+      'none',
+      "nothing happened to kai's money either",
+    );
+    // No consumption request was ever opened against him.
+    assertEqual(await consumptionRow('stripe:receipt_kai_plus'), null, 'and nobody asked about him');
+    assertEqual(store.consumptionFor('stripe:receipt_kai_plus').length, 0, 'so nothing was sent');
+    return { version: after._version };
   });
 
   await suite.check('an ordinary query is honestly reported as NOT live', async () => {

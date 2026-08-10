@@ -9,10 +9,17 @@
 // @ref LLP 0069#generated-application-surface — `transactions.status` is
 //   deliberately NOT that RFC's payment vocabulary. 0069 models one payment
 //   ATTEMPT (notStarted, providerPending, authorized, capturePending, paid,
-//   refunded, disputed, ambiguous, manualReview); this models a SUBSCRIPTION's
-//   entitlement over time (grace, retry_hold, paused). The two are disjoint on
-//   purpose — a reader coming from 0069 should not expect them to line up, and
-//   an adapter will eventually have to translate between them.
+//   refunded, disputed, ambiguous, manualReview); `status` here models a
+//   SUBSCRIPTION's entitlement over time (grace, retry_hold, paused). Those two
+//   are disjoint on purpose, and a reader coming from 0069 should not expect
+//   them to line up.
+//
+//   `refundState` (slice 9) is where the two vocabularies genuinely converge:
+//   0069's `refunded`, `partiallyRefunded`, and `disputed` are the same events
+//   this axis tracks. It is still a separate spelling because 0069 keeps them on
+//   ONE state machine with the payment attempt, while the whole point of the
+//   split here is that access and money move independently. An adapter will have
+//   to translate, and this axis — not `status` — is the side it maps onto.
 
 import { defineSchema, defineTable, v } from '../../_kit/define.mjs';
 
@@ -92,6 +99,23 @@ export default defineSchema({
     // an acknowledgement" and "we owe one and have not sent it" are different
     // facts, and collapsing them would make a pending Apple row look overdue.
     serverAckRequired: v.boolean(),
+
+    // The after-sale money lifecycle (slice 9). A sale is not final.
+    //
+    // 'none' -> 'requested' -> 'granted' -> 'reversed', and the involuntary
+    // branch 'disputed' -> 'dispute_won' | 'dispute_lost'.
+    //
+    // Deliberately a SECOND axis rather than more `status` values. `status`
+    // answers "does this transaction currently grant access"; refundState
+    // answers "what is happening to the money". They move independently: a
+    // dispute and a granted refund both land on status 'revoked', and only
+    // refundState distinguishes "the user asked and Apple agreed" from "a bank
+    // reversed the charge over our heads". Access is derived from status alone,
+    // so nothing here can accidentally change what a user may do.
+    //
+    // We MIRROR this from the store and never compute it. Adjudicating refunds
+    // is the store's job; ours is to react to their verdict.
+    refundState: v.string(),
   })
     .index('by_user', ['userId'])
     // by_storeTxn is what makes recordPurchase idempotent: a re-delivered
@@ -145,6 +169,32 @@ export default defineSchema({
     url: v.string(),
     active: v.boolean(),
   }).index('by_active', ['active']),
+
+  // Apple's CONSUMPTION_REQUEST (slice 9). The store asks US for consumption
+  // data before it decides a refund, and gives us a window (12 hours in
+  // production) to answer. This is an OUTBOUND OBLIGATION, not a state change —
+  // nothing about the transaction moves because we were asked.
+  //
+  // One row per request, so the deadline is durable state rather than a timer
+  // living in a job's arguments. `respondedAt` before `deadlineAt` is the whole
+  // claim this table exists to make checkable after the fact.
+  //
+  // We hold no wallet, so the consumption facts are DEVELOPER-supplied
+  // (setConsumptionData) and optional here: the row exists from the moment we
+  // are asked, and may still be waiting for an answer when the deadline nears.
+  // That gap is exactly what the deadline default covers.
+  consumptionRequests: defineTable({
+    storeTxnId: v.string(),
+    requestedAt: v.integer(),
+    deadlineAt: v.integer(),
+    respondedAt: v.optional(v.integer()),
+    // 'reported' (developer data) | 'default' (deadline default).
+    outcome: v.optional(v.string()),
+    // Developer-supplied facts, absent until they answer.
+    consumptionStatus: v.optional(v.string()),
+    deliveryStatus: v.optional(v.string()),
+    refundPreference: v.optional(v.string()),
+  }).index('by_txn', ['storeTxnId']),
 
   // The delivery ledger. One row per *attempt*, not per change, so the retry
   // ladder is visible after the fact instead of only in the job's own state.

@@ -137,6 +137,10 @@ export const listPurchases = defineJsQuery({
     // store was told we accepted the purchase, and whether it was ever owed.
     ackState: v.string(),
     serverAckRequired: v.boolean(),
+    // Slice 9. The money axis is a store fact too, and keeping it in the audit
+    // rather than on the grant is deliberate: access derives from `status`, so a
+    // refund's paper trail must not be somewhere an app might gate on it.
+    refundState: v.string(),
   })),
   handler: async (ctx) => {
     const rows = await ctx.db
@@ -155,6 +159,7 @@ export const listPurchases = defineJsQuery({
       createdAt: row._createdAt,
       ackState: row.ackState,
       serverAckRequired: row.serverAckRequired,
+      refundState: row.refundState,
     }));
   },
 });
@@ -208,6 +213,35 @@ function grantsAccess(status) {
 function accessHorizonOf(txn) {
   const raw = txn.status === 'grace' ? txn.graceUntil : txn.expiresAt;
   return raw === undefined || raw === null ? null : raw;
+}
+
+// The after-sale money lifecycle (slice 9). A second axis, mirrored from the
+// store and never computed here — we do not adjudicate refunds.
+function isKnownRefundState(refundState) {
+  return refundState === 'none'
+    || refundState === 'requested'
+    || refundState === 'granted'
+    || refundState === 'reversed'
+    || refundState === 'disputed'
+    || refundState === 'dispute_won'
+    || refundState === 'dispute_lost';
+}
+
+// What we tell the store when the consumption window is closing and the
+// developer has not supplied anything.
+//
+// This is the documented default, and every field is a deliberate abstention:
+// 'unknown' where we genuinely do not know, and 'no_preference' because we have
+// no standing to ask for a refund outcome on the developer's behalf. Answering
+// this is strictly better than missing the deadline — a missed deadline is Apple
+// deciding without us, while this is Apple deciding without our input, which is
+// the same outcome plus a record that we replied on time.
+function defaultConsumptionAnswer() {
+  return {
+    consumptionStatus: 'unknown',
+    deliveryStatus: 'unknown',
+    refundPreference: 'no_preference',
+  };
 }
 
 // Which adapters owe the store a server-side acknowledgement (slice 8).
@@ -490,8 +524,9 @@ export const recordPurchase = defineJsMutation({
     expiresAt: v.optional(v.integer()),
     graceUntil: v.optional(v.integer()),
     resumesAt: v.optional(v.integer()),
+    refundState: v.optional(v.string()),
   },
-  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints'],
+  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints', 'products'],
   writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
   result: results.value(v.object({
     transactionId: v.string(),
@@ -521,6 +556,10 @@ export const recordPurchase = defineJsMutation({
     if (args.status === 'grace' && graceUntil === null) {
       throw new Error('a grace transaction requires graceUntil');
     }
+    const refundState = args.refundState === undefined ? 'none' : args.refundState;
+    if (!isKnownRefundState(refundState)) {
+      throw new Error('unknown refund state: ' + refundState);
+    }
 
     // Dedupe on the store's identity, not ours. This is what makes the
     // notification-triggered path safe to replay.
@@ -549,6 +588,7 @@ export const recordPurchase = defineJsMutation({
       // acknowledgement is the adapter's business, recorded alongside it.
       ackState: 'pending',
       serverAckRequired: ackRequired,
+      refundState: refundState,
     });
 
     // Derive, never assign: the new transaction is now one input among the
@@ -650,6 +690,14 @@ export const validateReceipt = defineAction({
     if (status === 'grace' && graceUntil === null) {
       throw new Error('store reported grace with no graceUntil');
     }
+    // Absent means 'none': a store that has nothing to say about refunds is the
+    // ordinary case, not a malformed response.
+    const refundState = state.refundState === undefined || state.refundState === null
+      ? 'none'
+      : String(state.refundState);
+    if (!isKnownRefundState(refundState)) {
+      throw new Error('store returned an unknown refund state: ' + refundState);
+    }
 
     // An optional arg means ABSENT or integer — not nullable. Passing an
     // explicit null is a served-contract violation, so a horizon this state does
@@ -660,6 +708,7 @@ export const validateReceipt = defineAction({
       storeTxnId: storeTxnId,
       status: status,
       environment: environment,
+      refundState: refundState,
     };
     if (expiresAt !== null) payload.expiresAt = expiresAt;
     if (graceUntil !== null) payload.graceUntil = graceUntil;
@@ -701,13 +750,15 @@ export const reconcileTransaction = defineJsMutation({
     expiresAt: v.optional(v.integer()),
     graceUntil: v.optional(v.integer()),
     resumesAt: v.optional(v.integer()),
+    refundState: v.optional(v.string()),
   },
-  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints'],
+  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints', 'products'],
   writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
   result: results.value(v.object({
     changed: v.boolean(),
     entitlementsChanged: v.integer(),
     transactionChanged: v.boolean(),
+    refundState: v.string(),
   })),
   handler: async (ctx, args) => {
     const storeTxnId = String(args.storeTxnId ?? '').trim();
@@ -723,6 +774,10 @@ export const reconcileTransaction = defineJsMutation({
     const nextResumes = readOptionalMs(args.resumesAt, 'resumesAt');
     if (args.status === 'grace' && nextGrace === null) {
       throw new Error('a grace transaction requires graceUntil');
+    }
+    const nextRefundState = args.refundState === undefined ? 'none' : args.refundState;
+    if (!isKnownRefundState(nextRefundState)) {
+      throw new Error('unknown refund state: ' + nextRefundState);
     }
 
     const seen = await ctx.db
@@ -748,6 +803,7 @@ export const reconcileTransaction = defineJsMutation({
         resumesAt: nextResumes,
         ackState: 'pending',
         serverAckRequired: serverAckRequiredFor(args.store),
+        refundState: nextRefundState,
       });
       // A notification can be the first time we hear about a purchase, and that
       // purchase owes the store an acknowledgement exactly like one we recorded
@@ -768,19 +824,27 @@ export const reconcileTransaction = defineJsMutation({
       const rowUntil = row.expiresAt === undefined ? null : row.expiresAt;
       const rowGrace = row.graceUntil === undefined ? null : row.graceUntil;
       const rowResumes = row.resumesAt === undefined ? null : row.resumesAt;
+      const rowRefundState = row.refundState === undefined ? 'none' : row.refundState;
       // All three horizons join the comparison, not just expiresAt. A
       // subscription moving active -> grace often keeps the same expiresAt and
       // only gains a graceUntil; treating that as "unchanged" would leave the
       // stored row claiming the user is still fully paid up.
+      //
+      // refundState joins it too (slice 9), and it is the axis that moves on its
+      // own most often: a dispute closing 'lost' leaves status 'revoked' exactly
+      // where it already was, so refundState is the ONLY thing that changed. Omit
+      // it here and the row would keep claiming the dispute is still open.
       if (row.status !== args.status
         || rowUntil !== nextUntil
         || rowGrace !== nextGrace
-        || rowResumes !== nextResumes) {
+        || rowResumes !== nextResumes
+        || rowRefundState !== nextRefundState) {
         await ctx.db.patch('transactions', row._id, {
           status: args.status,
           expiresAt: nextUntil,
           graceUntil: nextGrace,
           resumesAt: nextResumes,
+          refundState: nextRefundState,
         });
         transactionChanged = true;
       }
@@ -796,6 +860,7 @@ export const reconcileTransaction = defineJsMutation({
       changed: entitlementsChanged > 0,
       entitlementsChanged: entitlementsChanged,
       transactionChanged: transactionChanged,
+      refundState: nextRefundState,
     };
   },
 });
@@ -819,6 +884,7 @@ export const applyStoreState = defineAction({
   result: results.value(v.object({
     storeTxnId: v.string(),
     status: v.string(),
+    refundState: v.string(),
     changed: v.boolean(),
   })),
   handler: async (ctx, args) => {
@@ -857,6 +923,13 @@ export const applyStoreState = defineAction({
     if (status === 'grace' && graceUntil === null) {
       throw new Error('store reported grace with no graceUntil');
     }
+    // The after-sale axis (slice 9). Absent means 'none'.
+    const refundState = state.refundState === undefined || state.refundState === null
+      ? 'none'
+      : String(state.refundState);
+    if (!isKnownRefundState(refundState)) {
+      throw new Error('store returned an unknown refund state: ' + refundState);
+    }
 
     // Absent, never null — see the note on validateReceipt's payload.
     const payload = {
@@ -866,6 +939,7 @@ export const applyStoreState = defineAction({
       storeTxnId: storeTxnId,
       status: status,
       environment: environment,
+      refundState: refundState,
     };
     if (expiresAt !== null) payload.expiresAt = expiresAt;
     if (graceUntil !== null) payload.graceUntil = graceUntil;
@@ -874,6 +948,7 @@ export const applyStoreState = defineAction({
     return {
       storeTxnId: storeTxnId,
       status: status,
+      refundState: commit.refundState,
       changed: commit.changed === true,
     };
   },
@@ -1227,6 +1302,338 @@ export const acknowledgePurchase = defineAction({
       changed: commit.changed === true,
     };
   },
+});
+
+// --- Consumption requests (slice 9) --------------------------------------------
+
+// Apple asks US for consumption data before deciding a refund, and gives us a
+// window to answer. Recording the request is what makes the deadline durable:
+// the obligation lives in a row, not in a timer.
+//
+// EXACTLY ONE job, and that is a correctness requirement rather than economy.
+//
+// The first version enqueued two — an eager attempt at delayMs 0 and a deadline
+// alarm — so a request could be answered the moment the developer supplied data.
+// Both became due in the same drain wave, both resolved "not answered yet"
+// before either recorded, and the store received TWO consumption responses.
+//
+// The race is not fixable by claiming the response before the POST: a claim that
+// precedes delivery makes a failed POST look answered, which for a deadline
+// obligation is the worst possible failure. Send-then-record is the required
+// order, and it means concurrent resolvers cannot be made safe — so there must
+// not be concurrent resolvers.
+//
+// One alarm, therefore, keyed on the transaction. The cost is that we answer when
+// the alarm fires rather than the instant the developer replies, and that cost is
+// nothing: the obligation is "answer before the deadline", not "answer instantly".
+// Apple does not care where in the window the response lands.
+export const openConsumptionRequest = defineJsMutation({
+  args: {
+    storeTxnId: v.string(),
+    windowMs: v.integer(),
+    // Testing knob, in the same spirit as all-aboard's pollBudgetMs: when the
+    // alarm fires inside the window. Clamped below so it can never land ON or
+    // AFTER the deadline, which would defeat the point of having an alarm.
+    alarmDelayMs: v.optional(v.integer()),
+  },
+  reads: ['consumptionRequests', 'transactions'],
+  writes: ['consumptionRequests'],
+  result: results.value(v.object({
+    requestId: v.string(),
+    deadlineAt: v.integer(),
+    deduped: v.boolean(),
+  })),
+  handler: async (ctx, args) => {
+    const storeTxnId = String(args.storeTxnId ?? '').trim();
+    if (!storeTxnId) throw new Error('storeTxnId is required');
+    if (args.windowMs <= 0) throw new Error('windowMs must be positive');
+
+    const txns = await ctx.db
+      .query('transactions')
+      .withIndex('by_storeTxn')
+      .eq('storeTxnId', storeTxnId)
+      .collect();
+    if (txns.length === 0) throw new Error('unknown storeTxnId: ' + storeTxnId);
+
+    // A re-delivered CONSUMPTION_REQUEST is one obligation, not two. Returning
+    // the existing row keeps the original deadline, which is the honest one.
+    const existing = await ctx.db
+      .query('consumptionRequests')
+      .withIndex('by_txn')
+      .eq('storeTxnId', storeTxnId)
+      .collect();
+    if (existing.length > 0) {
+      return {
+        requestId: existing[0]._id,
+        deadlineAt: existing[0].deadlineAt,
+        deduped: true,
+      };
+    }
+
+    const now = ctx.runtime.now();
+    const deadlineAt = now + args.windowMs;
+    const requestId = await ctx.db.insert('consumptionRequests', {
+      storeTxnId: storeTxnId,
+      requestedAt: now,
+      deadlineAt: deadlineAt,
+    });
+
+    const requested = args.alarmDelayMs === undefined
+      ? Math.floor(args.windowMs / 2)
+      : args.alarmDelayMs;
+    // Never at or past the deadline: an alarm that fires when the window has
+    // already closed is not an alarm.
+    const alarmDelayMs = Math.max(0, Math.min(requested, args.windowMs - 1));
+
+    // `atDeadline: true` because this job IS the deadline: when it runs, it
+    // answers with whatever exists — the developer's facts if they arrived, the
+    // documented default if not.
+    await ctx.jobs.enqueue(
+      'handleConsumptionRequest',
+      { storeTxnId: storeTxnId, atDeadline: true },
+      {
+        idempotencyKey: 'consumption:' + storeTxnId,
+        maxAttempts: 5,
+        delayMs: alarmDelayMs,
+      },
+    );
+    return { requestId: requestId, deadlineAt: deadlineAt, deduped: false };
+  },
+});
+
+// How the developer supplies per-transaction consumption facts (management API).
+//
+// A stub in the sense that the real surface would be authenticated developer
+// API rather than an app mutation — but the DIVISION is the real design: we hold
+// no wallet, so we cannot know whether a user consumed what they bought. Only
+// the developer knows. The Engine owns the deadline and the delivery; the
+// developer owns the facts.
+//
+// Requires an open request. You answer a question that was asked — pre-supplying
+// data for a refund nobody is considering is out of scope.
+export const setConsumptionData = defineJsMutation({
+  args: {
+    storeTxnId: v.string(),
+    consumptionStatus: v.string(),
+    deliveryStatus: v.string(),
+    refundPreference: v.string(),
+  },
+  reads: ['consumptionRequests'],
+  writes: ['consumptionRequests'],
+  result: results.value(v.object({ accepted: v.boolean() })),
+  handler: async (ctx, args) => {
+    if (args.consumptionStatus !== 'not_consumed'
+      && args.consumptionStatus !== 'partially_consumed'
+      && args.consumptionStatus !== 'fully_consumed') {
+      throw new Error('unknown consumptionStatus: ' + args.consumptionStatus);
+    }
+    if (args.deliveryStatus !== 'delivered' && args.deliveryStatus !== 'not_delivered') {
+      throw new Error('unknown deliveryStatus: ' + args.deliveryStatus);
+    }
+    // We never adjudicate, but the developer may state a preference and the store
+    // decides. 'no_preference' is the abstention.
+    if (args.refundPreference !== 'no_preference'
+      && args.refundPreference !== 'grant'
+      && args.refundPreference !== 'decline') {
+      throw new Error('unknown refundPreference: ' + args.refundPreference);
+    }
+    const rows = await ctx.db
+      .query('consumptionRequests')
+      .withIndex('by_txn')
+      .eq('storeTxnId', args.storeTxnId)
+      .collect();
+    if (rows.length === 0) throw new Error('no open consumption request for ' + args.storeTxnId);
+    await ctx.db.patch('consumptionRequests', rows[0]._id, {
+      consumptionStatus: args.consumptionStatus,
+      deliveryStatus: args.deliveryStatus,
+      refundPreference: args.refundPreference,
+    });
+    return { accepted: true };
+  },
+});
+
+// The two halves of settling a consumption request, around one outbound call.
+//
+// One function with a phase rather than two functions, and the reason is a
+// platform constraint worth naming: the resolve half must READ durable state at
+// execution time (the developer's data may arrive between the request and the
+// alarm, so it cannot be baked into a job's arguments), an action cannot read,
+// and a mutation that only reads is refused at generation. Splitting this into a
+// read-only `resolve` plus a writing `record` would mean declaring
+// `writes: ['consumptionRequests']` on a function that never writes.
+//
+// Keeping them together makes the declaration truthful — this function does
+// write consumptionRequests — and keeps the ordering obvious: resolve, send,
+// record. Send-then-record is the required order, because claiming the response
+// before the POST would leave a failed POST looking answered.
+export const settleConsumptionRequest = defineJsMutation({
+  args: {
+    storeTxnId: v.string(),
+    phase: v.string(),
+    atDeadline: v.optional(v.boolean()),
+    outcome: v.optional(v.string()),
+  },
+  reads: ['consumptionRequests'],
+  writes: ['consumptionRequests'],
+  result: results.value(v.object({
+    respond: v.boolean(),
+    reason: v.string(),
+    outcome: v.string(),
+    consumptionStatus: v.string(),
+    deliveryStatus: v.string(),
+    refundPreference: v.string(),
+  })),
+  handler: async (ctx, args) => {
+    if (args.phase !== 'resolve' && args.phase !== 'record') {
+      throw new Error('phase must be resolve or record');
+    }
+    const rows = await ctx.db
+      .query('consumptionRequests')
+      .withIndex('by_txn')
+      .eq('storeTxnId', args.storeTxnId)
+      .collect();
+    if (rows.length === 0) throw new Error('no consumption request for ' + args.storeTxnId);
+    const row = rows[0];
+    const fallback = defaultConsumptionAnswer();
+
+    if (args.phase === 'record') {
+      const outcome = args.outcome === undefined ? 'reported' : args.outcome;
+      if (outcome !== 'reported' && outcome !== 'default') {
+        throw new Error('outcome must be reported or default');
+      }
+      // Idempotent: the first response is the one that counts, so a duplicate
+      // job cannot move respondedAt later and make an on-time answer look late.
+      if (row.respondedAt === undefined || row.respondedAt === null) {
+        await ctx.db.patch('consumptionRequests', row._id, {
+          respondedAt: ctx.runtime.now(),
+          outcome: outcome,
+        });
+      }
+      return {
+        respond: false,
+        reason: 'recorded',
+        outcome: outcome,
+        consumptionStatus: fallback.consumptionStatus,
+        deliveryStatus: fallback.deliveryStatus,
+        refundPreference: fallback.refundPreference,
+      };
+    }
+
+    // resolve
+    if (row.respondedAt !== undefined && row.respondedAt !== null) {
+      return {
+        respond: false,
+        reason: 'already-answered',
+        outcome: row.outcome === undefined ? 'reported' : row.outcome,
+        consumptionStatus: fallback.consumptionStatus,
+        deliveryStatus: fallback.deliveryStatus,
+        refundPreference: fallback.refundPreference,
+      };
+    }
+    const hasData = row.consumptionStatus !== undefined && row.consumptionStatus !== null;
+    if (hasData) {
+      return {
+        respond: true,
+        reason: 'developer-data',
+        outcome: 'reported',
+        consumptionStatus: row.consumptionStatus,
+        deliveryStatus: row.deliveryStatus,
+        refundPreference: row.refundPreference,
+      };
+    }
+    if (args.atDeadline === true) {
+      // The window is closing and nobody answered. Send the documented default
+      // rather than miss the deadline.
+      return {
+        respond: true,
+        reason: 'deadline-default',
+        outcome: 'default',
+        consumptionStatus: fallback.consumptionStatus,
+        deliveryStatus: fallback.deliveryStatus,
+        refundPreference: fallback.refundPreference,
+      };
+    }
+    // Still inside the window: hold, and let the alarm decide.
+    return {
+      respond: false,
+      reason: 'awaiting-developer-data',
+      outcome: 'reported',
+      consumptionStatus: fallback.consumptionStatus,
+      deliveryStatus: fallback.deliveryStatus,
+      refundPreference: fallback.refundPreference,
+    };
+  },
+});
+
+// Answer the store's consumption request. Run by the durable job queue in both
+// its roles — the eager attempt and the deadline alarm — with `atDeadline`
+// telling it which one it is.
+//
+// The obligation is outbound and time-bounded, so the failure we care most about
+// is silence. Missing the deadline means Apple decides with no input from us;
+// answering with the documented default means Apple decides with an explicit
+// abstention on the record. The second is strictly better and is what the alarm
+// guarantees.
+export const handleConsumptionRequest = defineAction({
+  args: { storeTxnId: v.string(), atDeadline: v.optional(v.boolean()) },
+  uses: ['storeValidation', 'storeBaseUrl'],
+  writes: ['consumptionRequests'],
+  result: results.value(v.object({
+    responded: v.boolean(),
+    reason: v.string(),
+    outcome: v.string(),
+  })),
+  handler: async (ctx, args) => {
+    const storeTxnId = String(args.storeTxnId ?? '').trim();
+    if (!storeTxnId) throw new Error('storeTxnId is required');
+    const atDeadline = args.atDeadline === true;
+
+    const plan = await ctx.runMutation('settleConsumptionRequest', {
+      storeTxnId: storeTxnId,
+      phase: 'resolve',
+      atDeadline: atDeadline,
+    });
+    if (plan.respond !== true) {
+      return { responded: false, reason: plan.reason, outcome: plan.outcome };
+    }
+
+    const baseUrl = String(ctx.secrets.get('storeBaseUrl').expose() ?? '').trim();
+    if (!baseUrl) throw new Error('storeBaseUrl config is required to answer');
+
+    const response = await ctx.fetch({
+      url: baseUrl + '/consumption/' + storeTxnId,
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: ctx.secrets.get('storeValidation').asBearer(),
+      },
+      body: JSON.stringify({
+        consumptionStatus: plan.consumptionStatus,
+        deliveryStatus: plan.deliveryStatus,
+        refundPreference: plan.refundPreference,
+      }),
+    });
+    if (!response.ok) {
+      // Retry rather than record. An unrecorded response is recoverable; a
+      // response recorded but never delivered is not.
+      throw new Error('store refused the consumption response: ' + response.status);
+    }
+
+    await ctx.runMutation('settleConsumptionRequest', {
+      storeTxnId: storeTxnId,
+      phase: 'record',
+      outcome: plan.outcome,
+    });
+    return { responded: true, reason: plan.reason, outcome: plan.outcome };
+  },
+});
+
+// The consumption ledger, so a suite can prove we answered before the deadline.
+export const listConsumptionRequests = defineQuery({
+  table: 'consumptionRequests',
+  args: {},
+  order: [asc('storeTxnId')],
+  index: 'by_txn',
 });
 
 // The delivery ledger, so a suite can prove what was actually sent.

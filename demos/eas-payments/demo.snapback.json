@@ -67,7 +67,13 @@
       "user_bea",
       "user_chen",
       "user_dev",
-      "user_elif"
+      "user_elif",
+      "user_farid",
+      "user_gita",
+      "user_hugo",
+      "user_iris",
+      "user_juno",
+      "user_kai"
     ]
   },
   "surfaces": {
@@ -135,6 +141,15 @@
       "a missed ack is auto-refunded by the store, and we reconcile it OFF",
       "acknowledging twice is a no-op",
       "an Apple purchase owes no server ack and none is sent",
+      "a granted refund revokes access and records it on the money axis",
+      "a reversal restores the access the refund removed, and ticks the feed",
+      "a consumption request is answered from developer data, before the deadline",
+      "with no developer data the deadline alarm sends the documented default",
+      "an opened dispute revokes access and signals the feed",
+      "a dispute won restores access",
+      "a dispute lost leaves access off and moves only the money axis",
+      "duplicate after-sale triggers are no-ops",
+      "the after-sale lifecycle left the control buyer untouched",
       "an ordinary query is honestly reported as NOT live"
     ]
   },
@@ -148,7 +163,9 @@
     "offerings_and_merchandising",
     "metering",
     "time_aware_grant_derivation",
-    "real_store_acknowledgement_apis"
+    "real_store_acknowledgement_apis",
+    "real_store_refund_and_dispute_apis",
+    "exactly_once_outbound_obligations"
   ],
   "notClaiming": [
     "real store validation \u2014 validateReceipt and applyStoreState perform real outbound fetches, but against a fake local store fixture, not Apple/Google/Stripe, and with no signature or JWS verification",
@@ -161,6 +178,9 @@
     "time-aware grant derivation: deriveGrant reads lifecycle states and horizons but never compares them to the clock, so the expiry sweep is the single horizon enforcer. If the store still reports 'grace' with a graceUntil that already passed, a redundant applyStoreState re-grants the access the sweep just retired, until the next sweep undoes it. Bounded by one cron interval (60s declared) and asserted in both directions by the acceptance rather than hidden",
     "real store lifecycle mapping: the seven states are the engine's normalized vocabulary, not a verified translation of Apple's, Google's, and Stripe's own status models, which differ from each other and carry states this slice does not model (billing retry sub-phases, upgrade/downgrade proration, family sharing)",
     "real store acknowledgement APIs: the ack and consume calls go to the fake store's own routes, not to Google Play's purchases.products:acknowledge / :consume or subscriptions:acknowledge, and the three-day deadline is a compressed fixture (3s by default) enforced by an explicit test seam rather than by real elapsed time",
-    "acknowledgement of a notification-first purchase is enqueued but the deadline is not otherwise monitored: nothing scans for transactions still ackState 'pending' past their deadline, so a purchase whose ack job exhausted all five attempts is only discovered when something re-fetches it"
+    "acknowledgement of a notification-first purchase is enqueued but the deadline is not otherwise monitored: nothing scans for transactions still ackState 'pending' past their deadline, so a purchase whose ack job exhausted all five attempts is only discovered when something re-fetches it",
+    "real refund and dispute APIs: refund, reversal, and dispute transitions are mirrored from the fake store's own seams, not from Apple's REFUND/REVOKE notifications, Google voidedPurchases, or Stripe dispute webhooks, and no dispute evidence is ever submitted",
+    "exactly-once outbound obligations: job execution is at-least-once, so if a consumption POST succeeds and the follow-up record mutation then fails, the retry re-sends. Send-then-record is deliberate because the alternative (claiming before delivery) makes a failed POST look answered, which is the worse failure for a deadline obligation",
+    "metering: a granted refund is a signed negative usage event and a reversal the compensating positive (decision 17), and nothing here emits usage events"
   ]
 }

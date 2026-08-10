@@ -270,6 +270,93 @@ not be: `kind` is our own catalog fact and does not drift under a queued job.
 Every durable guard still runs at execution time inside `markAcknowledged`, which
 is the only place that can see current state at commit time.
 
+## The after-sale money lifecycle (slice 9)
+
+A sale is not final. Money can move back — voluntarily (the user asks, the store
+agrees) or involuntarily (a bank disputes the charge) — and then move forward
+again when either is reversed.
+
+`transactions.refundState` is a **second axis**, deliberately not more `status`
+values:
+
+| Axis | Question it answers |
+| --- | --- |
+| `status` | Does this transaction currently grant access? |
+| `refundState` | What is happening to the money? |
+
+`'none'` → `'requested'` → `'granted'` → `'reversed'`, plus the involuntary
+branch `'disputed'` → `'dispute_won'` | `'dispute_lost'`.
+
+They move independently, and that is the whole reason for two of them. A granted
+refund and an opened dispute both land on `status: 'revoked'` — only `refundState`
+distinguishes "the user asked and Apple agreed" from "a bank reversed the charge
+over our heads". And a dispute closing **lost** moves `refundState` while `status`
+does not change at all: with one axis that transition would be invisible, leaving
+the row permanently claiming the dispute is still open.
+
+Access derives from `status` alone, so nothing on the money axis can accidentally
+change what a user may do. We **mirror** `refundState` from the store and never
+compute it — adjudicating refunds is the store's job.
+
+**There is no new mechanism here.** Every transition arrives exactly as it has
+since slice 3: the store changes its mind, and we find out by re-fetching. The
+reverse direction (`revoked` → `active`) needed no new code either — `deriveGrant`
+already recomputes from every transaction, so a reversal re-grants the **same**
+grant row rather than creating a second one beside it, and slice 7's
+`(active, activeUntil, state)` change key ticks the feed for it.
+
+### Consumption requests: an outbound obligation with a deadline
+
+Apple's `CONSUMPTION_REQUEST` inverts the direction. The store asks **us** for
+consumption data before it decides a refund, and gives us a window (12 hours in
+production) to answer. Nothing about the transaction moves because we were asked
+— this is an obligation, not a state change.
+
+We hold no wallet, so we cannot know whether a user consumed what they bought.
+**The developer supplies the facts** (`setConsumptionData`); the Engine owns the
+deadline and the delivery. The `consumptionRequests` row makes the deadline
+durable state rather than a timer, so `respondedAt < deadlineAt` is checkable
+after the fact — which is exactly what the acceptance asserts.
+
+If the developer never answers, the alarm sends the **documented default**:
+
+```
+consumptionStatus: 'unknown'   deliveryStatus: 'unknown'   refundPreference: 'no_preference'
+```
+
+Every field is a deliberate abstention. Missing the deadline means Apple decides
+with no input from us; answering this way means Apple decides with an explicit
+abstention on the record, on time. The second is strictly better, and `outcome`
+(`'reported'` vs `'default'`) keeps the two distinguishable forever.
+
+### Why exactly one job, and what it cost to learn
+
+The first version enqueued two jobs: an eager attempt at `delayMs: 0` so a request
+could be answered the moment the developer replied, and a deadline alarm. Both
+became due in the same drain wave, **both resolved "not answered yet" before
+either recorded, and the store received two consumption responses.**
+
+The race cannot be fixed by claiming the response before the POST: a claim that
+precedes delivery makes a *failed* POST look answered, which for a deadline
+obligation is the worst available failure. Send-then-record is the required order,
+so concurrent resolvers cannot be made safe — there must not be concurrent
+resolvers.
+
+Hence one alarm, keyed on the transaction. The cost is that we answer when the
+alarm fires rather than the instant the developer replies, and that cost is
+nothing: the obligation is "answer before the deadline", not "answer instantly".
+
+**Residual exposure, stated honestly.** Execution is at-least-once. If the POST
+succeeds and the record mutation then fails, the retry re-sends. That window is
+narrow but real, and it is inherent to send-then-record — the alternative trades
+it for the strictly worse failure above.
+
+### Metering (not built here)
+
+Decision 17 ties in: a granted refund is a signed **negative** usage event and a
+reversal the compensating **positive**. The `refundState` transitions are the
+signal that a metering slice would consume. Nothing here emits usage events.
+
 ## The outbound change feed
 
 The mirror image of the notification rule. Just as we refuse to trust a store's
