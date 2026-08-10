@@ -55,6 +55,7 @@
     },
     "AuthorizationWitnessRecordV1": {
       "additionalProperties": false,
+      "description": "The authorization-witness record named by a completeness proof. The shape\nlives here with [`CompositeWitness`] so sync-engine consumers never import\nupward; construction/digest logic stays in `crate::completeness` with the\nproof issuance coordinator (LLP 0199 worklist item 7).",
       "properties": {
         "compositeWitness": {
           "$ref": "#/$defs/CompositeWitness"

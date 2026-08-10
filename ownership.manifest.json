@@ -155,6 +155,7 @@
       "src/config.rs",
       "src/deploy.rs",
       "src/generation_activation.rs",
+      "src/operational_readiness.rs",
       "src/schema_export.rs",
       "src/seed_identity.rs"
     ],

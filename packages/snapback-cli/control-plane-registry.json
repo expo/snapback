@@ -738,7 +738,7 @@
       "credentialResolution": "AdminCredential",
       "invocationAuthority": "None",
       "effectPolicy": "None",
-      "responseSensitivity": "SensitiveApplicationData"
+      "responseSensitivity": "OperatorMetadata"
     },
     {
       "operation": "host_ops.cron.list",
@@ -1456,7 +1456,8 @@
     "cliOnly": [
       "host.start",
       "host.stop",
-      "host.restart"
+      "host.restart",
+      "host.wait"
     ],
     "pinnedUnbuilt": [
       "schema.reload",

@@ -13,11 +13,12 @@ use crate::auth::mode::{
     DeploymentIdentity,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::host_ops::HostOpsArtifacts;
+use crate::host_ops_contract::HostOpsArtifacts;
 use crate::manifest::{AuthMode, CapabilityManifest};
 use crate::seed_identity::ActiveSeedIdentityV1;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
 pub const EXPECTED_ACTIVATION_TARGET_FORMAT_V1: &str = "snapback.expected-activation-target.v1";
 pub const OPERATIONAL_READINESS_FORMAT_V1: &str = "snapback.operational-readiness.v1";
@@ -29,6 +30,18 @@ pub const READINESS_OBLIGATIONS_DIGEST_MISMATCH_CODE: &str =
 pub const READINESS_MIGRATION_UNRESOLVED_CODE: &str = "SNAPBACK_APP_READINESS_MIGRATION_UNRESOLVED";
 pub const READINESS_SEED_NOT_IDEMPOTENT_CODE: &str = "SNAPBACK_APP_READINESS_SEED_NOT_IDEMPOTENT";
 pub const READINESS_FACTS_UNAVAILABLE_CODE: &str = "SNAPBACK_APP_READINESS_FACTS_UNAVAILABLE";
+
+/// Derive the application-ready receipt's default path by appending one
+/// literal suffix to the host ready-file path. The JS supervisor uses the
+/// same deliberately trivial cross-language rule.
+// @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — the default
+//   application receipt is the deterministic `<ready-file>.application-ready`
+//   sibling unless the operator supplies an explicit override.
+pub fn application_ready_sibling(ready_file: &Path) -> PathBuf {
+    let mut sibling = ready_file.as_os_str().to_os_string();
+    sibling.push(".application-ready");
+    PathBuf::from(sibling)
+}
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -171,6 +184,7 @@ pub(crate) struct OperationalReadinessFactsV1 {
     pub startup_nonce: String,
     pub evaluated_at_ms: u64,
     pub auth_mode_state: AuthModeStateRecord,
+    pub effective_active_deployment: Option<DeploymentIdentity>,
     pub auth_program_readiness: AuthProgramReadiness,
     pub capability_manifest_digest: String,
     pub artifacts: HostOpsArtifacts,
@@ -190,35 +204,29 @@ pub(crate) struct OperationalReadinessRuntimeFactsV1 {
     pub network_profile: String,
 }
 
-pub(crate) fn capture_operational_readiness_facts(
-    snapback: &mut crate::local::LocalSnapback,
-    runtime: OperationalReadinessRuntimeFactsV1,
-) -> SnapbackResult<OperationalReadinessFactsV1> {
-    let capability_manifest = snapback.current_capability_manifest();
-    let app_id = snapback.loaded_app_id();
-    Ok(OperationalReadinessFactsV1 {
-        startup_nonce: runtime.startup_nonce,
-        evaluated_at_ms: runtime.evaluated_at_ms,
-        auth_mode_state: runtime.auth_mode_state,
-        auth_program_readiness: runtime.auth_program_readiness,
-        capability_manifest_digest: capability_manifest_digest(&capability_manifest)?,
-        artifacts: HostOpsArtifacts {
-            schema_hash: snapback.loaded_schema_hash(),
-            bundle_hash: snapback.loaded_bundle_hash(),
-            database_version: Some(snapback.durable_version()?),
-        },
-        network_profile: runtime.network_profile,
-        app_id: (!app_id.is_empty()).then_some(app_id),
-        route_manifest_hash: snapback.loaded_route_manifest_hash(),
-        api_envelope_hash: snapback.loaded_api_envelope_hash()?,
-        active_seed_identity: snapback.active_seed_identity()?,
+pub(crate) fn derive_effective_active_deployment(
+    state: &AuthModeStateRecord,
+    loaded_schema_manifest: &crate::manifest::SchemaManifest,
+    loaded_function_manifest: &crate::manifest::FunctionManifest,
+) -> Option<DeploymentIdentity> {
+    state.active_deployment.clone().or_else(|| {
+        if state.active == AuthMode::Dev {
+            DeploymentIdentity::from_manifests(
+                AuthMode::Dev,
+                loaded_schema_manifest,
+                loaded_function_manifest,
+            )
+            .ok()
+        } else {
+            None
+        }
     })
 }
 
 pub fn declared_obligations_digest(obligations: &[DeclaredObligationV1]) -> SnapbackResult<String> {
     let value = serde_json::to_value(obligations)
         .map_err(|_| readiness_facts_unavailable("declared obligations could not be serialized"))?;
-    crate::rqs::sha256_identity(&value).map_err(|_| {
+    crate::rqs_contract::sha256_identity(&value).map_err(|_| {
         readiness_facts_unavailable("declared obligations could not be canonically hashed")
     })
 }
@@ -226,7 +234,7 @@ pub fn declared_obligations_digest(obligations: &[DeclaredObligationV1]) -> Snap
 pub fn capability_manifest_digest(manifest: &CapabilityManifest) -> SnapbackResult<String> {
     let value = serde_json::to_value(manifest)
         .map_err(|_| readiness_facts_unavailable("capability manifest could not be serialized"))?;
-    crate::rqs::sha256_identity(&value).map_err(|_| {
+    crate::rqs_contract::sha256_identity(&value).map_err(|_| {
         readiness_facts_unavailable("capability manifest could not be canonically hashed")
     })
 }
@@ -336,7 +344,7 @@ pub(crate) fn evaluate_operational_readiness(
             None
         }
         Some(expected) => {
-            if state.active_deployment.as_ref() != Some(&expected.deployment) {
+            if facts.effective_active_deployment.as_ref() != Some(&expected.deployment) {
                 push(
                     "active-deployment-mismatch",
                     "the active deployment identity does not match the declared target",
@@ -478,6 +486,15 @@ mod tests {
     use crate::auth::mode::{
         AUTH_MODE_FORMAT_VERSION, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
     };
+    use crate::manifest::{AuthManifest, FunctionManifest, SchemaManifest};
+
+    #[test]
+    fn application_ready_path_appends_the_literal_cross_language_suffix() {
+        assert_eq!(
+            application_ready_sibling(Path::new("state/host.ready.json")),
+            PathBuf::from("state/host.ready.json.application-ready")
+        );
+    }
 
     fn deployment(mode: AuthMode, marker: char) -> DeploymentIdentity {
         let digest = marker.to_string().repeat(64);
@@ -523,6 +540,29 @@ mod tests {
         ]
     }
 
+    fn manifests(active: &DeploymentIdentity) -> (SchemaManifest, FunctionManifest) {
+        (
+            SchemaManifest {
+                schema_version: active.schema_version.clone(),
+                app_id: active.app_id.clone(),
+                auth: Some(AuthManifest {
+                    mode: active.auth_mode,
+                    agents: None,
+                }),
+                schema_hash: Some(active.schema_hash.clone()),
+                inputs_hash: Some(active.inputs_hash.clone()),
+                ..SchemaManifest::default()
+            },
+            FunctionManifest {
+                schema_version: active.schema_version.clone(),
+                app_id: active.app_id.clone(),
+                bundle_hash: Some(active.bundle_hash.clone()),
+                inputs_hash: Some(active.inputs_hash.clone()),
+                ..FunctionManifest::default()
+            },
+        )
+    }
+
     fn target(active: &DeploymentIdentity) -> ExpectedActivationTargetV1 {
         let declared_obligations = obligations(active);
         ExpectedActivationTargetV1 {
@@ -541,6 +581,7 @@ mod tests {
             startup_nonce: "startup-test".to_owned(),
             evaluated_at_ms: 42,
             auth_mode_state: AuthModeStateRecord::initial_dev(Some(active.clone())),
+            effective_active_deployment: Some(active.clone()),
             auth_program_readiness: AuthProgramReadiness::item4(false),
             capability_manifest_digest: "sha256:capabilities".to_owned(),
             artifacts: HostOpsArtifacts {
@@ -592,6 +633,65 @@ mod tests {
         let active = deployment(AuthMode::Dev, 'a');
         let expected = target(&deployment(AuthMode::Dev, 'b'));
         let readiness = evaluate_operational_readiness(&facts(active), Some(&expected));
+        assert!(!readiness.ready);
+        assert!(conditions(&readiness).contains(&"active-deployment-mismatch"));
+    }
+
+    #[test]
+    fn dev_record_null_uses_matching_loaded_manifest_identity() {
+        let active = deployment(AuthMode::Dev, 'a');
+        let target = target(&active);
+        let mut facts = facts(active.clone());
+        facts.auth_mode_state.active_deployment = None;
+        let (schema, functions) = manifests(&active);
+        facts.effective_active_deployment =
+            derive_effective_active_deployment(&facts.auth_mode_state, &schema, &functions);
+
+        let readiness = evaluate_operational_readiness(&facts, Some(&target));
+        assert!(readiness.ready);
+        assert!(readiness.unsatisfied.is_empty());
+    }
+
+    #[test]
+    fn dev_record_null_rejects_mismatched_declared_identity() {
+        let active = deployment(AuthMode::Dev, 'a');
+        let expected = target(&deployment(AuthMode::Dev, 'b'));
+        let mut facts = facts(active.clone());
+        facts.auth_mode_state.active_deployment = None;
+        let (schema, functions) = manifests(&active);
+        facts.effective_active_deployment =
+            derive_effective_active_deployment(&facts.auth_mode_state, &schema, &functions);
+
+        let readiness = evaluate_operational_readiness(&facts, Some(&expected));
+        assert!(!readiness.ready);
+        assert!(conditions(&readiness).contains(&"active-deployment-mismatch"));
+    }
+
+    #[test]
+    fn sessions_record_null_does_not_use_matching_loaded_manifest_identity() {
+        let active = deployment(AuthMode::Sessions, 'a');
+        let target = target(&active);
+        let mut facts = facts(active.clone());
+        facts.auth_mode_state = AuthModeStateRecord {
+            format_version: AUTH_MODE_FORMAT_VERSION,
+            transition_generation: 1,
+            active: AuthMode::Sessions,
+            desired: AuthMode::Sessions,
+            mode_state: AuthModeStatus::Settled,
+            app_data_availability: AppDataAvailability::Available,
+            sessions_ever_activated: true,
+            active_deployment: None,
+            requested_deployment: None,
+            quarantine: None,
+        };
+        let (schema, functions) = manifests(&active);
+        facts.effective_active_deployment =
+            derive_effective_active_deployment(&facts.auth_mode_state, &schema, &functions);
+        assert_eq!(facts.effective_active_deployment, None);
+        facts.auth_program_readiness =
+            AuthProgramReadiness::new(true, true, true, true, true, true, true);
+
+        let readiness = evaluate_operational_readiness(&facts, Some(&target));
         assert!(!readiness.ready);
         assert!(conditions(&readiness).contains(&"active-deployment-mismatch"));
     }

@@ -11,7 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { loadGenerated } from './index.mjs';
+import { __test, loadGenerated } from './index.mjs';
 
 const writeJson = (path, value) => {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
@@ -76,6 +76,60 @@ const root = mkdtempSync(join(tmpdir(), 'snapback-cli-load-generated-'));
 const originalFetch = globalThis.fetch;
 try {
   {
+    const deployment = {
+      schemaVersion: 'snapback.v0',
+      authMode: 'dev',
+      appId: 'activation-summary',
+      schemaHash: 'sha256:schema',
+      bundleHash: 'sha256:functions',
+      inputsHash: 'sha256:inputs',
+    };
+    const generated = {
+      deployment,
+      functionAppId: deployment.appId,
+      functionSchemaVersion: deployment.schemaVersion,
+      functionInputsHash: deployment.inputsHash,
+      targetProfile: null,
+    };
+    const extras = {
+      routes: {
+        sent: true,
+        outcome: 'provisioned',
+        routeManifestHash: 'sha256:routes',
+      },
+      apiEnvelope: {
+        sent: true,
+        provisioned: true,
+        membersDigest: 'sha256:members',
+      },
+      seed: {
+        operation: 'ensure',
+        seedVersion: 'seed-v1',
+        seedDigest: 'sha256:seed',
+      },
+    };
+    const devTarget = __test.expectedActivationTargetFromActivation({
+      mode: 'dev',
+      branch: 'dev-push',
+      generated,
+      ...extras,
+    }, 'local-dev-sqlite-ibex');
+    assert.deepEqual(devTarget.declaredObligations.map(({ kind }) => kind), [
+      'schema', 'functions', 'seed',
+    ]);
+
+    const ensureTarget = __test.expectedActivationTargetFromActivation({
+      mode: 'dev',
+      branch: 'ensure-app',
+      generated,
+      ...extras,
+    }, 'local-dev-sqlite-ibex');
+    assert.deepEqual(ensureTarget.declaredObligations.map(({ kind }) => kind), [
+      'schema', 'functions', 'routes', 'seed',
+    ]);
+  }
+
+  {
     const projectRoot = join(root, 'dev-routes');
     const backendRoot = join(projectRoot, 'snapback');
     const readyFile = join(projectRoot, '.snapback', 'dev.ready.json');
@@ -95,6 +149,11 @@ try {
         appId: 'cli-dev-routes',
       },
       'routes.manifest.json': routes,
+      'api-envelope.members.json': {
+        operations: {},
+        declarations: { appBindings: '' },
+        memberDigests: {},
+      },
     });
     writeReady(readyFile, 'http://snapback-dev-routes.test');
     const runtime = makeRecordingRuntime(projectRoot, {
@@ -115,7 +174,7 @@ try {
       });
     };
 
-    await loadGenerated(
+    const activation = await loadGenerated(
       runtime.binary,
       projectRoot,
       backendRoot,
@@ -129,6 +188,11 @@ try {
     assert.equal(requests.length, 1);
     assert.equal(requests[0].url, 'http://snapback-dev-routes.test/app/ensure');
     assert.deepEqual(JSON.parse(requests[0].init.body), { routes });
+    assert.equal(activation.mode, 'dev');
+    assert.equal(activation.branch, 'dev-push');
+    assert.equal(activation.routes.sent, true);
+    assert.equal(activation.apiEnvelope, null);
+    assert.equal(activation.seed, null);
     assert.equal(
       new Headers(requests[0].init.headers).get('x-snapback-admin-token'),
       null,
@@ -223,6 +287,11 @@ try {
       seedDigest: `sha256:${'a'.repeat(64)}`,
       tables: {},
     };
+    const apiEnvelopeMembers = {
+      operations: {},
+      declarations: { appBindings: '' },
+      memberDigests: {},
+    };
     writeLegacyGeneratedGraph(backendRoot, {
       'schema.manifest.json': {
         artifactKind: 'schemaManifest',
@@ -242,6 +311,7 @@ try {
         ],
       },
       'seed.artifact.json': artifact,
+      'api-envelope.members.json': apiEnvelopeMembers,
     });
     writeReady(readyFile, 'http://snapback-sessions-seed.test');
     const runtime = makeRecordingRuntime(projectRoot);
@@ -315,6 +385,7 @@ try {
           seed: 'skipped-absent',
           routes: 'skipped-absent',
           profile: 'dev',
+          apiEnvelope: 'composed',
         });
       }
       if (path === '/inspect') {
@@ -341,7 +412,7 @@ try {
       throw new Error(`unexpected managed seed request: ${path}`);
     };
 
-    await loadGenerated(
+    const ensured = await loadGenerated(
       runtime.binary,
       projectRoot,
       backendRoot,
@@ -349,7 +420,7 @@ try {
       'sessions-admin-token',
       { skipSchemaFunctions: true },
     );
-    await loadGenerated(
+    const resetInstalled = await loadGenerated(
       runtime.binary,
       projectRoot,
       backendRoot,
@@ -357,6 +428,22 @@ try {
       'sessions-admin-token',
       { seed: true, skipSchemaFunctions: true },
     );
+
+    assert.equal(ensured.mode, 'sessions');
+    assert.equal(ensured.branch, 'ensure-app');
+    assert.equal(ensured.apiEnvelope.sent, true);
+    assert.equal(ensured.apiEnvelope.provisioned, true);
+    assert.equal(typeof ensured.apiEnvelope.membersDigest, 'string');
+    assert.deepEqual(ensured.seed, {
+      operation: 'ensure',
+      seedVersion: artifact.seedVersion,
+      seedDigest: artifact.seedDigest,
+    });
+    assert.deepEqual(resetInstalled.seed, {
+      operation: 'reset-install',
+      seedVersion: artifact.seedVersion,
+      seedDigest: artifact.seedDigest,
+    });
 
     const handshakes = requests.filter(({ path }) => path === '/auth/session');
     assert.equal(handshakes.length, 2, 'each managed load establishes fresh in-memory custody');
@@ -373,6 +460,7 @@ try {
       assert.equal(body.requestedMode, 'sessions');
       assert.equal(body.schema.appId, appId);
       assert.equal(body.functions.appId, appId);
+      assert.deepEqual(body.apiEnvelope, apiEnvelopeMembers);
       assert.equal(
         new Headers(init.headers).get('x-snapback-admin-token'),
         'sessions-admin-token',

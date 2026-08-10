@@ -104,6 +104,7 @@
     "health": { "title": "Read local coordinator health", "intents": ["check backend health", "probe readiness"], "guide": "operating/observability.md#check-health-and-recent-logs-in-the-console", "cliDeferralReason": "The raw health route is API-only; use snapback inspect for the CLI projection." },
     "health.read": { "title": "Read hosted coordinator health", "intents": ["check hosted health", "probe hosted readiness"], "guide": "deploying/cloudflare.md#run-the-remote-proof", "cliDeferralReason": "Hosted health is read from the deployed adapter, not a local CLI verb." },
     "host.restart": { "title": "Restart the local Snapback server", "intents": ["restart snapback", "restart the backend"], "guide": "operating/host-ops.md#restart-with-one-credential-bound-receipt" },
+    "host.wait": { "title": "Wait for host or application readiness", "intents": ["wait for snapback", "wait for application readiness", "block until the backend is ready"], "guide": "operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1" },
     "host.start": { "title": "Start or attach to the local Snapback server", "intents": ["start snapback", "start the backend"], "guide": "operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1" },
     "host.stop": { "title": "Stop the local Snapback server", "intents": ["stop snapback", "stop the backend"], "guide": "operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1" },
     "hostCall.dispatch": { "title": "Dispatch an internal handler host call", "intents": ["dispatch an internal host call" ] },
@@ -148,6 +149,22 @@
         "http": "AdminCredential (refuses this operation entirely: SNAPBACK_HOST_OP_CLI_ONLY)",
         "cli": "snapback restart resolves a concrete owner-only admin token and proves it with app.inspect on the AdminRead-gated /_snapback/api/host-ops route before its nonce-verified native stop; no credential enters argv or its receipt (src/cli.rs host_restart_result/restart_admin_credential_probe).",
         "mcp": "LLP 0184 \u00a7Design/2's disclosed, temporary, named exception is CLOSED: snapback_stop (and therefore the mutating half of snapback_restart) requires an admin token accepted by the same AdminRead-gated /_snapback/api/host-ops route, verified with a live probe before any process signal (packages/snapback-cli/mcp-control.mjs McpControlServer#requireAdminCredentialForLifecycle). The fresh-spawn leg has no prior server credential to hold."
+      }
+    },
+    "host.wait": {
+      "operability": "direct",
+      "surfaceAccessOverride": "cliOnly",
+      "mcpDeferralReason": "Readiness waiting is a local ready-file and receipt-custody workflow; MCP callers can poll the authenticated server-owned readiness fact directly.",
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projectionCredentials": {
+        "http": "The host.wait identity is CLI-owned and refused over the running server's host-ops route.",
+        "cli": "Host level proves the ready descriptor against live /health. Application level additionally resolves --token, SNAPBACK_ADMIN_TOKEN, or the descriptor-discovered minted token for authenticated app.readiness.v1."
       }
     },
     "app.inspect": {

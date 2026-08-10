@@ -46,7 +46,7 @@
         },
         {
           "properties": {
-            "scope": {
+            "grantableScope": {
               "type": "string"
             },
             "type": {
@@ -56,7 +56,7 @@
           },
           "required": [
             "type",
-            "scope"
+            "grantableScope"
           ],
           "type": "object"
         },

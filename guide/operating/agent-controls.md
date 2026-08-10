@@ -86,19 +86,19 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **134 operations** at digest `sha256:81b36c22d9de6afd71f4502d95db82df26d96468b12ca535dfbf9a955e39b1be`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **152 operations** at digest `sha256:cd09f93b101bb01eb4d4fd9a1881279ad29f38f8a4720206e3801950159ebe93`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
-| surfaceAccess | `apiOnly` | 37 |
-| surfaceAccess | `cliOnly` | 49 |
+| surfaceAccess | `apiOnly` | 54 |
+| surfaceAccess | `cliOnly` | 50 |
 | surfaceAccess | `mcpOnly` | 2 |
 | surfaceAccess | `native` | 42 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 111 |
+| operability | `direct` | 113 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
-| operability | `unavailable` | 5 |
+| operability | `unavailable` | 21 |
 
 | Operation | Surface | Operability | Status | CLI | MCP | Guide |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -109,6 +109,7 @@ The embedded build catalog contains **134 operations** at digest `sha256:81b36c2
 | `admin.link.status` | `cliOnly` | `mediated` | `shipped` | snapback admin link --status <claim> | — | operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser |
 | `app.ensure.provision` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly |
 | `app.inspect` | `native` | `direct` | `shipped` | snapback inspect | snapback_inspect | operating/host-ops.md#served-request-operations |
+| `app.readiness.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `app.reset` | `native` | `direct` | `shipped` | snapback reset | snapback_reset | backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients |
 | `app.seed.clear.v1` | `apiOnly` | `direct` | `shipped` | — | — | backend/versioned-seeds.md#use-the-generated-lifecycle |
 | `app.seed.ensure.v1` | `apiOnly` | `direct` | `shipped` | — | — | backend/versioned-seeds.md#use-the-generated-lifecycle |
@@ -124,8 +125,24 @@ The embedded build catalog contains **134 operations** at digest `sha256:81b36c2
 | `asset.put` | `cliOnly` | `direct` | `shipped` | snapback assets put | — | backend/assets.md#upload-and-attach |
 | `asset.retry` | `native` | `direct` | `shipped` | snapback assets retry | snapback_asset_retry | backend/assets.md#operate |
 | `asset.rotateSigningKey` | `native` | `direct` | `shipped` | snapback assets rotate-signing-key | snapback_asset_rotate_signing_key | backend/assets.md#invalidate-every-outstanding-signed-url |
+| `auth.declared-clients` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/observability.md#check-health-and-recent-logs-in-the-console |
+| `auth.declared-clients.bless` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.declared-clients.delete` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.declared-clients.resume` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.declared-clients.suspend` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.integrationResume` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.integrationRetire` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.integrations` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/observability.md#check-health-and-recent-logs-in-the-console |
+| `auth.integrations.resume` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.integrations.retire` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.integrations.suspend` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.integrationSuspend` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.mailbox.read` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#mint-test-personas-the-complete-local-recipe |
 | `auth.mintSession` | `cliOnly` | `direct` | `shipped` | snapback session mint --email <address> | — | operating/host-ops.md#mint-a-session-over-http |
+| `auth.rehearsal.exercise` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.rehearsal.mint` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.rehearsal.revoke` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.rehearsal.status` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.rescueCollidingTable` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly |
 | `branch.create.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#give-a-worktree-its-own-backend |
 | `branch.drop.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#inspect-review-and-dispose-forks |
@@ -215,6 +232,7 @@ The embedded build catalog contains **134 operations** at digest `sha256:81b36c2
 | `host.restart` | `native` | `direct` | `shipped` | snapback restart --ready-file <path> | snapback_restart | operating/host-ops.md#restart-with-one-credential-bound-receipt |
 | `host.start` | `cliOnly` | `direct` | `shipped` | snapback start | snapback_start | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `host.stop` | `cliOnly` | `direct` | `shipped` | snapback stop | snapback_stop | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `host.wait` | `cliOnly` | `direct` | `shipped` | — | — | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `hostCall.dispatch` | `none` | `internal` | `shipped` | — | — | — |
 | `inspect` | `apiOnly` | `direct` | `shipped` | — | — | operating/observability.md#query-the-typed-operations-from-the-cli |
 | `jobs.drain` | `native` | `direct` | `shipped` | snapback jobs drain | snapback_jobs_drain | operating/host-ops.md#controlled-mutations-config-cron-jobs-connections |

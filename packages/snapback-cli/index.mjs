@@ -3,7 +3,7 @@
 // same native CLI instead of growing a second lifecycle dialect.
 
 import { spawn, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import {
   chmodSync,
@@ -701,6 +701,28 @@ function canonicalValue(value) {
 
 function canonicalJson(value) {
   return JSON.stringify(canonicalValue(value));
+}
+
+// RFC 8785 canonical JSON for identities shared with the Rust authority.
+// Readiness declarations contain only JSON values, but refusing non-finite or
+// otherwise non-JSON members here keeps the cross-language digest fail-closed.
+function jcsCanonicalJson(value) {
+  if (value === null) return 'null';
+  const kind = typeof value;
+  if (kind === 'string' || kind === 'boolean') return JSON.stringify(value);
+  if (kind === 'number') {
+    if (!Number.isFinite(value)) throw new Error('readiness identity contains a non-finite number');
+    return JSON.stringify(Object.is(value, -0) ? 0 : value);
+  }
+  if (kind !== 'object') throw new Error(`readiness identity contains a non-JSON ${kind}`);
+  if (Array.isArray(value)) return `[${value.map(jcsCanonicalJson).join(',')}]`;
+  return `{${Object.keys(value).sort().map(
+    (key) => `${JSON.stringify(key)}:${jcsCanonicalJson(value[key])}`,
+  ).join(',')}}`;
+}
+
+function sha256Jcs(value) {
+  return sha256Bytes(Buffer.from(jcsCanonicalJson(value), 'utf8'));
 }
 
 function normalizeRelativePath(path) {
@@ -1629,13 +1651,14 @@ async function validateReadyDescriptorHealth(descriptor) {
   return health;
 }
 
-function removeManagedDatabaseState(database, readyFile = null) {
+function removeManagedDatabaseState(database, readyFile = null, applicationReadyFile = null) {
   for (const path of [
     database,
     `${database}-wal`,
     `${database}-shm`,
     `${database}.admin-token`,
     ...(readyFile === null ? [] : [readyFile]),
+    ...(applicationReadyFile === null ? [] : [applicationReadyFile]),
   ]) {
     rmSync(path, { force: true });
   }
@@ -2057,6 +2080,27 @@ export async function loadGenerated(
       { requestedMode },
     );
   }
+  const activation = {
+    mode: requestedMode,
+    branch: requestedMode === 'sessions' ? 'ensure-app' : 'dev-push',
+    generated: {
+      deployment: {
+        schemaVersion: schemaManifest?.schemaVersion,
+        authMode: requestedMode,
+        appId: schemaManifest?.appId,
+        schemaHash: schemaManifest?.schemaHash,
+        bundleHash: functionsManifest?.bundleHash,
+        inputsHash: schemaManifest?.inputsHash,
+      },
+      functionAppId: functionsManifest?.appId,
+      functionSchemaVersion: functionsManifest?.schemaVersion,
+      functionInputsHash: functionsManifest?.inputsHash,
+      targetProfile: schemaManifest?.targetProfile ?? null,
+    },
+    routes: null,
+    apiEnvelope: null,
+    seed: null,
+  };
   const versionedSeedPath = optionalGeneratedArtifact('seed.artifact.json');
   const routesPath = optionalGeneratedArtifact('routes.manifest.json');
   // @ref LLP 0062#5-distribution-the-server-advertises-the-server-is-the-version-authority — codegen's envelope members ride the provision intent; the server composes.
@@ -2131,7 +2175,7 @@ export async function loadGenerated(
           // deployments are established at process start and every later
           // update re-enters through the complete, coordinator-owned
           // provisioning pair; the raw v0 host-load verbs are dev-only.
-          await client.ensureApp({
+          const outcome = await client.ensureApp({
             intent: 'provision',
             requestedMode,
             schema: schemaManifest,
@@ -2139,8 +2183,27 @@ export async function loadGenerated(
             ...(routes ? { routes } : {}),
             ...(apiEnvelopeMembers ? { apiEnvelope: apiEnvelopeMembers } : {}),
           });
+          if (routes) {
+            activation.routes = {
+              sent: true,
+              outcome: outcome.routes ?? null,
+              routeManifestHash: sha256Jcs(routes),
+            };
+          }
+          if (apiEnvelopeMembers) {
+            activation.apiEnvelope = {
+              sent: true,
+              provisioned: outcome.apiEnvelope === 'composed',
+              membersDigest: sha256Jcs(apiEnvelopeMembers),
+            };
+          }
         } else if (routes) {
-          await client.ensureApp({ routes });
+          const outcome = await client.ensureApp({ routes });
+          activation.routes = {
+            sent: true,
+            outcome: outcome.routes ?? null,
+            routeManifestHash: sha256Jcs(routes),
+          };
         }
       } catch (error) {
         throw refineGeneratedArtifactFailure(error, {
@@ -2170,8 +2233,18 @@ export async function loadGenerated(
             ? { state: 'present', value: stream }
             : { state: 'absent' },
         });
+        activation.seed = {
+          operation: 'reset-install',
+          seedVersion: artifact.seedVersion,
+          seedDigest: artifact.seedDigest,
+        };
       } else if (artifact) {
         await client.ensureVersionedSeed(artifact, { requestedMode });
+        activation.seed = {
+          operation: 'ensure',
+          seedVersion: artifact.seedVersion,
+          seedDigest: artifact.seedDigest,
+        };
       }
     } finally {
       await client.closeAuth();
@@ -2189,6 +2262,152 @@ export async function loadGenerated(
       'seed load',
     );
   }
+  return activation;
+}
+
+function expectedActivationTargetFromActivation(activation, fallbackTargetProfile) {
+  const generated = activation?.generated;
+  const deployment = generated?.deployment;
+  if (
+    !generated
+    || !deployment
+    || (activation.branch !== 'dev-push' && activation.branch !== 'ensure-app')
+    || activation.mode !== deployment.authMode
+    || Object.values(deployment).some((value) => typeof value !== 'string' || value.length === 0)
+    || generated.functionAppId !== deployment.appId
+    || generated.functionSchemaVersion !== deployment.schemaVersion
+    || generated.functionInputsHash !== deployment.inputsHash
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_READINESS_TARGET_INVALID',
+      'generated artifacts do not form a complete application-readiness deployment identity',
+    );
+  }
+  const declaredObligations = [
+    { kind: 'schema', schemaHash: deployment.schemaHash },
+    { kind: 'functions', bundleHash: deployment.bundleHash },
+    ...(activation.branch === 'ensure-app' && activation.routes?.sent === true ? [{
+      kind: 'routes',
+      routeManifestHash: activation.routes.routeManifestHash,
+    }] : []),
+    ...(activation.seed ? [{
+      kind: 'seed',
+      seedVersion: activation.seed.seedVersion,
+      seedDigest: activation.seed.seedDigest,
+      idempotent: true,
+    }] : []),
+  ];
+  // TODO(LLP 0224 Phase 2): declare apiEnvelope only after ensureApp returns
+  // the server-composed envelope identity and a real sessions process test
+  // proves it equals OperationalReadinessV1's active envelope fact. The
+  // activation summary retains the exact sent-members digest until then.
+  return {
+    formatVersion: 'snapback.expected-activation-target.v1',
+    deployment,
+    targetProfile: generated.targetProfile ?? fallbackTargetProfile,
+    declaredObligations,
+    obligationsDigest: sha256Jcs(declaredObligations),
+  };
+}
+
+async function evaluateApplicationReadiness(descriptor, adminToken, expectedTarget) {
+  const url = `${descriptor.serverUrl.replace(/\/$/u, '')}/_snapback/api/host-ops`;
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(adminToken ? { 'x-snapback-admin-token': adminToken } : {}),
+      },
+      body: JSON.stringify({
+        operation: 'app.readiness.v1',
+        input: { expectedTarget },
+      }),
+    });
+  } catch (cause) {
+    const error = diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_READINESS_FAILED',
+      `application-readiness request to ${url} failed`,
+      { url },
+    );
+    error.cause = cause;
+    throw error;
+  }
+  let envelope;
+  try {
+    envelope = await response.json();
+  } catch (cause) {
+    const error = diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_READINESS_FAILED',
+      `application-readiness response was not JSON (HTTP ${response.status})`,
+      { url, status: response.status },
+    );
+    error.cause = cause;
+    throw error;
+  }
+  const readiness = envelope?.data?.operationalReadiness;
+  if (envelope?.ok !== true || readiness?.ready !== true) {
+    const serverDiagnostic = envelope?.diagnostics?.[0];
+    throw diagnosticError(
+      serverDiagnostic?.code ?? 'SNAPBACK_DEV_APPLICATION_NOT_READY',
+      serverDiagnostic?.message ?? 'generated application did not reach operational readiness',
+      {
+        status: response.status,
+        diagnostics: envelope?.diagnostics ?? [],
+        unsatisfied: readiness?.unsatisfied ?? [],
+        operationalReadiness: readiness ?? null,
+      },
+    );
+  }
+  if (
+    readiness.formatVersion !== 'snapback.operational-readiness.v1'
+    || typeof readiness.startupNonce !== 'string'
+    || !Number.isInteger(readiness.evaluatedAtMs)
+    || readiness.target == null
+    || readiness.artifacts == null
+    || readiness.auth == null
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_APPLICATION_READINESS_INVALID',
+      'server returned an incomplete operational-readiness fact',
+    );
+  }
+  return readiness;
+}
+
+function publishApplicationReadyReceipt(path, readyFile, readiness) {
+  const readyBytes = readFileSync(readyFile);
+  const receipt = {
+    formatVersion: 'snapback.application-ready.v1',
+    startupNonce: readiness.startupNonce,
+    hostReadyDescriptorDigest: sha256Bytes(readyBytes),
+    application: {
+      mode: 'dev-generated',
+      deployment: readiness.target.deployment,
+      obligationsDigest: readiness.target.obligationsDigest,
+    },
+    targetProfile: readiness.target.targetProfile,
+    artifacts: readiness.artifacts,
+    auth: {
+      activeMode: readiness.auth.active,
+      modeState: readiness.auth.modeState,
+      ...(readiness.auth.sessionActivationReady === undefined
+        ? {}
+        : { sessionActivationReady: readiness.auth.sessionActivationReady }),
+    },
+    capabilityManifestDigest: readiness.capabilityManifestDigest,
+    networkProfile: readiness.networkProfile,
+    settledAtMs: readiness.evaluatedAtMs,
+  };
+  const temporary = `${path}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(temporary, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
+    renameSync(temporary, path);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+  return receipt;
 }
 
 // Resolve the client arm named by `snapback dev --client` / `--client-command`.
@@ -2253,6 +2472,16 @@ export async function runDev(options = {}) {
   const stateRoot = join(projectRoot, '.snapback');
   mkdirSync(stateRoot, { recursive: true });
   const readyFile = resolve(options.readyFile ?? join(stateRoot, 'dev.ready.json'));
+  const applicationReadyFile = resolve(
+    options.applicationReadyFile ?? `${readyFile}.application-ready`,
+  );
+  // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — receipt
+  // lifecycle removes the projection before every launch, reload, restart,
+  // reset, and shutdown; absence is the honest intermediate state.
+  const removeApplicationReadyReceipt = () => {
+    rmSync(applicationReadyFile, { force: true });
+  };
+  removeApplicationReadyReceipt();
   const database = resolve(options.database ?? join(stateRoot, 'dev.sqlite3'));
   const databaseExistedBeforeStart = existsSync(database);
   const runtime = resolveRuntimeBinary(options);
@@ -2406,12 +2635,16 @@ export async function runDev(options = {}) {
     }
   }
   const closeManaged = async () => {
-    if (managed && child?.exitCode === null) {
-      native(runtime.binary, ['stop', '--ready-file', readyFile], {
-        cwd: projectRoot,
-        env: options.env,
-      });
-      await stopProcessGroup(child);
+    try {
+      if (managed && child?.exitCode === null) {
+        native(runtime.binary, ['stop', '--ready-file', readyFile], {
+          cwd: projectRoot,
+          env: options.env,
+        });
+        await stopProcessGroup(child);
+      }
+    } finally {
+      removeApplicationReadyReceipt();
     }
   };
   let adminToken;
@@ -2423,14 +2656,32 @@ export async function runDev(options = {}) {
     // identity, so use the public health projection and never upgrade this
     // check into administrative data-read authority.
     await validateReadyDescriptorHealth(descriptor);
-    await loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, {
-      seed: managed && !databaseExistedBeforeStart,
-      database,
-      skipSchemaFunctions: managed && startupArtifacts !== null,
-      runtime,
-      runtimeIdentity,
-      env: options.env,
-    });
+    const activation = await loadGenerated(
+      runtime.binary,
+      projectRoot,
+      backendRoot,
+      readyFile,
+      adminToken,
+      {
+        seed: managed && !databaseExistedBeforeStart,
+        database,
+        skipSchemaFunctions: managed && startupArtifacts !== null,
+        runtime,
+        runtimeIdentity,
+        env: options.env,
+      },
+    );
+    const expectedTarget = expectedActivationTargetFromActivation(
+      activation,
+      generated.targetProfile,
+    );
+    const readiness = await evaluateApplicationReadiness(
+      descriptor,
+      adminToken,
+      expectedTarget,
+    );
+    // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — the receipt is a projection of the server-owned OperationalReadinessV1, bound to the returned nonce and digests; runDev never manufactures readiness from its own promise completions.
+    publishApplicationReadyReceipt(applicationReadyFile, readyFile, readiness);
   } catch (error) {
     await closeManaged();
     throw error;
@@ -2442,6 +2693,7 @@ export async function runDev(options = {}) {
     state: 'generated-and-loaded',
     managed,
     readyFile,
+    applicationReadyFile,
     serverUrl: descriptor.serverUrl,
     runtime,
     runtimeRecovery,
@@ -2478,6 +2730,7 @@ export async function runDev(options = {}) {
     extra = {},
     { seed = false, failureState = null } = {},
   ) => {
+    removeApplicationReadyReceipt();
     let next;
     try {
       next = await generateApp(backendRoot);
@@ -2516,14 +2769,38 @@ export async function runDev(options = {}) {
     }
     if (closed) return null;
     try {
-      await loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken, {
-        seed,
-        database,
-        runtime,
-        runtimeIdentity,
-        env: options.env,
+      const activation = await loadGenerated(
+        runtime.binary,
+        projectRoot,
+        backendRoot,
+        readyFile,
+        adminToken,
+        {
+          seed,
+          database,
+          runtime,
+          runtimeIdentity,
+          env: options.env,
+        },
+      );
+      const expectedTarget = expectedActivationTargetFromActivation(
+        activation,
+        next.targetProfile,
+      );
+      const readiness = await evaluateApplicationReadiness(
+        descriptor,
+        adminToken,
+        expectedTarget,
+      );
+      publishApplicationReadyReceipt(applicationReadyFile, readyFile, readiness);
+      return emitDevEvent({
+        schemaVersion: 'snapback.dev.v1',
+        ok: true,
+        state: 'generated-and-loaded',
+        changed: filename,
+        applicationReadyFile,
+        ...extra,
       });
-      return emitDevEvent({ schemaVersion: 'snapback.dev.v1', ok: true, state: 'generated-and-loaded', changed: filename, ...extra });
     } catch (error) {
       return emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
@@ -2593,6 +2870,7 @@ export async function runDev(options = {}) {
   const attachExitWatch = (proc) => {
     proc?.once('exit', (code, signal) => {
       if (closed || restarting || proc !== child) return;
+      removeApplicationReadyReceipt();
       emitDevEvent({ schemaVersion: 'snapback.dev.v1', ok: false, state: 'server-exited', code, signal });
       options.onServerExit?.(code, signal);
     });
@@ -2745,6 +3023,7 @@ export async function runDev(options = {}) {
   const restartVerb = ({ requestId } = {}) => withDevLock(async () => {
     const tag = requestId === undefined ? {} : { requestId };
     if (closed) return null;
+    removeApplicationReadyReceipt();
     if (!managed || child === null) {
       return emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
@@ -2773,6 +3052,7 @@ export async function runDev(options = {}) {
         await stopProcessGroup(child);
       }
       if (existsSync(readyFile)) rmSync(readyFile, { force: true });
+      removeApplicationReadyReceipt();
       refreshStartupArtifacts();
       const startManagedChild = (activateSuccessor = false) => spawnManagedRuntime(runtime.binary, [
         'start',
@@ -2879,6 +3159,7 @@ export async function runDev(options = {}) {
   const devFreshVerb = ({ requestId } = {}) => withDevLock(async () => {
     const tag = requestId === undefined ? {} : { requestId };
     if (closed) return null;
+    removeApplicationReadyReceipt();
     if (!managed || child === null) {
       return emitDevEvent({
         schemaVersion: 'snapback.dev.v1',
@@ -2905,7 +3186,7 @@ export async function runDev(options = {}) {
         });
         await stopProcessGroup(child);
       }
-      removeManagedDatabaseState(database, readyFile);
+      removeManagedDatabaseState(database, readyFile, applicationReadyFile);
       refreshStartupArtifacts();
       child = spawnManagedRuntime(runtime.binary, [
         'start',
@@ -2976,6 +3257,7 @@ export async function runDev(options = {}) {
     async close() {
       if (closed) return;
       closed = true;
+      removeApplicationReadyReceipt();
       clearTimeout(timer);
       watcher.close();
       await closeClientArm();
@@ -3164,7 +3446,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     output: `${VERIFY_RECEIPT_SCHEMA_VERSION} receipt`, exits: '0 all required stages pass (including machine-distinct passed-without-acceptance); 1 failed/refused stage', recovery: 'Use the failed stage diagnostics and rerun against the same declared app identity.',
   },
   {
-    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--json]',
+    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--json]',
     description: 'Generate, start or attach, load, watch, and optionally supervise a web or Expo client surface.', lifecycle: 'long-running unless --no-watch (Expo supervision is always long-running)',
     output: 'snapback.dev.v1 JSON-line events; snapback.dev-command.v1 JSON lines are accepted on non-TTY stdin while it remains open', exits: '0 requested signal/TTY quit or successful --no-watch; 1 startup/watch/server failure',
     recovery: 'Act on the event diagnostic. Non-TTY stdin EOF only closes the optional control channel; use SIGINT/SIGTERM to stop the dev loop.',
@@ -4368,6 +4650,7 @@ export async function runCli(argv, options = {}) {
     const noWatch = args.includes('--no-watch');
     if (noWatch) args.splice(args.indexOf('--no-watch'), 1);
     const readyFile = takeFlag(args, '--ready-file');
+    const applicationReadyFile = takeFlag(args, '--application-ready-file');
     const database = takeFlag(args, '--db');
     const clientDirectory = takeFlag(args, '--client');
     const clientCommand = takeFlag(args, '--client-command');
@@ -4385,7 +4668,7 @@ export async function runCli(argv, options = {}) {
       throw diagnosticError(
         'SNAPBACK_CLI_ARGUMENT_INVALID',
         `unknown dev option ${args[0]}; usage: snapback dev [<backend-dir>] [--attach] [--no-watch] `
-          + '[--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] '
+          + '[--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] '
           + '[--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] '
           + '[--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--json]',
       );
@@ -4439,6 +4722,7 @@ export async function runCli(argv, options = {}) {
         backendDirectory,
         attach,
         ...(readyFile ? { readyFile } : {}),
+        ...(applicationReadyFile ? { applicationReadyFile } : {}),
         ...(database ? { database } : {}),
         ...(expoDirectory ? { expoDirectory } : {}),
         ...(expoEmail ? { email: expoEmail } : {}),
@@ -4499,6 +4783,7 @@ export async function runCli(argv, options = {}) {
       attach,
       watch: !noWatch,
       ...(readyFile ? { readyFile } : {}),
+      ...(applicationReadyFile ? { applicationReadyFile } : {}),
       ...(database ? { database } : {}),
       ...(clientDirectory || clientCommand
         ? {
@@ -4674,6 +4959,7 @@ export async function runCli(argv, options = {}) {
 }
 
 export const __test = {
+  expectedActivationTargetFromActivation,
   loadGenerated,
   readReadyDescriptor,
   runtimePackages: Object.fromEntries(RUNTIME_PACKAGES),

@@ -17324,13 +17324,25 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             SessionModeOverlay::secret_read(),
         ),
         // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — the
-        //   operational fact stays on app.inspect's authenticated,
-        //   fail-closed tier and is never promoted to public inspection.
-        host(
+        //   operational fact stays on the authenticated admin tier and is
+        //   never promoted to public inspection. Like cron.list it is an
+        //   OperatorMetadata projection (identities, digests, condition
+        //   names — no application rows, no credentials), so sessions mode
+        //   authenticates the ordinary admin carrier without a secret-read
+        //   lease; declaring the expected target mutates process-local
+        //   state, hence AdminWrite rather than AdminRead.
+        operation(
             "host_ops.app.readiness.v1",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
             RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::None,
+            LegacyBodyPolicy::NotApplicable,
             EffectPolicy::None,
-            SessionModeOverlay::secret_read(),
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
         ),
         // @ref LLP 0184#p1-read-and-diagnose — cron.list is a narrow
         // OperatorMetadata projection of the scheduler facts already held by
@@ -20589,16 +20601,54 @@ fn operational_readiness_runtime_facts(
     }
 }
 
+/// Capture the complete owned fact set the LLP 0224 operational-readiness
+/// evaluator consumes. Lives in the transport adapter so neither
+/// the readiness module nor the god file gains a new cross-owner edge
+/// (LLP 0225 §2): the adapter composes facts; the evaluator stays pure.
+fn capture_operational_readiness_facts(
+    snapback: &mut crate::local::LocalSnapback,
+    runtime: crate::operational_readiness::OperationalReadinessRuntimeFactsV1,
+) -> SnapbackResult<crate::operational_readiness::OperationalReadinessFactsV1> {
+    let capability_manifest = snapback.current_capability_manifest();
+    let app_id = snapback.loaded_app_id();
+    // @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — the legacy
+    //   dev push predates LLP 0058's identity record, so a record-null dev
+    //   state derives the byte-identical identity that ensureApp would record
+    //   from the same loaded manifest pair; sessions never gains this fallback.
+    let effective_active_deployment =
+        crate::operational_readiness::derive_effective_active_deployment(
+            &runtime.auth_mode_state,
+            snapback.served_schema_manifest(),
+            snapback.served_function_manifest(),
+        );
+    Ok(crate::operational_readiness::OperationalReadinessFactsV1 {
+        startup_nonce: runtime.startup_nonce,
+        evaluated_at_ms: runtime.evaluated_at_ms,
+        auth_mode_state: runtime.auth_mode_state,
+        effective_active_deployment,
+        auth_program_readiness: runtime.auth_program_readiness,
+        capability_manifest_digest:
+            crate::operational_readiness::capability_manifest_digest(&capability_manifest)?,
+        artifacts: crate::host_ops::HostOpsArtifacts {
+            schema_hash: snapback.loaded_schema_hash(),
+            bundle_hash: snapback.loaded_bundle_hash(),
+            database_version: Some(snapback.durable_version()?),
+        },
+        network_profile: runtime.network_profile,
+        app_id: (!app_id.is_empty()).then_some(app_id),
+        route_manifest_hash: snapback.loaded_route_manifest_hash(),
+        api_envelope_hash: snapback.loaded_api_envelope_hash()?,
+        active_seed_identity: snapback.active_seed_identity()?,
+    })
+}
+
 async fn evaluate_operational_readiness_for_runtime(
     runtime: &AppState,
 ) -> Result<crate::operational_readiness::OperationalReadinessV1, SnapbackError> {
     let runtime_facts = operational_readiness_runtime_facts(runtime);
     let expected = runtime.expected_activation_target();
     with_snapback(&runtime.snapback, move |snapback| {
-        let facts = crate::operational_readiness::capture_operational_readiness_facts(
-            snapback,
-            runtime_facts,
-        )?;
+        let facts = capture_operational_readiness_facts(snapback, runtime_facts)?;
         Ok(crate::operational_readiness::evaluate_operational_readiness(
             &facts,
             expected.as_deref(),
@@ -20763,16 +20813,8 @@ async fn host_ops_handler_inner(
             None,
         )?;
         crate::admin::require_operation_profile(&ctx, &request.operation, false)?;
-        let readiness_scopes = std::collections::BTreeSet::from([
-            crate::admin_secret_read::SecretReadScope::AdminInspect,
-        ]);
-        if policy_mode == PolicyAuthMode::Sessions {
-            crate::admin::preflight_secret_read(
-                &secret_reads,
-                &headers,
-                readiness_scopes.clone(),
-            )?;
-        }
+        // No secret-read preflight: the readiness fact is OperatorMetadata
+        // (see the registry row) and its envelope carries no secret reads.
 
         let expected = if crate::host_ops::versioned_seed_wrapper_has_forbidden_siblings(&request)
         {
@@ -20807,11 +20849,7 @@ async fn host_ops_handler_inner(
         let runtime_facts = operational_readiness_runtime_facts(&runtime);
         let result = with_snapback(&state, move |snapback| {
             let outcome = expected.and_then(|expected| {
-                let facts =
-                    crate::operational_readiness::capture_operational_readiness_facts(
-                        snapback,
-                        runtime_facts,
-                    )?;
+                let facts = capture_operational_readiness_facts(snapback, runtime_facts)?;
                 Ok(crate::operational_readiness::evaluate_operational_readiness(
                     &facts,
                     expected.as_deref(),
@@ -20826,15 +20864,6 @@ async fn host_ops_handler_inner(
             )
         })
         .await;
-        if policy_mode == PolicyAuthMode::Sessions {
-            crate::admin::reserve_secret_read_json(
-                &secret_reads,
-                &headers,
-                readiness_scopes,
-                0,
-                &result,
-            )?;
-        }
         return Ok(Json(result));
     }
 

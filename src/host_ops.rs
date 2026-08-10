@@ -97,9 +97,15 @@ pub const SERVED_HOST_OPS: [&str; 49] = [
     "debug.live.forceResync",
 ];
 
-// @ref LLP 0024#core-operation-ids — process lifecycle is CLI-owned because a
-// running server cannot start, stop, or restart its own host process.
-pub const CLI_ONLY_HOST_OPS: [&str; 3] = ["host.start", "host.stop", "host.restart"];
+// @ref LLP 0024#core-operation-ids — process lifecycle and trusted ready-file
+// coordination are CLI-owned; a running server cannot perform them over its
+// own host-ops endpoint.
+pub const CLI_ONLY_HOST_OPS: [&str; 4] = [
+    "host.start",
+    "host.stop",
+    "host.restart",
+    "host.wait",
+];
 
 /// Pinned by LLP 0024, not yet built anywhere. Requests return a structured
 /// `SNAPBACK_HOST_OP_UNIMPLEMENTED` envelope so aspiration cannot be mistaken
@@ -2441,6 +2447,11 @@ fn cli_only_host_op_command(operation: &str) -> String {
 
 fn cli_only_host_op_message(operation: &str) -> String {
     let command = cli_only_host_op_command(operation);
+    if operation == "host.wait" {
+        return format!(
+            "this operation coordinates a trusted local ready file and its owner-only receipt; use `{command}`"
+        );
+    }
     format!(
         "this operation manages the host process; a running server cannot perform it over its own HTTP surface. Use `{command}`"
     )

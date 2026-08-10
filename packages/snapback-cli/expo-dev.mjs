@@ -1247,6 +1247,7 @@ export async function runExpoDev(options = {}) {
       backendDirectory: backendRoot,
       projectRoot,
       readyFile: options.readyFile,
+      applicationReadyFile: options.applicationReadyFile,
       database,
       runtimeBinary: options.runtimeBinary,
       env: childEnv,

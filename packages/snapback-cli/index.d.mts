@@ -461,6 +461,7 @@ export interface DevEvent {
   readonly verb?: string;
   readonly requestId?: string;
   readonly changed?: string | null;
+  readonly applicationReadyFile?: string;
   readonly diagnostics?: readonly CliDiagnostic[];
   readonly [key: string]: unknown;
 }
@@ -493,6 +494,7 @@ export interface RunDevOptions extends RuntimeSelectionOptions {
   readonly backendDirectory?: string;
   readonly projectRoot?: string;
   readonly readyFile?: string;
+  readonly applicationReadyFile?: string;
   readonly database?: string;
   readonly env?: EnvironmentVariables;
   readonly client?: DevClientArmSpec;
@@ -510,6 +512,7 @@ export interface DevLoopHandle {
   state: 'generated-and-loaded';
   managed: boolean;
   readyFile: string;
+  applicationReadyFile: string;
   serverUrl: string;
   runtime: ResolvedRuntime;
   runtimeRecovery: RuntimeRecoveryRecord;

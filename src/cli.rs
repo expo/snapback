@@ -14,6 +14,7 @@ use clap::{CommandFactory, Parser};
 use rusqlite::OptionalExtension as _;
 use serde::Deserialize;
 use serde_json::{Value, json};
+use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
 use std::io::{self, ErrorKind, IsTerminal, Read as _};
@@ -900,6 +901,22 @@ pub enum HostCommand {
         #[arg(long, default_value = "cli-restart")]
         reason: String,
     },
+    /// host.wait — wait for host or application readiness tied to a live
+    /// process identity.
+    Wait {
+        #[arg(long)]
+        ready_file: PathBuf,
+        #[arg(long, value_enum)]
+        level: WaitLevel,
+        #[arg(long)]
+        application_ready_file: Option<PathBuf>,
+        #[arg(long, default_value_t = 30_000)]
+        timeout_ms: u64,
+        /// Admin token for application readiness (defaults to
+        /// SNAPBACK_ADMIN_TOKEN, then the descriptor's minted token).
+        #[arg(long)]
+        token: Option<String>,
+    },
     /// Open the local admin console with a derived browser credential, or
     /// approve a browser-displayed device code from a token-holding terminal.
     Admin(AdminArgs),
@@ -1145,6 +1162,21 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: MigrateCommand,
     },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, clap::ValueEnum)]
+pub enum WaitLevel {
+    Host,
+    Application,
+}
+
+impl WaitLevel {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Host => "host",
+            Self::Application => "application",
+        }
+    }
 }
 
 #[derive(clap::Args, Debug)]
@@ -2509,6 +2541,22 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         Some(HostCommand::Restart { ready_file, reason }) => {
             host_restart(&ready_file, &reason).await
         }
+        Some(HostCommand::Wait {
+            ready_file,
+            level,
+            application_ready_file,
+            timeout_ms,
+            token,
+        }) => {
+            host_wait(
+                &ready_file,
+                level,
+                application_ready_file.as_deref(),
+                timeout_ms,
+                token,
+            )
+            .await
+        }
         Some(HostCommand::Admin(args)) => admin_command(args).await,
         Some(HostCommand::Inspect(target)) => {
             host_op_via_http(&target, json!({ "operation": "app.inspect" }))
@@ -3617,11 +3665,15 @@ fn prepare_composition_activation_source(
 }
 
 fn read_trusted_json_file(path: &Path) -> anyhow::Result<Value> {
+    read_trusted_json_file_with_bytes(path).map(|(value, _)| value)
+}
+
+fn read_trusted_json_file_with_bytes(path: &Path) -> anyhow::Result<(Value, Vec<u8>)> {
     let raw = crate::secure_file::read_owner_only(path)
         .with_context(|| format!("failed to read trusted local file {}", path.display()))?;
-    let raw =
-        String::from_utf8(raw).with_context(|| format!("{} is not valid UTF-8", path.display()))?;
-    serde_json::from_str(&raw).with_context(|| format!("{} is not valid JSON", path.display()))
+    let value = serde_json::from_slice(&raw)
+        .with_context(|| format!("{} is not valid JSON", path.display()))?;
+    Ok((value, raw))
 }
 
 fn emit_impersonation_capability_to_writer(
@@ -6227,6 +6279,537 @@ fn write_envelope_to(envelope: &Value, output: &mut dyn std::io::Write) -> std::
 fn print_envelope(envelope: &Value) -> bool {
     write_envelope_to(envelope, &mut std::io::stdout().lock())
         .expect("write host-operation envelope to stdout")
+}
+
+/// Receipt bytes are bounded before deserialization and live-fact evaluation.
+const APPLICATION_READY_RECEIPT_MAX_BYTES: usize = 64 * 1024;
+
+#[derive(Clone)]
+struct WaitObservation {
+    condition: &'static str,
+    observation: Value,
+}
+
+fn wait_elapsed_ms(started: std::time::Instant) -> u64 {
+    u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)
+}
+
+fn wait_unknown_target() -> crate::host_ops::HostOpsTarget {
+    crate::host_ops::HostOpsTarget {
+        app_id: "unknown".to_owned(),
+        app_root: None,
+        target_profile: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+        server_url: None,
+    }
+}
+
+fn wait_result(
+    request_id: &str,
+    target: crate::host_ops::HostOpsTarget,
+    ok: bool,
+    data: Value,
+    diagnostics: Vec<crate::diagnostic::Diagnostic>,
+) -> HostOpsResult {
+    HostOpsResult {
+        schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+        result_kind: HOST_OPS_RESULT_KIND.to_owned(),
+        request_id: request_id.to_owned(),
+        operation: "host.wait".to_owned(),
+        ok,
+        target,
+        authority: None,
+        artifacts: HostOpsArtifacts::default(),
+        data,
+        diagnostics,
+        next: crate::control_catalog::result_next(ok, "host.wait"),
+        secret_read_tables: Vec::new(),
+        secret_read_rows: 0,
+        secret_read_query: false,
+        secret_read_provenance_complete: true,
+    }
+}
+
+fn wait_failure_result(
+    request_id: &str,
+    target: crate::host_ops::HostOpsTarget,
+    level: WaitLevel,
+    started: std::time::Instant,
+    code: &str,
+    condition: &'static str,
+    observation: Value,
+) -> HostOpsResult {
+    let waited_ms = wait_elapsed_ms(started);
+    let diagnostic = crate::host_ops::host_op_diagnostic(
+        code,
+        "host.wait",
+        &format!("wait did not reach {} readiness: {condition}", level.as_str()),
+    )
+    .with_details(json!({
+        "operation": "host.wait",
+        "level": level.as_str(),
+        "condition": condition,
+        "lastObservation": observation,
+        "waitedMs": waited_ms,
+    }));
+    wait_result(
+        request_id,
+        target,
+        false,
+        json!({ "level": level.as_str(), "waitedMs": waited_ms }),
+        vec![diagnostic],
+    )
+}
+
+async fn host_wait(
+    ready_file: &Path,
+    level: WaitLevel,
+    application_ready_file: Option<&Path>,
+    timeout_ms: u64,
+    token: Option<String>,
+) -> anyhow::Result<()> {
+    let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation);
+    let envelope = host_wait_result(
+        ready_file,
+        level,
+        application_ready_file,
+        timeout_ms,
+        token,
+        &request_id,
+    )
+    .await;
+    let value = serde_json::to_value(&envelope)?;
+    let ok = print_envelope(&value);
+    if !ok {
+        std::process::exit(envelope_exit_code(&value));
+    }
+    Ok(())
+}
+
+// @ref LLP 0224#layered-readiness-not-one-overloaded-boolean — wait validates the receipt AND requires the live OperationalReadinessV1 to be positive for the receipt's bound target; digest comparison alone detects neither a same-process reload nor a predicate gone false.
+async fn host_wait_result(
+    ready_file: &Path,
+    level: WaitLevel,
+    application_ready_file: Option<&Path>,
+    timeout_ms: u64,
+    token: Option<String>,
+    request_id: &str,
+) -> HostOpsResult {
+    let started = std::time::Instant::now();
+    let timeout = std::time::Duration::from_millis(timeout_ms);
+    let receipt_path = application_ready_file
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| {
+            crate::operational_readiness::application_ready_sibling(ready_file)
+        });
+    let mut target = wait_unknown_target();
+    let mut last: WaitObservation;
+
+    if level == WaitLevel::Application
+        && std::fs::symlink_metadata(&receipt_path)
+            .is_ok_and(|metadata| metadata.file_type().is_dir())
+    {
+        return wait_failure_result(
+            request_id,
+            target,
+            level,
+            started,
+            "SNAPBACK_WAIT_RECEIPT_INVALID",
+            "application-ready-receipt-is-directory",
+            json!({ "applicationReadyFile": receipt_path.display().to_string() }),
+        );
+    }
+
+    loop {
+        let descriptor_read = read_trusted_json_file_with_bytes(ready_file);
+        let (descriptor_value, descriptor_bytes) = match descriptor_read {
+            Ok(read) => read,
+            Err(error) => {
+                last = WaitObservation {
+                    condition: if ready_file.exists() {
+                        "ready-file-invalid"
+                    } else {
+                        "ready-file-missing"
+                    },
+                    observation: json!({
+                        "readyFile": ready_file.display().to_string(),
+                        "error": format!("{error:#}"),
+                    }),
+                };
+                if started.elapsed() >= timeout {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                continue;
+            }
+        };
+        let descriptor = match HostReadyDescriptor::validate(&descriptor_value) {
+            Ok(descriptor) => descriptor,
+            Err(problems) => {
+                last = WaitObservation {
+                    condition: "ready-file-invalid",
+                    observation: json!({ "problems": problems }),
+                };
+                if started.elapsed() >= timeout {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                continue;
+            }
+        };
+        target = descriptor.target.clone();
+        target.server_url = Some(descriptor.server_url.clone());
+
+        let Some(descriptor_nonce) = descriptor.startup_nonce.as_deref() else {
+            return wait_failure_result(
+                request_id,
+                target,
+                level,
+                started,
+                "SNAPBACK_WAIT_UNVERIFIABLE",
+                "descriptor-startup-nonce-missing",
+                json!({ "readyFile": ready_file.display().to_string() }),
+            );
+        };
+        let health = fetch_health(&descriptor.server_url);
+        if let Ok(payload) = &health
+            && payload
+                .pointer("/binary/startupNonce")
+                .and_then(Value::as_str)
+                .is_none()
+        {
+            return wait_failure_result(
+                request_id,
+                target,
+                level,
+                started,
+                "SNAPBACK_WAIT_UNVERIFIABLE",
+                "health-startup-nonce-missing",
+                payload.clone(),
+            );
+        }
+        if let Err(diagnostic) =
+            verify_live_descriptor_identity(&descriptor, &health, "host.wait")
+        {
+            last = WaitObservation {
+                condition: if health.is_err() {
+                    "health-unreachable"
+                } else {
+                    "live-startup-nonce-mismatch"
+                },
+                observation: json!({
+                    "diagnostic": diagnostic,
+                    "health": health.as_ref().map_or_else(
+                        |reason| json!({ "error": reason }),
+                        Value::clone,
+                    ),
+                }),
+            };
+            if started.elapsed() >= timeout {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            continue;
+        }
+
+        if level == WaitLevel::Host {
+            return wait_result(
+                request_id,
+                target,
+                true,
+                json!({
+                    "level": level.as_str(),
+                    "waitedMs": wait_elapsed_ms(started),
+                    "serverUrl": descriptor.server_url,
+                    "startupNonce": descriptor_nonce,
+                }),
+                Vec::new(),
+            );
+        }
+
+        // The live nonce is verified above before the receipt sibling is
+        // opened. Pin the ready-file parent and refuse any override outside it.
+        let ready_target = match ReadyFileTarget::open_existing(ready_file) {
+            Ok(target) => target,
+            Err(error) => {
+                last = WaitObservation {
+                    condition: "application-ready-receipt-unreadable",
+                    observation: json!({ "error": format!("{error:#}") }),
+                };
+                if started.elapsed() >= timeout {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                continue;
+            }
+        };
+        let pinned_receipt = match resolve_candidate_path(&receipt_path) {
+            Ok(path) => path,
+            Err(error) => {
+                last = WaitObservation {
+                    condition: "application-ready-receipt-unreadable",
+                    observation: json!({ "error": format!("{error:#}") }),
+                };
+                if started.elapsed() >= timeout {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                continue;
+            }
+        };
+        let receipt_bytes = match ready_target.read_strict_owner_only_sibling(
+            &pinned_receipt,
+            APPLICATION_READY_RECEIPT_MAX_BYTES,
+        ) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                last = WaitObservation {
+                    condition: if error.kind() == ErrorKind::NotFound {
+                        "application-ready-receipt-missing"
+                    } else {
+                        "application-ready-receipt-unreadable"
+                    },
+                    observation: json!({
+                        "applicationReadyFile": receipt_path.display().to_string(),
+                        "error": error.to_string(),
+                    }),
+                };
+                if started.elapsed() >= timeout {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                continue;
+            }
+        };
+        let receipt = match serde_json::from_slice::<
+            crate::operational_readiness::ApplicationReadyReceiptV1,
+        >(&receipt_bytes)
+        {
+            Ok(receipt)
+                if receipt.format_version
+                    == crate::operational_readiness::APPLICATION_READY_FORMAT_V1 =>
+            {
+                receipt
+            }
+            Ok(receipt) => {
+                last = WaitObservation {
+                    condition: "application-ready-receipt-invalid",
+                    observation: json!({ "formatVersion": receipt.format_version }),
+                };
+                if started.elapsed() >= timeout {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                continue;
+            }
+            Err(error) => {
+                last = WaitObservation {
+                    condition: "application-ready-receipt-invalid",
+                    observation: json!({ "error": error.to_string() }),
+                };
+                if started.elapsed() >= timeout {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                continue;
+            }
+        };
+        if receipt.startup_nonce != descriptor_nonce {
+            last = WaitObservation {
+                condition: "receipt-startup-nonce-mismatch",
+                observation: json!({
+                    "descriptorStartupNonce": descriptor_nonce,
+                    "receiptStartupNonce": receipt.startup_nonce,
+                }),
+            };
+            if started.elapsed() >= timeout {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            continue;
+        }
+        let descriptor_digest = format!("sha256:{:x}", Sha256::digest(&descriptor_bytes));
+        if receipt.host_ready_descriptor_digest != descriptor_digest {
+            last = WaitObservation {
+                condition: "host-ready-descriptor-digest-mismatch",
+                observation: json!({
+                    "expected": descriptor_digest,
+                    "observed": receipt.host_ready_descriptor_digest,
+                }),
+            };
+            if started.elapsed() >= timeout {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            continue;
+        }
+
+        let readiness_target = TargetArgs {
+            url: None,
+            ready_file: Some(ready_file.to_path_buf()),
+            token: token.clone(),
+            impersonation_capability_stdin: false,
+        };
+        let readiness_envelope = match post_host_op(
+            &readiness_target,
+            json!({ "operation": "app.readiness.v1" }),
+        ) {
+            Ok(envelope) => envelope,
+            Err(error) => {
+                last = WaitObservation {
+                    condition: "operational-readiness-unavailable",
+                    observation: json!({ "error": format!("{error:#}") }),
+                };
+                if started.elapsed() >= timeout {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                continue;
+            }
+        };
+        let readiness_ok = readiness_envelope.get("ok").and_then(Value::as_bool);
+        if readiness_ok.is_none() {
+            let diagnostics = diagnostics_from_result(&readiness_envelope).unwrap_or_else(|| {
+                vec![crate::host_ops::host_op_diagnostic(
+                    "SNAPBACK_WAIT_UNVERIFIABLE",
+                    "host.wait",
+                    "the authenticated operational-readiness fact returned an unrecognized refusal",
+                )
+                .with_details(json!({
+                    "operation": "host.wait",
+                    "level": level.as_str(),
+                    "condition": "admin-authority-unavailable",
+                    "lastObservation": readiness_envelope,
+                }))]
+            });
+            return wait_result(
+                request_id,
+                target,
+                false,
+                json!({
+                    "level": level.as_str(),
+                    "waitedMs": wait_elapsed_ms(started),
+                    "condition": "admin-authority-unavailable",
+                }),
+                diagnostics,
+            );
+        }
+        if readiness_ok == Some(false) {
+            last = WaitObservation {
+                condition: "operational-readiness-refused",
+                observation: readiness_envelope,
+            };
+            if started.elapsed() >= timeout {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            continue;
+        }
+        let readiness = match readiness_envelope
+            .pointer("/data/operationalReadiness")
+            .cloned()
+            .and_then(|value| {
+                serde_json::from_value::<crate::operational_readiness::OperationalReadinessV1>(
+                    value,
+                )
+                .ok()
+            }) {
+            Some(readiness) => readiness,
+            None => {
+                last = WaitObservation {
+                    condition: "operational-readiness-invalid",
+                    observation: readiness_envelope,
+                };
+                if started.elapsed() >= timeout {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                continue;
+            }
+        };
+        if !readiness.ready {
+            last = WaitObservation {
+                condition: "operational-readiness-not-ready",
+                observation: json!({ "operationalReadiness": readiness }),
+            };
+            if started.elapsed() >= timeout {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            continue;
+        }
+        if readiness.startup_nonce != receipt.startup_nonce {
+            last = WaitObservation {
+                condition: "operational-readiness-startup-nonce-mismatch",
+                observation: json!({
+                    "receiptStartupNonce": receipt.startup_nonce,
+                    "operationalReadinessStartupNonce": readiness.startup_nonce,
+                }),
+            };
+            if started.elapsed() >= timeout {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            continue;
+        }
+        let (receipt_deployment, receipt_obligations_digest) = match &receipt.application {
+            crate::operational_readiness::ApplicationIdentityV1::DevGenerated {
+                deployment,
+                obligations_digest,
+            } => (deployment, obligations_digest),
+        };
+        let Some(live_target) = readiness.target.as_ref() else {
+            last = WaitObservation {
+                condition: "operational-readiness-target-missing",
+                observation: json!({ "operationalReadiness": readiness }),
+            };
+            if started.elapsed() >= timeout {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            continue;
+        };
+        if &live_target.deployment != receipt_deployment
+            || &live_target.obligations_digest != receipt_obligations_digest
+        {
+            last = WaitObservation {
+                condition: "operational-readiness-target-mismatch",
+                observation: json!({
+                    "receiptApplication": receipt.application,
+                    "liveTarget": live_target,
+                }),
+            };
+            if started.elapsed() >= timeout {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            continue;
+        }
+
+        return wait_result(
+            request_id,
+            target,
+            true,
+            json!({
+                "level": level.as_str(),
+                "waitedMs": wait_elapsed_ms(started),
+                "serverUrl": descriptor.server_url,
+                "startupNonce": descriptor_nonce,
+                "applicationReadyFile": receipt_path.display().to_string(),
+                "operationalReadiness": readiness,
+            }),
+            Vec::new(),
+        );
+    }
+
+    wait_failure_result(
+        request_id,
+        target,
+        level,
+        started,
+        "SNAPBACK_WAIT_TIMEOUT",
+        last.condition,
+        last.observation,
+    )
 }
 
 /// host.stop: validate the readiness descriptor, verify the descriptor still

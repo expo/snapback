@@ -7216,12 +7216,12 @@ impl LocalSnapback {
             .cloned()
     }
 
-    pub(crate) fn served_function_manifest(&self) -> &FunctionManifest {
-        &self.functions
-    }
-
     pub(crate) fn served_schema_manifest(&self) -> &SchemaManifest {
         self.db.schema()
+    }
+
+    pub(crate) fn served_function_manifest(&self) -> &FunctionManifest {
+        &self.functions
     }
 
     pub fn inspect(&mut self) -> SnapbackResult<InspectState> {

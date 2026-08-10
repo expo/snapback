@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:81b36c22d9de6afd71f4502d95db82df26d96468b12ca535dfbf9a955e39b1be",
+  "catalogDigest": "sha256:cd09f93b101bb01eb4d4fd9a1881279ad29f38f8a4720206e3801950159ebe93",
   "buildIdentity": {
-    "sourceCommit": "9ac739208692d57f85d46375bc2d1c55f84f839a",
-    "dirty": false
+    "sourceCommit": "56e5f9aa5c98566631cfcc806daf94328425773b",
+    "dirty": true
   },
-  "generatedAtCommit": "9ac739208692d57f85d46375bc2d1c55f84f839a",
+  "generatedAtCommit": "56e5f9aa5c98566631cfcc806daf94328425773b",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -439,6 +439,66 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "app.readiness.v1",
+      "title": "Evaluate declared application readiness",
+      "intents": [
+        "declare an activation target",
+        "check application readiness",
+        "inspect unsatisfied startup conditions"
+      ],
+      "status": "shipped",
+      "domain": "hostOps",
+      "hostOpsDisposition": "served",
+      "registeredOperations": [
+        "host_ops.app.readiness.v1"
+      ],
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "app.readiness.v1",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "cliDeferralReason": "Phase 1 exposes the server-owned predicate through authenticated host ops; the wait CLI projection is a separate phase.",
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
         "schemaVersion": "snapback.remediation-set.v1",
@@ -1331,6 +1391,729 @@
       }
     },
     {
+      "operation": "auth.declared-clients",
+      "title": "List declared authentication clients",
+      "intents": [
+        "list declared clients",
+        "inspect client suspension state"
+      ],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /_snapback/api/auth/declared-clients",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/observability.md#check-health-and-recent-logs-in-the-console",
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "cliDeferralReason": "Declared-client administration is currently exposed only through the authenticated API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.declared-clients.bless",
+      "title": "Bless a declared authentication client",
+      "intents": [
+        "bless a declared client",
+        "authorize a client declaration"
+      ],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/auth/declared-clients/bless",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "cliDeferralReason": "Declared-client administration is currently exposed only through the authenticated API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.declared-clients.delete",
+      "title": "Delete a declared authentication client",
+      "intents": [
+        "delete a declared client",
+        "remove a client declaration"
+      ],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/auth/declared-clients/delete",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "cliDeferralReason": "Declared-client administration is currently exposed only through the authenticated API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.declared-clients.resume",
+      "title": "Resume a declared authentication client",
+      "intents": [
+        "resume a declared client",
+        "restore client access"
+      ],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/auth/declared-clients/resume",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "cliDeferralReason": "Declared-client administration is currently exposed only through the authenticated API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.declared-clients.suspend",
+      "title": "Suspend a declared authentication client",
+      "intents": [
+        "suspend a declared client",
+        "pause client access"
+      ],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/auth/declared-clients/suspend",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "cliDeferralReason": "Declared-client administration is currently exposed only through the authenticated API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.integrationResume",
+      "title": "Resume an authentication integration through host ops",
+      "intents": [
+        "resume an auth integration",
+        "restore integration access"
+      ],
+      "status": "shipped",
+      "domain": "hostOps",
+      "hostOpsDisposition": "served",
+      "registeredOperations": [
+        "host_ops.auth.integrationResume"
+      ],
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "auth.integrationResume",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.integrationRetire",
+      "title": "Retire an authentication integration through host ops",
+      "intents": [
+        "retire an auth integration",
+        "remove integration authority"
+      ],
+      "status": "shipped",
+      "domain": "hostOps",
+      "hostOpsDisposition": "served",
+      "registeredOperations": [
+        "host_ops.auth.integrationRetire"
+      ],
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "AgentDestroyCapability",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "auth.integrationRetire",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.integrations",
+      "title": "List authentication integrations",
+      "intents": [
+        "list auth integrations",
+        "inspect integration suspension state"
+      ],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /_snapback/api/auth/integrations",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/observability.md#check-health-and-recent-logs-in-the-console",
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.integrations.resume",
+      "title": "Resume an authentication integration",
+      "intents": [
+        "resume an auth integration",
+        "restore integration access"
+      ],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/auth/integrations/{id}/resume",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.integrations.retire",
+      "title": "Retire an authentication integration",
+      "intents": [
+        "retire an auth integration",
+        "remove integration authority"
+      ],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "AgentDestroyCapability",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/auth/integrations/{id}/retire",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.integrations.suspend",
+      "title": "Suspend an authentication integration",
+      "intents": [
+        "suspend an auth integration",
+        "pause integration access"
+      ],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/auth/integrations/{id}/suspend",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "src/server.rs route_registry()"
+      ],
+      "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.integrationSuspend",
+      "title": "Suspend an authentication integration through host ops",
+      "intents": [
+        "suspend an auth integration",
+        "pause integration access"
+      ],
+      "status": "shipped",
+      "domain": "hostOps",
+      "hostOpsDisposition": "served",
+      "registeredOperations": [
+        "host_ops.auth.integrationSuspend"
+      ],
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "auth.integrationSuspend",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
       "operation": "auth.mailbox.read",
       "title": "Read the local authentication mailbox",
       "intents": [
@@ -1454,6 +2237,262 @@
         },
         "description": "Schema for the auth.mintSession args object."
       },
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.rehearsal.exercise",
+      "title": "Exercise an authentication rehearsal grant",
+      "intents": [
+        "exercise an auth rehearsal",
+        "verify rehearsal authority"
+      ],
+      "status": "shipped",
+      "domain": "hostOps",
+      "hostOpsDisposition": "served",
+      "registeredOperations": [
+        "host_ops.auth.rehearsal.exercise"
+      ],
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "Public",
+        "effect": "RehearsalGrant",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "auth.rehearsal.exercise",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "cliDeferralReason": "Authentication rehearsal controls are currently exposed only through the authenticated host-ops family.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.rehearsal.mint",
+      "title": "Mint an authentication rehearsal grant",
+      "intents": [
+        "mint an auth rehearsal",
+        "prepare rehearsal authority"
+      ],
+      "status": "shipped",
+      "domain": "hostOps",
+      "hostOpsDisposition": "served",
+      "registeredOperations": [
+        "host_ops.auth.rehearsal.mint"
+      ],
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "ImpersonationCapability",
+        "responseSensitivity": "CredentialSecret"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "auth.rehearsal.mint",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "cliDeferralReason": "Authentication rehearsal controls are currently exposed only through the authenticated host-ops family.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.rehearsal.revoke",
+      "title": "Revoke an authentication rehearsal grant",
+      "intents": [
+        "revoke an auth rehearsal",
+        "cancel rehearsal authority"
+      ],
+      "status": "shipped",
+      "domain": "hostOps",
+      "hostOpsDisposition": "served",
+      "registeredOperations": [
+        "host_ops.auth.rehearsal.revoke"
+      ],
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "ImpersonationCapability",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "auth.rehearsal.revoke",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "cliDeferralReason": "Authentication rehearsal controls are currently exposed only through the authenticated host-ops family.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.rehearsal.status",
+      "title": "Read authentication rehearsal status",
+      "intents": [
+        "check auth rehearsal status",
+        "inspect rehearsal authority"
+      ],
+      "status": "shipped",
+      "domain": "hostOps",
+      "hostOpsDisposition": "served",
+      "registeredOperations": [
+        "host_ops.auth.rehearsal.status"
+      ],
+      "surfaceAccess": "apiOnly",
+      "operability": "unavailable",
+      "unavailableReason": {
+        "owner": "llp/0184-agent-accessible-control-plane",
+        "ticketOrDesignPointer": null,
+        "note": "Not yet manually classified by the LLP 0184 Phase 1 backfill. Defaults to unavailable (never a permissive guess) until an authored operability-overrides.json entry exists."
+      },
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "auth.rehearsal.status",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#served-request-operations",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "cliDeferralReason": "Authentication rehearsal controls are currently exposed only through the authenticated host-ops family.",
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
         "schemaVersion": "snapback.remediation-set.v1",
@@ -6445,6 +7484,68 @@
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "mcpDeferralReason": "Analogous to host.start.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "host.wait",
+      "title": "Wait for host or application readiness",
+      "intents": [
+        "wait for snapback",
+        "wait for application readiness",
+        "block until the backend is ready"
+      ],
+      "status": "shipped",
+      "domain": "hostOps",
+      "hostOpsDisposition": "cliOnly",
+      "registeredOperations": [],
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "none",
+        "responseSensitivity": "OperatorMetadata",
+        "projectionCredentials": {
+          "http": "The host.wait identity is CLI-owned and refused over the running server's host-ops route.",
+          "cli": "Host level proves the ready descriptor against live /health. Application level additionally resolves --token, SNAPBACK_ADMIN_TOKEN, or the descriptor-discovered minted token for authenticated app.readiness.v1."
+        }
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": "host.wait",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "mcpDeferralReason": "Readiness waiting is a local ready-file and receipt-custody workflow; MCP callers can poll the authenticated server-owned readiness fact directly.",
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
         "schemaVersion": "snapback.remediation-set.v1",

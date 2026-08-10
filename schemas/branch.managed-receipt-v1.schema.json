@@ -223,6 +223,7 @@
       "type": "object"
     },
     "ForkEgressPolicyV1": {
+      "description": "Closed outbound-effect posture for a managed in-app branch.",
       "enum": [
         "denyAll",
         "captureOnly"

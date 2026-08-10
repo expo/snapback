@@ -91,19 +91,19 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **134 operations** at digest `sha256:81b36c22d9de6afd71f4502d95db82df26d96468b12ca535dfbf9a955e39b1be`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **152 operations** at digest `sha256:cd09f93b101bb01eb4d4fd9a1881279ad29f38f8a4720206e3801950159ebe93`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
-| surfaceAccess | `apiOnly` | 37 |
-| surfaceAccess | `cliOnly` | 49 |
+| surfaceAccess | `apiOnly` | 54 |
+| surfaceAccess | `cliOnly` | 50 |
 | surfaceAccess | `mcpOnly` | 2 |
 | surfaceAccess | `native` | 42 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 111 |
+| operability | `direct` | 113 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
-| operability | `unavailable` | 5 |
+| operability | `unavailable` | 21 |
 
 | Operation | Surface | Operability | Status | CLI | MCP | Guide |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -114,6 +114,7 @@ The embedded build catalog contains **134 operations** at digest `sha256:81b36c2
 | `admin.link.status` | `cliOnly` | `mediated` | `shipped` | snapback admin link --status <claim> | — | operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser |
 | `app.ensure.provision` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly |
 | `app.inspect` | `native` | `direct` | `shipped` | snapback inspect | snapback_inspect | operating/host-ops.md#served-request-operations |
+| `app.readiness.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `app.reset` | `native` | `direct` | `shipped` | snapback reset | snapback_reset | backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients |
 | `app.seed.clear.v1` | `apiOnly` | `direct` | `shipped` | — | — | backend/versioned-seeds.md#use-the-generated-lifecycle |
 | `app.seed.ensure.v1` | `apiOnly` | `direct` | `shipped` | — | — | backend/versioned-seeds.md#use-the-generated-lifecycle |
@@ -129,8 +130,24 @@ The embedded build catalog contains **134 operations** at digest `sha256:81b36c2
 | `asset.put` | `cliOnly` | `direct` | `shipped` | snapback assets put | — | backend/assets.md#upload-and-attach |
 | `asset.retry` | `native` | `direct` | `shipped` | snapback assets retry | snapback_asset_retry | backend/assets.md#operate |
 | `asset.rotateSigningKey` | `native` | `direct` | `shipped` | snapback assets rotate-signing-key | snapback_asset_rotate_signing_key | backend/assets.md#invalidate-every-outstanding-signed-url |
+| `auth.declared-clients` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/observability.md#check-health-and-recent-logs-in-the-console |
+| `auth.declared-clients.bless` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.declared-clients.delete` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.declared-clients.resume` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.declared-clients.suspend` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.integrationResume` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.integrationRetire` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.integrations` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/observability.md#check-health-and-recent-logs-in-the-console |
+| `auth.integrations.resume` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.integrations.retire` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.integrations.suspend` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.integrationSuspend` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.mailbox.read` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#mint-test-personas-the-complete-local-recipe |
 | `auth.mintSession` | `cliOnly` | `direct` | `shipped` | snapback session mint --email <address> | — | operating/host-ops.md#mint-a-session-over-http |
+| `auth.rehearsal.exercise` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.rehearsal.mint` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.rehearsal.revoke` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
+| `auth.rehearsal.status` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.rescueCollidingTable` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly |
 | `branch.create.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#give-a-worktree-its-own-backend |
 | `branch.drop.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#inspect-review-and-dispose-forks |
@@ -220,6 +237,7 @@ The embedded build catalog contains **134 operations** at digest `sha256:81b36c2
 | `host.restart` | `native` | `direct` | `shipped` | snapback restart --ready-file <path> | snapback_restart | operating/host-ops.md#restart-with-one-credential-bound-receipt |
 | `host.start` | `cliOnly` | `direct` | `shipped` | snapback start | snapback_start | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `host.stop` | `cliOnly` | `direct` | `shipped` | snapback stop | snapback_stop | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `host.wait` | `cliOnly` | `direct` | `shipped` | — | — | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `hostCall.dispatch` | `none` | `internal` | `shipped` | — | — | — |
 | `inspect` | `apiOnly` | `direct` | `shipped` | — | — | operating/observability.md#query-the-typed-operations-from-the-cli |
 | `jobs.drain` | `native` | `direct` | `shipped` | snapback jobs drain | snapback_jobs_drain | operating/host-ops.md#controlled-mutations-config-cron-jobs-connections |
@@ -563,11 +581,12 @@ carries the storage diagnostic; tooling must not substitute zero.
 ## Served request operations
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS SERVED -->
-The endpoint serves **41 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
+The endpoint serves **49 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
 
 | Request operation | Purpose |
 | --- | --- |
 | `app.inspect` | Inspect the running app |
+| `app.readiness.v1` | Evaluate declared application readiness |
 | `app.reset` | Reset local app state |
 | `app.seed.clear.v1` | Clear the versioned seed installation |
 | `app.seed.ensure.v1` | Ensure the versioned seed installation |
@@ -583,7 +602,14 @@ The endpoint serves **41 request spellings**. This count and table are generated
 | `asset.put` | Upload one asset |
 | `asset.retry` | Retry pending asset work |
 | `asset.rotateSigningKey` | Rotate the asset delivery signing key |
+| `auth.integrationResume` | Resume an authentication integration through host ops |
+| `auth.integrationRetire` | Retire an authentication integration through host ops |
+| `auth.integrationSuspend` | Suspend an authentication integration through host ops |
 | `auth.mintSession` | Mint a local test session |
+| `auth.rehearsal.exercise` | Exercise an authentication rehearsal grant |
+| `auth.rehearsal.mint` | Mint an authentication rehearsal grant |
+| `auth.rehearsal.revoke` | Revoke an authentication rehearsal grant |
+| `auth.rehearsal.status` | Read authentication rehearsal status |
 | `auth.rescueCollidingTable` | Rescue a table colliding with sessions mode |
 | `branch.create.v1` | Create a backend branch |
 | `branch.drop.v1` | Drop a backend branch |
@@ -724,62 +750,70 @@ envelope; unknown names stay unregistered and fail closed before dispatch.
 ## Registered operation identities
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
-The request spellings above expand into **54 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
+The request spellings above expand into **62 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
 
 1. `host_ops.acceptance.run`
 2. `host_ops.app.inspect`
-3. `host_ops.app.reset`
-4. `host_ops.app.seed.clear.v1`
-5. `host_ops.app.seed.ensure.v1`
-6. `host_ops.app.seed.preview.v1`
-7. `host_ops.app.seed.reset-install.v1`
-8. `host_ops.asset.delete`
-9. `host_ops.asset.ensureSeedFixture`
-10. `host_ops.asset.exportCut`
-11. `host_ops.asset.gcSweep`
-12. `host_ops.asset.importCut`
-13. `host_ops.asset.inspect`
-14. `host_ops.asset.list`
-15. `host_ops.asset.put`
-16. `host_ops.asset.retry`
-17. `host_ops.asset.rotateSigningKey`
-18. `host_ops.auth.mintSession`
-19. `host_ops.auth.rescueCollidingTable`
-20. `host_ops.branch.create.v1`
-21. `host_ops.branch.drop.v1`
-22. `host_ops.branch.execute.v1`
-23. `host_ops.branch.inspect.v1`
-24. `host_ops.branch.list.v1`
-25. `host_ops.branch.reap.v1`
-26. `host_ops.cron.list`
-27. `host_ops.data.patch.apply`
-28. `host_ops.data.patch.apply.impersonated`
-29. `host_ops.data.patch.preview`
-30. `host_ops.data.patch.preview.impersonated`
-31. `host_ops.debug.live.forceResync`
-32. `host_ops.debug.networkProfileGet`
-33. `host_ops.debug.networkProfileSet`
-34. `host_ops.errors.issue`
-35. `host_ops.errors.issues`
-36. `host_ops.errors.transition`
-37. `host_ops.function.explain`
-38. `host_ops.function.explain.impersonated`
-39. `host_ops.function.run.query`
-40. `host_ops.function.run.mutation`
-41. `host_ops.function.run.action`
-42. `host_ops.function.run.unknown`
-43. `host_ops.function.run.impersonated`
-44. `host_ops.functions.load`
-45. `host_ops.functions.reload`
-46. `host_ops.host.restart`
-47. `host_ops.host.start`
-48. `host_ops.host.stop`
-49. `host_ops.remediation.apply`
-50. `host_ops.schema.load`
-51. `host_ops.schema.reload`
-52. `host_ops.telemetry.events`
-53. `host_ops.telemetry.export`
-54. `host_ops.telemetry.stats`
+3. `host_ops.app.readiness.v1`
+4. `host_ops.app.reset`
+5. `host_ops.app.seed.clear.v1`
+6. `host_ops.app.seed.ensure.v1`
+7. `host_ops.app.seed.preview.v1`
+8. `host_ops.app.seed.reset-install.v1`
+9. `host_ops.asset.delete`
+10. `host_ops.asset.ensureSeedFixture`
+11. `host_ops.asset.exportCut`
+12. `host_ops.asset.gcSweep`
+13. `host_ops.asset.importCut`
+14. `host_ops.asset.inspect`
+15. `host_ops.asset.list`
+16. `host_ops.asset.put`
+17. `host_ops.asset.retry`
+18. `host_ops.asset.rotateSigningKey`
+19. `host_ops.auth.integrationResume`
+20. `host_ops.auth.integrationRetire`
+21. `host_ops.auth.integrationSuspend`
+22. `host_ops.auth.mintSession`
+23. `host_ops.auth.rehearsal.exercise`
+24. `host_ops.auth.rehearsal.mint`
+25. `host_ops.auth.rehearsal.revoke`
+26. `host_ops.auth.rehearsal.status`
+27. `host_ops.auth.rescueCollidingTable`
+28. `host_ops.branch.create.v1`
+29. `host_ops.branch.drop.v1`
+30. `host_ops.branch.execute.v1`
+31. `host_ops.branch.inspect.v1`
+32. `host_ops.branch.list.v1`
+33. `host_ops.branch.reap.v1`
+34. `host_ops.cron.list`
+35. `host_ops.data.patch.apply`
+36. `host_ops.data.patch.apply.impersonated`
+37. `host_ops.data.patch.preview`
+38. `host_ops.data.patch.preview.impersonated`
+39. `host_ops.debug.live.forceResync`
+40. `host_ops.debug.networkProfileGet`
+41. `host_ops.debug.networkProfileSet`
+42. `host_ops.errors.issue`
+43. `host_ops.errors.issues`
+44. `host_ops.errors.transition`
+45. `host_ops.function.explain`
+46. `host_ops.function.explain.impersonated`
+47. `host_ops.function.run.query`
+48. `host_ops.function.run.mutation`
+49. `host_ops.function.run.action`
+50. `host_ops.function.run.unknown`
+51. `host_ops.function.run.impersonated`
+52. `host_ops.functions.load`
+53. `host_ops.functions.reload`
+54. `host_ops.host.restart`
+55. `host_ops.host.start`
+56. `host_ops.host.stop`
+57. `host_ops.remediation.apply`
+58. `host_ops.schema.load`
+59. `host_ops.schema.reload`
+60. `host_ops.telemetry.events`
+61. `host_ops.telemetry.export`
+62. `host_ops.telemetry.stats`
 <!-- END GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
 
 Query/explain reads, durable writes, credential-producing operations, and
