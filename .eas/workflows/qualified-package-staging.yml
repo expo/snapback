@@ -1,9 +1,7 @@
 name: qualified-package-staging
 
-# @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — build both
-# native runtimes independently at one clean revision, assemble one immutable
-# full-closure candidate, then prove those exact tarballs on both platforms.
-# LLP 0166's 2026-08-06 amendment: mint per-platform receipts, then restage.
+# @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — build, mint
+# per-platform receipts, restage, and prove one immutable candidate closure.
 
 on:
   push:
@@ -60,16 +58,10 @@ jobs:
           SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback
           node packages/snapback-runtime-linux-x64/prepare-runtime.mjs
           test -f packages/snapback-runtime-linux-x64/lib/libhermesvm.so
-          node packages/snapback-runtime-linux-x64/elf-portability.mjs \
-            --binary packages/snapback-runtime-linux-x64/bin/snapback \
-            --lib packages/snapback-runtime-linux-x64/lib
           test -z "$(git status --porcelain --untracked-files=all)"
 
           artifact_root="$HOME/snapback-staging/linux"
-          mkdir -p "$artifact_root" "$artifact_root/bundled-libs"
-          find packages/snapback-runtime-linux-x64/lib \
-            -maxdepth 1 -type f ! -name libhermesvm.so \
-            -exec cp {} "$artifact_root/bundled-libs/" \;
+          scripts/qualified-staging-linux-portability "$artifact_root"
           source_revision="$(git rev-parse HEAD)"
           packages/snapback-runtime-linux-x64/bin/snapback build-identity \
             > "$HOME/snapback-linux-build-identity.json"

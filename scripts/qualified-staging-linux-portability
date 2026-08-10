@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Runs the ELF portability gate on the prepared Linux runtime and copies the
+# bundled non-baseline libraries into $1/bundled-libs for the staging
+# attestation. Extracted from the qualified-staging workflow to keep its YAML
+# under EAS's 16 KiB revision cap.
+set -euo pipefail
+artifact_root="$1"
+node packages/snapback-runtime-linux-x64/elf-portability.mjs \
+  --binary packages/snapback-runtime-linux-x64/bin/snapback \
+  --lib packages/snapback-runtime-linux-x64/lib
+mkdir -p "$artifact_root" "$artifact_root/bundled-libs"
+find packages/snapback-runtime-linux-x64/lib \
+  -maxdepth 1 -type f ! -name libhermesvm.so \
+  -exec cp {} "$artifact_root/bundled-libs/" \;
