@@ -104,6 +104,7 @@ pub(crate) struct RehearsalStatusV1 {
     pub grants: Vec<RehearsalStatusRowV1>,
 }
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 impl LocalDatabase {
     /// Pre-activation startup check used by production. It deliberately tests
     /// only for the protected table namespace; it never parses grants or
@@ -1064,6 +1065,7 @@ fn terminalize_grant_windows_in(
     Ok(())
 }
 
+#[allow(clippy::large_enum_variant)] // transient resolution value; boxing the hot arm buys nothing
 enum MintTransactionOutcome {
     Minted {
         grant: AuthRehearsalGrantV1,
@@ -1985,6 +1987,7 @@ fn mark_store_admitted_in(
     Ok(())
 }
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 fn store_is_creation_empty(connection: &rusqlite::Connection) -> SnapbackResult<bool> {
     for table in ["_auth_users", "_auth_identities", "_auth_sessions"] {
         if table_exists(connection, table)? {
@@ -2005,6 +2008,7 @@ fn store_is_creation_empty(connection: &rusqlite::Connection) -> SnapbackResult<
     Ok(application_tables == 0)
 }
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 fn preserve_imported_markers_in(
     transaction: &Transaction<'_>,
     envelope: &AuthRehearsalExportEnvelopeV1,

@@ -20542,7 +20542,7 @@ async fn execute_auth_host_operation(
                 })
                 .await;
                 let outcome =
-                    outcome.and_then(|(outcome, window)| {
+                    outcome.map(|(outcome, window)| {
                         runtime
                             .auth_rehearsal_live_grants
                             .write()
@@ -20560,7 +20560,7 @@ async fn execute_auth_host_operation(
                             )
                             | crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Replay(
                                 value,
-                            ) => Ok(value),
+                            ) => value,
                         }
                     });
                 return Ok(auth_host_result(runtime, request, server_url, outcome).await);

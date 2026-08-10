@@ -39,3 +39,13 @@ the fork denial can be asserted without touching process env.
 
 - LLP 0158 instance forking (fork egress denial families)
 - LLP 0044 asset storage pipeline
+
+## Resolution — 2026-08-10
+
+Fixed structurally (ticket option 2 of the 20260809 sibling): the asset
+store-backend selection is captured once into LocalSnapback configuration at
+the public construction boundary; store construction no longer reads process
+env, and the instance_fork s3 tests inject the backend instead of mutating
+SNAPBACK_ASSET_STORE. Verified: three consecutive default-parallelism
+`cargo test --lib asset` runs 147/147 green, `cargo test --lib instance_fork`
+green, no remaining process-env mutation of SNAPBACK_ASSET_STORE in the tree.

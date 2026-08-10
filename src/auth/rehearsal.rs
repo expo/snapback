@@ -27,12 +27,16 @@ pub const AUTH_REHEARSAL_PROVENANCE_KIND: &str = "authRehearsalProvenance.v1";
 pub const AUTH_REHEARSAL_WINDOW_KIND: &str = "authRehearsalWindow.v1";
 pub const AUTH_REHEARSAL_REACHABILITY_KIND: &str = "authRehearsalReachability.v1";
 pub const AUTH_REHEARSAL_STORE_MARKERS_KIND: &str = "authRehearsalStoreMarkers.v1";
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 pub const AUTH_REHEARSAL_EXPORT_ENVELOPE_KIND: &str = "authRehearsalExportEnvelope.v1";
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 pub const AUTH_REHEARSAL_LOGICAL_EXPORT_KIND: &str = "authRehearsalLogicalExport.v1";
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 pub const AUTH_REHEARSAL_EXPORT_KEY_CAPSULE_KIND: &str =
     "authRehearsalExportVerificationKeyCapsule.v1";
 pub const AUTH_REHEARSAL_CAPABILITY_HEADER: &str = "x-snapback-auth-rehearsal-capability";
 pub const MAX_REHEARSAL_CAPABILITY_FILE_BYTES: usize = 128;
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 pub const MAX_REHEARSAL_EXPORT_KEY_CAPSULE_BYTES: usize = 512;
 pub const MAX_REHEARSAL_TTL_MS: u64 = 24 * 60 * 60 * 1_000;
 pub const MAX_REHEARSAL_COUNT: u64 = 9_007_199_254_740_991;
@@ -1027,6 +1031,7 @@ pub struct AuthRehearsalStoreMarkersV1 {
     pub first_admission_effect: Option<RehearsalEffect>,
 }
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 impl AuthRehearsalStoreMarkersV1 {
     pub fn validate(&self) -> SnapbackResult<()> {
         let disposable_shape = self.disposable_at_creation == self.disposable_marker_id.is_some();
@@ -1092,6 +1097,7 @@ pub struct AuthRehearsalSnapshotWitnessV1 {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 pub struct AuthRehearsalLogicalExportPayloadV1 {
     pub kind: String,
     pub source_store_id: String,
@@ -1119,8 +1125,10 @@ pub struct AuthRehearsalLogicalExportArtifactV1 {
     pub payload: Vec<u8>,
 }
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 pub struct RehearsalExportVerificationKey(Zeroizing<[u8; 32]>);
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 impl RehearsalExportVerificationKey {
     pub(crate) fn from_bytes(bytes: [u8; 32]) -> Self {
         Self(Zeroizing::new(bytes))
@@ -1139,6 +1147,7 @@ impl fmt::Debug for RehearsalExportVerificationKey {
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 struct RehearsalExportVerificationKeyCapsuleWireV1 {
     kind: String,
     source_store_id: String,
@@ -1152,6 +1161,7 @@ struct RehearsalExportVerificationKeyCapsuleWireV1 {
 ///
 /// @ref LLP 0213#cross-host-verification-key-custody — cross-host HMAC trust
 ///   is explicit owner-only custody keyed by source store and auth-key id.
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 pub(crate) fn write_export_verification_key_capsule(
     path: &Path,
     source_store_id: &str,
@@ -1179,6 +1189,7 @@ pub(crate) fn write_export_verification_key_capsule(
 /// Read one explicitly selected trust-store capsule without following links
 /// or repairing permissions. Expected source ids are caller-owned lookup keys;
 /// capsule-provided ids cannot redirect verification.
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 pub(crate) fn read_export_verification_key_capsule(
     path: &Path,
     expected_source_store_id: &str,
@@ -1888,6 +1899,7 @@ pub fn digest_serializable<T: Serialize>(domain: &[u8], value: &T) -> SnapbackRe
     Ok(domain_digest_bytes(domain, &bytes))
 }
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 pub(crate) fn derive_export_verification_key(
     auth_key: &[u8; 32],
     source_store_id: &str,
@@ -1913,6 +1925,7 @@ pub(crate) fn derive_export_verification_key(
 ///
 /// @ref LLP 0213#mac-primitive — JSON is decoded/re-encoded into a closed,
 ///   length-prefixed MAC input rather than treated as canonical bytes.
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 pub(crate) fn seal_export_envelope(
     payload: &[u8],
     markers: &AuthRehearsalStoreMarkersV1,
@@ -1947,6 +1960,7 @@ pub(crate) fn seal_export_envelope(
 /// Verify integrity before parsing or admitting payload state. A single
 /// generic diagnostic covers edits, payload substitution, splices, and replay
 /// against a different store/witness.
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 pub(crate) fn verify_export_envelope(
     envelope: &AuthRehearsalExportEnvelopeV1,
     payload: &[u8],
@@ -1979,6 +1993,7 @@ pub(crate) fn verify_export_envelope(
     Ok(decoded)
 }
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 fn validate_snapshot_witness(witness: &AuthRehearsalSnapshotWitnessV1) -> SnapbackResult<()> {
     if !uuid_v7(&witness.authorization_incarnation)
         || witness.database_version > MAX_REHEARSAL_COUNT
@@ -1988,6 +2003,7 @@ fn validate_snapshot_witness(witness: &AuthRehearsalSnapshotWitnessV1) -> Snapba
     Ok(())
 }
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 fn validate_export_envelope_shape(envelope: &AuthRehearsalExportEnvelopeV1) -> SnapbackResult<()> {
     let markers = AuthRehearsalStoreMarkersV1 {
         kind: AUTH_REHEARSAL_STORE_MARKERS_KIND.to_owned(),
@@ -2011,6 +2027,7 @@ fn validate_export_envelope_shape(envelope: &AuthRehearsalExportEnvelopeV1) -> S
     validate_snapshot_witness(&envelope.snapshot_witness)
 }
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 fn encode_envelope_without_mac(
     envelope: &AuthRehearsalExportEnvelopeV1,
 ) -> SnapbackResult<Vec<u8>> {
@@ -2052,6 +2069,7 @@ fn encode_envelope_without_mac(
     Ok(output)
 }
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 fn append_lp(output: &mut Vec<u8>, bytes: &[u8]) -> SnapbackResult<()> {
     let length = u32::try_from(bytes.len()).map_err(|_| envelope_invalid())?;
     output.extend_from_slice(&length.to_be_bytes());
@@ -2059,6 +2077,7 @@ fn append_lp(output: &mut Vec<u8>, bytes: &[u8]) -> SnapbackResult<()> {
     Ok(())
 }
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 fn append_optional_string(output: &mut Vec<u8>, value: Option<&str>) -> SnapbackResult<()> {
     output.push(u8::from(value.is_some()));
     if let Some(value) = value {
@@ -2067,6 +2086,7 @@ fn append_optional_string(output: &mut Vec<u8>, value: Option<&str>) -> Snapback
     Ok(())
 }
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 fn append_optional_u64(output: &mut Vec<u8>, value: Option<u64>) {
     output.push(u8::from(value.is_some()));
     if let Some(value) = value {
@@ -2074,6 +2094,7 @@ fn append_optional_u64(output: &mut Vec<u8>, value: Option<u64>) {
     }
 }
 
+#[allow(dead_code)] // LLP 0213 slice C staged export surface; consumers land with the following rehearsal slices
 fn update_hmac_lp(mac: &mut Hmac<Sha256>, bytes: &[u8]) -> SnapbackResult<()> {
     let length = u32::try_from(bytes.len()).map_err(|_| envelope_invalid())?;
     mac.update(&length.to_be_bytes());

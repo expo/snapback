@@ -53,3 +53,13 @@ a fork test holds the env mutated sees backend `s3` without the required
 
 Option 2 is the structural fix (env reads at construction sites are the same
 shape the LLP 0199 ownership work is eliminating); 1 or 3 are cheap stopgaps.
+
+## Resolution — 2026-08-10
+
+Fixed structurally (ticket option 2 of the 20260809 sibling): the asset
+store-backend selection is captured once into LocalSnapback configuration at
+the public construction boundary; store construction no longer reads process
+env, and the instance_fork s3 tests inject the backend instead of mutating
+SNAPBACK_ASSET_STORE. Verified: three consecutive default-parallelism
+`cargo test --lib asset` runs 147/147 green, `cargo test --lib instance_fork`
+green, no remaining process-env mutation of SNAPBACK_ASSET_STORE in the tree.

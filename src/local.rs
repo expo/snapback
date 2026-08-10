@@ -2389,8 +2389,86 @@ impl EphemeralApi {
     }
 }
 
+/// Immutable asset-store deployment configuration captured at the
+/// LocalSnapback entry point.
+///
+/// S3 validation is retained as a result rather than returned during open so
+/// the provider-selection gate can continue to deny derived-fork egress before
+/// any provider configuration becomes usable. Ordinary instances receive the
+/// same stored configuration diagnostic when they request the store.
+// @ref LLP 0158#the-runtime-plane--where-the-real-design-is — preserve the
+//   fork egress refusal ahead of provider configuration consumption.
+#[derive(Clone)]
+struct AssetStoreConfig {
+    backend: SnapbackResult<crate::assets_store::AssetStoreBackend>,
+    s3: Option<SnapbackResult<crate::assets_s3::AssetS3Config>>,
+    s3_experimental: bool,
+}
+
+impl AssetStoreConfig {
+    fn from_env() -> Self {
+        let backend = match std::env::var("SNAPBACK_ASSET_STORE") {
+            Ok(value) => crate::assets_store::AssetStoreBackend::parse_env_value(Some(&value)),
+            Err(std::env::VarError::NotPresent) => {
+                crate::assets_store::AssetStoreBackend::parse_env_value(None)
+            }
+            Err(std::env::VarError::NotUnicode(_)) => Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_CONFIG_INVALID",
+                "assets",
+                "SNAPBACK_ASSET_STORE must be valid Unicode",
+            )),
+        };
+        let selected_s3 = backend.as_ref() == Ok(&crate::assets_store::AssetStoreBackend::S3);
+        Self {
+            backend,
+            s3: selected_s3.then(crate::assets_s3::AssetS3Config::from_env),
+            s3_experimental: selected_s3
+                && std::env::var("SNAPBACK_ASSET_S3_EXPERIMENTAL").as_deref() == Ok("1"),
+        }
+    }
+
+    #[cfg(test)]
+    fn for_backend(backend: crate::assets_store::AssetStoreBackend) -> Self {
+        Self {
+            backend: Ok(backend),
+            s3: (backend == crate::assets_store::AssetStoreBackend::S3).then(|| {
+                Ok(crate::assets_s3::AssetS3Config {
+                    endpoint: "http://127.0.0.1:1".to_owned(),
+                    bucket: "snapback-test".to_owned(),
+                    region: "us-east-1".to_owned(),
+                    key_prefix: "snapback-test".to_owned(),
+                    access_key_id: "snapback-test".to_owned(),
+                    secret_access_key: "snapback-test".to_owned(),
+                })
+            }),
+            s3_experimental: false,
+        }
+    }
+
+    fn backend(&self) -> SnapbackResult<crate::assets_store::AssetStoreBackend> {
+        self.backend.clone()
+    }
+
+    fn s3(&self) -> SnapbackResult<crate::assets_s3::AssetS3Config> {
+        self.s3.clone().unwrap_or_else(|| {
+            Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_CONFIG_INVALID",
+                "assets",
+                "the s3 store requires SNAPBACK_ASSET_S3_ENDPOINT",
+            ))
+        })
+    }
+
+    fn s3_experimental(&self) -> bool {
+        self.s3_experimental
+    }
+}
+
 pub struct LocalSnapback {
     db: LocalDatabase,
+    /// Deployment configuration captured once at the public construction
+    /// boundary. Asset-store construction never re-reads process-global env.
+    asset_store_config: AssetStoreConfig,
     /// Process-unique registry namespace for this instance's StreamAttemptV1
     /// records (LLP 0076). A monotonic nonce, never a pointer: allocator
     /// reuse must not let a new instance observe a dead instance's live
@@ -3410,7 +3488,8 @@ fn capability_link_unavailable() -> SnapbackError {
 
 impl LocalSnapback {
     pub fn memory() -> SnapbackResult<Self> {
-        let snapback = Self::from_database(LocalDatabase::memory()?, None)?;
+        let asset_store_config = AssetStoreConfig::from_env();
+        let snapback = Self::from_database(LocalDatabase::memory()?, None, asset_store_config)?;
         snapback.record_process_start_lifecycle();
         Ok(snapback)
     }
@@ -3421,15 +3500,17 @@ impl LocalSnapback {
     // @ref LLP 0154#d1--telemetry-store-a-sibling-sqlite-database-generation-bound —
     //   local production construction consumes descriptor authority directly.
     pub fn memory_for_target(target: &crate::deploy::TargetDescriptor) -> SnapbackResult<Self> {
+        let asset_store_config = AssetStoreConfig::from_env();
         let db = LocalDatabase::memory()?;
         let identity = Self::telemetry_identity_for_target(&db, target)?;
-        let snapback = Self::from_database(db, Some(identity))?;
+        let snapback = Self::from_database(db, Some(identity), asset_store_config)?;
         snapback.record_process_start_lifecycle();
         Ok(snapback)
     }
 
     pub fn open(path: impl AsRef<Path>) -> SnapbackResult<Self> {
-        Self::open_with_optional_target(path.as_ref(), None)
+        let asset_store_config = AssetStoreConfig::from_env();
+        Self::open_with_optional_target(path.as_ref(), None, asset_store_config)
     }
 
     /// Open a file-backed production instance under an authoritative target
@@ -3441,19 +3522,29 @@ impl LocalSnapback {
         path: impl AsRef<Path>,
         target: &crate::deploy::TargetDescriptor,
     ) -> SnapbackResult<Self> {
-        Self::open_with_optional_target(path.as_ref(), Some(target))
+        let asset_store_config = AssetStoreConfig::from_env();
+        Self::open_with_optional_target(path.as_ref(), Some(target), asset_store_config)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn open_with_asset_store_backend_for_test(
+        path: impl AsRef<Path>,
+        backend: crate::assets_store::AssetStoreBackend,
+    ) -> SnapbackResult<Self> {
+        Self::open_with_optional_target(path.as_ref(), None, AssetStoreConfig::for_backend(backend))
     }
 
     fn open_with_optional_target(
         path: &Path,
         target: Option<&crate::deploy::TargetDescriptor>,
+        asset_store_config: AssetStoreConfig,
     ) -> SnapbackResult<Self> {
         let config = ConfigStore::open_for_database(path)?;
         let db = LocalDatabase::open(path)?;
         let identity = target
             .map(|target| Self::telemetry_identity_for_target(&db, target))
             .transpose()?;
-        let mut snapback = Self::from_database(db, identity.clone())?;
+        let mut snapback = Self::from_database(db, identity.clone(), asset_store_config)?;
         let incarnation = snapback.db.ensure_authorization_stream_incarnation()?;
         snapback.telemetry = match identity {
             Some(identity) => crate::telemetry::Telemetry::open_for_database_with_identity(
@@ -7481,8 +7572,8 @@ impl LocalSnapback {
     pub(crate) fn asset_store_obj(
         &self,
     ) -> SnapbackResult<std::sync::Arc<dyn crate::assets_store::AssetStore>> {
-        match std::env::var("SNAPBACK_ASSET_STORE").as_deref() {
-            Ok("s3") => {
+        match self.asset_store_config.backend()? {
+            crate::assets_store::AssetStoreBackend::S3 => {
                 // @ref LLP 0158#the-runtime-plane--where-the-real-design-is —
                 // inherited provider credentials cannot turn a derived fork
                 // into an outbound asset client.
@@ -7498,9 +7589,7 @@ impl LocalSnapback {
                     .lifecycle_stores
                     .iter()
                     .any(|store| store == crate::assets_s3::ASSET_STORE_S3_COMPATIBLE);
-                if !s3_declared
-                    && std::env::var("SNAPBACK_ASSET_S3_EXPERIMENTAL").as_deref() != Ok("1")
-                {
+                if !s3_declared && !self.asset_store_config.s3_experimental() {
                     return Err(SnapbackError::error(
                         "SNAPBACK_ASSET_STORE_UNQUALIFIED",
                         "assets",
@@ -7509,13 +7598,15 @@ impl LocalSnapback {
                          an unqualified development posture",
                     ));
                 }
-                let config = crate::assets_s3::AssetS3Config::from_env()?;
+                let config = self.asset_store_config.s3()?;
                 Ok(std::sync::Arc::new(crate::assets_s3::AssetS3Store::new(
                     config,
                     Box::new(crate::assets_s3::UreqTransport),
                 )))
             }
-            _ => Ok(std::sync::Arc::new(self.asset_store()?)),
+            crate::assets_store::AssetStoreBackend::LocalFs => {
+                Ok(std::sync::Arc::new(self.asset_store()?))
+            }
         }
     }
 
@@ -19892,6 +19983,7 @@ impl LocalSnapback {
     fn from_database(
         mut db: LocalDatabase,
         telemetry_store_identity: Option<crate::telemetry::TelemetryStoreIdentity>,
+        asset_store_config: AssetStoreConfig,
     ) -> SnapbackResult<Self> {
         // LocalSnapback is the auth-capable embedding boundary. Complete the
         // explicit stream migration here, before the instance can disappear
@@ -20013,6 +20105,7 @@ impl LocalSnapback {
             std::sync::atomic::AtomicUsize::new(1);
         Ok(Self {
             db,
+            asset_store_config,
             stream_attempt_namespace: STREAM_ATTEMPT_NAMESPACE
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             asset_memory_store_root: std::sync::OnceLock::new(),

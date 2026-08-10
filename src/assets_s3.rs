@@ -48,9 +48,10 @@ pub struct AssetS3Config {
 }
 
 impl AssetS3Config {
-    /// Reads the `SNAPBACK_ASSET_S3_*` environment configuration. Secrets
-    /// arrive the same way other deployment configuration does and are
-    /// never logged or echoed into diagnostics.
+    /// Reads the `SNAPBACK_ASSET_S3_*` environment configuration once while
+    /// LocalSnapback assembles its immutable startup configuration. Secrets
+    /// are never logged or echoed into diagnostics, and store construction
+    /// consumes only the captured value.
     pub fn from_env() -> SnapbackResult<Self> {
         fn required(name: &str) -> SnapbackResult<String> {
             std::env::var(name).map_err(|_| {

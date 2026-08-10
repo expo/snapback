@@ -6312,7 +6312,11 @@ mod tests {
         let source = source_database(directory.path());
         let destination = directory.path().join("fork");
         publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
-        let mut fork = crate::local::LocalSnapback::open(destination.join("app.sqlite3")).unwrap();
+        let mut fork = crate::local::LocalSnapback::open_with_asset_store_backend_for_test(
+            destination.join("app.sqlite3"),
+            crate::assets_store::AssetStoreBackend::S3,
+        )
+        .unwrap();
         let manual_cron = match fork.claim_manual_cron_run("any-job", 43) {
             Ok(_) => panic!("a fork must never claim a manual cron run"),
             Err(error) => error,
@@ -6324,16 +6328,10 @@ mod tests {
         // Inherited provider configuration cannot turn a fork into an
         // outbound asset client: the provider-adapter selection point itself
         // refuses before any store is constructed.
-        let saved = std::env::var("SNAPBACK_ASSET_STORE").ok();
-        unsafe { std::env::set_var("SNAPBACK_ASSET_STORE", "s3") };
         let denied = match fork.asset_store_obj() {
             Ok(_) => panic!("a fork must never construct a provider asset store"),
             Err(error) => error,
         };
-        match saved {
-            Some(value) => unsafe { std::env::set_var("SNAPBACK_ASSET_STORE", value) },
-            None => unsafe { std::env::remove_var("SNAPBACK_ASSET_STORE") },
-        }
         assert_eq!(denied.diagnostic.code, "SNAPBACK_FORK_EGRESS_DENIED");
         assert_eq!(denied.diagnostic.details["family"], "asset_provider");
     }

@@ -9,6 +9,29 @@
 use crate::assets::AssetFsStore;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 
+/// The closed set of byte-store backends selectable for one LocalSnapback
+/// instance. Backend choice is captured at instance construction; asset paths
+/// never consult the process environment.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AssetStoreBackend {
+    LocalFs,
+    S3,
+}
+
+impl AssetStoreBackend {
+    pub(crate) fn parse_env_value(value: Option<&str>) -> SnapbackResult<Self> {
+        match value {
+            None | Some("local-fs") => Ok(Self::LocalFs),
+            Some("s3") => Ok(Self::S3),
+            Some(_) => Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_CONFIG_INVALID",
+                "assets",
+                "SNAPBACK_ASSET_STORE must be local-fs or s3",
+            )),
+        }
+    }
+}
+
 /// One object in the store, namespaced the way LLP 0044 separates custody:
 /// restricted staging, the canonical rewrite staged beside it (one custody
 /// unit with its source), and immutable published blobs.
@@ -355,7 +378,25 @@ impl AssetStore for AssetFsStore {
 
 #[cfg(test)]
 mod tests {
-    use super::{AssetObjectRef, AssetStore};
+    use super::{AssetObjectRef, AssetStore, AssetStoreBackend};
+
+    #[test]
+    fn asset_store_backend_config_parser_is_closed_without_process_env_mutation() {
+        assert_eq!(
+            AssetStoreBackend::parse_env_value(None).unwrap(),
+            AssetStoreBackend::LocalFs
+        );
+        assert_eq!(
+            AssetStoreBackend::parse_env_value(Some("local-fs")).unwrap(),
+            AssetStoreBackend::LocalFs
+        );
+        assert_eq!(
+            AssetStoreBackend::parse_env_value(Some("s3")).unwrap(),
+            AssetStoreBackend::S3
+        );
+        let error = AssetStoreBackend::parse_env_value(Some("unknown")).unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_STORE_CONFIG_INVALID");
+    }
 
     #[test]
     fn assets_store_durable_publication_replaces_canonical_and_keeps_blobs_immutable() {
