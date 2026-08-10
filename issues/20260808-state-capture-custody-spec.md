@@ -28,3 +28,13 @@ diagnostic should also name the missing sibling explicitly).
 
 Sequencing per OQ5 ruling: small independent lane, early — does not queue
 behind the D2/D4/D3 work.
+
+## Progress
+
+- **2026-08-10:** Drafted the standalone Spec as
+  [LLP 0228](../llp/0228-state-capture-custody.spec.md) (**Draft**). It
+  generalizes the custody manifest across `snapshot/backup`, `restore`,
+  `clone-for-test`, `fork`, and logical `export`, while leaving LLP 0158 as the
+  fork profile and conformance witness. The LLP 0005 review loop is the next
+  step. This note does **not** claim acceptance, implementation, or capability
+  publication.
