@@ -304,3 +304,72 @@ The blocker is not the architecture’s organizing idea. It is that several boun
 ## 5. Verdict
 
 VERDICT: NOT READY
+## Round 6 — 2026-08-10 (delta round; final extension round)
+
+- Reviewer: gpt-5 family — codex exec, model gpt-5.6-sol, reasoning xhigh,
+  read-only sandbox, --ignore-user-config.
+- Capsule: bare `git archive` export of commit `4f37cdd10` (sr-r6b).
+- Target revision: (h), sha256 prefix `ea8056b79b1dffcd`.
+- Verdict: **NOT READY** (3 MATERIAL: 2 IN-DELTA, 1 PRE-EXISTING). Loop
+  terminal at budget exhaustion; sustained asymmetry stands (claude READY
+  at revisions d, f, g, h — four consecutive; gpt-5 NOT READY at all six
+  rounds).
+
+### Verbatim review
+
+## 1. Summary
+
+The overall direction is sound: explicit identity namespaces, declared conversions, and a separate serial identity preserve Snapback’s local-first model while supporting relational migrations. Revision (h), however, introduces two material inconsistencies, and the existing document omits one identity namespace that directly participates in settlement. The decision is not yet implementation-safe.
+
+## 2. Direction assessment
+
+The central idea is right. Keeping `_id` as the canonical client-generable relationship key while making serials server-owned display/permalink identities agrees with the portable ID contract in [LLP 0007](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/llp/0007-storage-portability.spec.md:140) and Lane Q’s accepted client-generated IDs in [LLP 0133](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/llp/0133-local-settlement.spec.md:177). Treating conversions as trust boundaries and assigning amendments to existing owner LLPs is also the right architectural shape.
+
+The failures are boundary-definition problems, not a reason to abandon the direction.
+
+## 3. Concerns
+
+1. **MATERIAL — IN-DELTA: `store export` is classified as a fork-like sibling without reconciling the implemented export identity contract.**
+
+   Exact text at issue: “A booted `snapback store export` copy … begins a **divergent sibling lineage**” and is “classified with fork” ([target](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/llp/0226-identity-architecture.decision.md:188), lines 188–191).
+
+   Repository evidence conflicts with an unqualified fork classification:
+
+   - LLP 0192 defines export as a “faithful copy” carrying the “same sessions, same tokens, same admin authority” ([LLP 0192](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/llp/0192-store-durable-state-set.decision.md:121), lines 121–142).
+   - The operating guide says fork—not export—owns “lineage, scrubbing, and TTL,” and distinguishes export’s preserved identities from a fork’s rotated identities ([backup guide](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/guide/operating/backup-and-copy.md:195), lines 195–211).
+   - Export writes a descriptive manifest but performs no identity rotation ([store_state.rs](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/src/store_state.rs:476), lines 476–495). A targeted search found no startup path consuming that manifest to mint a new lineage.
+   - The actual fork path rotates both authorization and data-version streams ([instance_fork.rs](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/src/instance_fork.rs:1714), lines 1714–1764).
+
+   As written, one implementer could preserve all identities according to LLP 0192, while another could rotate them according to the new “classified with fork” language. Those produce materially different cursor, authority, settlement, and credential behavior.
+
+   Fix shape: either state explicitly that this is a **serial-comparison rule only**, with export retaining LLP 0192’s identities, or amend LLP 0192 and the export/start implementation with the exact identities, credentials, streams, and custody state that rotate. Do not use an unqualified fork classification for both products.
+
+2. **MATERIAL — IN-DELTA: bare row ID is incorrectly recommended as restore-immutable identity.**
+
+   Exact text at issue: “Apps that need external references immutable **across restores** use an identity-grade source key or the row id” ([target](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/llp/0226-identity-architecture.decision.md:181), lines 181–187).
+
+   The same document says `_id` is only a row address and that delete/recreate with the same value creates a new incarnation; lifetime-sensitive references require `(_id, rowIncarnation)` ([target](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/llp/0226-identity-architecture.decision.md:58), line 58; lines 102–114). LLP 0110 likewise requires a new incarnation whenever an application ID is reused and preserves that distinction through its registry ([LLP 0110](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/llp/0110-bounded-children-and-activity-patterns.spec.md:1002), lines 1002–1037; [lifecycle](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/llp/0110-bounded-children-and-activity-patterns.spec.md:1160), lines 1160–1178). Moreover, `_id` is client-mintable, and Lane Q accepts client-supplied values ([LLP 0007](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/llp/0007-storage-portability.spec.md:140), lines 140–155; [LLP 0133](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/llp/0133-local-settlement.spec.md:177), lines 177–189).
+
+   Restoring an earlier snapshot can therefore lose a later incarnation and permit the same `_id` to designate a fresh lifetime. Bare `_id` can retarget across restore just as the serial can.
+
+   Fix shape: require `(_id, rowIncarnation)` for lifetime- and restore-immutable references, or an identity-grade source key whose non-reuse authority explicitly survives Snapback restore. Clarify that a unique index in the restored snapshot alone cannot establish across-restore non-reuse.
+
+3. **MATERIAL — PRE-EXISTING: `authorityInstanceId` is a load-bearing identity namespace but is absent from the namespace model.**
+
+   Exact text at issue: the settlement row includes `authorityInstanceId` in its digest ([target](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/llp/0226-identity-architecture.decision.md:64), line 64), while the table claims to answer provenance, uniqueness, mutability, and surface for the identity architecture (lines 52–67), and M-1 requires one admitting authority for “each namespace” (lines 153–158). No authority-instance row exists.
+
+   This identity is not equivalent to the document’s data `versionStream`. Its provenance varies by authority class: stored session/revalidated authority ID, a derived service-authority ID, or the authorization-stream incarnation for anonymous/dev/admin/system authority ([descriptor.rs](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/src/auth/descriptor.rs:15), lines 15–82). Service authority uses a distinct derived `aut_…` identity ([LLP 0148](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/llp/0148-prefixed-identifiers.decision.md:286), lines 286–293). LLP 0043 makes the authority-instance descriptor the owner of queued mutations and specifies its rotation behavior ([LLP 0043](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/llp/0043-offline-replay-retention.rfc.md:524), lines 524–531).
+
+   This omission leaves implementers guessing whether authority identity is principal, session, stream, instance, or settlement identity—a plausible wrong guess with replay consequences.
+
+   Fix shape: add an **invocation-authority identity** row defining its variant-specific provenance, scope, stability/rotation rules, opaque surface, and relationship to principal, authorization stream, data stream, and settlement identity. Then apply M-1 and the export/fork/restore rules to it explicitly.
+
+## 4. Verifications performed
+
+- Read the complete target, including revision (h)’s authoritative delta enumeration and surrounding pre-existing decisions.
+- Checked the root architecture and governing LLPs for portable IDs, settlement lanes, row incarnations, sequence allocation, prefixed identifiers, forking, export, and offline replay.
+- Inspected the implemented export, fork, restore-stream rotation, authority-descriptor, and settlement identity paths.
+- Confirmed destructive restore rotates the authorization and data-version streams in one transaction ([storage/auth.rs](/Users/ccheever/projects/snapback-worktrees/sr-r6b-capsule/src/storage/auth.rs:1367), lines 1367–1384).
+- This was a static, read-only review. I did not build, run tests, modify files, or open review artifacts. The future serial-schema successor is not implemented, so its mechanics could only be checked for internal completeness and consistency with existing owner contracts.
+
+VERDICT: NOT READY

@@ -169,3 +169,50 @@ The direction is right. The distributed structure — one Decision holding vocab
 **5. Verdict**
 
 VERDICT: READY
+
+## Round 6 — 2026-08-10 (delta round; final extension round)
+
+- Reviewer: claude family — fresh general-purpose subagent, model
+  claude-fable-5.
+- Capsule: bare `git archive` export of commit `4f37cdd10` (sr-r6b).
+- Target revision: (h), sha256 prefix `ea8056b79b1dffcd`.
+- Verdict: **READY** (0 MATERIAL; binds to the capsule/target hashes above).
+
+### Verbatim review
+
+**Summary**
+
+Revision (h) is a narrow, well-targeted delta: it states the restore-rewind consequence inside M-3 itself (serial = PostgreSQL sequence-in-backup, no stronger), rescopes §1's serial "never share" claim to within-lineage-at-every-instant, classifies booted `snapback store export` copies (LLP 0192) with fork as divergent sibling lineages, and moves the lifetime-sensitive qualifier next to the `_id`-only fallback prohibition. I verified the delta's new claims against LLP 0192 (the export verb boots directly and is a faithful byte-carrying copy, so it does continue the snapshot's high-water), and re-verified the load-bearing surrounding claims against LLP 0007/0110/0133/0135/0148/0151/0057/0158/0163, the cited tickets, the guide recipe, and the shipped settlement digest in `src/storage.rs`. Everything checked matches. The concerns I found are wording-precision and housekeeping items, none identifying a defective decision.
+
+**Direction assessment**
+
+The direction is right, and the (h) additions strengthen it in exactly the honest way this Decision has been evolving: instead of an unqualified "two visible rows can never share one" claim, the serial contract now names its true strength (within one lineage, at any instant, with the across-restore permalink re-mint consequence stated plainly and an escape route named). Classifying the LLP 0192 export copy with fork is correct — LLP 0192 D-2 (`llp/0192-store-durable-state-set.decision.md` lines 121–166) defines the export as a directory that "boots directly" and is a "faithful copy," so its database bytes necessarily carry the counter high-water, making "divergent sibling lineage continuing the snapshot's high-water" the only sound classification. The refusal of logical export/import for serial-bearing stores pending an LLP 0007 portable-carriage amendment is consistent with LLP 0007's own posture (its "Export and Engine Graduation" section, lines 760–774, names atomic logical import as a first-class open design problem). The overall namespace/conversion/mint structure remains sound and matched what I could verify in the repo.
+
+**Concerns**
+
+1. **implementation-phase, IN-DELTA — the two `_id`-only fallback boundary clauses draw slightly different boundaries.** In "What this Decision does not decide" (lines 376–379): "an `_id`-only fallback is prohibited for **lifetime-sensitive** durable or queued references … and is permitted only for explicitly non-lifetime-sensitive interactive operations." For a *non*-lifetime-sensitive durable/queued reference on an incarnation-lacking table, clause 1's qualifier implies it escapes the prohibition while clause 2's "permitted only … interactive" excludes it. A coherent reading exists (the passage is scoped "where lifetime matters," clause 2 is the complete rule, clause 1 emphasizes the worst case), and the passage explicitly delegates the boundary to the amendment "stated normatively" — so no decision is defective — but since (h) moved the qualifier here, one clause of tightening (e.g., drop "interactive" or restate the two-cell rule once) would remove the amendment author's only remaining guess in this passage.
+
+2. **implementation-phase, IN-DELTA — export siblings share stream identity, so C-5's distinguishing mechanism is endpoint-only for them.** M-3 says the export copy is "never comparable to its source (C-5, LLP 0158 OQ9)," and C-5 says apps distinguish instances by "endpoint + stream identity." For fork, LLP 0158 actively mints a new stream identity ("new stream identity minted so cursors cannot cross," `llp/0158-instance-forking.rfc.md` line 495). LLP 0192's export, by contrast, is a faithful copy — "same sessions, same tokens, same admin authority" (line 140), with `resume-keyring.json` carried (line 98) — so a booted export sibling shares its source's stream identity and only the endpoint distinguishes them; nothing at substrate level prevents source-issued cursors/resume tokens from reaching the copy. The lineage classification decided here is correct and the non-comparability rule is app-conformance in both cases, but the mechanism asymmetry belongs to the LLP 0192/0158 owners; a parenthetical or a task pointer (as M-3 already does for the logical-import gap) would keep the reader from assuming fork's cursor-isolation property transfers to exports.
+
+3. **implementation-phase, IN-DELTA — "immutable across restores" via identity-grade keys is retarget-proof, not dangling-proof.** M-3's new escape route ("Apps that need external references immutable **across restores** use an identity-grade source key or the row id," lines 186–188) is directionally right — random-bodied ids and identity-grade keys cannot silently re-mint for a different row the way a rewound serial certainly can — but a rewind can still erase the referent (dangling reference), and an app minting identity-grade keys deterministically could re-mint after a rewind since the restore erases the "never reused" evidence. Fine to leave to the guide/amendment; noting for precision.
+
+4. **implementation-phase, IN-DELTA — LLP 0192 is now cited normatively but absent from Related.** Revision (h) makes M-3 depend on LLP 0192's export semantics, but the `**Related:**` header (lines 19–25) does not list LLP 0192. Metadata housekeeping per the corpus conventions.
+
+No PRE-EXISTING MATERIAL concerns found: the previously reviewed claims I spot-verified all held (see below), including the ones the delta touches from context.
+
+**Verifications performed**
+
+- `llp/0192-store-durable-state-set.decision.md` D-2 (lines 121–166): export boots directly, faithful copy, WAL-consistent online backup, offline-under-lock; `Refuse` disposition for lineage-bearing members (lines 109–119); push-token custody D-3. Confirms the delta's "booted store export copy" premise and high-water carriage.
+- `llp/0007-storage-portability.spec.md`: 2026-08-08 "closed string domains and the identity-column boundary" amendment (lines 903, 941–977, requiring gap semantics/exhaustion/0135-relationship — as §4 restates); JavaScript-safe integer profile (lines 117, 352); logical portable bundle / atomic import as open design (lines 760–774).
+- `llp/0135-sequence-allocation-and-snapshot-batch.spec.md`: §1.1 protected framework table `_snapback_sequence_counters_v1`, "no authored start" (lines 225–280); §1.5 exhaustion — `SNAPBACK_SEQUENCE_EXHAUSTED`, in-transaction refusal rolling back source/scope/counter/commit/settlement (lines 432–449, also confirming the "un-burns on rollback" reservation-timing question is real); §1.9 cross-scope/global not lifted (lines 591–606); OQ2 = multiple allocations per invocation (lines 1376–1377).
+- `src/storage.rs` lines 955–1004: settlement digest preimage exactly matches §1's row — base `{authFingerprint, authorityInstanceId, clientMutationId, function, inputFingerprint}`, issuance-bearing adds `artifactGenerationDigest` + `operationIssuance`. `llp/0043-offline-replay-retention.rfc.md` lines 464–486: `ctx.mutation.settlement()` surface; its enumeration (lines 473–474) indeed still omits `artifactGenerationDigest`, exactly as lane (c) states.
+- `llp/0133-local-settlement.spec.md`: `{generatedIds, now}` pin (lines 125, 181), `(mint site, occurrence)` map with unmapped/cascade rules (lines 39–43, 448–476). `llp/0110-...spec.md`: host-minted incarnations in `_snapback_relation_incarnations_v1`, registered protected-relation parents only (lines 212–233) — supports the "today's registry" claim.
+- `llp/0158-instance-forking.rfc.md`: OQ9 decided, same-`appId` derived deployment, new stream identity minted (lines 206, 493–495).
+- `usr_`/`idn_` prefixes real (`llp/0057` lines 272, 1804; `llp/0148`); `(issuer, subject)` / per-provider subject / email-code model (`llp/0151` lines 366–406, 471–480).
+- Naming ruling: repo-wide search for `serial` found only auth-keyring field names in hosted control payloads (`packages/snapback-cli/hosted-control.mjs:75`, `packages/snapback-hosted-supervisor/supervisor-response.mjs:44`) — nothing on the validator surface or schema grammar, so the "no conflicting use" claim holds.
+- Referenced tickets exist, including the 2026-08-10 wholesale author ruling with `v.serial({ start })` in `issues/20260808-numeric-identity-default-columns.md` (lines 90, 109–117), and `guide/auth/app-identity-binding.md` exists.
+- Not verified (no git history in this capsule): the (g)→(h) diff itself; I relied on the header/Status enumeration as the authoritative delta list per the review instructions.
+
+**Verdict**
+
+VERDICT: READY

@@ -284,3 +284,88 @@ The whole idea is right. Incremental strangler-style extraction preserves accumu
 - Did not read `llp/reviews/`, did not inspect another worktree, and made no file changes. I did not execute Rust tests because this checkout is read-only and a build would create artifacts.
 
 VERDICT: NOT READY
+## Round 6 — 2026-08-10 (delta round; final extension round)
+
+- Reviewer: gpt-5 family — codex exec, model gpt-5.6-sol, reasoning xhigh,
+  read-only sandbox, --ignore-user-config.
+- Capsule: bare `git archive` export of commit `570d833ca` (sr-r6).
+- Target revision: (h), sha256 prefix `38a0b422715c568d`.
+- Verdict: **NOT READY** (3 MATERIAL, all IN-DELTA). Loop terminal at
+  budget exhaustion; sustained asymmetry stands (claude READY at revisions
+  b, c, f, g; gpt-5 NOT READY at all six rounds, concerns narrowing each
+  round into gate-implementation protocol spec).
+
+### Verbatim review
+
+## 1. Summary
+
+The core direction is right: incremental semantic extraction, a strict ownership graph, kernel-owned commits, and no rewrite fit both the repository’s architecture and its operating constraints. Revision (h), however, leaves three material defects in the new enforcement and reopen rules. An implementer could still build an enforcement arm that launders new forbidden edges, and the proposed reopen state machine lacks both an intent discriminator and an honest closure condition.
+
+## 2. Direction assessment
+
+The seven-owner model is a sound decomposition of the current system. The checked-in manifest implements the stated layers and dependencies ([ownership.manifest.json](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/ownership.manifest.json:27), lines 27–99), while the four remaining `unassigned` files accurately expose rather than disguise the god-file residue (lines 341–346).
+
+The first slice also validates the approach: `GenerationActivation` coordinates ordering while delegating durable state to kernel operations ([src/generation_activation.rs](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/src/generation_activation.rs:39), lines 39–59 and 92–138), and `commit_function_generation` owns the SQLite transaction and durable record ([src/storage.rs](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/src/storage.rs:2590), lines 2590–2691). This is preferable to either cosmetic splitting or a rewrite, and it preserves the root LLP’s agent-feedback and accumulated-contract priorities ([LLP 0000](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/llp/0000-snapback.explainer.md:734), lines 734–755).
+
+I would retain the overall architecture and migration direction. The blockers are in revision (h)’s enforcement and recovery mechanics, not in the ownership model.
+
+## 3. Concerns
+
+1. **MATERIAL — IN-DELTA: the new `V(R)` definition still permits baseline laundering.**
+
+   Exact text at issue: “the *outstanding set* `V(R)` is … forbidden edges present at R **and not admitted by R’s committed baseline or waivers**,” followed by “The gate blocks `V(P) − V(B)`” ([LLP 0225 §5](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/llp/0225-core-modularization.decision.md:385), lines 385–395).
+
+   If a push introduces forbidden edge `e` and regenerates the pushed baseline to contain `e`, then `e ∉ V(P)` by definition. It can never appear in `V(P) − V(B)`, so the specified comparison does not block it. That is exactly the existing defect: `--update-baseline` serializes the complete current edge graph without predecessor validation ([check-module-ownership.mjs](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/scripts/check-module-ownership.mjs:439), lines 439–446 and 461–463), and the repository ticket explicitly demonstrates that a new forbidden edge plus regenerated baseline passes ([analyzer-gap ticket](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/issues/20260810-ownership-gate-analyzer-gaps.md:22), lines 22–25). This contradicts §2’s monotonic-baseline rule ([LLP 0225](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/llp/0225-core-modularization.decision.md:173), lines 173–192).
+
+   The waiver clause is also internally dead: because `V` already excludes waived edges, “unless each member carries an exact approved waiver” cannot apply to a member of `V(P) − V(B)`.
+
+   Fix shape: define the raw forbidden set separately from admitted exceptions, and validate the baseline-exception delta before calculating outstanding reds. Any addition to the pushed baseline must either map, with machine-checkable provenance, to a forbidden edge already present at the merge-base—relocation/analyzer re-key—or carry an exact approved waiver. Only after that validation should baseline and waiver sets be subtracted for inherited-red attribution.
+
+2. **MATERIAL — IN-DELTA: digest equality cannot distinguish recovery intent from successor-deployment intent.**
+
+   Exact text at issue: “the first artifact load after reopen verifies against the persisted record’s digests and refuses on mismatch,” while “recovery reload is distinguished from intentional successor deployment by that digest match” and a successor is a new commit ([LLP 0225 OQ-C](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/llp/0225-core-modularization.decision.md:491), lines 491–502).
+
+   A mismatching first load can mean either an invalid recovery attempt—which must refuse—or an intentional successor—which must be allowed to perform a new composite commit. Digest comparison reveals content, not caller intent. Conversely, an intentional same-content deployment is indistinguishable from recovery.
+
+   The current surface supplies no discriminator: `LocalSnapback::load_functions` is one operation and always enters generation activation ([src/local.rs](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/src/local.rs:4414), lines 4414–4494), and the dev server exposes that same `functions.load` path ([src/server.rs](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/src/server.rs:19774), lines 19774–19797). The kernel currently advances the durable high-water even when the manifest digest is unchanged ([src/storage/tests.rs](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/src/storage/tests.rs:3398), lines 3398–3409).
+
+   Fix shape: pin an explicit recovery-versus-successor input—separate operations, an intent field, or an equivalently unambiguous state transition. Recovery must exact-match the durable record and not advance its high-water; successor deployment must be explicitly selected and use the normal commit path, including when its content happens to match.
+
+3. **MATERIAL — IN-DELTA: acceptance is said to end the reopen exception without requiring its implementation.**
+
+   Exact text at issue: “Whichever arm is ruled, the ruling lands at or before this document’s acceptance — the recorded-exception status ends there” ([LLP 0225 OQ-C](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/llp/0225-core-modularization.decision.md:502), lines 502–504). Yet the preceding text says the owning slice “must then pin” the state machine and makes full-process tests that slice’s acceptance, rather than this Decision’s acceptance.
+
+   Production reopen still installs `FunctionManifest::default()` and `functions_loaded: false` without consuming the durable generation record ([src/local.rs](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/src/local.rs:19913), lines 19913–19919 and 19950–19962). The record accessor remains dead-code-allowed ([src/storage.rs](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/src/storage.rs:2694), lines 2694–2717), and the implementation ticket is still open ([raw-dev/reopen ticket](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/issues/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md:23), lines 23–34).
+
+   A product ruling resolves the open question but does not make the current code satisfy the chosen contract. Fix shape: either require implementation and the full-process acceptance tests in the Decision-acceptance landing, or state that acceptance closes OQ-C while converting it into a normative implementation exception that remains open until the owning slice and proof land.
+
+4. **implementation-phase — IN-DELTA: the named implementation ticket does not track revision (h)’s protocol.**
+
+   Exact text at issue: the analyzer-gap ticket “tracks both” new enforcement requirements ([LLP 0225 §5](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/llp/0225-core-modularization.decision.md:395), lines 395–402).
+
+   The ticket still calls for comparison against the “last GREEN baseline” and for backstop ticket filing or refresh on allowed pushes ([analyzer-gap ticket](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/issues/20260810-ownership-gate-analyzer-gaps.md:38), lines 38–49). It does not record revision (h)’s same-analyzer snapshot semantics, canonical fingerprints, pushed-tree ticket requirement, observation revision, or baseline re-key treatment.
+
+   Fix shape: update the ticket with explicit acceptance items matching the final set and ticket protocol.
+
+5. **implementation-phase — PRE-EXISTING: several governing references are wrong.**
+
+   The document identifies “LLP 0059” as the single-writer locking/linearization authority in its header and invariant/transaction sections ([LLP 0225](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/llp/0225-core-modularization.decision.md:23), lines 23–29, 79–84, and 199–205). The repository’s LLP 0059 is actually “Session projection and client authority barrier protocol” ([LLP 0059](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/llp/0059-session-projection-and-client-barrier.spec.md:1), lines 1–5). The canonical local single-writer rule is stated in LLP 0003 ([LLP 0003](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/llp/0003-local-code-hosting-and-storage-core.rfc.md:422), lines 422–449).
+
+   Likewise, “single amendment point for the ownership map and dependency direction (§6)” points to the cosmetic-versus-semantic section; the actual amendment rule is in §5, and the map/direction are §§1–2 ([LLP 0225](/Users/ccheever/projects/snapback-worktrees/sr-r6-capsule/llp/0225-core-modularization.decision.md:64), lines 64–70 and 419–430).
+
+   Fix shape: replace the LLP 0059 citations with the actual single-writer authority and correct the section pointer.
+
+## 4. Verifications performed
+
+- Read revision (h)’s authoritative enumeration first, then all 587 lines of the target.
+- Compared the complete accepted LLP 0199, the commissioning issue, and relevant root-LLP invariants.
+- Inspected the ownership manifest, baseline schema, analyzer, selection policy, pre-push attribution runner, and both implementation tickets.
+- Ran `node scripts/check-module-ownership.mjs`; it currently reports two unbaselined forbidden edges: `src/auth/rehearsal.rs → src/secure_file.rs` and `src/storage/auth_rehearsal.rs → src/admin.rs`.
+- Inspected generation activation, durable record/high-water handling, production reopen construction, the server load surface, and relevant kernel/full-process tests.
+- Did not run the Rust proof suite in the read-only checkout, so I did not independently re-establish the document’s broader “affected proof green” or exact legacy-ordering claims.
+- No files were modified.
+- A broad search whose exclusion pattern was incorrect surfaced snippets from unrelated `llp/reviews/` files. No LLP 0225 review content surfaced, and none of those snippets was used as evidence or reasoning here.
+
+## 5. Verdict
+
+VERDICT: NOT READY

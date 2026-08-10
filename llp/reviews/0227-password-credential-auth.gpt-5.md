@@ -405,3 +405,82 @@ The direction should proceed, but only after the overlapping identity-core and e
 ## 5. Verdict
 
 VERDICT: NOT READY
+## Round 5 — 2026-08-10 (delta round; author-extended budget)
+
+- Reviewer: gpt-5 family — codex exec, model gpt-5.6-sol, reasoning xhigh,
+  read-only sandbox, --ignore-user-config.
+- Capsule: bare `git archive` export of commit `4bf2e1e88` (sr-r5b).
+- Target revision: (g), sha256 prefix `be573b5559350916`.
+- Verdict: **NOT READY** (5 MATERIAL, all IN-DELTA).
+
+### Verbatim review
+
+## 1. Summary
+
+The overall architecture is sound, and revision (g) improves the design by separating lockout state from rate-budget authority, closing the password-change proof union, and gating implementation on catalog reconciliation. It is not yet implementation-ready: the revised lockout contract contradicts itself, budget behavior remains underspecified, and the new step-up and route-policy surfaces still require security-significant guesses.
+
+## 2. Direction assessment
+
+The direction is right. A built-in password credential class layered onto the existing identity/session core, with separate identities and authenticators, structural pre-hijack protection, Argon2 work outside write transactions, explicit predecessor linkage, first-class client coordination, and a catalog reconciliation gate fits Snapback’s server-authoritative and agent-first design.
+
+The remaining problems are specification completeness and consistency rather than a flawed premise.
+
+## 3. Concerns
+
+1. **MATERIAL — IN-DELTA: The public lockout contract is internally contradictory and risks creating an enumeration oracle.**
+
+   The revised table says `LOCKED` is “internal/admin only” and that locked attempts return `PASSWORD_INVALID`; the prose likewise requires identical public responses for wrong passwords, nonexistent accounts, and locked accounts. But the algorithm then says the threshold-crossing transaction “returns `PASSWORD_LOCKED`.” It also permits lock state through “`authProgramReadiness`-class observability.” See [LLP 0227, lines 376–408](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0227-password-credential-auth.rfc.md:376).
+
+   This is dangerous because `/inspect` currently publishes `authProgramReadiness` without admin authorization ([server.rs, lines 19649–19677](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/src/server.rs:19649)), while readiness is a publicly serializable aggregate ([mode.rs, lines 371–388](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/src/auth/mode.rs:371). LLP 0214 separately requires one uniform public credential-invalid response and reserves internal causes for gated operator visibility ([LLP 0214, lines 2048–2076](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0214-complete-auth-identity-core.rfc.md:2048)).
+
+   Fix shape: state unambiguously that the threshold-crossing and already-locked requests both return the same public invalid-credential response; make `PASSWORD_LOCKED` an internal transaction outcome only. Restrict address/account-specific lock facts to an authenticated admin projection, and explicitly prohibit them from public `authProgramReadiness`.
+
+2. **MATERIAL — IN-DELTA: The attempted separation between lockout state and LLP 0215 rate budgets is incomplete and contradictory.**
+
+   Revision (g) says the attempt ledger has “exactly one job” and is not rate-budget authority, but later calls that same ledger “the declared substrate for password-path budgets.” Its schema retains `window_start_ms`, and the transaction algorithm refers to “window rollover,” without defining the lockout window’s duration or rollover semantics after `admitted_count` was removed. See [LLP 0227, lines 92–123](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0227-password-credential-auth.rfc.md:92) and [lines 382–408](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0227-password-credential-auth.rfc.md:382).
+
+   LLP 0215 requires every admitted effect to have a finite rule ([LLP 0215, lines 193–201](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0215-rate-budget-doctrine.rfc.md:193)), defines the canonical password-relevant budget names ([lines 408–434](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0215-rate-budget-doctrine.rfc.md:408)), and explicitly leaves password numeric defaults unresolved rather than supplying an interim policy ([lines 1170–1211](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0215-rate-budget-doctrine.rfc.md:1170)). Current code contains the canonical enum names but only realizes compatibility policies for the email-code path ([throttle.rs, lines 149–229](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/src/auth/throttle.rs:149)).
+
+   Fix shape: add an exact per-operation table for signup, signin, set, change, and reset, specifying budget name, axes, counter strategy, charge point, idempotency behavior, profile terms, storage authority, and canonical refusal code. Remove the assertion that the lockout ledger is budget substrate, or deliberately merge the mechanisms and specify the combined invariant. Define or remove the remaining lockout-window fields and rollover behavior.
+
+3. **MATERIAL — IN-DELTA: The promised exact LLP 0031 route-policy tuples are not actually specified.**
+
+   The RFC says each route must declare the complete tuple, but then says credential resolution “may need a new closed resolution case” and otherwise relies on “the following predecessor.” That leaves implementers to invent a security-critical enum case and infer policy axes separately for each route. See [LLP 0227, lines 188–206](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0227-password-credential-auth.rfc.md:188).
+
+   LLP 0031 treats credential resolution, session behavior, origin policy, idempotency, body sensitivity, and effect policy as independent exact axes ([LLP 0031, lines 219–268](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0031-route-policy-registry.rfc.md:219)); current `RouteSpec` entries encode those decisions concretely ([server.rs, lines 8083–8124](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/src/server.rs:8083)).
+
+   Fix shape: provide one complete tuple per password route and for the step-up request route. Name and define every new closed `CredentialResolution` and effect-policy case, including body-log sensitivity and session-overlay behavior.
+
+4. **MATERIAL — IN-DELTA: The new `authPasswordSet` flow lacks an end-to-end way to acquire its required proof.**
+
+   Revision (g) adds `authPasswordSet({ newPassword, stepUp })` and a `passwordSet { identityId }` step-up case, while requiring the challenge to use the acting principal’s named email identity. See [LLP 0227, lines 233–237](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0227-password-credential-auth.rfc.md:233) and [lines 279–307](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0227-password-credential-auth.rfc.md:279).
+
+   The current step-up request union has only grant approval, agent invitation, and effect approval ([server.rs, lines 14127–14144](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/src/server.rs:14127)). More importantly, current storage lookup derives the step-up address from the session’s own identity and requires that identity to be `email-code` ([auth_catalog_ops.rs, lines 94–126](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/src/storage/auth_catalog_ops.rs:94)). That cannot implement the RFC’s named-owned-email rule for a broker-origin session. Client session projections also omit `identityId` ([snapback-client/index.mjs, lines 1552–1580](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/packages/snapback-client/index.mjs:1552)).
+
+   Fix shape: specify the request DTO and client method that obtains a password-set step-up challenge, the supported identity-discovery or selection mechanism, and server lookup by a named email identity owned by the session principal rather than by session origin. Add acceptance cases for broker-origin sessions and principals with multiple email identities.
+
+5. **MATERIAL — IN-DELTA: The new catalog reconciliation gate is too narrow to resolve the normative conflict with LLP 0214.**
+
+   Revision (g) gates implementation on one composed catalog descriptor and marker, which resolves storage ownership but not the competing protocol definitions ([LLP 0227, lines 131–160](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0227-password-credential-auth.rfc.md:131)). LLP 0214 identifies its transition floor as the single source of truth ([LLP 0214, lines 1978–1980](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0214-complete-auth-identity-core.rfc.md:1978)), yet specifies different password route decomposition ([lines 2275–2466](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0214-complete-auth-identity-core.rfc.md:2275)), `SNAPBACK_AUTH_CREDENTIAL_INVALID` rather than `SNAPBACK_AUTH_PASSWORD_INVALID`, and different policy-error vocabulary ([lines 2850–2888](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0214-complete-auth-identity-core.rfc.md:2850)).
+
+   Fix shape: extend the gate from catalog reconciliation to a single composed password-auth protocol. Explicitly resolve precedence for routes, DTOs, error codes, budget names, identity/session provenance, and recovery behavior, either by amending LLP 0214 or by declaring exactly which normative slice LLP 0227 replaces.
+
+6. **implementation-phase — PRE-EXISTING: Production signup posture is stated both as decided and open.**
+
+   The threat analysis says production signup “is blind-accept,” while the open-questions section asks whether production should use blind acceptance or an `EXISTS` response. See [LLP 0227, lines 440–455](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0227-password-credential-auth.rfc.md:440) and [lines 520–530](/Users/ccheever/projects/snapback-worktrees/sr-r5b-capsule/llp/0227-password-credential-auth.rfc.md:520).
+
+   This does not block the explicitly local-only first slice, but it should be reconciled before production enablement. Fix shape: either make blind acceptance the ruling and close the question, or label the threat-analysis statement as the proposed default pending a production decision.
+
+## 4. Verifications performed
+
+- Read the complete target, including revision (g)’s enumerated delta and status history, in the context of the complete root LLP.
+- Checked LLPs 0031, 0057, 0059, 0151, 0214, and 0215 against the relevant route, identity, session, catalog, error, and budget claims.
+- Inspected current server route registration, step-up DTOs, session projections, auth catalog operations, public readiness exposure, client methods, and throttle implementation.
+- Confirmed the catalog-v3 implementation is still blocked by the recorded repository issue and that the guide has no implemented password-auth capability row.
+- Confirmed the cited benchmark record and commissioning issue.
+- Ran `./ref-check --verbose`: 228 LLP documents and 4,804 references checked with zero errors.
+- Did not externally verify the cited OWASP or NIST guidance because this review was restricted to the checkout. No files were modified.
+
+## 5. Verdict
+
+VERDICT: NOT READY
