@@ -1437,8 +1437,8 @@ mod tests {
         db.conn
             .execute(
                 "INSERT INTO _auth_identities(
-                   id, user_id, provider, subject, verified_at_ms
-                 ) VALUES('wrong-class', 'human-1', 'agent-credential', 'credential-x', 0)",
+                   id, user_id, kind, provider, subject, created_at_ms, verified_at_ms
+                 ) VALUES('wrong-class', 'human-1', 'external', 'agent-credential', 'credential-x', 0, 0)",
                 [],
             )
             .unwrap();
@@ -1453,8 +1453,8 @@ mod tests {
         db.conn
             .execute(
                 "INSERT INTO _auth_identities(
-                   id, user_id, provider, subject, verified_at_ms
-                 ) VALUES('identity-1', 'human-1', 'email-code', 'human@example.com', 0)",
+                   id, user_id, kind, provider, subject, canonical_value, created_at_ms, verified_at_ms
+                 ) VALUES('identity-1', 'human-1', 'email', 'email-code', 'human@example.com', 'human@example.com', 0, 0)",
                 [],
             )
             .unwrap();
@@ -1512,17 +1512,17 @@ mod tests {
 
     #[test]
     fn catalog_refuses_a_version_above_this_binary_understanding() {
-        // Refuse-at-open: a fresh catalog is v2 and recognized; a marker naming a
+        // Refuse-at-open: a fresh catalog is v3 and recognized; a marker naming a
         // higher version must fail closed rather than reopen "without agents".
         let db = ready_database();
         assert_eq!(
             db.inspect_auth_catalog().unwrap(),
-            crate::storage::auth::AuthCatalogState::ReadyV2
+            crate::storage::auth::AuthCatalogState::ReadyV3
         );
-        assert_eq!(AUTH_CATALOG_VERSION, "2");
+        assert_eq!(AUTH_CATALOG_VERSION, "3");
         db.conn
             .execute(
-                "UPDATE _snapback_meta SET value = '3' WHERE key = 'auth_catalog_version'",
+                "UPDATE _snapback_meta SET value = '4' WHERE key = 'auth_catalog_version'",
                 [],
             )
             .expect("bump marker above understanding");

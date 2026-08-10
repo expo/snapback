@@ -33,6 +33,7 @@ const PUSH_SEAM = Symbol('snapback.pushSeam');
 // the isolated evaluator deliberately admits exactly one symbol marker per
 // definition and rejects any additional hidden carrier.
 const RELATIONAL_PAGES = new WeakMap();
+const AUTH_PROGRAMS = new WeakSet();
 const OBJECT_GET_PROTOTYPE_OF = Object.getPrototypeOf;
 const REFLECT_APPLY = Reflect.apply;
 const ARRAY_SLICE = Array.prototype.slice;
@@ -45,6 +46,9 @@ const isUserIdentifier = (value) => {
   return folded !== '_auth' && !folded.startsWith('_auth_');
 };
 const AUTH_MODES = new Set(['dev', 'sessions']);
+const AUTH_ASSURANCE_KINDS = new Set([
+  'authenticated', 'email_verified', 'phone_verified', 'recent_auth', 'phishing_resistant',
+]);
 const AGENT_REGISTRATION_MODES = new Set(['disabled', 'invited', 'open']);
 const AGENT_INVITERS = new Set(['operators', 'users']);
 const API_DISCLOSURES = new Set(['exposed-only', 'full']);
@@ -63,7 +67,7 @@ const AUTHORIZATION_DIMENSIONS = new Set([
 const QUERY_SPEC_FIELDS = new Set([
   'table', 'args', 'filter', 'order', 'limit', 'index', 'defaultLive',
   'auth', 'authorityIndependent', 'publicInline', 'retainable', 'refusals', 'trackedRefusals',
-  'authScopeField', 'membership', 'standardPattern',
+  'authScopeField', 'membership', 'standardPattern', 'requires',
 ]);
 
 // @ref LLP 0065#3-common-pattern-contracts — every standard-pattern helper
@@ -118,7 +122,7 @@ function normalizeStandardPattern(spec, kind) {
 const JS_QUERY_SPEC_FIELDS = new Set([
   'args', 'source', 'exportName', 'handler', 'reads', 'result', 'authScopeField',
   'defaultLive', 'auth', 'authorityIndependent', 'retainable', 'refusals', 'trackedRefusals',
-  'authorizationDependence',
+  'authorizationDependence', 'requires',
 ]);
 const TARGET_CAPABILITIES = new Set([
   'auth.sessions.v1',
@@ -218,6 +222,16 @@ function authoredFunctionAuth(spec, kind) {
   if (spec.auth !== undefined) {
     assert(AUTH_REQUIREMENTS.has(spec.auth), `${kind} auth must be public, optional-user, or authenticated`);
     fields.auth = spec.auth;
+  }
+  if (spec.requires !== undefined) {
+    assert(Array.isArray(spec.requires), `${kind} requires must be an array`);
+    assert(spec.auth === 'authenticated', `${kind} assurance requires need auth: authenticated`);
+    assert(
+      spec.requires.every((requirement) => typeof requirement === 'string' && requirement.length > 0),
+      `${kind} requires entries must be non-empty names`,
+    );
+    assert(new Set(spec.requires).size === spec.requires.length, `${kind} requires must not repeat names`);
+    fields.requires = [...spec.requires];
   }
   if (spec.authorityIndependent !== undefined) {
     assert(typeof spec.authorityIndependent === 'boolean', `${kind} authorityIndependent must be boolean`);
@@ -1427,6 +1441,163 @@ export function definePushSeam(spec) {
   };
 }
 
+function rejectLiteralAuthSecrets(value, where) {
+  if (!value || typeof value !== 'object') return;
+  for (const [name, child] of Object.entries(value)) {
+    if (/(?:secret|password|privateKey|accessToken|refreshToken|clientSecret)$/iu.test(name)) {
+      assert(false, `${where}.${name} must be a secretReferences name, not a literal`, 'SNAPBACK_AUTH_LITERAL_SECRET_FORBIDDEN');
+    }
+    rejectLiteralAuthSecrets(child, `${where}.${name}`);
+  }
+}
+
+// @ref LLP 0214#11-guest-first-template-posture — starters opt into the
+// explicit guest-first retention policy; the platform default stays disabled.
+export const AUTH_DEFAULT_UNCLAIMED_GUEST_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
+
+// @ref LLP 0214#21-one-source-declaration — the floor auth program is closed,
+// secret-reference-only, and normalized before it can enter an artifact.
+export function defineAuth(program) {
+  assert(program && typeof program === 'object' && !Array.isArray(program), 'defineAuth expects an object');
+  exactObject(program, 'defineAuth', new Set([
+    'version', 'mechanisms', 'providers', 'assuranceRequirements', 'guestPolicy',
+    'secretReferences', 'verifiedProvisioning',
+  ]), 'SNAPBACK_AUTH_PROGRAM_INVALID');
+  assert(program.version === 1, 'defineAuth version must be 1', 'SNAPBACK_AUTH_PROGRAM_VERSION_UNSUPPORTED');
+
+  const mechanisms = {};
+  assert(program.mechanisms && typeof program.mechanisms === 'object' && !Array.isArray(program.mechanisms), 'defineAuth mechanisms must be an object');
+  for (const [name, mechanism] of Object.entries(program.mechanisms)) {
+    assert(isUserIdentifier(name), `defineAuth mechanism name ${name} is invalid`);
+    assert(mechanism && typeof mechanism === 'object' && !Array.isArray(mechanism), `defineAuth mechanisms.${name} must be an object`);
+    if (mechanism.kind === 'guest') {
+      exactObject(mechanism, `defineAuth mechanisms.${name}`, new Set(['kind']));
+    } else if (mechanism.kind === 'password') {
+      exactObject(mechanism, `defineAuth mechanisms.${name}`, new Set(['kind', 'identifier', 'provider', 'recovery']));
+      assert(mechanism.identifier === 'username', `defineAuth mechanisms.${name}.identifier must be username`);
+      assert(typeof mechanism.provider === 'string' && mechanism.provider.length > 0, `defineAuth mechanisms.${name}.provider is required`);
+      assert(typeof mechanism.recovery === 'string' && mechanism.recovery.length > 0, `defineAuth mechanisms.${name}.recovery is required`);
+    } else if (mechanism.kind === 'email-code') {
+      exactObject(mechanism, `defineAuth mechanisms.${name}`, new Set(['kind', 'identityKind', 'provider', 'canonicalization', 'delivery']));
+      assert(mechanism.identityKind === 'email', `defineAuth mechanisms.${name}.identityKind must be email`);
+      assert(typeof mechanism.provider === 'string' && mechanism.provider.length > 0, `defineAuth mechanisms.${name}.provider is required`);
+      assert(mechanism.canonicalization === undefined || mechanism.canonicalization === 'email-v1', `defineAuth mechanisms.${name}.canonicalization must be email-v1`);
+      assert(typeof mechanism.delivery === 'string' && mechanism.delivery.length > 0, `defineAuth mechanisms.${name}.delivery is required`);
+    } else if (mechanism.kind === 'passkey') {
+      exactObject(mechanism, `defineAuth mechanisms.${name}`, new Set(['kind', 'provider']));
+      assert(typeof mechanism.provider === 'string' && mechanism.provider.length > 0, `defineAuth mechanisms.${name}.provider is required`);
+    } else {
+      assert(false, `defineAuth mechanisms.${name}.kind is unsupported`, 'SNAPBACK_AUTH_MECHANISM_UNSUPPORTED');
+    }
+    mechanisms[name] = { ...mechanism };
+  }
+
+  const assuranceRequirements = {};
+  assert(program.assuranceRequirements && typeof program.assuranceRequirements === 'object' && !Array.isArray(program.assuranceRequirements), 'defineAuth assuranceRequirements must be an object');
+  const assuranceNames = Object.keys(program.assuranceRequirements).sort();
+  const availableRequirements = new Set([...AUTH_ASSURANCE_KINDS, ...assuranceNames]);
+  for (const name of assuranceNames) {
+    const requirement = program.assuranceRequirements[name];
+    assert(isUserIdentifier(name), `defineAuth assurance requirement name ${name} is invalid`);
+    exactObject(requirement, `defineAuth assuranceRequirements.${name}`, new Set(['allOf']));
+    assert(Array.isArray(requirement.allOf), `defineAuth assuranceRequirements.${name}.allOf must be an array`);
+    assert(new Set(requirement.allOf).size === requirement.allOf.length, `defineAuth assuranceRequirements.${name}.allOf repeats a requirement`);
+    for (const item of requirement.allOf) {
+      assert(availableRequirements.has(item), `defineAuth assuranceRequirements.${name} names unknown requirement ${String(item)}`, 'SNAPBACK_AUTH_ASSURANCE_REQUIREMENT_INVALID');
+    }
+    assuranceRequirements[name] = { allOf: [...requirement.allOf].sort() };
+  }
+  const assuranceVisit = new Map();
+  const visitAssurance = (name) => {
+    const state = assuranceVisit.get(name);
+    assert(state !== 'visiting', `defineAuth assurance requirement ${name} is cyclic`, 'SNAPBACK_AUTH_ASSURANCE_REQUIREMENT_INVALID');
+    if (state === 'visited') return;
+    assuranceVisit.set(name, 'visiting');
+    for (const dependency of assuranceRequirements[name].allOf) {
+      if (Object.hasOwn(assuranceRequirements, dependency)) visitAssurance(dependency);
+    }
+    assuranceVisit.set(name, 'visited');
+  };
+  for (const name of assuranceNames) visitAssurance(name);
+
+  const secretReferences = {};
+  assert(program.secretReferences && typeof program.secretReferences === 'object' && !Array.isArray(program.secretReferences), 'defineAuth secretReferences must be an object');
+  for (const [name, reference] of Object.entries(program.secretReferences)) {
+    exactObject(reference, `defineAuth secretReferences.${name}`, new Set(['config']));
+    assert(typeof reference.config === 'string' && reference.config.length > 0, `defineAuth secretReferences.${name}.config is required`);
+    secretReferences[name] = { config: reference.config };
+  }
+  if (program.providers !== undefined) {
+    assert(program.providers && typeof program.providers === 'object' && !Array.isArray(program.providers), 'defineAuth providers must be an object');
+    rejectLiteralAuthSecrets(program.providers, 'defineAuth providers');
+  }
+
+  const guestPolicy = program.guestPolicy;
+  assert(guestPolicy && typeof guestPolicy === 'object' && !Array.isArray(guestPolicy), 'defineAuth guestPolicy must be an object');
+  exactObject(guestPolicy, 'defineAuth guestPolicy', new Set(['enabled', 'claiming', 'reaping']));
+  assert(typeof guestPolicy.enabled === 'boolean', 'defineAuth guestPolicy.enabled must be boolean');
+  const claiming = guestPolicy.claiming ?? [];
+  assert(Array.isArray(claiming) && claiming.every((name) => Object.hasOwn(mechanisms, name)), 'defineAuth guestPolicy.claiming must name declared mechanisms');
+  let reaping;
+  if (guestPolicy.enabled) {
+    assert(guestPolicy.reaping && typeof guestPolicy.reaping === 'object' && !Array.isArray(guestPolicy.reaping), 'enabled defineAuth guestPolicy requires reaping');
+    exactObject(guestPolicy.reaping, 'defineAuth guestPolicy.reaping', new Set(['afterMs', 'cleanup']));
+    assert(Number.isSafeInteger(guestPolicy.reaping.afterMs) && guestPolicy.reaping.afterMs > 0, 'defineAuth guestPolicy.reaping.afterMs must be a positive safe integer');
+    const cleanup = guestPolicy.reaping.cleanup;
+    assert(cleanup && typeof cleanup === 'object' && !Array.isArray(cleanup), 'defineAuth guestPolicy.reaping.cleanup is required');
+    if (cleanup.kind === 'declarative') {
+      exactObject(cleanup, 'defineAuth guestPolicy.reaping.cleanup', new Set(['kind', 'default', 'tables']));
+      assert(['delete', 'tombstone', 'retain-anonymized'].includes(cleanup.default), 'defineAuth guest cleanup default is invalid');
+      assert(cleanup.tables && typeof cleanup.tables === 'object' && !Array.isArray(cleanup.tables), 'defineAuth guest cleanup tables must be an object');
+      const tables = {};
+      for (const [table, policy] of Object.entries(cleanup.tables)) {
+        assert(isUserIdentifier(table), `defineAuth guest cleanup table ${table} is invalid`);
+        exactObject(policy, `defineAuth guestPolicy.reaping.cleanup.tables.${table}`, new Set(['principalField', 'onReap']));
+        assert(typeof policy.principalField === 'string' && policy.principalField.length > 0, `defineAuth guest cleanup ${table}.principalField is required`);
+        assert(['delete', 'tombstone', 'retain-anonymized'].includes(policy.onReap), `defineAuth guest cleanup ${table}.onReap is invalid`);
+        tables[table] = { principalField: policy.principalField, onReap: policy.onReap };
+      }
+      reaping = { afterMs: guestPolicy.reaping.afterMs, cleanup: { kind: 'declarative', default: cleanup.default, tables } };
+    } else {
+      exactObject(cleanup, 'defineAuth guestPolicy.reaping.cleanup', new Set(['kind', 'handler', 'reads', 'writes']));
+      assert(cleanup.kind === 'handler' && typeof cleanup.handler === 'string' && Array.isArray(cleanup.reads) && Array.isArray(cleanup.writes), 'defineAuth handler guest cleanup is invalid');
+      reaping = { afterMs: guestPolicy.reaping.afterMs, cleanup: { kind: 'handler', handler: cleanup.handler, reads: [...cleanup.reads], writes: [...cleanup.writes] } };
+    }
+  }
+
+  let verifiedProvisioning;
+  if (program.verifiedProvisioning !== undefined) {
+    const hook = program.verifiedProvisioning;
+    exactObject(hook, 'defineAuth verifiedProvisioning', new Set(['handler', 'requires', 'reads', 'writes']));
+    assert(typeof hook.handler === 'string' && hook.handler.length > 0, 'defineAuth verifiedProvisioning.handler is required');
+    assert(Array.isArray(hook.requires) && hook.requires.every((name) => availableRequirements.has(name)), 'defineAuth verifiedProvisioning.requires names unknown assurances');
+    assert(Array.isArray(hook.reads) && hook.reads.every((name) => typeof name === 'string'), 'defineAuth verifiedProvisioning.reads must be table names');
+    assert(Array.isArray(hook.writes), 'defineAuth verifiedProvisioning.writes must be an array');
+    const writes = hook.writes.map((write, index) => {
+      assert(write && typeof write === 'object' && !Array.isArray(write), `defineAuth verifiedProvisioning.writes.${index} must be an object`);
+      const allowed = write.mode === 'ordinary' ? ['table', 'mode']
+        : write.mode === 'identity-binding' ? ['table', 'mode', 'principalField', 'identityField']
+          : write.mode === 'permission-backing' ? ['table', 'mode', 'principalField'] : [];
+      assert(allowed.length > 0, `defineAuth verifiedProvisioning.writes.${index}.mode is invalid`);
+      exactObject(write, `defineAuth verifiedProvisioning.writes.${index}`, new Set(allowed));
+      return { ...write };
+    });
+    verifiedProvisioning = { handler: hook.handler, requires: [...hook.requires], reads: [...hook.reads], writes };
+  }
+
+  const normalized = {
+    version: 1,
+    mechanisms,
+    ...(program.providers === undefined ? {} : { providers: { ...program.providers } }),
+    assuranceRequirements,
+    guestPolicy: { enabled: guestPolicy.enabled, claiming: [...claiming], ...(reaping ? { reaping } : {}) },
+    secretReferences,
+    ...(verifiedProvisioning ? { verifiedProvisioning } : {}),
+  };
+  AUTH_PROGRAMS.add(normalized);
+  return normalized;
+}
+
 export function defineSchema(tables, options = {}) {
   assert(tables && typeof tables === 'object', 'defineSchema expects a tables object');
   for (const [name, table] of Object.entries(tables)) {
@@ -1459,6 +1630,33 @@ export function defineSchema(tables, options = {}) {
     // @ref LLP 0055#registration — authoring preserves an explicit closed
     // sessions-only registration policy; omission remains disabled.
     auth = { mode: options.auth.mode, ...(agents ? { agents } : {}) };
+  }
+  let authProgram;
+  if (options.authProgram !== undefined) {
+    assert(AUTH_PROGRAMS.has(options.authProgram), 'defineSchema option "authProgram" must be defineAuth(...)');
+    assert(auth?.mode === 'sessions', 'defineSchema authProgram requires auth.mode sessions');
+    authProgram = options.authProgram;
+    const cleanup = authProgram.guestPolicy.reaping?.cleanup;
+    if (authProgram.guestPolicy.enabled && cleanup?.kind === 'declarative') {
+      for (const [tableName, table] of Object.entries(tables)) {
+        for (const [fieldName, field] of Object.entries(table.fields)) {
+          if (field.fieldType !== 'Principal') continue;
+          const policy = cleanup.tables[tableName];
+          assert(
+            policy?.principalField === fieldName,
+            `defineAuth guest cleanup must classify ${tableName}.${fieldName}`,
+            'SNAPBACK_AUTH_GUEST_CLEANUP_UNCLASSIFIED',
+          );
+        }
+      }
+      for (const [tableName, policy] of Object.entries(cleanup.tables)) {
+        assert(
+          tables[tableName]?.fields?.[policy.principalField]?.fieldType === 'Principal',
+          `defineAuth guest cleanup ${tableName}.${policy.principalField} is not a declared principal field`,
+          'SNAPBACK_AUTH_GUEST_CLEANUP_INVALID',
+        );
+      }
+    }
   }
   let api;
   if (options.api !== undefined) {
@@ -1616,6 +1814,7 @@ export function defineSchema(tables, options = {}) {
     tables,
     ephemeral: ephemeralDef,
     ...(auth ? { auth } : {}),
+    ...(authProgram ? { authProgram } : {}),
     ...(api ? { api } : {}),
     ...(assets ? { assets } : {}),
     ...(pushSeam ? { pushSeam } : {}),

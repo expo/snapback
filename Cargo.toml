@@ -26,6 +26,7 @@ required-features = ["telemetry-phase1-proof"]
 
 [dependencies]
 anyhow = "1.0"
+argon2 = "0.6.0-rc.8"
 async-trait = "0.1"
 axum = { version = "0.8.9", features = ["ws"] }
 base64 = "0.22"

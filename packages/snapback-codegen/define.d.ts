@@ -345,6 +345,8 @@ export declare function definePushSeam<const Audiences extends Record<string, {
 export interface FunctionAuthOptions {
   /** Controls whether the resolved server authority must carry a user. */
   auth?: AuthRequirement;
+  /** Conjunction of built-in assurance kinds or defineAuth aliases. */
+  requires?: readonly string[];
   /** Closed application refusal codes admitted for `ctx.refuse`. */
   refusals?: readonly string[];
   /** Declared refusal codes whose occurrences opt into issue tracking. Every
@@ -610,11 +612,43 @@ export interface MembershipTableBuilder<
 }
 
 export declare function defineTable<const Fields extends Record<string, Validator>>(fields: Fields): TableBuilder<Fields>;
+export type AuthAssuranceKind = 'authenticated' | 'email_verified' | 'phone_verified' | 'recent_auth' | 'phishing_resistant';
+export type AuthMechanism =
+  | { readonly kind: 'guest' }
+  | { readonly kind: 'password'; readonly identifier: 'username'; readonly provider: string; readonly recovery: string }
+  | { readonly kind: 'email-code'; readonly identityKind: 'email'; readonly provider: string; readonly canonicalization?: 'email-v1'; readonly delivery: string }
+  | { readonly kind: 'passkey'; readonly provider: string };
+export interface AuthProgramV1 {
+  readonly version: 1;
+  readonly mechanisms: Readonly<Record<string, AuthMechanism>>;
+  readonly providers?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  readonly assuranceRequirements: Readonly<Record<string, { readonly allOf: readonly string[] }>>;
+  readonly guestPolicy: {
+    readonly enabled: boolean;
+    readonly claiming?: readonly string[];
+    readonly reaping?: {
+      readonly afterMs: number;
+      readonly cleanup:
+        | { readonly kind: 'declarative'; readonly default: 'delete' | 'tombstone' | 'retain-anonymized'; readonly tables: Readonly<Record<string, { readonly principalField: string; readonly onReap: 'delete' | 'tombstone' | 'retain-anonymized' }>> }
+        | { readonly kind: 'handler'; readonly handler: string; readonly reads: readonly string[]; readonly writes: readonly string[] };
+    };
+  };
+  readonly secretReferences: Readonly<Record<string, { readonly config: string }>>;
+  readonly verifiedProvisioning?: {
+    readonly handler: string;
+    readonly requires: readonly string[];
+    readonly reads: readonly string[];
+    readonly writes: readonly ({ readonly table: string; readonly mode: 'ordinary' } | { readonly table: string; readonly mode: 'identity-binding'; readonly principalField: string; readonly identityField: string } | { readonly table: string; readonly mode: 'permission-backing'; readonly principalField: string })[];
+  };
+}
+export declare const AUTH_DEFAULT_UNCLAIMED_GUEST_RETENTION_MS: number;
+export declare function defineAuth(program: AuthProgramV1): AuthProgramV1;
 export declare function defineSchema(
   tables: Record<string, unknown>,
   options?: {
     ephemeral?: unknown;
-    auth?: { mode: AuthMode };
+    auth?: { mode: AuthMode; agents?: { mode?: 'disabled' | 'invited' | 'open'; invitedBy?: 'operators' | 'users' } };
+    authProgram?: AuthProgramV1;
     /** App-level asset policy (LLP 0044 §Deletion): reference GC is the
      * schema-declared opt-in; only typed `v.assetRef` references protect an
      * asset, and the grace must sit inside the target's Enforced bounds. */

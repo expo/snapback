@@ -90,6 +90,61 @@ fn request_code_budget_refusal(
     }))
 }
 
+#[cfg(test)]
+use rusqlite::Connection;
+
+#[cfg(test)]
+fn test_catalog_v3(conn: &Connection) -> SnapbackResult<bool> {
+    let mut stmt = conn.prepare("PRAGMA table_info('_auth_sessions')")?;
+    let mut rows = stmt.query([])?;
+    while let Some(row) = rows.next()? {
+        if row.get::<_, String>(1)? == "authn_source" {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+#[cfg(test)]
+fn insert_test_email_identity(
+    tx: &Transaction<'_>,
+    id: &str,
+    user: &str,
+    address: &str,
+    now: u64,
+    ignore: bool,
+) -> SnapbackResult<()> {
+    let verb = if ignore { "INSERT OR IGNORE" } else { "INSERT" };
+    if test_catalog_v3(tx)? {
+        tx.execute(&format!("{verb} INTO _auth_identities(id,user_id,kind,provider,subject,canonical_value,created_at_ms,verified_at_ms) VALUES(?1,?2,'email','email-code',?3,?3,?4,?4)"), params![id,user,address,now])?;
+    } else {
+        tx.execute(&format!("{verb} INTO _auth_identities(id,user_id,provider,subject,verified_at_ms) VALUES(?1,?2,'email-code',?3,?4)"), params![id,user,address,now])?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+fn insert_test_identity_session(
+    tx: &Transaction<'_>,
+    id: &str,
+    user: &str,
+    identity: &str,
+    authority: &str,
+    token: &[u8],
+    created: u64,
+    last: u64,
+    expires: u64,
+    absolute: u64,
+) -> SnapbackResult<()> {
+    if test_catalog_v3(tx)? {
+        tx.execute("INSERT INTO _auth_sessions(id,user_id,identity_id,credential_id,authn_source,authority_instance_id,token_hash,generation,created_at_ms,last_used_at_ms,expires_at_ms,absolute_expires_at_ms,revoked_at_ms) VALUES(?1,?2,?3,NULL,'identity',?4,?5,1,?6,?7,?8,?9,NULL)",params![id,user,identity,authority,token,created,last,expires,absolute])?;
+    } else {
+        tx.execute("INSERT INTO _auth_sessions(id,user_id,identity_id,authority_instance_id,token_hash,generation,created_at_ms,last_used_at_ms,expires_at_ms,absolute_expires_at_ms,revoked_at_ms) VALUES(?1,?2,?3,?4,?5,1,?6,?7,?8,?9,NULL)",params![id,user,identity,authority,token,created,last,expires,absolute])?;
+    }
+    Ok(())
+}
+
 impl LocalDatabase {
     pub(super) fn auth_step_up_address(
         &self,
@@ -713,19 +768,18 @@ impl LocalDatabase {
                 "INSERT OR IGNORE INTO _auth_users(id, created_at_ms) VALUES('user-1', 0)",
                 [],
             )?;
-            tx.execute(
-                "INSERT OR IGNORE INTO _auth_identities(
-                   id, user_id, provider, subject, verified_at_ms
-                 ) VALUES('identity-1', 'user-1', 'email-code', 'user@example.com', 0)",
-                [],
-            )?;
-            tx.execute(
-                "INSERT INTO _auth_sessions(
-                   id, user_id, identity_id, authority_instance_id, token_hash,
-                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                   absolute_expires_at_ms, revoked_at_ms
-                 ) VALUES(?1, 'user-1', 'identity-1', ?2, ?3, 1, 0, 0, 1000, 2000, NULL)",
-                params![session_id, authority_instance_id, token_hash],
+            insert_test_email_identity(tx, "identity-1", "user-1", "user@example.com", 0, true)?;
+            insert_test_identity_session(
+                tx,
+                session_id,
+                "user-1",
+                "identity-1",
+                authority_instance_id,
+                token_hash,
+                0,
+                0,
+                1000,
+                2000,
             )?;
             tx.execute(
                 "INSERT INTO _auth_verification_codes(
@@ -809,28 +863,25 @@ impl LocalDatabase {
                 "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
                 params![user_id, created_at_ms as i64],
             )?;
-            transaction.execute(
-                "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
-                 VALUES(?1, ?2, 'email-code', ?3, ?4)",
-                params![identity_id, user_id, address, created_at_ms as i64],
+            insert_test_email_identity(
+                transaction,
+                identity_id,
+                user_id,
+                address,
+                created_at_ms,
+                false,
             )?;
-            transaction.execute(
-                "INSERT INTO _auth_sessions(
-                   id, user_id, identity_id, authority_instance_id, token_hash,
-                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                   absolute_expires_at_ms, revoked_at_ms
-                 ) VALUES(?1, ?2, ?3, ?4, ?5, 1, ?6, ?7, ?8, ?9, NULL)",
-                params![
-                    session_id,
-                    user_id,
-                    identity_id,
-                    authority_instance_id,
-                    token_hash,
-                    created_at_ms as i64,
-                    last_used_at_ms as i64,
-                    expires_at_ms as i64,
-                    absolute_expires_at_ms as i64,
-                ],
+            insert_test_identity_session(
+                transaction,
+                session_id,
+                user_id,
+                identity_id,
+                authority_instance_id,
+                token_hash,
+                created_at_ms,
+                last_used_at_ms,
+                expires_at_ms,
+                absolute_expires_at_ms,
             )?;
             Ok(())
         })
@@ -851,25 +902,18 @@ impl LocalDatabase {
                 "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 0)",
                 params![user_id],
             )?;
-            tx.execute(
-                "INSERT INTO _auth_identities(
-                   id, user_id, provider, subject, verified_at_ms
-                 ) VALUES(?1, ?2, 'email-code', 'push@example.com', 0)",
-                params![identity_id, user_id],
-            )?;
-            tx.execute(
-                "INSERT INTO _auth_sessions(
-                   id, user_id, identity_id, authority_instance_id, token_hash,
-                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                   absolute_expires_at_ms, revoked_at_ms
-                 ) VALUES(?1, ?2, ?3, ?4, zeroblob(32), 1, 0, 0, ?5, ?5, NULL)",
-                params![
-                    session_id,
-                    user_id,
-                    identity_id,
-                    authority_instance_id,
-                    expires_at_ms as i64,
-                ],
+            insert_test_email_identity(tx, identity_id, user_id, "push@example.com", 0, false)?;
+            insert_test_identity_session(
+                tx,
+                session_id,
+                user_id,
+                identity_id,
+                authority_instance_id,
+                &[0; 32],
+                0,
+                0,
+                expires_at_ms,
+                expires_at_ms,
             )?;
             tx.execute(
                 "INSERT INTO _snapback_push_tokens_v1(
@@ -905,26 +949,25 @@ impl LocalDatabase {
                 "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 0)",
                 params![user_id],
             )?;
-            transaction.execute(
-                "INSERT INTO _auth_identities(
-                       id, user_id, provider, subject, verified_at_ms
-                     ) VALUES(?1, ?2, 'email-code', 'person@example.com', 0)",
-                params![identity_id, user_id],
+            insert_test_email_identity(
+                transaction,
+                identity_id,
+                user_id,
+                "person@example.com",
+                0,
+                false,
             )?;
-            transaction.execute(
-                "INSERT INTO _auth_sessions(
-                       id, user_id, identity_id, authority_instance_id, token_hash,
-                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                       absolute_expires_at_ms, revoked_at_ms
-                     ) VALUES(?1, ?2, ?3, ?4, ?5,
-                              1, 0, 0, 2000000000000, 2000000000000, NULL)",
-                params![
-                    session_id,
-                    user_id,
-                    identity_id,
-                    authority_instance_id,
-                    vec![1_u8; 32],
-                ],
+            insert_test_identity_session(
+                transaction,
+                session_id,
+                user_id,
+                identity_id,
+                authority_instance_id,
+                &[1; 32],
+                0,
+                0,
+                2_000_000_000_000,
+                2_000_000_000_000,
             )?;
             transaction.execute(
                 "INSERT INTO _auth_verification_codes(

@@ -46,10 +46,12 @@ pub(crate) fn activate_catalog(
     random: &dyn RandomSource,
 ) -> SnapbackResult<AuthActivation> {
     match database.inspect_auth_catalog()? {
-        AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 => Ok(AuthActivation {
-            catalog_created: false,
-            email_code: existing_keyring_readiness(keyring),
-        }),
+        AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3 => {
+            Ok(AuthActivation {
+                catalog_created: false,
+                email_code: existing_keyring_readiness(keyring),
+            })
+        }
         AuthCatalogState::Uninitialized => {
             keyring
                 .load_or_mint_initial(now_ms, random)
@@ -356,7 +358,7 @@ mod tests {
         assert!(matches!(activated.email_code, EmailCodeReadiness::Ready(_)));
         assert_eq!(
             database.inspect_auth_catalog().unwrap(),
-            AuthCatalogState::ReadyV2
+            AuthCatalogState::ReadyV3
         );
     }
 
