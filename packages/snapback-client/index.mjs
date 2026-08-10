@@ -50,6 +50,14 @@ import {
 } from './answer-classes.mjs';
 export { parseSearchQueryV1, search } from './search.mjs';
 export { SnapbackCommandClient, createCommandClient } from './commands.mjs';
+export {
+  REMEDIATION_KIND_REGISTRY_VERSION,
+  REMEDIATION_SET_MAX_ITEMS,
+  REMEDIATION_SET_SCHEMA_VERSION,
+  createIdentifierRemediationSet,
+  decodeRemediationSet,
+  remediationControlCatalogProjection,
+} from './remediation.mjs';
 export { createAssetClient } from './assets.mjs';
 export {
   CANONICAL_CLIENT_VALUE_V1_LIMITS,

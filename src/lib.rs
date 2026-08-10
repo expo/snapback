@@ -118,9 +118,9 @@ pub mod instance_fork;
 pub(crate) mod instance_lock;
 #[doc(hidden)]
 pub mod jobs;
-pub(crate) mod watches;
 pub(crate) mod webhooks;
 pub mod live_coalesce;
+pub(crate) mod watches;
 
 pub(crate) mod live_matcher;
 #[doc(hidden)]
@@ -144,6 +144,8 @@ pub mod proof_checkpoint;
 #[doc(hidden)]
 pub mod push;
 pub mod realtime;
+#[doc(hidden)]
+pub mod remediation;
 #[doc(hidden)]
 pub mod replication;
 #[doc(hidden)]

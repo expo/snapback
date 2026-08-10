@@ -103,6 +103,19 @@ impl Diagnostic {
         self
     }
 
+    /// Attach LLP 0146's nested remediation carrier while preserving this
+    /// Diagnostic and every outer wire envelope byte-for-byte otherwise.
+    ///
+    /// @ref LLP 0146#oq6-author-ruling--2026-08-10 — construction is shared
+    ///   at the Diagnostic boundary, not reimplemented by each projection.
+    pub fn with_remediation_set(
+        mut self,
+        remediation_set: crate::remediation::RemediationSetV1,
+    ) -> Self {
+        crate::remediation::attach_remediation_set(&mut self.details, remediation_set);
+        self
+    }
+
     pub fn new(
         code: impl Into<String>,
         severity: DiagnosticSeverity,

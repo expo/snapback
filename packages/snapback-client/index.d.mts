@@ -47,6 +47,15 @@ export type {
   ExternalStoreStatus,
 } from './external-store.mjs';
 export { SnapbackCommandClient, createCommandClient } from './commands.mjs';
+export {
+  REMEDIATION_KIND_REGISTRY_VERSION,
+  REMEDIATION_SET_MAX_ITEMS,
+  REMEDIATION_SET_SCHEMA_VERSION,
+  createIdentifierRemediationSet,
+  decodeRemediationSet,
+  remediationControlCatalogProjection,
+} from './remediation.mjs';
+export type { RemediationItemV1, RemediationKindV1, RemediationSetV1 } from './remediation.mjs';
 export { createAssetClient } from './assets.mjs';
 export type {
   AssetBearingCommandDescriptorV1,

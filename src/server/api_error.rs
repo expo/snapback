@@ -108,9 +108,7 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE" => StatusCode::BAD_REQUEST,
         "SNAPBACK_EFFECT_APPROVAL_DENIED" => StatusCode::FORBIDDEN,
         "SNAPBACK_EFFECT_NOT_FOUND" => StatusCode::NOT_FOUND,
-        "SNAPBACK_EFFECT_BINDING_STALE" | "SNAPBACK_EFFECT_STATE_INVALID" => {
-            StatusCode::CONFLICT
-        }
+        "SNAPBACK_EFFECT_BINDING_STALE" | "SNAPBACK_EFFECT_STATE_INVALID" => StatusCode::CONFLICT,
         "SNAPBACK_EFFECT_EXPIRED" => StatusCode::GONE,
         "SNAPBACK_EFFECT_CATALOG_CORRUPT" => StatusCode::INTERNAL_SERVER_ERROR,
         // @ref LLP 0204#d93--durable-watches-end-user-automations — management input/ownership,
@@ -250,7 +248,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_API_DECLARED_CLIENTS_UNAVAILABLE" => {
             StatusCode::FORBIDDEN
         }
-        "SNAPBACK_API_RUN_ENVELOPE_STALE" => StatusCode::CONFLICT,
+        "SNAPBACK_API_RUN_ENVELOPE_STALE" | "SNAPBACK_REMEDIATION_ARTIFACT_STALE" => {
+            StatusCode::CONFLICT
+        }
+        "SNAPBACK_REMEDIATION_INPUT_INVALID" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_REMEDIATION_APPROVAL_REQUIRED" => StatusCode::FORBIDDEN,
         "SNAPBACK_API_RUN_PROGRAM_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
         "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED" => StatusCode::NOT_IMPLEMENTED,
         // @ref LLP 0204#d5--surface-4-the-near-data-ai-interface — ask

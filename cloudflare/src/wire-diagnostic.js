@@ -21,8 +21,9 @@ export const ERROR_RESPONSE_FORMAT_VERSION = 'snapback.error-response.v1';
 
 // The format version is must-understand; members added to a known version are
 // forward-compatible and receivers ignore ones they do not recognize. This is
-// deliberately only the ErrorResponse carrier: LLP 0146 OQ6 still owns the
-// unresolved question of whether/how typed remediations join the wire.
+// deliberately only the ErrorResponse carrier. LLP 0146's ruled remediation
+// set is nested in Diagnostic.details and therefore does not change this
+// outer version.
 // @ref LLP 0094#0c7-errorresponse-format-version-and-forward-skew-2026-08-08
 export function wireErrorResponse(diagnostic, members = {}) {
   return {

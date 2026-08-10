@@ -91,16 +91,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **133 operations** at digest `sha256:d1b47fa8301e0d50dc5b9d69d061f74412313c3ef8d9051b86b29b932f04c7be`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **134 operations** at digest `sha256:22a2f0772605698a711d61ad09840d0c9011fc2c39c6f4bd5cc08e54c5d3630a`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
 | surfaceAccess | `apiOnly` | 37 |
 | surfaceAccess | `cliOnly` | 49 |
 | surfaceAccess | `mcpOnly` | 2 |
-| surfaceAccess | `native` | 41 |
+| surfaceAccess | `native` | 42 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 110 |
+| operability | `direct` | 111 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 5 |
@@ -229,6 +229,7 @@ The embedded build catalog contains **133 operations** at digest `sha256:d1b47fa
 | `operations.explain` | `apiOnly` | `direct` | `shipped` | — | — | operating/agent-controls.md#describe-one-operation |
 | `push.maintenance` | `apiOnly` | `internal` | `shipped` | — | — | backend/expo-push.md#register-the-current-installation |
 | `receipts` | `apiOnly` | `direct` | `shipped` | — | — | operating/diagnostics.md#consume-the-diagnostic-shape |
+| `remediation.apply` | `native` | `direct` | `shipped` | snapback remediation apply --input <file\|-> | snapback_remediation_apply | operating/diagnostics.md#apply-a-remediation-safely |
 | `route.unknown.refuse` | `none` | `internal` | `shipped` | — | — | — |
 | `schema.load` | `native` | `direct` | `shipped` | snapback load --schema <path> | snapback_load_schema | getting-started/the-authoring-loop.md#2-regenerate |
 | `schema.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | getting-started/the-authoring-loop.md#2-regenerate |
@@ -562,7 +563,7 @@ carries the storage diagnostic; tooling must not substitute zero.
 ## Served request operations
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS SERVED -->
-The endpoint serves **40 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
+The endpoint serves **41 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
 
 | Request operation | Purpose |
 | --- | --- |
@@ -602,6 +603,7 @@ The endpoint serves **40 request spellings**. This count and table are generated
 | `function.explain` | Explain a generated function |
 | `function.run` | Run one generated function |
 | `functions.load` | Load the generated function manifest |
+| `remediation.apply` | Apply a generation-fenced remediation |
 | `schema.load` | Load the generated schema manifest |
 | `telemetry.events` | Read a bounded telemetry event page |
 | `telemetry.export` | Export bounded telemetry |
@@ -660,7 +662,7 @@ envelope; unknown names stay unregistered and fail closed before dispatch.
 ## Registered operation identities
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
-The request spellings above expand into **53 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
+The request spellings above expand into **54 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
 
 1. `host_ops.acceptance.run`
 2. `host_ops.app.inspect`
@@ -710,11 +712,12 @@ The request spellings above expand into **53 registered operation identities**. 
 46. `host_ops.host.restart`
 47. `host_ops.host.start`
 48. `host_ops.host.stop`
-49. `host_ops.schema.load`
-50. `host_ops.schema.reload`
-51. `host_ops.telemetry.events`
-52. `host_ops.telemetry.export`
-53. `host_ops.telemetry.stats`
+49. `host_ops.remediation.apply`
+50. `host_ops.schema.load`
+51. `host_ops.schema.reload`
+52. `host_ops.telemetry.events`
+53. `host_ops.telemetry.export`
+54. `host_ops.telemetry.stats`
 <!-- END GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
 
 Query/explain reads, durable writes, credential-producing operations, and
@@ -1102,13 +1105,13 @@ id: operating.diagnostics
 order: 3
 audience: agent-first
 capabilities: [operating.diagnostics]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, src/diagnostic.rs, src/authoring_suggestion.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0094-wire-envelope-contract.spec.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, src/diagnostic.rs, src/remediation.rs, src/authoring_suggestion.rs, packages/snapback-client/remediation.mjs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime]
 examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs, tests/host_ops_v0.rs]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-06
-reviewed-commit: 3e78f67c4972b8c13e2375970da285ae2d4c0195
+reviewed: 2026-08-10
+reviewed-commit: HEAD
 ---
 
 # Diagnostics and local doctoring
@@ -1156,8 +1159,7 @@ authoring help to the same `details` object:
 - `artifactHash` or `servedShapeHash` identifies the generation that produced
   the suggestion.
 
-Treat these as generation-bound suggestions, not aliases and not commands to
-apply. Candidates contain served schema metadata only: the rejected spelling,
+Candidates contain served schema metadata only: the rejected spelling,
 argument value, row value, and secrets are not echoed. A caller that cannot
 pass the existing auth gate receives the existing uniform refusal and learns
 no function-existence candidates.
@@ -1170,12 +1172,94 @@ does not persist the summary, and does not promote popular mistakes into
 aliases. Regenerate or reload your artifacts when the diagnostic's generation
 does not match the artifact you used.
 
-LLP 0146 OQ6 is still open. No `remediations` wire member or
-machine-applicable repair endpoint exists, and the ControlCatalog
-`remediation` field remains null/absent. Until the LLP 0094/0095 carrier
-decision lands, do not synthesize an automatic repair from these candidates;
-in particular, never apply an identifier replacement without an operation
-that atomically verifies the suggestion's artifact hash.
+<!-- since: 0.1.18 unreleased -->
+> **Unreleased.** The remediation carrier and apply operation are newer than
+> the newest published closure, 0.1.17. Use a source build until 0.1.18 is
+> published.
+
+## Apply a remediation safely
+
+A caller that passed the ordinary authorization gate may also receive
+`details.remediationSet`. This is the only remediation carrier; outer HTTP,
+host-operation, CLI, MCP, and hosted envelopes do not change. Decode it with
+`decodeRemediationSet` from `@expo/snapback-client/remediation` instead of
+copying its vocabulary.
+
+The set has two independent identities:
+
+- `schemaVersion: "snapback.remediation-set.v1"` governs the carrier;
+- `registryVersion: "snapback.remediation-kinds.v1"` governs the global kind
+  vocabulary;
+- `artifactHash` is the exact served artifact observed at refusal time; and
+- `items` contains at most eight contextual offers.
+
+Unknown set or item members are ignored. An unknown kind is skipped. An
+unknown schema or registry version makes only the remediation set unusable;
+the surrounding diagnostic remains valid and should still be shown.
+The shared decoder also validates every known kind's four safety axes and its
+action/precondition pairing against the global registry. Never infer
+machine-applicability from `requiresApproval: false`, and never consume a
+hand-decoded item whose axes disagree with that registry.
+
+A machine-applicable identifier repair looks like this:
+
+```json fragment reason="illustrative subset of a refusal; candidate names and artifact hashes are application-specific"
+{
+  "schemaVersion": "snapback.remediation-set.v1",
+  "registryVersion": "snapback.remediation-kinds.v1",
+  "artifactHash": "sha256:0123456789abcdef",
+  "items": [{
+    "kind": "fixTypo",
+    "riskClass": "mechanical",
+    "machineApplicable": true,
+    "requiresApproval": false,
+    "authorityEffect": "none",
+    "precondition": {
+      "type": "artifact-hash",
+      "artifactHash": "sha256:0123456789abcdef"
+    },
+    "action": {
+      "type": "replaceIdentifier",
+      "target": "function",
+      "replacement": "listTodos"
+    }
+  }]
+}
+```
+
+Copy the exact item and hash into a closed apply input. The native CLI keeps
+the JSON out of argv:
+
+```sh
+snapback remediation apply --ready-file .snapback/ready.json --input repair.json
+```
+
+On the local native target, the equivalent control MCP tool is
+`snapback_remediation_apply`; direct HTTP uses
+`POST /_snapback/api/host-ops` with operation `remediation.apply`. Under
+the same local generation lock that selects the replacement, the server
+compares both supplied hashes with the currently served artifact and verifies
+that the replacement still exists. Success returns the repaired identifier.
+It does not invoke the function, create an alias, regenerate code, or write
+application state; retry the original operation explicitly with the returned
+value.
+
+The hosted arm emits the same carrier in its unchanged Diagnostic, but does
+not expose the local `remediation.apply` host operation. A hosted consumer
+must refresh its deployed artifacts and retry through the hosted deployment
+workflow; it must not treat the contextual item as a hosted write primitive.
+
+If artifacts changed after the refusal, apply returns
+`SNAPBACK_REMEDIATION_ARTIFACT_STALE` and makes no change. Fetch a fresh
+diagnostic and select a new item; never overwrite the old hash or transplant
+the replacement into a newly generated set.
+
+Authority changes are different. For example, `requestGrant` has
+`machineApplicable: false`, `requiresApproval: true`, and
+`authorityEffect: "widens"`. `remediation.apply` returns
+`SNAPBACK_REMEDIATION_APPROVAL_REQUIRED`; it never turns the suggestion into a
+grant. Present it to the operator and use the existing reviewed authorization
+workflow. A principal-changing item follows the same explicit-approval rule.
 
 ## Assert on codes, not prose
 

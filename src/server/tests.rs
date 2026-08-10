@@ -11188,7 +11188,8 @@ async fn hosted_absent_carrier_on_unknown_function_refuses_before_body_poll() {
 
 /// @ref LLP 0146#d7-typed-remediations-and-type-aware-suggestion — the
 /// direct HTTP projection enriches its existing diagnostic details from
-/// the exact served manifest generation; it does not add a wire member.
+/// the exact served manifest generation; the ruled carrier remains nested
+/// there and does not add an outer wire member.
 #[tokio::test]
 async fn served_http_refusals_project_typed_candidates_and_argument_contracts() {
     let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
@@ -11243,6 +11244,18 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     // Rotates with the embedded todo demo's generated artifacts; the
     // LLP 0204 S4 stream-fact codegen change is the latest rotation.
     assert_eq!(details["artifactHash"], "sha256:52d8ad3ef1e5d803");
+    assert_eq!(
+        details["remediationSet"]["schemaVersion"],
+        "snapback.remediation-set.v1"
+    );
+    assert_eq!(
+        details["remediationSet"]["artifactHash"],
+        details["artifactHash"]
+    );
+    assert_eq!(
+        details["remediationSet"]["items"][0]["action"]["replacement"],
+        "listTodos"
+    );
     assert!(
         details["localMissSummary"]["sameMissCount"]
             .as_u64()
@@ -11272,6 +11285,10 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     );
     assert_eq!(details["candidateFields"][0]["name"], "title");
     assert_eq!(details["candidateFields"][0]["expected"], "string");
+    assert_eq!(
+        details["remediationSet"]["items"][0]["action"]["replacement"],
+        "title"
+    );
     assert!(details["expectedArgumentContract"].is_object());
     assert!(
         !serde_json::to_string(&unknown_field)
@@ -13274,6 +13291,14 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
     assert_eq!(
         denied["diagnostic"]["details"]["missingScope"]["functionId"],
         "fn:not-granted"
+    );
+    let remediation = &denied["diagnostic"]["details"]["remediationSet"];
+    assert_eq!(remediation["items"][0]["kind"], "requestGrant");
+    assert_eq!(remediation["items"][0]["machineApplicable"], false);
+    assert_eq!(remediation["items"][0]["requiresApproval"], true);
+    assert_eq!(
+        remediation["items"][0]["action"]["grantableScope"],
+        "function:query:fn:not-granted"
     );
     assert_eq!(denied["attribution"], projection["attribution"]);
 
@@ -19408,6 +19433,7 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
 
 const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_EFFECT_INPUT_INVALID",
+    "SNAPBACK_REMEDIATION_INPUT_INVALID",
     "SNAPBACK_API_APPROVAL_QUERY_INVALID",
     "SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE",
     "SNAPBACK_WATCH_INPUT_INVALID",
@@ -19925,6 +19951,7 @@ const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
 
 const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_EFFECT_APPROVAL_DENIED",
+    "SNAPBACK_REMEDIATION_APPROVAL_REQUIRED",
     "SNAPBACK_WATCH_AUTHORITY_DEAD",
     "SNAPBACK_WATCH_ANCHOR_SCOPE_MISMATCH",
     "SNAPBACK_WATCH_OWNER_DENIED",
@@ -20085,6 +20112,9 @@ const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
 
 const CONFLICT_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_EFFECT_BINDING_STALE",
+    // @ref LLP 0146#oq6-author-ruling--2026-08-10 — stale remediation
+    // bindings are conflicts, independent of the refusal that carried them.
+    "SNAPBACK_REMEDIATION_ARTIFACT_STALE",
     "SNAPBACK_EFFECT_STATE_INVALID",
     "SNAPBACK_WATCH_STATUS_INVALID",
     "SNAPBACK_ASSET_GRANTS_UNDECLARED",

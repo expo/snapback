@@ -1474,15 +1474,29 @@ object with `schemaVersion: "snapback.remediation-set.v1"`,
 whose axes (kind, riskClass, machineApplicable, requiresApproval,
 authorityEffect, precondition) come from the global versioned
 remediation-kind registry LLP 0146 D7 defines. Compatibility rule: outer
-envelopes are unchanged in every family (`ErrorResponse` and its
-`deny_unknown_fields` closure stand; `hostOpsResult.v1` stands); the nested
-carrier versions independently via its own `schemaVersion`; consumers that
-do not recognize `remediationSet` ignore it (ordinary details-member
-openness), and consumers that do recognize it must use the shared typed
-decoder. Construction happens only at the authorization-aware diagnostic
+envelopes are unchanged in every family (`ErrorResponse` remains the
+forward-additive, must-understand v1 envelope defined by §0C.7;
+`hostOpsResult.v1` stands). `items` has a hard maximum of **8** and emitters
+truncate deterministically. Every machine-applicable item has an
+`artifact-hash` precondition equal byte-for-byte to the set's contextual
+`artifactHash`; the hash is the exact served identity at the refusal site
+(currently `sha256:` plus 16 or 64 lowercase hexadecimal digits, according
+to the owning artifact contract), never a recomputed approximation in a
+projection.
+
+The carrier and registry version independently. A consumer that does not
+recognize `remediationSet` ignores it (ordinary `details`-member openness).
+A v1 consumer ignores unknown object members at the set and item levels and
+skips an unknown remediation kind without failing the enclosing diagnostic.
+It refuses to interpret the remediation set on an unknown `schemaVersion` or
+`registryVersion`, while retaining the enclosing diagnostic as usable. An
+incompatible carrier change advances `schemaVersion`; an incompatible kind
+vocabulary change advances `registryVersion`. Consumers that recognize the
+versions use the shared typed decoder. Construction happens only at the authorization-aware diagnostic
 construction site, after gates, with caller-visible facts — identical
 across CLI, HTTP, MCP, and hosted projections, which all pass the
 diagnostic through verbatim. The repair-apply consumer owns the named
 stale-artifact refusal (hash observed at refusal time versus currently
-served generation; no write on mismatch). Conformance fixtures are LLP
+served generation under the same selection fence; no write, alias,
+regeneration, or invocation on mismatch). Conformance fixtures are LLP
 0095's (see its matching 2026-08-10 record).

@@ -134,6 +134,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'package.test.mjs',
       'push-registry.test.mjs',
       'registration-ledger.test.mjs',
+      'remediation.test.mjs',
       'reservation-retry.test.mjs',
       'result-transform.test.mjs',
       'rqs-digest-parity.test.mjs',
@@ -760,6 +761,9 @@ export function checkPackageTestInventories(options = {}) {
 // 242 -> 243 (2026-08-10, generated-directory regeneration serialization):
 // @expo/snapback-codegen gains deterministic overlapping-writer and killed
 // stale-lock-holder coverage for the LLP 0041 watch/codegen boundary.
+// 243 -> 244 (2026-08-10, LLP 0146 OQ6 option B): @expo/snapback-client gains
+// the shared remediation-set v1 decoder's version, unknown-member,
+// unknown-kind, and exact artifact-hash binding suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

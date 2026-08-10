@@ -43,7 +43,7 @@ pub const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE: usize = 64 * 1024;
 /// `require_operation_profile`. These groups are fully served today; they
 /// belong here so `host_op_diagnostic` recognizes their spelling instead of
 /// rewriting it to `"unrecognized"` in diagnostics.
-pub const SERVED_HOST_OPS: [&str; 47] = [
+pub const SERVED_HOST_OPS: [&str; 48] = [
     "app.inspect",
     "cron.list",
     "app.reset",
@@ -55,6 +55,7 @@ pub const SERVED_HOST_OPS: [&str; 47] = [
     "functions.load",
     "function.run",
     "function.explain",
+    "remediation.apply",
     "auth.mintSession",
     "auth.rehearsal.mint",
     "auth.rehearsal.exercise",
@@ -1923,6 +1924,45 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
                     false,
                     authority_admin("host-ops admin write gate"),
                     json!({ "loaded": false, "functionCount": function_count }),
+                    vec![error.diagnostic],
+                ),
+            }
+        }
+        "remediation.apply" => {
+            let outcome = request
+                .input
+                .clone()
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "remediation",
+                        "remediation.apply requires its closed v1 carrier under input",
+                    )
+                })
+                .and_then(|value| {
+                    serde_json::from_value::<crate::remediation::RemediationApplyInputV1>(value)
+                        .map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_REMEDIATION_INPUT_INVALID",
+                                "remediation",
+                                "remediation.apply input is not the closed v1 carrier",
+                            )
+                        })
+                })
+                .and_then(|input| crate::remediation::apply_remediation(snapback, input));
+            match outcome {
+                Ok(applied) => envelope(
+                    snapback,
+                    true,
+                    authority_none(),
+                    serde_json::to_value(applied).unwrap_or(Value::Null),
+                    Vec::new(),
+                ),
+                Err(error) => envelope(
+                    snapback,
+                    false,
+                    authority_none(),
+                    Value::Object(Default::default()),
                     vec![error.diagnostic],
                 ),
             }

@@ -1,9 +1,9 @@
 //! Type-aware refusal suggestions derived only from the currently served
 //! manifest/catalog generation.
 //!
-//! This module deliberately produces content for the existing diagnostic
-//! `details` map. It does not define or project a remediation carrier: that
-//! wire decision remains open in LLP 0146 OQ6 and belongs to LLP 0094/0095.
+//! This module produces candidates and the ruled contextual remediation set
+//! for the existing diagnostic `details` map. The candidate source and the
+//! machine-applicable entries are therefore one generation-fenced decision.
 //!
 //! @ref LLP 0146#d7-typed-remediations-and-type-aware-suggestion — unknown
 //!   identifiers and argument shapes name typed candidates from served truth,
@@ -15,6 +15,9 @@ use crate::diagnostic::SnapbackError;
 use crate::manifest::{
     FieldType, FunctionDefinition, FunctionKind, FunctionManifest, ResultObjectFieldContract,
     ResultValueContract, TableManifest,
+};
+use crate::remediation::{
+    RemediationItemV1, RemediationKindV1, RemediationSetV1, attach_remediation_set,
 };
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
@@ -167,10 +170,10 @@ pub(crate) fn unknown_function_details(
             })
         })
         .collect::<Vec<_>>();
-    json!({
+    let mut details = json!({
         "artifactHash": manifest.bundle_hash,
         "expectedKinds": expected_kinds,
-        "candidateFunctions": candidates,
+        "candidateFunctions": candidates.clone(),
         "candidateFunctionCount": candidate_count,
         "candidatesTruncated": candidate_count > FUNCTION_CANDIDATE_LIMIT,
         "localMissSummary": miss_tracker().record(
@@ -178,7 +181,27 @@ pub(crate) fn unknown_function_details(
             manifest.bundle_hash.as_deref(),
             guessed,
         ),
-    })
+    });
+    if let Some(artifact_hash) = manifest.bundle_hash.as_deref() {
+        let items = candidates
+            .iter()
+            .filter_map(|candidate| candidate.get("name").and_then(Value::as_str))
+            .map(|replacement| {
+                RemediationItemV1::identifier_replacement(
+                    RemediationKindV1::FixTypo,
+                    artifact_hash,
+                    "function",
+                    None,
+                    replacement,
+                )
+            })
+            .collect();
+        attach_remediation_set(
+            &mut details,
+            RemediationSetV1::for_artifact(artifact_hash, items),
+        );
+    }
+    details
 }
 
 pub(crate) fn unknown_function_error(
@@ -210,10 +233,10 @@ pub(crate) fn unknown_operation_details(
         .into_iter()
         .take(FUNCTION_CANDIDATE_LIMIT)
         .collect::<Vec<_>>();
-    json!({
+    let mut details = json!({
         "operation": "unrecognized",
         "artifactHash": artifact_hash,
-        "candidateOperations": candidates,
+        "candidateOperations": candidates.clone(),
         "candidateOperationCount": candidate_count,
         "candidatesTruncated": candidate_count > FUNCTION_CANDIDATE_LIMIT,
         "localMissSummary": miss_tracker().record(
@@ -221,7 +244,28 @@ pub(crate) fn unknown_operation_details(
             artifact_hash,
             guessed,
         ),
-    })
+    });
+    if let Some(artifact_hash) = artifact_hash {
+        let items = candidates
+            .iter()
+            .map(|replacement| {
+                RemediationItemV1::identifier_replacement(
+                    RemediationKindV1::FixTypo,
+                    artifact_hash,
+                    "hostOperation",
+                    None,
+                    *replacement,
+                )
+            })
+            .collect();
+        // @ref LLP 0146#oq6-author-ruling--2026-08-10 — offers are built at
+        //   the refusal site from the exact ControlCatalog generation seen.
+        attach_remediation_set(
+            &mut details,
+            RemediationSetV1::for_artifact(artifact_hash, items),
+        );
+    }
+    details
 }
 
 /// Existing-details content for an unmatched HTTP path. Candidates come only
@@ -235,6 +279,7 @@ pub(crate) fn unknown_path_details(guessed: &str, paths: &[&str]) -> Value {
     let mut candidates = paths.to_vec();
     candidates.sort_unstable();
     candidates.dedup();
+    let artifact_hash = path_set_hash(&candidates);
     candidates.sort_by(|left, right| {
         edit_distance(guessed, left)
             .cmp(&edit_distance(guessed, right))
@@ -245,13 +290,51 @@ pub(crate) fn unknown_path_details(guessed: &str, paths: &[&str]) -> Value {
         .into_iter()
         .take(PATH_CANDIDATE_LIMIT)
         .collect::<Vec<_>>();
-    json!({
+    let mut details = json!({
         "path": "unrecognized",
-        "candidatePaths": candidates,
+        "artifactHash": artifact_hash,
+        "candidatePaths": candidates.clone(),
         "candidatePathCount": candidate_count,
         "candidatesTruncated": candidate_count > PATH_CANDIDATE_LIMIT,
-        "localMissSummary": miss_tracker().record("unknown-route", None, guessed),
-    })
+        "localMissSummary": miss_tracker().record("unknown-route", Some(&artifact_hash), guessed),
+    });
+    let items = candidates
+        .iter()
+        .map(|replacement| {
+            RemediationItemV1::identifier_replacement(
+                RemediationKindV1::FixTypo,
+                &artifact_hash,
+                "httpRoute",
+                None,
+                *replacement,
+            )
+        })
+        .collect();
+    attach_remediation_set(
+        &mut details,
+        RemediationSetV1::for_artifact(&artifact_hash, items),
+    );
+    details
+}
+
+fn path_set_hash(paths: &[&str]) -> String {
+    let mut paths = paths.to_vec();
+    paths.sort_unstable();
+    paths.dedup();
+    let mut digest = Sha256::new();
+    for path in paths {
+        digest.update(path.as_bytes());
+        digest.update([0]);
+    }
+    format!("sha256:{:x}", digest.finalize())
+}
+
+pub(crate) fn route_registry_hash() -> String {
+    let paths = crate::server::route_registry()
+        .iter()
+        .map(|route| route.path)
+        .collect::<Vec<_>>();
+    path_set_hash(&paths)
 }
 
 fn contract_kind(contract: &ResultValueContract) -> &'static str {
@@ -344,6 +427,33 @@ pub(crate) fn enrich_argument_details(
                 guessed,
             ),
         );
+        if let Some(artifact_hash) = function.args_contract_hash.as_deref() {
+            let items = details
+                .get("candidateFields")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(|candidate| candidate.get("name").and_then(Value::as_str))
+                .map(|replacement| {
+                    RemediationItemV1::identifier_replacement(
+                        RemediationKindV1::FixTypo,
+                        artifact_hash,
+                        "argumentField",
+                        Some(function.id.clone()),
+                        replacement,
+                    )
+                })
+                .collect();
+            let mut carrier_details = Value::Object(std::mem::take(details));
+            attach_remediation_set(
+                &mut carrier_details,
+                RemediationSetV1::for_artifact(artifact_hash, items),
+            );
+            *details = carrier_details
+                .as_object_mut()
+                .map(std::mem::take)
+                .expect("carrier details stays an object");
+        }
     }
 }
 
@@ -365,9 +475,7 @@ fn field_type_name(field_type: &FieldType) -> &'static str {
 }
 
 pub(crate) fn unknown_schema_field_details(table: &TableManifest, guessed: &str) -> Value {
-    let mut digest = Sha256::new();
-    digest.update(serde_json::to_vec(table).expect("table manifest serializes"));
-    let served_shape_hash = format!("sha256:{:x}", digest.finalize());
+    let served_shape_hash = table_shape_hash(table);
     let mut fields = table.fields.iter().collect::<Vec<_>>();
     fields.sort_by(|left, right| {
         edit_distance(guessed, &left.name)
@@ -386,10 +494,11 @@ pub(crate) fn unknown_schema_field_details(table: &TableManifest, guessed: &str)
             })
         })
         .collect::<Vec<_>>();
-    json!({
+    let mut details = json!({
         "table": table.name,
+        "artifactHash": served_shape_hash,
         "servedShapeHash": served_shape_hash,
-        "candidateFields": candidates,
+        "candidateFields": candidates.clone(),
         "candidateFieldCount": candidate_count,
         "candidatesTruncated": candidate_count > FIELD_CANDIDATE_LIMIT,
         "localMissSummary": miss_tracker().record(
@@ -397,7 +506,31 @@ pub(crate) fn unknown_schema_field_details(table: &TableManifest, guessed: &str)
             Some(&served_shape_hash),
             guessed,
         ),
-    })
+    });
+    let items = candidates
+        .iter()
+        .filter_map(|candidate| candidate.get("name").and_then(Value::as_str))
+        .map(|replacement| {
+            RemediationItemV1::identifier_replacement(
+                RemediationKindV1::FixTypo,
+                &served_shape_hash,
+                "schemaField",
+                Some(table.name.clone()),
+                replacement,
+            )
+        })
+        .collect();
+    attach_remediation_set(
+        &mut details,
+        RemediationSetV1::for_artifact(&served_shape_hash, items),
+    );
+    details
+}
+
+pub(crate) fn table_shape_hash(table: &TableManifest) -> String {
+    let mut digest = Sha256::new();
+    digest.update(serde_json::to_vec(table).expect("table manifest serializes"));
+    format!("sha256:{:x}", digest.finalize())
 }
 
 #[cfg(test)]

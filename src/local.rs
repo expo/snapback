@@ -6984,6 +6984,10 @@ impl LocalSnapback {
         &self.functions
     }
 
+    pub(crate) fn served_schema_manifest(&self) -> &SchemaManifest {
+        self.db.schema()
+    }
+
     pub fn inspect(&mut self) -> SnapbackResult<InspectState> {
         let mut inspect = self.inspect_core()?;
         inspect.ephemeral = self.ephemeral.diagnostics();

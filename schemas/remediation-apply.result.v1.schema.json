@@ -1,0 +1,53 @@
+{
+  "$defs": {
+    "RemediationReplacementV1": {
+      "additionalProperties": false,
+      "properties": {
+        "owner": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "target",
+        "value"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/remediation-apply.result.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "applied": {
+      "type": "boolean"
+    },
+    "artifactHash": {
+      "pattern": "^sha256:(?:[0-9a-f]{16}|[0-9a-f]{64})$",
+      "type": "string"
+    },
+    "replacement": {
+      "$ref": "#/$defs/RemediationReplacementV1"
+    },
+    "schemaVersion": {
+      "const": "snapback.remediation-apply.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "applied",
+    "artifactHash",
+    "replacement"
+  ],
+  "title": "RemediationApplyResultV1",
+  "type": "object"
+}

@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/schemas/remediation-kinds.v1.schema.json",
+  "$comment": "Global LLP 0146 D7 registry. Contextual diagnostic offers reference this vocabulary; it is not keyed by refusal code.",
+  "title": "Snapback remediation-kind registry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "registryKind", "status", "kinds"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.remediation-kinds.v1" },
+    "registryKind": { "const": "remediationKindRegistry" },
+    "status": { "const": "active" },
+    "kinds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/kind" }
+    }
+  },
+  "$defs": {
+    "precondition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "required"],
+          "properties": {
+            "type": { "const": "artifact-hash" },
+            "required": { "const": ["artifactHash"] }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "required"],
+          "properties": {
+            "type": { "const": "grantable-scope" },
+            "required": { "const": ["grantableScope"] }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "required"],
+          "properties": {
+            "type": { "const": "principal-available" },
+            "required": { "const": ["principalAvailable"] }
+          }
+        }
+      ]
+    },
+    "kind": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "riskClass",
+        "machineApplicable",
+        "requiresApproval",
+        "authorityEffect",
+        "precondition"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "fixTypo",
+            "replaceIdentifier",
+            "regenerateArtifacts",
+            "requestGrant",
+            "useDifferentPrincipal"
+          ]
+        },
+        "riskClass": {
+          "enum": ["mechanical", "authority-widening", "authority-sensitive"]
+        },
+        "machineApplicable": { "type": "boolean" },
+        "requiresApproval": { "type": "boolean" },
+        "authorityEffect": {
+          "enum": ["none", "widens", "changes-effective-principal"]
+        },
+        "precondition": { "$ref": "#/$defs/precondition" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "machineApplicable": { "const": true } },
+            "required": ["machineApplicable"]
+          },
+          "then": {
+            "properties": {
+              "kind": {
+                "enum": ["fixTypo", "replaceIdentifier", "regenerateArtifacts"]
+              },
+              "riskClass": { "const": "mechanical" },
+              "requiresApproval": { "const": false },
+              "authorityEffect": { "const": "none" },
+              "precondition": {
+                "properties": { "type": { "const": "artifact-hash" } },
+                "required": ["type"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "authorityEffect": {
+                "enum": ["widens", "changes-effective-principal"]
+              }
+            },
+            "required": ["authorityEffect"]
+          },
+          "then": {
+            "properties": {
+              "requiresApproval": { "const": true },
+              "machineApplicable": { "const": false }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

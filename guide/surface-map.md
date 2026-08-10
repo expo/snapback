@@ -223,6 +223,7 @@ here (or listed here but gone from the code).
 | host_ops.errors.transition | backend.error-tracking-v1 |
 | host_ops.function.explain | operating.host-ops |
 | host_ops.function.explain.impersonated | operating.host-ops |
+| host_ops.remediation.apply | operating.diagnostics |
 | host_ops.function.run.query | operating.host-ops |
 | host_ops.function.run.mutation | operating.host-ops |
 | host_ops.function.run.action | operating.host-ops |

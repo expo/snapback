@@ -733,6 +733,20 @@ fn p6_unserved_ops_fail_closed_with_structured_envelopes() {
             .iter()
             .any(|operation| operation == "app.inspect")
     );
+    let remediation = &unknown["diagnostics"][0]["details"]["remediationSet"];
+    assert_eq!(remediation["schemaVersion"], "snapback.remediation-set.v1");
+    assert_eq!(
+        remediation["registryVersion"],
+        "snapback.remediation-kinds.v1"
+    );
+    assert_eq!(
+        remediation["artifactHash"],
+        unknown["diagnostics"][0]["details"]["artifactHash"]
+    );
+    assert!(remediation["items"].as_array().unwrap().iter().any(|item| {
+        item["action"]["replacement"] == "app.inspect"
+            && item["precondition"]["artifactHash"] == remediation["artifactHash"]
+    }));
     assert_eq!(
         unknown["diagnostics"][0]["details"]["localMissSummary"]["capacity"],
         128
@@ -857,6 +871,18 @@ fn served_function_refusals_project_manifest_candidates_and_argument_contracts()
         details["artifactHash"],
         generated("functions.manifest.json")["bundleHash"]
     );
+    assert_eq!(
+        details["remediationSet"]["artifactHash"],
+        details["artifactHash"]
+    );
+    assert_eq!(
+        details["remediationSet"]["items"][0]["precondition"]["artifactHash"],
+        details["artifactHash"]
+    );
+    assert_eq!(
+        details["remediationSet"]["items"][0]["action"]["replacement"],
+        "listTodos"
+    );
     assert!(
         details["localMissSummary"]["sameMissCount"]
             .as_u64()
@@ -885,6 +911,10 @@ fn served_function_refusals_project_manifest_candidates_and_argument_contracts()
     );
     assert_eq!(details["candidateFields"][0]["name"], "title");
     assert_eq!(details["candidateFields"][0]["expected"], "string");
+    assert_eq!(
+        details["remediationSet"]["items"][0]["action"]["replacement"],
+        "title"
+    );
     assert!(details["expectedArgumentContract"].is_object());
     assert!(
         !serde_json::to_string(&unknown_field)
@@ -906,6 +936,69 @@ fn served_function_refusals_project_manifest_candidates_and_argument_contracts()
     assert_eq!(details["actual"], "number");
     assert_eq!(details["candidateFields"][0]["name"], "title");
     assert_eq!(details["candidateFields"][0]["expected"], "string");
+}
+
+/// @ref LLP 0146#oq6-author-ruling--2026-08-10 — apply compares and selects
+/// the replacement in one host-operation turn; stale input has no effect.
+#[test]
+fn remediation_apply_is_generation_fenced_and_effect_free() {
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    let artifact_hash =
+        snapback::control_catalog::catalog_digest(snapback::control_catalog::build_catalog())
+            .expect("embedded control catalog digest")
+            .to_owned();
+    let item = |hash: &str| {
+        json!({
+            "kind": "fixTypo",
+            "riskClass": "mechanical",
+            "machineApplicable": true,
+            "requiresApproval": false,
+            "authorityEffect": "none",
+            "precondition": { "type": "artifact-hash", "artifactHash": hash },
+            "action": {
+                "type": "replaceIdentifier",
+                "target": "hostOperation",
+                "replacement": "app.inspect"
+            }
+        })
+    };
+
+    let fresh = envelope(
+        &mut snapback,
+        json!({
+            "operation": "remediation.apply",
+            "input": {
+                "schemaVersion": "snapback.remediation-apply.v1",
+                "artifactHash": artifact_hash,
+                "item": item(&artifact_hash)
+            }
+        }),
+    );
+    assert_eq!(fresh["ok"], true, "{fresh}");
+    assert_eq!(fresh["data"]["applied"], true);
+    assert_eq!(fresh["data"]["replacement"]["value"], "app.inspect");
+
+    let before = snapback
+        .durable_version()
+        .expect("version before stale apply");
+    let stale_hash = "sha256:aaaaaaaaaaaaaaaa";
+    let stale = envelope(
+        &mut snapback,
+        json!({
+            "operation": "remediation.apply",
+            "input": {
+                "schemaVersion": "snapback.remediation-apply.v1",
+                "artifactHash": stale_hash,
+                "item": item(stale_hash)
+            }
+        }),
+    );
+    assert_eq!(stale["ok"], false, "{stale}");
+    assert_eq!(
+        stale["diagnostics"][0]["code"],
+        "SNAPBACK_REMEDIATION_ARTIFACT_STALE"
+    );
+    assert_eq!(snapback.durable_version().unwrap(), before);
 }
 
 #[tokio::test]

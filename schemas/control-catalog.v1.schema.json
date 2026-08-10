@@ -238,8 +238,16 @@
           "items": { "type": "string" }
         },
         "remediation": {
-          "description": "Reserved; stays null/absent until LLP 0146 D7 lands a carrier (§Design/1).",
-          "type": "null"
+          "description": "Projection of LLP 0146's shared nested carrier decoder; remediation kinds remain owned by the global versioned registry.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["carrier", "schemaVersion", "registryVersion", "decoder"],
+          "properties": {
+            "carrier": { "const": "diagnostic.details.remediationSet" },
+            "schemaVersion": { "const": "snapback.remediation-set.v1" },
+            "registryVersion": { "const": "snapback.remediation-kinds.v1" },
+            "decoder": { "const": "@expo/snapback-client/remediation" }
+          }
         },
         "sources": {
           "type": "array",

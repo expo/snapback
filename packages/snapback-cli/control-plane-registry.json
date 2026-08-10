@@ -871,6 +871,17 @@
       "responseSensitivity": "SensitiveApplicationData"
     },
     {
+      "operation": "host_ops.remediation.apply",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
       "operation": "host_ops.function.explain.impersonated",
       "parentPath": "/_snapback/api/host-ops",
       "transport": "HostOps",
@@ -1225,6 +1236,7 @@
       "functions.load",
       "function.run",
       "function.explain",
+      "remediation.apply",
       "auth.mintSession",
       "auth.rescueCollidingTable",
       "telemetry.stats",

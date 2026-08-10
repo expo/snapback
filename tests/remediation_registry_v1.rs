@@ -1,16 +1,14 @@
-//! LLP 0146 D7's draft remediation-kind discipline, pending OQ6.
+//! LLP 0146 D7's ruled v1 global remediation-kind discipline.
 //!
 //! The test validates data against the checked-in schema and then pins the
-//! cross-entry safety rules that JSON Schema cannot express as clearly
-//! (unique kinds and the exact machine-applicable set). Nothing here installs
-//! a remediation carrier on a wire surface.
+//! cross-entry safety rules that JSON Schema cannot express as clearly.
 
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::fs;
 
-const SCHEMA_PATH: &str = "schemas/remediation-kinds.v0.schema.json";
-const REGISTRY_PATH: &str = "schemas/remediation-kinds.v0.registry.json";
+const SCHEMA_PATH: &str = "schemas/remediation-kinds.v1.schema.json";
+const REGISTRY_PATH: &str = "schemas/remediation-kinds.v1.registry.json";
 
 fn read_json(path: &str) -> Value {
     serde_json::from_str(
@@ -20,7 +18,7 @@ fn read_json(path: &str) -> Value {
 }
 
 #[test]
-fn draft_registry_validates_and_keeps_the_d7_axes_independent() {
+fn global_v1_registry_validates_and_keeps_the_d7_axes_independent() {
     let schema = read_json(SCHEMA_PATH);
     let registry = read_json(REGISTRY_PATH);
     let validator = jsonschema::validator_for(&schema).expect("compile remediation schema");
@@ -29,7 +27,8 @@ fn draft_registry_validates_and_keeps_the_d7_axes_independent() {
         .map(|error| error.to_string())
         .collect::<Vec<_>>();
     assert!(errors.is_empty(), "registry schema failures: {errors:#?}");
-    assert_eq!(registry["status"], "draft-pending-oq6");
+    assert_eq!(registry["schemaVersion"], "snapback.remediation-kinds.v1");
+    assert_eq!(registry["status"], "active");
 
     let kinds = registry["kinds"].as_array().expect("registry kinds");
     let unique = kinds

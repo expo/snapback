@@ -601,6 +601,35 @@ export const CONTROL_TOOLS = [
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
   },
+  {
+    name: 'snapback_remediation_apply',
+    operation: 'remediation.apply',
+    title: 'Apply one generation-fenced remediation item',
+    description: 'Consume an exact machine-applicable item from diagnostic.details.remediationSet and return its repaired identifier without invoking or mutating application state.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['schemaVersion', 'artifactHash', 'item'],
+      properties: {
+        schemaVersion: { const: 'snapback.remediation-apply.v1' },
+        artifactHash: { type: 'string', pattern: '^sha256:[0-9a-f]{16}([0-9a-f]{48})?$' },
+        item: {
+          type: 'object',
+          required: ['kind', 'riskClass', 'machineApplicable', 'requiresApproval', 'authorityEffect', 'precondition', 'action'],
+          properties: {
+            kind: { type: 'string' },
+            riskClass: { type: 'string' },
+            machineApplicable: { type: 'boolean' },
+            requiresApproval: { type: 'boolean' },
+            authorityEffect: { type: 'string' },
+            precondition: { type: 'object' },
+            action: { type: 'object' },
+          },
+        },
+      },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
   // --- LLP 0184 Phase 2 P1: read and diagnose ------------------------------
   {
     name: 'snapback_data_scan',
@@ -1981,6 +2010,8 @@ export class McpControlServer {
         return this.loadArtifactResult(name, 'functions.load', 'functions', args.functionsPath ?? join(this.backendRoot, 'generated', 'functions.manifest.json'));
       case 'snapback_run_function':
         return this.runFunctionResult(name, args.function, args.args ?? {}, args.authority);
+      case 'snapback_remediation_apply':
+        return this.servedResult({ operation: 'remediation.apply', input: args });
       // --- LLP 0184 Phase 2 P1: read and diagnose --------------------------
       case 'snapback_data_scan': {
         const limit = Number.isInteger(args.limit) ? args.limit : 50;

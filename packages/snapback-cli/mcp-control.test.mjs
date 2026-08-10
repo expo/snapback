@@ -22,6 +22,7 @@ import {
   functionToolName,
   requireMatchingControlCatalogIdentity,
 } from './mcp-control.mjs';
+import { decodeRemediationSet } from '../snapback-client/remediation.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
@@ -245,7 +246,7 @@ try {
   for (const pinned of [
     'snapback_start', 'snapback_stop', 'snapback_restart', 'snapback_inspect',
     'snapback_reset', 'snapback_load_schema', 'snapback_load_functions',
-    'snapback_run_function', 'snapback_acceptance_run',
+    'snapback_run_function', 'snapback_remediation_apply', 'snapback_acceptance_run',
     'snapback_network_profile_get', 'snapback_network_profile_set',
     'snapback_telemetry_stats', 'snapback_telemetry_events', 'snapback_telemetry_export',
     'snapback_errors_issues', 'snapback_errors_issue', 'snapback_errors_transition',
@@ -627,8 +628,8 @@ try {
     assert.ok(Array.isArray(entry.diagnostics));
   }
 
-  // LLP 0146 D7's OQ6-independent half: MCP preserves type-aware content in
-  // the existing host-op diagnostic details. No remediation carrier is added.
+  // LLP 0146 D7 option B: MCP preserves the unchanged host-op Diagnostic,
+  // including the ruled nested carrier, without adding an MCP-only wrapper.
   let unknownFunction;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     unknownFunction = await client.call('snapback_run_function', {
@@ -645,6 +646,36 @@ try {
   assert.equal(unknownFunctionDetails.candidateFunctions[0].name, 'listTodos');
   assert.equal(unknownFunctionDetails.candidateFunctions[0].kind, 'LiveQuery');
   assert.equal(typeof unknownFunctionDetails.artifactHash, 'string');
+  const remediation = decodeRemediationSet(unknownFunctionDetails);
+  assert.equal(remediation.artifactHash, unknownFunctionDetails.artifactHash);
+  assert.equal(remediation.items[0].action.replacement, 'listTodos');
+  assert.equal(
+    remediation.items[0].precondition.artifactHash,
+    unknownFunctionDetails.artifactHash,
+  );
+  const appliedRemediation = await client.call('snapback_remediation_apply', {
+    schemaVersion: 'snapback.remediation-apply.v1',
+    artifactHash: remediation.artifactHash,
+    item: remediation.items[0],
+  });
+  assert.equal(appliedRemediation.structuredContent.ok, true, JSON.stringify(appliedRemediation));
+  assert.deepEqual(
+    appliedRemediation.structuredContent.data.replacement,
+    { target: 'function', value: 'listTodos' },
+  );
+  const staleArtifactHash = `sha256:${'a'.repeat(16)}`;
+  const staleItem = structuredClone(remediation.items[0]);
+  staleItem.precondition.artifactHash = staleArtifactHash;
+  const staleRemediation = await client.call('snapback_remediation_apply', {
+    schemaVersion: 'snapback.remediation-apply.v1',
+    artifactHash: staleArtifactHash,
+    item: staleItem,
+  });
+  assert.equal(staleRemediation.structuredContent.ok, false);
+  assert.equal(
+    staleRemediation.structuredContent.diagnostics[0].code,
+    'SNAPBACK_REMEDIATION_ARTIFACT_STALE',
+  );
   assert.ok(unknownFunctionDetails.localMissSummary.sameMissCount >= 3);
   assert.equal(unknownFunctionDetails.localMissSummary.capacity, 128);
   assert.doesNotMatch(JSON.stringify(unknownFunction.structuredContent), /listTods/);

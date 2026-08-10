@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:d1b47fa8301e0d50dc5b9d69d061f74412313c3ef8d9051b86b29b932f04c7be",
+  "catalogDigest": "sha256:22a2f0772605698a711d61ad09840d0c9011fc2c39c6f4bd5cc08e54c5d3630a",
   "buildIdentity": {
-    "sourceCommit": "0a54ede9bb4bc08ba242c4f788061f702472f55f",
-    "dirty": false
+    "sourceCommit": "bbfb871f14c3cefbda2e1e143770b5c25eadb94f",
+    "dirty": true
   },
-  "generatedAtCommit": "0a54ede9bb4bc08ba242c4f788061f702472f55f",
+  "generatedAtCommit": "bbfb871f14c3cefbda2e1e143770b5c25eadb94f",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -64,7 +64,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "The host-op spelling is pinned but unbuilt; the shipped done-oracle command is snapback verify."
+      "cliDeferralReason": "The host-op spelling is pinned but unbuilt; the shipped done-oracle command is snapback verify.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "admin.link.exchange",
@@ -122,6 +128,12 @@
         "negativeLeakTests": [
           "tests/admin_claim_link_v0.rs::planted_claim_link_redeems_once_and_attached_cli_reports_it"
         ]
+      },
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
       }
     },
     {
@@ -184,6 +196,12 @@
         "negativeLeakTests": [
           "tests/admin_claim_link_v0.rs::planted_claim_link_redeems_once_and_attached_cli_reports_it"
         ]
+      },
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
       }
     },
     {
@@ -242,6 +260,12 @@
         "negativeLeakTests": [
           "tests/admin_claim_link_v0.rs::planted_claim_link_redeems_once_and_attached_cli_reports_it"
         ]
+      },
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
       }
     },
     {
@@ -300,6 +324,12 @@
         "negativeLeakTests": [
           "tests/admin_claim_link_v0.rs::planted_claim_link_redeems_once_and_attached_cli_reports_it"
         ]
+      },
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
       }
     },
     {
@@ -349,7 +379,13 @@
       "sources": [
         "src/server.rs operation_registry()"
       ],
-      "cliDeferralReason": "Provisioning is dispatched through POST /app/ensure; no direct CLI wrapper ships."
+      "cliDeferralReason": "Provisioning is dispatched through POST /app/ensure; no direct CLI wrapper ships.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "app.inspect",
@@ -402,7 +438,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "app.reset",
@@ -461,7 +503,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs",
         "cloudflare/src/gateway.js:172"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "app.seed.clear.v1",
@@ -514,7 +562,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API."
+      "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "app.seed.ensure.v1",
@@ -567,7 +621,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API."
+      "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "app.seed.preview.v1",
@@ -620,7 +680,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API."
+      "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "app.seed.reset-install.v1",
@@ -673,7 +739,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API."
+      "cliDeferralReason": "This versioned seed primitive is available only through the host-ops API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "asset.delete",
@@ -725,7 +797,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "asset.ensureSeedFixture",
@@ -778,7 +856,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "mcpDeferralReason": "Assets family; see asset.put."
+      "mcpDeferralReason": "Assets family; see asset.put.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "asset.exportCut",
@@ -830,7 +914,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "asset.gcSweep",
@@ -882,7 +972,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "asset.importCut",
@@ -934,7 +1030,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "asset.inspect",
@@ -986,7 +1088,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "asset.list",
@@ -1038,7 +1146,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "asset.put",
@@ -1092,7 +1206,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "mcpDeferralReason": "Assets: full typed CLI, zero MCP tools today — the RFC's (cliOnly, direct) worked example (§Product contract). MCP projection is a Phase 2 P1 item."
+      "mcpDeferralReason": "Assets: full typed CLI, zero MCP tools today — the RFC's (cliOnly, direct) worked example (§Product contract). MCP projection is a Phase 2 P1 item.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "asset.retry",
@@ -1144,7 +1264,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "asset.rotateSigningKey",
@@ -1196,7 +1322,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "auth.mailbox.read",
@@ -1246,7 +1378,13 @@
       ],
       "pinned": true,
       "pinReason": "responseSensitivity CredentialSecret: usage-evidence promotion to native/cliOnly/mcpOnly is refused outright regardless of call volume (§Product contract's promotion-refusal rule). This row stays apiOnly until an authored override passes the same secret-carrier review config.set requires.",
-      "cliDeferralReason": "The mailbox returns credential secrets and remains an explicitly API-only operator path."
+      "cliDeferralReason": "The mailbox returns credential secrets and remains an explicitly API-only operator path.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "auth.mintSession",
@@ -1300,7 +1438,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "mcpDeferralReason": "Session credentials are returned only to the operator's CLI terminal; the ordinary MCP result channel must not carry them."
+      "mcpDeferralReason": "Session credentials are returned only to the operator's CLI terminal; the ordinary MCP result channel must not carry them.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "auth.rescueCollidingTable",
@@ -1353,7 +1497,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "The rescue is a specialist host-ops API operation with no CLI projection."
+      "cliDeferralReason": "The rescue is a specialist host-ops API operation with no CLI projection.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "branch.create.v1",
@@ -1406,7 +1556,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow."
+      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "branch.drop.v1",
@@ -1459,7 +1615,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow."
+      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "branch.execute.v1",
@@ -1512,7 +1674,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow."
+      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "branch.inspect.v1",
@@ -1565,7 +1733,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow."
+      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "branch.list.v1",
@@ -1618,7 +1792,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow."
+      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "branch.reap.v1",
@@ -1671,7 +1851,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow."
+      "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "capability.manifest.read",
@@ -1722,7 +1908,13 @@
       "sources": [
         "cloudflare/src/gateway.js:102"
       ],
-      "cliDeferralReason": "The manifest is read from a deployed hosted adapter; no local CLI verb projects it."
+      "cliDeferralReason": "The manifest is read from a deployed hosted adapter; no local CLI verb projects it.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.auth.backup",
@@ -1769,7 +1961,13 @@
       "sources": [
         "src/cli.rs:802 HostCommand::Auth",
         "src/cli.rs:1216 AuthCommand::Backup"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.auth.restore",
@@ -1815,7 +2013,13 @@
       ],
       "sources": [
         "src/cli.rs:1223 AuthCommand::Restore"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.buildIdentity",
@@ -1861,7 +2065,13 @@
       ],
       "sources": [
         "src/cli.rs:819 HostCommand::BuildIdentity"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.fork.create",
@@ -1908,7 +2118,13 @@
       "sources": [
         "src/cli.rs:807 HostCommand::Fork",
         "src/cli.rs:1234 ForkCommand::Create"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.fork.diff",
@@ -1954,7 +2170,13 @@
       ],
       "sources": [
         "src/cli.rs:1265 ForkCommand::Diff"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.fork.drop",
@@ -2000,7 +2222,13 @@
       ],
       "sources": [
         "src/cli.rs:1275 ForkCommand::Drop"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.fork.list",
@@ -2046,7 +2274,13 @@
       ],
       "sources": [
         "src/cli.rs:1258 ForkCommand::List"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.fork.reap",
@@ -2092,7 +2326,13 @@
       ],
       "sources": [
         "src/cli.rs:1283 ForkCommand::Reap"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.migrate.apply",
@@ -2138,7 +2378,13 @@
       ],
       "sources": [
         "src/cli.rs:1150 MigrateCommand::Apply"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.migrate.approve",
@@ -2183,7 +2429,13 @@
       ],
       "sources": [
         "src/cli.rs:1131 MigrateCommand::Approve"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.migrate.cancel",
@@ -2228,7 +2480,13 @@
       ],
       "sources": [
         "src/cli.rs:1190 MigrateCommand::Cancel"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.migrate.preview",
@@ -2275,7 +2533,13 @@
       "sources": [
         "src/cli.rs:1092 MigrateCommand",
         "src/cli.rs:1095 MigrateCommand::Preview"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.migrate.rehearse",
@@ -2321,7 +2585,13 @@
       ],
       "sources": [
         "src/cli.rs:1172 MigrateCommand::Rehearse"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.migrate.rollback",
@@ -2371,6 +2641,12 @@
         "owner": "llp/0081-declarative-schema-evolution",
         "ticketOrDesignPointer": "llp/0081-declarative-schema-evolution.spec.md",
         "note": "Refuses with SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE per src/cli.rs's own doc comment; not yet available on this profile."
+      },
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
       }
     },
     {
@@ -2416,7 +2692,13 @@
       ],
       "sources": [
         "src/cli.rs:1198 MigrateCommand::Verify"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.accept",
@@ -2462,7 +2744,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.accept"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.agent",
@@ -2509,7 +2797,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.agent"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.audit",
@@ -2555,7 +2849,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.audit"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.backup",
@@ -2602,7 +2902,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.backup"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.deploy",
@@ -2649,7 +2955,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.deploy"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.dev",
@@ -2696,7 +3008,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.dev"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.doctor",
@@ -2743,7 +3061,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.doctor"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.generate",
@@ -2789,7 +3113,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.generate"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.guide",
@@ -2835,7 +3165,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.guide"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.hosted",
@@ -2882,7 +3218,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.hosted"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.inspect",
@@ -2928,7 +3270,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.inspect"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.logs",
@@ -2974,7 +3322,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.logs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.mcpControl",
@@ -3020,7 +3374,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.mcp-control"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.new",
@@ -3066,7 +3426,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.new"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.reset",
@@ -3113,7 +3479,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.reset"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.restore",
@@ -3160,7 +3532,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.restore"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.runtimeQualify",
@@ -3206,7 +3584,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.runtime-qualify"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.target",
@@ -3253,7 +3637,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.target"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.packaged.verify",
@@ -3300,7 +3690,13 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.verify"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cli.telemetry.query",
@@ -3347,7 +3743,13 @@
       "sources": [
         "src/cli.rs:1001 TelemetryCommand::Query",
         "src/telemetry_query.rs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "client-mutations.purge",
@@ -3396,7 +3798,13 @@
         "src/server.rs route_registry()"
       ],
       "cliDeferralReason": "This internal maintenance route has no supported CLI projection.",
-      "internalReason": "Internal client-mutation-log retention maintenance; not an author/operator-invoked action today."
+      "internalReason": "Internal client-mutation-log retention maintenance; not an author/operator-invoked action today.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "config.plan",
@@ -3443,7 +3851,13 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "config.set",
@@ -3545,6 +3959,12 @@
             "minimum": 0
           }
         }
+      },
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
       }
     },
     {
@@ -3598,7 +4018,13 @@
       "sources": [
         "src/server.rs route_registry()",
         "cloudflare/src/gateway.js:125"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "config.unset",
@@ -3645,7 +4071,13 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "config.verify",
@@ -3692,7 +4124,13 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "connection.disconnect",
@@ -3739,7 +4177,13 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "console.approval.approve",
@@ -3797,6 +4241,12 @@
         "negativeLeakTests": [
           "tests/admin_v0.rs::console_device_approval_is_terminal_authorized_and_single_use"
         ]
+      },
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
       }
     },
     {
@@ -3855,6 +4305,12 @@
         "negativeLeakTests": [
           "tests/admin_v0.rs::console_device_approval_is_terminal_authorized_and_single_use"
         ]
+      },
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
       }
     },
     {
@@ -3913,6 +4369,12 @@
         "negativeLeakTests": [
           "tests/admin_v0.rs::console_device_approval_is_terminal_authorized_and_single_use"
         ]
+      },
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
       }
     },
     {
@@ -3962,7 +4424,13 @@
         "src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Console credential lifecycle is internal to the browser handoff; use snapback admin link.",
-      "internalReason": "Browser-console session-credential bootstrap machinery consumed by AdminClient's own private #restoreReachabilityCredential/#renewConsoleCredential methods, not an author/operator action a client invokes directly."
+      "internalReason": "Browser-console session-credential bootstrap machinery consumed by AdminClient's own private #restoreReachabilityCredential/#renewConsoleCredential methods, not an author/operator action a client invokes directly.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "console.reachability.bind",
@@ -4011,7 +4479,13 @@
         "src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Reachability records are managed by the admin-link workflow rather than a standalone CLI verb.",
-      "internalReason": "Console session-bootstrap plumbing; see console.credential."
+      "internalReason": "Console session-bootstrap plumbing; see console.credential.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "console.reachability.drop",
@@ -4060,7 +4534,13 @@
         "src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Reachability records are managed by the admin-link workflow rather than a standalone CLI verb.",
-      "internalReason": "Console session-bootstrap plumbing; see console.credential."
+      "internalReason": "Console session-bootstrap plumbing; see console.credential.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "console.reachability.register",
@@ -4109,7 +4589,13 @@
         "src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Reachability records are managed by the admin-link workflow rather than a standalone CLI verb.",
-      "internalReason": "Console session-bootstrap plumbing; see console.credential."
+      "internalReason": "Console session-bootstrap plumbing; see console.credential.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "console.reachability.renew",
@@ -4158,7 +4644,13 @@
         "src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Reachability records are managed by the admin-link workflow rather than a standalone CLI verb.",
-      "internalReason": "Console session-bootstrap plumbing; see console.credential."
+      "internalReason": "Console session-bootstrap plumbing; see console.credential.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "control.catalog.describe",
@@ -4205,7 +4697,13 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "control.catalog.instance.read",
@@ -4253,7 +4751,13 @@
       "sources": [
         "src/server.rs route_registry()"
       ],
-      "cliDeferralReason": "The v1 CLI stays honestly build-only/offline. Instance availability is served by the admin-gated HTTP endpoint and the control MCP resource; invocation admission remains authoritative."
+      "cliDeferralReason": "The v1 CLI stays honestly build-only/offline. Instance availability is served by the admin-gated HTTP endpoint and the control MCP resource; invocation admission remains authoritative.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "control.catalog.read",
@@ -4301,7 +4805,13 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cron.list",
@@ -4353,7 +4863,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cron.runOne",
@@ -4400,7 +4916,13 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cron.status.read",
@@ -4449,7 +4971,13 @@
       "sources": [
         "cloudflare/src/gateway.js:134"
       ],
-      "cliDeferralReason": "Hosted cron status is exposed by the deployed adapter rather than a local CLI command."
+      "cliDeferralReason": "Hosted cron status is exposed by the deployed adapter rather than a local CLI command.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "cron.tick",
@@ -4502,7 +5030,13 @@
       "sources": [
         "src/server.rs route_registry()",
         "cloudflare/src/gateway.js:140"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "data.patch.apply",
@@ -4557,7 +5091,13 @@
         "src/local.rs",
         "src/server.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "data.patch.preview",
@@ -4612,7 +5152,13 @@
         "src/local.rs",
         "src/server.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "data.scan",
@@ -4659,7 +5205,13 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "debug.live.forceResync",
@@ -4710,7 +5262,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "debug.networkProfileGet",
@@ -4767,7 +5325,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs",
         "cloudflare/src/gateway.js:149"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "debug.networkProfileSet",
@@ -4825,7 +5389,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs",
         "cloudflare/src/gateway.js:149"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "direct_runner.action",
@@ -4874,7 +5444,13 @@
       "sources": [
         "src/server.rs operation_registry()"
       ],
-      "cliDeferralReason": "Direct-runner dispatch is an internal API primitive; use the generated client or snapback run."
+      "cliDeferralReason": "Direct-runner dispatch is an internal API primitive; use the generated client or snapback run.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "direct_runner.mutation",
@@ -4923,7 +5499,13 @@
       "sources": [
         "src/server.rs operation_registry()"
       ],
-      "cliDeferralReason": "Direct-runner dispatch is an internal API primitive; use the generated client or snapback run."
+      "cliDeferralReason": "Direct-runner dispatch is an internal API primitive; use the generated client or snapback run.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "direct_runner.query",
@@ -4972,7 +5554,13 @@
       "sources": [
         "src/server.rs operation_registry()"
       ],
-      "cliDeferralReason": "Direct-runner dispatch is an internal API primitive; use the generated client or snapback run."
+      "cliDeferralReason": "Direct-runner dispatch is an internal API primitive; use the generated client or snapback run.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "direct_runner.unknown",
@@ -5025,7 +5613,13 @@
       "sources": [
         "src/server.rs operation_registry()"
       ],
-      "cliDeferralReason": "This is a refusal identity, not an invocable CLI operation."
+      "cliDeferralReason": "This is a refusal identity, not an invocable CLI operation.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "ephemeral.cleanup",
@@ -5072,7 +5666,13 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "ephemeral.operatorDelete",
@@ -5118,7 +5718,13 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "errors.issue",
@@ -5170,7 +5776,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "errors.issues",
@@ -5222,7 +5834,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "errors.transition",
@@ -5274,7 +5892,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "function.explain",
@@ -5328,7 +5952,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "Function explanation is exposed through the specialist host-ops API."
+      "cliDeferralReason": "Function explanation is exposed through the specialist host-ops API.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "function.run",
@@ -5384,7 +6014,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "functions.load",
@@ -5436,7 +6072,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "functions.reload",
@@ -5494,7 +6136,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "This LLP 0024 spelling is pinned but not yet implemented."
+      "cliDeferralReason": "This LLP 0024 spelling is pinned but not yet implemented.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "health",
@@ -5542,7 +6190,13 @@
       "sources": [
         "src/server.rs route_registry()"
       ],
-      "cliDeferralReason": "The raw health route is API-only; use snapback inspect for the CLI projection."
+      "cliDeferralReason": "The raw health route is API-only; use snapback inspect for the CLI projection.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "health.read",
@@ -5590,7 +6244,13 @@
       "sources": [
         "cloudflare/src/gateway.js:122"
       ],
-      "cliDeferralReason": "Hosted health is read from the deployed adapter, not a local CLI verb."
+      "cliDeferralReason": "Hosted health is read from the deployed adapter, not a local CLI verb.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "host.restart",
@@ -5651,7 +6311,13 @@
       "composedFrom": [
         "host.stop",
         "host.start"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "host.start",
@@ -5704,7 +6370,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "mcpDeferralReason": "snapback_start exists but is a distinct MCP-only projection today (this row's own HTTP/CLI path is the source of truth for surfaceAccess derivation; see host.restart below for the composed case)."
+      "mcpDeferralReason": "snapback_start exists but is a distinct MCP-only projection today (this row's own HTTP/CLI path is the source of truth for surfaceAccess derivation; see host.restart below for the composed case).",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "host.stop",
@@ -5757,7 +6429,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "mcpDeferralReason": "Analogous to host.start."
+      "mcpDeferralReason": "Analogous to host.start.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "hostCall.dispatch",
@@ -5804,7 +6482,13 @@
       "sources": [
         "cloudflare/src/gateway.js:110"
       ],
-      "internalReason": "System-to-system re-entrant call from the handler isolate back to its owning coordinator, gated by a per-invocation host-call token, not an author/operator action."
+      "internalReason": "System-to-system re-entrant call from the handler isolate back to its owning coordinator, gated by a per-invocation host-call token, not an author/operator action.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "inspect",
@@ -5852,7 +6536,13 @@
       "sources": [
         "src/server.rs route_registry()"
       ],
-      "cliDeferralReason": "The raw inspect route is API-only; use snapback inspect for the CLI projection."
+      "cliDeferralReason": "The raw inspect route is API-only; use snapback inspect for the CLI projection.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "jobs.drain",
@@ -5899,7 +6589,13 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "jobs.list",
@@ -5946,7 +6642,13 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "jobs.show",
@@ -5993,7 +6695,13 @@
       ],
       "sources": [
         "src/server.rs route_registry()"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "object.evict",
@@ -6042,7 +6750,13 @@
       "sources": [
         "cloudflare/src/gateway.js:172"
       ],
-      "cliDeferralReason": "Object eviction is a hosted-adapter API operation with no local CLI projection."
+      "cliDeferralReason": "Object eviction is a hosted-adapter API operation with no local CLI projection.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "operations.explain",
@@ -6090,7 +6804,13 @@
       "sources": [
         "src/server.rs route_registry()"
       ],
-      "cliDeferralReason": "The raw explanation route is API-only; use snapback controls describe for catalog entries."
+      "cliDeferralReason": "The raw explanation route is API-only; use snapback controls describe for catalog entries.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "push.maintenance",
@@ -6139,7 +6859,13 @@
         "src/server.rs route_registry()"
       ],
       "cliDeferralReason": "Push maintenance is an internal API operation with no CLI projection.",
-      "internalReason": "Push-notification maintenance sweep; internal scheduled/system maintenance, not an author/operator-invoked action today."
+      "internalReason": "Push-notification maintenance sweep; internal scheduled/system maintenance, not an author/operator-invoked action today.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "receipts",
@@ -6187,7 +6913,72 @@
       "sources": [
         "src/server.rs route_registry()"
       ],
-      "cliDeferralReason": "The receipt collection is exposed through the API and typed operation responses, not a standalone CLI verb."
+      "cliDeferralReason": "The receipt collection is exposed through the API and typed operation responses, not a standalone CLI verb.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "remediation.apply",
+      "title": "Apply a generation-fenced remediation",
+      "intents": [
+        "apply a diagnostic repair",
+        "fix a misspelled identifier",
+        "consume a remediation item"
+      ],
+      "status": "shipped",
+      "domain": "hostOps",
+      "hostOpsDisposition": "served",
+      "registeredOperations": [
+        "host_ops.remediation.apply"
+      ],
+      "surfaceAccess": "native",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": "snapback remediation apply --input <file|->",
+        "mcp": "snapback_remediation_apply",
+        "hostOps": "remediation.apply",
+        "http": "POST /_snapback/api/host-ops",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "operating/diagnostics.md#apply-a-remediation-safely",
+      "authorities": [
+        "llp/0024-agent-operating-surface"
+      ],
+      "sources": [
+        "src/host_ops.rs",
+        "packages/snapback-cli/mcp-control.mjs"
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "route.unknown.refuse",
@@ -6237,7 +7028,13 @@
       "sources": [
         "cloudflare/src/gateway.js:178"
       ],
-      "internalReason": "Unconditional refusal branch, not an invocable operation."
+      "internalReason": "Unconditional refusal branch, not an invocable operation.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "schema.load",
@@ -6289,7 +7086,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "schema.reload",
@@ -6347,7 +7150,13 @@
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "cliDeferralReason": "This LLP 0024 spelling is pinned but not yet implemented."
+      "cliDeferralReason": "This LLP 0024 spelling is pinned but not yet implemented.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "secretRead.mint",
@@ -6395,7 +7204,13 @@
       "sources": [
         "src/server.rs route_registry()"
       ],
-      "mcpDeferralReason": "Ready-file-only local operator authority (src/cli.rs HostCommand::SecretReadMint doc comment: 'can never be discovered from a URL'); no MCP projection."
+      "mcpDeferralReason": "Ready-file-only local operator authority (src/cli.rs HostCommand::SecretReadMint doc comment: 'can never be discovered from a URL'); no MCP projection.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "storage.operation-coverage.activate",
@@ -6444,7 +7259,13 @@
       "sources": [
         "src/server.rs route_registry()"
       ],
-      "cliDeferralReason": "This specialist storage API intentionally has no general CLI projection."
+      "cliDeferralReason": "This specialist storage API intentionally has no general CLI projection.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "storage.protected-erasure",
@@ -6495,7 +7316,13 @@
       "sources": [
         "src/server.rs route_registry()"
       ],
-      "cliDeferralReason": "This specialist storage API intentionally has no general CLI projection."
+      "cliDeferralReason": "This specialist storage API intentionally has no general CLI projection.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "telemetry.events",
@@ -6547,7 +7374,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "telemetry.export",
@@ -6599,7 +7432,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "telemetry.stats",
@@ -6651,7 +7490,13 @@
       "sources": [
         "src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
-      ]
+      ],
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "test.<subpath-determined-by-coordinator>",
@@ -6698,7 +7543,13 @@
       "sources": [
         "cloudflare/src/gateway.js:156"
       ],
-      "internalReason": "SNAPBACK_TESTING=1 profile-gated testing seam; not an author/operator action."
+      "internalReason": "SNAPBACK_TESTING=1 profile-gated testing seam; not an author/operator action.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     },
     {
       "operation": "test.corruptMeta",
@@ -6745,7 +7596,13 @@
       "sources": [
         "cloudflare/src/gateway.js:156"
       ],
-      "internalReason": "SNAPBACK_TESTING=1 profile-gated testing seam, categorically absent from production deploys; not an author/operator action."
+      "internalReason": "SNAPBACK_TESTING=1 profile-gated testing seam, categorically absent from production deploys; not an author/operator action.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
     }
   ]
 }

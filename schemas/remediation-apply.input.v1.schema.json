@@ -1,0 +1,219 @@
+{
+  "$defs": {
+    "RemediationActionV1": {
+      "oneOf": [
+        {
+          "properties": {
+            "owner": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "replacement": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "type": {
+              "const": "replaceIdentifier",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "replacement"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "target": {
+              "type": "string"
+            },
+            "type": {
+              "const": "regenerateArtifacts",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "target"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "scope": {
+              "type": "string"
+            },
+            "type": {
+              "const": "requestGrant",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "scope"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "principal": {
+              "type": "string"
+            },
+            "type": {
+              "const": "useDifferentPrincipal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "principal"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "RemediationAuthorityEffectV1": {
+      "enum": [
+        "none",
+        "widens",
+        "changes-effective-principal"
+      ],
+      "type": "string"
+    },
+    "RemediationItemV1": {
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/RemediationActionV1"
+        },
+        "authorityEffect": {
+          "$ref": "#/$defs/RemediationAuthorityEffectV1"
+        },
+        "kind": {
+          "$ref": "#/$defs/RemediationKindV1"
+        },
+        "machineApplicable": {
+          "type": "boolean"
+        },
+        "precondition": {
+          "$ref": "#/$defs/RemediationPreconditionV1"
+        },
+        "requiresApproval": {
+          "type": "boolean"
+        },
+        "riskClass": {
+          "$ref": "#/$defs/RemediationRiskClassV1"
+        }
+      },
+      "required": [
+        "kind",
+        "riskClass",
+        "machineApplicable",
+        "requiresApproval",
+        "authorityEffect",
+        "precondition",
+        "action"
+      ],
+      "type": "object"
+    },
+    "RemediationKindV1": {
+      "enum": [
+        "fixTypo",
+        "replaceIdentifier",
+        "regenerateArtifacts",
+        "requestGrant",
+        "useDifferentPrincipal"
+      ],
+      "type": "string"
+    },
+    "RemediationPreconditionV1": {
+      "oneOf": [
+        {
+          "properties": {
+            "artifactHash": {
+              "pattern": "^sha256:(?:[0-9a-f]{16}|[0-9a-f]{64})$",
+              "type": "string"
+            },
+            "type": {
+              "const": "artifact-hash",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "artifactHash"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "grantableScope": {
+              "type": "string"
+            },
+            "type": {
+              "const": "grantable-scope",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "grantableScope"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "principalAvailable": {
+              "type": "string"
+            },
+            "type": {
+              "const": "principal-available",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "principalAvailable"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "RemediationRiskClassV1": {
+      "enum": [
+        "mechanical",
+        "authority-widening",
+        "authority-sensitive"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/remediation-apply.input.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifactHash": {
+      "pattern": "^sha256:(?:[0-9a-f]{16}|[0-9a-f]{64})$",
+      "type": "string"
+    },
+    "item": {
+      "$ref": "#/$defs/RemediationItemV1"
+    },
+    "schemaVersion": {
+      "const": "snapback.remediation-apply.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "artifactHash",
+    "item"
+  ],
+  "title": "RemediationApplyInputV1",
+  "type": "object"
+}

@@ -631,7 +631,14 @@ owns rather than hand-authored frames.
 ## Remediation-set fixture obligations (LLP 0146 OQ6 ruling) — 2026-08-10
 
 The 2026-08-10 author ruling (LLP 0094's matching dated amendment) assigns
-this corpus the conformance surface for `diagnostic.details.remediationSet`.
+this Spec the conformance surface for `diagnostic.details.remediationSet`.
+Because remediation is a cross-projection Diagnostic concern rather than a
+live-lifecycle frame, its committed companion corpus is
+`schemas/remediation.wire-fixtures.v1.json`, with exact
+`formatVersion: "snapback.remediation-fixtures.v1"`; the live corpus stays at
+format v3 and its structure does not change. The companion corpus is emitted
+through `artifact_instances()` and drift-gated by the same one-generator,
+two-caller discipline as §3.
 Required fixture families, all cross-projection (CLI, HTTP, MCP, hosted):
 positive offers (each landed refusal family that constructs a set); unknown
 remediation kind ignored without failing the diagnostic; unknown member
@@ -642,4 +649,9 @@ pre-gate existence oracle in any offer); approval semantics
 consumers); and byte-for-byte diagnostic parity across projections. New
 semantics require explicit fixtures and lifecycle actions per this Spec's
 standing rule; the carrier's nested `schemaVersion` advances rather than
-drifting additively.
+drifting incompatibly. Within recognized v1, additive unknown members are
+ignored, an unknown kind is skipped, and an unknown nested schema or registry
+version disables remediation interpretation without invalidating the
+surrounding diagnostic. The hard bound is eight items; every
+machine-applicable fixture binds item and carrier to the exact same observed
+artifact hash.

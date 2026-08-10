@@ -96,6 +96,10 @@ use crate::proof_checkpoint::{
     ProtectedRecordErasureAuthorityFactsV1, ProtectedRecordErasureReceiptV1,
     ProtectedRecordErasureWireRequestV1, RecordHistoryPageV1,
 };
+use crate::remediation::RemediationSetV1;
+use crate::remediation::{
+    RemediationApplyInputV1, RemediationApplyResultV1, RemediationFixtureCorpusV1,
+};
 use crate::result_transform::{ResultTransformCorpusCaseV1, ResultTransformCorpusManifestV1};
 use crate::seed_identity::{
     ActiveSeedIdentityV1, ExpectedDataVersionStreamV1, InstallSeedRequestV1, ResetSeedRequestV1,
@@ -126,9 +130,8 @@ pub struct SchemaArtifact {
 ///
 /// @ref LLP 0184#phase-1--catalog-and-parity-gate — ControlCatalogV1 and its
 /// instance projection are owned by the checked cross-registry JS compiler.
-/// @ref LLP 0146#d7-implementation-record--2026-08-06-oq6-independent-substrate
-///   — the remediation registry schema is an intentionally data-only draft,
-///   not a Rust-owned wire artifact.
+/// @ref LLP 0146#oq6-author-ruling--2026-08-10 — the global registry schema
+///   remains a data-registry validator while Rust owns the contextual carrier.
 /// @ref LLP 0049#deployment-identity-freshness-gate-2026-07-25 — the
 ///   Cloudflare deploy workflow owns its version-attested success receipt;
 ///   it is not a Rust server artifact.
@@ -136,7 +139,7 @@ pub const EXTERNALLY_MANAGED_SCHEMA_ARTIFACTS: &[&str] = &[
     "cloudflare.deploy-receipt-v1.schema.json",
     "control-catalog-instance.v1.schema.json",
     "control-catalog.v1.schema.json",
-    "remediation-kinds.v0.schema.json",
+    "remediation-kinds.v1.schema.json",
 ];
 
 /// The single generator for every Snapback-owned committed schema.
@@ -533,6 +536,25 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(RemoteDataCapabilityManifest),
         ),
         finish("diagnostic.schema.json", schemars::schema_for!(Diagnostic)),
+        // The carrier evolves independently inside Diagnostic.details; outer
+        // Diagnostic and result-envelope versions remain unchanged.
+        // @ref LLP 0146#oq6-author-ruling--2026-08-10
+        finish_remediation_set(
+            "remediation-set.v1.schema.json",
+            schemars::schema_for!(RemediationSetV1),
+        ),
+        finish_remediation_apply(
+            "remediation-apply.input.v1.schema.json",
+            schemars::schema_for!(RemediationApplyInputV1),
+        ),
+        finish_remediation_apply(
+            "remediation-apply.result.v1.schema.json",
+            schemars::schema_for!(RemediationApplyResultV1),
+        ),
+        finish_remediation_fixtures(
+            "remediation-fixtures.v1.schema.json",
+            schemars::schema_for!(RemediationFixtureCorpusV1),
+        ),
         finish(
             "release.manifest.schema.json",
             schemars::schema_for!(ReleaseManifest),
@@ -1130,6 +1152,20 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
             file: "id-registry.v1.json",
             schema: sorted_keys(crate::ids::id_registry_artifact()),
         },
+        // One Rust-owned global registry shared by every contextual refusal;
+        // it is intentionally not keyed by diagnostic code.
+        // @ref LLP 0146#oq6-author-ruling--2026-08-10
+        SchemaArtifact {
+            file: "remediation-kinds.v1.registry.json",
+            schema: sorted_keys(crate::remediation::remediation_kind_registry_artifact()),
+        },
+        SchemaArtifact {
+            file: "remediation.wire-fixtures.v1.json",
+            schema: sorted_keys(
+                serde_json::to_value(crate::remediation::remediation_fixture_corpus())
+                    .expect("remediation fixtures serialize to JSON"),
+            ),
+        },
         // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
         // telemetry and metering consume one versioned class vocabulary and
         // one CI-pinned projection corpus, without sharing a transport.
@@ -1290,10 +1326,7 @@ fn route_schema_refs(method: &str, path: &str) -> (Option<&'static str>, Option<
         // No committed standalone artifact schema exists, so null is honest.
         (
             "POST" | "GET" | "DELETE",
-            "/watches"
-            | "/watches/{id}"
-            | "/watches/{id}/suspend"
-            | "/watches/{id}/resume",
+            "/watches" | "/watches/{id}" | "/watches/{id}/suspend" | "/watches/{id}/resume",
         ) => (None, None),
         ("GET", "/auth/session") => (None, Some("auth.session.output.schema.json")),
         ("POST", "/auth/request-code") => (
@@ -1396,6 +1429,100 @@ fn finish(file: &'static str, schema: impl serde::Serialize) -> SchemaArtifact {
     SchemaArtifact {
         file,
         schema: sorted_keys(value),
+    }
+}
+
+/// Tighten the derive-owned carrier with the ruled literal identities and
+/// hard bounds. These constraints are wire semantics, not Rust construction
+/// conveniences, so they must be visible to non-Rust validators too.
+///
+/// @ref LLP 0146#oq6-author-ruling--2026-08-10 — the nested carrier has an
+///   independent exact version, at most eight items, and artifact hashes that
+///   identify the refusal-time generation.
+fn finish_remediation_set(file: &'static str, schema: impl serde::Serialize) -> SchemaArtifact {
+    let mut artifact = finish(file, schema);
+    constrain_root_string(
+        &mut artifact.schema,
+        "schemaVersion",
+        crate::remediation::REMEDIATION_SET_SCHEMA_VERSION,
+    );
+    constrain_root_string(
+        &mut artifact.schema,
+        "registryVersion",
+        crate::remediation::REMEDIATION_KIND_REGISTRY_VERSION,
+    );
+    if let Some(items) = artifact
+        .schema
+        .pointer_mut("/properties/items")
+        .and_then(Value::as_object_mut)
+    {
+        items.insert(
+            "maxItems".to_owned(),
+            Value::from(crate::remediation::REMEDIATION_SET_MAX_ITEMS),
+        );
+    }
+    constrain_artifact_hashes(&mut artifact.schema);
+    artifact.schema = sorted_keys(artifact.schema);
+    artifact
+}
+
+fn finish_remediation_apply(file: &'static str, schema: impl serde::Serialize) -> SchemaArtifact {
+    let mut artifact = finish(file, schema);
+    constrain_root_string(
+        &mut artifact.schema,
+        "schemaVersion",
+        crate::remediation::REMEDIATION_APPLY_SCHEMA_VERSION,
+    );
+    constrain_artifact_hashes(&mut artifact.schema);
+    artifact.schema = sorted_keys(artifact.schema);
+    artifact
+}
+
+fn finish_remediation_fixtures(
+    file: &'static str,
+    schema: impl serde::Serialize,
+) -> SchemaArtifact {
+    let mut artifact = finish(file, schema);
+    constrain_root_string(
+        &mut artifact.schema,
+        "formatVersion",
+        crate::remediation::REMEDIATION_FIXTURE_FORMAT_VERSION,
+    );
+    artifact.schema = sorted_keys(artifact.schema);
+    artifact
+}
+
+fn constrain_root_string(schema: &mut Value, name: &str, exact: &str) {
+    if let Some(property) = schema
+        .pointer_mut(&format!("/properties/{name}"))
+        .and_then(Value::as_object_mut)
+    {
+        property.insert("const".to_owned(), Value::String(exact.to_owned()));
+    }
+}
+
+fn constrain_artifact_hashes(value: &mut Value) {
+    match value {
+        Value::Object(object) => {
+            if let Some(property) = object
+                .get_mut("artifactHash")
+                .and_then(Value::as_object_mut)
+            {
+                property.insert(
+                    "pattern".to_owned(),
+                    Value::String("^sha256:(?:[0-9a-f]{16}|[0-9a-f]{64})$".to_owned()),
+                );
+            }
+            for child in object.values_mut() {
+                constrain_artifact_hashes(child);
+            }
+        }
+        Value::Array(array) => {
+            for child in array {
+                constrain_artifact_hashes(child);
+            }
+        }
+        _ => {}
     }
 }
 

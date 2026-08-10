@@ -6,7 +6,9 @@
 Host operations, HTTP API, Guide, Auth, Security, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-08 (bounded gateway source parity: the compiler now
+**Revised:** 2026-08-10 (LLP 0146 OQ6 ruled projection: ControlCatalog's
+reserved `remediation` field now points to the shared v1 decoder/carrier and
+does not duplicate the global kind registry; see dated amendment). 2026-08-08 (bounded gateway source parity: the compiler now
 extracts the named forwarded-path Set, kit regex constants, app-data fallback
 prefix list, and exact `path ===` literals from `gateway.js`; unlisted changes
 fail CI. Rule 11's catalog join remains system/control-scoped while the fixture
@@ -458,10 +460,9 @@ contains at least:
 
 The exact JSON representation is generated, not copied from this example. The
 schema must also represent credential carriers, budgets, audit behavior, and
-approval/handoff shape. A `remediation` field is reserved but stays
-`null`/absent until LLP 0146 lands a D7 carrier and OQ6 registry answer; this
-catalog schema does not mint its own remediation-kind enum in the meantime
-(see §Authority and scope and the Acceptance note on remediations).
+approval/handoff shape. The `remediation` field projects the ruled LLP 0146
+carrier and shared decoder identity; this catalog schema does not mint its own
+remediation-kind enum (see the 2026-08-10 dated amendment).
 
 The catalog has two identities:
 
@@ -1500,3 +1501,16 @@ mechanically from the same row's Guide anchor and non-null CLI projection. This
 is an acquisition-path projection only; it creates no authority and does not
 rule LLP 0146 OQ6's separate question about contextual, machine-applicable
 remediation objects.
+
+## Dated amendment: ruled remediation projection (2026-08-10)
+
+LLP 0146 OQ6 is now ruled. Every build-catalog row projects the same descriptor:
+carrier `diagnostic.details.remediationSet`, schema version
+`snapback.remediation-set.v1`, registry version
+`snapback.remediation-kinds.v1`, and decoder
+`@expo/snapback-client/remediation`. The compiler imports that descriptor from
+the shared client decoder module; it does not copy a remediation-kind enum or
+derive kinds from a refusal code. Contextual items remain constructed only by
+the authorization-aware refusal site and pass through CLI, HTTP, MCP, and
+hosted result envelopes unchanged. The build-catalog descriptor is discovery
+metadata, not an offer and not invocation authority.

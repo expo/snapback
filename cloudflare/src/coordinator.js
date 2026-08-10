@@ -61,6 +61,7 @@ import {
   restoreDenialWitness,
 } from '../../packages/snapback-harness/envelope.mjs';
 import { ID_PREFIXES, mintId } from '../../packages/snapback-contract/ids.mjs';
+import { createIdentifierRemediationSet } from '../../packages/snapback-client/remediation.mjs';
 import {
   CLOUDFLARE_TARGET_PROFILE,
   strictDeclarationsTargetRefusal,
@@ -3855,7 +3856,29 @@ export class Coordinator {
   async invokeHandler(fnName, mode, args, options = {}) {
     const fn = this.functionByName(fnName);
     if (!fn) {
-      return { ok: false, code: 'SNAPBACK_HANDLER_EXPORT_MISSING', message: `no function ${fnName}` };
+      const candidates = functions
+        .filter((candidate) => candidate.testingOnly !== true || this.env.SNAPBACK_TESTING === '1')
+        .map((candidate) => candidate.name)
+        .sort()
+        .slice(0, 8);
+      // @ref LLP 0146#oq6-author-ruling--2026-08-10 — hosted construction
+      // uses the exact compiled bundle identity at the authorization-aware
+      // refusal site; the rejected spelling is not reflected.
+      return {
+        ok: false,
+        code: 'SNAPBACK_HANDLER_EXPORT_MISSING',
+        message: 'the requested function is not in the served function manifest',
+        details: {
+          artifactHash: APP_BUNDLE_HASH,
+          candidateFunctions: candidates,
+          candidatesTruncated: candidates.length < functions.length,
+          remediationSet: createIdentifierRemediationSet({
+            artifactHash: APP_BUNDLE_HASH,
+            target: 'function',
+            replacements: candidates,
+          }),
+        },
+      };
     }
     if (!functionKindMatchesMode(fn.kind, mode)) {
       return {

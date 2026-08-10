@@ -5,7 +5,9 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-08-08 (native machine-mode amendment: the native CLI adopts
+**Revised:** 2026-08-10 (ruled remediation apply amendment: a read-only
+generation-fenced host operation plus CLI/MCP projections consumes one exact
+LLP 0146 carrier item and returns a repaired identifier). 2026-08-08 (native machine-mode amendment: the native CLI adopts
 the frozen app-data exit taxonomy, makes requested JSON failure-safe through
 `hostOpsResult`, makes bare invocation discovery-only, and exports versioned
 Guide search and command-inventory projections); 2026-08-08 (catalog projection repair: `host.restart` names the
@@ -772,6 +774,26 @@ catalog-owned Guide acquisition path and, when non-null, its exact CLI
 projection. This is the existing LLP 0024 result carrier used for contextual
 next actions, not a new diagnostic `details.remediations` shape; the broader
 LLP 0146 OQ6 ruling remains open.
+
+## Dated amendment: remediation apply (2026-08-10)
+
+`remediation.apply` is a served `AdminRead` host operation projected through
+`POST /_snapback/api/host-ops`, `snapback remediation apply --input <file|->`,
+and `snapback_remediation_apply`. Its closed input carries
+`schemaVersion: "snapback.remediation-apply.v1"`, the carrier's exact
+`artifactHash`, and one exact item from
+`diagnostic.details.remediationSet.items`. The core re-resolves the owning
+artifact and replacement while holding the same `LocalSnapback` generation
+lock. Hash mismatch or a replacement no longer served returns
+`SNAPBACK_REMEDIATION_ARTIFACT_STALE`; an approval-required/non-machine item
+returns `SNAPBACK_REMEDIATION_APPROVAL_REQUIRED`.
+
+Success returns only a typed repaired identifier. The operation never invokes
+a function, creates an alias, regenerates artifacts, or writes application or
+deployment state. A caller explicitly retries its original operation with the
+returned value. The prior 2026-08-08 sentence saying OQ6 remained open is a
+historical statement superseded by this amendment and LLP 0094's 2026-08-10
+ruling record.
 
 ## Status
 

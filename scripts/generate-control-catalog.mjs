@@ -29,6 +29,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020.js';
+import { remediationControlCatalogProjection } from '../packages/snapback-client/remediation.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CHECK_ONLY = process.argv.includes('--check');
@@ -129,6 +130,7 @@ const CLI_PROJECTIONS = {
   'schema.load': 'snapback load --schema <path>',
   'functions.load': 'snapback load --functions <path>',
   'function.run': 'snapback run',
+  'remediation.apply': 'snapback remediation apply --input <file|->',
   'auth.mintSession': 'snapback session mint --email <address>',
   'debug.networkProfileGet': 'snapback network-profile get',
   'debug.networkProfileSet': 'snapback network-profile set',
@@ -182,6 +184,7 @@ const CLI_PROJECTIONS = {
 };
 
 const GUIDE_ANCHORS = {
+  'remediation.apply': 'operating/diagnostics.md#apply-a-remediation-safely',
   'host.restart': 'operating/host-ops.md#restart-with-one-credential-bound-receipt',
   'debug.networkProfileGet': 'operating/network-profiles.md#read-the-active-profile',
   'debug.networkProfileSet': 'operating/network-profiles.md#set-a-profile',
@@ -1020,6 +1023,13 @@ for (const entry of entries) {
 }
 
 // --- Assemble and validate --------------------------------------------------
+
+// @ref LLP 0184#product-contract-what-agent-accessible-means — the previously reserved field now points
+// to the shared decoder and nested carrier identity. It deliberately does not
+// duplicate the global remediation-kind enum or map kinds by refusal code.
+for (const entry of entries) {
+  entry.remediation = remediationControlCatalogProjection;
+}
 
 const normalized = entries
   .slice()

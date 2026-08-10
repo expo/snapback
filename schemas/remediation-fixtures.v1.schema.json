@@ -1,0 +1,45 @@
+{
+  "$defs": {
+    "RemediationFixtureCaseV1": {
+      "additionalProperties": false,
+      "properties": {
+        "diagnostic": true,
+        "expect": true,
+        "fixtureKind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "fixtureKind",
+        "diagnostic",
+        "expect"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/remediation-fixtures.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cases": {
+      "items": {
+        "$ref": "#/$defs/RemediationFixtureCaseV1"
+      },
+      "type": "array"
+    },
+    "formatVersion": {
+      "const": "snapback.remediation-fixtures.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "formatVersion",
+    "cases"
+  ],
+  "title": "RemediationFixtureCorpusV1",
+  "type": "object"
+}

@@ -900,6 +900,11 @@ pub enum HostCommand {
         #[arg(long)]
         user: Option<String>,
     },
+    /// Decode and generation-fence one machine-applicable remediation item.
+    Remediation {
+        #[command(subcommand)]
+        command: RemediationCommand,
+    },
     /// asset.* — the LLP 0044 asset operator surface: upload through a
     /// generated intent, inspect a complete lifecycle, list, re-drive
     /// generation-fenced work, delete.
@@ -1520,6 +1525,18 @@ pub enum ControlsCommand {
         /// Emit a catalog-identity wrapper plus the complete row as JSON.
         #[arg(long)]
         json: bool,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum RemediationCommand {
+    /// Consume one exact item copied from diagnostic.details.remediationSet.
+    Apply {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Closed snapback.remediation-apply.v1 JSON file, or '-' for stdin.
+        #[arg(long, value_name = "FILE|-")]
+        input: PathBuf,
     },
 }
 
@@ -2501,6 +2518,20 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                 }),
             )
         }
+        Some(HostCommand::Remediation { command }) => match command {
+            RemediationCommand::Apply { target, input } => {
+                if input.as_os_str() == "-" && target.impersonation_capability_stdin {
+                    anyhow::bail!(
+                        "--input - and --impersonation-capability-stdin cannot share stdin"
+                    );
+                }
+                let input = read_data_patch_input(&input)?;
+                host_op_via_http(
+                    &target,
+                    json!({ "operation": "remediation.apply", "input": input }),
+                )
+            }
+        },
         Some(HostCommand::Assets { command }) => match command {
             AssetsCommand::Put {
                 target,

@@ -51,7 +51,7 @@ carries the storage diagnostic; tooling must not substitute zero.
 ## Served request operations
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS SERVED -->
-The endpoint serves **40 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
+The endpoint serves **41 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
 
 | Request operation | Purpose |
 | --- | --- |
@@ -91,6 +91,7 @@ The endpoint serves **40 request spellings**. This count and table are generated
 | `function.explain` | Explain a generated function |
 | `function.run` | Run one generated function |
 | `functions.load` | Load the generated function manifest |
+| `remediation.apply` | Apply a generation-fenced remediation |
 | `schema.load` | Load the generated schema manifest |
 | `telemetry.events` | Read a bounded telemetry event page |
 | `telemetry.export` | Export bounded telemetry |
@@ -149,7 +150,7 @@ envelope; unknown names stay unregistered and fail closed before dispatch.
 ## Registered operation identities
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
-The request spellings above expand into **53 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
+The request spellings above expand into **54 registered operation identities**. This inventory is generated from each catalog row's LLP 0031 registry projection:
 
 1. `host_ops.acceptance.run`
 2. `host_ops.app.inspect`
@@ -199,11 +200,12 @@ The request spellings above expand into **53 registered operation identities**. 
 46. `host_ops.host.restart`
 47. `host_ops.host.start`
 48. `host_ops.host.stop`
-49. `host_ops.schema.load`
-50. `host_ops.schema.reload`
-51. `host_ops.telemetry.events`
-52. `host_ops.telemetry.export`
-53. `host_ops.telemetry.stats`
+49. `host_ops.remediation.apply`
+50. `host_ops.schema.load`
+51. `host_ops.schema.reload`
+52. `host_ops.telemetry.events`
+53. `host_ops.telemetry.export`
+54. `host_ops.telemetry.stats`
 <!-- END GENERATED CONTROL CATALOG: HOST OPS REGISTERED -->
 
 Query/explain reads, durable writes, credential-producing operations, and

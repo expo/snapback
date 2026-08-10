@@ -86,16 +86,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **133 operations** at digest `sha256:d1b47fa8301e0d50dc5b9d69d061f74412313c3ef8d9051b86b29b932f04c7be`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **134 operations** at digest `sha256:22a2f0772605698a711d61ad09840d0c9011fc2c39c6f4bd5cc08e54c5d3630a`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
 | surfaceAccess | `apiOnly` | 37 |
 | surfaceAccess | `cliOnly` | 49 |
 | surfaceAccess | `mcpOnly` | 2 |
-| surfaceAccess | `native` | 41 |
+| surfaceAccess | `native` | 42 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 110 |
+| operability | `direct` | 111 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 5 |
@@ -224,6 +224,7 @@ The embedded build catalog contains **133 operations** at digest `sha256:d1b47fa
 | `operations.explain` | `apiOnly` | `direct` | `shipped` | — | — | operating/agent-controls.md#describe-one-operation |
 | `push.maintenance` | `apiOnly` | `internal` | `shipped` | — | — | backend/expo-push.md#register-the-current-installation |
 | `receipts` | `apiOnly` | `direct` | `shipped` | — | — | operating/diagnostics.md#consume-the-diagnostic-shape |
+| `remediation.apply` | `native` | `direct` | `shipped` | snapback remediation apply --input <file\|-> | snapback_remediation_apply | operating/diagnostics.md#apply-a-remediation-safely |
 | `route.unknown.refuse` | `none` | `internal` | `shipped` | — | — | — |
 | `schema.load` | `native` | `direct` | `shipped` | snapback load --schema <path> | snapback_load_schema | getting-started/the-authoring-loop.md#2-regenerate |
 | `schema.reload` | `apiOnly` | `unavailable` | `unbuilt` | — | — | getting-started/the-authoring-loop.md#2-regenerate |

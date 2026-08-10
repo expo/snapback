@@ -1,0 +1,382 @@
+{
+  "cases": [
+    {
+      "diagnostic": {
+        "code": "SNAPBACK_UNKNOWN_FUNCTION",
+        "details": {
+          "remediationSet": {
+            "artifactHash": "sha256:0123456789abcdef",
+            "items": [
+              {
+                "action": {
+                  "replacement": "app.inspect",
+                  "target": "hostOperation",
+                  "type": "replaceIdentifier"
+                },
+                "authorityEffect": "none",
+                "kind": "fixTypo",
+                "machineApplicable": true,
+                "precondition": {
+                  "artifactHash": "sha256:0123456789abcdef",
+                  "type": "artifact-hash"
+                },
+                "requiresApproval": false,
+                "riskClass": "mechanical"
+              }
+            ],
+            "registryVersion": "snapback.remediation-kinds.v1",
+            "schemaVersion": "snapback.remediation-set.v1"
+          }
+        },
+        "message": "fixture refusal",
+        "severity": "error",
+        "subsystem": "fixture"
+      },
+      "expect": {
+        "decodedItems": 1,
+        "diagnosticBytesByProjection": {
+          "directHttp": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"hostOperation\",\"replacement\":\"app.inspect\"}}]}}}",
+          "generatedMcp": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"hostOperation\",\"replacement\":\"app.inspect\"}}]}}}",
+          "hostOpsCli": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"hostOperation\",\"replacement\":\"app.inspect\"}}]}}}",
+          "hosted": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"hostOperation\",\"replacement\":\"app.inspect\"}}]}}}"
+        }
+      },
+      "fixtureKind": "positive",
+      "name": "operation-typo"
+    },
+    {
+      "diagnostic": {
+        "code": "SNAPBACK_UNKNOWN_FUNCTION",
+        "details": {
+          "remediationSet": {
+            "artifactHash": "sha256:0123456789abcdef",
+            "items": [
+              {
+                "action": {
+                  "replacement": "listTodos",
+                  "target": "function",
+                  "type": "replaceIdentifier"
+                },
+                "authorityEffect": "none",
+                "kind": "fixTypo",
+                "machineApplicable": true,
+                "precondition": {
+                  "artifactHash": "sha256:0123456789abcdef",
+                  "type": "artifact-hash"
+                },
+                "requiresApproval": false,
+                "riskClass": "mechanical"
+              }
+            ],
+            "registryVersion": "snapback.remediation-kinds.v1",
+            "schemaVersion": "snapback.remediation-set.v1"
+          }
+        },
+        "message": "fixture refusal",
+        "severity": "error",
+        "subsystem": "fixture"
+      },
+      "expect": {
+        "decodedItems": 1,
+        "diagnosticBytesByProjection": {
+          "directHttp": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"function\",\"replacement\":\"listTodos\"}}]}}}",
+          "generatedMcp": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"function\",\"replacement\":\"listTodos\"}}]}}}",
+          "hostOpsCli": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"function\",\"replacement\":\"listTodos\"}}]}}}",
+          "hosted": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"function\",\"replacement\":\"listTodos\"}}]}}}"
+        }
+      },
+      "fixtureKind": "positive",
+      "name": "function-typo"
+    },
+    {
+      "diagnostic": {
+        "code": "SNAPBACK_UNKNOWN_FUNCTION",
+        "details": {
+          "remediationSet": {
+            "artifactHash": "sha256:0123456789abcdef",
+            "items": [
+              {
+                "action": {
+                  "owner": "fn_list_todos",
+                  "replacement": "limit",
+                  "target": "argumentField",
+                  "type": "replaceIdentifier"
+                },
+                "authorityEffect": "none",
+                "kind": "fixTypo",
+                "machineApplicable": true,
+                "precondition": {
+                  "artifactHash": "sha256:0123456789abcdef",
+                  "type": "artifact-hash"
+                },
+                "requiresApproval": false,
+                "riskClass": "mechanical"
+              }
+            ],
+            "registryVersion": "snapback.remediation-kinds.v1",
+            "schemaVersion": "snapback.remediation-set.v1"
+          }
+        },
+        "message": "fixture refusal",
+        "severity": "error",
+        "subsystem": "fixture"
+      },
+      "expect": {
+        "decodedItems": 1,
+        "diagnosticBytesByProjection": {
+          "directHttp": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"argumentField\",\"owner\":\"fn_list_todos\",\"replacement\":\"limit\"}}]}}}",
+          "generatedMcp": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"argumentField\",\"owner\":\"fn_list_todos\",\"replacement\":\"limit\"}}]}}}",
+          "hostOpsCli": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"argumentField\",\"owner\":\"fn_list_todos\",\"replacement\":\"limit\"}}]}}}",
+          "hosted": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"argumentField\",\"owner\":\"fn_list_todos\",\"replacement\":\"limit\"}}]}}}"
+        }
+      },
+      "fixtureKind": "positive",
+      "name": "argument-field-typo"
+    },
+    {
+      "diagnostic": {
+        "code": "SNAPBACK_UNKNOWN_FUNCTION",
+        "details": {
+          "remediationSet": {
+            "artifactHash": "sha256:0123456789abcdef",
+            "items": [
+              {
+                "action": {
+                  "owner": "todos",
+                  "replacement": "title",
+                  "target": "schemaField",
+                  "type": "replaceIdentifier"
+                },
+                "authorityEffect": "none",
+                "kind": "fixTypo",
+                "machineApplicable": true,
+                "precondition": {
+                  "artifactHash": "sha256:0123456789abcdef",
+                  "type": "artifact-hash"
+                },
+                "requiresApproval": false,
+                "riskClass": "mechanical"
+              }
+            ],
+            "registryVersion": "snapback.remediation-kinds.v1",
+            "schemaVersion": "snapback.remediation-set.v1"
+          }
+        },
+        "message": "fixture refusal",
+        "severity": "error",
+        "subsystem": "fixture"
+      },
+      "expect": {
+        "decodedItems": 1,
+        "diagnosticBytesByProjection": {
+          "directHttp": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"schemaField\",\"owner\":\"todos\",\"replacement\":\"title\"}}]}}}",
+          "generatedMcp": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"schemaField\",\"owner\":\"todos\",\"replacement\":\"title\"}}]}}}",
+          "hostOpsCli": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"schemaField\",\"owner\":\"todos\",\"replacement\":\"title\"}}]}}}",
+          "hosted": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"schemaField\",\"owner\":\"todos\",\"replacement\":\"title\"}}]}}}"
+        }
+      },
+      "fixtureKind": "positive",
+      "name": "schema-field-typo"
+    },
+    {
+      "diagnostic": {
+        "code": "SNAPBACK_UNKNOWN_FUNCTION",
+        "details": {
+          "remediationSet": {
+            "artifactHash": "sha256:0123456789abcdef",
+            "items": [
+              {
+                "action": {
+                  "replacement": "/app/ensure",
+                  "target": "httpRoute",
+                  "type": "replaceIdentifier"
+                },
+                "authorityEffect": "none",
+                "kind": "fixTypo",
+                "machineApplicable": true,
+                "precondition": {
+                  "artifactHash": "sha256:0123456789abcdef",
+                  "type": "artifact-hash"
+                },
+                "requiresApproval": false,
+                "riskClass": "mechanical"
+              }
+            ],
+            "registryVersion": "snapback.remediation-kinds.v1",
+            "schemaVersion": "snapback.remediation-set.v1"
+          }
+        },
+        "message": "fixture refusal",
+        "severity": "error",
+        "subsystem": "fixture"
+      },
+      "expect": {
+        "decodedItems": 1,
+        "diagnosticBytesByProjection": {
+          "directHttp": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"httpRoute\",\"replacement\":\"/app/ensure\"}}]}}}",
+          "generatedMcp": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"httpRoute\",\"replacement\":\"/app/ensure\"}}]}}}",
+          "hostOpsCli": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"httpRoute\",\"replacement\":\"/app/ensure\"}}]}}}",
+          "hosted": "{\"code\":\"SNAPBACK_UNKNOWN_FUNCTION\",\"severity\":\"error\",\"subsystem\":\"fixture\",\"message\":\"fixture refusal\",\"details\":{\"remediationSet\":{\"schemaVersion\":\"snapback.remediation-set.v1\",\"registryVersion\":\"snapback.remediation-kinds.v1\",\"artifactHash\":\"sha256:0123456789abcdef\",\"items\":[{\"kind\":\"fixTypo\",\"riskClass\":\"mechanical\",\"machineApplicable\":true,\"requiresApproval\":false,\"authorityEffect\":\"none\",\"precondition\":{\"type\":\"artifact-hash\",\"artifactHash\":\"sha256:0123456789abcdef\"},\"action\":{\"type\":\"replaceIdentifier\",\"target\":\"httpRoute\",\"replacement\":\"/app/ensure\"}}]}}}"
+        }
+      },
+      "fixtureKind": "positive",
+      "name": "http-route-typo"
+    },
+    {
+      "diagnostic": {
+        "code": "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+        "details": {
+          "remediationSet": {
+            "items": [
+              {
+                "action": {
+                  "scope": "function:query:fn_list_todos",
+                  "type": "requestGrant"
+                },
+                "authorityEffect": "widens",
+                "kind": "requestGrant",
+                "machineApplicable": false,
+                "precondition": {
+                  "grantableScope": "function:query:fn_list_todos",
+                  "type": "grantable-scope"
+                },
+                "requiresApproval": true,
+                "riskClass": "authority-widening"
+              }
+            ],
+            "registryVersion": "snapback.remediation-kinds.v1",
+            "schemaVersion": "snapback.remediation-set.v1"
+          }
+        },
+        "message": "the scoped grant does not authorize this function",
+        "severity": "error",
+        "subsystem": "auth"
+      },
+      "expect": {
+        "autoApply": false,
+        "refusalCode": "SNAPBACK_REMEDIATION_APPROVAL_REQUIRED"
+      },
+      "fixtureKind": "approval",
+      "name": "approval-required-grant"
+    },
+    {
+      "diagnostic": {
+        "code": "SNAPBACK_UNKNOWN_FUNCTION",
+        "details": {
+          "remediationSet": {
+            "artifactHash": "sha256:0123456789abcdef",
+            "futureMember": {
+              "ignored": true
+            },
+            "items": [
+              {
+                "action": {
+                  "replacement": "app.inspect",
+                  "target": "hostOperation",
+                  "type": "replaceIdentifier"
+                },
+                "authorityEffect": "none",
+                "kind": "fixTypo",
+                "machineApplicable": true,
+                "precondition": {
+                  "artifactHash": "sha256:0123456789abcdef",
+                  "type": "artifact-hash"
+                },
+                "requiresApproval": false,
+                "riskClass": "mechanical"
+              },
+              {
+                "action": {
+                  "replacement": "app.inspect",
+                  "target": "hostOperation",
+                  "type": "replaceIdentifier"
+                },
+                "authorityEffect": "none",
+                "kind": "futureKind",
+                "machineApplicable": true,
+                "precondition": {
+                  "artifactHash": "sha256:0123456789abcdef",
+                  "type": "artifact-hash"
+                },
+                "requiresApproval": false,
+                "riskClass": "mechanical"
+              }
+            ],
+            "registryVersion": "snapback.remediation-kinds.v1",
+            "schemaVersion": "snapback.remediation-set.v1"
+          }
+        },
+        "message": "fixture refusal",
+        "severity": "error",
+        "subsystem": "fixture"
+      },
+      "expect": {
+        "decodedItems": 1,
+        "diagnosticUsable": true
+      },
+      "fixtureKind": "forward-compatibility",
+      "name": "unknown-member-and-kind"
+    },
+    {
+      "diagnostic": {
+        "code": "SNAPBACK_REMEDIATION_ARTIFACT_STALE",
+        "details": {},
+        "message": "the remediation artifact is stale",
+        "severity": "error",
+        "subsystem": "remediation"
+      },
+      "expect": {
+        "aliases": 0,
+        "httpStatus": 409,
+        "invocations": 0,
+        "regenerations": 0,
+        "writes": 0
+      },
+      "fixtureKind": "stale-artifact",
+      "name": "stale-artifact-no-effect"
+    },
+    {
+      "diagnostic": {
+        "code": "SNAPBACK_UNKNOWN_FUNCTION",
+        "details": {
+          "remediationSet": {
+            "artifactHash": "sha256:0123456789abcdef",
+            "items": [
+              {
+                "action": {
+                  "replacement": "listTodos",
+                  "target": "function",
+                  "type": "replaceIdentifier"
+                },
+                "authorityEffect": "none",
+                "kind": "fixTypo",
+                "machineApplicable": true,
+                "precondition": {
+                  "artifactHash": "sha256:0123456789abcdef",
+                  "type": "artifact-hash"
+                },
+                "requiresApproval": false,
+                "riskClass": "mechanical"
+              }
+            ],
+            "registryVersion": "snapback.remediation-kinds.v1",
+            "schemaVersion": "snapback.remediation-set.v1"
+          }
+        },
+        "message": "fixture refusal",
+        "severity": "error",
+        "subsystem": "fixture"
+      },
+      "expect": {
+        "forbiddenSubstrings": [
+          "rejected-spelling",
+          "secret-value",
+          "unknown-before-auth"
+        ]
+      },
+      "fixtureKind": "disclosure-negative",
+      "name": "disclosure-negative"
+    }
+  ],
+  "formatVersion": "snapback.remediation-fixtures.v1"
+}

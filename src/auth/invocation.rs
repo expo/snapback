@@ -2092,19 +2092,28 @@ fn evaluate_function_policy(
 
 fn missing_grant_scope(function_id: &str, function_kind: &FunctionKind) -> SnapbackError {
     let kind = crate::storage::auth_scope_bases::function_kind_name(function_kind);
-    SnapbackError::error(
-        "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
-        "auth",
-        "the scoped grant does not authorize this function",
-    )
-    .with_details(serde_json::json!({
-        "reason": "missing_scope",
-        "functionId": function_id,
-        "missingScope": {
+    let grantable_scope = format!("function:{kind}:{function_id}");
+    // Authorization has already resolved the caller-visible function and
+    // missing scope at this point, so the carrier discloses no new authority.
+    // @ref LLP 0146#d7-typed-remediations-and-type-aware-suggestion
+    SnapbackError::new(
+        crate::diagnostic::Diagnostic::error(
+            "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+            "auth",
+            "the scoped grant does not authorize this function",
+        )
+        .with_details(serde_json::json!({
+            "reason": "missing_scope",
             "functionId": function_id,
-            "kind": kind,
-        },
-    }))
+            "missingScope": {
+                "functionId": function_id,
+                "kind": kind,
+            },
+        }))
+        .with_remediation_set(crate::remediation::RemediationSetV1::authority(vec![
+            crate::remediation::RemediationItemV1::request_grant(grantable_scope),
+        ])),
+    )
 }
 
 fn source_allows_authority(
@@ -2808,6 +2817,17 @@ mod tests {
             function.id
         );
         assert_eq!(denied.diagnostic.details["missingScope"]["kind"], "query");
+        let remediation = &denied.diagnostic.details["remediationSet"];
+        assert_eq!(
+            remediation["items"][0]["kind"],
+            crate::remediation::RemediationKindV1::RequestGrant.as_str()
+        );
+        assert_eq!(remediation["items"][0]["machineApplicable"], false);
+        assert_eq!(remediation["items"][0]["requiresApproval"], true);
+        assert_eq!(
+            remediation["items"][0]["action"]["grantableScope"],
+            format!("function:query:{}", function.id)
+        );
 
         let mut marked = function.clone();
         marked.authority_creating = true;

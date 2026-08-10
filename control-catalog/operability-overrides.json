@@ -81,6 +81,7 @@
     "errors.transition": { "title": "Transition an error issue", "intents": ["resolve an error issue", "change issue state"], "guide": "operating/host-ops.md#served-request-operations" },
     "function.explain": { "title": "Explain a generated function", "intents": ["explain a function", "inspect function policy"], "guide": "operating/host-ops.md#send-one-operation-receive-one-envelope", "cliDeferralReason": "Function explanation is exposed through the specialist host-ops API." },
     "function.run": { "title": "Run one generated function", "intents": ["run a function", "invoke backend code"], "guide": "operating/host-ops.md#served-request-operations" },
+    "remediation.apply": { "title": "Apply a generation-fenced remediation", "intents": ["apply a diagnostic repair", "fix a misspelled identifier", "consume a remediation item"], "guide": "operating/diagnostics.md#apply-a-remediation-safely" },
     "functions.load": { "title": "Load the generated function manifest", "intents": ["load functions", "install generated backend functions"], "guide": "getting-started/the-authoring-loop.md#2-regenerate" },
     "functions.reload": { "title": "Reload generated functions", "intents": ["reload functions", "refresh backend code"], "guide": "getting-started/the-authoring-loop.md#2-regenerate", "cliDeferralReason": "This LLP 0024 spelling is pinned but not yet implemented." },
     "health": { "title": "Read local coordinator health", "intents": ["check backend health", "probe readiness"], "guide": "operating/observability.md#check-health-and-recent-logs-in-the-console", "cliDeferralReason": "The raw health route is API-only; use snapback inspect for the CLI projection." },
@@ -160,6 +161,9 @@
       "operability": "direct"
     },
     "function.explain": {
+      "operability": "direct"
+    },
+    "remediation.apply": {
       "operability": "direct"
     },
     "auth.mintSession": {

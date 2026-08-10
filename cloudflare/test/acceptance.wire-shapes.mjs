@@ -30,10 +30,11 @@ import path from 'node:path';
 import fs from 'node:fs';
 import Ajv from 'ajv/dist/2020.js';
 import { startProof } from './harness.mjs';
+import { decodeRemediationSet } from '../../packages/snapback-client/remediation.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
-const EXPECTED_CHECKS = 32;
+const EXPECTED_CHECKS = 33;
 
 const results = [];
 function check(name, condition, detail) {
@@ -301,6 +302,13 @@ async function main() {
     checkErrorLane('a kit query kind mismatch is a versioned 400 ErrorResponse', kindMismatch, 400, 'SNAPBACK_FUNCTION_KIND_MISMATCH');
     const unknownFunction = await post('/mutation/definitelyMissing', { args: {} });
     checkErrorLane('an unknown kit function failure is a versioned ErrorResponse', unknownFunction, 500, 'SNAPBACK_HANDLER_EXPORT_MISSING');
+    const hostedRemediation = decodeRemediationSet(unknownFunction.body.diagnostic.details);
+    check(
+      'hosted unknown-function remediation is hash-bound and does not disclose the rejected spelling',
+      hostedRemediation?.artifactHash === unknownFunction.body.diagnostic.details.artifactHash
+        && hostedRemediation.items.length > 0
+        && !JSON.stringify(unknownFunction.body.diagnostic).includes('definitelyMissing'),
+    );
     const actionMismatch = await post('/action/listNotes', { args: {} });
     checkErrorLane('a kit action kind mismatch is a versioned 400 ErrorResponse', actionMismatch, 400, 'SNAPBACK_FUNCTION_KIND_MISMATCH');
 

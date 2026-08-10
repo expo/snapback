@@ -1,0 +1,72 @@
+{
+  "kinds": [
+    {
+      "authorityEffect": "none",
+      "kind": "fixTypo",
+      "machineApplicable": true,
+      "precondition": {
+        "required": [
+          "artifactHash"
+        ],
+        "type": "artifact-hash"
+      },
+      "requiresApproval": false,
+      "riskClass": "mechanical"
+    },
+    {
+      "authorityEffect": "none",
+      "kind": "replaceIdentifier",
+      "machineApplicable": true,
+      "precondition": {
+        "required": [
+          "artifactHash"
+        ],
+        "type": "artifact-hash"
+      },
+      "requiresApproval": false,
+      "riskClass": "mechanical"
+    },
+    {
+      "authorityEffect": "none",
+      "kind": "regenerateArtifacts",
+      "machineApplicable": true,
+      "precondition": {
+        "required": [
+          "artifactHash"
+        ],
+        "type": "artifact-hash"
+      },
+      "requiresApproval": false,
+      "riskClass": "mechanical"
+    },
+    {
+      "authorityEffect": "widens",
+      "kind": "requestGrant",
+      "machineApplicable": false,
+      "precondition": {
+        "required": [
+          "grantableScope"
+        ],
+        "type": "grantable-scope"
+      },
+      "requiresApproval": true,
+      "riskClass": "authority-widening"
+    },
+    {
+      "authorityEffect": "changes-effective-principal",
+      "kind": "useDifferentPrincipal",
+      "machineApplicable": false,
+      "precondition": {
+        "required": [
+          "principalAvailable"
+        ],
+        "type": "principal-available"
+      },
+      "requiresApproval": true,
+      "riskClass": "authority-sensitive"
+    }
+  ],
+  "registryKind": "remediationKindRegistry",
+  "schemaVersion": "snapback.remediation-kinds.v1",
+  "status": "active"
+}

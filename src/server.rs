@@ -17948,6 +17948,22 @@ pub fn operation_registry() -> Vec<OperationSpec> {
                 response_sensitivity: None,
             },
         ),
+        // The apply operation mutates only the caller's identifier value in
+        // its response. It cannot write application or deployment state.
+        // @ref LLP 0146#oq6-author-ruling--2026-08-10
+        operation(
+            "host_ops.remediation.apply",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminRead,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
         operation(
             "host_ops.function.explain.impersonated",
             "/_snapback/api/host-ops",
@@ -18446,6 +18462,7 @@ pub(crate) fn host_ops_operation_spec(
         "app.seed.clear.v1" => "host_ops.app.seed.clear.v1",
         "schema.load" => "host_ops.schema.load",
         "functions.load" => "host_ops.functions.load",
+        "remediation.apply" => "host_ops.remediation.apply",
         "auth.mintSession" => "host_ops.auth.mintSession",
         "auth.rehearsal.mint" => "host_ops.auth.rehearsal.mint",
         "auth.rehearsal.exercise" => "host_ops.auth.rehearsal.exercise",
