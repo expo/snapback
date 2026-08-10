@@ -208,3 +208,18 @@ did **not** introduce `details.remediations`, populate ControlCatalog's reserved
 `remediation` projection, or otherwise select among this ticket's A/B/C
 options. Those contextual machine-applicable remediation questions and the
 author checklist above remain open.
+
+## Ruling (2026-08-10)
+
+Author ruled **option B with the global registry**, as recommended. Carrier:
+`diagnostic.details.remediationSet` (nested `snapback.remediation-set.v1`,
+registry `snapback.remediation-kinds.v1`, contextual artifactHash, bounded
+items). Checklist resolution: registry is global kinds + contextual offers
+(code-to-template tables are implementation aids only); compatibility rule =
+closed outer envelopes unchanged, nested member independently versioned,
+unknown members ignored, shared decoder required; disclosure = constructed
+post-authorization at the diagnostic site, identical across CLI/HTTP/MCP/
+hosted; stale-artifact refusal owned by the repair-apply consumer; fixture
+corpus assigned to LLP 0095. Recorded in LLP 0146 OQ6, LLP 0094 (dated wire
+amendment), and LLP 0095 (fixture obligations). Implementation follows the
+ticket's nine-step list.

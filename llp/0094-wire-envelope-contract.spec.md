@@ -5,7 +5,7 @@
 **Systems:** Wire Protocol, Realtime, Live Queries, Client SDK, HTTP surface, Cloudflare arm, Schema governance
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-08-08 (ErrorResponse v1 amendment: every HTTP error envelope
+**Revised:** 2026-08-10 (LLP 0146 OQ6 remediation-carrier amendment: `diagnostic.details.remediationSet`, nested versioning, closed outer envelopes unchanged — see the dated section); 2026-08-08 (ErrorResponse v1 amendment: every HTTP error envelope
 now requires `formatVersion: "snapback.error-response.v1"`; receivers ignore
 unknown top-level members for forward-additive evolution while the version is
 must-understand. This does not resolve LLP 0146 OQ6 or add a remediation
@@ -1460,3 +1460,29 @@ members. New clients tolerate their absence, classify completeness as
 any verification failure. Old callers omit the optional request context and
 receive the pre-amendment response shape. This amendment changes no frame kind,
 required member, capability row, or wire-version token.
+
+## LLP 0146 OQ6 remediation-carrier amendment — 2026-08-10
+
+Author ruling (option B of
+`issues/20260806-llp0146-oq6-remediation-carrier-decision.md`): contextual
+typed remediations ride **inside the existing diagnostic `details` member**,
+never as a new member of any closed outer envelope family and never as a
+separate lookup. The carrier is `diagnostic.details.remediationSet`, an
+object with `schemaVersion: "snapback.remediation-set.v1"`,
+`registryVersion: "snapback.remediation-kinds.v1"`, the exact contextual
+`artifactHash` where a machine-applicable item exists, and bounded `items`
+whose axes (kind, riskClass, machineApplicable, requiresApproval,
+authorityEffect, precondition) come from the global versioned
+remediation-kind registry LLP 0146 D7 defines. Compatibility rule: outer
+envelopes are unchanged in every family (`ErrorResponse` and its
+`deny_unknown_fields` closure stand; `hostOpsResult.v1` stands); the nested
+carrier versions independently via its own `schemaVersion`; consumers that
+do not recognize `remediationSet` ignore it (ordinary details-member
+openness), and consumers that do recognize it must use the shared typed
+decoder. Construction happens only at the authorization-aware diagnostic
+construction site, after gates, with caller-visible facts — identical
+across CLI, HTTP, MCP, and hosted projections, which all pass the
+diagnostic through verbatim. The repair-apply consumer owns the named
+stale-artifact refusal (hash observed at refusal time versus currently
+served generation; no write on mismatch). Conformance fixtures are LLP
+0095's (see its matching 2026-08-10 record).

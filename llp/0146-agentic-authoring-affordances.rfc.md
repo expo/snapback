@@ -1260,6 +1260,28 @@ on the D1 tranche's accumulated author questions
    wire-contract decision, not LLP 0144's: envelope field, diagnostic-details
    member, or separate lookup — and what is the disclosure behaviour across
    the CLI, HTTP, and MCP projections?
+
+   **Ruled 2026-08-10 (author, via the decision package in
+   `issues/20260806-llp0146-oq6-remediation-carrier-decision.md`): option B
+   with a global registry.** The carrier is a versioned object inside the
+   existing diagnostic `details` member — `diagnostic.details.remediationSet`
+   carrying `schemaVersion: "snapback.remediation-set.v1"`,
+   `registryVersion: "snapback.remediation-kinds.v1"`, the exact contextual
+   `artifactHash` where applicable, and bounded `items` — never a change to
+   any closed outer envelope (LLP 0094 §0C.2) and never a separate lookup.
+   Remediation kinds live in one **global, versioned registry** (the
+   promoted `schemas/remediation-kinds` draft), not keyed by refusal code; a
+   reviewed code-to-template table is an implementation aid only, and every
+   offer is constructed contextually at the authorization-aware diagnostic
+   construction site (LLP 0144 Axis I ordering: gates before disclosure,
+   caller-visible facts only, identically across CLI, HTTP, MCP, and the
+   hosted projection). Every machine-applicable item binds the artifact hash
+   observed at refusal time; the repair-apply consumer owns the named
+   stale-artifact refusal and performs no write on mismatch. Fixture
+   obligations (positive, unknown-kind, unknown-field, stale-hash,
+   disclosure-negative, approval, cross-projection parity) are assigned to
+   LLP 0095's conformance corpus. Consumers use the shared typed decoder;
+   ad-hoc details key-poking is out of contract.
 7. **CV-14 custody.** D4 claims LLP 0115 CV-14, which rides a custody
    trigger in the 0062 family. Does claiming it here satisfy the trigger, or
    must the custody owner ratify?

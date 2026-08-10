@@ -5,7 +5,7 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Tests
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-30 (Swift harness adopts format v3: all four §2.1
+**Revised:** 2026-08-10 (remediation-set fixture obligations assigned by the LLP 0146 OQ6 ruling — see the dated section); 2026-07-30 (Swift harness adopts format v3: all four §2.1
 judgment rules implemented, T-AUTH-TERM/T-GRANT-LOSS client transitions
 aligned to the corpus dispositions); 2026-07-30 (fixture-format v3: `client_to_server` and
 `client_lifecycle` directions with request/refusal fixtures, virtual-time and
@@ -627,3 +627,19 @@ handling of `identity-horizon-passed`, outcome-known handling of
 `result-expired`) apply to protocol clients, and the wire shapes for
 identity, epoch, and range negotiation are the generated schemas LLP 0163
 owns rather than hand-authored frames.
+
+## Remediation-set fixture obligations (LLP 0146 OQ6 ruling) — 2026-08-10
+
+The 2026-08-10 author ruling (LLP 0094's matching dated amendment) assigns
+this corpus the conformance surface for `diagnostic.details.remediationSet`.
+Required fixture families, all cross-projection (CLI, HTTP, MCP, hosted):
+positive offers (each landed refusal family that constructs a set); unknown
+remediation kind ignored without failing the diagnostic; unknown member
+inside `remediationSet` ignored; stale-artifact-hash repair refusal (named
+code, no write); disclosure negatives (no secret, no rejected value, no
+pre-gate existence oracle in any offer); approval semantics
+(`requiresApproval: true` items never auto-applied by the reference
+consumers); and byte-for-byte diagnostic parity across projections. New
+semantics require explicit fixtures and lifecycle actions per this Spec's
+standing rule; the carrier's nested `schemaVersion` advances rather than
+drifting additively.
