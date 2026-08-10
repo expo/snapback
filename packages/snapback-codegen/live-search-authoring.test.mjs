@@ -161,6 +161,11 @@ try {
     /SNAPBACK_CAPABILITY_UNSUPPORTED.*live_full_text_search_v1|live_full_text_search_v1.*SNAPBACK_CAPABILITY_UNSUPPORTED/u,
     'unpublished live-search target capability',
   );
+  assert.match(
+    JSON.stringify(result.diagnostics),
+    /https:\/\/github\.com\/expo\/snapback\/blob\/main\/guide\/operating\/diagnostics\.md#diagnose-snapbackcapabilityunsupported/u,
+    'capability refusals name the public recovery guide',
+  );
 
   const members = defineTable({
     roomId: v.string(), userId: v.principal(), role: v.string(),

@@ -1,0 +1,2911 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "result_contract_v1"
+  ],
+  "appId": "competitive-checkpoint",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:13164a9d1f99847b",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "attemptId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "sequence",
+            "required": true,
+            "value": {
+              "kind": "integer",
+              "max": 9007199254740991,
+              "min": -9007199254740991
+            }
+          },
+          {
+            "name": "delta",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:be099cbde92abbae4058b9aa6d770402e1628ededa0549b63af47f61e7e0705a",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "applyReplyProgress",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "exportedName": "applyReplyProgress",
+      "handlerForm": "module",
+      "id": "competitive-checkpoint:applyReplyProgress",
+      "implementationHash": "sha256:660de439a46febef7f5a499c2723f22424a33b657913b6e14784286bfed6929b",
+      "kind": "Mutation",
+      "name": "applyReplyProgress",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "applyReplyProgress",
+          "source": "function fail(code, message) {\n  throw new Error(code + ': ' + message);\n}\n\nasync function ownedAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_attempt')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('attemptId', attemptId)\n    .collect();\n  if (rows.length !== 1) fail('SNAPBACK_ROW_NOT_VISIBLE', 'reply attempt is not visible');\n  return rows[0];\n}\n\nasync function startReply(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation || conversation.ownerId !== ctx.auth.userId) {\n    fail('SNAPBACK_ROW_NOT_VISIBLE', 'conversation is not visible');\n  }\n  const prior = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_idempotency')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('idempotencyKey', args.idempotencyKey)\n    .collect();\n  if (prior.length === 1) {\n    return {\n      attemptId: prior[0].attemptId,\n      assistantMessageId: prior[0]._id,\n      replayed: true,\n    };\n  }\n  const now = ctx.runtime.now();\n  const attemptId = ctx.runtime.id();\n  await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    attemptId: ctx.runtime.id(),\n    idempotencyKey: 'user:' + args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  const assistantMessageId = await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'running',\n    attemptId,\n    idempotencyKey: args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  return { attemptId, assistantMessageId, replayed: false };\n}\n\nasync function applyReplyProgress(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    return {\n      applied: false,\n      terminal: true,\n      status: row.status,\n      sequence: row.sequence,\n    };\n  }\n  if (args.sequence <= row.sequence) {\n    return { applied: false, terminal: false, sequence: row.sequence };\n  }\n  if (args.sequence !== row.sequence + 1) fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'reply sequence is not contiguous');\n  const now = ctx.runtime.now();\n  if (row.sequence > 0 && now - row.lastProgressAt < 100) {\n    fail('SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.delta,\n    sequence: args.sequence,\n    lastProgressAt: now,\n  });\n  return { applied: true, terminal: false, sequence: args.sequence };\n}\n\nasync function completeReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status === 'complete') return { status: 'complete', sequence: row.sequence };\n  if (row.status !== 'running') fail('SNAPBACK_REPLY_CANCELLED', 'reply is terminal');\n  if (args.sequence !== row.sequence + (args.tail.length > 0 ? 1 : 0)) {\n    fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'terminal reply sequence is not contiguous');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.tail,\n    sequence: args.sequence,\n    status: 'complete',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'complete', sequence: args.sequence };\n}\n\nasync function settleReply(ctx, args) {\n  const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n  if (!allowed.includes(args.status)) fail('SNAPBACK_REPLY_SETTLEMENT_INVALID', 'unknown terminal settlement');\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    // Already terminal (for example a durable client cancel): the authored\n    // row may still adopt the host-derived certainty mirror exactly once\n    // (LLP 0076 decision 2; protocol amendment v0.5).\n    if (args.effectMayHaveExecuted != null && row.effectMayHaveExecuted == null) {\n      await ctx.db.patch('messages', row._id, {\n        effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      });\n    }\n    return { status: row.status, sequence: row.sequence };\n  }\n  await ctx.db.patch('messages', row._id, {\n    status: args.status,\n    lastProgressAt: ctx.runtime.now(),\n    ...(args.effectMayHaveExecuted == null\n      ? {}\n      : { effectMayHaveExecuted: args.effectMayHaveExecuted === true }),\n  });\n  return { status: args.status, sequence: row.sequence };\n}\n\nasync function cancelReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: 'cancelled',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'cancelled', sequence: row.sequence };\n}\n\nfunction safeCode(error) {\n  const message = String(error && error.message ? error.message : error);\n  const match = message.match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\n// Bounded conflict reconcile for the action's inner mutations. A concurrent\n// committed writer (the durable client cancel racing a progress commit — hit\n// reliably on the slow shared-CPU remote drill machine, rarely locally)\n// rejects the whole inner mutation as SNAPBACK_MUTATION_CONFLICT. Re-invoking\n// IS the reconcile the guide requires (guide/backend/mutations.md: reconcile,\n// never last-writer-wins): each of these mutations re-reads the row in a\n// fresh transaction and re-evaluates its terminal/stale-sequence branches, so\n// a cancel that won the race is observed as `terminal`, never overwritten.\nasync function runReconciled(ctx, name, mutationArgs) {\n  for (let attemptsLeft = 3; ; attemptsLeft -= 1) {\n    try {\n      return await ctx.runMutation(name, mutationArgs);\n    } catch (error) {\n      if (attemptsLeft <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nasync function streamReply(ctx, args) {\n  let reader = null;\n  let pending = '';\n  let sequence = 0;\n  let readsSinceCommit = 0;\n  // The host-owned StreamAttemptV1 control plane (LLP 0076; protocol\n  // amendment v0.5): the fence-critical identity, lease, and certainty live\n  // on the host record keyed by the server-issued authored attemptId; the\n  // authored row references it and mirrors the certainty read-only.\n  const attempt = await ctx.streamAttempt.start('reply:' + args.attemptId);\n  if (attempt.terminal) {\n    // A durable winner already exists (a previous runner settled, or the\n    // trusted terminalizer did): return it verbatim, never re-run.\n    await runReconciled(ctx, 'settleReply', {\n      attemptId: args.attemptId,\n      status: attempt.terminal.cause === 'complete' ? 'failed' : attempt.terminal.cause,\n      effectMayHaveExecuted: attempt.terminal.effectMayHaveExecuted,\n    });\n    return { outcome: attempt.terminal.cause, sequence: 0, replayedWinner: true };\n  }\n  const settleHost = async (cause) => {\n    try {\n      return await ctx.streamAttempt.settle(attempt.attemptToken, cause);\n    } catch (_) {\n      // Lease loss or abandonment: the trusted terminalizer owns the winner.\n      return null;\n    }\n  };\n  try {\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,\n      attemptToken: attempt.attemptToken,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned a non-success status');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      readsSinceCommit += 1;\n      if (readsSinceCommit >= 2) {\n        sequence += 1;\n        const progress = await runReconciled(ctx, 'applyReplyProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          const settled = await settleHost(progress.status === 'complete' ? 'complete' : progress.status);\n          if (settled) {\n            await runReconciled(ctx, 'settleReply', {\n              attemptId: args.attemptId,\n              status: settled.cause === 'complete' ? progress.status : settled.cause,\n              effectMayHaveExecuted: settled.effectMayHaveExecuted,\n            });\n          }\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        readsSinceCommit = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    await runReconciled(ctx, 'completeReply', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    await settleHost('complete');\n    return { outcome: 'complete', sequence: terminalSequence };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch (_) {}\n    }\n    const code = safeCode(error);\n    if (code === 'SNAPBACK_REPLY_CANCELLED') {\n      const settled = await settleHost('cancelled');\n      if (settled) {\n        await runReconciled(ctx, 'settleReply', {\n          attemptId: args.attemptId,\n          status: settled.cause === 'complete' ? 'cancelled' : settled.cause,\n          effectMayHaveExecuted: settled.effectMayHaveExecuted,\n        });\n      }\n      return { outcome: 'cancelled', sequence };\n    }\n    const local = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    // The committed durable winner is authoritative over local inference\n    // (LLP 0076 §Settlement and retry): return whatever the host recorded.\n    const settled = await settleHost(local);\n    const status = settled && settled.cause !== 'complete' ? settled.cause : local;\n    await runReconciled(ctx, 'settleReply', {\n      attemptId: args.attemptId,\n      status,\n      effectMayHaveExecuted: settled ? settled.effectMayHaveExecuted : null,\n    });\n    return { outcome: status, sequence, code };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  startReply,\n  applyReplyProgress,\n  completeReply,\n  settleReply,\n  cancelReply,\n  streamReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "attemptId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:b71f113762336a1b1be347bb2df727fc048ad6d51bd960cff0de8fe3a847c598",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "cancelReply",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "exportedName": "cancelReply",
+      "handlerForm": "module",
+      "id": "competitive-checkpoint:cancelReply",
+      "implementationHash": "sha256:ac478aadb1ac40372c4ab6e9614916100d039db68fdba686e2e15db765f2b5b5",
+      "kind": "Mutation",
+      "name": "cancelReply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "cancelReply",
+          "source": "function fail(code, message) {\n  throw new Error(code + ': ' + message);\n}\n\nasync function ownedAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_attempt')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('attemptId', attemptId)\n    .collect();\n  if (rows.length !== 1) fail('SNAPBACK_ROW_NOT_VISIBLE', 'reply attempt is not visible');\n  return rows[0];\n}\n\nasync function startReply(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation || conversation.ownerId !== ctx.auth.userId) {\n    fail('SNAPBACK_ROW_NOT_VISIBLE', 'conversation is not visible');\n  }\n  const prior = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_idempotency')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('idempotencyKey', args.idempotencyKey)\n    .collect();\n  if (prior.length === 1) {\n    return {\n      attemptId: prior[0].attemptId,\n      assistantMessageId: prior[0]._id,\n      replayed: true,\n    };\n  }\n  const now = ctx.runtime.now();\n  const attemptId = ctx.runtime.id();\n  await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    attemptId: ctx.runtime.id(),\n    idempotencyKey: 'user:' + args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  const assistantMessageId = await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'running',\n    attemptId,\n    idempotencyKey: args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  return { attemptId, assistantMessageId, replayed: false };\n}\n\nasync function applyReplyProgress(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    return {\n      applied: false,\n      terminal: true,\n      status: row.status,\n      sequence: row.sequence,\n    };\n  }\n  if (args.sequence <= row.sequence) {\n    return { applied: false, terminal: false, sequence: row.sequence };\n  }\n  if (args.sequence !== row.sequence + 1) fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'reply sequence is not contiguous');\n  const now = ctx.runtime.now();\n  if (row.sequence > 0 && now - row.lastProgressAt < 100) {\n    fail('SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.delta,\n    sequence: args.sequence,\n    lastProgressAt: now,\n  });\n  return { applied: true, terminal: false, sequence: args.sequence };\n}\n\nasync function completeReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status === 'complete') return { status: 'complete', sequence: row.sequence };\n  if (row.status !== 'running') fail('SNAPBACK_REPLY_CANCELLED', 'reply is terminal');\n  if (args.sequence !== row.sequence + (args.tail.length > 0 ? 1 : 0)) {\n    fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'terminal reply sequence is not contiguous');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.tail,\n    sequence: args.sequence,\n    status: 'complete',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'complete', sequence: args.sequence };\n}\n\nasync function settleReply(ctx, args) {\n  const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n  if (!allowed.includes(args.status)) fail('SNAPBACK_REPLY_SETTLEMENT_INVALID', 'unknown terminal settlement');\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    // Already terminal (for example a durable client cancel): the authored\n    // row may still adopt the host-derived certainty mirror exactly once\n    // (LLP 0076 decision 2; protocol amendment v0.5).\n    if (args.effectMayHaveExecuted != null && row.effectMayHaveExecuted == null) {\n      await ctx.db.patch('messages', row._id, {\n        effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      });\n    }\n    return { status: row.status, sequence: row.sequence };\n  }\n  await ctx.db.patch('messages', row._id, {\n    status: args.status,\n    lastProgressAt: ctx.runtime.now(),\n    ...(args.effectMayHaveExecuted == null\n      ? {}\n      : { effectMayHaveExecuted: args.effectMayHaveExecuted === true }),\n  });\n  return { status: args.status, sequence: row.sequence };\n}\n\nasync function cancelReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: 'cancelled',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'cancelled', sequence: row.sequence };\n}\n\nfunction safeCode(error) {\n  const message = String(error && error.message ? error.message : error);\n  const match = message.match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\n// Bounded conflict reconcile for the action's inner mutations. A concurrent\n// committed writer (the durable client cancel racing a progress commit — hit\n// reliably on the slow shared-CPU remote drill machine, rarely locally)\n// rejects the whole inner mutation as SNAPBACK_MUTATION_CONFLICT. Re-invoking\n// IS the reconcile the guide requires (guide/backend/mutations.md: reconcile,\n// never last-writer-wins): each of these mutations re-reads the row in a\n// fresh transaction and re-evaluates its terminal/stale-sequence branches, so\n// a cancel that won the race is observed as `terminal`, never overwritten.\nasync function runReconciled(ctx, name, mutationArgs) {\n  for (let attemptsLeft = 3; ; attemptsLeft -= 1) {\n    try {\n      return await ctx.runMutation(name, mutationArgs);\n    } catch (error) {\n      if (attemptsLeft <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nasync function streamReply(ctx, args) {\n  let reader = null;\n  let pending = '';\n  let sequence = 0;\n  let readsSinceCommit = 0;\n  // The host-owned StreamAttemptV1 control plane (LLP 0076; protocol\n  // amendment v0.5): the fence-critical identity, lease, and certainty live\n  // on the host record keyed by the server-issued authored attemptId; the\n  // authored row references it and mirrors the certainty read-only.\n  const attempt = await ctx.streamAttempt.start('reply:' + args.attemptId);\n  if (attempt.terminal) {\n    // A durable winner already exists (a previous runner settled, or the\n    // trusted terminalizer did): return it verbatim, never re-run.\n    await runReconciled(ctx, 'settleReply', {\n      attemptId: args.attemptId,\n      status: attempt.terminal.cause === 'complete' ? 'failed' : attempt.terminal.cause,\n      effectMayHaveExecuted: attempt.terminal.effectMayHaveExecuted,\n    });\n    return { outcome: attempt.terminal.cause, sequence: 0, replayedWinner: true };\n  }\n  const settleHost = async (cause) => {\n    try {\n      return await ctx.streamAttempt.settle(attempt.attemptToken, cause);\n    } catch (_) {\n      // Lease loss or abandonment: the trusted terminalizer owns the winner.\n      return null;\n    }\n  };\n  try {\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,\n      attemptToken: attempt.attemptToken,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned a non-success status');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      readsSinceCommit += 1;\n      if (readsSinceCommit >= 2) {\n        sequence += 1;\n        const progress = await runReconciled(ctx, 'applyReplyProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          const settled = await settleHost(progress.status === 'complete' ? 'complete' : progress.status);\n          if (settled) {\n            await runReconciled(ctx, 'settleReply', {\n              attemptId: args.attemptId,\n              status: settled.cause === 'complete' ? progress.status : settled.cause,\n              effectMayHaveExecuted: settled.effectMayHaveExecuted,\n            });\n          }\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        readsSinceCommit = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    await runReconciled(ctx, 'completeReply', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    await settleHost('complete');\n    return { outcome: 'complete', sequence: terminalSequence };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch (_) {}\n    }\n    const code = safeCode(error);\n    if (code === 'SNAPBACK_REPLY_CANCELLED') {\n      const settled = await settleHost('cancelled');\n      if (settled) {\n        await runReconciled(ctx, 'settleReply', {\n          attemptId: args.attemptId,\n          status: settled.cause === 'complete' ? 'cancelled' : settled.cause,\n          effectMayHaveExecuted: settled.effectMayHaveExecuted,\n        });\n      }\n      return { outcome: 'cancelled', sequence };\n    }\n    const local = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    // The committed durable winner is authoritative over local inference\n    // (LLP 0076 §Settlement and retry): return whatever the host recorded.\n    const settled = await settleHost(local);\n    const status = settled && settled.cause !== 'complete' ? settled.cause : local;\n    await runReconciled(ctx, 'settleReply', {\n      attemptId: args.attemptId,\n      status,\n      effectMayHaveExecuted: settled ? settled.effectMayHaveExecuted : null,\n    });\n    return { outcome: status, sequence, code };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  startReply,\n  applyReplyProgress,\n  completeReply,\n  settleReply,\n  cancelReply,\n  streamReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "attemptId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "sequence",
+            "required": true,
+            "value": {
+              "kind": "integer",
+              "max": 9007199254740991,
+              "min": -9007199254740991
+            }
+          },
+          {
+            "name": "tail",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:677d1aa6308f929205ce5bc5a2c751e6496cce4792da7096a01287f9e47d236d",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "completeReply",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "exportedName": "completeReply",
+      "handlerForm": "module",
+      "id": "competitive-checkpoint:completeReply",
+      "implementationHash": "sha256:85f26d53518c91b267f6816bd017e04edbf019cdcf3cc2e3074a21eda2818a46",
+      "kind": "Mutation",
+      "name": "completeReply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "completeReply",
+          "source": "function fail(code, message) {\n  throw new Error(code + ': ' + message);\n}\n\nasync function ownedAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_attempt')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('attemptId', attemptId)\n    .collect();\n  if (rows.length !== 1) fail('SNAPBACK_ROW_NOT_VISIBLE', 'reply attempt is not visible');\n  return rows[0];\n}\n\nasync function startReply(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation || conversation.ownerId !== ctx.auth.userId) {\n    fail('SNAPBACK_ROW_NOT_VISIBLE', 'conversation is not visible');\n  }\n  const prior = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_idempotency')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('idempotencyKey', args.idempotencyKey)\n    .collect();\n  if (prior.length === 1) {\n    return {\n      attemptId: prior[0].attemptId,\n      assistantMessageId: prior[0]._id,\n      replayed: true,\n    };\n  }\n  const now = ctx.runtime.now();\n  const attemptId = ctx.runtime.id();\n  await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    attemptId: ctx.runtime.id(),\n    idempotencyKey: 'user:' + args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  const assistantMessageId = await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'running',\n    attemptId,\n    idempotencyKey: args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  return { attemptId, assistantMessageId, replayed: false };\n}\n\nasync function applyReplyProgress(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    return {\n      applied: false,\n      terminal: true,\n      status: row.status,\n      sequence: row.sequence,\n    };\n  }\n  if (args.sequence <= row.sequence) {\n    return { applied: false, terminal: false, sequence: row.sequence };\n  }\n  if (args.sequence !== row.sequence + 1) fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'reply sequence is not contiguous');\n  const now = ctx.runtime.now();\n  if (row.sequence > 0 && now - row.lastProgressAt < 100) {\n    fail('SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.delta,\n    sequence: args.sequence,\n    lastProgressAt: now,\n  });\n  return { applied: true, terminal: false, sequence: args.sequence };\n}\n\nasync function completeReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status === 'complete') return { status: 'complete', sequence: row.sequence };\n  if (row.status !== 'running') fail('SNAPBACK_REPLY_CANCELLED', 'reply is terminal');\n  if (args.sequence !== row.sequence + (args.tail.length > 0 ? 1 : 0)) {\n    fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'terminal reply sequence is not contiguous');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.tail,\n    sequence: args.sequence,\n    status: 'complete',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'complete', sequence: args.sequence };\n}\n\nasync function settleReply(ctx, args) {\n  const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n  if (!allowed.includes(args.status)) fail('SNAPBACK_REPLY_SETTLEMENT_INVALID', 'unknown terminal settlement');\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    // Already terminal (for example a durable client cancel): the authored\n    // row may still adopt the host-derived certainty mirror exactly once\n    // (LLP 0076 decision 2; protocol amendment v0.5).\n    if (args.effectMayHaveExecuted != null && row.effectMayHaveExecuted == null) {\n      await ctx.db.patch('messages', row._id, {\n        effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      });\n    }\n    return { status: row.status, sequence: row.sequence };\n  }\n  await ctx.db.patch('messages', row._id, {\n    status: args.status,\n    lastProgressAt: ctx.runtime.now(),\n    ...(args.effectMayHaveExecuted == null\n      ? {}\n      : { effectMayHaveExecuted: args.effectMayHaveExecuted === true }),\n  });\n  return { status: args.status, sequence: row.sequence };\n}\n\nasync function cancelReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: 'cancelled',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'cancelled', sequence: row.sequence };\n}\n\nfunction safeCode(error) {\n  const message = String(error && error.message ? error.message : error);\n  const match = message.match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\n// Bounded conflict reconcile for the action's inner mutations. A concurrent\n// committed writer (the durable client cancel racing a progress commit — hit\n// reliably on the slow shared-CPU remote drill machine, rarely locally)\n// rejects the whole inner mutation as SNAPBACK_MUTATION_CONFLICT. Re-invoking\n// IS the reconcile the guide requires (guide/backend/mutations.md: reconcile,\n// never last-writer-wins): each of these mutations re-reads the row in a\n// fresh transaction and re-evaluates its terminal/stale-sequence branches, so\n// a cancel that won the race is observed as `terminal`, never overwritten.\nasync function runReconciled(ctx, name, mutationArgs) {\n  for (let attemptsLeft = 3; ; attemptsLeft -= 1) {\n    try {\n      return await ctx.runMutation(name, mutationArgs);\n    } catch (error) {\n      if (attemptsLeft <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nasync function streamReply(ctx, args) {\n  let reader = null;\n  let pending = '';\n  let sequence = 0;\n  let readsSinceCommit = 0;\n  // The host-owned StreamAttemptV1 control plane (LLP 0076; protocol\n  // amendment v0.5): the fence-critical identity, lease, and certainty live\n  // on the host record keyed by the server-issued authored attemptId; the\n  // authored row references it and mirrors the certainty read-only.\n  const attempt = await ctx.streamAttempt.start('reply:' + args.attemptId);\n  if (attempt.terminal) {\n    // A durable winner already exists (a previous runner settled, or the\n    // trusted terminalizer did): return it verbatim, never re-run.\n    await runReconciled(ctx, 'settleReply', {\n      attemptId: args.attemptId,\n      status: attempt.terminal.cause === 'complete' ? 'failed' : attempt.terminal.cause,\n      effectMayHaveExecuted: attempt.terminal.effectMayHaveExecuted,\n    });\n    return { outcome: attempt.terminal.cause, sequence: 0, replayedWinner: true };\n  }\n  const settleHost = async (cause) => {\n    try {\n      return await ctx.streamAttempt.settle(attempt.attemptToken, cause);\n    } catch (_) {\n      // Lease loss or abandonment: the trusted terminalizer owns the winner.\n      return null;\n    }\n  };\n  try {\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,\n      attemptToken: attempt.attemptToken,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned a non-success status');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      readsSinceCommit += 1;\n      if (readsSinceCommit >= 2) {\n        sequence += 1;\n        const progress = await runReconciled(ctx, 'applyReplyProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          const settled = await settleHost(progress.status === 'complete' ? 'complete' : progress.status);\n          if (settled) {\n            await runReconciled(ctx, 'settleReply', {\n              attemptId: args.attemptId,\n              status: settled.cause === 'complete' ? progress.status : settled.cause,\n              effectMayHaveExecuted: settled.effectMayHaveExecuted,\n            });\n          }\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        readsSinceCommit = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    await runReconciled(ctx, 'completeReply', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    await settleHost('complete');\n    return { outcome: 'complete', sequence: terminalSequence };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch (_) {}\n    }\n    const code = safeCode(error);\n    if (code === 'SNAPBACK_REPLY_CANCELLED') {\n      const settled = await settleHost('cancelled');\n      if (settled) {\n        await runReconciled(ctx, 'settleReply', {\n          attemptId: args.attemptId,\n          status: settled.cause === 'complete' ? 'cancelled' : settled.cause,\n          effectMayHaveExecuted: settled.effectMayHaveExecuted,\n        });\n      }\n      return { outcome: 'cancelled', sequence };\n    }\n    const local = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    // The committed durable winner is authoritative over local inference\n    // (LLP 0076 §Settlement and retry): return whatever the host recorded.\n    const settled = await settleHost(local);\n    const status = settled && settled.cause !== 'complete' ? settled.cause : local;\n    await runReconciled(ctx, 'settleReply', {\n      attemptId: args.attemptId,\n      status,\n      effectMayHaveExecuted: settled ? settled.effectMayHaveExecuted : null,\n    });\n    return { outcome: status, sequence, code };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  startReply,\n  applyReplyProgress,\n  completeReply,\n  settleReply,\n  cancelReply,\n  streamReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "slug",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:3ecc9e02e84e94f703ae3cde98fb7ec81dc528b22923a674a5829c542117a2dc",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "conversationBySlug",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_slug",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "conversationBySlug",
+      "handlerForm": "plan",
+      "id": "competitive-checkpoint:conversationBySlug",
+      "implementationHash": "sha256:ddef74324015869cef34ef11459e603369140a506016466257b2cf7a3076ad1e",
+      "kind": "LiveQuery",
+      "name": "conversationBySlug",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "slug",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "model",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "conversations"
+      },
+      "resultContractHash": "sha256:672dbdeb441523b492fd67b2d29913c747b86687a542c04b93b0db75075baa92",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              },
+              {
+                "field": "slug",
+                "op": "Eq",
+                "value": {
+                  "Arg": "slug"
+                }
+              }
+            ],
+            "indexed_by": "by_owner_slug",
+            "limit": 1,
+            "membershipFilters": [],
+            "order": [],
+            "table": "conversations"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-unique-lookup.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "cursor",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:9711de0904a7da5915cf4f5771f6cdd88176e3dbda49d642661741f0d745a6bc",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "conversationsWithModel",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_created",
+            "table": "conversations"
+          },
+          {
+            "access": "query",
+            "index": "models_by_slug",
+            "table": "models"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "conversationsWithModel",
+      "handlerForm": "plan",
+      "id": "competitive-checkpoint:conversationsWithModel",
+      "implementationHash": "sha256:7d4e2dbf629c6d3d0779105aca5eeeafb8ca0c26e6bfd748a888e8f62a133d91",
+      "kind": "LiveQuery",
+      "name": "conversationsWithModel",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "relational",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations",
+          "models"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "relational_query_v1",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "records",
+        "record": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "slug",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "model",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "modelName",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                ]
+              }
+            },
+            {
+              "name": "modelProvider",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                ]
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "rows": {
+          "maxItems": 8,
+          "minItems": 0
+        }
+      },
+      "resultContractHash": "sha256:18696a75bc10dcc20fdf82caf31c24fd5be91232f8bae02003b76266b551bcf3",
+      "runtime": {
+        "HostPlan": {
+          "RelationalQuery": {
+            "joinKind": "Left",
+            "joinOn": [
+              {
+                "joinedField": "slug",
+                "rootField": "model"
+              }
+            ],
+            "joined": "models",
+            "joinedAlias": "models",
+            "joinedIndex": "models_by_slug",
+            "joinedVisibility": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "createdAt"
+              }
+            ],
+            "projection": [
+              {
+                "name": "slug",
+                "source": {
+                  "RootField": "slug"
+                }
+              },
+              {
+                "name": "title",
+                "source": {
+                  "RootField": "title"
+                }
+              },
+              {
+                "name": "model",
+                "source": {
+                  "RootField": "model"
+                }
+              },
+              {
+                "name": "modelName",
+                "source": {
+                  "JoinedField": "displayName"
+                }
+              },
+              {
+                "name": "modelProvider",
+                "source": {
+                  "JoinedField": "provider"
+                }
+              }
+            ],
+            "root": "conversations",
+            "rootAlias": "conversations",
+            "rootFilters": [],
+            "rootIndex": "by_owner_created",
+            "rootVisibility": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "take": 8
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "slug",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "model",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:d56e971f74e7fd67a95647221d017074bd8e537a5bd7d022183df93ee8650c59",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "createConversation",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "runtimeId",
+          "runtimeNow"
+        ],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "conversations"
+          }
+        ]
+      },
+      "exportedName": "createConversation",
+      "handlerForm": "plan",
+      "id": "competitive-checkpoint:createConversation",
+      "implementationHash": "sha256:ff4f928ccce67c879c62027bb59c40f68fcd7e2985c1632543c6a174928ebee8",
+      "kind": "Mutation",
+      "name": "createConversation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "slug",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "model",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "document",
+        "table": "conversations"
+      },
+      "resultContractHash": "sha256:344bedd6d97d9e9634aabc51f0e23fd5a8c8fa5a3e732ea66aa7caed1d886d6b",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Document": {
+                "id": {
+                  "Binding": "__standardCreatedId"
+                },
+                "table": "conversations"
+              }
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "__standardCreatedId",
+                  "table": "conversations",
+                  "values": {
+                    "createdAt": "RuntimeNow",
+                    "model": {
+                      "Arg": "model"
+                    },
+                    "ownerId": "AuthUserId",
+                    "pageKey": "RuntimeId",
+                    "slug": {
+                      "Arg": "slug"
+                    },
+                    "title": {
+                      "Arg": "title"
+                    },
+                    "updatedAt": "RuntimeNow"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:fce66f36176a5b6d1335cb05b297832ece7b04811d8e220d5ae400ceba2c1055",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "deleteConversation",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "delete"
+            ],
+            "table": "conversations"
+          }
+        ]
+      },
+      "exportedName": "deleteConversation",
+      "handlerForm": "plan",
+      "id": "competitive-checkpoint:deleteConversation",
+      "implementationHash": "sha256:96c947c478374b2809aee196310d5709f242cf44fdff5740a884aa9a7b985c85",
+      "kind": "Mutation",
+      "name": "deleteConversation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "Get": {
+                  "bind_as": "__standardOwnedRow",
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND",
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "conversations"
+                }
+              },
+              {
+                "Guard": {
+                  "cond": {
+                    "Binary": {
+                      "left": {
+                        "Field": {
+                          "base": {
+                            "Binding": "__standardOwnedRow"
+                          },
+                          "key": "ownerId"
+                        }
+                      },
+                      "op": "Eq",
+                      "right": "AuthUserId"
+                    }
+                  },
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND"
+                }
+              },
+              {
+                "Delete": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "conversations"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "firstConversationPage",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_page_key",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "firstConversationPage",
+      "handlerForm": "plan",
+      "id": "competitive-checkpoint:firstConversationPage",
+      "implementationHash": "sha256:0f682defa408b4ea0c701b015eede03ed8a07f4c0f4fb1beb9bfc5322a8e6be6",
+      "kind": "LiveQuery",
+      "name": "firstConversationPage",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "slug",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "model",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "conversations"
+      },
+      "resultContractHash": "sha256:672dbdeb441523b492fd67b2d29913c747b86687a542c04b93b0db75075baa92",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "by_owner_page_key",
+            "limit": 10,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "pageKey"
+              }
+            ],
+            "table": "conversations"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-keyset-pages.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:fce66f36176a5b6d1335cb05b297832ece7b04811d8e220d5ae400ceba2c1055",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "getConversation",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "getConversation",
+      "handlerForm": "plan",
+      "id": "competitive-checkpoint:getConversation",
+      "implementationHash": "sha256:317e37670b4bcefa38b6a4127529304470a701d53b56150cf8a85b1e1d53e555",
+      "kind": "LiveQuery",
+      "name": "getConversation",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "slug",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "model",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "conversations"
+      },
+      "resultContractHash": "sha256:672dbdeb441523b492fd67b2d29913c747b86687a542c04b93b0db75075baa92",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              },
+              {
+                "field": "_id",
+                "op": "Eq",
+                "value": {
+                  "Arg": "id"
+                }
+              }
+            ],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "conversations"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listConversationCards",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "cards_by_owner",
+            "table": "conversationCards"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listConversationCards",
+      "handlerForm": "plan",
+      "id": "competitive-checkpoint:listConversationCards",
+      "implementationHash": "sha256:bca3911b131cf4640834d3a62b2698e383fcc1c8cb49b53c6c3fd7ed2c82094a",
+      "kind": "LiveQuery",
+      "name": "listConversationCards",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "conversationCards",
+        "tables": [
+          "conversationCards"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversationCards"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "modelName",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                ]
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "conversationCards"
+      },
+      "resultContractHash": "sha256:73e2c21de357932195da9f4cd52a9af66ba29c4937e93d09471b2bea5ce74300",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "cards_by_owner",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "conversationCards"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listConversations",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_created",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listConversations",
+      "handlerForm": "plan",
+      "id": "competitive-checkpoint:listConversations",
+      "implementationHash": "sha256:fcbabc5981cedef2ec30106593843e43bccaed5e73b9bcddc99aa98aefc4149f",
+      "kind": "LiveQuery",
+      "name": "listConversations",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "slug",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "model",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "conversations"
+      },
+      "resultContractHash": "sha256:672dbdeb441523b492fd67b2d29913c747b86687a542c04b93b0db75075baa92",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "by_owner_created",
+            "limit": 100,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "createdAt"
+              }
+            ],
+            "table": "conversations"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:99aad8e3170c2b5e7d19e5d4e0d4ca0dd29416d688816d3bac1e52ac7ebddc3a",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listMessages",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listMessages",
+      "handlerForm": "module",
+      "id": "competitive-checkpoint:listMessages",
+      "implementationHash": "sha256:4945751b334ea05fd2f833e655fb047f5c17a5426bd360677c893d8fb04a2671",
+      "kind": "LiveQuery",
+      "name": "listMessages",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "legacyQueryRowsV0",
+        "row": {
+          "allowExtra": true,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "conversationId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "role",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "content",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "status",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "attemptId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "idempotencyKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "sequence",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "lastProgressAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:6ca8f2e561b5d7a148eda7a48ddbe1fc1c3196096a239faeb55192fde77ec69d",
+      "runtime": {
+        "IbexModule": {
+          "export": "listMessages",
+          "source": "async function listMessages(ctx, args) {\n  return await ctx.db\n    .query('messages')\n    .withIndex('by_owner_conversation')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('conversationId', args.conversationId)\n    .order('pageKey', 'asc')\n    .collect();\n}\n\nglobalThis.__snapbackHandlers = { listMessages };\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "after",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:5fb6da771a8e374b6a650bf0f7c24bdc27a3033b55784f0a88070244040b25ee",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "nextConversationPage",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_page_key",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "nextConversationPage",
+      "handlerForm": "plan",
+      "id": "competitive-checkpoint:nextConversationPage",
+      "implementationHash": "sha256:159ecf5427af0463a6d3cbc78fe0d3c44d7d75f81c28b80c2901046f2daf9a9d",
+      "kind": "LiveQuery",
+      "name": "nextConversationPage",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "slug",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "model",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "conversations"
+      },
+      "resultContractHash": "sha256:672dbdeb441523b492fd67b2d29913c747b86687a542c04b93b0db75075baa92",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              },
+              {
+                "field": "pageKey",
+                "op": "Gt",
+                "value": {
+                  "Arg": "after"
+                }
+              }
+            ],
+            "indexed_by": "by_owner_page_key",
+            "limit": 10,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "pageKey"
+              }
+            ],
+            "table": "conversations"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-keyset-pages.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "slug",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "displayName",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "provider",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:901da5766a3ec3559eea4ff949edb34c58fb21db6a163594d343026f1692d969",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "registerModel",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "models"
+          }
+        ]
+      },
+      "exportedName": "registerModel",
+      "handlerForm": "plan",
+      "id": "competitive-checkpoint:registerModel",
+      "implementationHash": "sha256:cd72223aabe96532cbc6faa922f317f101cdcf05637b40977d434fe6089b5b7a",
+      "kind": "Mutation",
+      "name": "registerModel",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": null,
+                  "table": "models",
+                  "values": {
+                    "displayName": {
+                      "Arg": "displayName"
+                    },
+                    "provider": {
+                      "Field": {
+                        "base": "Args",
+                        "key": "provider"
+                      }
+                    },
+                    "slug": {
+                      "Arg": "slug"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "models",
+        "tables": [
+          "models"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "attemptId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "status",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:4cde9ce06bf858dad789639276889f15bdfca4c22ff42227a757654a88ee477e",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "settleReply",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "exportedName": "settleReply",
+      "handlerForm": "module",
+      "id": "competitive-checkpoint:settleReply",
+      "implementationHash": "sha256:bbf19a7a5dc4c0af724d8960750025ec902e9edfba38d7f8c77186f05383d045",
+      "kind": "Mutation",
+      "name": "settleReply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "settleReply",
+          "source": "function fail(code, message) {\n  throw new Error(code + ': ' + message);\n}\n\nasync function ownedAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_attempt')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('attemptId', attemptId)\n    .collect();\n  if (rows.length !== 1) fail('SNAPBACK_ROW_NOT_VISIBLE', 'reply attempt is not visible');\n  return rows[0];\n}\n\nasync function startReply(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation || conversation.ownerId !== ctx.auth.userId) {\n    fail('SNAPBACK_ROW_NOT_VISIBLE', 'conversation is not visible');\n  }\n  const prior = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_idempotency')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('idempotencyKey', args.idempotencyKey)\n    .collect();\n  if (prior.length === 1) {\n    return {\n      attemptId: prior[0].attemptId,\n      assistantMessageId: prior[0]._id,\n      replayed: true,\n    };\n  }\n  const now = ctx.runtime.now();\n  const attemptId = ctx.runtime.id();\n  await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    attemptId: ctx.runtime.id(),\n    idempotencyKey: 'user:' + args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  const assistantMessageId = await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'running',\n    attemptId,\n    idempotencyKey: args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  return { attemptId, assistantMessageId, replayed: false };\n}\n\nasync function applyReplyProgress(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    return {\n      applied: false,\n      terminal: true,\n      status: row.status,\n      sequence: row.sequence,\n    };\n  }\n  if (args.sequence <= row.sequence) {\n    return { applied: false, terminal: false, sequence: row.sequence };\n  }\n  if (args.sequence !== row.sequence + 1) fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'reply sequence is not contiguous');\n  const now = ctx.runtime.now();\n  if (row.sequence > 0 && now - row.lastProgressAt < 100) {\n    fail('SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.delta,\n    sequence: args.sequence,\n    lastProgressAt: now,\n  });\n  return { applied: true, terminal: false, sequence: args.sequence };\n}\n\nasync function completeReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status === 'complete') return { status: 'complete', sequence: row.sequence };\n  if (row.status !== 'running') fail('SNAPBACK_REPLY_CANCELLED', 'reply is terminal');\n  if (args.sequence !== row.sequence + (args.tail.length > 0 ? 1 : 0)) {\n    fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'terminal reply sequence is not contiguous');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.tail,\n    sequence: args.sequence,\n    status: 'complete',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'complete', sequence: args.sequence };\n}\n\nasync function settleReply(ctx, args) {\n  const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n  if (!allowed.includes(args.status)) fail('SNAPBACK_REPLY_SETTLEMENT_INVALID', 'unknown terminal settlement');\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    // Already terminal (for example a durable client cancel): the authored\n    // row may still adopt the host-derived certainty mirror exactly once\n    // (LLP 0076 decision 2; protocol amendment v0.5).\n    if (args.effectMayHaveExecuted != null && row.effectMayHaveExecuted == null) {\n      await ctx.db.patch('messages', row._id, {\n        effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      });\n    }\n    return { status: row.status, sequence: row.sequence };\n  }\n  await ctx.db.patch('messages', row._id, {\n    status: args.status,\n    lastProgressAt: ctx.runtime.now(),\n    ...(args.effectMayHaveExecuted == null\n      ? {}\n      : { effectMayHaveExecuted: args.effectMayHaveExecuted === true }),\n  });\n  return { status: args.status, sequence: row.sequence };\n}\n\nasync function cancelReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: 'cancelled',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'cancelled', sequence: row.sequence };\n}\n\nfunction safeCode(error) {\n  const message = String(error && error.message ? error.message : error);\n  const match = message.match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\n// Bounded conflict reconcile for the action's inner mutations. A concurrent\n// committed writer (the durable client cancel racing a progress commit — hit\n// reliably on the slow shared-CPU remote drill machine, rarely locally)\n// rejects the whole inner mutation as SNAPBACK_MUTATION_CONFLICT. Re-invoking\n// IS the reconcile the guide requires (guide/backend/mutations.md: reconcile,\n// never last-writer-wins): each of these mutations re-reads the row in a\n// fresh transaction and re-evaluates its terminal/stale-sequence branches, so\n// a cancel that won the race is observed as `terminal`, never overwritten.\nasync function runReconciled(ctx, name, mutationArgs) {\n  for (let attemptsLeft = 3; ; attemptsLeft -= 1) {\n    try {\n      return await ctx.runMutation(name, mutationArgs);\n    } catch (error) {\n      if (attemptsLeft <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nasync function streamReply(ctx, args) {\n  let reader = null;\n  let pending = '';\n  let sequence = 0;\n  let readsSinceCommit = 0;\n  // The host-owned StreamAttemptV1 control plane (LLP 0076; protocol\n  // amendment v0.5): the fence-critical identity, lease, and certainty live\n  // on the host record keyed by the server-issued authored attemptId; the\n  // authored row references it and mirrors the certainty read-only.\n  const attempt = await ctx.streamAttempt.start('reply:' + args.attemptId);\n  if (attempt.terminal) {\n    // A durable winner already exists (a previous runner settled, or the\n    // trusted terminalizer did): return it verbatim, never re-run.\n    await runReconciled(ctx, 'settleReply', {\n      attemptId: args.attemptId,\n      status: attempt.terminal.cause === 'complete' ? 'failed' : attempt.terminal.cause,\n      effectMayHaveExecuted: attempt.terminal.effectMayHaveExecuted,\n    });\n    return { outcome: attempt.terminal.cause, sequence: 0, replayedWinner: true };\n  }\n  const settleHost = async (cause) => {\n    try {\n      return await ctx.streamAttempt.settle(attempt.attemptToken, cause);\n    } catch (_) {\n      // Lease loss or abandonment: the trusted terminalizer owns the winner.\n      return null;\n    }\n  };\n  try {\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,\n      attemptToken: attempt.attemptToken,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned a non-success status');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      readsSinceCommit += 1;\n      if (readsSinceCommit >= 2) {\n        sequence += 1;\n        const progress = await runReconciled(ctx, 'applyReplyProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          const settled = await settleHost(progress.status === 'complete' ? 'complete' : progress.status);\n          if (settled) {\n            await runReconciled(ctx, 'settleReply', {\n              attemptId: args.attemptId,\n              status: settled.cause === 'complete' ? progress.status : settled.cause,\n              effectMayHaveExecuted: settled.effectMayHaveExecuted,\n            });\n          }\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        readsSinceCommit = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    await runReconciled(ctx, 'completeReply', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    await settleHost('complete');\n    return { outcome: 'complete', sequence: terminalSequence };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch (_) {}\n    }\n    const code = safeCode(error);\n    if (code === 'SNAPBACK_REPLY_CANCELLED') {\n      const settled = await settleHost('cancelled');\n      if (settled) {\n        await runReconciled(ctx, 'settleReply', {\n          attemptId: args.attemptId,\n          status: settled.cause === 'complete' ? 'cancelled' : settled.cause,\n          effectMayHaveExecuted: settled.effectMayHaveExecuted,\n        });\n      }\n      return { outcome: 'cancelled', sequence };\n    }\n    const local = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    // The committed durable winner is authoritative over local inference\n    // (LLP 0076 §Settlement and retry): return whatever the host recorded.\n    const settled = await settleHost(local);\n    const status = settled && settled.cause !== 'complete' ? settled.cause : local;\n    await runReconciled(ctx, 'settleReply', {\n      attemptId: args.attemptId,\n      status,\n      effectMayHaveExecuted: settled ? settled.effectMayHaveExecuted : null,\n    });\n    return { outcome: status, sequence, code };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  startReply,\n  applyReplyProgress,\n  completeReply,\n  settleReply,\n  cancelReply,\n  streamReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          },
+          {
+            "name": "content",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "idempotencyKey",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:9388162a6232c243a7335ad47211d9de19df705ed2191e0ad9944c8c29e04d69",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "startReply",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "conversations"
+          },
+          {
+            "access": "query",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "exportedName": "startReply",
+      "handlerForm": "module",
+      "id": "competitive-checkpoint:startReply",
+      "implementationHash": "sha256:c34217c4d386cd4b5218df4985eb69d4c327ee80b390fb5ce33652f6aae1c871",
+      "kind": "Mutation",
+      "name": "startReply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations",
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "startReply",
+          "source": "function fail(code, message) {\n  throw new Error(code + ': ' + message);\n}\n\nasync function ownedAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_attempt')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('attemptId', attemptId)\n    .collect();\n  if (rows.length !== 1) fail('SNAPBACK_ROW_NOT_VISIBLE', 'reply attempt is not visible');\n  return rows[0];\n}\n\nasync function startReply(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation || conversation.ownerId !== ctx.auth.userId) {\n    fail('SNAPBACK_ROW_NOT_VISIBLE', 'conversation is not visible');\n  }\n  const prior = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_idempotency')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('idempotencyKey', args.idempotencyKey)\n    .collect();\n  if (prior.length === 1) {\n    return {\n      attemptId: prior[0].attemptId,\n      assistantMessageId: prior[0]._id,\n      replayed: true,\n    };\n  }\n  const now = ctx.runtime.now();\n  const attemptId = ctx.runtime.id();\n  await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    attemptId: ctx.runtime.id(),\n    idempotencyKey: 'user:' + args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  const assistantMessageId = await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'running',\n    attemptId,\n    idempotencyKey: args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  return { attemptId, assistantMessageId, replayed: false };\n}\n\nasync function applyReplyProgress(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    return {\n      applied: false,\n      terminal: true,\n      status: row.status,\n      sequence: row.sequence,\n    };\n  }\n  if (args.sequence <= row.sequence) {\n    return { applied: false, terminal: false, sequence: row.sequence };\n  }\n  if (args.sequence !== row.sequence + 1) fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'reply sequence is not contiguous');\n  const now = ctx.runtime.now();\n  if (row.sequence > 0 && now - row.lastProgressAt < 100) {\n    fail('SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.delta,\n    sequence: args.sequence,\n    lastProgressAt: now,\n  });\n  return { applied: true, terminal: false, sequence: args.sequence };\n}\n\nasync function completeReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status === 'complete') return { status: 'complete', sequence: row.sequence };\n  if (row.status !== 'running') fail('SNAPBACK_REPLY_CANCELLED', 'reply is terminal');\n  if (args.sequence !== row.sequence + (args.tail.length > 0 ? 1 : 0)) {\n    fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'terminal reply sequence is not contiguous');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.tail,\n    sequence: args.sequence,\n    status: 'complete',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'complete', sequence: args.sequence };\n}\n\nasync function settleReply(ctx, args) {\n  const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n  if (!allowed.includes(args.status)) fail('SNAPBACK_REPLY_SETTLEMENT_INVALID', 'unknown terminal settlement');\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    // Already terminal (for example a durable client cancel): the authored\n    // row may still adopt the host-derived certainty mirror exactly once\n    // (LLP 0076 decision 2; protocol amendment v0.5).\n    if (args.effectMayHaveExecuted != null && row.effectMayHaveExecuted == null) {\n      await ctx.db.patch('messages', row._id, {\n        effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      });\n    }\n    return { status: row.status, sequence: row.sequence };\n  }\n  await ctx.db.patch('messages', row._id, {\n    status: args.status,\n    lastProgressAt: ctx.runtime.now(),\n    ...(args.effectMayHaveExecuted == null\n      ? {}\n      : { effectMayHaveExecuted: args.effectMayHaveExecuted === true }),\n  });\n  return { status: args.status, sequence: row.sequence };\n}\n\nasync function cancelReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: 'cancelled',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'cancelled', sequence: row.sequence };\n}\n\nfunction safeCode(error) {\n  const message = String(error && error.message ? error.message : error);\n  const match = message.match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\n// Bounded conflict reconcile for the action's inner mutations. A concurrent\n// committed writer (the durable client cancel racing a progress commit — hit\n// reliably on the slow shared-CPU remote drill machine, rarely locally)\n// rejects the whole inner mutation as SNAPBACK_MUTATION_CONFLICT. Re-invoking\n// IS the reconcile the guide requires (guide/backend/mutations.md: reconcile,\n// never last-writer-wins): each of these mutations re-reads the row in a\n// fresh transaction and re-evaluates its terminal/stale-sequence branches, so\n// a cancel that won the race is observed as `terminal`, never overwritten.\nasync function runReconciled(ctx, name, mutationArgs) {\n  for (let attemptsLeft = 3; ; attemptsLeft -= 1) {\n    try {\n      return await ctx.runMutation(name, mutationArgs);\n    } catch (error) {\n      if (attemptsLeft <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nasync function streamReply(ctx, args) {\n  let reader = null;\n  let pending = '';\n  let sequence = 0;\n  let readsSinceCommit = 0;\n  // The host-owned StreamAttemptV1 control plane (LLP 0076; protocol\n  // amendment v0.5): the fence-critical identity, lease, and certainty live\n  // on the host record keyed by the server-issued authored attemptId; the\n  // authored row references it and mirrors the certainty read-only.\n  const attempt = await ctx.streamAttempt.start('reply:' + args.attemptId);\n  if (attempt.terminal) {\n    // A durable winner already exists (a previous runner settled, or the\n    // trusted terminalizer did): return it verbatim, never re-run.\n    await runReconciled(ctx, 'settleReply', {\n      attemptId: args.attemptId,\n      status: attempt.terminal.cause === 'complete' ? 'failed' : attempt.terminal.cause,\n      effectMayHaveExecuted: attempt.terminal.effectMayHaveExecuted,\n    });\n    return { outcome: attempt.terminal.cause, sequence: 0, replayedWinner: true };\n  }\n  const settleHost = async (cause) => {\n    try {\n      return await ctx.streamAttempt.settle(attempt.attemptToken, cause);\n    } catch (_) {\n      // Lease loss or abandonment: the trusted terminalizer owns the winner.\n      return null;\n    }\n  };\n  try {\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,\n      attemptToken: attempt.attemptToken,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned a non-success status');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      readsSinceCommit += 1;\n      if (readsSinceCommit >= 2) {\n        sequence += 1;\n        const progress = await runReconciled(ctx, 'applyReplyProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          const settled = await settleHost(progress.status === 'complete' ? 'complete' : progress.status);\n          if (settled) {\n            await runReconciled(ctx, 'settleReply', {\n              attemptId: args.attemptId,\n              status: settled.cause === 'complete' ? progress.status : settled.cause,\n              effectMayHaveExecuted: settled.effectMayHaveExecuted,\n            });\n          }\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        readsSinceCommit = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    await runReconciled(ctx, 'completeReply', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    await settleHost('complete');\n    return { outcome: 'complete', sequence: terminalSequence };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch (_) {}\n    }\n    const code = safeCode(error);\n    if (code === 'SNAPBACK_REPLY_CANCELLED') {\n      const settled = await settleHost('cancelled');\n      if (settled) {\n        await runReconciled(ctx, 'settleReply', {\n          attemptId: args.attemptId,\n          status: settled.cause === 'complete' ? 'cancelled' : settled.cause,\n          effectMayHaveExecuted: settled.effectMayHaveExecuted,\n        });\n      }\n      return { outcome: 'cancelled', sequence };\n    }\n    const local = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    // The committed durable winner is authoritative over local inference\n    // (LLP 0076 §Settlement and retry): return whatever the host recorded.\n    const settled = await settleHost(local);\n    const status = settled && settled.cause !== 'complete' ? settled.cause : local;\n    await runReconciled(ctx, 'settleReply', {\n      attemptId: args.attemptId,\n      status,\n      effectMayHaveExecuted: settled ? settled.effectMayHaveExecuted : null,\n    });\n    return { outcome: status, sequence, code };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  startReply,\n  applyReplyProgress,\n  completeReply,\n  settleReply,\n  cancelReply,\n  streamReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "attemptId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "streamUrl",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "method",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "upstreamIdempotent",
+            "required": true,
+            "value": {
+              "kind": "boolean"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:1f911f74614e3eac58795f9392d1a8162fe76947dfb80c3715cd708928790548",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "streamReply",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "exportedName": "streamReply",
+      "handlerForm": "module",
+      "id": "competitive-checkpoint:streamReply",
+      "implementationHash": "sha256:713005e763cd156a712efe2b7b1a1a30ad3cf0ba849cf3fd253bdb44ecf97fef",
+      "kind": "Action",
+      "name": "streamReply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "cron_action_run_mutation",
+        "bounded_response_stream_v1",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "streamReply",
+          "source": "function fail(code, message) {\n  throw new Error(code + ': ' + message);\n}\n\nasync function ownedAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_attempt')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('attemptId', attemptId)\n    .collect();\n  if (rows.length !== 1) fail('SNAPBACK_ROW_NOT_VISIBLE', 'reply attempt is not visible');\n  return rows[0];\n}\n\nasync function startReply(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation || conversation.ownerId !== ctx.auth.userId) {\n    fail('SNAPBACK_ROW_NOT_VISIBLE', 'conversation is not visible');\n  }\n  const prior = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_idempotency')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('idempotencyKey', args.idempotencyKey)\n    .collect();\n  if (prior.length === 1) {\n    return {\n      attemptId: prior[0].attemptId,\n      assistantMessageId: prior[0]._id,\n      replayed: true,\n    };\n  }\n  const now = ctx.runtime.now();\n  const attemptId = ctx.runtime.id();\n  await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    attemptId: ctx.runtime.id(),\n    idempotencyKey: 'user:' + args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  const assistantMessageId = await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'running',\n    attemptId,\n    idempotencyKey: args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  return { attemptId, assistantMessageId, replayed: false };\n}\n\nasync function applyReplyProgress(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    return {\n      applied: false,\n      terminal: true,\n      status: row.status,\n      sequence: row.sequence,\n    };\n  }\n  if (args.sequence <= row.sequence) {\n    return { applied: false, terminal: false, sequence: row.sequence };\n  }\n  if (args.sequence !== row.sequence + 1) fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'reply sequence is not contiguous');\n  const now = ctx.runtime.now();\n  if (row.sequence > 0 && now - row.lastProgressAt < 100) {\n    fail('SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.delta,\n    sequence: args.sequence,\n    lastProgressAt: now,\n  });\n  return { applied: true, terminal: false, sequence: args.sequence };\n}\n\nasync function completeReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status === 'complete') return { status: 'complete', sequence: row.sequence };\n  if (row.status !== 'running') fail('SNAPBACK_REPLY_CANCELLED', 'reply is terminal');\n  if (args.sequence !== row.sequence + (args.tail.length > 0 ? 1 : 0)) {\n    fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'terminal reply sequence is not contiguous');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.tail,\n    sequence: args.sequence,\n    status: 'complete',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'complete', sequence: args.sequence };\n}\n\nasync function settleReply(ctx, args) {\n  const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n  if (!allowed.includes(args.status)) fail('SNAPBACK_REPLY_SETTLEMENT_INVALID', 'unknown terminal settlement');\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    // Already terminal (for example a durable client cancel): the authored\n    // row may still adopt the host-derived certainty mirror exactly once\n    // (LLP 0076 decision 2; protocol amendment v0.5).\n    if (args.effectMayHaveExecuted != null && row.effectMayHaveExecuted == null) {\n      await ctx.db.patch('messages', row._id, {\n        effectMayHaveExecuted: args.effectMayHaveExecuted === true,\n      });\n    }\n    return { status: row.status, sequence: row.sequence };\n  }\n  await ctx.db.patch('messages', row._id, {\n    status: args.status,\n    lastProgressAt: ctx.runtime.now(),\n    ...(args.effectMayHaveExecuted == null\n      ? {}\n      : { effectMayHaveExecuted: args.effectMayHaveExecuted === true }),\n  });\n  return { status: args.status, sequence: row.sequence };\n}\n\nasync function cancelReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: 'cancelled',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'cancelled', sequence: row.sequence };\n}\n\nfunction safeCode(error) {\n  const message = String(error && error.message ? error.message : error);\n  const match = message.match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\n// Bounded conflict reconcile for the action's inner mutations. A concurrent\n// committed writer (the durable client cancel racing a progress commit — hit\n// reliably on the slow shared-CPU remote drill machine, rarely locally)\n// rejects the whole inner mutation as SNAPBACK_MUTATION_CONFLICT. Re-invoking\n// IS the reconcile the guide requires (guide/backend/mutations.md: reconcile,\n// never last-writer-wins): each of these mutations re-reads the row in a\n// fresh transaction and re-evaluates its terminal/stale-sequence branches, so\n// a cancel that won the race is observed as `terminal`, never overwritten.\nasync function runReconciled(ctx, name, mutationArgs) {\n  for (let attemptsLeft = 3; ; attemptsLeft -= 1) {\n    try {\n      return await ctx.runMutation(name, mutationArgs);\n    } catch (error) {\n      if (attemptsLeft <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;\n    }\n  }\n}\n\nasync function streamReply(ctx, args) {\n  let reader = null;\n  let pending = '';\n  let sequence = 0;\n  let readsSinceCommit = 0;\n  // The host-owned StreamAttemptV1 control plane (LLP 0076; protocol\n  // amendment v0.5): the fence-critical identity, lease, and certainty live\n  // on the host record keyed by the server-issued authored attemptId; the\n  // authored row references it and mirrors the certainty read-only.\n  const attempt = await ctx.streamAttempt.start('reply:' + args.attemptId);\n  if (attempt.terminal) {\n    // A durable winner already exists (a previous runner settled, or the\n    // trusted terminalizer did): return it verbatim, never re-run.\n    await runReconciled(ctx, 'settleReply', {\n      attemptId: args.attemptId,\n      status: attempt.terminal.cause === 'complete' ? 'failed' : attempt.terminal.cause,\n      effectMayHaveExecuted: attempt.terminal.effectMayHaveExecuted,\n    });\n    return { outcome: attempt.terminal.cause, sequence: 0, replayedWinner: true };\n  }\n  const settleHost = async (cause) => {\n    try {\n      return await ctx.streamAttempt.settle(attempt.attemptToken, cause);\n    } catch (_) {\n      // Lease loss or abandonment: the trusted terminalizer owns the winner.\n      return null;\n    }\n  };\n  try {\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,\n      attemptToken: attempt.attemptToken,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned a non-success status');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      readsSinceCommit += 1;\n      if (readsSinceCommit >= 2) {\n        sequence += 1;\n        const progress = await runReconciled(ctx, 'applyReplyProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          const settled = await settleHost(progress.status === 'complete' ? 'complete' : progress.status);\n          if (settled) {\n            await runReconciled(ctx, 'settleReply', {\n              attemptId: args.attemptId,\n              status: settled.cause === 'complete' ? progress.status : settled.cause,\n              effectMayHaveExecuted: settled.effectMayHaveExecuted,\n            });\n          }\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        readsSinceCommit = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    await runReconciled(ctx, 'completeReply', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    await settleHost('complete');\n    return { outcome: 'complete', sequence: terminalSequence };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch (_) {}\n    }\n    const code = safeCode(error);\n    if (code === 'SNAPBACK_REPLY_CANCELLED') {\n      const settled = await settleHost('cancelled');\n      if (settled) {\n        await runReconciled(ctx, 'settleReply', {\n          attemptId: args.attemptId,\n          status: settled.cause === 'complete' ? 'cancelled' : settled.cause,\n          effectMayHaveExecuted: settled.effectMayHaveExecuted,\n        });\n      }\n      return { outcome: 'cancelled', sequence };\n    }\n    const local = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    // The committed durable winner is authoritative over local inference\n    // (LLP 0076 §Settlement and retry): return whatever the host recorded.\n    const settled = await settleHost(local);\n    const status = settled && settled.cause !== 'complete' ? settled.cause : local;\n    await runReconciled(ctx, 'settleReply', {\n      attemptId: args.attemptId,\n      status,\n      effectMayHaveExecuted: settled ? settled.effectMayHaveExecuted : null,\n    });\n    return { outcome: status, sequence, code };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  startReply,\n  applyReplyProgress,\n  completeReply,\n  settleReply,\n  cancelReply,\n  streamReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "action",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          },
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "model",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:9b9d8229cbc31f77c9a79c2e3bf49d69666426c906dd5896d96820c191196a5b",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "updateConversation",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "runtimeNow"
+        ],
+        "reads": [
+          {
+            "access": "point",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "patch"
+            ],
+            "table": "conversations"
+          }
+        ]
+      },
+      "exportedName": "updateConversation",
+      "handlerForm": "plan",
+      "id": "competitive-checkpoint:updateConversation",
+      "implementationHash": "sha256:5b6950ca7f4d36a3cd23f975ee262472dfe68d7ec29bdf96cc17211c6eb6ed79",
+      "kind": "Mutation",
+      "name": "updateConversation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "conversations"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "slug",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "model",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "document",
+        "table": "conversations"
+      },
+      "resultContractHash": "sha256:344bedd6d97d9e9634aabc51f0e23fd5a8c8fa5a3e732ea66aa7caed1d886d6b",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Document": {
+                "id": {
+                  "Arg": "id"
+                },
+                "table": "conversations"
+              }
+            },
+            "steps": [
+              {
+                "Get": {
+                  "bind_as": "__standardOwnedRow",
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND",
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "conversations"
+                }
+              },
+              {
+                "Guard": {
+                  "cond": {
+                    "Binary": {
+                      "left": {
+                        "Field": {
+                          "base": {
+                            "Binding": "__standardOwnedRow"
+                          },
+                          "key": "ownerId"
+                        }
+                      },
+                      "op": "Eq",
+                      "right": "AuthUserId"
+                    }
+                  },
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND"
+                }
+              },
+              {
+                "Patch": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "conversations",
+                  "values": {
+                    "model": {
+                      "Arg": "model"
+                    },
+                    "title": {
+                      "Arg": "title"
+                    },
+                    "updatedAt": "RuntimeNow"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "29a451c0d1f6bcb12c0a50ae171476f747cce16d0e354e70cb0eff92cc02e460",
+  "projections": [
+    {
+      "fanOutLimit": 64,
+      "id": "conversation-cards",
+      "joinKind": "Left",
+      "joinOn": [
+        {
+          "joinedField": "slug",
+          "rootField": "model"
+        }
+      ],
+      "joined": "models",
+      "joinedAlias": "models",
+      "joinedVisibility": "public-read",
+      "outputKey": "RootId",
+      "outputTable": "conversationCards",
+      "outputVisibility": {
+        "owner": {
+          "field": "ownerId"
+        }
+      },
+      "projection": [
+        {
+          "name": "ownerId",
+          "source": {
+            "RootField": "ownerId"
+          }
+        },
+        {
+          "name": "title",
+          "source": {
+            "RootField": "title"
+          }
+        },
+        {
+          "name": "modelName",
+          "source": {
+            "JoinedField": "displayName"
+          }
+        }
+      ],
+      "rebuildRecipe": "rebuild-v1",
+      "root": "conversations",
+      "rootAlias": "conversations",
+      "rootFilters": [],
+      "rootReverseIndex": "by_model",
+      "rootVisibility": {
+        "owner": {
+          "field": "ownerId"
+        }
+      },
+      "sharedFanOutDisclosure": true
+    }
+  ],
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": [
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "applyReplyProgress"
+      },
+      "message": "applyReplyProgress: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "cancelReply"
+      },
+      "message": "cancelReply: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "completeReply"
+      },
+      "message": "completeReply: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "deleteConversation"
+      },
+      "message": "deleteConversation: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "registerModel"
+      },
+      "message": "registerModel: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "settleReply"
+      },
+      "message": "settleReply: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "startReply"
+      },
+      "message": "startReply: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "streamReply"
+      },
+      "message": "streamReply: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    }
+  ]
+}

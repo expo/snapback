@@ -1,0 +1,115 @@
+{
+  "app": {
+    "description": "A second todo reference app used to test LLP 0021 and LLP 0051 D6: a richer row shape, an all-IR generated Contract binding surface, retained/offline replay, Exact project checks, a wrong-native-server-shape capability diagnostic, and an Exact-owned provider conformance fixture.",
+    "name": "Todo list v2"
+  },
+  "appId": "todo-v2",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [
+    {
+      "burst": 40,
+      "defaultTtlMs": 20000,
+      "dispatchMs": 33,
+      "hardMaxValueBytes": 4096,
+      "keyMode": "Connection",
+      "maxPendingEphemeralKeys": 1024,
+      "maxTtlMs": 30000,
+      "maxValueBytes": 512,
+      "name": "todoPresence",
+      "publish": "AllowAll",
+      "routingFields": [
+        "listId"
+      ],
+      "scopeContract": {
+        "allowExtra": false,
+        "fields": [
+          {
+            "name": "listId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ],
+        "kind": "object"
+      },
+      "scopeFields": [
+        "listId"
+      ],
+      "subscribe": "AllowAll",
+      "sustainedHz": 20,
+      "valueContract": {
+        "allowExtra": false,
+        "fields": [
+          {
+            "name": "name",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "editing",
+            "required": false,
+            "value": {
+              "kind": "boolean"
+            }
+          }
+        ],
+        "kind": "object"
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "35b895cd8cbd9c5474cfe46851246f53f48c473f9ec740519ee4d0a0ffff5b9f",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:ba3efbcb670e4e54",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "priority",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "completed",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "userId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId"
+          ],
+          "name": "by_user"
+        },
+        {
+          "fields": [
+            "userId",
+            "priority"
+          ],
+          "name": "by_user_priority"
+        }
+      ],
+      "name": "todos",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

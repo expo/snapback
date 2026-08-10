@@ -1,0 +1,660 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "result_contract_v1"
+  ],
+  "appId": "todo",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:b33c1af1541ff18d",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:183eacdd291aace7e537f40eba314ec53ab2435baedec326d97336385a2cee0c",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "createTodo",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
+      "exportedName": "createTodo",
+      "handlerForm": "module",
+      "id": "todo:createTodo",
+      "implementationHash": "sha256:1bfa8ac9c60cd2aec99ac45f8856b7efc513927829c210e0f43b06a73cf455ca",
+      "kind": "Mutation",
+      "name": "createTodo",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "createTodo",
+          "source": "// Todo demo JavaScript handlers for the LLP 0020 Phase 2 ctx.db bridge.\n//\n// This file is bundled as source into the function manifest. It deliberately\n// avoids imports, process/env access, timers, network, and direct storage access;\n// the only backend power is the ctx surface passed by Snapback.\n\nglobalThis.__snapbackHandlers = {\n  async listTodos(ctx) {\n    return await ctx.db\n      .query('todos')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .order('_createdAt', 'asc')\n      .collect();\n  },\n\n  async createTodo(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('todo title is required');\n    return await ctx.db.insert('todos', {\n      title,\n      completed: false,\n      userId: ctx.auth.userId,\n    });\n  },\n\n  async setCompleted(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.patch('todos', args.id, {\n      completed: args.completed,\n    })) ? 1 : 0;\n  },\n\n  async deleteTodo(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:ea83adfa810da3345b147ef6db8d0eda98b636826499291900f045a560f9cab2",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "deleteTodo",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
+      "exportedName": "deleteTodo",
+      "handlerForm": "module",
+      "id": "todo:deleteTodo",
+      "implementationHash": "sha256:f482453670e2275a03c6823de7befcc0ec6814008f41f24b4e42a0a4471e4eee",
+      "kind": "Mutation",
+      "name": "deleteTodo",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "deleteTodo",
+          "source": "// Todo demo JavaScript handlers for the LLP 0020 Phase 2 ctx.db bridge.\n//\n// This file is bundled as source into the function manifest. It deliberately\n// avoids imports, process/env access, timers, network, and direct storage access;\n// the only backend power is the ctx surface passed by Snapback.\n\nglobalThis.__snapbackHandlers = {\n  async listTodos(ctx) {\n    return await ctx.db\n      .query('todos')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .order('_createdAt', 'asc')\n      .collect();\n  },\n\n  async createTodo(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('todo title is required');\n    return await ctx.db.insert('todos', {\n      title,\n      completed: false,\n      userId: ctx.auth.userId,\n    });\n  },\n\n  async setCompleted(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.patch('todos', args.id, {\n      completed: args.completed,\n    })) ? 1 : 0;\n  },\n\n  async deleteTodo(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "title",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:7bd63d3ed48b8eade786adad363e998f5c37c2dd66ff22c05ec7f71132d99e3e",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "editTitle",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "patch"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
+      "exportedName": "editTitle",
+      "handlerForm": "plan",
+      "id": "todo:editTitle",
+      "implementationHash": "sha256:59d377ecbb39defd6ec7091943898a37df92e71f87285bea593dc9255d426240",
+      "kind": "Mutation",
+      "name": "editTitle",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": "ChangedCount",
+            "steps": [
+              {
+                "Patch": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "todos",
+                  "values": {
+                    "title": {
+                      "Arg": "title"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "optional-user",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listTodos",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listTodos",
+      "handlerForm": "module",
+      "id": "todo:listTodos",
+      "implementationHash": "sha256:8855fb328dc7484419e221f237a6f95024d580afe580eadd2b83d2354a62ecaf",
+      "kind": "LiveQuery",
+      "name": "listTodos",
+      "readSetSummary": {
+        "authScopeField": "userId",
+        "mode": "handlerDeclared",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "legacyQueryRowsV0",
+        "row": {
+          "allowExtra": true,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "completed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:ab53d509fff5c39bc9bb3512da8ed50d191840ccec1006f706cb23f53211d518",
+      "runtime": {
+        "IbexModule": {
+          "export": "listTodos",
+          "source": "// Todo demo JavaScript handlers for the LLP 0020 Phase 2 ctx.db bridge.\n//\n// This file is bundled as source into the function manifest. It deliberately\n// avoids imports, process/env access, timers, network, and direct storage access;\n// the only backend power is the ctx surface passed by Snapback.\n\nglobalThis.__snapbackHandlers = {\n  async listTodos(ctx) {\n    return await ctx.db\n      .query('todos')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .order('_createdAt', 'asc')\n      .collect();\n  },\n\n  async createTodo(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('todo title is required');\n    return await ctx.db.insert('todos', {\n      title,\n      completed: false,\n      userId: ctx.auth.userId,\n    });\n  },\n\n  async setCompleted(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.patch('todos', args.id, {\n      completed: args.completed,\n    })) ? 1 : 0;\n  },\n\n  async deleteTodo(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "optional-user",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listTodosOnce",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_user",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listTodosOnce",
+      "handlerForm": "plan",
+      "id": "todo:listTodosOnce",
+      "implementationHash": "sha256:98d2fbeff6ac16421c7ccae7f8eb6a3d29c4a00f4922aabaac32b9abac6dd2f7",
+      "kind": "Query",
+      "name": "listTodosOnce",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "todos"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "completed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "todos"
+      },
+      "resultContractHash": "sha256:ab55348f239fb0b4228b280a08fee444711997959f15b7493312138b5bb3cc20",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "userId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "by_user",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "_createdAt"
+              }
+            ],
+            "table": "todos"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "online-only",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "completed",
+            "required": true,
+            "value": {
+              "kind": "boolean"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:a11536d71f7503d5f1385ced5c0d130c582563b3b4aba5393e7a7d008cf5455d",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "setCompleted",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
+      "exportedName": "setCompleted",
+      "handlerForm": "module",
+      "id": "todo:setCompleted",
+      "implementationHash": "sha256:695983b39670601a978c8821474026a128392d70caeaffca31af1b93128c57da",
+      "kind": "Mutation",
+      "name": "setCompleted",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "setCompleted",
+          "source": "// Todo demo JavaScript handlers for the LLP 0020 Phase 2 ctx.db bridge.\n//\n// This file is bundled as source into the function manifest. It deliberately\n// avoids imports, process/env access, timers, network, and direct storage access;\n// the only backend power is the ctx surface passed by Snapback.\n\nglobalThis.__snapbackHandlers = {\n  async listTodos(ctx) {\n    return await ctx.db\n      .query('todos')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .order('_createdAt', 'asc')\n      .collect();\n  },\n\n  async createTodo(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('todo title is required');\n    return await ctx.db.insert('todos', {\n      title,\n      completed: false,\n      userId: ctx.auth.userId,\n    });\n  },\n\n  async setCompleted(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.patch('todos', args.id, {\n      completed: args.completed,\n    })) ? 1 : 0;\n  },\n\n  async deleteTodo(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "todos",
+        "tables": [
+          "todos"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "478454eec6015ea7e05ffce9dabb8e4fcf72f94befbf0684feb4734262505124",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": [
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "createTodo"
+      },
+      "message": "createTodo: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "deleteTodo"
+      },
+      "message": "deleteTodo: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "editTitle"
+      },
+      "message": "editTitle: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "setCompleted"
+      },
+      "message": "setCompleted: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    }
+  ]
+}

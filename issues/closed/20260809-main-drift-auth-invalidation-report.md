@@ -1,6 +1,6 @@
 # main drift: auth-invalidation-report has a stale committed record
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -44,3 +44,18 @@ node tests/acceptance/auth-invalidation-v1-report.mjs --print > tests/acceptance
 
 Commit the reconciled record with the measured change, verify the gate, record
 the resolution here, and move this ticket to `issues/closed/`.
+
+## Resolution
+
+At lane HEAD `ec96f04e55a29b59d04a39e165c557429a3f3179`, the prescribed
+checker was already green: 12 scenarios passed and the committed receipt
+matched. The prescribed `--print` regeneration was nevertheless run against
+the built runtime and produced no byte change. A second checker run again
+reported 12 scenarios passed; receipt matched. The causal drift recorded by
+this ticket was therefore reconciled by an intervening main landing, and this
+lane verified the retained record rather than manufacturing churn.
+
+## Resolution — 2026-08-10
+
+Frozen record regenerated exactly as prescribed: checker green before and
+after (12/12 scenarios, receipt matched, byte-identical regeneration).

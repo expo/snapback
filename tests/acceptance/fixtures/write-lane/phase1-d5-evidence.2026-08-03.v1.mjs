@@ -3,6 +3,8 @@
 // Usage after scripts/bootstrap-ibex-runtime:
 //   node tests/acceptance/fixtures/write-lane/phase1-d5-evidence.2026-08-03.v1.mjs --write
 //   node tests/acceptance/fixtures/write-lane/phase1-d5-evidence.2026-08-03.v1.mjs
+//   node tests/acceptance/fixtures/write-lane/phase1-d5-evidence.2026-08-03.v1.mjs --reverify --write
+//   node tests/acceptance/fixtures/write-lane/phase1-d5-evidence.2026-08-03.v1.mjs --reverify
 //
 // @ref LLP 0051#d5-conformance-the-corpus-becomes-the-data-tier-contract —
 //   compare exact normalized whole-plan outcomes for every corpus case.
@@ -29,13 +31,16 @@ import {
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const CORPUS_DIR = join(REPO_ROOT, 'tests', 'conformance', 'data-tier');
 const MANIFEST_PATH = join(CORPUS_DIR, 'corpus.manifest.json');
+const REVERIFY = process.argv.includes('--reverify');
 const RECEIPT_PATH = join(
   REPO_ROOT,
   'tests',
   'acceptance',
   'fixtures',
   'write-lane',
-  'phase1-d5-evidence.2026-08-03.v1.json',
+  REVERIFY
+    ? 'phase1-d5-evidence.2026-08-10.v2.json'
+    : 'phase1-d5-evidence.2026-08-03.v1.json',
 );
 const WRITE = process.argv.includes('--write');
 const EXISTING_RECEIPT = WRITE ? null : JSON.parse(readFileSync(RECEIPT_PATH, 'utf8'));
@@ -221,7 +226,10 @@ const sourcePaths = [
 
 const receipt = {
   artifactKind: 'snapback.phase1-d5-evidence-receipt.v1',
-  evidenceDate: '2026-08-03',
+  evidenceDate: REVERIFY ? '2026-08-10' : '2026-08-03',
+  ...(REVERIFY ? {
+    reverificationOf: 'tests/acceptance/fixtures/write-lane/phase1-d5-evidence.2026-08-03.v1.json',
+  } : {}),
   gatePresentationDue: '2026-08-10',
   // The evidence is produced from an uncommitted gate worktree by design.
   // Preserve its source-base identity in verify mode so landing the evidence

@@ -176,6 +176,16 @@ fn budgeted_diagnostic(
     Ok(result)
 }
 
+fn diagnostic_for_distribution(diagnostic: &Value, distribution: &str) -> Value {
+    let mut projected = diagnostic.clone();
+    if distribution == crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE
+        && let Some(object) = projected.as_object_mut()
+    {
+        object.remove("sites");
+    }
+    projected
+}
+
 fn reference_artifacts() -> anyhow::Result<&'static ReferenceArtifacts> {
     match REFERENCE_ARTIFACTS
         .get_or_init(|| load_reference_artifacts().map_err(|error| format!("{error:#}")))
@@ -447,9 +457,11 @@ pub fn lookup(query: &str, slice: usize) -> anyhow::Result<Option<Value>> {
         .and_then(Value::as_object)
         .and_then(|diagnostics| diagnostics.get(query))
     {
+        let diagnostic =
+            diagnostic_for_distribution(diagnostic, crate::identity::build_distribution());
         return budgeted_diagnostic(
             query,
-            diagnostic,
+            &diagnostic,
             &artifacts.identity,
             slice,
             artifacts.budget,
@@ -729,5 +741,23 @@ mod tests {
                 .is_some_and(|digest| digest.starts_with("sha256:"))
         );
         assert!(serde_json::to_vec(&result).unwrap().len() <= MAX_LOOKUP_BYTES);
+    }
+
+    #[test]
+    fn public_package_diagnostic_projection_omits_repository_sites() {
+        let diagnostic = json!({
+            "code": "SNAPBACK_CAPABILITY_UNSUPPORTED",
+            "sites": [{"file": "src/manifest.rs", "line": 1, "column": 1}],
+        });
+        let public = diagnostic_for_distribution(
+            &diagnostic,
+            crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+        );
+        assert!(public.get("sites").is_none(), "{public}");
+        let contributor = diagnostic_for_distribution(
+            &diagnostic,
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+        );
+        assert_eq!(contributor["sites"], diagnostic["sites"]);
     }
 }

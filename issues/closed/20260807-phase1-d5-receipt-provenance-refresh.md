@@ -1,6 +1,6 @@
 # Phase-1 D5 evidence receipt carries three stale source hashes
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Severity:** P3 (provenance hygiene; no content drift)
 **Systems:** Testing, Documentation
 **Date:** 2026-08-07
@@ -26,3 +26,23 @@ Land a fresh dated re-verification receipt
 at a current commit, plus a one-line pointer from the v1 write-up, and
 close this ticket. Requires a bootstrapped runtime build; fold into the
 next lane that builds one rather than paying a build for this alone.
+
+## Resolution
+
+The immutable v1 receipt is unchanged. The retained runner now has an
+explicit `--reverify` mode and minted
+`tests/acceptance/fixtures/write-lane/phase1-d5-evidence.2026-08-10.v2.json`
+at base revision `ec96f04e55a29b59d04a39e165c557429a3f3179`, with a pointer
+from the v1 write-up.
+
+Both mint and byte-verification runs reported 37/37 Rust-vs-JS exact, 5/5
+multi-table replayed, and 0 skipped. The corpus manifest remained exact; the
+new receipt binds all nine current source hashes and identifies the v1 receipt
+as its re-verification predecessor.
+
+## Resolution — 2026-08-10
+
+Fresh dated `phase1-d5-evidence.2026-08-10.v2.json` re-verification receipt
+minted against the current tree (37/37 exact, 5/5 multi-table, zero skips);
+the immutable v1 receipt is unchanged. Provenance-only drift confirmed — no
+content drift.

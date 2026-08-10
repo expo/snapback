@@ -99,10 +99,11 @@ function budgetedDiagnostic(query, diagnostic, identity, slice, budget) {
     truncation: null,
   };
   if (Buffer.byteLength(JSON.stringify(complete)) <= budget) return complete;
+  const sites = Array.isArray(diagnostic.sites) ? diagnostic.sites : [];
   const pageSize = 24;
   const start = (slice - 1) * pageSize;
-  const visible = diagnostic.sites.slice(start, start + pageSize);
-  const hasMore = start + pageSize < diagnostic.sites.length;
+  const visible = sites.slice(start, start + pageSize);
+  const hasMore = start + pageSize < sites.length;
   const result = {
     ...complete,
     match: 'diagnostic-slice',
@@ -110,7 +111,7 @@ function budgetedDiagnostic(query, diagnostic, identity, slice, budget) {
     truncation: {
       truncated: true,
       slice,
-      elided: [`emitting sites outside ${start + 1}-${Math.min(start + pageSize, diagnostic.sites.length)} of ${diagnostic.sites.length}`],
+      elided: [`emitting sites outside ${start + 1}-${Math.min(start + pageSize, sites.length)} of ${sites.length}`],
       nextSlice: hasMore ? slice + 1 : null,
       nextCommand: hasMore ? `snapback guide ${query} --slice ${slice + 1}` : null,
     },
@@ -268,7 +269,12 @@ export function lookupGuideReference(argv, options = {}) {
   // @ref LLP 0193#program — stable diagnostic codes route exactly before API
   // symbols and the native command's Markdown fallback.
   if (diagnostics.diagnostics?.[query]) {
-    return budgetedDiagnostic(query, diagnostics.diagnostics[query], identity, slice, budget);
+    const diagnostic = options.includeDiagnosticSites === true
+      ? diagnostics.diagnostics[query]
+      : Object.fromEntries(
+          Object.entries(diagnostics.diagnostics[query]).filter(([key]) => key !== 'sites'),
+        );
+    return budgetedDiagnostic(query, diagnostic, identity, slice, budget);
   }
   const byIdentity = new Map(registry.symbols.map((symbol) => [symbol.identity, symbol]));
   const matchedIds = registry.lookup.exact[query] ?? [];

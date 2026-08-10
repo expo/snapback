@@ -3,6 +3,8 @@ use serde_json::{Value, json};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
+pub const CAPABILITY_UNSUPPORTED_GUIDE_URL: &str = "https://github.com/expo/snapback/blob/main/guide/operating/diagnostics.md#diagnose-snapbackcapabilityunsupported";
+
 // Lowercase on the wire (LLP 0032 P8): the LLP 0012 diagnostic family has
 // always been lowercase on the JS side ('error'); the Rust serialization
 // drifted PascalCase. Aliases keep old spellings parsing.
@@ -123,11 +125,19 @@ impl Diagnostic {
         message: impl Into<String>,
         details: Value,
     ) -> Self {
+        let code = code.into();
+        let mut message = message.into();
+        if code == "SNAPBACK_CAPABILITY_UNSUPPORTED"
+            && !message.contains(CAPABILITY_UNSUPPORTED_GUIDE_URL)
+        {
+            message.push_str("; see ");
+            message.push_str(CAPABILITY_UNSUPPORTED_GUIDE_URL);
+        }
         Self {
-            code: code.into(),
+            code,
             severity,
             subsystem: subsystem.into(),
-            message: message.into(),
+            message,
             details,
         }
     }
@@ -257,8 +267,29 @@ pub type SnapbackResult<T> = Result<T, SnapbackError>;
 
 #[cfg(test)]
 mod tests {
-    use super::SnapbackError;
+    use super::{CAPABILITY_UNSUPPORTED_GUIDE_URL, Diagnostic, SnapbackError};
     use crate::error_tracking::{FailureCarrierV1, PrivateFailureContextV1};
+
+    #[test]
+    fn capability_refusal_message_names_its_public_guide() {
+        let diagnostic = Diagnostic::error(
+            "SNAPBACK_CAPABILITY_UNSUPPORTED",
+            "capability",
+            "target does not support required capability single_table_v1",
+        );
+        assert!(
+            diagnostic
+                .message
+                .contains(CAPABILITY_UNSUPPORTED_GUIDE_URL),
+            "{}",
+            diagnostic.message
+        );
+        assert!(
+            !Diagnostic::error("SNAPBACK_TEST", "test", "plain")
+                .message
+                .contains("http")
+        );
+    }
 
     #[test]
     fn terminal_permission_denial_brand_cannot_cross_or_be_forged_by_json() {

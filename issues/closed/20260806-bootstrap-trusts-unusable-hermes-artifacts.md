@@ -1,6 +1,6 @@
 # `bootstrap-ibex-runtime` calls unusable Hermes artifacts "already usable"
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 4
@@ -81,3 +81,31 @@ On a host whose ICU major does not match the vendored Hermes build:
 initialize `vendor/ibex`, place (or inherit) a `linux/lib/libhermesvm.so`
 linked against an absent ICU, run `scripts/bootstrap-ibex-runtime`. It reports
 the artifacts usable, then fails with `SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`.
+
+## Resolution (2026-08-10)
+
+Bootstrap now requires three independent facts before calling a prepared set
+usable: the existing structural/profile checks, a stamp equal to this
+Snapback revision's `vendor/ibex` gitlink, and a host `dlopen` of the actual
+Hermes runtime library. A compatible local set created before stamps existed
+is adopted only when its Ibex checkout itself equals the pin and both older
+checks plus `dlopen` pass. Copied or downloaded sets are probed before their
+stamp is written.
+
+Presence with a stale stamp or an unresolved runtime now refuses early as
+`SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE`; `scripts/ibex-doctor` performs the
+same provenance and loader checks read-only and includes the loader error in
+its finding. LLP 0010 and the repository bootstrap-code list record the new
+stable code. The negative path was exercised against a truncated temporary
+copy of `hermesvm`, and the real vendored framework passed both bootstrap's
+adoption probe and doctor's mirrored check.
+
+## Resolution — 2026-08-10
+
+`scripts/bootstrap-ibex-runtime` no longer equates presence with usability:
+artifacts must pass structural/profile compatibility, a real `dlopen` loader
+probe, and vendor/ibex gitlink provenance stamping before being declared
+usable, failing at the probe with a distinct stable code; `scripts/ibex-doctor`
+mirrors the check. Negative test: an empty/truncated library fails the probe
+immediately (no late launch-smoke red herring). LLP 0010's bootstrap
+diagnostic codes section updated.

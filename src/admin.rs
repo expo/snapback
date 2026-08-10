@@ -2227,7 +2227,8 @@ pub struct ResolvedAdminToken {
     /// False only when the token came from `SNAPBACK_ADMIN_TOKEN`.
     pub minted: bool,
     /// Freshly generated this call (vs loaded from the token file or env) —
-    /// the value is printed once, on the start that minted it (LLP 0036 D3).
+    /// the value may be printed once on interactive stdout; captured stdout
+    /// receives only the owner-only file hand-off (LLP 0036 D3).
     pub fresh: bool,
     /// The 0600 file the minted token persists in, when there is one.
     pub file: Option<PathBuf>,

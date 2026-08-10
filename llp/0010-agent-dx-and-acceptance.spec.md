@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-07 (LLP 0189 re-scope: release/capability-promotion authority follows the D-6 battery form; the former declared-complete-authority clause is superseded). 2026-08-06 (LLP 0175 D2 selector: every canonical gate is
+**Revised:** 2026-08-10 (prepared Hermes artifacts are gitlink-stamped and must pass an early dlopen dependency-resolution probe). 2026-08-07 (LLP 0189 re-scope: release/capability-promotion authority follows the D-6 battery form; the former declared-complete-authority clause is superseded). 2026-08-06 (LLP 0175 D2 selector: every canonical gate is
 classified by a checked path authority; docs/guide can remain fast, affected
 code retains Contract/Exact and admin behavior plus prerequisite closure, and
 unknown/shared inputs fail broad. Push/PR receipts bind the selection while a
@@ -162,6 +162,11 @@ The Snapback bootstrap contract is:
   the authority-bound source-cache keys reconstructed from the vendored Ibex
   revision. This is an early compatibility check; `vendor/ibex/build.rs` still
   independently reconstructs and validates the complete reviewed identity.
+- Every prepared set is stamped with the exact `vendor/ibex` gitlink pinned by
+  the Snapback revision. Reuse requires that stamp to match, and an early
+  `dlopen` probe must resolve the runtime library plus its transitive loader
+  dependencies. A pre-stamp local set may be adopted once only when its checked
+  out Ibex revision, reviewed profile receipt, and loader probe all match.
 - If those are incomplete or profile-incompatible, it prefers a sibling
   `../ibex` checkout with compatible prepared Hermes artifacts and an optional
   prebuilt `ibex` binary, copying/linking those ignored artifacts into
@@ -266,6 +271,11 @@ The remaining (non-submodule) bootstrap failure paths carry codes too
   runner.
 - `SNAPBACK_IBEX_HERMES_DOWNLOAD_FAILED` — the vendored `download-hermes.sh`
   fallback failed and no sibling Ibex artifacts were available.
+- `SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE` — Hermes files are present, but
+  their artifact stamp does not match the pinned `vendor/ibex` gitlink or the
+  host loader cannot `dlopen` the runtime and its dependencies. The bootstrap
+  refuses before Cargo; `scripts/ibex-doctor` reports the same code and loader
+  error read-only.
 - `SNAPBACK_IBEX_CARGO_BUILD_FAILED` — artifacts verified, but the
   Snapback/vendored-runtime build did not compile (a code error, not a missing
   artifact).

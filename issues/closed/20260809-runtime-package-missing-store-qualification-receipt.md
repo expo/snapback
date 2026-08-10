@@ -411,3 +411,31 @@ has no home.
 Urgency has genuinely dropped: the refusal this fails to explain no longer fires
 on the paved path. **This ticket now holds only the diagnosability arm.** Keep
 it open on that basis, or split it if the packaging close-out should be filed.
+
+## Diagnosability arm completed — 2026-08-10
+
+This lane completed only the residual consumer-diagnosability scope requested
+after the 0.1.17 packaging repair. `SNAPBACK_CAPABILITY_UNSUPPORTED` now has a
+dedicated section in the public Guide that explains both ordinary target/profile
+mismatches and the packaged-store qualification-receipt failure that caused
+0.1.16. Rust and codegen refusal messages link directly to that public URL.
+
+The exact lookup registry still retains emitting sites for contributor builds
+and internal diagnosis, but public native-package projections remove `sites`,
+and the package-side lookup hides them by default. Thus external
+`snapback guide SNAPBACK_CAPABILITY_UNSUPPORTED` output no longer prints paths
+such as `src/manifest.rs:...`; an explicit internal package lookup option and
+contributor-source native builds retain that debugging detail. The generated
+registry now prefers a heading that names the exact code, so the dedicated
+diagnostics section wins over incidental mentions in streamed-actions pages.
+
+No packaging, publication, npm, or G4 work was performed in this lane.
+
+## Resolution — 2026-08-10 (residual arm)
+
+The packaging defect itself was resolved in 0.1.17 (receipt gate + boot
+smoke). This landing completes the residual diagnosability arm:
+`SNAPBACK_CAPABILITY_UNSUPPORTED` refusals now link to the public GitHub
+guide destination instead of emitting monorepo source paths to external
+consumers; Rust and codegen refusal messages updated, reference-lookup suite
+covers the exact code. Fully closed.

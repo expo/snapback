@@ -10,7 +10,8 @@
 # The codes here match the codes scripts/bootstrap-ibex-runtime fails with, for
 # both the submodule paths (ENG-22595) and the non-submodule artifact/host paths
 # (ENG-22660): SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING for incomplete prepared
-# Hermes artifacts and SNAPBACK_IBEX_HOST_UNSUPPORTED for an unsupported host. A
+# Hermes artifacts, SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE for a provenance or
+# loader-resolution failure, and SNAPBACK_IBEX_HOST_UNSUPPORTED for an unsupported host. A
 # compile/link failure past a healthy artifact set is bootstrap's
 # SNAPBACK_IBEX_CARGO_BUILD_FAILED, and a binary that links but cannot load
 # hermesvm.framework at launch (missing LC_RPATH) is
@@ -97,6 +98,73 @@ note() {
     else
         printf '[ibex-doctor] %s\n' "$*"
     fi
+}
+
+runtime_library_for_base() {
+    local base="$1"
+    local candidate
+
+    case "$TARGET_OS" in
+        darwin)
+            for candidate in \
+                "$base/ios/Frameworks/hermesvm.framework/hermesvm" \
+                "$base/ios/Frameworks/hermesvm.framework/Versions/Current/hermesvm" \
+                "$base/ios/Frameworks/hermesvm.framework/Versions/1/hermesvm" \
+                "$base/ios/Frameworks/hermesvm.framework/Versions/0/hermesvm" \
+                "$base/ios/Frameworks/hermes.xcframework/macos-arm64_x86_64/hermesvm.framework/hermesvm" \
+                "$base/ios/Frameworks/hermes.xcframework/macos-arm64/hermesvm.framework/hermesvm" \
+                "$base/ios/Frameworks/hermes.framework/hermes" \
+                "$base/ios/Frameworks/hermes.framework/Versions/Current/hermes" \
+                "$base/ios/Frameworks/hermes.framework/Versions/1/hermes" \
+                "$base/ios/Frameworks/hermes.framework/Versions/0/hermes" \
+                "$base/ios/Frameworks/macosx/hermes.framework/hermes" \
+                "$base/ios/Frameworks/macosx/hermes.framework/Versions/Current/hermes" \
+                "$base/ios/Frameworks/hermes.xcframework/macos-arm64_x86_64/hermes.framework/hermes" \
+                "$base/ios/Frameworks/hermes.xcframework/macos-arm64/hermes.framework/hermes"
+            do
+                if [ -f "$candidate" ]; then
+                    printf '%s\n' "$candidate"
+                    return 0
+                fi
+            done
+            ;;
+        linux)
+            candidate="$(find "$base/linux/lib" -type f \
+                \( -name 'libhermesvm.so' -o -name 'libhermesvm.so.*' -o -name 'libhermesvm.dylib' \) \
+                -print -quit 2>/dev/null || true)"
+            if [ -n "$candidate" ]; then
+                printf '%s\n' "$candidate"
+                return 0
+            fi
+            ;;
+    esac
+    return 1
+}
+
+HERMES_PROBE_ERROR=""
+probe_hermes_library() {
+    local library="$1"
+    HERMES_PROBE_ERROR=""
+    if ! HERMES_PROBE_ERROR="$(python3 - "$library" <<'PY' 2>&1
+import ctypes
+import sys
+
+try:
+    ctypes.CDLL(sys.argv[1], mode=ctypes.RTLD_LOCAL)
+except OSError as error:
+    print(error, file=sys.stderr)
+    raise SystemExit(1)
+PY
+)"; then
+        return 1
+    fi
+}
+
+artifact_stamp_path() {
+    case "$TARGET_OS" in
+        darwin) printf '%s\n' "$VENDOR_IBEX/ios/Frameworks/.snapback-ibex-gitlink" ;;
+        linux) printf '%s\n' "$VENDOR_IBEX/linux/lib/.snapback-ibex-gitlink" ;;
+    esac
 }
 
 # --- 1. Submodule checkout state (the ENG-22595 wedge lives here) -----------
@@ -213,6 +281,31 @@ if [ -f "$VENDOR_IBEX/Cargo.toml" ]; then
                 "no macOS Hermes runtime framework under $frameworks — binaries build-fail or SIGABRT loading hermesvm at launch"
             hint "$ROOT/scripts/bootstrap-ibex-runtime  # installs the framework and bakes the LC_RPATH (ENG-22664)"
         fi
+    fi
+
+    # A directory listing cannot prove that the dynamic loader can resolve
+    # the runtime and its transitive dependencies. The bootstrap stamps every
+    # prepared set with the superproject's vendor/ibex gitlink; doctor checks
+    # that provenance and performs the same dlopen probe without writing.
+    if runtime_library="$(runtime_library_for_base "$VENDOR_IBEX")"; then
+        expected_gitlink="$(git -C "$ROOT" rev-parse HEAD:vendor/ibex 2>/dev/null || true)"
+        stamp="$(artifact_stamp_path)"
+        observed_gitlink="$(sed -n '1p' "$stamp" 2>/dev/null || true)"
+        if [ -z "$expected_gitlink" ] || [ "$observed_gitlink" != "$expected_gitlink" ]; then
+            report ERROR SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE \
+                "prepared Hermes artifacts are not stamped for this Snapback revision's vendor/ibex gitlink (expected ${expected_gitlink:-<unresolved>}, observed ${observed_gitlink:-<missing>})"
+            hint "$ROOT/scripts/bootstrap-ibex-runtime  # re-prepares or adopts a compatible set, then writes the gitlink stamp"
+        elif probe_hermes_library "$runtime_library"; then
+            note "OK Hermes runtime resolves through dlopen and its artifact stamp matches vendor/ibex $expected_gitlink"
+        else
+            report ERROR SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE \
+                "Hermes runtime exists at $runtime_library but dlopen cannot resolve it or a dependency: ${HERMES_PROBE_ERROR:-unknown loader error}"
+            hint "$ROOT/scripts/bootstrap-ibex-runtime  # re-prepare artifacts for this host and vendor/ibex pin"
+        fi
+    elif [ "$artifacts_ok" = "1" ]; then
+        report ERROR SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING \
+            "prepared Hermes files are present, but no loadable runtime library candidate exists for $TARGET_OS"
+        hint "$ROOT/scripts/bootstrap-ibex-runtime"
     fi
 fi
 

@@ -44,8 +44,24 @@ assert.equal(diagnostic.match, 'diagnostic');
 assert.equal(diagnostic.diagnostic.code, 'SNAPBACK_AUTH_SESSION_EXPIRED');
 assert.equal(diagnostic.diagnostic.subsystem, 'auth');
 assert.equal(diagnostic.diagnostic.httpStatus, 401);
+assert.equal(diagnostic.diagnostic.sites, undefined);
 assert.match(diagnostic.identity.diagnosticsSourceDigest, /^sha256:[0-9a-f]{64}$/u);
 assert.ok(Buffer.byteLength(JSON.stringify(diagnostic)) <= 16_384);
+const capabilityDiagnostic = lookupGuideReference(
+  ['SNAPBACK_CAPABILITY_UNSUPPORTED'],
+  { projectRoot: root },
+);
+assert.equal(capabilityDiagnostic.match, 'diagnostic');
+assert.equal(capabilityDiagnostic.diagnostic.sites, undefined);
+assert.equal(
+  capabilityDiagnostic.diagnostic.guideAnchor,
+  '/_snapback/guide/operating/diagnostics.md#diagnose-snapbackcapabilityunsupported',
+);
+const internalDiagnostic = lookupGuideReference(
+  ['SNAPBACK_AUTH_SESSION_EXPIRED'],
+  { projectRoot: root, includeDiagnosticSites: true },
+);
+assert.ok(internalDiagnostic.diagnostic.sites.length > 0);
 
 const large = lookupGuideReference(['SnapbackClient'], { projectRoot: root });
 assert.equal(large.match, 'symbol-slice');

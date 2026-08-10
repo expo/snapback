@@ -4,6 +4,7 @@
 **Presentation due:** 2026-08-10  
 **Scope:** the D5-evidence half of the Phase-1 gate only  
 **Machine receipt:** `phase1-d5-evidence.2026-08-03.v1.json`
+**Re-verification:** `phase1-d5-evidence.2026-08-10.v2.json`
 
 ## Outcome
 

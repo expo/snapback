@@ -1,6 +1,6 @@
 # Minted admin token on stdout: deliberate, with a capture residue worth naming
 
-**Status:** Open (low urgency — records a known tradeoff, not a defect)
+**Status:** Resolved
 **Impact:** 2
 **Urgency:** 1
 **Ease:** 4
@@ -69,3 +69,25 @@ publicly while still on the loopback branch that prints the token.
    environments.
 
 Option 2 or 3 would also remove the interaction with the tunnel ticket above.
+
+## Resolution (2026-08-10)
+
+Implemented option 3 with the ticket's pointer preference. The ordinary serve
+path and auth-collision recovery path now share one hand-off formatter. A fresh
+token value remains visible when stdout is a TTY, preserving first-run
+interactive DX. When stdout is captured, the value is never rendered: if an
+owner-only token file exists, output points to the file line below; for a
+memory-only start with no file, output says to restart from a TTY or configure
+`SNAPBACK_ADMIN_TOKEN` explicitly.
+
+Pure CLI tests exercise interactive, captured-with-file, and captured-without-
+file rendering and assert that the secret is absent from both captured forms.
+LLP 0017's security-defaults text now records the narrower surfacing rule.
+
+## Resolution — 2026-08-10
+
+Option 3 (suppress when stdout is not a TTY): fresh token values remain
+visible on an interactive terminal; captured/piped stdout gets a pointer line
+instead of the token, so logs, CI artifacts, and scrollback no longer retain
+it. Decision + tests recorded; the tunnelled-exposure caveat is documented on
+the serving-posture page (landed separately today).

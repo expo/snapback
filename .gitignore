@@ -18,6 +18,12 @@ demos/*/snapback-sessions/generated/*
 !demos/*/snapback-sessions/generated/artifacts.json
 !demos/competitive-checkpoint/snapback/generated/api.d.ts
 !demos/competitive-checkpoint/snapback/generated/api.mjs
+!demos/competitive-checkpoint/snapback/generated/functions.manifest.json
+!demos/competitive-checkpoint/snapback/generated/schema.manifest.json
+!demos/todo/snapback/generated/functions.manifest.json
+!demos/todo/snapback/generated/schema.manifest.json
+!demos/todo-v2/snapback/generated/functions.manifest.json
+!demos/todo-v2/snapback/generated/schema.manifest.json
 !demos/partiful-matrix/snapback/generated/api.mjs
 demos/todo-v2/snapback/generated-remote-service/*
 !demos/todo-v2/snapback/generated-remote-service/artifacts.json

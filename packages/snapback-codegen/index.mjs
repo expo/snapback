@@ -123,6 +123,14 @@ export {
   SURFACE_MAX_SCOPE_RECORD_FIELDS,
 };
 
+const CAPABILITY_UNSUPPORTED_GUIDE_URL = 'https://github.com/expo/snapback/blob/main/guide/operating/diagnostics.md#diagnose-snapbackcapabilityunsupported';
+
+function capabilityUnsupportedMessage(message) {
+  return message.includes(CAPABILITY_UNSUPPORTED_GUIDE_URL)
+    ? message
+    : `${message}; see ${CAPABILITY_UNSUPPORTED_GUIDE_URL}`;
+}
+
 const SEARCH_FIELD_CLASSIFICATIONS = new Set([
   'public',
   'private',
@@ -1504,7 +1512,9 @@ export function targetArtifactAuthProblems(manifest, version, authMode, required
     if (!TARGET_CAPABILITY_IDS.has(capability) || !supported.has(capability)) {
       problems.push({
         code: 'SNAPBACK_CAPABILITY_UNSUPPORTED',
-        message: `target ${manifest.targetProfileId ?? 'unknown'} does not support required capability ${capability}`,
+        message: capabilityUnsupportedMessage(
+          `target ${manifest.targetProfileId ?? 'unknown'} does not support required capability ${capability}`,
+        ),
         details: { capability },
       });
     }
@@ -1605,8 +1615,15 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
   // Non-blocking info diagnostics carried into the generated function
   // manifest (today: the MUTATION_OUTGREW_IR tier-ladder declarations).
   const infoDiagnostics = [];
-  const err = (code, subsystem, message, extra = {}) =>
-    diagnostics.push({ code, severity: 'error', subsystem, message, ...extra });
+  const err = (code, subsystem, message, extra = {}) => diagnostics.push({
+    code,
+    severity: 'error',
+    subsystem,
+    message: code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
+      ? capabilityUnsupportedMessage(message)
+      : message,
+    ...extra,
+  });
 
   const targetProfile = options?.targetProfile ?? TARGET_PROFILE_LOCAL;
   const targetConfig = TARGET_PROFILES.get(targetProfile);

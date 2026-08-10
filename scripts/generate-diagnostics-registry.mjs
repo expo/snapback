@@ -173,6 +173,7 @@ function headingSlug(text) {
 
 function guideAnchors() {
   const anchors = new Map();
+  const headingAnchors = new Map();
   const paths = walk(join(root, 'guide'), (path) => (
     path.endsWith('.md')
     && !/^guide\/guide-flat(?:\.[a-z0-9-]+)?\.generated\.md$/.test(path)
@@ -196,12 +197,22 @@ function guideAnchors() {
       for (const match of line.matchAll(CODE_PATTERN)) {
         if (!anchor) continue;
         const values = anchors.get(match[0]) ?? new Set();
-        values.add(`/_snapback/${path}${anchor ? `#${anchor}` : ''}`);
+        const value = `/_snapback/${path}${anchor ? `#${anchor}` : ''}`;
+        values.add(value);
         anchors.set(match[0], values);
+        if (heading?.[1].includes(match[0])) {
+          const preferred = headingAnchors.get(match[0]) ?? new Set();
+          preferred.add(value);
+          headingAnchors.set(match[0], preferred);
+        }
       }
     }
   }
-  return new Map([...anchors].map(([code, values]) => [code, [...values].sort()]));
+  return new Map([...anchors].map(([code, values]) => {
+    const preferred = [...(headingAnchors.get(code) ?? [])].sort();
+    const remaining = [...values].filter((value) => !preferred.includes(value)).sort();
+    return [code, [...preferred, ...remaining]];
+  }));
 }
 
 function sourceDigest(paths) {

@@ -1,4 +1,4 @@
-use crate::admin::{AppState, ServerContext, ServerProfile};
+use crate::admin::{AppState, ResolvedAdminToken, ServerContext, ServerProfile};
 use crate::admin_secret_read::{
     SecretReadMintBridge, SecretReadMintSpec, SecretReadScope, secret_read_root_sibling,
     sign_secret_read_mint,
@@ -133,6 +133,38 @@ fn quarantine_pending_startup(
     let code = error.diagnostic.code.clone();
     snapback.record_startup_diagnostics(std::slice::from_ref(&error.diagnostic));
     snapback.auth_database_mut().quarantine_auth_mode(&code)
+}
+
+fn minted_admin_token_handoff_lines(
+    minted: &ResolvedAdminToken,
+    stdout_is_terminal: bool,
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    if minted.fresh {
+        if stdout_is_terminal {
+            lines.push(format!("admin token: {}", minted.token));
+        } else if minted.file.is_some() {
+            lines.push(
+                "admin token: suppressed on non-TTY stdout; read the owner-only token file below"
+                    .to_owned(),
+            );
+        } else {
+            lines.push(
+                "admin token: suppressed on non-TTY stdout; restart from a TTY or set SNAPBACK_ADMIN_TOKEN"
+                    .to_owned(),
+            );
+        }
+    }
+    if let Some(file) = &minted.file {
+        lines.push(format!("admin token file: {}", file.display()));
+    }
+    lines
+}
+
+fn print_minted_admin_token_handoff(minted: &ResolvedAdminToken) {
+    for line in minted_admin_token_handoff_lines(minted, io::stdout().is_terminal()) {
+        println!("{line}");
+    }
 }
 
 /// Emit the complete structured startup-artifact refusal on stderr before the
@@ -7634,16 +7666,11 @@ async fn run_composed(
             "admin: DISABLED on this non-loopback bind — set SNAPBACK_ADMIN_TOKEN to enable it"
         );
     } else if let Some(minted) = &minted_token {
-        // The minted-token surfacing (ENG-23443): the value is printed on the
-        // start that minted it; afterwards the 0600 file is the capability
-        // hand-off — reading it as this user is what local admin means.
+        // @ref LLP 0017#security-defaults — the freshly minted credential is
+        // visible only on an interactive terminal; captured stdout gets the
+        // owner-only file hand-off instead.
         println!("admin: writes require the minted local admin token (SNAPBACK_ADMIN_TOKEN unset)");
-        if minted.fresh {
-            println!("admin token: {}", minted.token);
-        }
-        if let Some(file) = &minted.file {
-            println!("admin token file: {}", file.display());
-        }
+        print_minted_admin_token_handoff(minted);
     } else {
         println!("admin: writes require SNAPBACK_ADMIN_TOKEN");
     }
@@ -8024,12 +8051,7 @@ async fn run_auth_collision_recovery(
     println!("sqlite database: {}", database_path.display());
     if let Some(minted) = &minted_token {
         println!("admin: auth recovery requires the minted local admin token");
-        if minted.fresh {
-            println!("admin token: {}", minted.token);
-        }
-        if let Some(file) = &minted.file {
-            println!("admin token file: {}", file.display());
-        }
+        print_minted_admin_token_handoff(minted);
     } else {
         println!("admin: auth recovery requires SNAPBACK_ADMIN_TOKEN");
     }

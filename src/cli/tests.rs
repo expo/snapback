@@ -26,6 +26,47 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 
 #[test]
+fn fresh_admin_token_is_visible_only_on_interactive_stdout() {
+    let minted = crate::admin::ResolvedAdminToken {
+        token: "sbat_secret_that_must_not_reach_logs".to_owned(),
+        minted: true,
+        fresh: true,
+        file: Some(PathBuf::from("/tmp/snapback.sqlite3.admin-token")),
+    };
+
+    let interactive = super::minted_admin_token_handoff_lines(&minted, true).join("\n");
+    assert!(interactive.contains(&minted.token), "{interactive}");
+    assert!(interactive.contains("admin token file:"), "{interactive}");
+
+    let captured = super::minted_admin_token_handoff_lines(&minted, false).join("\n");
+    assert!(!captured.contains(&minted.token), "{captured}");
+    assert!(
+        captured.contains("suppressed on non-TTY stdout"),
+        "{captured}"
+    );
+    assert!(
+        captured.contains("owner-only token file below"),
+        "{captured}"
+    );
+    assert!(captured.contains("admin token file:"), "{captured}");
+}
+
+#[test]
+fn captured_memory_only_admin_token_names_safe_recovery() {
+    let minted = crate::admin::ResolvedAdminToken {
+        token: "sbat_memory_only_secret".to_owned(),
+        minted: true,
+        fresh: true,
+        file: None,
+    };
+
+    let captured = super::minted_admin_token_handoff_lines(&minted, false).join("\n");
+    assert!(!captured.contains(&minted.token), "{captured}");
+    assert!(captured.contains("restart from a TTY"), "{captured}");
+    assert!(captured.contains("SNAPBACK_ADMIN_TOKEN"), "{captured}");
+}
+
+#[test]
 fn packaged_store_receipt_cli_parses_and_dates_manifest_fields() {
     let cli = Cli::parse_from([
         "snapback",

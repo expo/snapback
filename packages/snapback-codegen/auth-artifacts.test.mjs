@@ -120,6 +120,14 @@ assert.throws(
       .map((problem) => problem.details.capability),
     ['auth.sessions.v1', 'candidate.asserted.future'],
   );
+  assert(
+    problems
+      .filter((problem) => problem.code === 'SNAPBACK_CAPABILITY_UNSUPPORTED')
+      .every((problem) => problem.message.includes(
+        'https://github.com/expo/snapback/blob/main/guide/operating/diagnostics.md#diagnose-snapbackcapabilityunsupported',
+      )),
+    JSON.stringify(problems),
+  );
 }
 
 {

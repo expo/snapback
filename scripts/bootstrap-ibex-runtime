@@ -5,6 +5,7 @@ set -euo pipefail
 usage() {
     cat <<'EOF'
 Usage: scripts/bootstrap-ibex-runtime [--help]
+       scripts/bootstrap-ibex-runtime --probe-hermes-library PATH
 
 Prepare the vendored Ibex/Hermes runtime, build and launch Snapback, and issue
 a digest-bound runtime-readiness receipt.
@@ -15,11 +16,16 @@ Environment:
 EOF
 }
 
+PROBE_ONLY_LIBRARY=""
 case "${1:-}" in
     --help|-h)
         [ "$#" -eq 1 ] || { usage >&2; exit 2; }
         usage
         exit 0
+        ;;
+    --probe-hermes-library)
+        [ "$#" -eq 2 ] || { usage >&2; exit 2; }
+        PROBE_ONLY_LIBRARY="$2"
         ;;
     '') ;;
     *)
@@ -178,6 +184,134 @@ has_target_artifacts() {
     esac
 }
 
+runtime_library_for_base() {
+    local base="$1"
+    local candidate
+
+    case "$TARGET_OS" in
+        darwin)
+            for candidate in \
+                "$base/ios/Frameworks/hermesvm.framework/hermesvm" \
+                "$base/ios/Frameworks/hermesvm.framework/Versions/Current/hermesvm" \
+                "$base/ios/Frameworks/hermesvm.framework/Versions/1/hermesvm" \
+                "$base/ios/Frameworks/hermesvm.framework/Versions/0/hermesvm" \
+                "$base/ios/Frameworks/hermes.xcframework/macos-arm64_x86_64/hermesvm.framework/hermesvm" \
+                "$base/ios/Frameworks/hermes.xcframework/macos-arm64/hermesvm.framework/hermesvm" \
+                "$base/ios/Frameworks/hermes.framework/hermes" \
+                "$base/ios/Frameworks/hermes.framework/Versions/Current/hermes" \
+                "$base/ios/Frameworks/hermes.framework/Versions/1/hermes" \
+                "$base/ios/Frameworks/hermes.framework/Versions/0/hermes" \
+                "$base/ios/Frameworks/macosx/hermes.framework/hermes" \
+                "$base/ios/Frameworks/macosx/hermes.framework/Versions/Current/hermes" \
+                "$base/ios/Frameworks/hermes.xcframework/macos-arm64_x86_64/hermes.framework/hermes" \
+                "$base/ios/Frameworks/hermes.xcframework/macos-arm64/hermes.framework/hermes"
+            do
+                if [ -f "$candidate" ]; then
+                    printf '%s\n' "$candidate"
+                    return 0
+                fi
+            done
+            ;;
+        linux)
+            candidate="$(find "$base/linux/lib" -type f \
+                \( -name 'libhermesvm.so' -o -name 'libhermesvm.so.*' -o -name 'libhermesvm.dylib' \) \
+                -print -quit 2>/dev/null || true)"
+            if [ -n "$candidate" ]; then
+                printf '%s\n' "$candidate"
+                return 0
+            fi
+            ;;
+    esac
+    return 1
+}
+
+probe_hermes_library() {
+    local library="$1"
+    local probe_error
+
+    if ! probe_error="$(python3 - "$library" <<'PY' 2>&1
+import ctypes
+import sys
+
+try:
+    ctypes.CDLL(sys.argv[1], mode=ctypes.RTLD_LOCAL)
+except OSError as error:
+    print(error, file=sys.stderr)
+    raise SystemExit(1)
+PY
+)"; then
+        log "Hermes loader-resolution probe failed for $library"
+        [ -z "$probe_error" ] || log "dlopen error: $probe_error"
+        return 1
+    fi
+}
+
+probe_target_artifacts() {
+    local base="$1"
+    local library
+    library="$(runtime_library_for_base "$base")" || return 1
+    probe_hermes_library "$library"
+}
+
+artifact_stamp_path() {
+    local base="$1"
+    case "$TARGET_OS" in
+        darwin) printf '%s\n' "$base/ios/Frameworks/.snapback-ibex-gitlink" ;;
+        linux) printf '%s\n' "$base/linux/lib/.snapback-ibex-gitlink" ;;
+    esac
+}
+
+expected_ibex_gitlink() {
+    git -C "$ROOT" rev-parse HEAD:vendor/ibex 2>/dev/null
+}
+
+has_matching_artifact_stamp() {
+    local base="$1"
+    local stamp expected observed
+    stamp="$(artifact_stamp_path "$base")"
+    expected="$(expected_ibex_gitlink)" || return 1
+    observed="$(sed -n '1p' "$stamp" 2>/dev/null || true)"
+    if [ "$observed" = "$expected" ]; then
+        return 0
+    fi
+    log "Hermes artifact gitlink stamp mismatch under $base"
+    log "expected vendor/ibex gitlink: $expected"
+    log "observed artifact gitlink: ${observed:-<missing>}"
+    return 1
+}
+
+artifact_stamp_is_missing() {
+    local base="$1"
+    [ ! -s "$(artifact_stamp_path "$base")" ]
+}
+
+artifact_source_matches_pin() {
+    local base="$1"
+    local expected observed
+    expected="$(expected_ibex_gitlink)" || return 1
+    observed="$(git -C "$base" rev-parse HEAD 2>/dev/null || true)"
+    [ "$observed" = "$expected" ]
+}
+
+write_artifact_stamp() {
+    local base="$1"
+    local stamp expected temporary
+    stamp="$(artifact_stamp_path "$base")"
+    expected="$(expected_ibex_gitlink)" || fail "SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE: could not resolve the vendor/ibex gitlink for the artifact provenance stamp"
+    temporary="$stamp.tmp.$$"
+    mkdir -p "$(dirname "$stamp")"
+    printf '%s\n' "$expected" >"$temporary"
+    mv "$temporary" "$stamp"
+    log "stamped Hermes artifacts with vendor/ibex gitlink $expected"
+}
+
+if [ -n "$PROBE_ONLY_LIBRARY" ]; then
+    probe_hermes_library "$PROBE_ONLY_LIBRARY" \
+        || fail "SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE: Hermes runtime library exists but dlopen could not resolve it: $PROBE_ONLY_LIBRARY"
+    log "Hermes loader-resolution probe passed for $PROBE_ONLY_LIBRARY"
+    exit 0
+fi
+
 # @ref LLP 0010#native-runtime-bootstrap -- a structurally complete sibling
 # artifact set is reusable only when its authority-bound source-cache key
 # matches the vendored Ibex revision. Ibex build.rs remains the authoritative
@@ -234,14 +368,24 @@ has_matching_profile_receipt() {
     return 1
 }
 
-has_usable_target_artifacts() {
+has_compatible_target_artifacts() {
     local base="$1"
     has_target_artifacts "$base" && has_matching_profile_receipt "$base"
 }
 
 copy_peer_artifacts() {
     [ -d "$PEER_IBEX" ] || return 1
-    has_usable_target_artifacts "$PEER_IBEX" || return 1
+    has_compatible_target_artifacts "$PEER_IBEX" || return 1
+    if artifact_stamp_is_missing "$PEER_IBEX"; then
+        artifact_source_matches_pin "$PEER_IBEX" || {
+            log "unstamped sibling artifacts do not come from the vendor/ibex gitlink"
+            return 1
+        }
+    elif ! has_matching_artifact_stamp "$PEER_IBEX"; then
+        log "sibling artifacts are not bound to the vendor/ibex gitlink"
+        return 1
+    fi
+    probe_target_artifacts "$PEER_IBEX" || return 1
 
     log "copying prebuilt Ibex/Hermes artifacts from $PEER_IBEX"
     case "$TARGET_OS" in
@@ -398,8 +542,21 @@ ensure_vendor_ibex_checkout
 
 # @ref LLP 0010#native-runtime-bootstrap -- Snapback agents should consume
 # prepared Ibex/Hermes artifacts before attempting a native Hermes build.
-if has_usable_target_artifacts "$VENDOR_IBEX"; then
-    log "vendored Ibex/Hermes artifacts are already usable"
+if has_compatible_target_artifacts "$VENDOR_IBEX"; then
+    if artifact_stamp_is_missing "$VENDOR_IBEX"; then
+        # One-time adoption for artifact sets prepared before the gitlink stamp
+        # existed. The checked-out Ibex source must itself equal the
+        # superproject pin, and the dlopen probe still runs before the stamp
+        # lands. A present-but-stale stamp must never take this adoption path.
+        artifact_source_matches_pin "$VENDOR_IBEX" || fail "SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE: unstamped Hermes artifacts do not come from the vendor/ibex gitlink pinned by this Snapback revision; run scripts/ibex-doctor, move the stale prepared artifact directory aside, and re-run this bootstrap"
+        probe_target_artifacts "$VENDOR_IBEX" || fail "SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE: prepared Hermes files exist under $VENDOR_IBEX, but dlopen cannot resolve the runtime library or one of its dependencies; run scripts/ibex-doctor for the loader error, then re-prepare artifacts for this host"
+        write_artifact_stamp "$VENDOR_IBEX"
+        log "adopted compatible pre-stamp vendored Ibex/Hermes artifacts"
+    else
+        has_matching_artifact_stamp "$VENDOR_IBEX" || fail "SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE: prepared Hermes artifacts are stamped for a different vendor/ibex gitlink; run scripts/ibex-doctor, move the stale prepared artifact directory aside, and re-run this bootstrap"
+        probe_target_artifacts "$VENDOR_IBEX" || fail "SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE: prepared Hermes files exist under $VENDOR_IBEX, but dlopen cannot resolve the runtime library or one of its dependencies; run scripts/ibex-doctor for the loader error, then re-prepare artifacts for this host"
+        log "vendored Ibex/Hermes artifacts are already usable"
+    fi
 else
     if copy_peer_artifacts; then
         log "installed prebuilt artifacts from sibling Ibex checkout"
@@ -410,12 +567,17 @@ else
         # scripts/ibex-doctor can match on a stable code, not on prose.
         "$VENDOR_IBEX/scripts/download-hermes.sh" || fail "SNAPBACK_IBEX_HERMES_DOWNLOAD_FAILED: vendor/ibex/scripts/download-hermes.sh failed and no compatible sibling Ibex artifacts were available; fix the download error above (network/toolchain) or set SNAPBACK_IBEX_CHECKOUT=/path/to/ibex to reuse a compatible prepared checkout"
     fi
+    has_compatible_target_artifacts "$VENDOR_IBEX" || fail "SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING: prepared Ibex/Hermes artifacts are incomplete or profile-incompatible under $VENDOR_IBEX after copy/download; run scripts/ibex-doctor for a read-only diagnosis, or set SNAPBACK_IBEX_CHECKOUT=/path/to/ibex to reuse a complete compatible prepared checkout"
+    probe_target_artifacts "$VENDOR_IBEX" || fail "SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE: prepared Hermes files exist under $VENDOR_IBEX, but dlopen cannot resolve the runtime library or one of its dependencies; run scripts/ibex-doctor for the loader error, then re-prepare artifacts for this host"
+    write_artifact_stamp "$VENDOR_IBEX"
 fi
 
 # @ref LLP 0010#native-runtime-bootstrap -- reuse the shared Hermes-artifacts
 # code (also emitted by scripts/ibex-doctor and demos/_kit/server-process.mjs)
 # so bootstrap, doctor, and the demo runner all report one code for this state.
-has_usable_target_artifacts "$VENDOR_IBEX" || fail "SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING: prepared Ibex/Hermes artifacts are incomplete or profile-incompatible under $VENDOR_IBEX after copy/download; run scripts/ibex-doctor for a read-only diagnosis, or set SNAPBACK_IBEX_CHECKOUT=/path/to/ibex to reuse a complete compatible prepared checkout"
+has_compatible_target_artifacts "$VENDOR_IBEX" || fail "SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING: prepared Ibex/Hermes artifacts are incomplete or profile-incompatible under $VENDOR_IBEX after copy/download; run scripts/ibex-doctor for a read-only diagnosis, or set SNAPBACK_IBEX_CHECKOUT=/path/to/ibex to reuse a complete compatible prepared checkout"
+has_matching_artifact_stamp "$VENDOR_IBEX" || fail "SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE: prepared Hermes artifacts are not stamped for the vendor/ibex gitlink pinned by this Snapback revision; re-run scripts/bootstrap-ibex-runtime to prepare and stamp the current artifacts"
+probe_target_artifacts "$VENDOR_IBEX" || fail "SNAPBACK_IBEX_HERMES_ARTIFACTS_UNUSABLE: prepared Hermes files exist under $VENDOR_IBEX, but dlopen cannot resolve the runtime library or one of its dependencies; run scripts/ibex-doctor for the loader error, then re-prepare artifacts for this host"
 
 # The CLI is an independent optional capability. Link it even when the Hermes
 # artifacts were already prepared, since that fast path does not call
