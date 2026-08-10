@@ -371,3 +371,42 @@ Everything else in the fresh-rerun acceptance list stands as written. The three
 arms lane 3 could not reach — raw Android supervisor with no adb wrapper, cold
 retained relaunch, and `m1`/`m2` — are the arms a 0.1.17 rerun exists to
 reclaim.
+
+## Lane 4 claim — 2026-08-10: the 0.1.17 re-rerun, in flight
+
+**Branch:** `g4/rerun-0117`, claimed 2026-08-09 18:5x PDT (2026-08-10 UTC) by
+the G4 external re-rerun supervisor session. Repo worktree
+`~/projects/snapback-wt/g4-rerun-0117` at `origin/main` `7069527fc`.
+
+**Vector:** npm `latest` = `0.1.17`, source identity
+`0e6bf1842ab291f2e68416fbf40bd2e6debb4290`, ledger
+`~/snapback-release-ledgers/fastpath-ledger-0.1.17-0e6bf1842a.json`.
+
+**Fresh quarry, not the retained one.** The vector-update note above suggests
+repointing the retained 0.1.16 quarry's lockfile. This lane does **not** do
+that: the frozen OQ5 metric puts `t0` at an empty directory and measures the
+published path an external author actually walks, so a repointed lock would
+inherit 0.1.16's authoring history and forfeit the `C/F/D` measurement. The new
+quarry is `/Users/ccheever/projects/snapback-g4-external-0117`, created empty at
+`t0`. Neither `/Users/ccheever/projects/snapback-g4-external` (0.1.11) nor
+`/Users/ccheever/projects/snapback-g4-external-0116` is read, reused, or
+mutated.
+
+**Hosts recorded before any ceremony command.** Checked against
+`tailscale status` at claim time:
+
+- iOS: the **Air** at `ccheever@100.70.173.122` is back online (it was offline
+  for the whole 0.1.16 lane), so this rerun returns to the original 0.1.11 iOS
+  host. macOS 26.5.2, Xcode 26.6, iOS 26.4 simulator runtime present.
+- Android: the **mini** at `ccheever@100.106.94.95`, unchanged from both prior
+  runs. macOS 26.6.1, AVD `Medium_Phone_API_36.0`.
+- The apartment M1 Max (`100.72.251.34`) — the 0.1.16 iOS substitute — is
+  reachable only over a relay and refused SSH at claim time; it is not used.
+
+Pre-`t0` host hygiene found and killed a stale Maestro JVM and its temp
+distribution left running on the Air since the 2026-08-06 0.1.11 run. That is
+recorded here as fleet residue, not as a ceremony action.
+
+This lane retests the three tickets the 0.1.16 run left open — the guide's
+fresh-app command, the template `.gitignore`, and the cold-boot dev/release
+scoping question — and records whether each still bites.
