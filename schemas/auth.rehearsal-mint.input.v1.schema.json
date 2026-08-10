@@ -1,0 +1,522 @@
+{
+  "$defs": {
+    "AllocationEffectSelectorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "allocations": {
+          "items": {
+            "$ref": "#/$defs/BudgetAllocationSelectorV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "allocations"
+      ],
+      "type": "object"
+    },
+    "AuthClockDomainV1": {
+      "enum": [
+        "auth"
+      ],
+      "type": "string"
+    },
+    "AuthClockSelectorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "clockDomain": {
+          "$ref": "#/$defs/AuthClockDomainV1"
+        },
+        "disposableMarkerId": {
+          "type": "string"
+        },
+        "storeId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "storeId",
+        "clockDomain",
+        "disposableMarkerId"
+      ],
+      "type": "object"
+    },
+    "BudgetAllocationSelectorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "budgetName": {
+          "type": "string"
+        },
+        "chargeAxes": {
+          "items": {
+            "$ref": "#/$defs/ChargeAxisV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "budgetName",
+        "chargeAxes"
+      ],
+      "type": "object"
+    },
+    "ChargeAxisV1": {
+      "additionalProperties": false,
+      "properties": {
+        "axis": {
+          "type": "string"
+        },
+        "valueDigest": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "axis",
+        "valueDigest"
+      ],
+      "type": "object"
+    },
+    "ClockEffectSelectorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "authClock": {
+          "$ref": "#/$defs/AuthClockSelectorV1"
+        }
+      },
+      "required": [
+        "authClock"
+      ],
+      "type": "object"
+    },
+    "ContactEffectSelectorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "contacts": {
+          "items": {
+            "$ref": "#/$defs/ContactSelectorV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "contacts"
+      ],
+      "type": "object"
+    },
+    "ContactSelectorV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "canonicalAddressDigest": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "exactContact",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "canonicalAddressDigest"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "domainDigest": {
+              "type": "string"
+            },
+            "fixtureNamespace": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "contactNamespace",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "fixtureNamespace",
+            "domainDigest"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "EffectSelectorsV1": {
+      "additionalProperties": false,
+      "description": "JSON object whose keys are the exact dotted effect names. Every optional\nmember is validated against `scopes`; omission never means wildcard.",
+      "properties": {
+        "budget.rehearsal.allocate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AllocationEffectSelectorV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "challenge.capture": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContactEffectSelectorV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "challenge.redeem": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContactEffectSelectorV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "clock.auth.advance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClockEffectSelectorV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fixture.identity.create": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FixtureEffectSelectorV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fixture.session.mint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FixtureEffectSelectorV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verification.simulate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IdentityEffectSelectorV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "window.install": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowEffectSelectorV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "FixtureEffectSelectorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "fixtures": {
+          "items": {
+            "$ref": "#/$defs/FixtureSelectorV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "fixtures"
+      ],
+      "type": "object"
+    },
+    "FixtureSelectorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "contact": {
+          "$ref": "#/$defs/ContactSelectorV1"
+        },
+        "fixtureNamespace": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "fixtureNamespace",
+        "contact"
+      ],
+      "type": "object"
+    },
+    "IdentityEffectSelectorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "identities": {
+          "items": {
+            "$ref": "#/$defs/IdentitySelectorV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "identities"
+      ],
+      "type": "object"
+    },
+    "IdentitySelectorV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "identityId": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "identityId",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "identityId"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "alias": {
+              "type": "string"
+            },
+            "fixtureNamespace": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "fixtureAlias",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "fixtureNamespace",
+            "alias"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "windowNamespace",
+              "type": "string"
+            },
+            "windowPlanId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "windowPlanId"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "RehearsalEffect": {
+      "enum": [
+        "challenge.capture",
+        "challenge.redeem",
+        "fixture.identity.create",
+        "fixture.session.mint",
+        "verification.simulate",
+        "window.install",
+        "budget.rehearsal.allocate",
+        "clock.auth.advance"
+      ],
+      "type": "string"
+    },
+    "RehearsalLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "allocationCeiling": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "challengeAttempts": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "clockAdvances": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "identityCreates": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxUses": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sessionMints": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "verificationSimulations": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "windowInstalls": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "challengeAttempts",
+        "identityCreates",
+        "sessionMints",
+        "verificationSimulations",
+        "windowInstalls",
+        "clockAdvances",
+        "allocationCeiling",
+        "maxUses"
+      ],
+      "type": "object"
+    },
+    "WindowBudgetLimitsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "challengeAttempts": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sessionMints": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "verificationSimulations": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "challengeAttempts",
+        "verificationSimulations",
+        "sessionMints"
+      ],
+      "type": "object"
+    },
+    "WindowEffectSelectorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "windowPlans": {
+          "items": {
+            "$ref": "#/$defs/WindowPlanSelectorV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "windowPlans"
+      ],
+      "type": "object"
+    },
+    "WindowPlanSelectorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "enabledEffects": {
+          "items": {
+            "$ref": "#/$defs/RehearsalEffect"
+          },
+          "type": "array"
+        },
+        "expiresNoLaterThan": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "namespaceDigest": {
+          "type": "string"
+        },
+        "windowBudgetLimits": {
+          "$ref": "#/$defs/WindowBudgetLimitsV1"
+        },
+        "windowPlanId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "windowPlanId",
+        "namespaceDigest",
+        "enabledEffects",
+        "windowBudgetLimits",
+        "expiresNoLaterThan"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.rehearsal-mint.input.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "effectSelectors": {
+      "$ref": "#/$defs/EffectSelectorsV1"
+    },
+    "expiresAt": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "idempotencyKey": {
+      "type": "string"
+    },
+    "limits": {
+      "$ref": "#/$defs/RehearsalLimitsV1"
+    },
+    "operatorAuditId": {
+      "type": "string"
+    },
+    "scopes": {
+      "items": {
+        "$ref": "#/$defs/RehearsalEffect"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "scopes",
+    "effectSelectors",
+    "limits",
+    "expiresAt",
+    "idempotencyKey",
+    "operatorAuditId"
+  ],
+  "title": "RehearsalMintRequestV1",
+  "type": "object"
+}

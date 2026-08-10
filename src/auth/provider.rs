@@ -467,6 +467,12 @@ impl fmt::Debug for ExchangeCoordination {
     }
 }
 
+impl ExchangeCoordination {
+    pub(crate) fn address(&self) -> &CanonicalAddress {
+        &self.address
+    }
+}
+
 /// Credential issuance may atomically evict one prior live session. Keeping
 /// that fact beside the response lets item 5 update its projection before the
 /// plaintext credential is published.

@@ -1,0 +1,116 @@
+{
+  "$defs": {
+    "RehearsalRemainingV1": {
+      "additionalProperties": false,
+      "properties": {
+        "allocationUnits": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "challengeAttempts": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "clockAdvances": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "identityCreates": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sessionMints": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "uses": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "verificationSimulations": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "windowInstalls": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "challengeAttempts",
+        "identityCreates",
+        "sessionMints",
+        "verificationSimulations",
+        "windowInstalls",
+        "clockAdvances",
+        "allocationUnits",
+        "uses"
+      ],
+      "type": "object"
+    },
+    "RehearsalStatusRowV1": {
+      "additionalProperties": false,
+      "properties": {
+        "expiresAt": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "grantId": {
+          "type": "string"
+        },
+        "remaining": {
+          "$ref": "#/$defs/RehearsalRemainingV1"
+        },
+        "revokedAt": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "terminalReason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "grantId",
+        "expiresAt",
+        "remaining"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.rehearsal-status.output.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "grants": {
+      "items": {
+        "$ref": "#/$defs/RehearsalStatusRowV1"
+      },
+      "type": "array"
+    },
+    "kind": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "grants"
+  ],
+  "title": "RehearsalStatusV1",
+  "type": "object"
+}

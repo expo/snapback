@@ -3498,6 +3498,22 @@ impl LocalSnapback {
         &mut self.db
     }
 
+    /// Exact durable reset boundary used by rehearsal-grant instance binding.
+    /// The value is the same UUIDv7 authorization-stream incarnation that
+    /// reset rotates; it is not an app-addressable identifier.
+    ///
+    /// @ref LLP 0213#binding-validation — reset must invalidate a grant even
+    ///   when the process, app id, and deployment bytes are otherwise equal.
+    pub(crate) fn auth_rehearsal_instance_id(&self) -> SnapbackResult<String> {
+        self.db
+            .authorization_stream_incarnation()
+            .map(|incarnation| incarnation.as_str().to_owned())
+    }
+
+    pub(crate) fn auth_rehearsal_state_present_at_open(&self) -> SnapbackResult<bool> {
+        self.db.auth_rehearsal_state_present_at_open()
+    }
+
     pub fn shutdown_checkpoint(&self, bound: Duration) -> ShutdownCheckpointReport {
         self.db.shutdown_checkpoint(bound)
     }

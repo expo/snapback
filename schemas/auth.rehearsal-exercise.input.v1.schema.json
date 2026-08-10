@@ -1,0 +1,207 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.rehearsal-exercise.input.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "challengeId": {
+          "type": "string"
+        },
+        "effect": {
+          "const": "challenge.capture",
+          "type": "string"
+        },
+        "fixtureNamespace": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "idempotencyKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "effect",
+        "idempotencyKey",
+        "challengeId"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "challengeId": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "effect": {
+          "const": "challenge.redeem",
+          "type": "string"
+        },
+        "fixtureNamespace": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "idempotencyKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "effect",
+        "idempotencyKey",
+        "challengeId",
+        "code"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "effect": {
+          "const": "fixture.identity.create",
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "fixtureNamespace": {
+          "type": "string"
+        },
+        "idempotencyKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "effect",
+        "idempotencyKey",
+        "fixtureNamespace",
+        "email"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "effect": {
+          "const": "fixture.session.mint",
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "fixtureNamespace": {
+          "type": "string"
+        },
+        "idempotencyKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "effect",
+        "idempotencyKey",
+        "fixtureNamespace",
+        "email"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "effect": {
+          "const": "verification.simulate",
+          "type": "string"
+        },
+        "idempotencyKey": {
+          "type": "string"
+        },
+        "identityId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "effect",
+        "idempotencyKey",
+        "identityId"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "effect": {
+          "const": "window.install",
+          "type": "string"
+        },
+        "idempotencyKey": {
+          "type": "string"
+        },
+        "windowPlanId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "effect",
+        "idempotencyKey",
+        "windowPlanId"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "budgetName": {
+          "type": "string"
+        },
+        "effect": {
+          "const": "budget.rehearsal.allocate",
+          "type": "string"
+        },
+        "idempotencyKey": {
+          "type": "string"
+        },
+        "units": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "effect",
+        "idempotencyKey",
+        "budgetName",
+        "units"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "advanceMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "effect": {
+          "const": "clock.auth.advance",
+          "type": "string"
+        },
+        "idempotencyKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "effect",
+        "idempotencyKey",
+        "advanceMs"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "RehearsalExerciseRequestV1"
+}

@@ -24,6 +24,7 @@ pub mod mailbox;
 pub mod mode;
 pub mod provider;
 pub(crate) mod recovery;
+pub(crate) mod rehearsal;
 #[allow(dead_code)] // Wired by the collision-recovery/operator composition lane.
 pub(crate) mod rescue;
 pub mod runtime;

@@ -1794,6 +1794,52 @@ pub enum AuthCommand {
         #[arg(long)]
         db: PathBuf,
     },
+    /// Mint, inspect, or revoke finite auth-rehearsal grants on a live local
+    /// sessions target.
+    Rehearse {
+        #[command(subcommand)]
+        command: AuthRehearseCommand,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum AuthRehearseCommand {
+    /// Mint from one closed JSON request and custody the returned carrier in
+    /// the mechanical owner-only `<ready-file>.rehearsal` sibling.
+    Mint {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        input: PathBuf,
+    },
+    /// Print the versioned grant id, expiry, terminal state, and remaining
+    /// fixed-total budgets as JSON.
+    Status {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        grant_id: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Permanently revoke one grant. Repeating the same revoke is terminal and
+    /// cannot renew or replace its carrier.
+    Revoke {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        grant_id: String,
+    },
+    /// Exercise one closed effect request. A ready-file target reads only the
+    /// mechanical sidecar; URL attachment requires the bounded stdin carrier.
+    Exercise {
+        #[command(flatten)]
+        target: TargetArgs,
+        #[arg(long)]
+        input: PathBuf,
+        #[arg(long, requires = "url", conflicts_with = "ready_file")]
+        rehearsal_capability_stdin: bool,
+    },
 }
 
 #[derive(clap::Subcommand)]
@@ -2669,6 +2715,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         Some(HostCommand::Auth { command }) => match command {
             AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
+            AuthCommand::Rehearse { command } => auth_rehearse_command(command),
         },
         Some(HostCommand::Store { command }) => match command {
             StoreCommand::Describe { db } => store_describe(&db),
@@ -3722,6 +3769,225 @@ fn request_requires_agent_destroy(request: &Value) -> bool {
 // is only a closed-argument projection of the existing auth.mintSession host-op.
 fn mint_session_request(email: String) -> Value {
     json!({ "operation": "auth.mintSession", "args": { "email": email } })
+}
+
+fn auth_rehearse_command(command: AuthRehearseCommand) -> anyhow::Result<()> {
+    match command {
+        AuthRehearseCommand::Status {
+            target,
+            grant_id,
+            json: _json,
+        } => host_op_via_http(
+            &target,
+            json!({
+                "operation": "auth.rehearsal.status",
+                "args": { "grantId": grant_id },
+            }),
+        ),
+        AuthRehearseCommand::Revoke { target, grant_id } => host_op_via_http(
+            &target,
+            json!({
+                "operation": "auth.rehearsal.revoke",
+                "args": { "grantId": grant_id },
+            }),
+        ),
+        AuthRehearseCommand::Mint { target, input } => {
+            let ready_file = target.ready_file.as_deref().context(
+                "auth rehearsal mint requires --ready-file so the returned carrier can be custodied in its mechanical owner-only sibling",
+            )?;
+            anyhow::ensure!(
+                target.url.is_none(),
+                "auth rehearsal mint does not accept --url in the local wave-1 carrier profile"
+            );
+            let args = read_json_file(&input)?;
+            anyhow::ensure!(
+                args.is_object(),
+                "auth rehearsal mint input must be a JSON object"
+            );
+            let mut envelope = post_host_op(
+                &target,
+                json!({ "operation": "auth.rehearsal.mint", "args": args }),
+            )?;
+            if envelope.get("ok").and_then(Value::as_bool) == Some(true) {
+                let carrier_value = envelope
+                    .pointer_mut("/data/carrier")
+                    .map(Value::take)
+                    .context("successful rehearsal mint response carried no carrier")?;
+                let carrier = carrier_value
+                    .as_str()
+                    .map(ToOwned::to_owned)
+                    .context("successful rehearsal mint response carried no carrier")?;
+                let carrier = zeroize::Zeroizing::new(carrier);
+                crate::auth::crypto::RehearsalBearer::parse(&carrier).map_err(|_| {
+                    anyhow::anyhow!("successful rehearsal mint returned an invalid carrier")
+                })?;
+                let sidecar = publish_rehearsal_capability(ready_file, carrier.as_bytes())?;
+                let data = envelope
+                    .get_mut("data")
+                    .and_then(Value::as_object_mut)
+                    .context("successful rehearsal mint response data is not an object")?;
+                data.insert(
+                    "carrierFile".to_owned(),
+                    Value::String(sidecar.display().to_string()),
+                );
+            }
+            if !print_envelope(&envelope) {
+                std::process::exit(envelope_exit_code(&envelope));
+            }
+            Ok(())
+        }
+        AuthRehearseCommand::Exercise {
+            target,
+            input,
+            rehearsal_capability_stdin,
+        } => {
+            let args = read_json_file(&input)?;
+            anyhow::ensure!(
+                args.is_object(),
+                "auth rehearsal exercise input must be a JSON object"
+            );
+            let envelope = post_rehearsal_host_op(
+                &target,
+                json!({ "operation": "auth.rehearsal.exercise", "args": args }),
+                rehearsal_capability_stdin,
+            )?;
+            if !print_envelope(&envelope) {
+                std::process::exit(envelope_exit_code(&envelope));
+            }
+            Ok(())
+        }
+    }
+}
+
+fn publish_rehearsal_capability(ready_file: &Path, carrier: &[u8]) -> anyhow::Result<PathBuf> {
+    let value = read_trusted_json_file(ready_file)?;
+    let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+        anyhow::anyhow!(
+            "{} is not a valid readiness descriptor: {}",
+            ready_file.display(),
+            problems.join("; ")
+        )
+    })?;
+    let health = fetch_health(&descriptor.server_url);
+    verify_live_descriptor_identity(&descriptor, &health, "auth rehearsal mint")
+        .map_err(|diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message))?;
+    let canonical_ready = std::fs::canonicalize(ready_file)
+        .with_context(|| format!("failed to resolve ready file {}", ready_file.display()))?;
+    let sidecar = crate::auth::rehearsal::rehearsal_capability_sibling(&canonical_ready)?;
+    write_rehearsal_capability_sidecar(&sidecar, carrier)?;
+    Ok(sidecar)
+}
+
+fn write_rehearsal_capability_sidecar(sidecar: &Path, carrier: &[u8]) -> anyhow::Result<()> {
+    // A pre-existing inode is never truncated: mint publishes one fresh
+    // capability and requires the operator to revoke/remove an older sidecar
+    // explicitly. The strict creator validates type, owner, mode, links, and
+    // ACLs on the opened descriptor before and after writing secret bytes.
+    crate::secure_file::write_new_owner_only(&sidecar, carrier).with_context(|| {
+        format!(
+            "failed to publish owner-only rehearsal capability {}",
+            sidecar.display()
+        )
+    })?;
+    let metadata = std::fs::symlink_metadata(&sidecar)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+        anyhow::ensure!(
+            metadata.file_type().is_file()
+                && !metadata.file_type().is_symlink()
+                && metadata.permissions().mode() & 0o777 == 0o600
+                && metadata.uid() == unsafe { libc::geteuid() }
+                && metadata.nlink() == 1,
+            "published rehearsal capability is not a strict owner-only regular file"
+        );
+    }
+    Ok(())
+}
+
+fn post_rehearsal_host_op(
+    target: &TargetArgs,
+    request: Value,
+    rehearsal_capability_stdin: bool,
+) -> anyhow::Result<Value> {
+    let resolved = resolve_http_target_for_operation(target, false, false)?;
+    let capability = if rehearsal_capability_stdin {
+        anyhow::ensure!(
+            origin_is_loopback(&resolved.server_url),
+            "raw auth rehearsal capability stdin is local-only; remote URL targets are not supported"
+        );
+        let health = fetch_health(&resolved.server_url).map_err(|reason| {
+            anyhow::anyhow!("auth rehearsal target could not be verified: {reason}")
+        })?;
+        anyhow::ensure!(
+            matches!(
+                health
+                    .pointer("/capabilityManifest/runtimeFacts/authRehearsal/status")
+                    .and_then(Value::as_str),
+                Some("available" | "active")
+            ),
+            "auth rehearsal target does not advertise a live local rehearsal capability"
+        );
+        read_rehearsal_capability_from_stdin()?
+    } else {
+        let ready_file = target.ready_file.as_deref().context(
+            "auth rehearsal exercise requires --ready-file or --url with --rehearsal-capability-stdin",
+        )?;
+        let value = read_trusted_json_file(ready_file)?;
+        let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+            anyhow::anyhow!(
+                "{} is not a valid readiness descriptor: {}",
+                ready_file.display(),
+                problems.join("; ")
+            )
+        })?;
+        let health = fetch_health(&descriptor.server_url);
+        verify_live_descriptor_identity(&descriptor, &health, "auth rehearsal exercise")
+            .map_err(|diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message))?;
+        let canonical_ready = std::fs::canonicalize(ready_file)
+            .with_context(|| format!("failed to resolve ready file {}", ready_file.display()))?;
+        let sidecar = crate::auth::rehearsal::rehearsal_capability_sibling(&canonical_ready)?;
+        let bytes = crate::secure_file::read_strict_owner_only(
+            &sidecar,
+            crate::auth::rehearsal::MAX_REHEARSAL_CAPABILITY_FILE_BYTES,
+        )?;
+        crate::auth::rehearsal::parse_rehearsal_capability_file(zeroize::Zeroizing::new(bytes))
+            .map_err(anyhow::Error::new)?
+    };
+    let http = ureq::post(&format!("{}/_snapback/api/host-ops", resolved.server_url)).set(
+        crate::auth::rehearsal::AUTH_REHEARSAL_CAPABILITY_HEADER,
+        capability.expose_secret(),
+    );
+    match http.send_json(request) {
+        Ok(response) => response
+            .into_json()
+            .context("host-ops response was not JSON"),
+        Err(ureq::Error::Status(_status, response)) => response
+            .into_json()
+            .context("host-ops error response was not JSON"),
+        Err(error) => Err(error).context("host-ops request failed"),
+    }
+}
+
+fn read_rehearsal_capability_from_stdin() -> anyhow::Result<crate::auth::crypto::RehearsalBearer> {
+    use std::io::Read as _;
+    use zeroize::{Zeroize as _, Zeroizing};
+
+    let mut bytes = Vec::new();
+    std::io::stdin().take(513).read_to_end(&mut bytes)?;
+    if bytes.len() > 512 {
+        bytes.zeroize();
+        anyhow::bail!("rehearsal capability stdin value is too large");
+    }
+    while matches!(bytes.last(), Some(b'\n' | b'\r')) {
+        bytes.pop();
+    }
+    let value = Zeroizing::new(
+        String::from_utf8(bytes)
+            .map_err(|_| anyhow::anyhow!("rehearsal capability stdin value is not UTF-8"))?,
+    );
+    crate::auth::crypto::RehearsalBearer::parse(&value)
+        .map_err(|_| anyhow::anyhow!("rehearsal capability stdin value is invalid"))
 }
 
 /// POST one host operation and project the envelope to stdout + exit code
@@ -6480,6 +6746,10 @@ async fn run_composed(
         .as_deref()
         .map(ready_file_temp_path)
         .transpose()?;
+    let rehearsal_capability_file = ready_path
+        .as_deref()
+        .map(crate::auth::rehearsal::rehearsal_capability_sibling)
+        .transpose()?;
     let mut managed_paths =
         managed_startup_paths(prepared_database_path.as_deref(), ready_path.as_deref())?;
     if let Some(path) = &ready_temp_path {
@@ -6497,6 +6767,12 @@ async fn run_composed(
     if let Some(path) = &agent_destroy_temp_path {
         managed_paths.push(ManagedPath {
             label: "agent destroy capability temporary artifact",
+            path: path.clone(),
+        });
+    }
+    if let Some(path) = &rehearsal_capability_file {
+        managed_paths.push(ManagedPath {
+            label: "auth rehearsal capability",
             path: path.clone(),
         });
     }
@@ -6571,6 +6847,22 @@ async fn run_composed(
     // is minted; a marked catalog validates only its existing sibling.
     // @ref LLP 0057#activation-ordering — startup never activates the auth catalog or replaces a lost ReadyV1 keyring.
     let startup_profile = ServerProfile::for_bind_ip(bind_ip);
+    if startup_profile == ServerProfile::Prod {
+        if snapback.auth_rehearsal_state_present_at_open()? {
+            return Err(anyhow::Error::new(crate::auth::rehearsal::state_present()));
+        }
+        if let Some(rehearsal_sidecar) = rehearsal_capability_file.as_deref() {
+            match std::fs::symlink_metadata(&rehearsal_sidecar) {
+                Ok(_) => {
+                    return Err(anyhow::Error::new(
+                        crate::auth::rehearsal::config_forbidden(),
+                    ));
+                }
+                Err(error) if error.kind() == ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
+        }
+    }
     let mut auth_runtime = crate::auth::runtime::AuthRuntime::inspect(
         &mut snapback,
         database_path.as_deref(),

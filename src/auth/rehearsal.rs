@@ -1,0 +1,1356 @@
+//! Finite, process-bound auth rehearsal grants.
+//!
+//! This module owns the closed wire vocabulary, carrier hygiene, immutable
+//! grant validation, binding facts, selector matching, and typed refusals.
+//! Protected persistence and atomic accounting live in
+//! `storage/auth_rehearsal.rs`; the server layer never receives raw SQL.
+
+use crate::auth::crypto::{CanonicalAddress, CryptoError, RandomSource, RehearsalBearer};
+use crate::diagnostic::{SnapbackError, SnapbackResult};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest as _, Sha256};
+use std::collections::BTreeSet;
+use std::fmt;
+use std::path::{Path, PathBuf};
+use zeroize::{Zeroize as _, Zeroizing};
+
+pub const AUTH_REHEARSAL_GRANT_KIND: &str = "authRehearsalGrant.v1";
+pub const AUTH_REHEARSAL_STATUS_KIND: &str = "authRehearsalStatus.v1";
+pub const AUTH_REHEARSAL_CAPABILITY_HEADER: &str = "x-snapback-auth-rehearsal-capability";
+pub const MAX_REHEARSAL_CAPABILITY_FILE_BYTES: usize = 128;
+pub const MAX_REHEARSAL_TTL_MS: u64 = 24 * 60 * 60 * 1_000;
+pub const MAX_REHEARSAL_COUNT: u64 = 9_007_199_254_740_991;
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, JsonSchema,
+)]
+pub enum RehearsalEffect {
+    #[serde(rename = "challenge.capture")]
+    ChallengeCapture,
+    #[serde(rename = "challenge.redeem")]
+    ChallengeRedeem,
+    #[serde(rename = "fixture.identity.create")]
+    FixtureIdentityCreate,
+    #[serde(rename = "fixture.session.mint")]
+    FixtureSessionMint,
+    #[serde(rename = "verification.simulate")]
+    VerificationSimulate,
+    #[serde(rename = "window.install")]
+    WindowInstall,
+    #[serde(rename = "budget.rehearsal.allocate")]
+    BudgetRehearsalAllocate,
+    #[serde(rename = "clock.auth.advance")]
+    ClockAuthAdvance,
+}
+
+impl RehearsalEffect {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ChallengeCapture => "challenge.capture",
+            Self::ChallengeRedeem => "challenge.redeem",
+            Self::FixtureIdentityCreate => "fixture.identity.create",
+            Self::FixtureSessionMint => "fixture.session.mint",
+            Self::VerificationSimulate => "verification.simulate",
+            Self::WindowInstall => "window.install",
+            Self::BudgetRehearsalAllocate => "budget.rehearsal.allocate",
+            Self::ClockAuthAdvance => "clock.auth.advance",
+        }
+    }
+
+    pub fn counter(self) -> RehearsalCounter {
+        // @ref LLP 0213#total-effect-to-counter-mapping — the closed effect
+        //   enum has a total named-counter mapping; maxUses is charged in
+        //   addition for every non-idempotent resolved invocation.
+        match self {
+            Self::ChallengeCapture | Self::ChallengeRedeem => RehearsalCounter::ChallengeAttempts,
+            Self::FixtureIdentityCreate => RehearsalCounter::IdentityCreates,
+            Self::FixtureSessionMint => RehearsalCounter::SessionMints,
+            Self::VerificationSimulate => RehearsalCounter::VerificationSimulations,
+            Self::WindowInstall => RehearsalCounter::WindowInstalls,
+            Self::BudgetRehearsalAllocate => RehearsalCounter::AllocationUnits,
+            Self::ClockAuthAdvance => RehearsalCounter::ClockAdvances,
+        }
+    }
+
+    pub fn is_attempt_counter(self) -> bool {
+        matches!(self, Self::ChallengeCapture | Self::ChallengeRedeem)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RehearsalCounter {
+    ChallengeAttempts,
+    IdentityCreates,
+    SessionMints,
+    VerificationSimulations,
+    WindowInstalls,
+    ClockAdvances,
+    AllocationUnits,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+pub enum ContactSelectorV1 {
+    ExactContact {
+        #[serde(rename = "canonicalAddressDigest")]
+        canonical_address_digest: String,
+    },
+    ContactNamespace {
+        #[serde(rename = "fixtureNamespace")]
+        fixture_namespace: String,
+        #[serde(rename = "domainDigest")]
+        domain_digest: String,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FixtureSelectorV1 {
+    pub fixture_namespace: String,
+    pub contact: ContactSelectorV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+pub enum IdentitySelectorV1 {
+    IdentityId {
+        #[serde(rename = "identityId")]
+        identity_id: String,
+    },
+    FixtureAlias {
+        #[serde(rename = "fixtureNamespace")]
+        fixture_namespace: String,
+        alias: String,
+    },
+    WindowNamespace {
+        #[serde(rename = "windowPlanId")]
+        window_plan_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowBudgetLimitsV1 {
+    pub challenge_attempts: u64,
+    pub verification_simulations: u64,
+    pub session_mints: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowPlanSelectorV1 {
+    pub window_plan_id: String,
+    pub namespace_digest: String,
+    pub enabled_effects: Vec<RehearsalEffect>,
+    pub window_budget_limits: WindowBudgetLimitsV1,
+    pub expires_no_later_than: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ChargeAxisV1 {
+    pub axis: String,
+    pub value_digest: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BudgetAllocationSelectorV1 {
+    pub budget_name: String,
+    pub charge_axes: Vec<ChargeAxisV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthClockSelectorV1 {
+    pub store_id: String,
+    pub clock_domain: AuthClockDomainV1,
+    pub disposable_marker_id: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum AuthClockDomainV1 {
+    Auth,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ContactEffectSelectorV1 {
+    pub contacts: Vec<ContactSelectorV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FixtureEffectSelectorV1 {
+    pub fixtures: Vec<FixtureSelectorV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct IdentityEffectSelectorV1 {
+    pub identities: Vec<IdentitySelectorV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowEffectSelectorV1 {
+    pub window_plans: Vec<WindowPlanSelectorV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AllocationEffectSelectorV1 {
+    pub allocations: Vec<BudgetAllocationSelectorV1>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ClockEffectSelectorV1 {
+    pub auth_clock: AuthClockSelectorV1,
+}
+
+/// JSON object whose keys are the exact dotted effect names. Every optional
+/// member is validated against `scopes`; omission never means wildcard.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EffectSelectorsV1 {
+    #[serde(
+        rename = "challenge.capture",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub challenge_capture: Option<ContactEffectSelectorV1>,
+    #[serde(
+        rename = "challenge.redeem",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub challenge_redeem: Option<ContactEffectSelectorV1>,
+    #[serde(
+        rename = "fixture.identity.create",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub fixture_identity_create: Option<FixtureEffectSelectorV1>,
+    #[serde(
+        rename = "fixture.session.mint",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub fixture_session_mint: Option<FixtureEffectSelectorV1>,
+    #[serde(
+        rename = "verification.simulate",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub verification_simulate: Option<IdentityEffectSelectorV1>,
+    #[serde(
+        rename = "window.install",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub window_install: Option<WindowEffectSelectorV1>,
+    #[serde(
+        rename = "budget.rehearsal.allocate",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub budget_rehearsal_allocate: Option<AllocationEffectSelectorV1>,
+    #[serde(
+        rename = "clock.auth.advance",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub clock_auth_advance: Option<ClockEffectSelectorV1>,
+}
+
+impl EffectSelectorsV1 {
+    fn present(&self, effect: RehearsalEffect) -> bool {
+        match effect {
+            RehearsalEffect::ChallengeCapture => self.challenge_capture.is_some(),
+            RehearsalEffect::ChallengeRedeem => self.challenge_redeem.is_some(),
+            RehearsalEffect::FixtureIdentityCreate => self.fixture_identity_create.is_some(),
+            RehearsalEffect::FixtureSessionMint => self.fixture_session_mint.is_some(),
+            RehearsalEffect::VerificationSimulate => self.verification_simulate.is_some(),
+            RehearsalEffect::WindowInstall => self.window_install.is_some(),
+            RehearsalEffect::BudgetRehearsalAllocate => self.budget_rehearsal_allocate.is_some(),
+            RehearsalEffect::ClockAuthAdvance => self.clock_auth_advance.is_some(),
+        }
+    }
+
+    fn nonempty(&self, effect: RehearsalEffect) -> bool {
+        match effect {
+            RehearsalEffect::ChallengeCapture => self
+                .challenge_capture
+                .as_ref()
+                .is_some_and(|value| !value.contacts.is_empty()),
+            RehearsalEffect::ChallengeRedeem => self
+                .challenge_redeem
+                .as_ref()
+                .is_some_and(|value| !value.contacts.is_empty()),
+            RehearsalEffect::FixtureIdentityCreate => self
+                .fixture_identity_create
+                .as_ref()
+                .is_some_and(|value| !value.fixtures.is_empty()),
+            RehearsalEffect::FixtureSessionMint => self
+                .fixture_session_mint
+                .as_ref()
+                .is_some_and(|value| !value.fixtures.is_empty()),
+            RehearsalEffect::VerificationSimulate => self
+                .verification_simulate
+                .as_ref()
+                .is_some_and(|value| !value.identities.is_empty()),
+            RehearsalEffect::WindowInstall => self
+                .window_install
+                .as_ref()
+                .is_some_and(|value| !value.window_plans.is_empty()),
+            RehearsalEffect::BudgetRehearsalAllocate => self
+                .budget_rehearsal_allocate
+                .as_ref()
+                .is_some_and(|value| !value.allocations.is_empty()),
+            RehearsalEffect::ClockAuthAdvance => self.clock_auth_advance.is_some(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RehearsalLimitsV1 {
+    pub challenge_attempts: u64,
+    pub identity_creates: u64,
+    pub session_mints: u64,
+    pub verification_simulations: u64,
+    pub window_installs: u64,
+    pub clock_advances: u64,
+    pub allocation_ceiling: u64,
+    pub max_uses: u64,
+}
+
+impl RehearsalLimitsV1 {
+    pub fn for_effect(&self, effect: RehearsalEffect) -> u64 {
+        match effect.counter() {
+            RehearsalCounter::ChallengeAttempts => self.challenge_attempts,
+            RehearsalCounter::IdentityCreates => self.identity_creates,
+            RehearsalCounter::SessionMints => self.session_mints,
+            RehearsalCounter::VerificationSimulations => self.verification_simulations,
+            RehearsalCounter::WindowInstalls => self.window_installs,
+            RehearsalCounter::ClockAdvances => self.clock_advances,
+            RehearsalCounter::AllocationUnits => self.allocation_ceiling,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RehearsalConsumedV1 {
+    pub challenge_attempts: u64,
+    pub identity_creates: u64,
+    pub session_mints: u64,
+    pub verification_simulations: u64,
+    pub window_installs: u64,
+    pub clock_advances: u64,
+    pub allocation_units: u64,
+    pub uses_charged: u64,
+}
+
+impl RehearsalConsumedV1 {
+    pub fn for_effect(&self, effect: RehearsalEffect) -> u64 {
+        match effect.counter() {
+            RehearsalCounter::ChallengeAttempts => self.challenge_attempts,
+            RehearsalCounter::IdentityCreates => self.identity_creates,
+            RehearsalCounter::SessionMints => self.session_mints,
+            RehearsalCounter::VerificationSimulations => self.verification_simulations,
+            RehearsalCounter::WindowInstalls => self.window_installs,
+            RehearsalCounter::ClockAdvances => self.clock_advances,
+            RehearsalCounter::AllocationUnits => self.allocation_units,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RehearsalCreatedByV1 {
+    pub operator_audit_id: String,
+    pub mint_request_digest: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum RehearsalDeploymentProfile {
+    Dev,
+    Test,
+    Demo,
+    Prod,
+}
+
+impl RehearsalDeploymentProfile {
+    pub fn from_server(profile: crate::admin::ServerProfile) -> Self {
+        match profile {
+            crate::admin::ServerProfile::Dev => Self::Dev,
+            crate::admin::ServerProfile::Test => Self::Test,
+            crate::admin::ServerProfile::Demo => Self::Demo,
+            crate::admin::ServerProfile::Prod => Self::Prod,
+        }
+    }
+
+    pub fn permits_rehearsal(self) -> bool {
+        !matches!(self, Self::Prod)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthRehearsalGrantV1 {
+    pub kind: String,
+    pub grant_id: String,
+    pub instance_id: String,
+    pub boot_nonce: String,
+    pub app_id: String,
+    pub activation_digest: String,
+    pub sessions_mode_generation: u64,
+    pub deployment_profile: RehearsalDeploymentProfile,
+    pub scopes: Vec<RehearsalEffect>,
+    pub effect_selectors: EffectSelectorsV1,
+    pub limits: RehearsalLimitsV1,
+    pub consumed: RehearsalConsumedV1,
+    pub created_at: u64,
+    pub expires_at: u64,
+    pub revoked_at: Option<u64>,
+    pub created_by: RehearsalCreatedByV1,
+    pub carrier_hash: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RehearsalMintRequestV1 {
+    pub scopes: Vec<RehearsalEffect>,
+    pub effect_selectors: EffectSelectorsV1,
+    pub limits: RehearsalLimitsV1,
+    pub expires_at: u64,
+    pub idempotency_key: String,
+    pub operator_audit_id: String,
+}
+
+impl AuthRehearsalGrantV1 {
+    /// Validate the complete durable logical record independently of live
+    /// authority. Expiry can make a valid record unusable, but cannot make its
+    /// stored shape valid retroactively.
+    pub fn validate_record(&self) -> SnapbackResult<()> {
+        let uuid_v7 =
+            |value: &str| uuid::Uuid::parse_str(value).is_ok_and(|id| id.get_version_num() == 7);
+        if self.kind != AUTH_REHEARSAL_GRANT_KIND
+            || !uuid_v7(&self.grant_id)
+            || !uuid_v7(&self.instance_id)
+            || self.boot_nonce.is_empty()
+            || self.app_id.is_empty()
+            || !valid_digest(&self.activation_digest)
+            || !self.deployment_profile.permits_rehearsal()
+            || self.created_by.operator_audit_id.is_empty()
+            || !valid_digest(&self.created_by.mint_request_digest)
+            || !valid_digest(&self.carrier_hash)
+            || self.created_at >= self.expires_at
+            || self.expires_at.saturating_sub(self.created_at) > MAX_REHEARSAL_TTL_MS
+            || self
+                .revoked_at
+                .is_some_and(|revoked_at| revoked_at < self.created_at)
+        {
+            return Err(request_invalid());
+        }
+        validate_grant_shape(
+            &self.scopes,
+            &self.effect_selectors,
+            &self.limits,
+            self.expires_at,
+        )?;
+        for count in [
+            self.consumed.challenge_attempts,
+            self.consumed.identity_creates,
+            self.consumed.session_mints,
+            self.consumed.verification_simulations,
+            self.consumed.window_installs,
+            self.consumed.clock_advances,
+            self.consumed.allocation_units,
+            self.consumed.uses_charged,
+        ] {
+            if count > MAX_REHEARSAL_COUNT {
+                return Err(request_invalid());
+            }
+        }
+        if self.consumed.challenge_attempts > self.limits.challenge_attempts
+            || self.consumed.identity_creates > self.limits.identity_creates
+            || self.consumed.session_mints > self.limits.session_mints
+            || self.consumed.verification_simulations > self.limits.verification_simulations
+            || self.consumed.window_installs > self.limits.window_installs
+            || self.consumed.clock_advances > self.limits.clock_advances
+            || self.consumed.allocation_units > self.limits.allocation_ceiling
+            || self.consumed.uses_charged > self.limits.max_uses
+        {
+            return Err(request_invalid());
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RehearsalStatusRequestV1 {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grant_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RehearsalRevokeRequestV1 {
+    pub grant_id: String,
+}
+
+impl RehearsalMintRequestV1 {
+    /// Validate the complete caller-owned half. Server binding fields and
+    /// zero-valued consumed counters are filled only after this succeeds.
+    ///
+    /// @ref LLP 0213#authrehearsalgrantv1 — scopes are sorted and unique;
+    ///   selector keys are exactly the scopes; all counters are present; a
+    ///   scope has positive quota and maxUses is finite and positive.
+    pub fn validate(&self, now_ms: u64) -> SnapbackResult<()> {
+        if self.scopes.is_empty()
+            || self.idempotency_key.is_empty()
+            || self.idempotency_key.len() > 256
+            || self.operator_audit_id.is_empty()
+            || self.operator_audit_id.len() > 256
+            || self.limits.max_uses == 0
+            || self.expires_at <= now_ms
+            || self.expires_at.saturating_sub(now_ms) > MAX_REHEARSAL_TTL_MS
+        {
+            return Err(request_invalid());
+        }
+        validate_grant_shape(
+            &self.scopes,
+            &self.effect_selectors,
+            &self.limits,
+            self.expires_at,
+        )
+    }
+
+    pub fn normalized_digest(&self) -> SnapbackResult<String> {
+        digest_serializable(b"snapback.auth-rehearsal.mint.v1\0", self)
+    }
+}
+
+fn validate_grant_shape(
+    scopes: &[RehearsalEffect],
+    selectors: &EffectSelectorsV1,
+    limits: &RehearsalLimitsV1,
+    expires_at: u64,
+) -> SnapbackResult<()> {
+    if scopes.is_empty() || limits.max_uses == 0 || !scopes.windows(2).all(|pair| pair[0] < pair[1])
+    {
+        return Err(request_invalid());
+    }
+    for count in [
+        limits.challenge_attempts,
+        limits.identity_creates,
+        limits.session_mints,
+        limits.verification_simulations,
+        limits.window_installs,
+        limits.clock_advances,
+        limits.allocation_ceiling,
+        limits.max_uses,
+        expires_at,
+    ] {
+        if count > MAX_REHEARSAL_COUNT {
+            return Err(request_invalid());
+        }
+    }
+    let scope_set: BTreeSet<_> = scopes.iter().copied().collect();
+    for effect in ALL_REHEARSAL_EFFECTS {
+        let scoped = scope_set.contains(&effect);
+        if selectors.present(effect) != scoped
+            || (scoped && !selectors.nonempty(effect))
+            || (scoped && limits.for_effect(effect) == 0)
+        {
+            return Err(request_invalid());
+        }
+    }
+    let expected_nonzero = [
+        (
+            limits.challenge_attempts,
+            scope_set.contains(&RehearsalEffect::ChallengeCapture)
+                || scope_set.contains(&RehearsalEffect::ChallengeRedeem),
+        ),
+        (
+            limits.identity_creates,
+            scope_set.contains(&RehearsalEffect::FixtureIdentityCreate),
+        ),
+        (
+            limits.session_mints,
+            scope_set.contains(&RehearsalEffect::FixtureSessionMint),
+        ),
+        (
+            limits.verification_simulations,
+            scope_set.contains(&RehearsalEffect::VerificationSimulate),
+        ),
+        (
+            limits.window_installs,
+            scope_set.contains(&RehearsalEffect::WindowInstall),
+        ),
+        (
+            limits.clock_advances,
+            scope_set.contains(&RehearsalEffect::ClockAuthAdvance),
+        ),
+        (
+            limits.allocation_ceiling,
+            scope_set.contains(&RehearsalEffect::BudgetRehearsalAllocate),
+        ),
+    ];
+    if expected_nonzero
+        .into_iter()
+        .any(|(limit, present)| (limit != 0) != present)
+    {
+        return Err(request_invalid());
+    }
+    validate_selector_shapes(selectors, expires_at)?;
+    if let Some(selector) = &selectors.window_install
+        && limits.window_installs != selector.window_plans.len() as u64
+    {
+        return Err(request_invalid());
+    }
+    Ok(())
+}
+
+pub const ALL_REHEARSAL_EFFECTS: [RehearsalEffect; 8] = [
+    RehearsalEffect::ChallengeCapture,
+    RehearsalEffect::ChallengeRedeem,
+    RehearsalEffect::FixtureIdentityCreate,
+    RehearsalEffect::FixtureSessionMint,
+    RehearsalEffect::VerificationSimulate,
+    RehearsalEffect::WindowInstall,
+    RehearsalEffect::BudgetRehearsalAllocate,
+    RehearsalEffect::ClockAuthAdvance,
+];
+
+fn validate_selector_shapes(
+    selectors: &EffectSelectorsV1,
+    grant_expires_at: u64,
+) -> SnapbackResult<()> {
+    // @ref LLP 0213#total-effect-to-selector-mapping — selectors are finite,
+    //   exact, nonempty, and never default to all/current/localhost.
+    let validate_contact = |contact: &ContactSelectorV1| match contact {
+        ContactSelectorV1::ExactContact {
+            canonical_address_digest,
+        } => valid_digest(canonical_address_digest),
+        ContactSelectorV1::ContactNamespace {
+            fixture_namespace,
+            domain_digest,
+        } => !fixture_namespace.is_empty() && valid_digest(domain_digest),
+    };
+    for contacts in [
+        selectors.challenge_capture.as_ref().map(|s| &s.contacts),
+        selectors.challenge_redeem.as_ref().map(|s| &s.contacts),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if contacts.len() > 1_024 || !contacts.iter().all(validate_contact) {
+            return Err(request_invalid());
+        }
+    }
+    for fixtures in [
+        selectors
+            .fixture_identity_create
+            .as_ref()
+            .map(|s| &s.fixtures),
+        selectors.fixture_session_mint.as_ref().map(|s| &s.fixtures),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if fixtures.len() > 1_024
+            || !fixtures.iter().all(|fixture| {
+                !fixture.fixture_namespace.is_empty()
+                    && validate_contact(&fixture.contact)
+                    && match &fixture.contact {
+                        ContactSelectorV1::ContactNamespace {
+                            fixture_namespace, ..
+                        } => fixture_namespace == &fixture.fixture_namespace,
+                        ContactSelectorV1::ExactContact { .. } => true,
+                    }
+            })
+        {
+            return Err(request_invalid());
+        }
+    }
+    if let Some(selector) = &selectors.verification_simulate
+        && (selector.identities.len() > 1_024
+            || !selector.identities.iter().all(|identity| match identity {
+                IdentitySelectorV1::IdentityId { identity_id } => {
+                    identity_id.starts_with("idn_") && identity_id.len() > 4
+                }
+                IdentitySelectorV1::FixtureAlias {
+                    fixture_namespace,
+                    alias,
+                } => {
+                    !fixture_namespace.is_empty()
+                        && !alias.is_empty()
+                        && fixture_namespace.len() <= 256
+                        && alias.len() <= 256
+                }
+                IdentitySelectorV1::WindowNamespace { window_plan_id } => uuid_v7(window_plan_id),
+            }))
+    {
+        return Err(request_invalid());
+    }
+    if let Some(selector) = &selectors.window_install
+        && (selector.window_plans.len() > 1_024
+            || !selector.window_plans.iter().all(|plan| {
+                uuid_v7(&plan.window_plan_id)
+                    && valid_digest(&plan.namespace_digest)
+                    && plan.expires_no_later_than <= grant_expires_at
+                    && plan.expires_no_later_than > 0
+                    && !plan.enabled_effects.is_empty()
+                    && plan
+                        .enabled_effects
+                        .windows(2)
+                        .all(|pair| pair[0] < pair[1])
+                    && [
+                        plan.window_budget_limits.challenge_attempts,
+                        plan.window_budget_limits.verification_simulations,
+                        plan.window_budget_limits.session_mints,
+                    ]
+                    .into_iter()
+                    .all(|count| count <= MAX_REHEARSAL_COUNT)
+            }))
+    {
+        return Err(request_invalid());
+    }
+    if let Some(selector) = &selectors.budget_rehearsal_allocate
+        && (selector.allocations.len() > 1_024
+            || !selector.allocations.iter().all(|allocation| {
+                !allocation.budget_name.is_empty()
+                    && !matches!(allocation.budget_name.as_str(), "*" | "all" | "any")
+                    && !allocation.charge_axes.is_empty()
+                    && allocation.charge_axes.len() <= 16
+                    && allocation
+                        .charge_axes
+                        .windows(2)
+                        .all(|pair| pair[0].axis < pair[1].axis)
+                    && allocation.charge_axes.iter().all(|axis| {
+                        !axis.axis.is_empty()
+                            && !matches!(axis.axis.as_str(), "*" | "all" | "any")
+                            && valid_digest(&axis.value_digest)
+                    })
+            }))
+    {
+        return Err(request_invalid());
+    }
+    if let Some(selector) = &selectors.clock_auth_advance
+        && (!uuid_v7(&selector.auth_clock.store_id)
+            || !uuid_v7(&selector.auth_clock.disposable_marker_id))
+    {
+        return Err(request_invalid());
+    }
+    Ok(())
+}
+
+fn uuid_v7(value: &str) -> bool {
+    uuid::Uuid::parse_str(value).is_ok_and(|id| id.get_version_num() == 7)
+}
+
+fn valid_digest(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|hex| {
+        hex.len() == 64
+            && hex
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    })
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RehearsalBindingFacts {
+    pub instance_id: String,
+    pub boot_nonce: String,
+    pub app_id: String,
+    pub activation_digest: String,
+    pub sessions_mode_generation: u64,
+    pub deployment_profile: RehearsalDeploymentProfile,
+    pub sessions_settled_available: bool,
+}
+
+impl RehearsalBindingFacts {
+    pub fn validate_grant(&self, grant: &AuthRehearsalGrantV1, now_ms: u64) -> SnapbackResult<()> {
+        if !self.deployment_profile.permits_rehearsal() {
+            return Err(profile_forbidden());
+        }
+        if grant.revoked_at.is_some() {
+            return Err(authority_ended());
+        }
+        if now_ms >= grant.expires_at {
+            return Err(expired());
+        }
+        if !self.sessions_settled_available
+            || grant.kind != AUTH_REHEARSAL_GRANT_KIND
+            || grant.instance_id != self.instance_id
+            || grant.boot_nonce != self.boot_nonce
+            || grant.app_id != self.app_id
+            || grant.activation_digest != self.activation_digest
+            || grant.sessions_mode_generation != self.sessions_mode_generation
+            || grant.deployment_profile != self.deployment_profile
+        {
+            return Err(binding_mismatch());
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(tag = "effect", deny_unknown_fields)]
+pub enum RehearsalExerciseRequestV1 {
+    #[serde(rename = "challenge.capture", rename_all = "camelCase")]
+    ChallengeCapture {
+        idempotency_key: String,
+        challenge_id: String,
+        fixture_namespace: Option<String>,
+    },
+    #[serde(rename = "challenge.redeem", rename_all = "camelCase")]
+    ChallengeRedeem {
+        idempotency_key: String,
+        challenge_id: String,
+        code: String,
+        fixture_namespace: Option<String>,
+    },
+    #[serde(rename = "fixture.identity.create", rename_all = "camelCase")]
+    FixtureIdentityCreate {
+        idempotency_key: String,
+        fixture_namespace: String,
+        email: String,
+    },
+    #[serde(rename = "fixture.session.mint", rename_all = "camelCase")]
+    FixtureSessionMint {
+        idempotency_key: String,
+        fixture_namespace: String,
+        email: String,
+    },
+    #[serde(rename = "verification.simulate", rename_all = "camelCase")]
+    VerificationSimulate {
+        idempotency_key: String,
+        identity_id: String,
+    },
+    #[serde(rename = "window.install", rename_all = "camelCase")]
+    WindowInstall {
+        idempotency_key: String,
+        window_plan_id: String,
+    },
+    #[serde(rename = "budget.rehearsal.allocate", rename_all = "camelCase")]
+    BudgetRehearsalAllocate {
+        idempotency_key: String,
+        budget_name: String,
+        units: u64,
+    },
+    #[serde(rename = "clock.auth.advance", rename_all = "camelCase")]
+    ClockAuthAdvance {
+        idempotency_key: String,
+        advance_ms: u64,
+    },
+}
+
+impl RehearsalExerciseRequestV1 {
+    pub fn effect(&self) -> RehearsalEffect {
+        match self {
+            Self::ChallengeCapture { .. } => RehearsalEffect::ChallengeCapture,
+            Self::ChallengeRedeem { .. } => RehearsalEffect::ChallengeRedeem,
+            Self::FixtureIdentityCreate { .. } => RehearsalEffect::FixtureIdentityCreate,
+            Self::FixtureSessionMint { .. } => RehearsalEffect::FixtureSessionMint,
+            Self::VerificationSimulate { .. } => RehearsalEffect::VerificationSimulate,
+            Self::WindowInstall { .. } => RehearsalEffect::WindowInstall,
+            Self::BudgetRehearsalAllocate { .. } => RehearsalEffect::BudgetRehearsalAllocate,
+            Self::ClockAuthAdvance { .. } => RehearsalEffect::ClockAuthAdvance,
+        }
+    }
+
+    pub fn idempotency_key(&self) -> &str {
+        match self {
+            Self::ChallengeCapture {
+                idempotency_key, ..
+            }
+            | Self::ChallengeRedeem {
+                idempotency_key, ..
+            }
+            | Self::FixtureIdentityCreate {
+                idempotency_key, ..
+            }
+            | Self::FixtureSessionMint {
+                idempotency_key, ..
+            }
+            | Self::VerificationSimulate {
+                idempotency_key, ..
+            }
+            | Self::WindowInstall {
+                idempotency_key, ..
+            }
+            | Self::BudgetRehearsalAllocate {
+                idempotency_key, ..
+            }
+            | Self::ClockAuthAdvance {
+                idempotency_key, ..
+            } => idempotency_key,
+        }
+    }
+
+    pub fn normalized_digest(&self) -> SnapbackResult<String> {
+        if self.idempotency_key().is_empty() || self.idempotency_key().len() > 256 {
+            return Err(request_invalid());
+        }
+        digest_serializable(b"snapback.auth-rehearsal.exercise.v1\0", self)
+    }
+
+    pub fn contact(&self) -> SnapbackResult<Option<(CanonicalAddress, Option<&str>)>> {
+        match self {
+            Self::FixtureIdentityCreate {
+                fixture_namespace,
+                email,
+                ..
+            }
+            | Self::FixtureSessionMint {
+                fixture_namespace,
+                email,
+                ..
+            } => Ok(Some((
+                CanonicalAddress::parse(email).map_err(|_| request_invalid())?,
+                Some(fixture_namespace.as_str()),
+            ))),
+            _ => Ok(None),
+        }
+    }
+}
+
+pub fn selector_matches_contact(
+    selector: &ContactSelectorV1,
+    address: &CanonicalAddress,
+    fixture_namespace: Option<&str>,
+) -> bool {
+    match selector {
+        ContactSelectorV1::ExactContact {
+            canonical_address_digest,
+        } => contact_digest(address) == *canonical_address_digest,
+        ContactSelectorV1::ContactNamespace {
+            fixture_namespace: expected_namespace,
+            domain_digest: expected_domain,
+        } => {
+            fixture_namespace == Some(expected_namespace.as_str())
+                && address
+                    .as_str()
+                    .rsplit_once('@')
+                    .is_some_and(|(_, domain)| domain_digest(domain) == *expected_domain)
+        }
+    }
+}
+
+pub fn selector_allows(
+    grant: &AuthRehearsalGrantV1,
+    request: &RehearsalExerciseRequestV1,
+    resolved_contact: Option<&CanonicalAddress>,
+) -> bool {
+    // @ref LLP 0213#effect-execution-and-audit — exact selector equality is
+    //   checked after the universal attempt charge and before semantic work.
+    match request {
+        RehearsalExerciseRequestV1::ChallengeCapture {
+            fixture_namespace, ..
+        } => resolved_contact.is_some_and(|address| {
+            grant
+                .effect_selectors
+                .challenge_capture
+                .as_ref()
+                .is_some_and(|selector| {
+                    selector.contacts.iter().any(|contact| {
+                        selector_matches_contact(contact, address, fixture_namespace.as_deref())
+                    })
+                })
+        }),
+        RehearsalExerciseRequestV1::ChallengeRedeem {
+            fixture_namespace, ..
+        } => resolved_contact.is_some_and(|address| {
+            grant
+                .effect_selectors
+                .challenge_redeem
+                .as_ref()
+                .is_some_and(|selector| {
+                    selector.contacts.iter().any(|contact| {
+                        selector_matches_contact(contact, address, fixture_namespace.as_deref())
+                    })
+                })
+        }),
+        RehearsalExerciseRequestV1::FixtureIdentityCreate {
+            fixture_namespace, ..
+        } => resolved_contact.is_some_and(|address| {
+            grant
+                .effect_selectors
+                .fixture_identity_create
+                .as_ref()
+                .is_some_and(|selector| {
+                    selector.fixtures.iter().any(|fixture| {
+                        fixture.fixture_namespace == *fixture_namespace
+                            && selector_matches_contact(
+                                &fixture.contact,
+                                address,
+                                Some(fixture_namespace),
+                            )
+                    })
+                })
+        }),
+        RehearsalExerciseRequestV1::FixtureSessionMint {
+            fixture_namespace, ..
+        } => resolved_contact.is_some_and(|address| {
+            grant
+                .effect_selectors
+                .fixture_session_mint
+                .as_ref()
+                .is_some_and(|selector| {
+                    selector.fixtures.iter().any(|fixture| {
+                        fixture.fixture_namespace == *fixture_namespace
+                            && selector_matches_contact(
+                                &fixture.contact,
+                                address,
+                                Some(fixture_namespace),
+                            )
+                    })
+                })
+        }),
+        // Later slices own the additional semantic selector resolution. Their
+        // DTOs are closed now, but slice 1 fails them closed.
+        _ => false,
+    }
+}
+
+pub fn contact_digest(address: &CanonicalAddress) -> String {
+    domain_digest_bytes(
+        b"snapback.auth-rehearsal.exact-contact.v1\0",
+        address.as_str().as_bytes(),
+    )
+}
+
+pub fn domain_digest(domain: &str) -> String {
+    domain_digest_bytes(
+        b"snapback.auth-rehearsal.contact-domain.v1\0",
+        domain.as_bytes(),
+    )
+}
+
+fn domain_digest_bytes(domain: &[u8], value: &[u8]) -> String {
+    let mut digest = Sha256::new();
+    digest.update(domain);
+    digest.update((value.len() as u64).to_be_bytes());
+    digest.update(value);
+    format!("sha256:{:x}", digest.finalize())
+}
+
+pub fn digest_serializable<T: Serialize>(domain: &[u8], value: &T) -> SnapbackResult<String> {
+    let bytes = serde_json::to_vec(value).map_err(|_| request_invalid())?;
+    Ok(domain_digest_bytes(domain, &bytes))
+}
+
+pub struct MintedRehearsalGrant {
+    pub grant: AuthRehearsalGrantV1,
+    carrier: RehearsalBearer,
+}
+
+/// Schema-only declaration for the no-store mint payload. Runtime assembly is
+/// manual so the secret cannot acquire `Debug`, `Clone`, or a general-purpose
+/// serialization path.
+#[derive(JsonSchema)]
+#[schemars(rename_all = "camelCase", deny_unknown_fields)]
+#[allow(dead_code)]
+pub struct RehearsalMintResultV1 {
+    pub kind: String,
+    pub grant: AuthRehearsalGrantV1,
+    pub carrier: String,
+}
+
+impl MintedRehearsalGrant {
+    pub fn new(grant: AuthRehearsalGrantV1, carrier: RehearsalBearer) -> Self {
+        Self { grant, carrier }
+    }
+
+    pub fn into_value(self) -> serde_json::Value {
+        serde_json::json!({
+            "kind": "authRehearsalMintResult.v1",
+            "grant": self.grant,
+            "carrier": self.carrier.expose_secret(),
+        })
+    }
+}
+
+impl fmt::Debug for MintedRehearsalGrant {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("MintedRehearsalGrant")
+            .field("grant_id", &self.grant.grant_id)
+            .field("carrier", &"[REDACTED]")
+            .finish()
+    }
+}
+
+pub fn generate_carrier(random: &dyn RandomSource) -> Result<RehearsalBearer, CryptoError> {
+    RehearsalBearer::generate(random)
+}
+
+pub fn rehearsal_capability_sibling(ready_file: &Path) -> std::io::Result<PathBuf> {
+    let file_name = ready_file.file_name().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "ready-file path must contain a file name",
+        )
+    })?;
+    let mut sibling_name = file_name.to_os_string();
+    sibling_name.push(".rehearsal");
+    Ok(ready_file.with_file_name(sibling_name))
+}
+
+pub fn parse_rehearsal_capability_file(
+    mut bytes: Zeroizing<Vec<u8>>,
+) -> SnapbackResult<RehearsalBearer> {
+    if bytes.is_empty() || bytes.len() > MAX_REHEARSAL_CAPABILITY_FILE_BYTES {
+        return Err(carrier_required());
+    }
+    let value = std::str::from_utf8(bytes.as_slice()).map_err(|_| carrier_required())?;
+    let parsed = RehearsalBearer::parse(value).map_err(|_| carrier_required());
+    bytes.zeroize();
+    parsed
+}
+
+pub fn request_invalid() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_REQUEST_INVALID",
+        "auth rehearsal request is invalid",
+    )
+}
+
+pub fn carrier_required() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_CARRIER_REQUIRED",
+        "a valid auth rehearsal capability is required",
+    )
+}
+
+pub fn profile_forbidden() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_PROFILE_FORBIDDEN",
+        "auth rehearsal authority is forbidden for this deployment profile",
+    )
+}
+
+pub fn config_forbidden() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_CONFIG_FORBIDDEN",
+        "auth rehearsal configuration is forbidden for this deployment profile",
+    )
+}
+
+pub fn scope_denied() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_SCOPE_DENIED",
+        "the rehearsal grant does not authorize this effect",
+    )
+}
+
+pub fn selector_denied() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_SELECTOR_DENIED",
+        "the rehearsal request does not match its immutable selector",
+    )
+}
+
+pub fn binding_mismatch() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH",
+        "the rehearsal grant no longer matches the live target binding",
+    )
+}
+
+pub fn expired() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_EXPIRED",
+        "the rehearsal grant has expired",
+    )
+}
+
+pub fn authority_ended() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED",
+        "the rehearsal grant authority has ended",
+    )
+}
+
+pub fn budget_exhausted(counter: &str) -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_BUDGET_EXHAUSTED",
+        "the rehearsal grant budget is exhausted",
+    )
+    .with_details(serde_json::json!({
+        "counter": counter,
+        "retryAfter": { "kind": "new-authority-required" },
+    }))
+}
+
+pub fn idempotency_conflict() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_IDEMPOTENCY_CONFLICT",
+        "the rehearsal idempotency key is bound to a different request",
+    )
+}
+
+pub fn namespace_unavailable() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_NAMESPACE_UNAVAILABLE",
+        "rehearsal namespace allocation is unavailable",
+    )
+}
+#[allow(dead_code)]
+pub fn namespace_consumed() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_NAMESPACE_CONSUMED",
+        "rehearsal namespace authority has ended",
+    )
+}
+#[allow(dead_code)]
+pub fn reachability_public() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_REACHABILITY_PUBLIC",
+        "rehearsal cannot target a published public surface",
+    )
+}
+#[allow(dead_code)]
+pub fn reachability_invalid() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_REACHABILITY_INVALID",
+        "rehearsal reachability facts are invalid",
+    )
+}
+#[allow(dead_code)]
+pub fn producer_parity() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_PRODUCER_PARITY",
+        "rehearsal reachability producer parity is incomplete",
+    )
+}
+#[allow(dead_code)]
+pub fn disposable_required() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_DISPOSABLE_REQUIRED",
+        "auth clock rehearsal requires a disposable store",
+    )
+}
+pub fn state_present() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_STATE_PRESENT",
+        "rehearsal state is present",
+    )
+}
+#[allow(dead_code)]
+pub fn envelope_invalid() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_ENVELOPE_INVALID",
+        "auth rehearsal export envelope is invalid",
+    )
+}
+#[allow(dead_code)]
+pub fn export_key_unavailable() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_EXPORT_KEY_UNAVAILABLE",
+        "auth rehearsal export key is unavailable",
+    )
+}
+#[allow(dead_code)]
+pub fn provenance_invalid() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_PROVENANCE_INVALID",
+        "auth rehearsal provenance is invalid",
+    )
+}
+#[allow(dead_code)]
+pub fn egress_refused() -> SnapbackError {
+    rehearsal_error(
+        "SNAPBACK_AUTH_REHEARSAL_EGRESS_REFUSED",
+        "external egress is forbidden under rehearsal authority",
+    )
+}
+
+fn rehearsal_error(code: &'static str, message: &'static str) -> SnapbackError {
+    SnapbackError::error(code, "auth-rehearsal", message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::auth::crypto::{CredentialClass, OsRandom, classify_credential};
+
+    #[test]
+    fn carrier_is_registered_redacted_and_round_trips() {
+        let carrier = RehearsalBearer::generate(&OsRandom).unwrap();
+        assert_eq!(
+            classify_credential(carrier.expose_secret()),
+            Some(CredentialClass::RehearsalCapability)
+        );
+        assert!(RehearsalBearer::parse(carrier.expose_secret()).is_ok());
+        assert_eq!(format!("{carrier:?}"), "RehearsalBearer([REDACTED])");
+    }
+
+    #[test]
+    fn sidecar_is_the_prompt_pinned_mechanical_sibling() {
+        assert_eq!(
+            rehearsal_capability_sibling(Path::new("/tmp/app.ready.json")).unwrap(),
+            PathBuf::from("/tmp/app.ready.json.rehearsal")
+        );
+    }
+
+    #[test]
+    fn mint_dto_refuses_unknown_effects_fields_and_selector_substitution() {
+        let base = serde_json::json!({
+            "scopes": ["challenge.capture"],
+            "effectSelectors": {
+                "challenge.capture": {
+                    "contacts": [{
+                        "kind": "exactContact",
+                        "canonicalAddressDigest": format!("sha256:{}", "a".repeat(64))
+                    }]
+                }
+            },
+            "limits": {
+                "challengeAttempts": 1,
+                "identityCreates": 0,
+                "sessionMints": 0,
+                "verificationSimulations": 0,
+                "windowInstalls": 0,
+                "clockAdvances": 0,
+                "allocationCeiling": 0,
+                "maxUses": 1
+            },
+            "expiresAt": 1_700_000_060_000_u64,
+            "idempotencyKey": "mint-closed",
+            "operatorAuditId": "operator-closed"
+        });
+        let request: RehearsalMintRequestV1 = serde_json::from_value(base.clone()).unwrap();
+        request.validate(1_700_000_000_000).unwrap();
+
+        let mut unknown_effect = base.clone();
+        unknown_effect["scopes"] = serde_json::json!(["challenge.capture-all"]);
+        assert!(serde_json::from_value::<RehearsalMintRequestV1>(unknown_effect).is_err());
+
+        let mut unknown_selector = base.clone();
+        unknown_selector["effectSelectors"]["challenge.capture"]["wildcard"] =
+            serde_json::json!(true);
+        assert!(serde_json::from_value::<RehearsalMintRequestV1>(unknown_selector).is_err());
+
+        let mut extra_selector: RehearsalMintRequestV1 = serde_json::from_value(base).unwrap();
+        extra_selector.effect_selectors.challenge_redeem =
+            extra_selector.effect_selectors.challenge_capture.clone();
+        assert_eq!(
+            extra_selector
+                .validate(1_700_000_000_000)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_REHEARSAL_REQUEST_INVALID"
+        );
+    }
+}

@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.rehearsal-status.input.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "grantId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "title": "RehearsalStatusRequestV1",
+  "type": "object"
+}

@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.rehearsal-revoke.input.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "grantId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "grantId"
+  ],
+  "title": "RehearsalRevokeRequestV1",
+  "type": "object"
+}

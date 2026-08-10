@@ -43,7 +43,7 @@ pub const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE: usize = 64 * 1024;
 /// `require_operation_profile`. These groups are fully served today; they
 /// belong here so `host_op_diagnostic` recognizes their spelling instead of
 /// rewriting it to `"unrecognized"` in diagnostics.
-pub const SERVED_HOST_OPS: [&str; 43] = [
+pub const SERVED_HOST_OPS: [&str; 47] = [
     "app.inspect",
     "cron.list",
     "app.reset",
@@ -56,6 +56,10 @@ pub const SERVED_HOST_OPS: [&str; 43] = [
     "function.run",
     "function.explain",
     "auth.mintSession",
+    "auth.rehearsal.mint",
+    "auth.rehearsal.exercise",
+    "auth.rehearsal.revoke",
+    "auth.rehearsal.status",
     "auth.rescueCollidingTable",
     "auth.integrationRetire",
     "auth.integrationSuspend",
@@ -682,6 +686,18 @@ fn authority_admin(reason: &str) -> Option<HostOpsAuthority> {
     })
 }
 
+fn authority_rehearsal() -> Option<HostOpsAuthority> {
+    Some(HostOpsAuthority {
+        mode: "authRehearsalGrant".to_owned(),
+        actor_principal: None,
+        effective_principal: None,
+        local_dev_only: true,
+        admin_bypass: false,
+        scope: Some("finiteGrant".to_owned()),
+        reason: Some("finite auth rehearsal grant".to_owned()),
+    })
+}
+
 fn authority_secret_read(scope: &str) -> Option<HostOpsAuthority> {
     Some(HostOpsAuthority {
         mode: "adminSecretRead".to_owned(),
@@ -767,9 +783,8 @@ fn host_ops_result(
 
 /// Assemble an auth operator outcome through the same `hostOpsResult`
 /// projection as every other served operation. Authentication failures occur
-/// before this helper; once the operation is admitted its authority envelope
-/// records the independent AdminWrite + impersonation gate on success or
-/// failure.
+/// before this helper; once admitted, each operation records its exact admin,
+/// metadata-read, or finite rehearsal-grant authority on success or failure.
 pub(crate) fn auth_operator_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
@@ -779,25 +794,31 @@ pub(crate) fn auth_operator_result(
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
     let operation = request.operation.clone();
-    match outcome {
-        Ok(data) => {
-            let authority = if operation == "auth.mintSession" {
-                authority_admin("issuedBy: admin")
-            } else {
-                authority_admin("host-ops auth impersonation gate")
-            };
-            host_ops_result(
-                snapback,
-                request_id,
-                operation,
-                server_url,
-                profile,
-                true,
-                authority,
-                data,
-                Vec::new(),
-            )
+    let authority_reason = match operation.as_str() {
+        "auth.mintSession" => "issuedBy: admin",
+        "auth.rehearsal.status" => "auth rehearsal metadata read gate",
+        _ => "host-ops auth impersonation gate",
+    };
+    let uses_rehearsal_authority = operation == "auth.rehearsal.exercise";
+    let authority = || {
+        if uses_rehearsal_authority {
+            authority_rehearsal()
+        } else {
+            authority_admin(authority_reason)
         }
+    };
+    match outcome {
+        Ok(data) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            true,
+            authority(),
+            data,
+            Vec::new(),
+        ),
         Err(error) => host_ops_result(
             snapback,
             request_id,
@@ -805,7 +826,7 @@ pub(crate) fn auth_operator_result(
             server_url,
             profile,
             false,
-            authority_admin("host-ops auth impersonation gate"),
+            authority(),
             Value::Object(Default::default()),
             vec![error.diagnostic],
         ),
@@ -2969,6 +2990,25 @@ mod tests {
         assert!(!result_debug.contains(TOKEN_SENTINEL), "{result_debug}");
         assert!(!result_debug.contains(EMAIL_SENTINEL), "{result_debug}");
         assert!(result_debug.contains("[REDACTED]"), "{result_debug}");
+    }
+
+    #[test]
+    fn rehearsal_exercise_envelope_never_claims_admin_bypass() {
+        let snapback = LocalSnapback::memory().expect("rehearsal authority fixture");
+        let result = auth_operator_result(
+            &snapback,
+            &HostOpsRequest {
+                operation: "auth.rehearsal.exercise".to_owned(),
+                ..HostOpsRequest::default()
+            },
+            None,
+            crate::admin::ServerProfile::Test,
+            Ok(json!({})),
+        );
+        let authority = result.authority.expect("rehearsal authority envelope");
+        assert_eq!(authority.mode, "authRehearsalGrant");
+        assert!(!authority.admin_bypass);
+        assert_eq!(authority.scope.as_deref(), Some("finiteGrant"));
     }
 
     #[test]

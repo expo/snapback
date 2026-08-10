@@ -4819,6 +4819,59 @@ fn startup_reservation_follows_existing_instance_and_database_symlinks() {
 }
 
 #[test]
+fn rehearsal_carrier_has_only_the_bounded_stdin_attachment_surface() {
+    assert!(
+        Cli::try_parse_from([
+            "snapback",
+            "auth",
+            "rehearse",
+            "exercise",
+            "--url",
+            "http://127.0.0.1:4287",
+            "--input",
+            "request.json",
+            "--rehearsal-capability-stdin",
+        ])
+        .is_ok()
+    );
+    let argv_carrier = Cli::try_parse_from([
+        "snapback",
+        "auth",
+        "rehearse",
+        "exercise",
+        "--url",
+        "http://127.0.0.1:4287",
+        "--input",
+        "request.json",
+        "--rehearsal-capability",
+        "sbrc_must-not-be-an-argv-carrier",
+    ])
+    .unwrap_err();
+    assert_eq!(argv_carrier.kind(), clap::error::ErrorKind::UnknownArgument);
+    assert!(!include_str!("../cli.rs").contains("SNAPBACK_AUTH_REHEARSAL_CAPABILITY="));
+}
+
+#[cfg(unix)]
+#[test]
+fn rehearsal_sidecar_is_new_owner_only_and_never_overwrites() {
+    use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
+
+    let directory = tempfile::tempdir().expect("rehearsal sidecar directory");
+    let sidecar = directory.path().join("server.ready.json.rehearsal");
+    super::write_rehearsal_capability_sidecar(&sidecar, b"first-secret")
+        .expect("publish first rehearsal carrier");
+    let metadata = std::fs::symlink_metadata(&sidecar).expect("sidecar metadata");
+    assert!(metadata.file_type().is_file());
+    assert!(!metadata.file_type().is_symlink());
+    assert_eq!(metadata.permissions().mode() & 0o777, 0o600);
+    assert_eq!(metadata.uid(), unsafe { libc::geteuid() });
+    assert_eq!(metadata.nlink(), 1);
+    assert_eq!(std::fs::read(&sidecar).unwrap(), b"first-secret");
+    assert!(super::write_rehearsal_capability_sidecar(&sidecar, b"replacement").is_err());
+    assert_eq!(std::fs::read(&sidecar).unwrap(), b"first-secret");
+}
+
+#[test]
 fn migrate_json_and_digest_acknowledgement_parse_as_one_surface() {
     let parsed = Cli::try_parse_from([
         "snapback",

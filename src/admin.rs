@@ -2477,6 +2477,11 @@ pub struct AppState {
     /// the staged-mode composition lane; embeddings and tests may install an
     /// already-activated provider through the builder below.
     pub(crate) auth_provider: Option<Arc<AuthProvider>>,
+    /// Process-local capability projection for live grants minted by this
+    /// boot. Restart invalidates every durable grant, while revoke and expiry
+    /// remove entries without erasing protected rehearsal history.
+    pub(crate) auth_rehearsal_live_grants:
+        Arc<std::sync::RwLock<std::collections::BTreeMap<String, u64>>>,
     /// Item-5 process authority. Production construction publishes this only
     /// after the durable stream migration and complete pre-bind rebuild.
     pub(crate) auth_coordinator: Option<Arc<crate::auth::coordinator::AuthCoordinator>>,
@@ -2621,6 +2626,9 @@ impl AppState {
                 impersonation_capabilities: None,
                 agent_destroy_capabilities: None,
                 auth_provider: None,
+                auth_rehearsal_live_grants: Arc::new(std::sync::RwLock::new(
+                    std::collections::BTreeMap::new(),
+                )),
                 auth_coordinator: None,
                 hosted_serving: None,
                 derived_instance_identity,

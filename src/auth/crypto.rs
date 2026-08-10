@@ -19,6 +19,7 @@ const RESUME_KEY_PREFIX: &str = "sbrq_";
 const SESSION_PREFIX: &str = "sbs_";
 const SENDER_SESSION_PREFIX: &str = "sbs2_";
 const IMPERSONATION_PREFIX: &str = "sbic_";
+const REHEARSAL_CAPABILITY_PREFIX: &str = "sbrc_";
 const CODE_DIGEST_DOMAIN: &[u8] = b"snapback.auth.email-code.v1";
 // @ref LLP 0039#dated-amendment-operation-bound-step-up-2026-07-15 — login
 // and fresh-operation challenges share storage but never a digest domain.
@@ -480,6 +481,39 @@ impl fmt::Debug for ImpersonationBearer {
     }
 }
 
+/// One auth-rehearsal grant capability. The request resolver retains only the
+/// SHA-256 digest; plaintext exists in this zeroizing, redacted carrier long
+/// enough to publish the mint response or its owner-only local sidecar.
+///
+/// @ref LLP 0213#local-wave-1-carrier-custody — rehearsal capabilities use a
+///   dedicated prefix, 256 CSPRNG bits, the shared lowercase CRC-32 spelling,
+///   and never serialize through an ordinary DTO.
+pub struct RehearsalBearer(Zeroizing<String>);
+
+impl RehearsalBearer {
+    pub fn parse(input: &str) -> Result<Self, CryptoError> {
+        parse_bearer(input, REHEARSAL_CAPABILITY_PREFIX).map(|value| Self(Zeroizing::new(value)))
+    }
+
+    pub fn generate(random: &dyn RandomSource) -> Result<Self, CryptoError> {
+        mint_bearer(random, REHEARSAL_CAPABILITY_PREFIX).map(|value| Self(Zeroizing::new(value)))
+    }
+
+    pub(crate) fn expose_secret(&self) -> &str {
+        &self.0
+    }
+
+    pub fn token_hash(&self) -> TokenHash {
+        hash_bearer(self.expose_secret().as_bytes())
+    }
+}
+
+impl fmt::Debug for RehearsalBearer {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("RehearsalBearer([REDACTED])")
+    }
+}
+
 /// Declares one LLP 0055 credential newtype that rides the shared 32-byte +
 /// CRC-32 bearer spelling under a dedicated, prefix-free class prefix. Every
 /// class carries a distinct prefix so structural dispatch is unambiguous, a
@@ -564,6 +598,8 @@ pub enum CredentialClass {
     SenderSession,
     /// `sbic_` — the operator-plane impersonation-capability carrier (LLP 0057).
     ImpersonationCapability,
+    /// `sbrc_` — finite auth-rehearsal grant authority (LLP 0213).
+    RehearsalCapability,
     /// `sbac_` — long-lived agent credential (LLP 0055).
     AgentCredential,
     /// `sbagt_` — short-lived scoped token (LLP 0055).
@@ -611,6 +647,7 @@ impl CredentialClass {
             Self::Session => SESSION_PREFIX,
             Self::SenderSession => SENDER_SESSION_PREFIX,
             Self::ImpersonationCapability => IMPERSONATION_PREFIX,
+            Self::RehearsalCapability => REHEARSAL_CAPABILITY_PREFIX,
             Self::AgentCredential => AGENT_CREDENTIAL_PREFIX,
             Self::ScopedToken => SCOPED_TOKEN_PREFIX,
             Self::CreationInvitation => CREATION_INVITATION_PREFIX,
@@ -666,6 +703,10 @@ pub const REGISTERED_CREDENTIAL_PREFIXES: &[(&str, CredentialClass)] = &[
     (
         IMPERSONATION_PREFIX,
         CredentialClass::ImpersonationCapability,
+    ),
+    (
+        REHEARSAL_CAPABILITY_PREFIX,
+        CredentialClass::RehearsalCapability,
     ),
     (AGENT_CREDENTIAL_PREFIX, CredentialClass::AgentCredential),
     (SCOPED_TOKEN_PREFIX, CredentialClass::ScopedToken),
@@ -1090,6 +1131,10 @@ mod tests {
             .unwrap()
             .expose_secret()
             .to_string();
+        let rehearsal = RehearsalBearer::generate(&random)
+            .unwrap()
+            .expose_secret()
+            .to_string();
         let credential = AgentCredential::generate(&random)
             .unwrap()
             .expose_secret()
@@ -1111,10 +1156,11 @@ mod tests {
             .expose_secret()
             .to_string();
 
-        let samples: [(CredentialClass, &str); 8] = [
+        let samples: [(CredentialClass, &str); 9] = [
             (CredentialClass::Session, &session),
             (CredentialClass::SenderSession, &sender_session),
             (CredentialClass::ImpersonationCapability, &impersonation),
+            (CredentialClass::RehearsalCapability, &rehearsal),
             (CredentialClass::AgentCredential, &credential),
             (CredentialClass::ScopedToken, &token),
             (CredentialClass::CreationInvitation, &creation),
@@ -1137,6 +1183,7 @@ mod tests {
                     CredentialClass::ImpersonationCapability => {
                         ImpersonationBearer::parse(other).is_ok()
                     }
+                    CredentialClass::RehearsalCapability => RehearsalBearer::parse(other).is_ok(),
                     CredentialClass::AgentCredential => AgentCredential::parse(other).is_ok(),
                     CredentialClass::ScopedToken => ScopedToken::parse(other).is_ok(),
                     CredentialClass::CreationInvitation => CreationInvitation::parse(other).is_ok(),

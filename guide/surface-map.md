@@ -193,6 +193,10 @@ here (or listed here but gone from the code).
 | host_ops.asset.exportCut | notAuthorFacing (operator consistent-cut export) |
 | host_ops.asset.importCut | notAuthorFacing (operator consistent-cut restore) |
 | host_ops.auth.mintSession | operating.host-ops |
+| host_ops.auth.rehearsal.mint | notAuthorFacing (finite local auth rehearsal authority, LLP 0213) |
+| host_ops.auth.rehearsal.exercise | notAuthorFacing (finite local auth rehearsal authority, LLP 0213) |
+| host_ops.auth.rehearsal.revoke | notAuthorFacing (finite local auth rehearsal authority, LLP 0213) |
+| host_ops.auth.rehearsal.status | notAuthorFacing (finite local auth rehearsal authority, LLP 0213) |
 | host_ops.auth.rescueCollidingTable | operating.host-ops |
 | host_ops.auth.integrationRetire | auth.agent-principals |
 | host_ops.auth.integrationSuspend | auth.agent-principals |

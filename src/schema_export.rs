@@ -23,6 +23,10 @@ use crate::auth::deployment::{
 };
 use crate::auth::handshake::AuthSessionResponse;
 use crate::auth::lease::AuthorizedLease;
+use crate::auth::rehearsal::{
+    AuthRehearsalGrantV1, RehearsalExerciseRequestV1, RehearsalMintRequestV1,
+    RehearsalMintResultV1, RehearsalRevokeRequestV1, RehearsalStatusRequestV1,
+};
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
     MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
@@ -857,6 +861,34 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "auth.mint-session.input.schema.json",
             schemars::schema_for!(MintSessionRequest),
+        ),
+        finish(
+            "auth.rehearsal-grant.v1.schema.json",
+            schemars::schema_for!(AuthRehearsalGrantV1),
+        ),
+        finish(
+            "auth.rehearsal-mint.input.v1.schema.json",
+            schemars::schema_for!(RehearsalMintRequestV1),
+        ),
+        finish(
+            "auth.rehearsal-mint.output.v1.schema.json",
+            schemars::schema_for!(RehearsalMintResultV1),
+        ),
+        finish(
+            "auth.rehearsal-exercise.input.v1.schema.json",
+            schemars::schema_for!(RehearsalExerciseRequestV1),
+        ),
+        finish(
+            "auth.rehearsal-revoke.input.v1.schema.json",
+            schemars::schema_for!(RehearsalRevokeRequestV1),
+        ),
+        finish(
+            "auth.rehearsal-status.input.v1.schema.json",
+            schemars::schema_for!(RehearsalStatusRequestV1),
+        ),
+        finish(
+            "auth.rehearsal-status.output.v1.schema.json",
+            schemars::schema_for!(crate::storage::auth_rehearsal::RehearsalStatusV1),
         ),
         finish(
             "auth.rescue-colliding-table.input.schema.json",

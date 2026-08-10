@@ -7629,6 +7629,10 @@ pub enum CredentialResolution {
     ConnectionGrantHeaderOrDevQuery,
     BoundConnectionGrant,
     AdminCredential,
+    /// Exact `sbrc_` capability carried only by a registered local rehearsal
+    /// operation. Resolution remains operation-specific so it cannot become a
+    /// general Authorization bearer.
+    RehearsalCapability,
     OptionalSessionBearer,
     OptionalSessionOrScopedToken,
     RequiredSessionBearer,
@@ -7671,6 +7675,8 @@ pub enum EffectPolicy {
     SecretReadMintProof,
     ImpersonationCapability,
     AgentDestroyCapability,
+    /// Exact effect and quota come from the resolved rehearsal grant.
+    RehearsalGrant,
     Unavailable,
 }
 
@@ -7996,7 +8002,10 @@ impl RouteSpec {
                         | RoutePolicy::AdminWrite
                         | RoutePolicy::AdminSecretRead
                         | RoutePolicy::SessionAuth
-                ) {
+                ) && !(self.path_policy == RoutePolicy::Public
+                    && self.credential_resolution == CredentialResolution::RehearsalCapability
+                    && self.effect_policy == EffectPolicy::RehearsalGrant)
+                {
                     return fail("system API has a non-system path policy");
                 }
             }
@@ -8014,6 +8023,7 @@ impl RouteSpec {
                     | CredentialResolution::ScopedTokenReleaseBody
                     | CredentialResolution::FamilyAlarmBearer
                     | CredentialResolution::SignedUrlToken
+                    | CredentialResolution::RehearsalCapability
                     | CredentialResolution::OperationSpecific
             ),
             RoutePolicy::AppAuth => {
@@ -8076,6 +8086,17 @@ impl RouteSpec {
         {
             return fail(
                 "challenge proof must be public, install no caller, and return only a credential-secret response",
+            );
+        }
+        if self.credential_resolution == CredentialResolution::RehearsalCapability
+            && (self.method != "OPERATION"
+                || self.path_policy != RoutePolicy::Public
+                || self.invocation_authority != InvocationAuthority::Operator
+                || self.effect_policy != EffectPolicy::RehearsalGrant
+                || self.response_sensitivity != ResponseSensitivity::CredentialSecret)
+        {
+            return fail(
+                "rehearsal capability must be an operator operation with an exact grant effect and credential-secret response",
             );
         }
         if self.credential_resolution == CredentialResolution::AgentCredentialBody
@@ -8229,6 +8250,7 @@ impl RouteSpec {
                     // The signed-URL token is authority-complete on its own;
                     // sessions mode changes nothing about the lane.
                     | CredentialResolution::SignedUrlToken
+                    | CredentialResolution::RehearsalCapability
                     | CredentialResolution::OperationSpecific
             ),
             RoutePolicy::AppAuth => false,
@@ -10044,6 +10066,13 @@ async fn select_http_operation(
             let Some(operation) = fields.get("operation").and_then(Value::as_str) else {
                 return HttpOperationSelection::Indeterminate;
             };
+            if runtime.server.profile == crate::admin::ServerProfile::Prod
+                && operation.starts_with("auth.rehearsal.")
+            {
+                return host_ops_operation_spec(operation, None, false)
+                    .map(HttpOperationSelection::Selected)
+                    .unwrap_or(HttpOperationSelection::UnknownHost);
+            }
             let function = fields.get("function").and_then(Value::as_str);
             let kind = if let Some(function) = function {
                 let function = function.to_owned();
@@ -10100,6 +10129,39 @@ fn auth_transition_pending(runtime: &AppState) -> bool {
         || state.mode_state != crate::auth::mode::AuthModeStatus::Settled
         || state.app_data_availability != crate::auth::mode::AppDataAvailability::Available
         || posture.active != posture.desired
+}
+
+fn authorize_deferred_operation_preflight(
+    runtime: &AppState,
+    headers: &HeaderMap,
+    allow_public_rehearsal_class: bool,
+) -> Result<(), ApiError> {
+    match runtime.active_policy_auth_mode() {
+        PolicyAuthMode::Dev => crate::admin::authorize_for_mode(
+            &runtime.server,
+            headers,
+            false,
+            PolicyAuthMode::Dev,
+        ),
+        PolicyAuthMode::Sessions => {
+            let admin = crate::admin::authorize_for_mode(
+                &runtime.server,
+                headers,
+                true,
+                PolicyAuthMode::Sessions,
+            );
+            if admin.is_ok()
+                || authorize_secret_read(&runtime.secret_reads, headers).is_ok()
+                || allow_public_rehearsal_class
+            {
+                Ok(())
+            } else {
+                // One stable outer denial avoids turning the preflight into
+                // an oracle for lease validity or operation kind.
+                admin
+            }
+        }
+    }
 }
 
 fn settled_function_load_mode(runtime: &AppState) -> SnapbackResult<AuthMode> {
@@ -12393,52 +12455,6 @@ async fn enforce_registered_route_policy_inner(
         effective.effect_policy,
         EffectPolicy::FunctionKind | EffectPolicy::OperationSpecific
     );
-    // @ref LLP 0031#enforcement — the direct runner and host-ops multiplexer
-    // must authenticate an authority that could satisfy one of their branches
-    // before parsing the branch selector or looking up a function kind. The
-    // public app.ensure attestation/provisioning multiplexer is intentionally
-    // excluded and retains its operation-local posture gate below.
-    if operation_deferred
-        && matches!(
-            spec.path,
-            "/_snapback/api/functions/{name}/run" | "/_snapback/api/host-ops"
-        )
-    {
-        let coarse_authorization = match policy_mode {
-            PolicyAuthMode::Dev => crate::admin::authorize_for_mode(
-                &runtime.server,
-                request.headers(),
-                false,
-                PolicyAuthMode::Dev,
-            ),
-            PolicyAuthMode::Sessions => {
-                let admin = crate::admin::authorize_for_mode(
-                    &runtime.server,
-                    request.headers(),
-                    true,
-                    PolicyAuthMode::Sessions,
-                );
-                if admin.is_ok()
-                    || authorize_secret_read(&runtime.secret_reads, request.headers()).is_ok()
-                {
-                    Ok(())
-                } else {
-                    // One stable outer denial avoids turning the preflight
-                    // into an oracle for lease validity or operation kind.
-                    admin
-                }
-            }
-        };
-        if let Err(error) = coarse_authorization {
-            return finish_registered_response(
-                effective,
-                error.into_response(),
-                route_admission.as_ref(),
-                None,
-            );
-        }
-    }
-
     let connection_id_in_body = effective.path_policy == RoutePolicy::ConnectionAuth
         && connection_id_from_request_path(request.uri().path()).is_none();
     // The TUS PATCH body is an opaque `application/offset+octet-stream`
@@ -12475,12 +12491,26 @@ async fn enforce_registered_route_policy_inner(
         } else {
             POLICY_BODY_PEEK_LIMIT
         };
+        let malformed_deferred_preflight = (operation_deferred
+            && matches!(
+                spec.path,
+                "/_snapback/api/functions/{name}/run" | "/_snapback/api/host-ops"
+            ))
+        .then(|| authorize_deferred_operation_preflight(&runtime, request.headers(), false));
         match peek_policy_json_body(request, policy_peek_limit).await {
             Ok((rebuilt, body)) => {
                 request = rebuilt;
                 policy_body = body;
             }
             Err(error) => {
+                if let Some(Err(preflight)) = malformed_deferred_preflight {
+                    return finish_registered_response(
+                        effective,
+                        preflight.into_response(),
+                        route_admission.as_ref(),
+                        None,
+                    );
+                }
                 // A guarded ingest refusal outranks the peek's size-bound
                 // shape error: the buffering was cut by the ingest deadline or
                 // an epoch close, not by the request exceeding the limit. The
@@ -12545,6 +12575,43 @@ async fn enforce_registered_route_policy_inner(
                     None,
                 );
             }
+        }
+    }
+    // @ref LLP 0031#enforcement — direct-runner and host-op branches retain
+    // their coarse authority floor before function-kind lookup. The one exact
+    // public exception is the declared `auth.rehearsal.exercise` operation:
+    // its bounded operation selector may pass without inspecting any carrier,
+    // then the selected handler resolves all rehearsal authority. This keeps
+    // absent, malformed, expired, and unknown carriers non-enumerating.
+    // @ref LLP 0213#prefix-class-refusal
+    if operation_deferred
+        && matches!(
+            spec.path,
+            "/_snapback/api/functions/{name}/run" | "/_snapback/api/host-ops"
+        )
+    {
+        let selected_name = policy_body
+            .as_ref()
+            .and_then(Value::as_object)
+            .and_then(|fields| fields.get("operation"))
+            .and_then(Value::as_str);
+        let public_rehearsal_class = spec.path == "/_snapback/api/host-ops"
+            && selected_name.is_some_and(|operation| {
+                operation == "auth.rehearsal.exercise"
+                    || (runtime.server.profile == crate::admin::ServerProfile::Prod
+                        && operation.starts_with("auth.rehearsal."))
+            });
+        if let Err(error) = authorize_deferred_operation_preflight(
+            &runtime,
+            request.headers(),
+            public_rehearsal_class,
+        ) {
+            return finish_registered_response(
+                effective,
+                error.into_response(),
+                route_admission.as_ref(),
+                None,
+            );
         }
     }
     if let Err(response) = charge_hosted_body_auth_attempt(
@@ -12819,7 +12886,16 @@ async fn enforce_registered_route_policy_inner(
             HttpOperationSelection::Selected(operation) => {
                 let operation_policy = operation.effective_for(policy_mode);
                 selected_operation = Some((operation, operation_policy));
-                if operation_policy.legacy_body_policy == LegacyBodyPolicy::Rejected
+                if runtime.server.profile == crate::admin::ServerProfile::Prod
+                    && operation.operation.starts_with("host_ops.auth.rehearsal.")
+                {
+                    // The typed handler emits the one profile refusal. This
+                    // deliberate authorization bypass exists only in prod,
+                    // where the rehearsal operation class is itself
+                    // forbidden before every credential or body-detail check.
+                    // @ref LLP 0213#prefix-class-refusal
+                    Ok(())
+                } else if operation_policy.legacy_body_policy == LegacyBodyPolicy::Rejected
                     && let Some(field) = policy_body.as_ref().and_then(legacy_body_auth_field)
                 {
                     Err(body_auth_unsupported(field))
@@ -12883,6 +12959,11 @@ async fn enforce_registered_route_policy_inner(
     let selected_policy = selected_operation
         .map(|(_, operation_policy)| operation_policy)
         .unwrap_or(effective);
+    let production_rehearsal_operation = runtime.server.profile
+        == crate::admin::ServerProfile::Prod
+        && selected_operation.is_some_and(|(operation, _)| {
+            operation.operation.starts_with("host_ops.auth.rehearsal.")
+        });
     let response_policy = if selected_operation.is_some()
         && !matches!(
             effective.response_sensitivity,
@@ -12956,7 +13037,9 @@ async fn enforce_registered_route_policy_inner(
         // legacy load carriers are one-half provisioning, never raw swaps.
         route_admission.take();
     }
-    if selected_policy.effect_policy == EffectPolicy::ImpersonationCapability {
+    if selected_policy.effect_policy == EffectPolicy::ImpersonationCapability
+        && !production_rehearsal_operation
+    {
         if !runtime.server.profile.allows_provisioning() {
             let diagnostic = crate::admin::operation_profile_diagnostic(
                 runtime.server.profile,
@@ -17423,6 +17506,58 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             },
         ),
         operation(
+            "host_ops.auth.rehearsal.mint",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::ImpersonationCapability,
+            ResponseSensitivity::CredentialSecret,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
+            "host_ops.auth.rehearsal.exercise",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::Public,
+            CredentialResolution::RehearsalCapability,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::RehearsalGrant,
+            ResponseSensitivity::CredentialSecret,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
+            "host_ops.auth.rehearsal.revoke",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::ImpersonationCapability,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
+            "host_ops.auth.rehearsal.status",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminRead,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
             "host_ops.auth.rescueCollidingTable",
             "/_snapback/api/host-ops",
             HostOps,
@@ -17730,6 +17865,10 @@ pub(crate) fn host_ops_operation_spec(
         "schema.load" => "host_ops.schema.load",
         "functions.load" => "host_ops.functions.load",
         "auth.mintSession" => "host_ops.auth.mintSession",
+        "auth.rehearsal.mint" => "host_ops.auth.rehearsal.mint",
+        "auth.rehearsal.exercise" => "host_ops.auth.rehearsal.exercise",
+        "auth.rehearsal.revoke" => "host_ops.auth.rehearsal.revoke",
+        "auth.rehearsal.status" => "host_ops.auth.rehearsal.status",
         "auth.rescueCollidingTable" => "host_ops.auth.rescueCollidingTable",
         "auth.integrationRetire" => "host_ops.auth.integrationRetire",
         "auth.integrationSuspend" => "host_ops.auth.integrationSuspend",
@@ -18783,6 +18922,45 @@ pub(crate) fn project_auth_runtime_facts(inspect: &mut InspectState, runtime: &A
             serde_json::to_value(runtime.auth_program_readiness())
                 .expect("AuthProgramReadiness is infallibly serializable"),
         );
+    let rehearsal_status = if runtime.server.profile == crate::admin::ServerProfile::Prod {
+        "absent"
+    } else {
+        let mode = runtime.auth_mode_state();
+        let available = mode.active == crate::manifest::AuthMode::Sessions
+            && mode.desired == crate::manifest::AuthMode::Sessions
+            && mode.mode_state == crate::auth::mode::AuthModeStatus::Settled
+            && mode.app_data_availability == crate::auth::mode::AppDataAvailability::Available
+            && runtime.auth_catalog_ready
+            && runtime
+                .auth_provider
+                .as_ref()
+                .is_some_and(|provider| provider.readiness() == AuthProviderReadiness::Available);
+        if !available {
+            "absent"
+        } else {
+            let now_ms = now_millis();
+            let mut live = runtime
+                .auth_rehearsal_live_grants
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            live.retain(|_, expires_at| *expires_at > now_ms);
+            if live.is_empty() {
+                "available"
+            } else {
+                "active"
+            }
+        }
+    };
+    // @ref LLP 0213#capability-manifest — the public capability projection
+    //   distinguishes absent, available, and active without exposing grant ids,
+    //   carriers, selectors, or remaining budgets.
+    facts
+        .as_object_mut()
+        .expect("runtime facts were normalized to an object")
+        .insert(
+            "authRehearsal".to_owned(),
+            json!({ "status": rehearsal_status }),
+        );
     // @ref LLP 0098#41-composition — a hosted deployment publishes the tuple
     // carried by its *verified* admission; a local target keeps the
     // all-negative build default. The descriptor is therefore a property of a
@@ -19138,6 +19316,80 @@ async fn auth_host_result(
     .await
 }
 
+fn rehearsal_host_operation_input<T: serde::de::DeserializeOwned>(
+    request: &crate::host_ops::HostOpsRequest,
+) -> Result<T, SnapbackError> {
+    let has_unrelated_fields = request.schema.is_some()
+        || request.functions.is_some()
+        || request.seed.is_some()
+        || request.function.is_some()
+        || request.user_id.is_some()
+        || request.kind.is_some()
+        || request.input.is_some();
+    let Some(args) = request.args.clone().filter(|_| !has_unrelated_fields) else {
+        return Err(crate::auth::rehearsal::request_invalid());
+    };
+    serde_json::from_value(args).map_err(|_| crate::auth::rehearsal::request_invalid())
+}
+
+async fn rehearsal_binding_facts(
+    runtime: &AppState,
+) -> SnapbackResult<crate::auth::rehearsal::RehearsalBindingFacts> {
+    let mode = runtime.auth_mode_state();
+    let sessions_settled_available = mode.active == crate::manifest::AuthMode::Sessions
+        && mode.desired == crate::manifest::AuthMode::Sessions
+        && mode.mode_state == crate::auth::mode::AuthModeStatus::Settled
+        && mode.app_data_availability == crate::auth::mode::AppDataAvailability::Available
+        && runtime.auth_catalog_ready
+        && runtime
+            .auth_provider
+            .as_ref()
+            .is_some_and(|provider| provider.readiness() == AuthProviderReadiness::Available);
+    let active = mode
+        .active_deployment
+        .as_ref()
+        .ok_or_else(crate::auth::rehearsal::binding_mismatch)?;
+    let activation_digest = crate::auth::rehearsal::digest_serializable(
+        b"snapback.auth-rehearsal.activation.v1\0",
+        active,
+    )?;
+    let (instance_id, app_id) = with_snapback(&runtime.snapback, |snapback| {
+        Ok::<_, SnapbackError>((
+            snapback.auth_rehearsal_instance_id()?,
+            snapback.loaded_app_id(),
+        ))
+    })
+    .await?;
+    Ok(crate::auth::rehearsal::RehearsalBindingFacts {
+        instance_id,
+        boot_nonce: runtime.server_startup_nonce().to_owned(),
+        app_id,
+        activation_digest,
+        sessions_mode_generation: mode.transition_generation,
+        deployment_profile: crate::auth::rehearsal::RehearsalDeploymentProfile::from_server(
+            runtime.server.profile,
+        ),
+        sessions_settled_available,
+    })
+}
+
+fn rehearsal_carrier_hash(runtime: &AppState, headers: &HeaderMap) -> SnapbackResult<[u8; 32]> {
+    // @ref LLP 0213#prefix-class-refusal — production classifies the `sbrc_`
+    //   operation and refuses before CRC parsing, hashing, or protected lookup.
+    if runtime.server.profile == crate::admin::ServerProfile::Prod {
+        return Err(crate::auth::rehearsal::profile_forbidden());
+    }
+    let presented = single_header_value(
+        headers,
+        crate::auth::rehearsal::AUTH_REHEARSAL_CAPABILITY_HEADER,
+    )
+    .ok_or_else(crate::auth::rehearsal::carrier_required)?;
+    let carrier = crate::auth::crypto::RehearsalBearer::parse(presented)
+        .map_err(|_| crate::auth::rehearsal::carrier_required())?;
+    let digest = carrier.token_hash();
+    Ok(*digest.as_bytes())
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct IntegrationOperatorRequest {
@@ -19182,6 +19434,23 @@ async fn execute_auth_host_operation(
     request: crate::host_ops::HostOpsRequest,
     server_url: Option<String>,
 ) -> Result<crate::host_ops::HostOpsResult, ApiError> {
+    // Production refuses the operation class before request parsing, carrier
+    // parsing/CRC, hashing, admin or impersonation credential validation,
+    // provider inspection, or protected lookup. This keeps absent,
+    // malformed, expired, and unknown carriers indistinguishable.
+    // @ref LLP 0213#prefix-class-refusal
+    if runtime.server.profile == crate::admin::ServerProfile::Prod
+        && request.operation.starts_with("auth.rehearsal.")
+    {
+        return Ok(auth_host_result(
+            runtime,
+            request,
+            server_url,
+            Err(crate::auth::rehearsal::profile_forbidden()),
+        )
+        .await);
+    }
+
     crate::admin::authorize_host_operation(
         &runtime.server,
         headers,
@@ -19194,7 +19463,10 @@ async fn execute_auth_host_operation(
     )?;
     crate::admin::require_operation_profile(&runtime.server, &request.operation, false)?;
 
-    if request.operation == "auth.mintSession" {
+    if matches!(
+        request.operation.as_str(),
+        "auth.mintSession" | "auth.rehearsal.mint" | "auth.rehearsal.exercise"
+    ) {
         let mode = runtime.auth_mode_state();
         if mode.active != crate::manifest::AuthMode::Sessions
             || mode.desired != crate::manifest::AuthMode::Sessions
@@ -19214,6 +19486,275 @@ async fn execute_auth_host_operation(
     }
 
     match request.operation.as_str() {
+        "auth.rehearsal.mint" => {
+            let args = match rehearsal_host_operation_input::<
+                crate::auth::rehearsal::RehearsalMintRequestV1,
+            >(&request)
+            {
+                Ok(args) => args,
+                Err(error) => {
+                    return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                }
+            };
+            if runtime.server.profile == crate::admin::ServerProfile::Prod {
+                return Ok(auth_host_result(
+                    runtime,
+                    request,
+                    server_url,
+                    Err(crate::auth::rehearsal::profile_forbidden()),
+                )
+                .await);
+            }
+            let Some(provider) = runtime.auth_provider.as_ref() else {
+                return Ok(auth_host_result(
+                    runtime,
+                    request,
+                    server_url,
+                    Err(crate::auth::rehearsal::profile_forbidden()),
+                )
+                .await);
+            };
+            let now_ms = provider.now_ms();
+            let bindings = match rehearsal_binding_facts(runtime).await {
+                Ok(bindings) if bindings.sessions_settled_available => bindings,
+                Ok(_) => {
+                    return Ok(auth_host_result(
+                        runtime,
+                        request,
+                        server_url,
+                        Err(crate::auth::rehearsal::binding_mismatch()),
+                    )
+                    .await);
+                }
+                Err(error) => {
+                    return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                }
+            };
+            let carrier =
+                match crate::auth::rehearsal::generate_carrier(provider.agent_random_source()) {
+                    Ok(carrier) => carrier,
+                    Err(_) => {
+                        return Ok(auth_host_result(
+                            runtime,
+                            request,
+                            server_url,
+                            Err(crate::auth::rehearsal::namespace_unavailable()),
+                        )
+                        .await);
+                    }
+                };
+            let outcome = with_snapback(&runtime.snapback, move |snapback| {
+                snapback
+                    .auth_database_mut()
+                    .auth_rehearsal_mint(crate::storage::auth_rehearsal::RehearsalMintPlan {
+                        request: args,
+                        bindings,
+                        carrier,
+                        now_ms,
+                    })
+                    .map(crate::auth::rehearsal::MintedRehearsalGrant::into_value)
+            })
+            .await;
+            if let Ok(value) = &outcome
+                && let (Some(grant_id), Some(expires_at)) = (
+                    value.pointer("/grant/grantId").and_then(Value::as_str),
+                    value.pointer("/grant/expiresAt").and_then(Value::as_u64),
+                )
+            {
+                runtime
+                    .auth_rehearsal_live_grants
+                    .write()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .insert(grant_id.to_owned(), expires_at);
+            }
+            Ok(auth_host_result(runtime, request, server_url, outcome).await)
+        }
+        "auth.rehearsal.status" => {
+            let args = match rehearsal_host_operation_input::<
+                crate::auth::rehearsal::RehearsalStatusRequestV1,
+            >(&request)
+            {
+                Ok(args) => args,
+                Err(error) => {
+                    return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                }
+            };
+            let now_ms = runtime
+                .auth_provider
+                .as_ref()
+                .map_or_else(now_millis, |provider| provider.now_ms());
+            let outcome = if runtime.auth_catalog_ready {
+                with_snapback(&runtime.snapback, move |snapback| {
+                    snapback
+                        .auth_database_mut()
+                        .auth_rehearsal_status(args.grant_id.as_deref(), now_ms)
+                        .and_then(|status| {
+                            serde_json::to_value(status)
+                                .map_err(|_| crate::auth::rehearsal::request_invalid())
+                        })
+                })
+                .await
+            } else {
+                Ok(json!({ "kind": "authRehearsalStatus.v1", "grants": [] }))
+            };
+            Ok(auth_host_result(runtime, request, server_url, outcome).await)
+        }
+        "auth.rehearsal.revoke" => {
+            let args = match rehearsal_host_operation_input::<
+                crate::auth::rehearsal::RehearsalRevokeRequestV1,
+            >(&request)
+            {
+                Ok(args) if !args.grant_id.is_empty() => args,
+                _ => {
+                    return Ok(auth_host_result(
+                        runtime,
+                        request,
+                        server_url,
+                        Err(crate::auth::rehearsal::request_invalid()),
+                    )
+                    .await);
+                }
+            };
+            let now_ms = runtime
+                .auth_provider
+                .as_ref()
+                .map_or_else(now_millis, |provider| provider.now_ms());
+            let revoked_grant_id = args.grant_id.clone();
+            let outcome = if runtime.auth_catalog_ready {
+                with_snapback(&runtime.snapback, move |snapback| {
+                    snapback
+                        .auth_database_mut()
+                        .auth_rehearsal_revoke(&args.grant_id, now_ms)
+                        .and_then(|status| {
+                            serde_json::to_value(status)
+                                .map_err(|_| crate::auth::rehearsal::request_invalid())
+                        })
+                })
+                .await
+            } else {
+                Err(crate::auth::rehearsal::authority_ended())
+            };
+            if outcome.is_ok() {
+                runtime
+                    .auth_rehearsal_live_grants
+                    .write()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .remove(&revoked_grant_id);
+            }
+            Ok(auth_host_result(runtime, request, server_url, outcome).await)
+        }
+        "auth.rehearsal.exercise" => {
+            let carrier_hash = match rehearsal_carrier_hash(runtime, headers) {
+                Ok(hash) => hash,
+                Err(error) => {
+                    return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                }
+            };
+            let args = match rehearsal_host_operation_input::<
+                crate::auth::rehearsal::RehearsalExerciseRequestV1,
+            >(&request)
+            {
+                Ok(args) => args,
+                Err(error) => {
+                    return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                }
+            };
+            let Some(provider) = runtime.auth_provider.clone() else {
+                return Ok(auth_host_result(
+                    runtime,
+                    request,
+                    server_url,
+                    Err(crate::auth::rehearsal::binding_mismatch()),
+                )
+                .await);
+            };
+            let now_ms = provider.now_ms();
+            let bindings = match rehearsal_binding_facts(runtime).await {
+                Ok(bindings) => bindings,
+                Err(error) => {
+                    return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                }
+            };
+            let resolve_bindings = bindings.clone();
+            let resolved = with_snapback(&runtime.snapback, move |snapback| {
+                snapback.auth_database_mut().auth_rehearsal_resolve(
+                    &carrier_hash,
+                    &resolve_bindings,
+                    now_ms,
+                )
+            })
+            .await;
+            if let Err(error) = resolved {
+                return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+            }
+
+            let mut resolved_contact = None;
+            let mut semantic_success = false;
+            let mut effect_outcome = serde_json::Value::Object(Default::default());
+            match &args {
+                crate::auth::rehearsal::RehearsalExerciseRequestV1::ChallengeCapture {
+                    challenge_id,
+                    ..
+                } => {
+                    if let Ok(mailbox) = provider.mailbox_entry(challenge_id).await
+                        && let Ok(address) = crate::auth::crypto::CanonicalAddress::parse(
+                            mailbox.canonical_address(),
+                        )
+                        && let Ok(value) = serde_json::to_value(mailbox)
+                    {
+                        resolved_contact = Some(address);
+                        semantic_success = true;
+                        effect_outcome = value;
+                    }
+                }
+                crate::auth::rehearsal::RehearsalExerciseRequestV1::ChallengeRedeem {
+                    challenge_id,
+                    ..
+                } => {
+                    let admission = provider.admit().await;
+                    let challenge_id = challenge_id.clone();
+                    let coordination = with_snapback(&runtime.snapback, move |snapback| {
+                        admission.exchange_coordination(snapback.auth_database_mut(), &challenge_id)
+                    })
+                    .await;
+                    if let Ok(Some(coordination)) = coordination {
+                        resolved_contact = Some(coordination.address().clone());
+                    }
+                    // Derived-session provenance/termination is not yet wired;
+                    // refuse before exchange can mint an ungoverned session.
+                }
+                _ => {
+                    resolved_contact = args.contact()?.map(|(address, _)| address);
+                    // Fixture identity/session effects stay fail-closed until
+                    // their protected provenance + level-triggered session
+                    // authority hook can join first-login linearization.
+                }
+            }
+            let exercise = crate::storage::auth_rehearsal::RehearsalExercisePlan {
+                carrier_hash,
+                bindings,
+                request: args,
+                resolved_contact,
+                semantic_success,
+                outcome: effect_outcome,
+                now_ms,
+            };
+            let outcome = with_snapback(&runtime.snapback, move |snapback| {
+                snapback
+                        .auth_database_mut()
+                        .auth_rehearsal_exercise(exercise)
+                        .map(|outcome| match outcome {
+                            crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Fresh(
+                                value,
+                            )
+                            | crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Replay(
+                                value,
+                            ) => value,
+                        })
+            })
+            .await;
+            Ok(auth_host_result(runtime, request, server_url, outcome).await)
+        }
         "auth.mintSession" => {
             let args = match auth_host_operation_input::<MintSessionRequest>(&request) {
                 Ok(args) => args,
@@ -19474,6 +20015,10 @@ async fn host_ops_handler_inner(
     if matches!(
         request.operation.as_str(),
         "auth.mintSession"
+            | "auth.rehearsal.mint"
+            | "auth.rehearsal.exercise"
+            | "auth.rehearsal.revoke"
+            | "auth.rehearsal.status"
             | "auth.rescueCollidingTable"
             | "auth.integrationRetire"
             | "auth.integrationSuspend"
@@ -20961,6 +21506,11 @@ async fn coordinated_app_reset_inner(
     })
     .await;
     runtime.secret_reads.clear_after_committed_reset();
+    runtime
+        .auth_rehearsal_live_grants
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clear();
 
     // Active sessions owns an authenticated invalidation issuer. Active dev
     // deliberately does not, even when a ReadyV1 catalog is present (for

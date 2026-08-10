@@ -307,6 +307,10 @@ impl MailboxResponse {
             expires_at,
         }
     }
+
+    pub(crate) fn canonical_address(&self) -> &str {
+        &self.canonical_address
+    }
 }
 
 impl fmt::Debug for MailboxResponse {

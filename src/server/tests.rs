@@ -1127,6 +1127,392 @@ fn bound_loopback_context() -> ServerContext {
 }
 
 #[test]
+fn production_rehearsal_carrier_refusal_precedes_shape_validation() {
+    let mut context = ServerContext::detached();
+    context.profile = ServerProfile::Prod;
+    let state = AppState::from_snapback(
+        LocalSnapback::memory().expect("production rehearsal prevalidation fixture"),
+        context,
+    );
+    let absent = super::rehearsal_carrier_hash(&state, &HeaderMap::new()).unwrap_err();
+    let mut malformed_headers = HeaderMap::new();
+    malformed_headers.insert(
+        crate::auth::rehearsal::AUTH_REHEARSAL_CAPABILITY_HEADER,
+        HeaderValue::from_static("sbrc_deliberately-malformed"),
+    );
+    let malformed = super::rehearsal_carrier_hash(&state, &malformed_headers).unwrap_err();
+    assert_eq!(
+        absent.diagnostic.code,
+        "SNAPBACK_AUTH_REHEARSAL_PROFILE_FORBIDDEN"
+    );
+    assert_eq!(malformed.diagnostic, absent.diagnostic);
+}
+
+#[test]
+fn rehearsal_operations_pin_each_independent_authority_axis() {
+    let mint = super::host_ops_operation_spec("auth.rehearsal.mint", None, false)
+        .expect("registered rehearsal mint");
+    assert_eq!(mint.path_policy, RoutePolicy::AdminWrite);
+    assert_eq!(
+        mint.credential_resolution,
+        super::CredentialResolution::AdminCredential
+    );
+    assert_eq!(
+        mint.effect_policy,
+        super::EffectPolicy::ImpersonationCapability
+    );
+    assert_eq!(
+        mint.response_sensitivity,
+        super::ResponseSensitivity::CredentialSecret
+    );
+
+    let exercise = super::host_ops_operation_spec("auth.rehearsal.exercise", None, false)
+        .expect("registered rehearsal exercise");
+    assert_eq!(exercise.path_policy, RoutePolicy::Public);
+    assert_eq!(
+        exercise.credential_resolution,
+        super::CredentialResolution::RehearsalCapability
+    );
+    assert_eq!(exercise.effect_policy, super::EffectPolicy::RehearsalGrant);
+    assert_eq!(
+        exercise.response_sensitivity,
+        super::ResponseSensitivity::CredentialSecret
+    );
+}
+
+#[tokio::test]
+async fn production_rehearsal_operation_refuses_before_admin_and_body_details() {
+    let mut snapback = LocalSnapback::memory().expect("production rehearsal HTTP fixture");
+    let keyring = Arc::new(AuthKeyringStore::in_memory());
+    activate_catalog(
+        snapback.auth_database_mut(),
+        keyring.as_ref(),
+        super::now_millis(),
+        &OsRandom,
+    )
+    .expect("activate auth catalog");
+    let provider = Arc::new(
+        AuthProvider::new(AuthProviderProfile::Test, keyring).expect("construct auth provider"),
+    );
+    let mut context = ServerContext::detached();
+    context.record_bound_address("127.0.0.1:4287".parse().unwrap());
+    context.profile = ServerProfile::Prod;
+    let state = AppState::from_snapback(snapback, context)
+        .with_policy_auth_mode(PolicyAuthMode::Sessions)
+        .with_auth_provider(provider);
+    let router = app(state);
+    let body = serde_json::to_vec(&json!({
+        "operation": "auth.rehearsal.mint",
+        "function": "must-not-be-resolved",
+        "args": { "malformed": true },
+    }))
+    .unwrap();
+    let absent = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/_snapback/api/host-ops")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(body.clone()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let malformed = router
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/_snapback/api/host-ops")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-admin-token", "malformed-admin")
+                .header(
+                    crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER,
+                    "sbic_malformed",
+                )
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(malformed.status(), absent.status());
+    let absent = response_json(absent).await;
+    let malformed = response_json(malformed).await;
+    let absent_diagnostic = absent
+        .pointer("/diagnostic")
+        .or_else(|| absent.pointer("/diagnostics/0"))
+        .expect("typed absent-carrier rehearsal profile diagnostic");
+    let malformed_diagnostic = malformed
+        .pointer("/diagnostic")
+        .or_else(|| malformed.pointer("/diagnostics/0"))
+        .expect("typed malformed-carrier rehearsal profile diagnostic");
+    assert_eq!(
+        absent_diagnostic["code"],
+        "SNAPBACK_AUTH_REHEARSAL_PROFILE_FORBIDDEN"
+    );
+    assert_eq!(malformed_diagnostic, absent_diagnostic);
+}
+
+async fn projected_rehearsal_status(state: &AppState) -> String {
+    let mut inspect = super::inspect_snapback(&state.snapback)
+        .await
+        .expect("inspect rehearsal capability facts");
+    super::project_auth_runtime_facts(&mut inspect, state);
+    inspect
+        .capability_manifest
+        .runtime_facts
+        .expect("runtime facts")["authRehearsal"]["status"]
+        .as_str()
+        .expect("rehearsal status")
+        .to_owned()
+}
+
+#[tokio::test]
+async fn rehearsal_capability_manifest_reports_absent_available_and_active() {
+    let mut snapback = LocalSnapback::memory().expect("rehearsal manifest fixture");
+    let keyring = Arc::new(AuthKeyringStore::in_memory());
+    activate_catalog(
+        snapback.auth_database_mut(),
+        keyring.as_ref(),
+        super::now_millis(),
+        &OsRandom,
+    )
+    .expect("activate auth catalog");
+    let provider = Arc::new(
+        AuthProvider::new(AuthProviderProfile::Test, keyring).expect("construct auth provider"),
+    );
+    let mut context = ServerContext::detached();
+    context.record_bound_address("127.0.0.1:4287".parse().unwrap());
+    context.profile = ServerProfile::Test;
+    let mut state = AppState::from_snapback(snapback, context)
+        .with_auth_provider(provider)
+        .with_auth_runtime_facts(
+            settled_sessions_state(),
+            AuthProgramReadiness::new(true, true, true, true, true, true, true),
+        )
+        .expect("install settled rehearsal sessions posture");
+
+    assert_eq!(projected_rehearsal_status(&state).await, "available");
+    state
+        .auth_rehearsal_live_grants
+        .write()
+        .unwrap()
+        .insert("grant-active".to_owned(), super::now_millis() + 60_000);
+    assert_eq!(projected_rehearsal_status(&state).await, "active");
+    Arc::make_mut(&mut state.server).profile = ServerProfile::Prod;
+    assert_eq!(projected_rehearsal_status(&state).await, "absent");
+}
+
+/// @ref LLP 0213#effect-execution-and-audit — the real provider mailbox is
+/// released through rehearsal only after the protected attempt charge commits;
+/// an exact request-bound retry returns the frozen outcome without new debt.
+#[tokio::test]
+async fn rehearsal_capture_releases_after_charge_and_exact_retry_is_free() {
+    let mut snapback = LocalSnapback::memory().expect("rehearsal capture fixture");
+    let keyring = Arc::new(AuthKeyringStore::in_memory());
+    activate_catalog(
+        snapback.auth_database_mut(),
+        keyring.as_ref(),
+        super::now_millis(),
+        &OsRandom,
+    )
+    .expect("activate rehearsal capture catalog");
+    let provider = Arc::new(
+        AuthProvider::new(AuthProviderProfile::Test, keyring)
+            .expect("construct rehearsal capture provider"),
+    );
+    let (registry, operator) = ImpersonationCapabilityRegistry::generate(
+        "rehearsal-capture-fixture".to_owned(),
+        &OsRandom,
+    )
+    .expect("generate rehearsal capture impersonation capability");
+    let mut impersonation = None;
+    operator
+        .emit_once_to_terminal(|value| {
+            impersonation = Some(value.to_owned());
+            Ok(())
+        })
+        .expect("capture rehearsal test impersonation capability");
+    let impersonation = impersonation.expect("captured rehearsal impersonation capability");
+    let mut context = ServerContext::detached();
+    context.record_bound_address("127.0.0.1:4287".parse().unwrap());
+    context.profile = ServerProfile::Test;
+    context.admin_token = Some("auth-http-admin".to_owned());
+    let state = activate_test_sessions(
+        AppState::from_snapback(snapback, context)
+            .with_policy_auth_mode(PolicyAuthMode::Sessions)
+            .with_impersonation_capabilities(registry)
+            .with_auth_provider(provider),
+    );
+    let email = "rehearsal-capture@example.test";
+    let provider = state.auth_provider.clone().expect("rehearsal provider");
+    let admission = provider
+        .admit_email(email)
+        .await
+        .expect("admit rehearsal capture address");
+    let now_ms = provider.now_ms();
+    let requested = with_snapback(&state.snapback, move |snapback| {
+        admission.request_code(snapback.auth_database_mut(), now_ms)
+    })
+    .await
+    .expect("request rehearsal capture challenge");
+    let challenge_id = requested.challenge_id;
+    let router = app(state);
+    let address = crate::auth::crypto::CanonicalAddress::parse(email).unwrap();
+    let expires_at = super::now_millis() + 60_000;
+    let mint = router
+        .clone()
+        .oneshot(auth_http_request(
+            "POST",
+            "/_snapback/api/host-ops",
+            serde_json::to_vec(&json!({
+                "operation": "auth.rehearsal.mint",
+                "requestId": "hop_rehearsal_capture_mint",
+                "args": {
+                    "scopes": ["challenge.capture"],
+                    "effectSelectors": {
+                        "challenge.capture": {
+                            "contacts": [{
+                                "kind": "exactContact",
+                                "canonicalAddressDigest": crate::auth::rehearsal::contact_digest(&address),
+                            }],
+                        },
+                    },
+                    "limits": {
+                        "challengeAttempts": 2,
+                        "identityCreates": 0,
+                        "sessionMints": 0,
+                        "verificationSimulations": 0,
+                        "windowInstalls": 0,
+                        "clockAdvances": 0,
+                        "allocationCeiling": 0,
+                        "maxUses": 2,
+                    },
+                    "expiresAt": expires_at,
+                    "idempotencyKey": "mint-rehearsal-capture",
+                    "operatorAuditId": "operator-rehearsal-capture",
+                },
+            }))
+            .unwrap(),
+            true,
+            Some("auth-http-admin"),
+            Some(&impersonation),
+        ))
+        .await
+        .expect("mint capture rehearsal grant");
+    assert_eq!(mint.status(), StatusCode::OK);
+    assert_eq!(mint.headers()[header::CACHE_CONTROL], "no-store, private");
+    let mint = response_json(mint).await;
+    assert_eq!(mint["ok"], true, "{mint:#}");
+    let carrier = mint["data"]["carrier"]
+        .as_str()
+        .expect("one-time rehearsal carrier")
+        .to_owned();
+    let grant_id = mint["data"]["grant"]["grantId"]
+        .as_str()
+        .expect("rehearsal grant id")
+        .to_owned();
+
+    let exercise_body = serde_json::to_vec(&json!({
+        "operation": "auth.rehearsal.exercise",
+        "requestId": "hop_rehearsal_capture_exercise",
+        "args": {
+            "effect": "challenge.capture",
+            "idempotencyKey": "capture-rehearsal-code",
+            "challengeId": challenge_id,
+        },
+    }))
+    .unwrap();
+    let capture_request_with = |presented: Option<&str>| {
+        let mut request = auth_http_request(
+            "POST",
+            "/_snapback/api/host-ops",
+            exercise_body.clone(),
+            true,
+            None,
+            None,
+        );
+        if let Some(presented) = presented {
+            request.headers_mut().insert(
+                crate::auth::rehearsal::AUTH_REHEARSAL_CAPABILITY_HEADER,
+                HeaderValue::from_str(presented).unwrap(),
+            );
+        }
+        request
+    };
+    let unknown = crate::auth::crypto::RehearsalBearer::generate(&OsRandom)
+        .unwrap()
+        .expose_secret()
+        .to_owned();
+    let mut carrier_refusal = None;
+    for presented in [
+        None,
+        Some("sbrc_deliberately-malformed"),
+        Some(unknown.as_str()),
+    ] {
+        let response = router
+            .clone()
+            .oneshot(capture_request_with(presented))
+            .await
+            .expect("non-enumerating rehearsal carrier refusal");
+        assert_eq!(response.status(), StatusCode::OK);
+        let response = response_json(response).await;
+        assert_eq!(response["ok"], false, "{response:#}");
+        assert_eq!(
+            response["diagnostics"][0]["code"],
+            "SNAPBACK_AUTH_REHEARSAL_CARRIER_REQUIRED"
+        );
+        match &carrier_refusal {
+            Some(expected) => assert_eq!(&response["diagnostics"], expected),
+            None => carrier_refusal = Some(response["diagnostics"].clone()),
+        }
+    }
+    let capture_request = || capture_request_with(Some(&carrier));
+    let captured = router
+        .clone()
+        .oneshot(capture_request())
+        .await
+        .expect("capture rehearsal code");
+    let captured_status = captured.status();
+    assert_eq!(captured.headers()[header::CACHE_CONTROL], "no-store, private");
+    let captured = response_json(captured).await;
+    assert_eq!(captured_status, StatusCode::OK, "{captured:#}");
+    assert_eq!(captured["ok"], true, "{captured:#}");
+    assert_eq!(captured["data"]["challengeId"], challenge_id);
+    assert!(captured["data"]["code"].as_str().is_some());
+
+    let replay = router
+        .clone()
+        .oneshot(capture_request())
+        .await
+        .expect("replay exact rehearsal capture");
+    assert_eq!(replay.status(), StatusCode::OK);
+    assert_eq!(response_json(replay).await["data"], captured["data"]);
+
+    let status = router
+        .oneshot(auth_http_request(
+            "POST",
+            "/_snapback/api/host-ops",
+            serde_json::to_vec(&json!({
+                "operation": "auth.rehearsal.status",
+                "requestId": "hop_rehearsal_capture_status",
+                "args": { "grantId": grant_id },
+            }))
+            .unwrap(),
+            true,
+            Some("auth-http-admin"),
+            None,
+        ))
+        .await
+        .expect("inspect capture rehearsal budget");
+    assert_eq!(status.status(), StatusCode::OK);
+    let status = response_json(status).await;
+    assert_eq!(status["ok"], true, "{status:#}");
+    assert_eq!(status["data"]["grants"][0]["remaining"]["challengeAttempts"], 1);
+    assert_eq!(status["data"]["grants"][0]["remaining"]["uses"], 1);
+}
+
+#[test]
 fn stale_authorization_reservation_is_an_explicit_retryable_conflict() {
     let error = super::authorization_reservation_stale(
         "reservation changed; retry the complete write with short jitter",
