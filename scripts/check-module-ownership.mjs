@@ -5,12 +5,14 @@ import {
   readFileSync,
   writeFileSync,
 } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// @ref LLP 0199#author-rulings-accepted-2026-08-08-charlie-cheever — OQ5
-// requires a blocking ownership-manifest ratchet that can land over the
-// pre-extraction graph without blessing later upward dependencies.
+// @ref LLP 0225#5 — the ownership analyzer and predecessor protocol implement the accepted enforcement arm.
+// The gate applies one analyzer to pushed and predecessor snapshots, blocks
+// introduced outstanding fingerprints and silent baseline growth, and keeps
+// the legacy unassigned bucket shrink-only.
 // @ref LLP 0175#d22-affected-proof — Rust and ownership-authority changes
 // select this cheap textual gate through the checked local-proof policy.
 
@@ -19,7 +21,15 @@ const MANIFEST_PATH = join(ROOT, 'ownership.manifest.json');
 const BASELINE_PATH = join(ROOT, 'ownership.baseline.json');
 const DIAGNOSTIC = 'SNAPBACK_MODULE_OWNERSHIP_VIOLATION';
 const MANIFEST_SCHEMA = 'snapback.module-ownership-manifest.v1';
-const BASELINE_SCHEMA = 'snapback.module-ownership-baseline.v1';
+const BASELINE_SCHEMA_V1 = 'snapback.module-ownership-baseline.v1';
+const BASELINE_SCHEMA = 'snapback.module-ownership-baseline.v2';
+const PREDECESSORS_ENV = 'SNAPBACK_MODULE_OWNERSHIP_PREDECESSORS';
+const FROZEN_EDGE_MARKER = 'module-ownership-frozen-edge:';
+const FROZEN_DISPOSITIONS = new Set([
+  'analyzer-upgrade',
+  'relocation',
+  'time-bounded-waiver',
+]);
 const OWNER_ORDINALS = new Map([
   ['shared-contract-types-leaf', 0],
   ['generation-activation-coordinator', 1],
@@ -144,16 +154,36 @@ function modulePathForFile(path) {
   return segments;
 }
 
-function buildModuleIndex(rustFiles) {
+function buildModuleIndex(rustFiles, sources) {
   const index = new Map();
+  const moduleSegmentsByFile = new Map();
+  const remember = (moduleSegments, path) => {
+    if (!moduleSegments || moduleSegments.length === 0) return;
+    const modulePath = moduleSegments.join('::');
+    assert(
+      !index.has(modulePath) || index.get(modulePath) === path,
+      `Rust module path ${modulePath} maps to both ${index.get(modulePath)} and ${path}`,
+    );
+    index.set(modulePath, path);
+  };
   for (const path of rustFiles) {
     const segments = modulePathForFile(path);
     if (!segments || segments.length === 0) continue;
-    const modulePath = segments.join('::');
-    assert(!index.has(modulePath), `Rust module path ${modulePath} maps to both ${index.get(modulePath)} and ${path}`);
-    index.set(modulePath, path);
+    remember(segments, path);
+    moduleSegmentsByFile.set(path, segments);
   }
-  return index;
+  const pathModule = /#\s*\[\s*path\s*=\s*"([^"]+)"\s*\]\s*(?:pub(?:\s*\([^)]*\))?\s+)?mod\s+((?:r#)?[A-Za-z_][A-Za-z0-9_]*)\s*;/gu;
+  for (const from of rustFiles) {
+    const base = modulePathForFile(from) ?? [];
+    for (const match of sources.get(from).matchAll(pathModule)) {
+      const target = join(dirname(from), match[1]).split(sep).join('/');
+      if (!sources.has(target)) continue;
+      const alias = [...base, cleanIdentifier(match[2])];
+      remember(alias, target);
+      moduleSegmentsByFile.set(target, alias);
+    }
+  }
+  return { index, moduleSegmentsByFile };
 }
 
 function maskRange(text) {
@@ -244,9 +274,17 @@ function tokenizeUseTree(body) {
     .map((match) => match[0]);
 }
 
-function useTreePaths(body) {
+function isIdentifierToken(token) {
+  return /^(?:r#)?[A-Za-z_][A-Za-z0-9_]*$/u.test(token ?? '');
+}
+
+function cleanIdentifier(token) {
+  return token.replace(/^r#/u, '');
+}
+
+function useTreeLeaves(body) {
   const tokens = tokenizeUseTree(body);
-  const paths = [];
+  const leaves = [];
   let cursor = 0;
 
   const parseGroup = (prefix) => {
@@ -267,13 +305,9 @@ function useTreePaths(body) {
     const segments = [];
     while (cursor < tokens.length) {
       const token = tokens[cursor];
-      if (!/^(?:r#)?[A-Za-z_][A-Za-z0-9_]*$/u.test(token) || token === 'as') break;
+      if (!isIdentifierToken(token) || token === 'as') break;
       cursor += 1;
-      if (token === 'self') {
-        if (prefix.length + segments.length > 0) paths.push([...prefix, ...segments]);
-      } else if (token !== 'super' && token !== 'crate') {
-        segments.push(token.replace(/^r#/u, ''));
-      }
+      segments.push(cleanIdentifier(token));
       if (tokens[cursor] !== '::') break;
       cursor += 1;
       if (tokens[cursor] === '{') {
@@ -282,47 +316,167 @@ function useTreePaths(body) {
       }
       if (tokens[cursor] === '*') {
         cursor += 1;
-        if (prefix.length + segments.length > 0) paths.push([...prefix, ...segments]);
+        const path = [...prefix, ...segments];
+        if (path.length > 0) leaves.push({ path, alias: null, glob: true });
         return;
       }
     }
-    if (segments.length > 0) paths.push([...prefix, ...segments]);
+    const path = [...prefix, ...segments];
+    if (path.at(-1) === 'self' && path.length > 1) path.pop();
+    let alias = null;
     if (tokens[cursor] === 'as') {
       cursor += 1;
-      if (/^(?:r#)?[A-Za-z_][A-Za-z0-9_]*$/u.test(tokens[cursor] ?? '')) cursor += 1;
+      if (isIdentifierToken(tokens[cursor])) {
+        alias = cleanIdentifier(tokens[cursor]);
+        cursor += 1;
+      }
     }
+    if (path.length > 0) leaves.push({ path, alias, glob: false });
     while (cursor < tokens.length && ![',', '}'].includes(tokens[cursor])) cursor += 1;
   };
 
   if (tokens[cursor] === '{') parseGroup([]);
   else parseBranch([]);
-  return paths;
+  return leaves;
 }
 
-export function extractCratePaths(source) {
+function bracePairs(code) {
+  const stack = [];
+  const pairs = new Map();
+  for (let index = 0; index < code.length; index += 1) {
+    if (code[index] === '{') stack.push(index);
+    if (code[index] === '}' && stack.length > 0) pairs.set(stack.pop(), index);
+  }
+  return pairs;
+}
+
+function inlineModuleContexts(code, fileModuleSegments) {
+  const pairs = bracePairs(code);
+  const contexts = [];
+  const pattern = /\bmod\s+((?:r#)?[A-Za-z_][A-Za-z0-9_]*)\s*\{/gu;
+  for (const match of code.matchAll(pattern)) {
+    const open = match.index + match[0].lastIndexOf('{');
+    const end = pairs.get(open);
+    if (end === undefined) continue;
+    const parent = contexts
+      .filter((context) => context.start < open && open < context.end)
+      .sort((left, right) => right.start - left.start)[0];
+    contexts.push({
+      start: open,
+      end,
+      moduleSegments: [
+        ...(parent?.moduleSegments ?? fileModuleSegments),
+        cleanIdentifier(match[1]),
+      ],
+    });
+  }
+  return contexts;
+}
+
+function moduleContextAt(contexts, fileModuleSegments, index) {
+  return contexts
+    .filter((context) => context.start < index && index < context.end)
+    .sort((left, right) => right.start - left.start)[0]?.moduleSegments
+    ?? fileModuleSegments;
+}
+
+function referenceCandidates(path, moduleSegments) {
+  if (path[0] === 'crate') return [path.slice(1)];
+  if (path[0] === 'self') return [[...moduleSegments, ...path.slice(1)]];
+  if (path[0] === 'super') {
+    let parentCount = 0;
+    while (path[parentCount] === 'super') parentCount += 1;
+    return [[
+      ...moduleSegments.slice(0, Math.max(0, moduleSegments.length - parentCount)),
+      ...path.slice(parentCount),
+    ]];
+  }
+  const relativeCandidate = [...moduleSegments, ...path];
+  const crateCandidate = [...path];
+  return relativeCandidate.join('::') === crateCandidate.join('::')
+    ? [relativeCandidate]
+    : [relativeCandidate, crateCandidate];
+}
+
+function extractModuleSyntax(source, fileModuleSegments) {
   const code = maskNonCode(source);
-  const paths = new Map();
-  const remember = (segments) => {
-    if (segments.length > 0) paths.set(segments.join('::'), segments);
+  const contexts = inlineModuleContexts(code, fileModuleSegments);
+  const references = [];
+  const reexports = [];
+  const declaredExports = [];
+  const rememberReference = (path, index) => {
+    if (path.length === 0) return;
+    const moduleContext = moduleContextAt(contexts, fileModuleSegments, index);
+    let relativeBase = null;
+    if (path[0] === 'self') relativeBase = moduleContext;
+    if (path[0] === 'super') {
+      let parentCount = 0;
+      while (path[parentCount] === 'super') parentCount += 1;
+      relativeBase = moduleContext.slice(0, Math.max(0, moduleContext.length - parentCount));
+    }
+    references.push({
+      candidates: referenceCandidates(path, moduleContext),
+      ignoreIfUnresolved: relativeBase?.join('::') === fileModuleSegments.join('::'),
+      index,
+    });
   };
 
   const useRanges = [];
-  const useStart = /\buse\s+crate\s*::/gu;
+  const useStart = /\b(pub(?:\s*\([^)]*\))?\s+)?use\b/gu;
   for (const match of code.matchAll(useStart)) {
     const bodyStart = match.index + match[0].length;
     const semicolon = code.indexOf(';', bodyStart);
     if (semicolon === -1) continue;
     useRanges.push([match.index, semicolon + 1]);
-    for (const segments of useTreePaths(code.slice(bodyStart, semicolon))) remember(segments);
+    const moduleSegments = moduleContextAt(contexts, fileModuleSegments, match.index);
+    for (const leaf of useTreeLeaves(code.slice(bodyStart, semicolon))) {
+      const rooted = ['crate', 'self', 'super'].includes(leaf.path[0]);
+      if (rooted || match[1]) rememberReference(leaf.path, match.index);
+      if (!match[1]) continue;
+      const exportedName = leaf.glob
+        ? null
+        : (leaf.alias ?? leaf.path.at(-1));
+      if (exportedName === '_') continue;
+      reexports.push({
+        namespace: moduleSegments,
+        targets: referenceCandidates(leaf.path, moduleSegments),
+        exportedName,
+        glob: leaf.glob,
+      });
+    }
   }
 
-  const directPattern = /\bcrate\s*::\s*((?:r#)?[A-Za-z_][A-Za-z0-9_]*(?:\s*::\s*(?:r#)?[A-Za-z_][A-Za-z0-9_]*)*)/gu;
+  const directPattern = /\b(crate|self|super)\s*::\s*((?:r#)?[A-Za-z_][A-Za-z0-9_]*(?:\s*::\s*(?:r#)?[A-Za-z_][A-Za-z0-9_]*)*)/gu;
   let useRangeIndex = 0;
   for (const match of code.matchAll(directPattern)) {
     while (useRanges[useRangeIndex]?.[1] <= match.index) useRangeIndex += 1;
     const activeUseRange = useRanges[useRangeIndex];
     if (activeUseRange && activeUseRange[0] <= match.index && match.index < activeUseRange[1]) continue;
-    remember(match[1].split(/\s*::\s*/u).map((segment) => segment.replace(/^r#/u, '')));
+    rememberReference([
+      match[1],
+      ...match[2].split(/\s*::\s*/u).map(cleanIdentifier),
+    ], match.index);
+  }
+  const publicItem = /\bpub(?:\s*\([^)]*\))?\s+(?:(?:async|unsafe|const)\s+)*fn\s+((?:r#)?[A-Za-z_][A-Za-z0-9_]*)|\bpub(?:\s*\([^)]*\))?\s+(?:struct|enum|type|const|static|trait|union)\s+((?:r#)?[A-Za-z_][A-Za-z0-9_]*)/gu;
+  for (const match of code.matchAll(publicItem)) {
+    declaredExports.push({
+      namespace: moduleContextAt(contexts, fileModuleSegments, match.index),
+      name: cleanIdentifier(match[1] ?? match[2]),
+    });
+  }
+  return { declaredExports, references, reexports };
+}
+
+// Retained as the narrow public extractor used by earlier fixtures. New code
+// should exercise analyzeSources so module-relative context and re-exports are
+// included.
+export function extractCratePaths(source) {
+  const syntax = extractModuleSyntax(source, []);
+  const paths = new Map();
+  for (const reference of syntax.references) {
+    for (const segments of reference.candidates) {
+      if (segments.length > 0) paths.set(segments.join('::'), segments);
+    }
   }
   return [...paths.values()];
 }
@@ -333,6 +487,83 @@ function resolveModuleReference(segments, moduleIndex) {
     if (target) return target;
   }
   return null;
+}
+
+function buildReexportIndex(extracted) {
+  const explicit = new Map();
+  const globs = new Map();
+  const declared = new Map();
+  for (const syntax of extracted.values()) {
+    for (const item of syntax.declaredExports) {
+      const namespace = item.namespace.join('::');
+      const names = declared.get(namespace) ?? new Set();
+      names.add(item.name);
+      declared.set(namespace, names);
+    }
+    for (const reexport of syntax.reexports) {
+      const namespace = reexport.namespace.join('::');
+      const index = reexport.glob ? globs : explicit;
+      const key = reexport.glob
+        ? namespace
+        : [...reexport.namespace, reexport.exportedName].join('::');
+      const targets = index.get(key) ?? [];
+      for (const target of reexport.targets) {
+        const targetKey = target.join('::');
+        if (!targets.some((candidate) => candidate.join('::') === targetKey)) targets.push(target);
+      }
+      index.set(key, targets);
+    }
+  }
+  const exportsSymbol = (namespace, symbol, seen = new Set()) => {
+    const state = `${namespace}\0${symbol}`;
+    if (seen.has(state)) return false;
+    const nextSeen = new Set(seen).add(state);
+    if (declared.get(namespace)?.has(symbol)) return true;
+    if (explicit.has(namespace === '' ? symbol : `${namespace}::${symbol}`)) return true;
+    for (const target of globs.get(namespace) ?? []) {
+      if (exportsSymbol(target.join('::'), symbol, nextSeen)) return true;
+    }
+    return false;
+  };
+  return { declared, explicit, exportsSymbol, globs };
+}
+
+function resolveTransitiveModuleReferences(segments, moduleIndex, reexportIndex, cache) {
+  const initialKey = segments.join('::');
+  if (cache.has(initialKey)) return cache.get(initialKey);
+  const targets = new Set();
+  const queue = [segments];
+  const seen = new Set();
+  while (queue.length > 0) {
+    const candidate = queue.shift();
+    const candidateKey = candidate.join('::');
+    if (seen.has(candidateKey)) continue;
+    seen.add(candidateKey);
+    assert(seen.size <= 1_000, `re-export expansion is unbounded from ${initialKey}`);
+    let moduleLength = 0;
+    let direct = null;
+    for (let length = candidate.length; length > 0; length -= 1) {
+      const target = moduleIndex.get(candidate.slice(0, length).join('::'));
+      if (!target) continue;
+      moduleLength = length;
+      direct = target;
+      break;
+    }
+    if (direct) targets.add(direct);
+    const namespace = candidate.slice(0, moduleLength).join('::');
+    const suffix = candidate.slice(moduleLength);
+    if (suffix.length === 0) continue;
+    const exportKey = [...candidate.slice(0, moduleLength), suffix[0]].join('::');
+    for (const target of reexportIndex.explicit.get(exportKey) ?? []) {
+      queue.push([...target, ...suffix.slice(1)]);
+    }
+    for (const target of reexportIndex.globs.get(namespace) ?? []) {
+      if (!reexportIndex.exportsSymbol(target.join('::'), suffix[0])) continue;
+      queue.push([...target, ...suffix]);
+    }
+  }
+  cache.set(initialKey, targets);
+  return targets;
 }
 
 function compareEdges(left, right) {
@@ -346,30 +577,56 @@ function edgeKey(edge) {
   return JSON.stringify([edge.from, edge.fromOwner, edge.to, edge.toOwner]);
 }
 
+export function edgeFingerprint(edge) {
+  return `${edge.from} (${edge.fromOwner}) → ${edge.to} (${edge.toOwner})`;
+}
+
 export function analyzeSources(manifest, sources) {
   const rustFiles = [...sources.keys()].sort();
   const { assignment, godFiles } = validateManifest(manifest, rustFiles);
-  const moduleIndex = buildModuleIndex(rustFiles);
+  const { index: moduleIndex, moduleSegmentsByFile } = buildModuleIndex(rustFiles, sources);
+  const extracted = new Map(rustFiles.map((path) => [
+    path,
+    extractModuleSyntax(sources.get(path), moduleSegmentsByFile.get(path) ?? []),
+  ]));
+  const reexportIndex = buildReexportIndex(extracted);
+  const resolutionCache = new Map();
   const edges = new Map();
   let unresolvedReferenceCount = 0;
+  const unresolvedReferences = [];
 
   for (const from of rustFiles) {
     const source = sources.get(from);
     assert(typeof source === 'string', `missing source bytes for ${from}`);
-    for (const segments of extractCratePaths(source)) {
-      const to = resolveModuleReference(segments, moduleIndex);
-      if (!to) {
+    for (const reference of extracted.get(from).references) {
+      const resolved = new Set();
+      for (const segments of reference.candidates) {
+        for (const target of resolveTransitiveModuleReferences(
+          segments,
+          moduleIndex,
+          reexportIndex,
+          resolutionCache,
+        )) resolved.add(target);
+      }
+      if (resolved.size === 0) {
+        if (reference.ignoreIfUnresolved || reference.candidates.every((segments) => segments.length === 0)) continue;
         unresolvedReferenceCount += 1;
+        unresolvedReferences.push({
+          from,
+          candidates: reference.candidates.map((segments) => segments.join('::')),
+        });
         continue;
       }
-      if (to === from) continue;
-      const edge = {
-        from,
-        fromOwner: assignment.get(from),
-        to,
-        toOwner: assignment.get(to),
-      };
-      edges.set(edgeKey(edge), edge);
+      for (const to of resolved) {
+        if (to === from) continue;
+        const edge = {
+          from,
+          fromOwner: assignment.get(from),
+          to,
+          toOwner: assignment.get(to),
+        };
+        edges.set(edgeKey(edge), edge);
+      }
     }
   }
 
@@ -379,14 +636,38 @@ export function analyzeSources(manifest, sources) {
     godFiles,
     moduleCount: rustFiles.length,
     unresolvedReferenceCount,
+    unresolvedReferences,
   };
 }
 
-function validateBaseline(baseline) {
-  assert(baseline?.schemaVersion === BASELINE_SCHEMA, `baseline schemaVersion must be ${BASELINE_SCHEMA}`);
+function validateAttribution(attribution, label) {
+  assert(attribution && typeof attribution === 'object' && !Array.isArray(attribution), `${label} attribution must be an object`);
+  assert(FROZEN_DISPOSITIONS.has(attribution.disposition), `${label} has invalid disposition ${attribution.disposition}`);
+  assert(/^[0-9a-f]{7,40}$/u.test(attribution.observationRevision ?? ''), `${label} needs an observationRevision`);
+  assert(/^issues\/[^/]+\.md$/u.test(attribution.worklist ?? ''), `${label} needs an open issues/ worklist path`);
+  assert(typeof attribution.provenance === 'string' && attribution.provenance.trim().length >= 20, `${label} needs substantive provenance`);
+  if (attribution.disposition === 'time-bounded-waiver') {
+    assert(OWNER_ORDINALS.has(attribution.inversionOwner), `${label} waiver needs a real inversionOwner`);
+    assert(attribution.inversionOwner !== 'unassigned', `${label} waiver inversionOwner must be a real owner`);
+    assert(/^\d{4}-\d{2}-\d{2}$/u.test(attribution.deadline ?? ''), `${label} waiver needs a YYYY-MM-DD deadline`);
+  }
+  if (attribution.disposition === 'relocation') {
+    assert(
+      typeof attribution.predecessorFingerprint === 'string'
+        && attribution.predecessorFingerprint.length > 0,
+      `${label} relocation needs its exact predecessorFingerprint`,
+    );
+  }
+}
+
+function validateBaseline(baseline, manifest, godFiles) {
+  assert(
+    [BASELINE_SCHEMA_V1, BASELINE_SCHEMA].includes(baseline?.schemaVersion),
+    `baseline schemaVersion must be ${BASELINE_SCHEMA_V1} or ${BASELINE_SCHEMA}`,
+  );
   assert(baseline.manifestSchemaVersion === MANIFEST_SCHEMA, 'baseline manifestSchemaVersion does not match the manifest schema');
   assert(Number.isInteger(baseline.moduleCount) && baseline.moduleCount > 0, 'baseline moduleCount must be non-vacuous');
-  assert(Number.isInteger(baseline.edgeCount) && baseline.edgeCount > 0, 'baseline edgeCount must be non-vacuous');
+  assert(Number.isInteger(baseline.edgeCount) && baseline.edgeCount >= 0, 'baseline edgeCount must be non-negative');
   assert(Array.isArray(baseline.edges), 'baseline edges must be an array');
   assert(baseline.edgeCount === baseline.edges.length, 'baseline edgeCount does not match edges.length');
   const keys = new Set();
@@ -403,7 +684,40 @@ function validateBaseline(baseline) {
     JSON.stringify(baseline.edges) === JSON.stringify([...baseline.edges].sort(compareEdges)),
     'baseline edges must be sorted',
   );
-  return keys;
+  const frozen = new Map();
+  if (baseline.schemaVersion === BASELINE_SCHEMA_V1) {
+    assert(manifest && godFiles, 'v1 baseline admission requires its manifest');
+    for (const edge of baseline.edges) {
+      if (violationReason(edge, manifest, godFiles) !== null) {
+        frozen.set(edgeFingerprint(edge), { fingerprint: edgeFingerprint(edge) });
+      }
+    }
+  } else {
+    assert(Array.isArray(baseline.frozenForbiddenEdges), 'v2 baseline frozenForbiddenEdges must be an array');
+    assert(
+      baseline.frozenForbiddenEdgeCount === baseline.frozenForbiddenEdges.length,
+      'baseline frozenForbiddenEdgeCount does not match frozenForbiddenEdges.length',
+    );
+    const edgesByFingerprint = new Map(baseline.edges.map((edge) => [edgeFingerprint(edge), edge]));
+    for (const record of baseline.frozenForbiddenEdges) {
+      const fingerprint = record?.fingerprint;
+      assert(typeof fingerprint === 'string' && fingerprint.length > 0, 'frozen forbidden edge needs a fingerprint');
+      assert(!frozen.has(fingerprint), `duplicate frozen forbidden edge ${fingerprint}`);
+      const edge = edgesByFingerprint.get(fingerprint);
+      assert(edge, `frozen forbidden edge is absent from baseline graph: ${fingerprint}`);
+      assert(manifest && godFiles, 'v2 baseline admission requires its manifest');
+      assert(violationReason(edge, manifest, godFiles) !== null, `frozen edge is not forbidden: ${fingerprint}`);
+      if (record.attribution !== undefined) validateAttribution(record.attribution, fingerprint);
+      frozen.set(fingerprint, record);
+    }
+    assert(
+      JSON.stringify(baseline.frozenForbiddenEdges) === JSON.stringify(
+        [...baseline.frozenForbiddenEdges].sort((left, right) => left.fingerprint.localeCompare(right.fingerprint)),
+      ),
+      'baseline frozenForbiddenEdges must be sorted',
+    );
+  }
+  return { edgeKeys: keys, frozen };
 }
 
 function violationReason(edge, manifest, godFiles) {
@@ -421,13 +735,13 @@ function violationReason(edge, manifest, godFiles) {
 }
 
 export function findNewViolations(manifest, analysis, baseline) {
-  const baselineKeys = validateBaseline(baseline);
-  const newEdges = analysis.edges.filter((edge) => !baselineKeys.has(edgeKey(edge)));
-  const violations = newEdges
+  const validated = validateBaseline(baseline, manifest, analysis.godFiles);
+  const newEdges = analysis.edges.filter((edge) => !validated.edgeKeys.has(edgeKey(edge)));
+  const violations = analysis.edges
     .map((edge) => ({ ...edge, reason: violationReason(edge, manifest, analysis.godFiles) }))
-    .filter((edge) => edge.reason !== null);
+    .filter((edge) => edge.reason !== null && !validated.frozen.has(edgeFingerprint(edge)));
   const currentKeys = new Set(analysis.edges.map(edgeKey));
-  const staleBaselineEdgeCount = [...baselineKeys].filter((key) => !currentKeys.has(key)).length;
+  const staleBaselineEdgeCount = [...validated.edgeKeys].filter((key) => !currentKeys.has(key)).length;
   return { newEdges, staleBaselineEdgeCount, violations };
 }
 
@@ -436,20 +750,284 @@ function loadRepositorySources() {
   return new Map(rustFiles.map((path) => [path, readFileSync(join(ROOT, path), 'utf8')]));
 }
 
-function baselineDocument(analysis) {
+function loadRepositoryIssues() {
+  const issuePaths = globSync('issues/*.md', { cwd: ROOT }).sort();
+  return new Map(issuePaths.map((path) => [path, readFileSync(join(ROOT, path), 'utf8')]));
+}
+
+function git(args) {
+  return execFileSync('git', args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+}
+
+function loadRevisionSnapshot(revision) {
+  const resolvedRevision = git(['rev-parse', '--verify', `${revision}^{commit}`]).trim();
+  const paths = git(['ls-tree', '-r', '--name-only', resolvedRevision]).trim().split('\n').filter(Boolean);
+  const read = (path) => git(['show', `${resolvedRevision}:${path}`]);
+  const rustFiles = paths.filter((path) => /^src\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path)).sort();
+  const issuePaths = paths.filter((path) => /^issues\/[^/]+\.md$/u.test(path)).sort();
+  const manifest = JSON.parse(read('ownership.manifest.json'));
+  const baseline = JSON.parse(read('ownership.baseline.json'));
+  const sources = new Map(rustFiles.map((path) => [path, read(path)]));
+  const issues = new Map(issuePaths.map((path) => [path, read(path)]));
+  // A predecessor may itself be the red being fixed forward. Preserve that
+  // fact as historical unassigned residue so the pushed tree can remove it;
+  // the current tree is still validated strictly and cannot use this path.
+  const assigned = new Set(Object.values(manifest.modulesByOwner).flat());
+  const missing = rustFiles.filter((path) => !assigned.has(path));
+  manifest.modulesByOwner.unassigned = [
+    ...manifest.modulesByOwner.unassigned,
+    ...missing,
+  ].sort();
+  const analysis = analyzeSources(manifest, sources);
+  return { analysis, baseline, issues, manifest, revision: resolvedRevision };
+}
+
+function normalizeIssueText(text) {
+  return text.replace(/\s+/gu, ' ').trim();
+}
+
+export function parseFrozenEdgeRecords(issueSources, { today = new Date().toISOString().slice(0, 10) } = {}) {
+  const records = new Map();
+  const pattern = /<!--\s*module-ownership-frozen-edge:\s*(\{[^\r\n]*\})\s*-->/gu;
+  for (const [path, source] of issueSources) {
+    for (const match of source.matchAll(pattern)) {
+      let record;
+      try {
+        record = JSON.parse(match[1]);
+      } catch (error) {
+        throw new Error(`${path} has malformed ${FROZEN_EDGE_MARKER} JSON: ${error.message}`);
+      }
+      const fingerprint = record?.fingerprint;
+      assert(typeof fingerprint === 'string' && fingerprint.length > 0, `${path} frozen-edge record needs a fingerprint`);
+      assert(!records.has(fingerprint), `duplicate frozen-edge worklist record for ${fingerprint}`);
+      const attribution = {
+        disposition: record.disposition,
+        observationRevision: record.observationRevision,
+        worklist: path,
+        provenance: record.provenance,
+        ...(record.inversionOwner === undefined ? {} : { inversionOwner: record.inversionOwner }),
+        ...(record.deadline === undefined ? {} : { deadline: record.deadline }),
+        ...(record.predecessorFingerprint === undefined
+          ? {}
+          : { predecessorFingerprint: record.predecessorFingerprint }),
+      };
+      validateAttribution(attribution, `${path}: ${fingerprint}`);
+      if (attribution.disposition === 'time-bounded-waiver') {
+        assert(attribution.deadline >= today, `${path} waiver expired ${attribution.deadline}: ${fingerprint}`);
+      }
+      records.set(fingerprint, { fingerprint, attribution });
+    }
+  }
+  return records;
+}
+
+function forbiddenEdges(manifest, analysis) {
+  return analysis.edges
+    .map((edge) => ({ ...edge, reason: violationReason(edge, manifest, analysis.godFiles) }))
+    .filter((edge) => edge.reason !== null);
+}
+
+function waiverFingerprints(records) {
+  return new Set([...records.values()]
+    .filter((record) => record.attribution.disposition === 'time-bounded-waiver')
+    .map((record) => record.fingerprint));
+}
+
+export function outstandingFingerprints(snapshot) {
+  const baseline = validateBaseline(
+    snapshot.baseline,
+    snapshot.manifest,
+    snapshot.analysis.godFiles,
+  );
+  const worklistRecords = parseFrozenEdgeRecords(snapshot.issues);
+  for (const frozen of baseline.frozen.values()) {
+    if (!frozen.attribution) continue;
+    assert(
+      attributedRecordMatches(frozen, worklistRecords.get(frozen.fingerprint)),
+      `attributed frozen edge needs its matching open worklist record: ${frozen.fingerprint}`,
+    );
+  }
+  const waivers = waiverFingerprints(worklistRecords);
+  return new Set(forbiddenEdges(snapshot.manifest, snapshot.analysis)
+    .map(edgeFingerprint)
+    .filter((fingerprint) => !baseline.frozen.has(fingerprint) && !waivers.has(fingerprint)));
+}
+
+function attributedRecordMatches(candidate, worklistRecord) {
+  return JSON.stringify(candidate) === JSON.stringify(worklistRecord);
+}
+
+export function enforceMonotonicBaseline(current, predecessor) {
+  const currentBaseline = validateBaseline(
+    current.baseline,
+    current.manifest,
+    current.analysis.godFiles,
+  );
+  const predecessorBaseline = validateBaseline(
+    predecessor.baseline,
+    predecessor.manifest,
+    predecessor.analysis.godFiles,
+  );
+  const worklistRecords = parseFrozenEdgeRecords(current.issues);
+  const growth = [...currentBaseline.frozen.keys()]
+    .filter((fingerprint) => !predecessorBaseline.frozen.has(fingerprint))
+    .sort();
+  const removed = [...predecessorBaseline.frozen.keys()]
+    .filter((fingerprint) => !currentBaseline.frozen.has(fingerprint));
+  const predecessorForbidden = new Set(forbiddenEdges(
+    predecessor.manifest,
+    predecessor.analysis,
+  ).map(edgeFingerprint));
+
+  for (const fingerprint of growth) {
+    const frozen = currentBaseline.frozen.get(fingerprint);
+    const worklist = worklistRecords.get(fingerprint);
+    assert(worklist, `silent forbidden-edge baseline growth; add an explicit reviewed worklist record: ${fingerprint}`);
+    assert(frozen.attribution, `new frozen edge lacks retained attribution: ${fingerprint}`);
+    assert(
+      attributedRecordMatches(frozen, worklist),
+      `baseline attribution does not match ${worklist.attribution.worklist}: ${fingerprint}`,
+    );
+    if (frozen.attribution.disposition === 'analyzer-upgrade') {
+      assert(
+        predecessorForbidden.has(fingerprint),
+        `analyzer-upgrade record does not name an edge present at predecessor ${predecessor.revision}: ${fingerprint}`,
+      );
+    }
+    if (frozen.attribution.disposition === 'relocation') {
+      const priorFingerprint = frozen.attribution.predecessorFingerprint;
+      assert(
+        removed.includes(priorFingerprint) && predecessorBaseline.frozen.has(priorFingerprint),
+        `relocation record does not re-key its named predecessor frozen edge ${priorFingerprint}: ${fingerprint}`,
+      );
+      const currentEdge = current.analysis.edges.find((edge) => edgeFingerprint(edge) === fingerprint);
+      const priorEdge = predecessor.analysis.edges.find((edge) => edgeFingerprint(edge) === priorFingerprint);
+      assert(currentEdge && priorEdge, `relocation fingerprints must exist in both analyzed source graphs: ${fingerprint}`);
+      assert(
+        currentEdge.fromOwner === priorEdge.fromOwner && currentEdge.toOwner === priorEdge.toOwner,
+        `relocation must retain the predecessor owner pair ${priorEdge.fromOwner} → ${priorEdge.toOwner}: ${fingerprint}`,
+      );
+    }
+  }
+  return { growth, removed };
+}
+
+function enforceUnassignedShrinkOnly(current, predecessor) {
+  const previous = new Set(predecessor.manifest.modulesByOwner.unassigned);
+  const additions = current.manifest.modulesByOwner.unassigned.filter((path) => !previous.has(path));
+  assert(
+    additions.length === 0,
+    `legacy unassigned bucket is shrink-only; assign new modules to a real owner: ${additions.join(', ')}`,
+  );
+}
+
+function trackingTicketFor(fingerprints, issueSources) {
+  if (fingerprints.length === 0) return null;
+  for (const [path, source] of issueSources) {
+    if (!/^\*\*Status:\*\*\s*Open\s*$/imu.test(source)) continue;
+    const normalized = normalizeIssueText(source);
+    if (!fingerprints.every((fingerprint) => normalized.includes(fingerprint))) continue;
+    if (!/observ(?:ed|ation)(?:\s+revision)?(?:\s+at)?[^0-9a-f]+`?[0-9a-f]{7,40}`?/iu.test(normalized)) continue;
+    return path;
+  }
+  return null;
+}
+
+export function enforceSnapshotProtocol(current, predecessors) {
+  assert(predecessors.length > 0, 'ownership protocol requires at least one predecessor revision');
+  const currentOutstanding = outstandingFingerprints(current);
+  const reports = [];
+  for (const predecessor of predecessors) {
+    enforceUnassignedShrinkOnly(current, predecessor);
+    const baseline = enforceMonotonicBaseline(current, predecessor);
+    const predecessorOutstanding = outstandingFingerprints(predecessor);
+    const introduced = [...currentOutstanding]
+      .filter((fingerprint) => !predecessorOutstanding.has(fingerprint))
+      .sort();
+    assert(
+      introduced.length === 0,
+      `introduced forbidden module edges versus ${predecessor.revision}:\n- ${introduced.join('\n- ')}`,
+    );
+    reports.push({ baseline, introduced, predecessor, predecessorOutstanding });
+  }
+  const inherited = [...currentOutstanding].sort();
+  const ticket = trackingTicketFor(inherited, current.issues);
+  assert(
+    inherited.length === 0 || ticket,
+    `inherited forbidden module edges need an open issues/ ticket naming every fingerprint and observation revision:\n- ${inherited.join('\n- ')}`,
+  );
+  return { inherited, reports, ticket };
+}
+
+function baselineDocument(analysis, manifest, predecessor, issueSources) {
+  const previous = validateBaseline(
+    predecessor.baseline,
+    predecessor.manifest,
+    predecessor.analysis.godFiles,
+  );
+  const worklistRecords = parseFrozenEdgeRecords(issueSources);
+  const currentForbidden = forbiddenEdges(manifest, analysis);
+  const frozenForbiddenEdges = [];
+  for (const edge of currentForbidden) {
+    const fingerprint = edgeFingerprint(edge);
+    const attributed = worklistRecords.get(fingerprint);
+    if (attributed) {
+      frozenForbiddenEdges.push(attributed);
+      continue;
+    }
+    const retained = previous.frozen.get(fingerprint);
+    if (retained) {
+      frozenForbiddenEdges.push(retained);
+      continue;
+    }
+  }
+  frozenForbiddenEdges.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
   return {
     schemaVersion: BASELINE_SCHEMA,
     manifestSchemaVersion: MANIFEST_SCHEMA,
     moduleCount: analysis.moduleCount,
     edgeCount: analysis.edges.length,
     edges: analysis.edges,
+    frozenForbiddenEdgeCount: frozenForbiddenEdges.length,
+    frozenForbiddenEdges,
   };
 }
 
 function parseArguments(args) {
-  if (args.length === 0) return { updateBaseline: false };
-  if (args.length === 1 && args[0] === '--update-baseline') return { updateBaseline: true };
-  throw new Error('usage: node scripts/check-module-ownership.mjs [--update-baseline]');
+  const options = { predecessors: [], updateBaseline: false };
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] === '--update-baseline') {
+      options.updateBaseline = true;
+      continue;
+    }
+    if (args[index] === '--predecessor' && args[index + 1]) {
+      options.predecessors.push(args[index + 1]);
+      index += 1;
+      continue;
+    }
+    throw new Error('usage: node scripts/check-module-ownership.mjs [--update-baseline] [--predecessor REV]...');
+  }
+  return options;
+}
+
+function defaultPredecessors() {
+  const fromEnvironment = process.env[PREDECESSORS_ENV]?.split(',').map((value) => value.trim()).filter(Boolean) ?? [];
+  if (fromEnvironment.length > 0) return fromEnvironment;
+  const changed = git([
+    'status', '--porcelain=v1', '--untracked-files=normal', '--',
+    'src', 'ownership.manifest.json', 'ownership.baseline.json', 'issues',
+  ]).trim();
+  if (changed !== '') return ['HEAD'];
+  try {
+    git(['rev-parse', '--verify', 'HEAD^']);
+    return ['HEAD^'];
+  } catch {
+    return ['HEAD'];
+  }
 }
 
 function main() {
@@ -457,26 +1035,35 @@ function main() {
     const options = parseArguments(process.argv.slice(2));
     const manifest = parseJson(MANIFEST_PATH, 'module ownership manifest');
     const analysis = analyzeSources(manifest, loadRepositorySources());
+    const issues = loadRepositoryIssues();
+    const predecessorRevisions = options.predecessors.length > 0
+      ? options.predecessors
+      : defaultPredecessors();
+    const predecessors = predecessorRevisions.map(loadRevisionSnapshot);
 
     if (options.updateBaseline) {
-      writeFileSync(BASELINE_PATH, `${JSON.stringify(baselineDocument(analysis), null, 2)}\n`);
+      assert(predecessors.length === 1, '--update-baseline requires exactly one predecessor');
+      const candidate = baselineDocument(analysis, manifest, predecessors[0], issues);
+      const current = {
+        analysis,
+        baseline: candidate,
+        issues,
+        manifest,
+        revision: 'working-tree',
+      };
+      const protocol = enforceSnapshotProtocol(current, predecessors);
+      writeFileSync(BASELINE_PATH, `${JSON.stringify(candidate, null, 2)}\n`);
       process.stdout.write(
-        `[module-ownership] UPDATED: ${analysis.moduleCount} modules; ${analysis.edges.length} current module edges\n`,
+        `[module-ownership] UPDATED: ${analysis.moduleCount} modules; ${analysis.edges.length} current module edges; `
+          + `${candidate.frozenForbiddenEdgeCount} frozen forbidden; ${protocol.inherited.length} tracked outstanding\n`,
       );
       return;
     }
 
     const baseline = parseJson(BASELINE_PATH, 'module ownership baseline');
     const result = findNewViolations(manifest, analysis, baseline);
-    if (result.violations.length > 0) {
-      const details = result.violations.slice(0, 25).map((edge) => (
-        `${edge.from} (${edge.fromOwner}) -> ${edge.to} (${edge.toOwner}): ${edge.reason}`
-      ));
-      if (result.violations.length > details.length) {
-        details.push(`... ${result.violations.length - details.length} more violations`);
-      }
-      throw new Error(`new forbidden module edges:\n- ${details.join('\n- ')}`);
-    }
+    const current = { analysis, baseline, issues, manifest, revision: 'working-tree' };
+    const protocol = enforceSnapshotProtocol(current, predecessors);
 
     const assignedCount = [...analysis.assignment.values()].filter((owner) => owner !== 'unassigned').length;
     const crossOwnerCount = analysis.edges.filter((edge) => edge.fromOwner !== edge.toOwner).length;
@@ -485,7 +1072,8 @@ function main() {
         + `${analysis.moduleCount - assignedCount} unassigned); ${analysis.edges.length} module edges; `
         + `${crossOwnerCount} cross-owner; ${result.newEdges.length} new allowed; `
         + `${result.staleBaselineEdgeCount} stale baseline; `
-        + `${analysis.unresolvedReferenceCount} unresolved inline/root references\n`,
+        + `${protocol.inherited.length} inherited outstanding (${protocol.ticket ?? 'none'}); `
+        + `${analysis.unresolvedReferenceCount} unresolved module references\n`,
     );
   } catch (error) {
     process.stderr.write(`${DIAGNOSTIC}: ${error.message}\n`);

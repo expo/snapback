@@ -25,6 +25,8 @@ history)
 **Revised:** 2026-08-10 (j — Accepted: OQ-A superseded-with-pointer, OQ-B
 confirmed, OQ-C inert-until-reload (author rulings); same-landing handoff
 applied)
+**Revised:** 2026-08-10 (k — ownership analyzer upgrade and §5 enforcement
+completion; see Revision history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -35,7 +37,8 @@ LLP 0189 (verification cadence and claim gating), LLP 0175 (local-proof
 selection), `issues/20260808-core-modularization-decision.md` (commission),
 `issues/closed/20260809-ownership-gate-prepush-tier.md` (enforcement-arm
 ruling), `issues/20260809-0199-ownership-ratchet-worklist.md` (frozen-edge
-burn-down)
+burn-down), `issues/closed/20260810-ownership-gate-analyzer-gaps.md`
+(analyzer/enforcement completion)
 
 ## Context and relationship to LLP 0199
 
@@ -190,10 +193,9 @@ inversion owner, and the bound; the parenthetical you are reading is a
 pointer, not the waiver.) The gate is required to
 enforce the comparison against the predecessor baseline at the push's
 merge-base and refuse silent growth
-(`issues/20260810-ownership-gate-analyzer-gaps.md` tracks the
-implementation; today `--update-baseline` overwrites unconditionally, which
-is a defect of the arm, not a license). An unrecorded baseline growth is a
-violation of this Decision even where the tooling fails to catch it.
+(`issues/closed/20260810-ownership-gate-analyzer-gaps.md` records the shipped
+implementation). An unrecorded baseline growth is a violation of this
+Decision and is refused by both normal checks and `--update-baseline`.
 
 ## 3. Transaction and commit boundaries — who may commit what
 
@@ -381,12 +383,13 @@ requires its named worklist record in the same landing.
   defects (entries naming absent modules, unsorted buckets, ordinal drift,
   invalid baselines) — which is what makes a naive god-file rename a gate
   red (§6).
-- **Honest state of the arm.** The bullets above are the *contract on the
-  arm*, not a claim that the arm currently enforces all of it: at this
-  document's own revision-(d) commit the gate was red with two committed
-  forbidden edges, allowed by the runner's pre-existing-staleness rule. Two
-  enforcement requirements therefore bind alongside the analyzer upgrade:
-  (i) staleness attribution for this gate is **set-based, not
+- **Honest state of the arm.** As of revision (k), the arm enforces the full
+  protocol in this section. The extractor and pushed/predecessor snapshot
+  comparison live in `scripts/check-module-ownership.mjs`; the pre-push
+  runner supplies every merge-base and treats any ownership-protocol failure
+  as blocking rather than routing it through the generic Boolean
+  pre-existing-staleness fallback. In particular, (i) staleness attribution
+  for this gate is **set-based, not
   pass/fail-based**. Definitions: for a revision R, the *outstanding set*
   `V(R)` is the canonical edge fingerprints of §2-forbidden edges present
   at R **and not admitted by R's committed baseline or waivers**, computed
@@ -398,7 +401,9 @@ requires its named worklist record in the same landing.
   alone would pass a new edge laundered by a same-push baseline freeze;
   §2's growth check is what blocks it. Provenance re-keys for relocation
   and analyzer-upgrade discoveries are baseline entries with attribution
-  (§2), never waivers; an inherited-red ticket names **at least** the
+  (§2), never waivers; relocation attribution names the exact removed
+  predecessor fingerprint and retains its owner pair. An inherited-red
+  ticket names **at least** the
   outstanding fingerprints (a superset containing since-fixed entries
   still admits). A Boolean pass/fail or last-green
   comparison cannot distinguish inherited from introduced reds and is not
@@ -407,24 +412,22 @@ requires its named worklist record in the same landing.
   the exact outstanding fingerprints and their observation revision — if
   the tree being pushed carries untracked reds, the push blocks until the
   same push commits or refreshes that ticket. The hook never creates
-  uncommitted state; the pusher does, in the push. "Fixed forward at the next landing" is
-  a convention this Decision makes auditable, not a property the arm yet
-  enforces; `issues/20260810-ownership-gate-analyzer-gaps.md` tracks both.
-- **Known analyzer gap, and the requirement that closes it.** The current
-  extractor resolves `crate::`-rooted forms, including grouped use-trees,
-  aliases, and `pub use crate::…` re-exports — but **`super::`- and
-  `self::`-rooted references are invisible to it** (a live counterexample —
+  uncommitted state. The re-derived revision-(k) baseline records the complete
+  1,648-edge graph and admits 400 frozen forbidden fingerprints; the two
+  unadmitted rehearsal fingerprints remain auditable through
+  `issues/20260810-main-module-ownership-red-rehearsal-edges.md` rather than
+  being laundered into the baseline.
+- **Analyzer coverage.** The extractor resolves `crate::`, `super::`, and
+  `self::` roots relative to the lexical/file module (including `#[path]`
+  modules), grouped use-trees, aliases, `pub use` forms, and transitively
+  chained explicit/glob re-exports. Adversarial fixtures for every form live
+  under `tests/fixtures/module-ownership/` and execute via
+  `scripts/check-module-ownership.test.mjs`. The re-derivation exposed 38
+  pre-existing forbidden fingerprints — including
   `src/auth/provider.rs`'s `super::lifecycle` / `super::mailbox` sideways
-  edges — is recorded in
-  `issues/20260810-ownership-gate-analyzer-gaps.md`), and transitively
-  chained re-export resolution is unimplemented. This Decision requires the
-  extractor to resolve `super`/`self` roots relative to each module and
-  chained re-exports, with an adversarial fixture per supported form; when
-  the upgrade lands, the baseline and worklist are re-derived from the
-  complete graph, and newly *visible* pre-existing edges are frozen with
-  attribution — they are not new violations. Until then, review carries the
-  difference: a non-`crate::` cross-owner import is a §2 violation whether
-  or not the gate sees it.
+  edges — frozen with analyzer-upgrade attribution in worklist item 9. The
+  completed gap record is
+  `issues/closed/20260810-ownership-gate-analyzer-gaps.md`.
 
 Normative rules bound to this Decision:
 
@@ -438,14 +441,12 @@ Normative rules bound to this Decision:
   require amendment — but they are bound by §2's monotonic-baseline rule,
   and every baseline growth event is recorded in the ratchet worklist, as is
   current practice.
-- **New modules are assigned at landing.** The gate reds an *unlisted*
-  module; today it does **not** prevent a new module from being placed into
-  the `unassigned` bucket (verified by probe). The rule is therefore a
-  requirement on the arm: the legacy `unassigned` set (its current four
-  entries) is frozen shrink-only, enforced by predecessor comparison, and
-  every new module must take one of the seven real owners —
-  `issues/20260810-ownership-gate-analyzer-gaps.md` item 4 tracks it.
-  Until enforced, review carries the rule.
+- **New modules are assigned at landing.** The gate reds an unlisted module
+  and compares the pushed manifest with the predecessor: the legacy
+  `unassigned` set (its four revision-(k) entries) is frozen shrink-only, so
+  every new module must take one of the seven real owners. The adversarial
+  probe and shipped enforcement are recorded in
+  `issues/closed/20260810-ownership-gate-analyzer-gaps.md` item 4.
 - **Bypass is exceptional and loud** (`SNAPBACK_DRIFT_GATES_BYPASS=1`, per
   CLAUDE.md); a gate red on main is fixed forward at the next landing, as
   the four recorded occurrences were (one deliberate bypass; three selection
@@ -511,8 +512,8 @@ handoff: `ownership.manifest.json`'s `governedBy` gains this document, the
 stale `mixedModuleScopes` prose (e.g. `local.rs`'s activation scope still
 described as "targeted" though extracted) is refreshed, LLP 0199 `@ref`s
 that name superseded sections are repointed, and the analyzer-gaps
-ticket's fix directions are aligned to §5's current protocol (its item 3
-still words the superseded last-green shape).
+ticket's fix directions are aligned to §5's current protocol. Revision (k)
+completes and closes that handoff.
 
 ## Confidence
 
@@ -534,7 +535,7 @@ so slices can follow product priorities.
 - **2026-08-10 (c).** Round-1 revision from dual-family review: monotonic
   baseline policy (§2, §4, §5) and the analyzer-gap disclosure + extractor
   requirement (§5), both tracked in
-  `issues/20260810-ownership-gate-analyzer-gaps.md`; cross-service
+  `issues/closed/20260810-ownership-gate-analyzer-gaps.md`; cross-service
   composition clarified to orchestration-above / inert-below (§2); god-file
   no-growth rule made operational (§1); gate failure shapes corrected to
   three (§5); bypass-history wording corrected (one bypass, three selection
@@ -602,3 +603,11 @@ so slices can follow product priorities.
   inert-until-reload state machine an acceptance ruling must adopt, with
   the recorded-exception status ending at acceptance; revision history
   sorted chronologically.
+- **2026-08-10 (k).** The ownership enforcement arm now implements the
+  accepted §5 contract: module-relative and transitive re-export extraction;
+  v2 complete-graph baselines with attributed frozen fingerprints;
+  predecessor-monotonic baseline and shrink-only `unassigned` comparisons;
+  `V(P) − V(B)` blocking under one analyzer; and pushed-tree inherited-red
+  ticket coverage. The baseline was re-derived at 227 modules / 1,648 edges,
+  with 38 analyzer-upgrade discoveries frozen through ratchet-worklist item 9
+  and the two pre-existing rehearsal reds left unadmitted and ticketed.

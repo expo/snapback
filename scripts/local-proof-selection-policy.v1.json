@@ -617,7 +617,11 @@
       "files": [
         "ownership.baseline.json",
         "ownership.manifest.json",
-        "scripts/check-module-ownership.mjs"
+        "scripts/check-module-ownership.mjs",
+        "scripts/check-module-ownership.test.mjs"
+      ],
+      "prefixes": [
+        "tests/fixtures/module-ownership/"
       ]
     },
     {
@@ -949,7 +953,8 @@
     "module-ownership": {
       "lane": "fast",
       "gates": [
-        "module-ownership"
+        "module-ownership",
+        "module-ownership-fixtures"
       ]
     },
     "rustfmt": {

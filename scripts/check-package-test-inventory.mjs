@@ -203,6 +203,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'hmr-generation-handoff.test.mjs',
       'lifecycle.test.mjs',
       'offline.test.mjs',
+      'optimistic-create.test.mjs',
       'optimistic.test.mjs',
       'package.test.mjs',
       'presence.test.mjs',
@@ -456,7 +457,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 245,
+  expectedTotal = 246,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -768,6 +769,10 @@ export function checkPackageTestInventories(options = {}) {
 // 244 -> 245 (2026-08-10, LLP 0178/0187 plain-join advisory):
 // @expo/snapback-codegen gains the positive equivalence fixture, rejected-
 // construct matrix, and retained demo/Guide zero-false-positive corpus scan.
+// 245 -> 246 (2026-08-10, LLP 0129 lane M reconciliation):
+// @expo/snapback-react's provider-owned optimistic-create suite landed in its
+// package test script at 610eb21c2 without the canonical inventory update;
+// registered on sight while completing the LLP 0225 ownership-gate proof.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

@@ -12,6 +12,7 @@ import {
   renameSync,
   rmSync,
   symlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -37,6 +38,11 @@ import {
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const IMPLEMENTATION_FILES = [
   '.githooks/pre-push',
+  'issues/20260809-0199-ownership-ratchet-worklist.md',
+  'issues/20260810-main-module-ownership-red-rehearsal-edges.md',
+  'ownership.baseline.json',
+  'ownership.manifest.json',
+  'scripts/check-module-ownership.mjs',
   'scripts/drift-prone-gates.mjs',
   'scripts/check-contract-meta.mjs',
   'scripts/check-contract-meta.test.mjs',
@@ -353,6 +359,35 @@ test('diary identity backstop files one ticket for a new collision', { timeout: 
       `DEMO diary NEW collision -> one idempotent backstop ticket\n`
         + `${relevantLines(first.output)}\n${relevantLines(second.output)}`,
     );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('ownership protocol failures never use Boolean inherited-red attribution', { timeout: 60_000 }, () => {
+  const { scratch, repo } = setupCommittedClone();
+  try {
+    // @ref LLP 0225#5 — the hook must refuse ownership failures without Boolean inherited-red attribution.
+    // Ownership owns its set/unassigned verdict; the generic runner must
+    // block that verdict instead of relabeling it as a Boolean inherited red.
+    const manifest = JSON.parse(readFileSync(join(repo, 'ownership.manifest.json'), 'utf8'));
+    manifest.modulesByOwner['shared-contract-types-leaf'] = manifest
+      .modulesByOwner['shared-contract-types-leaf']
+      .filter((path) => path !== 'src/api_envelope.rs');
+    manifest.modulesByOwner.unassigned = [
+      ...manifest.modulesByOwner.unassigned,
+      'src/api_envelope.rs',
+    ].sort();
+    writeFileSync(
+      join(repo, 'ownership.manifest.json'),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+    );
+    commitAll(repo, 'test: ownership protocol failure is never Boolean-attributed');
+    const result = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main']);
+    assert.equal(result.status, 1, result.output);
+    assert.match(result.output, /legacy unassigned bucket is shrink-only/u);
+    assert.match(result.output, /failed drift-prone gate module-ownership/u);
+    assert.doesNotMatch(result.output, /PRE-EXISTING STALE module-ownership/u);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

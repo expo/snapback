@@ -234,6 +234,16 @@ export function runPrePush({
   const preExistingGates = new Set();
   for (const plan of plans) {
     if (plan.gates.length === 0) continue;
+    const ownershipBaselines = plan.gates.includes('module-ownership')
+      ? baselineRevisionsForPlan(root, plan)
+      : null;
+    if (ownershipBaselines?.error) {
+      console.error(
+        `[snapback-drift] module-ownership attribution unavailable: ${ownershipBaselines.error}; `
+          + 'blocking fail-closed',
+      );
+      return 1;
+    }
     const short = plan.revision.slice(0, 12);
     console.log(
       `[snapback-drift] ${short}: ${plan.changedPaths.length} committed path(s) selected `
@@ -267,8 +277,19 @@ export function runPrePush({
           const command = commandForGate(context, gate);
           const gateStarted = performance.now();
           console.log(`[snapback-drift] RUN ${gate}: ${command}`);
+          // @ref LLP 0225#5 — ownership failures require the set-based protocol, never Boolean inherited-red fallback.
+          // Ownership receives every push merge-base and makes its own
+          // set-based verdict; a failure must never enter the Boolean
+          // pre-existing-staleness fallback below.
+          const gateEnvironment = gate === 'module-ownership'
+            ? {
+                ...revisionEnv,
+                ...env,
+                SNAPBACK_MODULE_OWNERSHIP_PREDECESSORS: ownershipBaselines.revisions.join(','),
+              }
+            : { ...revisionEnv, ...env };
           const execution = executeGate(cwd, gate, command, {
-            env: { ...revisionEnv, ...env },
+            env: gateEnvironment,
             prepareCommand: metadata.prepareCommand,
             environmentRoot: root,
             requiredEnvironmentPaths: metadata.requiredEnvironmentPaths,
@@ -284,6 +305,11 @@ export function runPrePush({
                 execution,
               });
               return 2;
+            }
+            if (gate === 'module-ownership') {
+              writeCapturedOutput(execution, { stripJavaScriptStack: true });
+              printRefusal({ gate, revision: plan.revision, metadata, cwd, command });
+              return 1;
             }
             writeCapturedOutput(execution, { stripJavaScriptStack: true });
             const baseline = baselineRevisionsForPlan(root, plan);

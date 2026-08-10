@@ -1,6 +1,6 @@
 # Ownership gate: analyzer blind to non-`crate::` dependency forms; baseline updates can launder forbidden edges
 
-**Status:** Open
+**Status:** Resolved
 **Date:** 2026-08-10
 **Systems:** Proof/gates, Rust core
 **Source:** LLP 0225 super-refine round 1, gpt-5 family review
@@ -54,3 +54,41 @@ new violations.
 **Claimed 2026-08-10** by the clique-defects ship session (llp-ship run
 `owngate-20260810`, branch `llp-ship/owngate-20260810/impl`): implementing
 items 1-4 against `scripts/check-module-ownership.mjs` per LLP 0225 §5.
+
+## Resolution
+
+Resolved 2026-08-10 on the claimed implementation branch:
+
+1. The extractor now resolves `crate::`, lexical/file-relative `self::` and
+   `super::` roots (including `#[path]` modules), grouped trees, aliases,
+   `pub use`, and transitively chained explicit/glob re-exports. The live
+   `src/auth/provider.rs → {src/auth/lifecycle.rs, src/auth/mailbox.rs}`
+   sideways edges are visible. One adversarial source fixture per supported
+   form lives in `tests/fixtures/module-ownership/`, driven by
+   `scripts/check-module-ownership.test.mjs`.
+2. Baseline schema v2 separates the complete observed graph from the admitted
+   frozen-forbidden fingerprint set. Both check and `--update-baseline`
+   compare that set to the committed predecessor, admit shrinkage, require
+   retained attribution for analyzer re-keys, bind relocation records to the
+   exact removed predecessor fingerprint and owner pair, and require an
+   explicit time-bounded worklist waiver for genuinely new coupling. Silent
+   growth is refused before any baseline write.
+3. The gate applies the upgraded analyzer to pushed and merge-base snapshots,
+   computes canonical `V(R)` sets, blocks `V(P) − V(B)`, and runs the
+   monotonic-baseline check in the same verdict. Inherited reds require an
+   open pushed-tree ticket naming every fingerprint and an observation
+   revision. The pre-push runner supplies every merge-base and never routes an
+   ownership-protocol failure through its Boolean staleness fallback; the hook
+   does not create worktree state.
+4. The predecessor manifest comparison freezes the four legacy `unassigned`
+   entries shrink-only. The two already-landed logical-transfer modules caught
+   during re-derivation were assigned to real owners
+   (`shared-contract-types-leaf` and `storage-migration-kernel`) rather than
+   expanding that bucket.
+
+The v2 baseline was re-derived over 227 modules and 1,648 observed edges. It
+contains 400 admitted frozen-forbidden fingerprints and leaves the two
+separately ticketed rehearsal reds unadmitted. Exactly **38 newly visible
+pre-existing forbidden edges** were frozen with analyzer-upgrade attribution
+in `issues/20260809-0199-ownership-ratchet-worklist.md` item 9; that set
+includes the provider pair above.
