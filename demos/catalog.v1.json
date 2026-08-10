@@ -186,7 +186,7 @@
     {
       "id": "messaging-snapback",
       "directory": "demos/messaging-snapback",
-      "teaches": "An Expo Router SDK 57 messaging app backed by Snapback: 1-1 DMs, group chats, text and image messages, emoji reactions, WhatsApp-style reply previews, and live typing indicators.",
+      "teaches": "An Expo Router SDK 57 messaging app backed by Snapback: DMs, groups, image messages, reactions, reply previews, live typing, and a Sessions-mode headless witness for recipient-bound view-once asset grants.",
       "clients": ["expo", "headless"],
       "targets": ["local", "web-client"],
       "maturity": "integration",
