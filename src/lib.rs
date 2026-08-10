@@ -24,9 +24,9 @@ pub mod embed;
 
 #[doc(hidden)]
 pub mod admin;
+pub mod admin_agent_destroy;
 #[doc(hidden)]
 pub mod admin_impersonation;
-pub mod admin_agent_destroy;
 #[doc(hidden)]
 pub mod admin_link;
 #[doc(hidden)]
@@ -34,11 +34,11 @@ pub mod admin_secret_read;
 pub(crate) mod agent_safe_publication;
 #[doc(hidden)]
 pub mod api_envelope;
-pub(crate) mod ask;
 #[doc(hidden)]
 pub mod app_data_result;
 #[doc(hidden)]
 pub mod args_contract;
+pub(crate) mod ask;
 #[doc(hidden)]
 pub mod assets;
 #[doc(hidden)]

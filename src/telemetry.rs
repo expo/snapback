@@ -4809,8 +4809,7 @@ fn maintain(tx: &Transaction<'_>, config: &TelemetryConfig, clock: i64) -> Snapb
                 ..Aggregate::default()
             });
             entry.count += 1;
-            entry.errors +=
-                u64::from(code.is_some() || status.is_some_and(|value| value >= 500));
+            entry.errors += u64::from(code.is_some() || status.is_some_and(|value| value >= 500));
             if let Some(duration) = duration {
                 entry.histogram[histogram_index(duration)] += 1;
             }
@@ -4848,12 +4847,7 @@ fn maintain(tx: &Transaction<'_>, config: &TelemetryConfig, clock: i64) -> Snapb
         params![generation, hour_start(clock)],
     )?;
     fold_finalized_heavy_hitters(tx, &generation, config.top_names_per_hour, clock)?;
-    fold_finalized_caller_heavy_hitters(
-        tx,
-        &generation,
-        config.top_names_per_hour,
-        clock,
-    )?;
+    fold_finalized_caller_heavy_hitters(tx, &generation, config.top_names_per_hour, clock)?;
 
     let mut swept = compact_hourly(tx, &generation, config, clock)?;
     swept = swept.saturating_add(evict_daily_horizon(tx, &generation, config, clock)?);
@@ -5221,7 +5215,20 @@ fn compact_hourly(
         };
         let mut caller_daily: BTreeMap<(i64, String, String, String, String), Aggregate> =
             BTreeMap::new();
-        for (start, kind, name, lane, caller_key, count, errors, hist, start_cov, end_cov, watermark, folded) in caller_rows
+        for (
+            start,
+            kind,
+            name,
+            lane,
+            caller_key,
+            count,
+            errors,
+            hist,
+            start_cov,
+            end_cov,
+            watermark,
+            folded,
+        ) in caller_rows
         {
             let entry = caller_daily
                 .entry((day_start(start), kind, name, lane, caller_key))
@@ -6066,9 +6073,18 @@ mod tests {
         let raw_declared_id = "agent test caller <caller@example.test>";
         let declared_key = "vR4Tof7xOOZJgFJ5wj3-yQufXiMPicPrThTlYByE8ZM";
         for (name, attribution) in [
-            ("declared-call", CallerAttributionV1::declared(declared_key.to_owned())),
-            ("declared-call", CallerAttributionV1::declared(declared_key.to_owned())),
-            ("integration-call", CallerAttributionV1::integration("int_test".to_owned())),
+            (
+                "declared-call",
+                CallerAttributionV1::declared(declared_key.to_owned()),
+            ),
+            (
+                "declared-call",
+                CallerAttributionV1::declared(declared_key.to_owned()),
+            ),
+            (
+                "integration-call",
+                CallerAttributionV1::integration("int_test".to_owned()),
+            ),
             ("anonymous-call", CallerAttributionV1::anonymous()),
             ("first-party-call", CallerAttributionV1::first_party()),
         ] {

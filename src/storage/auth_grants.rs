@@ -1069,7 +1069,9 @@ pub(super) fn resolve_delegated_scopes_on(
                     }
                 }
             }
-            GrantScopeRequest::Surface { surface: GrantSurface::Ask } => {
+            GrantScopeRequest::Surface {
+                surface: GrantSurface::Ask,
+            } => {
                 let scope = exact_scope_on(
                     tx,
                     super::auth_scope_bases::ASK_SCOPE_ID,
@@ -2100,10 +2102,12 @@ mod tests {
         else {
             panic!("first presentation must create");
         };
-        assert!(request
-            .scopes
-            .iter()
-            .any(|scope| scope.function_id == super::super::auth_scope_bases::ASK_SCOPE_ID));
+        assert!(
+            request
+                .scopes
+                .iter()
+                .any(|scope| scope.function_id == super::super::auth_scope_bases::ASK_SCOPE_ID)
+        );
         let disclosure = request
             .data_egress_disclosure
             .expect("ask consent must describe third-party model egress");

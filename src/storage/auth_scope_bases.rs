@@ -250,7 +250,14 @@ fn reconcile_ask_scope_basis_on(
             "SELECT kind, generation, present, authority_creating
              FROM _auth_scope_bases WHERE function_id = ?1",
             params![ASK_SCOPE_ID],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?, row.get::<_, i64>(3)?)),
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, i64>(3)?,
+                ))
+            },
         )
         .optional()?;
     match stored {
@@ -343,9 +350,8 @@ mod tests {
     use super::*;
     use crate::manifest::{
         ApiAskBilling, ApiAskBudgets, ApiAskManifest, ApiAskPerPrincipalDayBudget,
-        ApiAskPerRequestBudget, ApiAskResultVolumeBudget, ApiBudgetsManifest, ApiManifest,
-        ApiAskTokenBudget, FunctionDefinition, FunctionRuntime, HandlerPlan, QueryPlan,
-        SchemaManifest,
+        ApiAskPerRequestBudget, ApiAskResultVolumeBudget, ApiAskTokenBudget, ApiBudgetsManifest,
+        ApiManifest, FunctionDefinition, FunctionRuntime, HandlerPlan, QueryPlan, SchemaManifest,
     };
 
     fn function(id: &str, kind: FunctionKind, authority_creating: bool) -> FunctionDefinition {
@@ -419,10 +425,10 @@ mod tests {
         let added = db
             .reconcile_auth_scope_bases_with_schema(&functions, &enabled)
             .unwrap();
-        assert_eq!(added.became_present, BTreeSet::from([
-            "fn:read".to_owned(),
-            ASK_SCOPE_ID.to_owned(),
-        ]));
+        assert_eq!(
+            added.became_present,
+            BTreeSet::from(["fn:read".to_owned(), ASK_SCOPE_ID.to_owned(),])
+        );
         assert_eq!(
             db.current_auth_scope_basis(ASK_SCOPE_ID, &FunctionKind::Query, false)
                 .unwrap(),
@@ -442,7 +448,10 @@ mod tests {
         let removed = db
             .reconcile_auth_scope_bases_with_schema(&functions, &SchemaManifest::default())
             .unwrap();
-        assert_eq!(removed.became_absent, BTreeSet::from([ASK_SCOPE_ID.to_owned()]));
+        assert_eq!(
+            removed.became_absent,
+            BTreeSet::from([ASK_SCOPE_ID.to_owned()])
+        );
         assert_eq!(
             db.current_auth_scope_basis(ASK_SCOPE_ID, &FunctionKind::Query, false)
                 .unwrap(),

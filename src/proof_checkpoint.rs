@@ -3465,9 +3465,13 @@ mod tests {
 
     fn seeded_file_database(path: &Path) -> LocalDatabase {
         let mut database = LocalDatabase::open(path).expect("open database");
-        database.schema_seed().apply_schema(schema()).expect("apply schema");
         database
-            .schema_seed().seed(SeedData {
+            .schema_seed()
+            .apply_schema(schema())
+            .expect("apply schema");
+        database
+            .schema_seed()
+            .seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![Map::from_iter([
@@ -3500,6 +3504,7 @@ mod tests {
         let database_path = temp.path().join("ordinary.sqlite");
         let mut database = seeded_file_database(&database_path);
         database
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Patch {
@@ -3844,7 +3849,10 @@ mod tests {
         let temp = tempfile::tempdir().expect("tempdir");
         let database_path = temp.path().join("history.sqlite");
         let mut database = LocalDatabase::open(&database_path).expect("open database");
-        database.schema_seed().apply_schema(schema()).expect("apply schema");
+        database
+            .schema_seed()
+            .apply_schema(schema())
+            .expect("apply schema");
         let projected: (u64, u64) = Connection::open(&database_path)
             .expect("open projected policy reader")
             .query_row(
@@ -3858,7 +3866,8 @@ mod tests {
             .expect("schema publication projects its finite policy");
         assert_eq!(projected, (10_000, 10));
         database
-            .schema_seed().seed(SeedData {
+            .schema_seed()
+            .seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![Map::from_iter([
@@ -3870,6 +3879,7 @@ mod tests {
             .expect("seed row");
         for visibility in ["secret", "public-two", "secret-two", "public-three"] {
             database
+                .mutation_writes()
                 .commit_buffered_writes(
                     &HandlerInput::default(),
                     vec![BufferedWrite::Patch {
@@ -3992,9 +4002,13 @@ mod tests {
             .expect("history declaration")
             .max_versions_per_record = 2;
         let mut database = LocalDatabase::open(&database_path).expect("open database");
-        database.schema_seed().apply_schema(finite.clone()).expect("apply schema");
         database
-            .schema_seed().seed(SeedData {
+            .schema_seed()
+            .apply_schema(finite.clone())
+            .expect("apply schema");
+        database
+            .schema_seed()
+            .seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![
@@ -4013,6 +4027,7 @@ mod tests {
         for ordinal in 1..=3 {
             for id in ["item-a", "item-b"] {
                 database
+                    .mutation_writes()
                     .commit_buffered_writes(
                         &HandlerInput::default(),
                         vec![BufferedWrite::Patch {
@@ -4065,7 +4080,8 @@ mod tests {
         removed.schema_hash = Some("sha256:proof-checkpoint-history-removed".to_owned());
         removed.tables[0].history = None;
         database
-            .schema_seed().apply_schema(removed)
+            .schema_seed()
+            .apply_schema(removed)
             .expect("publish schema without history");
         let retained_after_removal: u64 = Connection::open(&database_path)
             .expect("open removed-policy reader")
@@ -4108,14 +4124,16 @@ mod tests {
         legacy_schema.tables[0].history = None;
         let mut database = LocalDatabase::open(&database_path).expect("open database");
         database
-            .schema_seed().apply_schema(legacy_schema)
+            .schema_seed()
+            .apply_schema(legacy_schema)
             .expect("apply legacy schema");
         database
             .versions_read()
             .configure_history_policy(&decoded)
             .expect("configure legacy policy");
         database
-            .schema_seed().seed(SeedData {
+            .schema_seed()
+            .seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![
@@ -4134,6 +4152,7 @@ mod tests {
         for ordinal in 1..=2 {
             for id in ["item-a", "item-b"] {
                 database
+                    .mutation_writes()
                     .commit_buffered_writes(
                         &HandlerInput::default(),
                         vec![BufferedWrite::Patch {
@@ -4886,6 +4905,7 @@ mod tests {
         let divergent_database_path = divergent_temp.path().join("source.sqlite");
         let mut divergent_database = seeded_file_database(&divergent_database_path);
         divergent_database
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Insert {
@@ -5598,6 +5618,7 @@ mod tests {
         let destination = temp.path().join("checkpoint");
         let mut database = seeded_file_database(&database_path);
         database
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Patch {
@@ -5640,6 +5661,7 @@ mod tests {
         let destination = temp.path().join("checkpoint");
         let mut database = seeded_file_database(&database_path);
         database
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Patch {
@@ -5663,6 +5685,7 @@ mod tests {
             let mut database = LocalDatabase::open(writer_path).expect("open concurrent writer");
             go_rx.recv().expect("checkpoint pinned signal");
             let version = database
+                .mutation_writes()
                 .commit_buffered_writes(
                     &HandlerInput::default(),
                     vec![BufferedWrite::Patch {
@@ -5702,6 +5725,7 @@ mod tests {
         );
 
         database
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Patch {

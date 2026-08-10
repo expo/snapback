@@ -625,7 +625,6 @@ impl Scope {
             .join("|")
     }
 
-
     fn routed_key(&self, routing_fields: &[String]) -> Option<String> {
         if routing_fields.is_empty() {
             return Some(self.normalized_key());
@@ -4937,7 +4936,10 @@ impl LocalEphemeralBackend {
 
     pub fn subscription_requires_room_permission(&self, name: &str) -> bool {
         self.collection_if_loaded(name).is_some_and(|collection| {
-            matches!(collection.subscribe, AccessPolicy::RequireRoomPermission { .. })
+            matches!(
+                collection.subscribe,
+                AccessPolicy::RequireRoomPermission { .. }
+            )
         })
     }
 
@@ -10520,7 +10522,9 @@ mod tests {
             ),
             (
                 "service",
-                crate::stream_attempt::StreamInitiator::ServiceCredential("credential-b".to_owned()),
+                crate::stream_attempt::StreamInitiator::ServiceCredential(
+                    "credential-b".to_owned(),
+                ),
             ),
             (
                 "anonymous",
@@ -10581,7 +10585,10 @@ mod tests {
             panic!("stream replay snapshot")
         };
         assert_eq!(entries.len(), 1);
-        assert_eq!(serde_json::from_slice::<Value>(&entries[0].value).unwrap()["chunkIndex"], 4);
+        assert_eq!(
+            serde_json::from_slice::<Value>(&entries[0].value).unwrap()["chunkIndex"],
+            4
+        );
         assert!(!resume.truncated);
         assert_eq!(resume.next_chunk, 5);
 
@@ -10596,7 +10603,10 @@ mod tests {
             panic!("stream gap snapshot")
         };
         assert!(resume.truncated);
-        assert_eq!(resume.transcript_path, format!("/streams/{}", attempt.attempt_token));
+        assert_eq!(
+            resume.transcript_path,
+            format!("/streams/{}", attempt.attempt_token)
+        );
     }
 
     fn delete_request(connection_id: &str) -> DeleteRequest {

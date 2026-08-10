@@ -200,7 +200,10 @@ impl TelemetryStatsRequestV1 {
             ));
         }
         if let Some(lane) = self.filter.lane.as_deref()
-            && !matches!(lane, "anonymous" | "declared" | "integration" | "first-party")
+            && !matches!(
+                lane,
+                "anonymous" | "declared" | "integration" | "first-party"
+            )
         {
             return Err(query_invalid(
                 "telemetry lane must be anonymous, declared, integration, or first-party",
@@ -877,8 +880,7 @@ fn query_stats_unbudgeted(
     let mut by_kind: BTreeMap<String, StatsAggregate> = BTreeMap::new();
     let mut by_name: BTreeMap<String, StatsAggregate> = BTreeMap::new();
     let mut by_kind_name: BTreeMap<(String, String), StatsAggregate> = BTreeMap::new();
-    let mut by_caller: BTreeMap<(String, String, String, String), StatsAggregate> =
-        BTreeMap::new();
+    let mut by_caller: BTreeMap<(String, String, String, String), StatsAggregate> = BTreeMap::new();
     let mut series: BTreeMap<(i64, i64, String, String), (u64, u64)> = BTreeMap::new();
     let caller_sensitive = request.group_by_caller
         || request.filter.caller_key.is_some()

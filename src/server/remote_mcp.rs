@@ -89,15 +89,7 @@ pub(super) async fn post(
     };
     let params = object.get("params").cloned().unwrap_or_else(|| json!({}));
     let result = dispatch(
-        &runtime,
-        &state,
-        &read,
-        &authority,
-        route,
-        &catalog,
-        &headers,
-        method,
-        params,
+        &runtime, &state, &read, &authority, route, &catalog, &headers, method, params,
     )
     .await;
     let Some(id) = id else {
@@ -158,7 +150,10 @@ async fn dispatch(
         "ping" => Ok(json!({})),
         "tools/list" => Ok(tool_list(catalog, authority)),
         "tools/call" => {
-            call_tool(runtime, state, read, authority, route, catalog, headers, params).await
+            call_tool(
+                runtime, state, read, authority, route, catalog, headers, params,
+            )
+            .await
         }
         "resources/list" => Ok(resource_list(catalog)),
         "resources/read" => read_resource(catalog, params),
@@ -344,23 +339,25 @@ fn tool_list(catalog: &Catalog, _authority: &PreparedAuthority) -> Value {
             // calls, not discovery; an exposed authenticated function remains
             // discoverable to an anonymous client without becoming callable.
             .filter(|tool| tool.exposed)
-            .map(|tool| json!({
-                "name": tool.tool_name,
-                "description": format!(
-                    "Invoke {} ({}) as a Snapback {} function; auth requirement: {}.",
-                    tool.function_name,
-                    tool.function_id,
-                    tool.route_kind,
-                    tool.auth_requirement,
-                ),
-                "inputSchema": {
-                    "type": "object",
-                    "required": ["args"],
-                    "properties": { "args": tool.args_schema },
-                    "additionalProperties": false
-                },
-                "_meta": { "snapback/functionId": tool.function_id }
-            })),
+            .map(|tool| {
+                json!({
+                    "name": tool.tool_name,
+                    "description": format!(
+                        "Invoke {} ({}) as a Snapback {} function; auth requirement: {}.",
+                        tool.function_name,
+                        tool.function_id,
+                        tool.route_kind,
+                        tool.auth_requirement,
+                    ),
+                    "inputSchema": {
+                        "type": "object",
+                        "required": ["args"],
+                        "properties": { "args": tool.args_schema },
+                        "additionalProperties": false
+                    },
+                    "_meta": { "snapback/functionId": tool.function_id }
+                })
+            }),
     );
     json!({
         "tools": tools,
@@ -388,17 +385,23 @@ async fn call_tool(
         .get("name")
         .and_then(Value::as_str)
         .ok_or_else(|| RpcFailure::invalid("tools/call requires a tool name"))?;
-    let arguments = object.get("arguments").cloned().unwrap_or_else(|| json!({}));
+    let arguments = object
+        .get("arguments")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     if name == "describe_api" {
-        if arguments.as_object().is_none_or(|arguments| !arguments.is_empty()) {
+        if arguments
+            .as_object()
+            .is_none_or(|arguments| !arguments.is_empty())
+        {
             return Err(RpcFailure::invalid("describe_api accepts no arguments"));
         }
         return Ok(successful_tool_result(describe_api(catalog)));
     }
     if name == "run_code" {
         let manifest = super::current_target_capability_manifest(runtime).await;
-        let response = ApiError::from(super::run_code_capability_refusal(&manifest))
-            .into_response();
+        let response =
+            ApiError::from(super::run_code_capability_refusal(&manifest)).into_response();
         return response_to_tool_result(response).await;
     }
     if name == "ask" {
@@ -414,8 +417,13 @@ async fn call_tool(
         let arguments = arguments
             .as_object()
             .ok_or_else(|| RpcFailure::invalid("ask arguments must be an object"))?;
-        if arguments.keys().any(|key| !matches!(key.as_str(), "task" | "resultSchema")) {
-            return Err(RpcFailure::invalid("ask accepts only task and resultSchema"));
+        if arguments
+            .keys()
+            .any(|key| !matches!(key.as_str(), "task" | "resultSchema"))
+        {
+            return Err(RpcFailure::invalid(
+                "ask accepts only task and resultSchema",
+            ));
         }
         let task = arguments
             .get("task")
@@ -423,7 +431,10 @@ async fn call_tool(
             .ok_or_else(|| RpcFailure::invalid("ask requires a string task"))?
             .to_owned();
         let result_schema = arguments.get("resultSchema").cloned();
-        if result_schema.as_ref().is_some_and(|schema| !schema.is_object()) {
+        if result_schema
+            .as_ref()
+            .is_some_and(|schema| !schema.is_object())
+        {
             return Err(RpcFailure::invalid("ask resultSchema must be an object"));
         }
         let response = super::invoke_ask_core(
@@ -516,7 +527,9 @@ async fn response_to_tool_result(response: Response) -> Result<Value, RpcFailure
     let successful = response.status().is_success();
     let bytes = to_bytes(response.into_body(), MCP_BODY_LIMIT)
         .await
-        .map_err(|error| RpcFailure::internal(format!("function response could not be read: {error}")))?;
+        .map_err(|error| {
+            RpcFailure::internal(format!("function response could not be read: {error}"))
+        })?;
     let body = serde_json::from_slice::<Value>(&bytes).map_err(|error| {
         RpcFailure::internal(format!("function response was not JSON: {error}"))
     })?;
@@ -556,7 +569,9 @@ pub(super) async fn pre_dispatch_tool_refusal(
     });
     let mut wrapped = json_response(json!({ "jsonrpc": "2.0", "id": id, "result": result }));
     if let Some(retry_after) = retry_after {
-        wrapped.headers_mut().insert(header::RETRY_AFTER, retry_after);
+        wrapped
+            .headers_mut()
+            .insert(header::RETRY_AFTER, retry_after);
     }
     wrapped
 }
@@ -608,16 +623,30 @@ fn escalation_facts() -> Value {
 
 fn resource_list(catalog: &Catalog) -> Value {
     let resources = [
-        ("envelope", "Current Snapback API envelope", "application/json"),
-        ("openapi", "Current generated OpenAPI document", "application/json"),
-        ("agent-skill", "Current generated agent skill", "text/markdown"),
+        (
+            "envelope",
+            "Current Snapback API envelope",
+            "application/json",
+        ),
+        (
+            "openapi",
+            "Current generated OpenAPI document",
+            "application/json",
+        ),
+        (
+            "agent-skill",
+            "Current generated agent skill",
+            "text/markdown",
+        ),
     ]
     .into_iter()
-    .map(|(kind, name, mime_type)| json!({
-        "uri": format!("snapback-app-api://{kind}/{}", catalog.digest),
-        "name": name,
-        "mimeType": mime_type
-    }))
+    .map(|(kind, name, mime_type)| {
+        json!({
+            "uri": format!("snapback-app-api://{kind}/{}", catalog.digest),
+            "name": name,
+            "mimeType": mime_type
+        })
+    })
     .collect::<Vec<_>>();
     json!({ "resources": resources })
 }

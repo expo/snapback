@@ -2124,8 +2124,7 @@ fn validate_exact(
     // @ref LLP 0204#d91--streaming-conversations — the
     // function-manifest companion is recognized only in its exact shape.
     if objects.iter().any(|object| {
-        object.kind == "table"
-            && object.name == super::stream_transcripts::STREAM_TRANSCRIPT_TABLE
+        object.kind == "table" && object.name == super::stream_transcripts::STREAM_TRANSCRIPT_TABLE
     }) {
         super::stream_transcripts::validate_exact_schema(conn)?;
     }
@@ -3805,7 +3804,8 @@ mod tests {
         ] {
             let mut db = LocalDatabase::memory().expect("memory database");
             let error = db
-                .schema_seed().apply_schema(manifest.clone())
+                .schema_seed()
+                .apply_schema(manifest.clone())
                 .expect_err("reserved manifest apply must fail");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_INVALID_IDENTIFIER",
@@ -3846,7 +3846,8 @@ mod tests {
 
         let db = LocalDatabase::memory().expect("memory database");
         let error = db
-            .query_reads_read().get("_aUtH_users", "anything")
+            .query_reads_read()
+            .get("_aUtH_users", "anything")
             .expect_err("runtime resolver must reject protected table");
         assert_eq!(error.diagnostic.code, "SNAPBACK_INVALID_IDENTIFIER");
     }

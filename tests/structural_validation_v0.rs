@@ -170,10 +170,11 @@ fn derived_value() -> ValueExpr {
 }
 
 fn seed_existing(db: &mut LocalDatabase, corpus: &Corpus) {
-    db.schema_seed().seed(snapback::manifest::SeedData {
-        tables: BTreeMap::from([(corpus.schema.table.clone(), vec![corpus.valid_row.clone()])]),
-    })
-    .expect("valid corpus row seeds");
+    db.schema_seed()
+        .seed(snapback::manifest::SeedData {
+            tables: BTreeMap::from([(corpus.schema.table.clone(), vec![corpus.valid_row.clone()])]),
+        })
+        .expect("valid corpus row seeds");
     assert!(
         db.query_reads_read()
             .get(&corpus.schema.table, "structural-validation-existing")
@@ -220,16 +221,21 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
 
     for case in &corpus.cases {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(schema(&corpus))
+        db.schema_seed()
+            .apply_schema(schema(&corpus))
             .expect("apply corpus schema");
         if matches!(case.operation.as_str(), "patch" | "derivedPatch") {
             seed_existing(&mut db, &corpus);
         }
-        let version_before = db.versions_read().current_version().expect("version before case");
+        let version_before = db
+            .versions_read()
+            .current_version()
+            .expect("version before case");
 
         let outcome = match case.operation.as_str() {
             "seed" => db
-                .schema_seed().seed(snapback::manifest::SeedData {
+                .schema_seed()
+                .seed(snapback::manifest::SeedData {
                     tables: BTreeMap::from([(
                         corpus.schema.table.clone(),
                         vec![case.values.clone()],
@@ -237,6 +243,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
                 })
                 .map(|_| ()),
             "insert" => db
+                .mutation_writes()
                 .execute_mutation(
                     &MutationPlan {
                         steps: vec![MutationStep::Insert {
@@ -250,6 +257,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
                 )
                 .map(|_| ()),
             "patch" => db
+                .mutation_writes()
                 .execute_mutation(
                     &MutationPlan {
                         steps: vec![MutationStep::Patch {
@@ -277,41 +285,43 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
                     ),
                 ]);
                 values.insert(field, derived_value());
-                db.execute_mutation(
-                    &MutationPlan {
-                        steps: vec![MutationStep::Insert {
-                            table: corpus.schema.table.clone(),
-                            values,
-                            bind_id_as: None,
-                        }],
-                        return_value: None,
-                    },
-                    &input(json!({
-                        "left": case.left.clone().expect("derived left"),
-                        "right": case.right.clone().expect("derived right"),
-                    })),
-                )
-                .map(|_| ())
+                db.mutation_writes()
+                    .execute_mutation(
+                        &MutationPlan {
+                            steps: vec![MutationStep::Insert {
+                                table: corpus.schema.table.clone(),
+                                values,
+                                bind_id_as: None,
+                            }],
+                            return_value: None,
+                        },
+                        &input(json!({
+                            "left": case.left.clone().expect("derived left"),
+                            "right": case.right.clone().expect("derived right"),
+                        })),
+                    )
+                    .map(|_| ())
             }
             "derivedPatch" => {
                 let field = case.field.clone().expect("derived patch field");
-                db.execute_mutation(
-                    &MutationPlan {
-                        steps: vec![MutationStep::Patch {
-                            table: corpus.schema.table.clone(),
-                            id: ValueExpr::Literal(Value::String(
-                                "structural-validation-existing".to_owned(),
-                            )),
-                            values: BTreeMap::from([(field, derived_value())]),
-                        }],
-                        return_value: None,
-                    },
-                    &input(json!({
-                        "left": case.left.clone().expect("derived left"),
-                        "right": case.right.clone().expect("derived right"),
-                    })),
-                )
-                .map(|_| ())
+                db.mutation_writes()
+                    .execute_mutation(
+                        &MutationPlan {
+                            steps: vec![MutationStep::Patch {
+                                table: corpus.schema.table.clone(),
+                                id: ValueExpr::Literal(Value::String(
+                                    "structural-validation-existing".to_owned(),
+                                )),
+                                values: BTreeMap::from([(field, derived_value())]),
+                            }],
+                            return_value: None,
+                        },
+                        &input(json!({
+                            "left": case.left.clone().expect("derived left"),
+                            "right": case.right.clone().expect("derived right"),
+                        })),
+                    )
+                    .map(|_| ())
             }
             other => panic!("unknown structural-validation operation {other}"),
         };
@@ -326,7 +336,9 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
             case.name, error.diagnostic.message
         );
         assert_eq!(
-            db.versions_read().current_version().expect("version after rejected case"),
+            db.versions_read()
+                .current_version()
+                .expect("version after rejected case"),
             version_before,
             "{} changed durable state despite rejection",
             case.name
@@ -343,9 +355,13 @@ fn local_missing_rows_still_validate_the_shared_patch_corpus() {
         .filter(|case| matches!(case.operation.as_str(), "patch" | "derivedPatch"))
     {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(schema(&corpus))
+        db.schema_seed()
+            .apply_schema(schema(&corpus))
             .expect("apply corpus schema");
-        let version_before = db.versions_read().current_version().expect("version before case");
+        let version_before = db
+            .versions_read()
+            .current_version()
+            .expect("version before case");
         let values = if case.operation == "patch" {
             literal_values(&case.values)
         } else {
@@ -354,7 +370,7 @@ fn local_missing_rows_still_validate_the_shared_patch_corpus() {
                 derived_value(),
             )])
         };
-        let outcome = db.execute_mutation(
+        let outcome = db.mutation_writes().execute_mutation(
             &MutationPlan {
                 steps: vec![MutationStep::Patch {
                     table: corpus.schema.table.clone(),
@@ -382,7 +398,9 @@ fn local_missing_rows_still_validate_the_shared_patch_corpus() {
             case.name
         );
         assert_eq!(
-            db.versions_read().current_version().expect("version after rejected case"),
+            db.versions_read()
+                .current_version()
+                .expect("version after rejected case"),
             version_before,
             "{} changed durable state for a missing row",
             case.name
@@ -395,30 +413,31 @@ fn local_declared_field_types_consume_the_shared_boundary_corpus() {
     let corpus = corpus();
     for case in &corpus.type_cases {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(SchemaManifest {
-            schema_hash: Some(format!("structural-type-{}", case.name)),
-            tables: vec![TableManifest {
-                name: "typeRecords".to_owned(),
-                fields: vec![FieldManifest {
-                    name: "value".to_owned(),
-                    field_type: field_type(&case.field_type),
-                    optional: false,
+        db.schema_seed()
+            .apply_schema(SchemaManifest {
+                schema_hash: Some(format!("structural-type-{}", case.name)),
+                tables: vec![TableManifest {
+                    name: "typeRecords".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "value".to_owned(),
+                        field_type: field_type(&case.field_type),
+                        optional: false,
+                    }],
+                    indexes: vec![],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    membership: None,
+                    asset_sharing: None,
+                    history: None,
                 }],
-                indexes: vec![],
-                syncable: true,
-                permission_backing: false,
-                permission_fields: None,
-                search_indexes: Vec::new(),
-                vector_indexes: Vec::new(),
-                search_live_limits: None,
-                membership: None,
-                asset_sharing: None,
-                history: None,
-            }],
-            ..SchemaManifest::default()
-        })
-        .expect("apply type-case schema");
-        let outcome = db.execute_mutation(
+                ..SchemaManifest::default()
+            })
+            .expect("apply type-case schema");
+        let outcome = db.mutation_writes().execute_mutation(
             &MutationPlan {
                 steps: vec![MutationStep::Insert {
                     table: "typeRecords".to_owned(),
@@ -444,7 +463,8 @@ fn local_declared_field_types_consume_the_shared_boundary_corpus() {
                 .as_str()
                 .expect("insert returns bound id");
             let stored = db
-                .query_reads_read().get("typeRecords", id)
+                .query_reads_read()
+                .get("typeRecords", id)
                 .expect("read type-case row")
                 .expect("type-case row exists");
             assert_eq!(stored["value"], case.value, "{} changed value", case.name);
@@ -463,28 +483,36 @@ fn local_declared_field_types_consume_the_shared_boundary_corpus() {
 #[test]
 fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
     let mut db = LocalDatabase::memory().expect("memory database");
-    db.schema_seed().apply_schema(edge_schema()).expect("apply edge schema");
+    db.schema_seed()
+        .apply_schema(edge_schema())
+        .expect("apply edge schema");
     let valid = json!({
         "_id": "edge-existing",
         "payload": { "valid": true },
         "__proto__": { "polluted": true }
     });
-    db.schema_seed().seed(snapback::manifest::SeedData {
-        tables: BTreeMap::from([(
-            "edgeRecords".to_owned(),
-            vec![valid.as_object().expect("valid edge row").clone()],
-        )]),
-    })
-    .expect("prototype-named declared field seeds as ordinary data");
+    db.schema_seed()
+        .seed(snapback::manifest::SeedData {
+            tables: BTreeMap::from([(
+                "edgeRecords".to_owned(),
+                vec![valid.as_object().expect("valid edge row").clone()],
+            )]),
+        })
+        .expect("prototype-named declared field seeds as ordinary data");
     let stored = db
-        .query_reads_read().get("edgeRecords", "edge-existing")
+        .query_reads_read()
+        .get("edgeRecords", "edge-existing")
         .expect("read edge row")
         .expect("edge row exists");
     assert_eq!(stored["__proto__"], json!({ "polluted": true }));
 
     for id in ["edge-existing", "edge-missing"] {
-        let before = db.versions_read().current_version().expect("version before invalid patch");
+        let before = db
+            .versions_read()
+            .current_version()
+            .expect("version before invalid patch");
         let error = db
+            .mutation_writes()
             .execute_mutation(
                 &MutationPlan {
                     steps: vec![MutationStep::Patch {
@@ -505,6 +533,7 @@ fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
     }
 
     let insert_error = db
+        .mutation_writes()
         .execute_mutation(
             &MutationPlan {
                 steps: vec![MutationStep::Insert {
@@ -524,11 +553,13 @@ fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
 
     let mut seed_db = LocalDatabase::memory().expect("seed memory database");
     seed_db
-        .schema_seed().apply_schema(edge_schema())
+        .schema_seed()
+        .apply_schema(edge_schema())
         .expect("apply seed edge schema");
     let invalid_seed = json!({ "_id": "edge-invalid", "payload": null });
     let seed_error = seed_db
-        .schema_seed().seed(snapback::manifest::SeedData {
+        .schema_seed()
+        .seed(snapback::manifest::SeedData {
             tables: BTreeMap::from([(
                 "edgeRecords".to_owned(),
                 vec![

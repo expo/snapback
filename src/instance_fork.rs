@@ -1860,9 +1860,13 @@ pub(crate) fn arm_open_derived_fork_app_row_coverage(
     database: &mut crate::storage::LocalDatabase,
     activated_at_ms: u64,
 ) -> SnapbackResult<ForkAppRowCoverageReceiptV1> {
-    let runtime = database.branch_ops_read().derived_fork().cloned().ok_or_else(|| {
-        writer_coverage_invalid("writer coverage activation requires a minted derived fork")
-    })?;
+    let runtime = database
+        .branch_ops_read()
+        .derived_fork()
+        .cloned()
+        .ok_or_else(|| {
+            writer_coverage_invalid("writer coverage activation requires a minted derived fork")
+        })?;
     let database_path = database
         .database_path()
         .map(Path::to_path_buf)
@@ -5480,29 +5484,33 @@ mod tests {
         let path = directory.join("app.sqlite3");
         let mut db = crate::storage::LocalDatabase::open(&path).unwrap();
         db.schema_seed().apply_schema(app_row_schema()).unwrap();
-        db.commit_buffered_writes(
-            &crate::manifest::HandlerInput::default(),
-            vec![
-                crate::storage::BufferedWrite::Insert {
-                    table: "items".to_owned(),
-                    id: "update-me".to_owned(),
-                    values: serde_json::Map::from_iter([("title".to_owned(), json!("before"))]),
-                },
-                crate::storage::BufferedWrite::Insert {
-                    table: "items".to_owned(),
-                    id: "delete-me".to_owned(),
-                    values: serde_json::Map::from_iter([("title".to_owned(), json!("doomed"))]),
-                },
-                crate::storage::BufferedWrite::Insert {
-                    table: "items".to_owned(),
-                    id: "revert-me".to_owned(),
-                    values: serde_json::Map::from_iter([("title".to_owned(), json!("original"))]),
-                },
-            ],
-            Vec::new(),
-            Value::Null,
-        )
-        .unwrap();
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &crate::manifest::HandlerInput::default(),
+                vec![
+                    crate::storage::BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: "update-me".to_owned(),
+                        values: serde_json::Map::from_iter([("title".to_owned(), json!("before"))]),
+                    },
+                    crate::storage::BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: "delete-me".to_owned(),
+                        values: serde_json::Map::from_iter([("title".to_owned(), json!("doomed"))]),
+                    },
+                    crate::storage::BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: "revert-me".to_owned(),
+                        values: serde_json::Map::from_iter([(
+                            "title".to_owned(),
+                            json!("original"),
+                        )]),
+                    },
+                ],
+                Vec::new(),
+                Value::Null,
+            )
+            .unwrap();
         drop(db);
         path
     }
@@ -8125,58 +8133,66 @@ mod tests {
                 if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
         ));
 
-        fork.commit_buffered_writes(
-            &crate::manifest::HandlerInput::default(),
-            vec![
-                crate::storage::BufferedWrite::Insert {
-                    table: "items".to_owned(),
-                    id: "inserted".to_owned(),
-                    values: serde_json::Map::from_iter([("title".to_owned(), json!("new"))]),
-                },
-                crate::storage::BufferedWrite::Insert {
-                    table: "items".to_owned(),
-                    id: "ephemeral".to_owned(),
-                    values: serde_json::Map::from_iter([(
-                        "title".to_owned(),
-                        json!("gone by head"),
-                    )]),
-                },
-                crate::storage::BufferedWrite::Patch {
-                    table: "items".to_owned(),
-                    id: "update-me".to_owned(),
-                    values: serde_json::Map::from_iter([("title".to_owned(), json!("after"))]),
-                },
-                crate::storage::BufferedWrite::Patch {
-                    table: "items".to_owned(),
-                    id: "revert-me".to_owned(),
-                    values: serde_json::Map::from_iter([("title".to_owned(), json!("changed"))]),
-                },
-                crate::storage::BufferedWrite::Delete {
-                    table: "items".to_owned(),
-                    id: "delete-me".to_owned(),
-                },
-            ],
-            Vec::new(),
-            Value::Null,
-        )
-        .unwrap();
-        fork.commit_buffered_writes(
-            &crate::manifest::HandlerInput::default(),
-            vec![
-                crate::storage::BufferedWrite::Delete {
-                    table: "items".to_owned(),
-                    id: "ephemeral".to_owned(),
-                },
-                crate::storage::BufferedWrite::Patch {
-                    table: "items".to_owned(),
-                    id: "revert-me".to_owned(),
-                    values: serde_json::Map::from_iter([("title".to_owned(), json!("original"))]),
-                },
-            ],
-            Vec::new(),
-            Value::Null,
-        )
-        .unwrap();
+        fork.mutation_writes()
+            .commit_buffered_writes(
+                &crate::manifest::HandlerInput::default(),
+                vec![
+                    crate::storage::BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: "inserted".to_owned(),
+                        values: serde_json::Map::from_iter([("title".to_owned(), json!("new"))]),
+                    },
+                    crate::storage::BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: "ephemeral".to_owned(),
+                        values: serde_json::Map::from_iter([(
+                            "title".to_owned(),
+                            json!("gone by head"),
+                        )]),
+                    },
+                    crate::storage::BufferedWrite::Patch {
+                        table: "items".to_owned(),
+                        id: "update-me".to_owned(),
+                        values: serde_json::Map::from_iter([("title".to_owned(), json!("after"))]),
+                    },
+                    crate::storage::BufferedWrite::Patch {
+                        table: "items".to_owned(),
+                        id: "revert-me".to_owned(),
+                        values: serde_json::Map::from_iter([(
+                            "title".to_owned(),
+                            json!("changed"),
+                        )]),
+                    },
+                    crate::storage::BufferedWrite::Delete {
+                        table: "items".to_owned(),
+                        id: "delete-me".to_owned(),
+                    },
+                ],
+                Vec::new(),
+                Value::Null,
+            )
+            .unwrap();
+        fork.mutation_writes()
+            .commit_buffered_writes(
+                &crate::manifest::HandlerInput::default(),
+                vec![
+                    crate::storage::BufferedWrite::Delete {
+                        table: "items".to_owned(),
+                        id: "ephemeral".to_owned(),
+                    },
+                    crate::storage::BufferedWrite::Patch {
+                        table: "items".to_owned(),
+                        id: "revert-me".to_owned(),
+                        values: serde_json::Map::from_iter([(
+                            "title".to_owned(),
+                            json!("original"),
+                        )]),
+                    },
+                ],
+                Vec::new(),
+                Value::Null,
+            )
+            .unwrap();
         drop(fork);
 
         let net = net_diff_receipt(&database, FORK_DIFF_MAX_ROWS).unwrap();
@@ -8258,20 +8274,21 @@ mod tests {
         let (_, _, database) = publish_armed_app_row_fork(&source, &destination);
         let mut fork = crate::storage::LocalDatabase::open(&database).unwrap();
         for index in 0..3 {
-            fork.commit_buffered_writes(
-                &crate::manifest::HandlerInput::default(),
-                vec![crate::storage::BufferedWrite::Insert {
-                    table: "items".to_owned(),
-                    id: format!("maintenance-{index}"),
-                    values: serde_json::Map::from_iter([(
-                        "title".to_owned(),
-                        json!(format!("maintenance row {index}")),
-                    )]),
-                }],
-                Vec::new(),
-                Value::Null,
-            )
-            .unwrap();
+            fork.mutation_writes()
+                .commit_buffered_writes(
+                    &crate::manifest::HandlerInput::default(),
+                    vec![crate::storage::BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: format!("maintenance-{index}"),
+                        values: serde_json::Map::from_iter([(
+                            "title".to_owned(),
+                            json!(format!("maintenance row {index}")),
+                        )]),
+                    }],
+                    Vec::new(),
+                    Value::Null,
+                )
+                .unwrap();
         }
         let before = fork.versions_read().change_journal_len().unwrap();
         let deleted = fork
@@ -8299,6 +8316,7 @@ mod tests {
         let (_, _, bypass_database) = publish_armed_app_row_fork(&source, &bypass);
         let mut covered = crate::storage::LocalDatabase::open(&bypass_database).unwrap();
         covered
+            .mutation_writes()
             .commit_buffered_writes(
                 &crate::manifest::HandlerInput::default(),
                 vec![crate::storage::BufferedWrite::Insert {
@@ -8663,20 +8681,21 @@ mod tests {
         .unwrap();
         let database = destination.join(&mint.database_file);
         let mut fork = crate::storage::LocalDatabase::open(&database).unwrap();
-        fork.commit_buffered_writes(
-            &crate::manifest::HandlerInput::default(),
-            vec![crate::storage::BufferedWrite::Insert {
-                table: "items".to_owned(),
-                id: "before-arm".to_owned(),
-                values: serde_json::Map::from_iter([(
-                    "title".to_owned(),
-                    json!("already written"),
-                )]),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .unwrap();
+        fork.mutation_writes()
+            .commit_buffered_writes(
+                &crate::manifest::HandlerInput::default(),
+                vec![crate::storage::BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "before-arm".to_owned(),
+                    values: serde_json::Map::from_iter([(
+                        "title".to_owned(),
+                        json!("already written"),
+                    )]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .unwrap();
         drop(fork);
 
         assert_eq!(

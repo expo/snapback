@@ -449,7 +449,10 @@ fn app_api_current_projections_are_bare_public_no_store_routes() {
         );
     }
     let envelope = routes["/app-api/envelope/{sha256}"];
-    assert_eq!(envelope.response_sensitivity, ResponseSensitivity::PublicProjection);
+    assert_eq!(
+        envelope.response_sensitivity,
+        ResponseSensitivity::PublicProjection
+    );
 }
 
 #[test]
@@ -460,16 +463,27 @@ fn remote_mcp_rows_pin_the_app_data_policy_tuple() {
         .collect::<Vec<_>>();
     assert_eq!(rows.len(), 3);
     assert_eq!(
-        rows.iter().map(|route| route.method).collect::<BTreeSet<_>>(),
+        rows.iter()
+            .map(|route| route.method)
+            .collect::<BTreeSet<_>>(),
         BTreeSet::from(["DELETE", "GET", "POST"])
     );
     for route in rows {
         assert_eq!(route.class, RouteClass::AppData);
         assert_eq!(route.path_policy, RoutePolicy::AppAuth);
-        assert_eq!(route.credential_resolution, CredentialResolution::LegacyBodyAuth);
-        assert_eq!(route.invocation_authority, InvocationAuthority::ClientAsserted);
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::LegacyBodyAuth
+        );
+        assert_eq!(
+            route.invocation_authority,
+            InvocationAuthority::ClientAsserted
+        );
         assert_eq!(route.legacy_body_policy, LegacyBodyPolicy::Allowed);
-        assert_eq!(route.response_sensitivity, ResponseSensitivity::ApplicationData);
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::ApplicationData
+        );
 
         let sessions = route.effective_for(PolicyAuthMode::Sessions);
         assert_eq!(sessions.path_policy, RoutePolicy::Public);
@@ -477,7 +491,10 @@ fn remote_mcp_rows_pin_the_app_data_policy_tuple() {
             sessions.credential_resolution,
             CredentialResolution::OptionalSessionOrScopedToken
         );
-        assert_eq!(sessions.invocation_authority, InvocationAuthority::ResolvedCaller);
+        assert_eq!(
+            sessions.invocation_authority,
+            InvocationAuthority::ResolvedCaller
+        );
         assert_eq!(sessions.legacy_body_policy, LegacyBodyPolicy::Rejected);
     }
 }
@@ -530,9 +547,21 @@ fn oauth_facade_rows_pin_the_commissioned_policy_tuples() {
         assert_eq!(route.method, "GET", "{path}");
         assert_eq!(route.class, RouteClass::AppData, "{path}");
         assert_eq!(route.path_policy, RoutePolicy::Public, "{path}");
-        assert_eq!(route.credential_resolution, CredentialResolution::None, "{path}");
-        assert_eq!(route.invocation_authority, InvocationAuthority::None, "{path}");
-        assert_eq!(route.response_sensitivity, ResponseSensitivity::PublicNoStore, "{path}");
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::None,
+            "{path}"
+        );
+        assert_eq!(
+            route.invocation_authority,
+            InvocationAuthority::None,
+            "{path}"
+        );
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::PublicNoStore,
+            "{path}"
+        );
     }
 
     let authorize = routes
@@ -540,26 +569,56 @@ fn oauth_facade_rows_pin_the_commissioned_policy_tuples() {
         .filter(|route| route.path == "/auth/oauth/authorize")
         .collect::<Vec<_>>();
     assert_eq!(authorize.len(), 2);
-    assert_eq!(authorize.iter().map(|route| route.method).collect::<BTreeSet<_>>(), BTreeSet::from(["GET", "POST"]));
+    assert_eq!(
+        authorize
+            .iter()
+            .map(|route| route.method)
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from(["GET", "POST"])
+    );
     for route in authorize {
         assert_eq!(route.path_policy, RoutePolicy::SessionAuth);
-        assert_eq!(route.credential_resolution, CredentialResolution::RequiredSessionBearer);
-        assert_eq!(route.invocation_authority, InvocationAuthority::ResolvedCaller);
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::RequiredSessionBearer
+        );
+        assert_eq!(
+            route.invocation_authority,
+            InvocationAuthority::ResolvedCaller
+        );
         assert_eq!(route.legacy_body_policy, LegacyBodyPolicy::Rejected);
-        assert_eq!(route.response_sensitivity, ResponseSensitivity::ApplicationData);
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::ApplicationData
+        );
     }
 
     for (path, sensitivity) in [
-        ("/auth/oauth/register", ResponseSensitivity::CredentialSecret),
+        (
+            "/auth/oauth/register",
+            ResponseSensitivity::CredentialSecret,
+        ),
         ("/auth/oauth/token", ResponseSensitivity::CredentialSecret),
         ("/auth/oauth/revoke", ResponseSensitivity::PublicNoStore),
     ] {
         let route = routes.iter().find(|route| route.path == path).unwrap();
         assert_eq!(route.method, "POST", "{path}");
         assert_eq!(route.path_policy, RoutePolicy::Public, "{path}");
-        assert_eq!(route.credential_resolution, CredentialResolution::OperationSpecific, "{path}");
-        assert_eq!(route.invocation_authority, InvocationAuthority::None, "{path}");
-        assert_eq!(route.effect_policy, EffectPolicy::OperationSpecific, "{path}");
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::OperationSpecific,
+            "{path}"
+        );
+        assert_eq!(
+            route.invocation_authority,
+            InvocationAuthority::None,
+            "{path}"
+        );
+        assert_eq!(
+            route.effect_policy,
+            EffectPolicy::OperationSpecific,
+            "{path}"
+        );
         assert_eq!(route.response_sensitivity, sensitivity, "{path}");
     }
 
@@ -568,11 +627,14 @@ fn oauth_facade_rows_pin_the_commissioned_policy_tuples() {
         .filter(|operation| operation.transport == OperationTransport::OAuthFacade)
         .map(|operation| operation.operation)
         .collect::<BTreeSet<_>>();
-    assert_eq!(operations, BTreeSet::from([
-        "oauth.dynamic-register",
-        "oauth.revoke",
-        "oauth.token-exchange",
-    ]));
+    assert_eq!(
+        operations,
+        BTreeSet::from([
+            "oauth.dynamic-register",
+            "oauth.revoke",
+            "oauth.token-exchange",
+        ])
+    );
 }
 
 /// LLP 0031 keeps the router-owned registry authoritative for method shape;
@@ -855,7 +917,10 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
     );
     assert_eq!(retire.invocation_authority, InvocationAuthority::None);
     assert_eq!(retire.legacy_body_policy, LegacyBodyPolicy::NotApplicable);
-    assert_eq!(retire.response_sensitivity, ResponseSensitivity::PublicNoStore);
+    assert_eq!(
+        retire.response_sensitivity,
+        ResponseSensitivity::PublicNoStore
+    );
 
     let step_up = provider["/auth/step-up/request"];
     assert_eq!(
@@ -892,7 +957,10 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         integrations.credential_resolution,
         CredentialResolution::AdminCredential
     );
-    assert_eq!(integrations.invocation_authority, InvocationAuthority::Operator);
+    assert_eq!(
+        integrations.invocation_authority,
+        InvocationAuthority::Operator
+    );
     assert_eq!(integrations.effect_policy, EffectPolicy::None);
     assert_eq!(
         integrations.response_sensitivity,
@@ -917,11 +985,27 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         assert_eq!(route.method, "POST", "{path}");
         assert_eq!(route.class, RouteClass::SystemApi, "{path}");
         assert_eq!(route.path_policy, RoutePolicy::AdminWrite, "{path}");
-        assert_eq!(route.credential_resolution, CredentialResolution::AdminCredential, "{path}");
-        assert_eq!(route.invocation_authority, InvocationAuthority::Operator, "{path}");
-        assert_eq!(route.legacy_body_policy, LegacyBodyPolicy::NotApplicable, "{path}");
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::AdminCredential,
+            "{path}"
+        );
+        assert_eq!(
+            route.invocation_authority,
+            InvocationAuthority::Operator,
+            "{path}"
+        );
+        assert_eq!(
+            route.legacy_body_policy,
+            LegacyBodyPolicy::NotApplicable,
+            "{path}"
+        );
         assert_eq!(route.effect_policy, effect, "{path}");
-        assert_eq!(route.response_sensitivity, ResponseSensitivity::OperatorMetadata, "{path}");
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::OperatorMetadata,
+            "{path}"
+        );
     }
 
     let declared_read = registry
@@ -945,7 +1029,11 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         assert_eq!(route.method, "POST", "{path}");
         assert_eq!(route.class, RouteClass::SystemApi, "{path}");
         assert_eq!(route.path_policy, RoutePolicy::AdminWrite, "{path}");
-        assert_eq!(route.response_sensitivity, ResponseSensitivity::OperatorMetadata, "{path}");
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::OperatorMetadata,
+            "{path}"
+        );
     }
 
     let router = app(AppState::detached(
@@ -1015,7 +1103,11 @@ async fn integration_lifecycle_body_postures_are_closed_and_executable() {
             "x-snapback-admin-token",
             "sekrit".parse().expect("admin header"),
         );
-        let response = router.clone().oneshot(probe).await.expect("empty-body route probe");
+        let response = router
+            .clone()
+            .oneshot(probe)
+            .await
+            .expect("empty-body route probe");
         assert_eq!(
             response.status(),
             StatusCode::PAYLOAD_TOO_LARGE,
@@ -1126,9 +1218,7 @@ fn session_overlay_closes_every_client_asserted_http_route() {
                     | "/api/v1/run"
                     | "/api/v1/ask"
                     | "/mcp"
-                    | "/app/bundle" => {
-                        CredentialResolution::OptionalSessionOrScopedToken
-                    }
+                    | "/app/bundle" => CredentialResolution::OptionalSessionOrScopedToken,
                     _ => CredentialResolution::OptionalSessionBearer,
                 };
                 assert_eq!(

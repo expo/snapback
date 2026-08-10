@@ -125,8 +125,8 @@ pub fn parse_agent_destroy_capability_file(
     if bytes.is_empty() || bytes.len() > MAX_AGENT_DESTROY_CAPABILITY_FILE_BYTES {
         return Err(agent_destroy_capability_required());
     }
-    let value = std::str::from_utf8(bytes.as_slice())
-        .map_err(|_| agent_destroy_capability_required())?;
+    let value =
+        std::str::from_utf8(bytes.as_slice()).map_err(|_| agent_destroy_capability_required())?;
     let parsed = ImpersonationBearer::parse(value).map_err(|_| agent_destroy_capability_required());
     bytes.zeroize();
     parsed
@@ -188,11 +188,9 @@ mod tests {
     #[test]
     fn separately_generated_capabilities_are_domain_separated() {
         let (destroy, destroy_operator) =
-            AgentDestroyCapabilityRegistry::generate("boot-a".to_owned(), &FixedRandom(1))
-                .unwrap();
+            AgentDestroyCapabilityRegistry::generate("boot-a".to_owned(), &FixedRandom(1)).unwrap();
         let (_, unrelated_operator) =
-            AgentDestroyCapabilityRegistry::generate("boot-a".to_owned(), &FixedRandom(2))
-                .unwrap();
+            AgentDestroyCapabilityRegistry::generate("boot-a".to_owned(), &FixedRandom(2)).unwrap();
         destroy
             .authorize(Some(destroy_operator.expose_secret()))
             .unwrap();

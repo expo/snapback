@@ -2337,9 +2337,11 @@ mod tests {
 
     fn seeded(visibility: SearchVisibilityV1) -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(search_schema(visibility))
+        db.schema_seed()
+            .apply_schema(search_schema(visibility))
             .expect("apply search schema");
-        db.schema_seed().seed(fixture_seed("Checkout outage"))
+        db.schema_seed()
+            .seed(fixture_seed("Checkout outage"))
             .expect("seed indexed rows");
         db
     }
@@ -2351,9 +2353,12 @@ mod tests {
         let directory = tempfile::tempdir().expect("search file fixture");
         let path = directory.path().join("search.sqlite3");
         let mut db = LocalDatabase::open(&path).expect("open file search database");
-        db.schema_seed().apply_schema(search_schema(visibility))
+        db.schema_seed()
+            .apply_schema(search_schema(visibility))
             .expect("apply search schema");
-        db.schema_seed().seed(fixture_seed(bob_title)).expect("seed indexed rows");
+        db.schema_seed()
+            .seed(fixture_seed(bob_title))
+            .expect("seed indexed rows");
         (directory, path, db)
     }
 
@@ -2418,7 +2423,8 @@ mod tests {
     fn grant_seat(db: &mut LocalDatabase, principal: &str, resource: &str, role: &str) -> String {
         let writer = MembershipWriter::Admin;
         let plan = db
-            .membership_plans().plan_privileged_membership_insert(
+            .membership_plans()
+            .plan_privileged_membership_insert(
                 &writer,
                 "room_members",
                 Map::from_iter([
@@ -2429,7 +2435,8 @@ mod tests {
             )
             .expect("plan membership seat");
         let commit = db
-            .membership_plans().commit_membership_plan(&writer, plan)
+            .membership_plans()
+            .commit_membership_plan(&writer, plan)
             .expect("commit membership seat");
         commit
             .changes
@@ -2445,9 +2452,11 @@ mod tests {
             effective_principal: principal.to_owned(),
         };
         let plan = db
-            .membership_plans().plan_membership_remove(&writer, "room_members", member_id)
+            .membership_plans()
+            .plan_membership_remove(&writer, "room_members", member_id)
             .expect("plan membership revocation");
-        db.membership_plans().commit_membership_plan(&writer, plan)
+        db.membership_plans()
+            .commit_membership_plan(&writer, plan)
             .expect("commit membership revocation");
     }
 
@@ -2456,7 +2465,8 @@ mod tests {
         input: &HandlerInput,
         owner_subject: Option<&str>,
     ) -> SnapbackResult<QueryOutput> {
-        db.query_reads_read().with_pinned_read_view(|view| run_view(&view, input, owner_subject))
+        db.query_reads_read()
+            .with_pinned_read_view(|view| run_view(&view, input, owner_subject))
     }
 
     fn run_view(
@@ -2569,26 +2579,27 @@ mod tests {
     #[test]
     fn official_mutation_verifies_and_reseals_the_generation() {
         let mut db = seeded(SearchVisibilityV1::PublicRead);
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![crate::storage::BufferedWrite::Patch {
-                table: "incidents".to_owned(),
-                id: "incident-1".to_owned(),
-                values: Map::from_iter([
-                    (
-                        "title".to_owned(),
-                        Value::String("Recovered service".to_owned()),
-                    ),
-                    (
-                        "summary".to_owned(),
-                        Value::String("Everything is healthy".to_owned()),
-                    ),
-                ]),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("official search-source mutation");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![crate::storage::BufferedWrite::Patch {
+                    table: "incidents".to_owned(),
+                    id: "incident-1".to_owned(),
+                    values: Map::from_iter([
+                        (
+                            "title".to_owned(),
+                            Value::String("Recovered service".to_owned()),
+                        ),
+                        (
+                            "summary".to_owned(),
+                            Value::String("Everything is healthy".to_owned()),
+                        ),
+                    ]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("official search-source mutation");
 
         assert_eq!(
             run(&db, &request(None, 10), None)
@@ -2800,7 +2811,8 @@ mod tests {
             .field_classifications
             .remove("status");
         let error = db
-            .schema_seed().apply_schema(invalid)
+            .schema_seed()
+            .apply_schema(invalid)
             .expect_err("unclassified participating field");
         assert_eq!(
             error.diagnostic.code,
@@ -2813,7 +2825,8 @@ mod tests {
         changed.tables[0].search_indexes[0]
             .field_classifications
             .insert("status".to_owned(), SearchFieldClassV1::Public);
-        db.schema_seed().apply_schema(changed)
+        db.schema_seed()
+            .apply_schema(changed)
             .expect("classification-only manifest change rebuilds");
         drop(db);
 
@@ -3052,6 +3065,7 @@ mod tests {
             .expect_err("a dirty generation must refuse before candidate routing");
         assert_eq!(error.diagnostic.code, "SNAPBACK_SEARCH_INDEX_CORRUPT");
         let maintenance = corrupt
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![crate::storage::BufferedWrite::Patch {
@@ -3127,6 +3141,7 @@ mod tests {
         grant_seat(&mut left, "carol", "room-a", "member");
         grant_seat(&mut right, "carol", "room-a", "member");
         right
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![crate::storage::BufferedWrite::Patch {
@@ -3190,7 +3205,8 @@ mod tests {
     fn membership_visibility_without_resource_arg_is_refused() {
         let db = seeded(membership_visibility(None));
         let error = db
-            .query_reads_read().with_pinned_read_view(|view| {
+            .query_reads_read()
+            .with_pinned_read_view(|view| {
                 run_view_with_resource_arg(
                     &view,
                     &membership_request("room-a", None, 10),
@@ -3227,7 +3243,8 @@ mod tests {
                 .unwrap()
                 .weight = 5;
             writer
-                .schema_seed().apply_schema(replacement)
+                .schema_seed()
+                .apply_schema(replacement)
                 .expect("atomic rebuild and switch");
             switched_tx.send(()).expect("release pinned reader");
             handle
@@ -3254,7 +3271,8 @@ mod tests {
         const BUILD_BUDGET: Duration = Duration::from_secs(5);
         const QUERY_BUDGET: Duration = Duration::from_secs(1);
         let mut db = LocalDatabase::memory().expect("large corpus database");
-        db.schema_seed().apply_schema(search_schema(SearchVisibilityV1::PublicRead))
+        db.schema_seed()
+            .apply_schema(search_schema(SearchVisibilityV1::PublicRead))
             .expect("large corpus schema");
         let rows = (0..CORPUS_ROWS)
             .map(|index| {
@@ -3272,10 +3290,11 @@ mod tests {
             })
             .collect();
         let build_started = Instant::now();
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([("incidents".to_owned(), rows)]),
-        })
-        .expect("bounded large corpus build");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([("incidents".to_owned(), rows)]),
+            })
+            .expect("bounded large corpus build");
         assert!(
             build_started.elapsed() <= BUILD_BUDGET,
             "large corpus build exceeded preregistered budget"
@@ -3388,24 +3407,26 @@ mod tests {
         // integral value in a Real field must not read as index corruption at
         // authoritative release.
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(real_field_schema())
+        db.schema_seed()
+            .apply_schema(real_field_schema())
             .expect("apply real-field search schema");
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "incidents".to_owned(),
-                vec![
-                    json!({"_id": "recipe-1", "title": "Skillet lasagna", "minutes": 5})
-                        .as_object()
-                        .unwrap()
-                        .clone(),
-                    json!({"_id": "recipe-2", "title": "Lasagna soup", "minutes": 7.5})
-                        .as_object()
-                        .unwrap()
-                        .clone(),
-                ],
-            )]),
-        })
-        .expect("seed integral and fractional Real rows");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "incidents".to_owned(),
+                    vec![
+                        json!({"_id": "recipe-1", "title": "Skillet lasagna", "minutes": 5})
+                            .as_object()
+                            .unwrap()
+                            .clone(),
+                        json!({"_id": "recipe-2", "title": "Lasagna soup", "minutes": 7.5})
+                            .as_object()
+                            .unwrap()
+                            .clone(),
+                    ],
+                )]),
+            })
+            .expect("seed integral and fractional Real rows");
         let page = run(&db, &term_request("lasagna"), None)
             .expect("integral Real stored/filter values must release");
         assert_eq!(page.rows.len(), 2);
@@ -3422,20 +3443,21 @@ mod tests {
         assert_eq!(minutes["recipe-1"], json!(5.0));
         assert_eq!(minutes["recipe-2"], json!(7.5));
 
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![crate::storage::BufferedWrite::Insert {
-                table: "incidents".to_owned(),
-                id: "recipe-3".to_owned(),
-                values: Map::from_iter([
-                    ("title".to_owned(), Value::String("Lasagna bake".to_owned())),
-                    ("minutes".to_owned(), json!(45)),
-                ]),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("official insert of an integral Real value");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![crate::storage::BufferedWrite::Insert {
+                    table: "incidents".to_owned(),
+                    id: "recipe-3".to_owned(),
+                    values: Map::from_iter([
+                        ("title".to_owned(), Value::String("Lasagna bake".to_owned())),
+                        ("minutes".to_owned(), json!(45)),
+                    ]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("official insert of an integral Real value");
         let page = run(&db, &term_request("lasagna"), None)
             .expect("insert-maintained integral Real row must release");
         assert_eq!(page.rows.len(), 3);
@@ -3450,20 +3472,22 @@ mod tests {
         let directory = tempfile::tempdir().expect("legacy spelling fixture");
         let path = directory.path().join("search.sqlite3");
         let mut db = LocalDatabase::open(&path).expect("open file search database");
-        db.schema_seed().apply_schema(real_field_schema())
+        db.schema_seed()
+            .apply_schema(real_field_schema())
             .expect("apply real-field search schema");
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "incidents".to_owned(),
-                vec![
-                    json!({"_id": "recipe-1", "title": "Skillet lasagna", "minutes": 5})
-                        .as_object()
-                        .unwrap()
-                        .clone(),
-                ],
-            )]),
-        })
-        .expect("seed integral Real row");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "incidents".to_owned(),
+                    vec![
+                        json!({"_id": "recipe-1", "title": "Skillet lasagna", "minutes": 5})
+                            .as_object()
+                            .unwrap()
+                            .clone(),
+                    ],
+                )]),
+            })
+            .expect("seed integral Real row");
         drop(db);
 
         let raw = Connection::open(&path).expect("open legacy-spelling fixture");

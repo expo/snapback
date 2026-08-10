@@ -922,9 +922,7 @@ impl InvocationSource {
             Self::HttpMcp
             | Self::DirectAdminRunner
             | Self::HostOperationFunctionRun
-            | Self::BranchOperation => {
-                InvocationTarget::Function(FunctionKindConstraint::Any)
-            }
+            | Self::BranchOperation => InvocationTarget::Function(FunctionKindConstraint::Any),
             Self::BootstrapHandshake
             | Self::AuthRefresh
             | Self::AuthLogout
@@ -1301,7 +1299,10 @@ impl PreparedAuthority {
     /// caller, admission lease, grant scopes, and publication fences remain
     /// unchanged.
     pub(crate) fn ask_query_authority(&self) -> SnapbackResult<Self> {
-        if !matches!(self.source, InvocationSource::HttpAsk | InvocationSource::HttpMcp) {
+        if !matches!(
+            self.source,
+            InvocationSource::HttpAsk | InvocationSource::HttpMcp
+        ) {
             return Err(SnapbackError::error(
                 "SNAPBACK_INVOCATION_SOURCE_INVALID",
                 "auth",
@@ -2637,12 +2638,10 @@ mod tests {
         let mut exposed_mutation = FunctionDefinition::new(
             "exposedMutation",
             FunctionKind::Mutation,
-            FunctionRuntime::HostPlan(HandlerPlan::Mutation(
-                crate::manifest::MutationPlan {
-                    steps: Vec::new(),
-                    return_value: None,
-                },
-            )),
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(crate::manifest::MutationPlan {
+                steps: Vec::new(),
+                return_value: None,
+            })),
         );
         exposed_mutation.auth_requirement = Some(AuthRequirement::Authenticated);
         exposed_mutation.api_exposure = Some(crate::manifest::ApiFunctionExposure {
@@ -2661,14 +2660,14 @@ mod tests {
             &exposed_mutation,
             &closed_mutation,
         ]
-            .into_iter()
-            .map(|function| ResolvedGrantScope {
-                function_id: function.id.clone(),
-                kind: function.kind.clone(),
-                basis: 0,
-                authority_creating: false,
-            })
-            .collect::<Vec<_>>();
+        .into_iter()
+        .map(|function| ResolvedGrantScope {
+            function_id: function.id.clone(),
+            kind: function.kind.clone(),
+            basis: 0,
+            authority_creating: false,
+        })
+        .collect::<Vec<_>>();
         let service = ResolvedAppAuthority::ServicePrincipal {
             actor_user_id: "agent_1".to_owned(),
             credential_id: "credential_1".to_owned(),
@@ -2693,11 +2692,17 @@ mod tests {
             .unwrap()
         };
 
-        for source in [InvocationSource::HttpQuery, InvocationSource::LiveInitialQuery] {
+        for source in [
+            InvocationSource::HttpQuery,
+            InvocationSource::LiveInitialQuery,
+        ] {
             InvocationGate::prepare_function(prepare(source), &exposed_query)
                 .expect("an exposed, granted finite or initial-live query succeeds");
         }
-        for source in [InvocationSource::HttpQuery, InvocationSource::LiveInitialQuery] {
+        for source in [
+            InvocationSource::HttpQuery,
+            InvocationSource::LiveInitialQuery,
+        ] {
             let error = InvocationGate::prepare_function(prepare(source), &closed_query)
                 .expect_err("unexposed service query refuses");
             assert_eq!(error.diagnostic.code, "SNAPBACK_API_EXPOSURE_DENIED");

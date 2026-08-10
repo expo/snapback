@@ -106,7 +106,9 @@ fn catalog_objects(conn: &Connection) -> SnapbackResult<Vec<(String, String, Str
          ORDER BY type, name",
     )?;
     Ok(statement
-        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))?
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?
         .collect::<Result<Vec<_>, _>>()?)
 }
 
@@ -133,7 +135,12 @@ fn ensure_row(tx: &Transaction<'_>, day: &str, lane: &str, caller_key: &str) -> 
     Ok(())
 }
 
-fn counters_on(conn: &Connection, day: &str, lane: &str, caller_key: &str) -> SnapbackResult<Counters> {
+fn counters_on(
+    conn: &Connection,
+    day: &str,
+    lane: &str,
+    caller_key: &str,
+) -> SnapbackResult<Counters> {
     conn.query_row(
         "SELECT reserved_tokens,spent_tokens,reserved_result_bytes,spent_result_bytes
          FROM _snapback_ask_spend WHERE day=?1 AND lane=?2 AND caller_key=?3",
@@ -157,11 +164,7 @@ fn checked_total(left: u64, right: u64) -> SnapbackResult<u64> {
         .ok_or_else(catalog_corrupt)
 }
 
-fn budget_refusal(
-    dimension: &str,
-    facts: &AskSpendFacts,
-    limit: u64,
-) -> SnapbackError {
+fn budget_refusal(dimension: &str, facts: &AskSpendFacts, limit: u64) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_API_ASK_BUDGET_EXHAUSTED",
         "api",
@@ -188,7 +191,10 @@ fn spend_facts_on(
     let principal = counters_on(tx, day, "principal-day", &subject.principal_key)?;
     let app = counters_on(tx, month, "app-month", "app")?;
     let integration_day_tokens = if include_integration {
-        let key = subject.integration_key.as_deref().ok_or_else(catalog_corrupt)?;
+        let key = subject
+            .integration_key
+            .as_deref()
+            .ok_or_else(catalog_corrupt)?;
         let row = counters_on(tx, day, "integration-day", key)?;
         Some(checked_total(row.spent_tokens, row.reserved_tokens)?)
     } else {
@@ -227,14 +233,17 @@ impl LocalDatabase {
         self.with_auth_transaction(|tx| {
             ensure_row(tx, &day, "principal-day", &subject.principal_key)?;
             ensure_row(tx, &month, "app-month", "app")?;
-            let integration_reserved = budgets.per_integration_day.is_some()
-                && subject.integration_key.is_some();
+            let integration_reserved =
+                budgets.per_integration_day.is_some() && subject.integration_key.is_some();
             if integration_reserved {
                 ensure_row(
                     tx,
                     &day,
                     "integration-day",
-                    subject.integration_key.as_deref().expect("checked integration key"),
+                    subject
+                        .integration_key
+                        .as_deref()
+                        .expect("checked integration key"),
                 )?;
             }
             let before = spend_facts_on(tx, &day, &month, &subject, integration_reserved)?;
@@ -268,18 +277,30 @@ impl LocalDatabase {
                 ));
             }
             if let (Some(limit), Some(spent)) = (
-                budgets.per_integration_day.as_ref().map(|budget| budget.max_tokens),
+                budgets
+                    .per_integration_day
+                    .as_ref()
+                    .map(|budget| budget.max_tokens),
                 before.integration_day_tokens,
             ) && checked_total(spent, request_tokens)? > limit
             {
-                return Err(budget_refusal("perIntegrationDay.maxTokens", &before, limit));
+                return Err(budget_refusal(
+                    "perIntegrationDay.maxTokens",
+                    &before,
+                    limit,
+                ));
             }
             tx.execute(
                 "UPDATE _snapback_ask_spend
                  SET reserved_tokens=reserved_tokens+?1,
                      reserved_result_bytes=reserved_result_bytes+?2
                  WHERE day=?3 AND lane='principal-day' AND caller_key=?4",
-                params![request_tokens as i64, request_bytes as i64, day, subject.principal_key],
+                params![
+                    request_tokens as i64,
+                    request_bytes as i64,
+                    day,
+                    subject.principal_key
+                ],
             )?;
             tx.execute(
                 "UPDATE _snapback_ask_spend SET reserved_tokens=reserved_tokens+?1
@@ -379,7 +400,10 @@ impl LocalDatabase {
 pub(crate) fn utc_period_keys(now_ms: u64) -> (String, String) {
     let days = (now_ms / 1_000 / 86_400) as i64;
     let (year, month, day) = civil_from_days(days);
-    (format!("{year:04}-{month:02}-{day:02}"), format!("{year:04}-{month:02}"))
+    (
+        format!("{year:04}-{month:02}-{day:02}"),
+        format!("{year:04}-{month:02}"),
+    )
 }
 
 // Howard Hinnant's civil-from-days transform, with day zero = 1970-01-01.
@@ -387,9 +411,8 @@ fn civil_from_days(days_since_epoch: i64) -> (i64, i64, i64) {
     let z = days_since_epoch + 719_468;
     let era = z.div_euclid(146_097);
     let day_of_era = z - era * 146_097;
-    let year_of_era = (day_of_era - day_of_era / 1_460 + day_of_era / 36_524
-        - day_of_era / 146_096)
-        / 365;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
     let mut year = year_of_era + era * 400;
     let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
     let month_prime = (5 * day_of_year + 2) / 153;
@@ -417,19 +440,36 @@ mod tests {
 
     fn budgets() -> ApiAskBudgets {
         ApiAskBudgets {
-            per_request: ApiAskPerRequestBudget { max_tokens: 10, max_steps: 3, max_wall_ms: 1_000 },
+            per_request: ApiAskPerRequestBudget {
+                max_tokens: 10,
+                max_steps: 3,
+                max_wall_ms: 1_000,
+            },
             per_principal_day: ApiAskPerPrincipalDayBudget { max_tokens: 20 },
             per_integration_day: Some(ApiAskTokenBudget { max_tokens: 15 }),
             app_monthly: ApiAskTokenBudget { max_tokens: 30 },
-            result_volume: ApiAskResultVolumeBudget { max_bytes: 100, max_rows: 5, per_principal_day_bytes: 150 },
+            result_volume: ApiAskResultVolumeBudget {
+                max_bytes: 100,
+                max_rows: 5,
+                per_principal_day_bytes: 150,
+            },
         }
     }
 
     #[test]
     fn utc_keys_roll_day_and_month() {
-        assert_eq!(utc_period_keys(0), ("1970-01-01".to_owned(), "1970-01".to_owned()));
-        assert_eq!(utc_period_keys(86_400_000), ("1970-01-02".to_owned(), "1970-01".to_owned()));
-        assert_eq!(utc_period_keys(2_678_400_000), ("1970-02-01".to_owned(), "1970-02".to_owned()));
+        assert_eq!(
+            utc_period_keys(0),
+            ("1970-01-01".to_owned(), "1970-01".to_owned())
+        );
+        assert_eq!(
+            utc_period_keys(86_400_000),
+            ("1970-01-02".to_owned(), "1970-01".to_owned())
+        );
+        assert_eq!(
+            utc_period_keys(2_678_400_000),
+            ("1970-02-01".to_owned(), "1970-02".to_owned())
+        );
     }
 
     #[test]
@@ -437,17 +477,27 @@ mod tests {
         let mut db = LocalDatabase::memory().unwrap();
         db.activate_current_auth_catalog().unwrap();
         db.conn.execute_batch(TABLE_SQL).unwrap();
-        let subject = AskSpendSubject { principal_key: "user-1".to_owned(), integration_key: Some("integration-1".to_owned()) };
-        let (first, admitted) = db.reserve_ask_spend(0, subject.clone(), &budgets()).unwrap();
+        let subject = AskSpendSubject {
+            principal_key: "user-1".to_owned(),
+            integration_key: Some("integration-1".to_owned()),
+        };
+        let (first, admitted) = db
+            .reserve_ask_spend(0, subject.clone(), &budgets())
+            .unwrap();
         assert_eq!(admitted.principal_day_tokens, 10);
         let settled = db.settle_ask_spend(&first, 4, 25).unwrap();
         assert_eq!(settled.principal_day_tokens, 4);
         assert_eq!(settled.principal_day_result_bytes, 25);
-        let (_second, admitted) = db.reserve_ask_spend(0, subject.clone(), &budgets()).unwrap();
+        let (_second, admitted) = db
+            .reserve_ask_spend(0, subject.clone(), &budgets())
+            .unwrap();
         assert_eq!(admitted.integration_day_tokens, Some(14));
         let error = db.reserve_ask_spend(0, subject, &budgets()).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_API_ASK_BUDGET_EXHAUSTED");
-        assert_eq!(error.diagnostic.details["dimension"], "perPrincipalDay.maxTokens");
+        assert_eq!(
+            error.diagnostic.details["dimension"],
+            "perPrincipalDay.maxTokens"
+        );
         assert!(error.diagnostic.details["spendSoFar"].is_object());
     }
 
@@ -478,7 +528,10 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_API_ASK_BUDGET_EXHAUSTED");
-        assert_eq!(error.diagnostic.details["dimension"], "appMonthly.maxTokens");
+        assert_eq!(
+            error.diagnostic.details["dimension"],
+            "appMonthly.maxTokens"
+        );
         assert_eq!(error.diagnostic.details["spendSoFar"]["appMonthTokens"], 7);
 
         limits.app_monthly.max_tokens = 100;

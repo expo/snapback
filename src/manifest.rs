@@ -12,15 +12,14 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 
 pub use crate::contract_types::{
-    AgentsManifest, AgentsMode, ApiAskBilling, ApiAskBudgets, ApiAskManifest,
-    ApiAskModelManifest, ApiAskPerPrincipalDayBudget, ApiAskPerRequestBudget,
-    ApiAskResultVolumeBudget, ApiAskTokenBudget, ApiBudgetsManifest, ApiDisclosure,
-    ApiFunctionExposure, ApiManifest, ApiOAuthBundle, ApiOAuthManifest, AppIdentity,
-    AuthManifest, AuthMode, AuthRequirement, BoundedParentVisibility,
-    BoundedProjectionField, DependencySummary, EffectCeiling, EffectCeilingRead,
-    EffectCeilingWrite, FieldManifest, FieldType, FunctionArgsContract, FunctionKind,
-    FunctionResultContract, IbexModule, IndexManifest, InvitedBy, JoinEquality, JoinKind,
-    PermissionScopeExpr, ProjectionLeaf, ProjectionOutputKey, ProjectionSource,
+    AgentsManifest, AgentsMode, ApiAskBilling, ApiAskBudgets, ApiAskManifest, ApiAskModelManifest,
+    ApiAskPerPrincipalDayBudget, ApiAskPerRequestBudget, ApiAskResultVolumeBudget,
+    ApiAskTokenBudget, ApiBudgetsManifest, ApiDisclosure, ApiFunctionExposure, ApiManifest,
+    ApiOAuthBundle, ApiOAuthManifest, AppIdentity, AuthManifest, AuthMode, AuthRequirement,
+    BoundedParentVisibility, BoundedProjectionField, DependencySummary, EffectCeiling,
+    EffectCeilingRead, EffectCeilingWrite, FieldManifest, FieldType, FunctionArgsContract,
+    FunctionKind, FunctionResultContract, IbexModule, IndexManifest, InvitedBy, JoinEquality,
+    JoinKind, PermissionScopeExpr, ProjectionLeaf, ProjectionOutputKey, ProjectionSource,
     ProjectionVisibility, ResultObjectFieldContract, ResultRowsBound, ResultValueContract,
     STORED_STRUCTURED_CONTRACT_VERSION_V1, STORED_STRUCTURED_ENCODING_V1, SchemaRefAuthority,
     SequenceDeclaration, SequenceExistingOwnerAccess, SequenceScopeAccess, SourceSpan,
@@ -354,9 +353,7 @@ fn validate_api_origin(origin: &str) -> SnapbackResult<()> {
         .zip(authority)
         .map(|(scheme, authority)| format!("{scheme}://{}", authority.as_str()));
     if !valid_scheme
-        || authority.is_none_or(|value| {
-            value.host().is_empty() || value.as_str().contains('@')
-        })
+        || authority.is_none_or(|value| value.host().is_empty() || value.as_str().contains('@'))
         || parsed
             .path_and_query()
             .is_some_and(|path| path.as_str() != "/")
@@ -366,7 +363,9 @@ fn validate_api_origin(origin: &str) -> SnapbackResult<()> {
         return Err(SnapbackError::error(
             "SNAPBACK_API_ORIGIN_INVALID",
             "api",
-            format!("api origin {origin:?} must be an exact http(s) scheme+host+port origin without wildcards"),
+            format!(
+                "api origin {origin:?} must be an exact http(s) scheme+host+port origin without wildcards"
+            ),
         ));
     }
     Ok(())
@@ -500,9 +499,9 @@ impl SchemaManifest {
     }
 
     pub fn uses_exposed_only_disclosure(&self) -> bool {
-        self.api.as_ref().is_some_and(|api| {
-            api.enabled && api.disclosure == ApiDisclosure::ExposedOnly
-        })
+        self.api
+            .as_ref()
+            .is_some_and(|api| api.enabled && api.disclosure == ApiDisclosure::ExposedOnly)
     }
 
     pub fn oauth_manifest(&self) -> Option<&ApiOAuthManifest> {
@@ -598,7 +597,11 @@ impl SchemaManifest {
             .iter()
             .map(|function| function.name.as_str())
             .collect::<BTreeSet<_>>();
-        if let Some(name) = api.functions.keys().find(|name| !names.contains(name.as_str())) {
+        if let Some(name) = api
+            .functions
+            .keys()
+            .find(|name| !names.contains(name.as_str()))
+        {
             return Err(SnapbackError::error(
                 "SNAPBACK_API_FUNCTION_UNKNOWN",
                 "api",
@@ -652,9 +655,12 @@ impl SchemaManifest {
             }
         }
         for function in &functions.functions {
-            let expected = api
-                .enabled
-                .then(|| api.functions.get(&function.name).cloned().unwrap_or_default());
+            let expected = api.enabled.then(|| {
+                api.functions
+                    .get(&function.name)
+                    .cloned()
+                    .unwrap_or_default()
+            });
             if function.api_exposure != expected {
                 return Err(SnapbackError::error(
                     "SNAPBACK_API_EXPOSURE_COMPILATION_INVALID",
@@ -736,7 +742,9 @@ impl SchemaManifest {
                     let valid_name = !name.is_empty()
                         && name.len() <= 128
                         && name.bytes().all(|byte| {
-                            byte == b'!' || (b'#'..=b'[').contains(&byte) || (b']'..=b'~').contains(&byte)
+                            byte == b'!'
+                                || (b'#'..=b'[').contains(&byte)
+                                || (b']'..=b'~').contains(&byte)
                         });
                     let unique = bundle.functions.iter().collect::<BTreeSet<_>>().len()
                         == bundle.functions.len();
@@ -768,11 +776,11 @@ impl SchemaManifest {
                         || model.provider.len() > 2_048
                         || model.model.is_empty()
                         || model.model.len() > 512
-                        || model.secret.as_ref().is_some_and(|secret| {
-                            secret.is_empty() || secret.len() > 512
-                        })
-                        || (ask.billing == ApiAskBilling::CallerKey
-                            && model.secret.is_some()))
+                        || model
+                            .secret
+                            .as_ref()
+                            .is_some_and(|secret| secret.is_empty() || secret.len() > 512)
+                        || (ask.billing == ApiAskBilling::CallerKey && model.secret.is_some()))
                 {
                     return Err(SnapbackError::error(
                         "SNAPBACK_API_ASK_MODEL_INVALID",
@@ -780,7 +788,12 @@ impl SchemaManifest {
                         "api.ask.model requires bounded non-empty provider/model and an optional LLP 0036 secret entry name",
                     ));
                 }
-                if ask.enabled && api.budgets.as_ref().and_then(|value| value.ask.as_ref()).is_none()
+                if ask.enabled
+                    && api
+                        .budgets
+                        .as_ref()
+                        .and_then(|value| value.ask.as_ref())
+                        .is_none()
                 {
                     return Err(SnapbackError::error(
                         "SNAPBACK_API_ASK_BUDGETS_REQUIRED",
@@ -800,7 +813,9 @@ impl SchemaManifest {
                     budgets.result_volume.max_rows,
                     budgets.result_volume.per_principal_day_bytes,
                 ];
-                if values.into_iter().any(|value| value == 0 || value > 9_007_199_254_740_991)
+                if values
+                    .into_iter()
+                    .any(|value| value == 0 || value > 9_007_199_254_740_991)
                     || budgets.per_integration_day.as_ref().is_some_and(|budget| {
                         budget.max_tokens == 0 || budget.max_tokens > 9_007_199_254_740_991
                     })
@@ -2637,11 +2652,8 @@ fn union_has_disjoint_primitive_variants(variants: &[ResultValueContract]) -> bo
     })
 }
 
-pub(crate) fn stored_structured_union_is_disjoint(
-    variants: &[ResultValueContract],
-) -> bool {
-    union_has_disjoint_primitive_variants(variants)
-        || union_has_object_discriminator(variants)
+pub(crate) fn stored_structured_union_is_disjoint(variants: &[ResultValueContract]) -> bool {
+    union_has_disjoint_primitive_variants(variants) || union_has_object_discriminator(variants)
 }
 
 fn validate_result_value_contract(
@@ -7727,9 +7739,7 @@ pub fn public_function_manifest_for_schema(
         public
             .functions
             .retain(|function| exposed.contains(&function.name));
-        public
-            .cron_jobs
-            .retain(|job| exposed.contains(&job.action));
+        public.cron_jobs.retain(|job| exposed.contains(&job.action));
     }
     public
 }
@@ -10201,9 +10211,7 @@ impl TargetCapabilityId {
             // @ref LLP 0211#capability-and-maturity-the-llp-0134-publication-contract
             // — a plain local registration fact is the only support route;
             // Phase A deliberately leaves it false pending the reviewed flip.
-            Self::StructuredStoredValueV1 => {
-                facts.structured_stored_value_v1_registered
-            }
+            Self::StructuredStoredValueV1 => facts.structured_stored_value_v1_registered,
             // @ref LLP 0133#the-bounded-skew-opt-in — this fact names only
             //   the lane-L declaration/admission/check/receipt policy. Lane Q
             //   remains the replay-accept pin and gains no data-bound claim.
@@ -10347,13 +10355,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:b4dd7bf446c8c36ed62077c2d6510761f4a2a1c46b0bf2a1bdf8ecd3065a9cbf";
+    "sha256:05042c893652bfd6613787814e586fa92bb441096be7a3871795e4ad3cf2e884";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:235a9aadf48a5ed7dfac5febbcdc1dc42fa3ec45756914be9b834bbd4a4834e3";
+    "sha256:2c6e1761be3d2b20fe8e79a35adef9285a985a0adcb49b28f055ee519aff0e47";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -10753,7 +10761,7 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:660ac4f287831508c2dca3c6e3fe3a0950bd9efe7b30f00bf5880f7804edcdc1"
+                    "sha256:98e6f0d35e163d42866628443071db0e40d6e442388fa3d7166e38d7cf52306c"
                         .to_owned(),
                 ),
                 (
@@ -10773,7 +10781,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/inspection.rs".to_owned(),
-                    "sha256:7fb4c23095d8df8d0ffd746be06a80e16134a542274c9368f5ea533864ac27c7"
+                    "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679"
                         .to_owned(),
                 ),
                 (
@@ -10788,17 +10796,17 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:695a3b3953e7e843659a1f6880b5724c43118814f1f49ac48d5c2775d46d4e47"
+                    "sha256:0845fd722c32b5790138f60f9e8094601da3ace44ee1dc133bbd5c664c3822ea"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:3e3202b8890c6a1516dd276291928f9d02ec59fb3df9b9c766bd9b5272ec1e05"
+                    "sha256:378f4a7bbebea3147deb4ed639237028222167ba0719d5a7bf25538661b26670"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth.rs".to_owned(),
-                    "sha256:87222978f6b5dacddfd9819bc1f938e3e82362c3dd0bc7264c85ee080886a988"
+                    "sha256:faff82b9ef24a9cc0dc924d2da7d1c4ace7ba89dc1c0ec0fbc119e0795bbb971"
                         .to_owned(),
                 ),
                 (
@@ -10818,7 +10826,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:bdd9043fc68610826b53bc0bcfc6996277b008e3d251219d194fd6e5f60551f7"
+                    "sha256:d04b320262c96dc0ef4792b03fba140fd959acac0b55aa2ad7aec3dcb5c8ca42"
                         .to_owned(),
                 ),
                 (
@@ -10828,7 +10836,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:c907ed49685a537bf2195971cae967ad750081895f872a4089fd3fad70dc8e99"
+                    "sha256:5ff92e173036568ef20175c8887f1913b20e28a5a67536b76f26785a4881ebe1"
                         .to_owned(),
                 ),
                 (
@@ -10838,7 +10846,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_scope_bases.rs".to_owned(),
-                    "sha256:5f5435b570084944acfcb8151bb569de0036b391aa64c1a48ff9f2e7c53edfe7"
+                    "sha256:1d58a12622da72a938d1e60cb3b74197bad35681462f0d3dfa3751270f77e4b6"
                         .to_owned(),
                 ),
                 (
@@ -10863,7 +10871,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/authorized_lease.rs".to_owned(),
-                    "sha256:472be152ff1f234cffb4b4424c0ed7d051f3241418c6a2d7fbde336f32e6ec1e"
+                    "sha256:997e75b6a6c2215fbbfab02a2582ccade5c6943784f60b6d5f85fcb5a2b0fb0b"
                         .to_owned(),
                 ),
                 (
@@ -10878,12 +10886,12 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:efcbd2dfea40be672c3d213b3f9d07367fbad72a6b6d58136cafb054d1345381"
+                    "sha256:3b966a2fd21b4a13091e5eb3baa3c542eb8ca7d4f6a57f63462e84779f0509de"
                         .to_owned(),
                 ),
                 (
                     "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:71ac30bcf5a1402e90d904d6621b509c70d05e0ecbb2e5112b875ed099df37d7"
+                    "sha256:77e87db570420bec02a3b7dc56bca5a847119bc2e7f6432f178e8914323671f1"
                         .to_owned(),
                 ),
                 (
@@ -10898,7 +10906,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:9b82941ddef9a9265a4645b686263c6a7ca85f075257c8d906450820945fbba6"
+                    "sha256:eb2040853cf89432a5efce46fa6597038aa95c6d788189fefcb444fc128642c9"
                         .to_owned(),
                 ),
                 (
@@ -10976,7 +10984,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/inspection.rs".to_owned(),
-                    "sha256:7fb4c23095d8df8d0ffd746be06a80e16134a542274c9368f5ea533864ac27c7"
+                    "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679"
                         .to_owned(),
                 ),
                 (
@@ -10991,22 +10999,22 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:695a3b3953e7e843659a1f6880b5724c43118814f1f49ac48d5c2775d46d4e47"
+                    "sha256:0845fd722c32b5790138f60f9e8094601da3ace44ee1dc133bbd5c664c3822ea"
                         .to_owned(),
                 ),
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:1b42ac74b59fc5b3b583e67a437580b08da214917917faa46cfe08d9a65cc5d9"
+                    "sha256:5bea777a9a05bfde05e67b469d57f07f3d92fd385a8ce2676858030a8fac7f14"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:3e3202b8890c6a1516dd276291928f9d02ec59fb3df9b9c766bd9b5272ec1e05"
+                    "sha256:378f4a7bbebea3147deb4ed639237028222167ba0719d5a7bf25538661b26670"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth.rs".to_owned(),
-                    "sha256:87222978f6b5dacddfd9819bc1f938e3e82362c3dd0bc7264c85ee080886a988"
+                    "sha256:faff82b9ef24a9cc0dc924d2da7d1c4ace7ba89dc1c0ec0fbc119e0795bbb971"
                         .to_owned(),
                 ),
                 (
@@ -11026,7 +11034,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:bdd9043fc68610826b53bc0bcfc6996277b008e3d251219d194fd6e5f60551f7"
+                    "sha256:d04b320262c96dc0ef4792b03fba140fd959acac0b55aa2ad7aec3dcb5c8ca42"
                         .to_owned(),
                 ),
                 (
@@ -11036,7 +11044,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:c907ed49685a537bf2195971cae967ad750081895f872a4089fd3fad70dc8e99"
+                    "sha256:5ff92e173036568ef20175c8887f1913b20e28a5a67536b76f26785a4881ebe1"
                         .to_owned(),
                 ),
                 (
@@ -11046,7 +11054,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_scope_bases.rs".to_owned(),
-                    "sha256:5f5435b570084944acfcb8151bb569de0036b391aa64c1a48ff9f2e7c53edfe7"
+                    "sha256:1d58a12622da72a938d1e60cb3b74197bad35681462f0d3dfa3751270f77e4b6"
                         .to_owned(),
                 ),
                 (
@@ -11071,7 +11079,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/authorized_lease.rs".to_owned(),
-                    "sha256:472be152ff1f234cffb4b4424c0ed7d051f3241418c6a2d7fbde336f32e6ec1e"
+                    "sha256:997e75b6a6c2215fbbfab02a2582ccade5c6943784f60b6d5f85fcb5a2b0fb0b"
                         .to_owned(),
                 ),
                 (
@@ -11086,12 +11094,12 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:efcbd2dfea40be672c3d213b3f9d07367fbad72a6b6d58136cafb054d1345381"
+                    "sha256:3b966a2fd21b4a13091e5eb3baa3c542eb8ca7d4f6a57f63462e84779f0509de"
                         .to_owned(),
                 ),
                 (
                     "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:71ac30bcf5a1402e90d904d6621b509c70d05e0ecbb2e5112b875ed099df37d7"
+                    "sha256:77e87db570420bec02a3b7dc56bca5a847119bc2e7f6432f178e8914323671f1"
                         .to_owned(),
                 ),
                 (
@@ -11106,7 +11114,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:9b82941ddef9a9265a4645b686263c6a7ca85f075257c8d906450820945fbba6"
+                    "sha256:eb2040853cf89432a5efce46fa6597038aa95c6d788189fefcb444fc128642c9"
                         .to_owned(),
                 ),
                 (
@@ -11250,7 +11258,7 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:660ac4f287831508c2dca3c6e3fe3a0950bd9efe7b30f00bf5880f7804edcdc1"
+                    "sha256:98e6f0d35e163d42866628443071db0e40d6e442388fa3d7166e38d7cf52306c"
                         .to_owned(),
                 ),
                 (
@@ -11270,7 +11278,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/inspection.rs".to_owned(),
-                    "sha256:7fb4c23095d8df8d0ffd746be06a80e16134a542274c9368f5ea533864ac27c7"
+                    "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679"
                         .to_owned(),
                 ),
                 (
@@ -11285,17 +11293,17 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:695a3b3953e7e843659a1f6880b5724c43118814f1f49ac48d5c2775d46d4e47"
+                    "sha256:0845fd722c32b5790138f60f9e8094601da3ace44ee1dc133bbd5c664c3822ea"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:3e3202b8890c6a1516dd276291928f9d02ec59fb3df9b9c766bd9b5272ec1e05"
+                    "sha256:378f4a7bbebea3147deb4ed639237028222167ba0719d5a7bf25538661b26670"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth.rs".to_owned(),
-                    "sha256:87222978f6b5dacddfd9819bc1f938e3e82362c3dd0bc7264c85ee080886a988"
+                    "sha256:faff82b9ef24a9cc0dc924d2da7d1c4ace7ba89dc1c0ec0fbc119e0795bbb971"
                         .to_owned(),
                 ),
                 (
@@ -11315,7 +11323,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:bdd9043fc68610826b53bc0bcfc6996277b008e3d251219d194fd6e5f60551f7"
+                    "sha256:d04b320262c96dc0ef4792b03fba140fd959acac0b55aa2ad7aec3dcb5c8ca42"
                         .to_owned(),
                 ),
                 (
@@ -11325,7 +11333,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:c907ed49685a537bf2195971cae967ad750081895f872a4089fd3fad70dc8e99"
+                    "sha256:5ff92e173036568ef20175c8887f1913b20e28a5a67536b76f26785a4881ebe1"
                         .to_owned(),
                 ),
                 (
@@ -11335,7 +11343,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_scope_bases.rs".to_owned(),
-                    "sha256:5f5435b570084944acfcb8151bb569de0036b391aa64c1a48ff9f2e7c53edfe7"
+                    "sha256:1d58a12622da72a938d1e60cb3b74197bad35681462f0d3dfa3751270f77e4b6"
                         .to_owned(),
                 ),
                 (
@@ -11360,7 +11368,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/authorized_lease.rs".to_owned(),
-                    "sha256:472be152ff1f234cffb4b4424c0ed7d051f3241418c6a2d7fbde336f32e6ec1e"
+                    "sha256:997e75b6a6c2215fbbfab02a2582ccade5c6943784f60b6d5f85fcb5a2b0fb0b"
                         .to_owned(),
                 ),
                 (
@@ -11375,12 +11383,12 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:efcbd2dfea40be672c3d213b3f9d07367fbad72a6b6d58136cafb054d1345381"
+                    "sha256:3b966a2fd21b4a13091e5eb3baa3c542eb8ca7d4f6a57f63462e84779f0509de"
                         .to_owned(),
                 ),
                 (
                     "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:71ac30bcf5a1402e90d904d6621b509c70d05e0ecbb2e5112b875ed099df37d7"
+                    "sha256:77e87db570420bec02a3b7dc56bca5a847119bc2e7f6432f178e8914323671f1"
                         .to_owned(),
                 ),
                 (
@@ -11395,7 +11403,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:9b82941ddef9a9265a4645b686263c6a7ca85f075257c8d906450820945fbba6"
+                    "sha256:eb2040853cf89432a5efce46fa6597038aa95c6d788189fefcb444fc128642c9"
                         .to_owned(),
                 ),
                 (
@@ -12933,7 +12941,13 @@ pub(crate) fn untrusted_code_profile_evidenced(
                 .filter(|limit| limit.name == *required);
             !matches!(
                 (rows.next(), rows.next()),
-                (Some(ResourceLimit { status: ResourceLimitStatus::Enforced, .. }), None)
+                (
+                    Some(ResourceLimit {
+                        status: ResourceLimitStatus::Enforced,
+                        ..
+                    }),
+                    None
+                )
             )
         })
         .collect::<Vec<_>>();
@@ -12966,11 +12980,13 @@ mod untrusted_code_profile_tests {
             "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED"
         );
         assert_eq!(error.diagnostic.details["gapDeclared"], true);
-        assert!(error.diagnostic.details["unevidencedLimits"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|limit| limit == "cpu_budget"));
+        assert!(
+            error.diagnostic.details["unevidencedLimits"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|limit| limit == "cpu_budget")
+        );
     }
 
     #[test]
@@ -14218,7 +14234,8 @@ mod membership_manifest_grammar_tests {
         ask.validate_artifact().expect("ask plus complete budgets");
 
         ask.api.as_mut().unwrap().ask = None;
-        ask.validate_artifact().expect("budgets alone are inert and valid");
+        ask.validate_artifact()
+            .expect("budgets alone are inert and valid");
     }
 
     #[test]
@@ -14237,12 +14254,14 @@ mod membership_manifest_grammar_tests {
         }))
         .expect("app-paid shape");
         assert_eq!(app.billing, ApiAskBilling::App);
-        assert!(serde_json::from_value::<ApiAskManifest>(json!({
-            "enabled": true,
-            "billing": "app",
-            "mutationTools": true
-        }))
-        .is_err());
+        assert!(
+            serde_json::from_value::<ApiAskManifest>(json!({
+                "enabled": true,
+                "billing": "app",
+                "mutationTools": true
+            }))
+            .is_err()
+        );
 
         let mut caller_with_app_secret = ask_schema_fixture();
         caller_with_app_secret.api.as_mut().unwrap().budgets = Some(ApiBudgetsManifest {

@@ -408,10 +408,8 @@ impl From<InspectState> for PublicInspect {
                 .map(|function| function.name.clone())
                 .collect::<std::collections::BTreeSet<_>>()
         });
-        let public_functions = crate::manifest::public_function_manifest_for_schema(
-            &schema,
-            functions,
-        );
+        let public_functions =
+            crate::manifest::public_function_manifest_for_schema(&schema, functions);
         PublicInspect {
             artifact_kind,
             schema_version,

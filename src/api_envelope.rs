@@ -437,12 +437,15 @@ pub(crate) fn projection_operations(
         })?;
     let mut definitions_by_id = BTreeMap::new();
     for definition in definitions {
-        let stable_id = definition.get("id").and_then(Value::as_str).ok_or_else(|| {
-            EnvelopeRefusal::new(
-                "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
-                "envelope function projection carries a function without a stable id",
-            )
-        })?;
+        let stable_id = definition
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                EnvelopeRefusal::new(
+                    "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
+                    "envelope function projection carries a function without a stable id",
+                )
+            })?;
         if definitions_by_id.insert(stable_id, definition).is_some() {
             return Err(EnvelopeRefusal::new(
                 "SNAPBACK_API_ENVELOPE_GRAMMAR_INVALID",
@@ -487,7 +490,10 @@ pub(crate) fn projection_operations(
         let auth_requirement = match definition.get("authRequirement") {
             None | Some(Value::Null) => "optional-user",
             Some(Value::String(requirement))
-                if matches!(requirement.as_str(), "public" | "optional-user" | "authenticated") =>
+                if matches!(
+                    requirement.as_str(),
+                    "public" | "optional-user" | "authenticated"
+                ) =>
             {
                 requirement
             }
@@ -606,7 +612,12 @@ pub fn compose_openapi_document_with_oauth(
         let scopes = oauth
             .bundles
             .keys()
-            .map(|name| (name.clone(), Value::String(format!("Snapback function bundle {name}"))))
+            .map(|name| {
+                (
+                    name.clone(),
+                    Value::String(format!("Snapback function bundle {name}")),
+                )
+            })
             .collect::<Map<String, Value>>();
         serde_json::json!({
             "type": "oauth2",
@@ -750,10 +761,7 @@ fn synthesize_schema_value(schema: &Value, path: &str) -> Result<Value, Envelope
             let items = object.get("items").unwrap_or(&unconstrained_items);
             let mut result = Vec::new();
             for index in 0..length {
-                result.push(synthesize_schema_value(
-                    items,
-                    &format!("{path}[{index}]"),
-                )?);
+                result.push(synthesize_schema_value(items, &format!("{path}[{index}]"))?);
             }
             Ok(Value::Array(result))
         }
@@ -1280,8 +1288,7 @@ mod tests {
         assert_eq!(document["paths"].as_object().expect("paths").len(), 2);
 
         let query = &document["paths"]["/api/v1/query/listTodos"]["post"];
-        let request_schema =
-            &query["requestBody"]["content"]["application/json"]["schema"];
+        let request_schema = &query["requestBody"]["content"]["application/json"]["schema"];
         assert_eq!(request_schema["required"], json!(["args"]));
         assert_eq!(request_schema["additionalProperties"], false);
         assert_eq!(
@@ -1298,13 +1305,14 @@ mod tests {
 
         let mutation = &document["paths"]["/api/v1/mutation/createTodo"]["post"];
         assert_eq!(mutation["security"], json!([{ "bearer": [] }]));
-        assert!(mutation["responses"]["200"]["description"]
-            .as_str()
-            .expect("response description")
-            .contains("does not carry a result schema"));
+        assert!(
+            mutation["responses"]["200"]["description"]
+                .as_str()
+                .expect("response description")
+                .contains("does not carry a result schema")
+        );
         assert_eq!(
-            mutation["responses"]["200"]["content"]["application/json"]["schema"]
-                ["additionalProperties"],
+            mutation["responses"]["200"]["content"]["application/json"]["schema"]["additionalProperties"],
             true
         );
     }
@@ -1354,7 +1362,10 @@ mod tests {
         assert!(skill.contains("/auth/oauth/revoke"));
         assert!(skill.contains("PKCE S256"));
         assert!(skill.contains("no refresh-token flow"));
-        assert!(skill.contains("/auth/agents/register"), "native LLP 0150 path remains");
+        assert!(
+            skill.contains("/auth/agents/register"),
+            "native LLP 0150 path remains"
+        );
     }
 
     #[test]

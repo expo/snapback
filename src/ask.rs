@@ -131,8 +131,8 @@ pub(crate) fn parse_provider(provider: &str, model: &str) -> SnapbackResult<Prov
     let uri: axum::http::Uri = base_url.parse().map_err(|_| provider_invalid())?;
     let scheme = uri.scheme_str();
     let host = uri.host().unwrap_or_default();
-    let loopback_http = scheme == Some("http")
-        && matches!(host, "127.0.0.1" | "localhost" | "[::1]" | "::1");
+    let loopback_http =
+        scheme == Some("http") && matches!(host, "127.0.0.1" | "localhost" | "[::1]" | "::1");
     if (scheme != Some("https") && !loopback_http)
         || uri.authority().is_none()
         || uri.path().is_empty()
@@ -220,7 +220,9 @@ pub(crate) async fn chat_completion(
             "tool_choice": "auto",
             "max_tokens": remaining_tokens,
         });
-        let request_bytes = serde_json::to_vec(&body).map_err(|_| upstream_invalid())?.len();
+        let request_bytes = serde_json::to_vec(&body)
+            .map_err(|_| upstream_invalid())?
+            .len();
         // The manifest-selected base is the complete v1 allowlist. Following
         // redirects would silently widen it and could move a bearer credential
         // to a host the application never declared.
@@ -246,9 +248,13 @@ pub(crate) async fn chat_completion(
             .into_reader()
             .take((PROVIDER_RESPONSE_MAX_BYTES + 1) as u64)
             .read_to_end(&mut bytes)
-            .map_err(|error| upstream_failed(bounded_reason(&redactor.redact_text(&error.to_string()))))?;
+            .map_err(|error| {
+                upstream_failed(bounded_reason(&redactor.redact_text(&error.to_string())))
+            })?;
         if bytes.len() > PROVIDER_RESPONSE_MAX_BYTES {
-            return Err(upstream_failed("provider response exceeded 4 MiB".to_owned()));
+            return Err(upstream_failed(
+                "provider response exceeded 4 MiB".to_owned(),
+            ));
         }
         let value: Value = serde_json::from_slice(&bytes).map_err(|_| upstream_invalid())?;
         parse_provider_turn(value, request_bytes, bytes.len())
@@ -257,12 +263,19 @@ pub(crate) async fn chat_completion(
     .map_err(|_| upstream_failed("provider worker failed".to_owned()))?
 }
 
-fn parse_provider_turn(value: Value, request_bytes: usize, response_bytes: usize) -> SnapbackResult<ProviderTurn> {
+fn parse_provider_turn(
+    value: Value,
+    request_bytes: usize,
+    response_bytes: usize,
+) -> SnapbackResult<ProviderTurn> {
     let message = value
         .pointer("/choices/0/message")
         .cloned()
         .ok_or_else(upstream_invalid)?;
-    let content = message.get("content").and_then(Value::as_str).map(str::to_owned);
+    let content = message
+        .get("content")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
     let tool_calls = message
         .get("tool_calls")
         .and_then(Value::as_array)
@@ -271,9 +284,21 @@ fn parse_provider_turn(value: Value, request_bytes: usize, response_bytes: usize
                 .iter()
                 .map(|call| {
                     Ok(ProviderToolCall {
-                        id: call.get("id").and_then(Value::as_str).ok_or_else(upstream_invalid)?.to_owned(),
-                        name: call.pointer("/function/name").and_then(Value::as_str).ok_or_else(upstream_invalid)?.to_owned(),
-                        arguments: call.pointer("/function/arguments").and_then(Value::as_str).ok_or_else(upstream_invalid)?.to_owned(),
+                        id: call
+                            .get("id")
+                            .and_then(Value::as_str)
+                            .ok_or_else(upstream_invalid)?
+                            .to_owned(),
+                        name: call
+                            .pointer("/function/name")
+                            .and_then(Value::as_str)
+                            .ok_or_else(upstream_invalid)?
+                            .to_owned(),
+                        arguments: call
+                            .pointer("/function/arguments")
+                            .and_then(Value::as_str)
+                            .ok_or_else(upstream_invalid)?
+                            .to_owned(),
                     })
                 })
                 .collect::<SnapbackResult<Vec<_>>>()
@@ -281,19 +306,32 @@ fn parse_provider_turn(value: Value, request_bytes: usize, response_bytes: usize
         .transpose()?
         .unwrap_or_default();
     let usage = value.get("usage").and_then(Value::as_object);
-    let prompt = usage.and_then(|usage| usage.get("prompt_tokens")).and_then(Value::as_u64);
-    let completion = usage.and_then(|usage| usage.get("completion_tokens")).and_then(Value::as_u64);
-    let total = usage.and_then(|usage| usage.get("total_tokens")).and_then(Value::as_u64);
+    let prompt = usage
+        .and_then(|usage| usage.get("prompt_tokens"))
+        .and_then(Value::as_u64);
+    let completion = usage
+        .and_then(|usage| usage.get("completion_tokens"))
+        .and_then(Value::as_u64);
+    let total = usage
+        .and_then(|usage| usage.get("total_tokens"))
+        .and_then(Value::as_u64);
     let estimated = prompt.is_none() || completion.is_none() || total.is_none();
     let estimate = ((request_bytes + response_bytes) as u64).div_ceil(4);
     let prompt_tokens = prompt.unwrap_or_else(|| (request_bytes as u64).div_ceil(4));
     let completion_tokens = completion.unwrap_or_else(|| (response_bytes as u64).div_ceil(4));
-    let total_tokens = total.unwrap_or(estimate).max(prompt_tokens.saturating_add(completion_tokens));
+    let total_tokens = total
+        .unwrap_or(estimate)
+        .max(prompt_tokens.saturating_add(completion_tokens));
     Ok(ProviderTurn {
         message,
         tool_calls,
         content,
-        tokens: TokenAccounting { prompt_tokens, completion_tokens, total_tokens, estimated },
+        tokens: TokenAccounting {
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
+            estimated,
+        },
     })
 }
 
@@ -334,7 +372,9 @@ fn has_external_schema_reference(value: &Value) -> bool {
         Value::Array(items) => items.iter().any(has_external_schema_reference),
         Value::Object(fields) => fields.iter().any(|(name, value)| {
             (matches!(name.as_str(), "$ref" | "$dynamicRef")
-                && value.as_str().is_some_and(|reference| !reference.starts_with('#')))
+                && value
+                    .as_str()
+                    .is_some_and(|reference| !reference.starts_with('#')))
                 || has_external_schema_reference(value)
         }),
         _ => false,
@@ -379,11 +419,8 @@ mod tests {
         )
         .expect("local references remain supported");
 
-        let error = validate_result(
-            &json!({ "$ref": "file:///etc/passwd" }),
-            &Value::Null,
-        )
-        .expect_err("provider result schemas cannot read host files");
+        let error = validate_result(&json!({ "$ref": "file:///etc/passwd" }), &Value::Null)
+            .expect_err("provider result schemas cannot read host files");
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_API_ASK_RESULT_SCHEMA_INVALID"

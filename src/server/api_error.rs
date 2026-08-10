@@ -70,13 +70,7 @@ impl ApiError {
     }
 
     pub(super) fn api_throttled(error: SnapbackError, retry_after_seconds: u64) -> Self {
-        Self(
-            error,
-            None,
-            Some(retry_after_seconds.max(1)),
-            None,
-            None,
-        )
+        Self(error, None, Some(retry_after_seconds.max(1)), None, None)
     }
 }
 

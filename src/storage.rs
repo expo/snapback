@@ -58,6 +58,7 @@ mod membership_plans;
 mod membership_reads;
 pub mod migration_executor;
 mod migration_scan;
+mod mutation_writes;
 mod projection_rebuild;
 mod push_registry;
 mod query_reads;
@@ -91,8 +92,9 @@ pub use migration_scan::{
     MigrationKeysetScanCheckpointV1, MigrationKeysetScanRequestV1, MigrationScanCeilingsV1,
     MigrationScanValidatorStateV1, MigrationScanValidatorV1,
 };
-pub use projection_rebuild::ProjectionRebuildReceipt;
+pub use mutation_writes::MutationWritesKernel;
 pub(crate) use projection_rebuild::PendingProjectionPublication;
+pub use projection_rebuild::ProjectionRebuildReceipt;
 use projection_rebuild::{ProjectionEffectCeiling, maintain_projections_in_tx};
 pub use push_registry::PushRegistryKernel;
 pub use query_reads::{QueryReadsKernel, QueryReadsReadKernel};
@@ -103,10 +105,17 @@ pub use schema_transition::{
     SCHEMA_TRANSITION_JOURNAL_TABLE, SchemaTransitionEventBodyV1, SchemaTransitionEventV1,
     SchemaTransitionKind,
 };
+<<<<<<< HEAD
 pub use settlement::{SettlementKernel, SettlementReadKernel};
 pub(crate) use schema_transition::{
     prove_retained_work_posture, record_schema_transition_event, schema_transition_events_on,
 };
+=======
+pub(crate) use schema_transition::{
+    prove_retained_work_posture, record_schema_transition_event, schema_transition_events_on,
+};
+pub use settlement::{SettlementKernel, SettlementReadKernel};
+>>>>>>> 74aaef29a (refactor(0199): owner #2 slice 14 (finale) — mutation write path kernel facade)
 pub use versions::{VersionsKernel, VersionsReadKernel};
 
 #[cfg(test)]
@@ -1624,6 +1633,10 @@ impl LocalDatabase {
         MembershipReadsKernel::new(self)
     }
 
+    pub fn mutation_writes(&mut self) -> MutationWritesKernel<'_> {
+        MutationWritesKernel::new(self)
+    }
+
     pub fn jobs(&mut self) -> JobsKernel<'_> {
         JobsKernel::new(self)
     }
@@ -2034,9 +2047,7 @@ impl LocalDatabase {
                 .iter()
                 .map(|table| table.name.clone())
                 .collect(),
-            client_mutation_retention: self
-                .settlement_read()
-                .client_mutation_retention_info()?,
+            client_mutation_retention: self.settlement_read().client_mutation_retention_info()?,
         })
     }
 
@@ -2545,7 +2556,10 @@ impl LocalDatabase {
         &self,
         declarations: &BTreeMap<String, crate::manifest::SequenceDeclaration>,
         trusted_active_generation: bool,
-    ) -> (BTreeMap<String, crate::manifest::SequenceDeclaration>, BTreeSet<String>) {
+    ) -> (
+        BTreeMap<String, crate::manifest::SequenceDeclaration>,
+        BTreeSet<String>,
+    ) {
         let mut predecessor = BTreeMap::new();
         if trusted_active_generation {
             predecessor.extend(self.sequence_declarations.as_ref().clone());
@@ -2583,19 +2597,18 @@ impl LocalDatabase {
                     "function generation manifest is not canonically digestible",
                 )
             })?;
-        let sequence_declarations_digest =
-            crate::manifest::canonical_content_identity(&sequence_declarations).ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_FUNCTION_GENERATION_INVALID",
-                    "storage",
-                    "sequence declarations are not canonically digestible",
-                )
-            })?;
-        let (predecessor, trusted_relation_parent_tables) = self
-            .sequence_activation_predecessor(
-                &sequence_declarations,
-                trusted_active_generation,
-            );
+        let sequence_declarations_digest = crate::manifest::canonical_content_identity(
+            &sequence_declarations,
+        )
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_FUNCTION_GENERATION_INVALID",
+                "storage",
+                "sequence declarations are not canonically digestible",
+            )
+        })?;
+        let (predecessor, trusted_relation_parent_tables) =
+            self.sequence_activation_predecessor(&sequence_declarations, trusted_active_generation);
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -2625,16 +2638,15 @@ impl LocalDatabase {
                 })
             })
             .transpose()?;
-        let generation_high_water = previous
-            .map_or(Ok(1), |record| {
-                record.generation_high_water.checked_add(1).ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_FUNCTION_GENERATION_EXHAUSTED",
-                        "storage",
-                        "function generation high-water is exhausted",
-                    )
-                })
-            })?;
+        let generation_high_water = previous.map_or(Ok(1), |record| {
+            record.generation_high_water.checked_add(1).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_FUNCTION_GENERATION_EXHAUSTED",
+                    "storage",
+                    "function generation high-water is exhausted",
+                )
+            })
+        })?;
         let record = FunctionGenerationRecord {
             format_version: 1,
             generation_high_water,
@@ -2823,283 +2835,28 @@ impl LocalDatabase {
         new_id()
     }
 
-    pub fn execute_mutation(
-        &mut self,
-        plan: &MutationPlan,
-        input: &HandlerInput,
-    ) -> SnapbackResult<MutationCommit> {
-        Ok(self
-            .execute_mutation_plan(plan, input, true, None, None)?
-            .commit)
-    }
-
-    /// Execute a host plan with lifecycle checks throughout its finite step
-    /// loops, then acquire a caller-owned guard only for the final SQLite
-    /// commit. Detached actions use this to keep untrusted/data-dependent plan
-    /// execution outside their abandonment gate while still linearizing the
-    /// durable commit against the public watchdog.
-    pub(crate) fn execute_mutation_guarded<G, Check, BeforeCommit>(
-        &mut self,
-        plan: &MutationPlan,
-        input: &HandlerInput,
-        check_live: Check,
-        before_commit: BeforeCommit,
-    ) -> SnapbackResult<MutationCommit>
-    where
-        Check: Fn() -> SnapbackResult<()>,
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        require_covered_mutation_identity_for_lane(
-            &self.conn,
-            CoveredMutationLaneV1::Ordinary,
-            None,
-        )?;
-        Ok(self
-            .execute_mutation_plan_with_lifecycle_and_settlement_time(
-                write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
-                plan,
-                input,
-                true,
-                None,
-                None,
-                None,
-                &check_live,
-                before_commit,
-            )?
-            .commit)
-    }
-
-    pub fn execute_mutation_idempotent(
-        &mut self,
-        plan: &MutationPlan,
-        input: &HandlerInput,
-        identity: &ClientMutationIdentity,
-    ) -> SnapbackResult<MutationCommit> {
-        require_covered_mutation_identity_for_lane(
-            &self.conn,
-            CoveredMutationLaneV1::Ordinary,
-            Some(identity),
-        )?;
-        if let Some(commit) = self.replayed_mutation_commit(identity)? {
-            return Ok(commit);
-        }
-        let attempted = self.execute_mutation_plan(plan, input, true, Some(identity), None);
-        match attempted {
-            Ok(execution) => Ok(execution.commit),
-            Err(error) => self.replay_after_concurrent_settlement(identity, error),
-        }
-    }
-
-    pub(crate) fn execute_mutation_idempotent_guarded<G, BeforeCommit>(
-        &mut self,
-        plan: &MutationPlan,
-        input: &HandlerInput,
-        identity: &ClientMutationIdentity,
-        before_commit: BeforeCommit,
-    ) -> SnapbackResult<MutationCommit>
-    where
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        require_covered_mutation_identity_for_lane(
-            &self.conn,
-            CoveredMutationLaneV1::Ordinary,
-            Some(identity),
-        )?;
-        if let Some(commit) = self.replayed_mutation_commit(identity)? {
-            return Ok(commit);
-        }
-        let attempted = self.execute_mutation_plan_with_lifecycle_and_settlement_time(
-            write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
-            plan,
-            input,
-            true,
-            Some(identity),
-            None,
-            None,
-            &|| Ok(()),
-            before_commit,
-        );
-        match attempted {
-            Ok(execution) => Ok(execution.commit),
-            Err(error) => self.replay_after_concurrent_settlement(identity, error),
-        }
-    }
-
-    pub(crate) fn execute_host_mutation_guarded<G, Check, BeforeCommit>(
-        &mut self,
-        plan: &MutationPlan,
-        input: &HandlerInput,
-        identity: Option<&ClientMutationIdentity>,
-        check_live: Check,
-        before_commit: BeforeCommit,
-    ) -> SnapbackResult<MutationCommit>
-    where
-        Check: Fn() -> SnapbackResult<()>,
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        self.execute_host_mutation_guarded_with_settlement_time(
-            plan,
-            input,
-            identity,
-            None,
-            check_live,
-            before_commit,
-        )
-    }
-
-    pub(crate) fn execute_host_mutation_guarded_with_settlement_time<G, Check, BeforeCommit>(
-        &mut self,
-        plan: &MutationPlan,
-        input: &HandlerInput,
-        identity: Option<&ClientMutationIdentity>,
-        policy: Option<&SettlementTimePolicy>,
-        check_live: Check,
-        before_commit: BeforeCommit,
-    ) -> SnapbackResult<MutationCommit>
-    where
-        Check: Fn() -> SnapbackResult<()>,
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        require_covered_mutation_identity_for_lane(
-            &self.conn,
-            CoveredMutationLaneV1::HostChild,
-            identity,
-        )?;
-        check_live()?;
-        if let Some(identity) = identity
-            && let Some(commit) = self.replayed_mutation_commit(identity)?
-        {
-            return Ok(commit);
-        }
-        Ok(self
-            .execute_mutation_plan_with_lifecycle_and_settlement_time(
-                write_authority::LocalWriterLaneV1::HostChildHostPlan,
-                plan,
-                input,
-                true,
-                identity,
-                policy,
-                None,
-                &check_live,
-                before_commit,
-            )?
-            .commit)
-    }
-
-    /// Dry-run an IR mutation (LLP 0051 D8): the identical step loop, binding
-    /// environment, in-transaction `Get` reads, and read-set validation as
-    /// `execute_mutation` — then the transaction is rolled back instead of
-    /// committed. Fidelity is by construction: this *is* the commit path with
-    /// the final `COMMIT` swapped for `ROLLBACK`, so the answer is evidence,
-    /// not a lower-fidelity evaluator (LLP 0024 §Dry-Run rule).
-    ///
-    /// @ref LLP 0051#d8-the-agent-surface-dry-run-becomes-cheap-and-trustworthy —
-    ///   plan evaluation against a snapshot with a recorded ledger;
-    ///   execute-and-discard on the buffered substrate.
-    pub fn dry_run_mutation(
-        &mut self,
-        plan: &MutationPlan,
-        input: &HandlerInput,
-    ) -> SnapbackResult<MutationPlanExecution> {
-        self.execute_mutation_plan(plan, input, false, None, None)
-    }
-
-    pub(crate) fn dry_run_mutation_with_settlement_time(
-        &mut self,
-        plan: &MutationPlan,
-        input: &HandlerInput,
-        policy: Option<&SettlementTimePolicy>,
-    ) -> SnapbackResult<MutationPlanExecution> {
-        self.execute_mutation_plan(plan, input, false, None, policy)
-    }
-
-    pub(crate) fn execute_mutation_guarded_with_settlement_time<G, Check, BeforeCommit>(
-        &mut self,
-        plan: &MutationPlan,
-        input: &HandlerInput,
-        policy: Option<&SettlementTimePolicy>,
-        check_live: Check,
-        before_commit: BeforeCommit,
-    ) -> SnapbackResult<MutationCommit>
-    where
-        Check: Fn() -> SnapbackResult<()>,
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        require_covered_mutation_identity_for_lane(
-            &self.conn,
-            CoveredMutationLaneV1::Ordinary,
-            None,
-        )?;
-        Ok(self
-            .execute_mutation_plan_with_lifecycle_and_settlement_time(
-                write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
-                plan,
-                input,
-                true,
-                None,
-                policy,
-                None,
-                &check_live,
-                before_commit,
-            )?
-            .commit)
-    }
-
-    pub(crate) fn execute_mutation_idempotent_guarded_with_settlement_time<G, BeforeCommit>(
-        &mut self,
-        plan: &MutationPlan,
-        input: &HandlerInput,
-        identity: &ClientMutationIdentity,
-        policy: Option<&SettlementTimePolicy>,
-        before_commit: BeforeCommit,
-    ) -> SnapbackResult<MutationCommit>
-    where
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        require_covered_mutation_identity_for_lane(
-            &self.conn,
-            CoveredMutationLaneV1::Ordinary,
-            Some(identity),
-        )?;
-        if let Some(commit) = self.replayed_mutation_commit(identity)? {
-            return Ok(commit);
-        }
-        let attempted = self.execute_mutation_plan_with_lifecycle_and_settlement_time(
-            write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
-            plan,
-            input,
-            true,
-            Some(identity),
-            policy,
-            None,
-            &|| Ok(()),
-            before_commit,
-        );
-        match attempted {
-            Ok(execution) => Ok(execution.commit),
-            Err(error) => self.replay_after_concurrent_settlement(identity, error),
-        }
-    }
-
-    fn replayed_mutation_commit(
+    pub(in crate::storage) fn replayed_mutation_commit(
         &self,
         identity: &ClientMutationIdentity,
     ) -> SnapbackResult<Option<MutationCommit>> {
-        Ok(self.settlement_read().client_mutation_result(identity)?.map(|output| {
-            let sequence_allocations = output.settlement_sequence_allocations.clone();
-            MutationCommit {
-                output,
-                changes: Vec::new(),
-                read_dependencies: Vec::new(),
-                write_dependencies: Vec::new(),
-                job_enqueues: Vec::new(),
-                job_changes: Vec::new(),
-                asset_changes: Vec::new(),
-                sequence_allocations,
-                authorization: None,
-                network_egress: Default::default(),
-            }
-        }))
+        Ok(self
+            .settlement_read()
+            .client_mutation_result(identity)?
+            .map(|output| {
+                let sequence_allocations = output.settlement_sequence_allocations.clone();
+                MutationCommit {
+                    output,
+                    changes: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    write_dependencies: Vec::new(),
+                    job_enqueues: Vec::new(),
+                    job_changes: Vec::new(),
+                    asset_changes: Vec::new(),
+                    sequence_allocations,
+                    authorization: None,
+                    network_egress: Default::default(),
+                }
+            }))
     }
 
     /// A same-id writer can settle after the optimistic replay lookup but
@@ -3109,7 +2866,7 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0135#14-idempotent-re-allocation — sequential and concurrent
     ///   duplicate deliveries must replay the same allocated value byte-for-byte.
-    fn replay_after_concurrent_settlement(
+    pub(in crate::storage) fn replay_after_concurrent_settlement(
         &self,
         identity: &ClientMutationIdentity,
         attempted_error: SnapbackError,
@@ -3118,38 +2875,6 @@ impl LocalDatabase {
             Some(commit) => Ok(commit),
             None => Err(attempted_error),
         }
-    }
-
-    fn execute_mutation_plan(
-        &mut self,
-        plan: &MutationPlan,
-        input: &HandlerInput,
-        apply: bool,
-        identity: Option<&ClientMutationIdentity>,
-        settlement_time: Option<&SettlementTimePolicy>,
-    ) -> SnapbackResult<MutationPlanExecution> {
-        if apply {
-            require_covered_mutation_identity_for_lane(
-                &self.conn,
-                CoveredMutationLaneV1::Ordinary,
-                identity,
-            )?;
-        }
-        self.execute_mutation_plan_with_lifecycle_and_settlement_time(
-            if apply {
-                write_authority::LocalWriterLaneV1::OrdinaryHostPlan
-            } else {
-                write_authority::LocalWriterLaneV1::DryRun
-            },
-            plan,
-            input,
-            apply,
-            identity,
-            settlement_time,
-            None,
-            &|| Ok(()),
-            || Ok(()),
-        )
     }
 
     #[cfg(test)]
@@ -3186,7 +2911,11 @@ impl LocalDatabase {
     // The lifecycle callbacks and settlement policy remain distinct because
     // they guard different commit phases and are independently fault-injected.
     #[allow(clippy::too_many_arguments)]
-    fn execute_mutation_plan_with_lifecycle_and_settlement_time<G, Check, BeforeCommit>(
+    pub(in crate::storage) fn execute_mutation_plan_with_lifecycle_and_settlement_time<
+        G,
+        Check,
+        BeforeCommit,
+    >(
         &mut self,
         writer_lane: write_authority::LocalWriterLaneV1,
         plan: &MutationPlan,
@@ -4188,81 +3917,11 @@ impl LocalDatabase {
         })
     }
 
-    pub fn commit_buffered_writes(
-        &mut self,
-        input: &HandlerInput,
-        writes: Vec<BufferedWrite>,
-        read_dependencies: Vec<CapturedReadDependency>,
-        result: Value,
-    ) -> SnapbackResult<MutationCommit> {
-        self.apply_buffered_writes(
-            input,
-            writes,
-            read_dependencies,
-            result,
-            BufferedCommitOptions {
-                ctx_ledger: None,
-                apply: true,
-                identity: None,
-                branch_operation: None,
-            },
-        )
-    }
-
-    /// Detached-action buffered commit with the same lifecycle split as
-    /// [`Self::execute_mutation_guarded`]: build and validate the transaction
-    /// under caller checks, then hold the caller's guard only across COMMIT.
-    pub(crate) fn commit_buffered_writes_idempotent_guarded<G, Check, BeforeCommit>(
-        &mut self,
-        input: &HandlerInput,
-        payload: BufferedCommitPayload,
-        identity: Option<&ClientMutationIdentity>,
-        check_live: Check,
-        before_commit: BeforeCommit,
-    ) -> SnapbackResult<MutationCommit>
-    where
-        Check: Fn() -> SnapbackResult<()>,
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        self.commit_buffered_writes_for_lane(
-            input,
-            payload,
-            identity,
-            CoveredMutationLaneV1::Ordinary,
-            None,
-            check_live,
-            before_commit,
-        )
-    }
-
-    pub(crate) fn commit_buffered_host_writes_guarded<G, Check, BeforeCommit>(
-        &mut self,
-        input: &HandlerInput,
-        payload: BufferedCommitPayload,
-        identity: Option<&ClientMutationIdentity>,
-        check_live: Check,
-        before_commit: BeforeCommit,
-    ) -> SnapbackResult<MutationCommit>
-    where
-        Check: Fn() -> SnapbackResult<()>,
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        self.commit_buffered_writes_for_lane(
-            input,
-            payload,
-            identity,
-            CoveredMutationLaneV1::HostChild,
-            None,
-            check_live,
-            before_commit,
-        )
-    }
-
     #[allow(
         clippy::too_many_arguments,
         reason = "the lane commit boundary keeps writer, authority, and lifecycle checks explicit"
     )]
-    fn commit_buffered_writes_for_lane<G, Check, BeforeCommit>(
+    pub(in crate::storage) fn commit_buffered_writes_for_lane<G, Check, BeforeCommit>(
         &mut self,
         input: &HandlerInput,
         payload: BufferedCommitPayload,
@@ -4333,115 +3992,6 @@ impl LocalDatabase {
         }
     }
 
-    /// Dry-run the buffered-write commit (LLP 0051 D8): identical read-set
-    /// validation and write application as `commit_buffered_writes`, rolled
-    /// back instead of committed. The JS-tier half of execute-and-discard —
-    /// the handler already ran against the buffered ctx; this answers what
-    /// its writes would do without keeping them.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn dry_run_buffered_writes(
-        &mut self,
-        input: &HandlerInput,
-        writes: Vec<BufferedWrite>,
-        sequence_allocations: Vec<SequenceAllocationFact>,
-        membership_plans: Vec<AuthorizedMembershipPlan>,
-        read_dependencies: Vec<CapturedReadDependency>,
-        result: Value,
-        ctx_ledger: CtxAnswerLedger,
-        asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
-    ) -> SnapbackResult<MutationCommit> {
-        self.dry_run_buffered_writes_with_jobs(
-            input,
-            writes,
-            sequence_allocations,
-            membership_plans,
-            read_dependencies,
-            result,
-            ctx_ledger,
-            Vec::new(),
-            None,
-            asset_admissions,
-            Vec::new(),
-        )
-    }
-
-    /// Dry-run variant carrying buffered job enqueues: identical validation
-    /// and insertion (LLP 0051 D8 fidelity — the rollback discards the job
-    /// rows exactly as it discards app writes).
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn dry_run_buffered_writes_with_jobs(
-        &mut self,
-        input: &HandlerInput,
-        writes: Vec<BufferedWrite>,
-        sequence_allocations: Vec<SequenceAllocationFact>,
-        membership_plans: Vec<AuthorizedMembershipPlan>,
-        read_dependencies: Vec<CapturedReadDependency>,
-        result: Value,
-        ctx_ledger: CtxAnswerLedger,
-        job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
-        job_producer: Option<crate::jobs::JobProducer>,
-        // The preview must see the same admissions the commit will: a
-        // handler-recorded `ctx.assets.attach` admission that is absent here
-        // makes the staged preview refuse `SNAPBACK_ASSET_REF_UNVERIFIED`
-        // even though the real commit would admit the write.
-        asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
-        asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
-    ) -> SnapbackResult<MutationCommit> {
-        self.apply_buffered_writes_with_lifecycle_gated(
-            write_authority::LocalWriterLaneV1::DryRun,
-            input,
-            BufferedEffects {
-                writes,
-                sequence_allocations,
-                membership_plans,
-                read_dependencies,
-                result,
-                job_enqueues,
-                job_producer,
-                asset_admissions,
-                asset_grant_ops,
-            },
-            BufferedCommitOptions {
-                ctx_ledger: Some(ctx_ledger),
-                apply: false,
-                identity: None,
-                branch_operation: None,
-            },
-            MembershipCommitAuthority::deny(),
-            &|| Ok(()),
-            || Ok(()),
-        )
-    }
-
-    fn apply_buffered_writes(
-        &mut self,
-        input: &HandlerInput,
-        writes: Vec<BufferedWrite>,
-        read_dependencies: Vec<CapturedReadDependency>,
-        result: Value,
-        options: BufferedCommitOptions<'_>,
-    ) -> SnapbackResult<MutationCommit> {
-        self.apply_buffered_writes_with_lifecycle_gated(
-            write_authority::LocalWriterLaneV1::OrdinaryIbexBuffered,
-            input,
-            BufferedEffects {
-                writes,
-                sequence_allocations: Vec::new(),
-                membership_plans: Vec::new(),
-                read_dependencies,
-                result,
-                job_enqueues: Vec::new(),
-                job_producer: None,
-                asset_admissions: Vec::new(),
-                asset_grant_ops: Vec::new(),
-            },
-            options,
-            MembershipCommitAuthority::deny(),
-            &|| Ok(()),
-            || Ok(()),
-        )
-    }
-
     fn apply_buffered_writes_with_lifecycle<G, Check, BeforeCommit>(
         &mut self,
         writer_lane: write_authority::LocalWriterLaneV1,
@@ -4470,7 +4020,7 @@ impl LocalDatabase {
         clippy::too_many_arguments,
         reason = "the transaction boundary keeps writer, authority, and lifecycle checks explicit"
     )]
-    fn apply_buffered_writes_with_lifecycle_gated<G, Check, BeforeCommit>(
+    pub(in crate::storage) fn apply_buffered_writes_with_lifecycle_gated<G, Check, BeforeCommit>(
         &mut self,
         writer_lane: write_authority::LocalWriterLaneV1,
         input: &HandlerInput,
@@ -4847,14 +4397,12 @@ impl LocalDatabase {
             set_version(&tx, next_version)?;
         }
 
-        let version = if changes.is_empty()
-            && sequence_allocations.is_empty()
-            && asset_changes.is_empty()
-        {
-            current_version
-        } else {
-            next_version
-        };
+        let version =
+            if changes.is_empty() && sequence_allocations.is_empty() && asset_changes.is_empty() {
+                current_version
+            } else {
+                next_version
+            };
         // @ref LLP 0070#job-identity-and-enqueue — enqueue insertion shares
         // this exact transaction: a rollback (validation failure, dry-run, or
         // commit refusal) leaves no job. Runs after app writes so the stamped
@@ -6887,10 +6435,6 @@ impl DbRead<'_> {
         }
     }
 
-    pub fn generate_id(&self) -> String {
-        new_id()
-    }
-
     pub(crate) fn conn(&self) -> &Connection {
         match self {
             DbRead::Pinned { conn, .. } => conn,
@@ -8269,10 +7813,7 @@ fn validate_stored_structured_descriptor(
             }
         }
         ResultValueContract::Integer { min, max } => {
-            if min > max
-                || *min < PORTABLE_INTEGER_MIN
-                || *max > PORTABLE_INTEGER_MAX
-            {
+            if min > max || *min < PORTABLE_INTEGER_MIN || *max > PORTABLE_INTEGER_MAX {
                 return Err("integer bounds are outside the portable safe range".to_owned());
             }
         }
@@ -14763,21 +14304,11 @@ fn sqlite_to_json_with_staged_null(
                 ));
             }
             let value: Value = serde_json::from_str(&text).map_err(|error| {
-                storage_field_corrupt(
-                    table,
-                    column,
-                    "RFC 8785 JSON TEXT",
-                    ValueRef::Text(bytes),
-                )
-                .with_detail("error", error.to_string())
+                storage_field_corrupt(table, column, "RFC 8785 JSON TEXT", ValueRef::Text(bytes))
+                    .with_detail("error", error.to_string())
             })?;
             let canonical = crate::rqs::jcs(&value).map_err(|_| {
-                storage_field_corrupt(
-                    table,
-                    column,
-                    "RFC 8785 JSON TEXT",
-                    ValueRef::Text(bytes),
-                )
+                storage_field_corrupt(table, column, "RFC 8785 JSON TEXT", ValueRef::Text(bytes))
             })?;
             if canonical.as_bytes() != bytes {
                 return Err(storage_field_corrupt(
@@ -15138,10 +14669,7 @@ fn canonicalize_stored_structured_value(
         .with_detail("field", field.to_owned())
         .with_detail("path", "")
         .with_detail("actualBytes", canonical.len() as u64)
-        .with_detail(
-            "maxBytes",
-            MAX_STORED_STRUCTURED_VALUE_BYTES as u64,
-        ));
+        .with_detail("maxBytes", MAX_STORED_STRUCTURED_VALUE_BYTES as u64));
     }
     // Reparse the exact durable spelling. This is the admission-normalization
     // step: an interior integral Real whose JCS spelling is `5` becomes the
@@ -15862,7 +15390,7 @@ fn identity_lane(identity: &ClientMutationIdentity) -> Option<CoveredMutationLan
     }
 }
 
-fn require_covered_mutation_identity_for_lane(
+pub(in crate::storage) fn require_covered_mutation_identity_for_lane(
     conn: &Connection,
     lane: CoveredMutationLaneV1,
     identity: Option<&ClientMutationIdentity>,

@@ -1373,9 +1373,7 @@ impl LocalDatabase {
                     //   returned witness drives connection/live projection
                     //   before successor admission reopens.
                     super::auth_scope_bases::reconcile_auth_scope_bases_with_schema_on(
-                        tx,
-                        &functions,
-                        &manifest,
+                        tx, &functions, &manifest,
                     )?;
                 }
                 let mut seeded_changes = Vec::new();
@@ -1430,8 +1428,7 @@ impl LocalDatabase {
                     if already_materialized.contains(&plan.id) {
                         continue;
                     }
-                    let plan_digest =
-                        super::projection_rebuild::projection_plan_digest(plan)?;
+                    let plan_digest = super::projection_rebuild::projection_plan_digest(plan)?;
                     let stored: Option<String> = tx
                         .query_row(
                             "SELECT value FROM _snapback_meta WHERE key = ?1",
@@ -2960,18 +2957,20 @@ mod tests {
         base.tables.truncate(1);
         let mut db = LocalDatabase::memory().unwrap();
         db.schema_seed().apply_schema(base).unwrap();
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "events".to_owned(),
-                vec![Map::from_iter([
-                    ("_id".to_owned(), serde_json::json!("event-1")),
-                    ("title".to_owned(), serde_json::json!("brownfield")),
-                ])],
-            )]),
-        })
-        .unwrap();
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "events".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), serde_json::json!("event-1")),
+                        ("title".to_owned(), serde_json::json!("brownfield")),
+                    ])],
+                )]),
+            })
+            .unwrap();
         let error = db
-            .schema_seed().apply_schema(full)
+            .schema_seed()
+            .apply_schema(full)
             .expect_err("new empty roster must not silently protect existing resources");
         assert_eq!(
             error.diagnostic.code,
@@ -3240,7 +3239,10 @@ mod tests {
         assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
         drop(uncertain);
         let uncertain = LocalDatabase::open(&uncertain_path).unwrap();
-        assert_eq!(pin(&uncertain).as_deref(), Some("sha256:complete-pair-plan"));
+        assert_eq!(
+            pin(&uncertain).as_deref(),
+            Some("sha256:complete-pair-plan")
+        );
         assert_eq!(
             uncertain
                 .auth_mode_snapshot()

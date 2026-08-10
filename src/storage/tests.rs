@@ -65,29 +65,30 @@ mod vector_storage_carrier_tests {
     #[test]
     fn direct_vector_schema_lowers_and_round_trips_canonical_bytes() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(SchemaManifest {
-            required_capabilities: vec![crate::vector::VECTOR_CAPABILITY.to_owned()],
-            tables: vec![TableManifest {
-                name: "embeddings".to_owned(),
-                fields: vec![FieldManifest {
-                    name: "embedding".to_owned(),
-                    field_type: FieldType::Vector { dimensions: 3 },
-                    optional: false,
+        db.schema_seed()
+            .apply_schema(SchemaManifest {
+                required_capabilities: vec![crate::vector::VECTOR_CAPABILITY.to_owned()],
+                tables: vec![TableManifest {
+                    name: "embeddings".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "embedding".to_owned(),
+                        field_type: FieldType::Vector { dimensions: 3 },
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    syncable: false,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    membership: None,
+                    asset_sharing: None,
+                    history: None,
                 }],
-                indexes: Vec::new(),
-                syncable: false,
-                permission_backing: false,
-                permission_fields: None,
-                search_indexes: Vec::new(),
-                vector_indexes: Vec::new(),
-                search_live_limits: None,
-                membership: None,
-                asset_sharing: None,
-                history: None,
-            }],
-            ..SchemaManifest::default()
-        })
-        .expect("direct manifest lowering must not panic");
+                ..SchemaManifest::default()
+            })
+            .expect("direct manifest lowering must not panic");
 
         let declared: String = db
             .conn
@@ -99,16 +100,17 @@ mod vector_storage_carrier_tests {
             .expect("vector column declaration");
         assert_eq!(declared, "BLOB");
 
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "embeddings".to_owned(),
-                vec![Map::from_iter([
-                    ("_id".to_owned(), json!("embedding_1")),
-                    ("embedding".to_owned(), json!([-0.0, 2.0, 3.0])),
-                ])],
-            )]),
-        })
-        .expect("internal vector storage admits canonical values");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "embeddings".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("embedding_1")),
+                        ("embedding".to_owned(), json!([-0.0, 2.0, 3.0])),
+                    ])],
+                )]),
+            })
+            .expect("internal vector storage admits canonical values");
         let stored: Vec<u8> = db
             .conn
             .query_row(
@@ -120,7 +122,8 @@ mod vector_storage_carrier_tests {
         assert_eq!(stored.len(), 24);
         assert_eq!(&stored[..8], &[0; 8], "negative zero canonicalizes");
         let row = db
-            .query_reads_read().get("embeddings", "embedding_1")
+            .query_reads_read()
+            .get("embeddings", "embedding_1")
             .expect("row reload")
             .expect("stored row");
         assert_eq!(row["embedding"], json!([0.0, 2.0, 3.0]));
@@ -166,7 +169,7 @@ mod stored_enum_tests {
     }
 
     fn insert(db: &mut LocalDatabase, id: &str, values: Map<String, Value>) -> SnapbackResult<()> {
-        db.commit_buffered_writes(
+        db.mutation_writes().commit_buffered_writes(
             &HandlerInput::default(),
             vec![BufferedWrite::Insert {
                 table: "items".to_owned(),
@@ -198,7 +201,8 @@ mod stored_enum_tests {
         for values in invalid_domains {
             let mut db = LocalDatabase::memory().expect("memory database");
             let error = db
-                .schema_seed().apply_schema(schema(vec![field(
+                .schema_seed()
+                .apply_schema(schema(vec![field(
                     "role",
                     FieldType::Enum { values },
                     false,
@@ -221,11 +225,12 @@ mod stored_enum_tests {
     #[test]
     fn enum_lowers_to_text_and_central_writes_enforce_the_domain() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(schema(vec![
-            field("role", domain(&["admin", "member"]), false),
-            field("visibility", domain(&["internal", "public"]), true),
-        ]))
-        .expect("apply enum schema");
+        db.schema_seed()
+            .apply_schema(schema(vec![
+                field("role", domain(&["admin", "member"]), false),
+                field("visibility", domain(&["internal", "public"]), true),
+            ]))
+            .expect("apply enum schema");
 
         let (declared, not_null): (String, i64) = db
             .conn
@@ -255,7 +260,10 @@ mod stored_enum_tests {
         )
         .expect("admitted enum insert");
         assert_eq!(
-            db.query_reads_read().get("items", "item_ok").unwrap().unwrap()["role"],
+            db.query_reads_read()
+                .get("items", "item_ok")
+                .unwrap()
+                .unwrap()["role"],
             "admin"
         );
 
@@ -281,7 +289,12 @@ mod stored_enum_tests {
             outside.diagnostic.details["admitted"],
             json!(["admin", "member"])
         );
-        assert!(db.query_reads_read().get("items", "item_outside").unwrap().is_none());
+        assert!(
+            db.query_reads_read()
+                .get("items", "item_outside")
+                .unwrap()
+                .is_none()
+        );
 
         let required_null = insert(
             &mut db,
@@ -293,7 +306,12 @@ mod stored_enum_tests {
             required_null.diagnostic.code,
             "SNAPBACK_FIELD_TYPE_MISMATCH"
         );
-        assert!(db.query_reads_read().get("items", "item_required_null").unwrap().is_none());
+        assert!(
+            db.query_reads_read()
+                .get("items", "item_required_null")
+                .unwrap()
+                .is_none()
+        );
         insert(
             &mut db,
             "item_optional_null",
@@ -304,22 +322,27 @@ mod stored_enum_tests {
         )
         .expect("null optional enum commits");
         assert_eq!(
-            db.query_reads_read().get("items", "item_optional_null").unwrap().unwrap()["visibility"],
+            db.query_reads_read()
+                .get("items", "item_optional_null")
+                .unwrap()
+                .unwrap()["visibility"],
             Value::Null
         );
 
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Patch {
-                table: "items".to_owned(),
-                id: "item_ok".to_owned(),
-                values: Map::from_iter([("role".to_owned(), json!("member"))]),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("admitted enum patch");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Patch {
+                    table: "items".to_owned(),
+                    id: "item_ok".to_owned(),
+                    values: Map::from_iter([("role".to_owned(), json!("member"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("admitted enum patch");
         let refused_patch = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Patch {
@@ -336,7 +359,10 @@ mod stored_enum_tests {
             "SNAPBACK_FIELD_ENUM_VALUE_INVALID"
         );
         assert_eq!(
-            db.query_reads_read().get("items", "item_ok").unwrap().unwrap()["role"],
+            db.query_reads_read()
+                .get("items", "item_ok")
+                .unwrap()
+                .unwrap()["role"],
             "member"
         );
     }
@@ -345,18 +371,21 @@ mod stored_enum_tests {
     fn optional_enum_field_addition_admits_on_a_nonempty_table() {
         let base = schema(vec![field("title", FieldType::String, false)]);
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(base).expect("apply base schema");
+        db.schema_seed()
+            .apply_schema(base)
+            .expect("apply base schema");
         insert(
             &mut db,
             "nonempty",
             Map::from_iter([("title".to_owned(), json!("hello"))]),
         )
         .expect("seed nonempty table");
-        db.schema_seed().apply_schema(schema(vec![
-            field("title", FieldType::String, false),
-            field("state", domain(&["open", "closed"]), true),
-        ]))
-        .expect("optional enum field can be added to nonempty table");
+        db.schema_seed()
+            .apply_schema(schema(vec![
+                field("title", FieldType::String, false),
+                field("state", domain(&["open", "closed"]), true),
+            ]))
+            .expect("optional enum field can be added to nonempty table");
         assert_eq!(
             db.schema()
                 .table("items")
@@ -372,16 +401,23 @@ mod stored_enum_tests {
     fn required_enum_field_addition_admits_only_on_an_empty_table() {
         let base = schema(vec![field("title", FieldType::String, false)]);
         let mut empty = LocalDatabase::memory().expect("memory database");
-        empty.schema_seed().apply_schema(base.clone()).expect("apply base schema");
         empty
-            .schema_seed().apply_schema(schema(vec![
+            .schema_seed()
+            .apply_schema(base.clone())
+            .expect("apply base schema");
+        empty
+            .schema_seed()
+            .apply_schema(schema(vec![
                 field("title", FieldType::String, false),
                 field("state", domain(&["open", "closed"]), false),
             ]))
             .expect("required enum field can be added to empty table");
 
         let mut nonempty = LocalDatabase::memory().expect("memory database");
-        nonempty.schema_seed().apply_schema(base).expect("apply base schema");
+        nonempty
+            .schema_seed()
+            .apply_schema(base)
+            .expect("apply base schema");
         insert(
             &mut nonempty,
             "nonempty",
@@ -389,7 +425,8 @@ mod stored_enum_tests {
         )
         .expect("seed nonempty table");
         let error = nonempty
-            .schema_seed().apply_schema(schema(vec![
+            .schema_seed()
+            .apply_schema(schema(vec![
                 field("title", FieldType::String, false),
                 field("state", domain(&["open", "closed"]), false),
             ]))
@@ -421,26 +458,31 @@ mod stored_enum_tests {
     #[test]
     fn enum_domain_widening_admits_without_touching_rows() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(schema(vec![field(
-            "state",
-            domain(&["open", "closed"]),
-            false,
-        )]))
-        .expect("apply narrow enum");
+        db.schema_seed()
+            .apply_schema(schema(vec![field(
+                "state",
+                domain(&["open", "closed"]),
+                false,
+            )]))
+            .expect("apply narrow enum");
         insert(
             &mut db,
             "open_item",
             Map::from_iter([("state".to_owned(), json!("open"))]),
         )
         .expect("seed admitted value");
-        db.schema_seed().apply_schema(schema(vec![field(
-            "state",
-            domain(&["closed", "open", "archived"]),
-            false,
-        )]))
-        .expect("enum subset widening is declaration-only");
+        db.schema_seed()
+            .apply_schema(schema(vec![field(
+                "state",
+                domain(&["closed", "open", "archived"]),
+                false,
+            )]))
+            .expect("enum subset widening is declaration-only");
         assert_eq!(
-            db.query_reads_read().get("items", "open_item").unwrap().unwrap()["state"],
+            db.query_reads_read()
+                .get("items", "open_item")
+                .unwrap()
+                .unwrap()["state"],
             "open"
         );
     }
@@ -449,7 +491,8 @@ mod stored_enum_tests {
     fn enum_domain_narrowing_scans_existing_rows_in_the_activation_transaction() {
         let mut conforming = LocalDatabase::memory().expect("memory database");
         conforming
-            .schema_seed().apply_schema(schema(vec![field(
+            .schema_seed()
+            .apply_schema(schema(vec![field(
                 "state",
                 domain(&["open", "closed", "archived"]),
                 false,
@@ -462,7 +505,8 @@ mod stored_enum_tests {
         )
         .expect("seed conforming value");
         conforming
-            .schema_seed().apply_schema(schema(vec![field(
+            .schema_seed()
+            .apply_schema(schema(vec![field(
                 "state",
                 domain(&["open", "closed"]),
                 false,
@@ -471,7 +515,8 @@ mod stored_enum_tests {
 
         let mut refusing = LocalDatabase::memory().expect("memory database");
         refusing
-            .schema_seed().apply_schema(schema(vec![field(
+            .schema_seed()
+            .apply_schema(schema(vec![field(
                 "state",
                 domain(&["open", "closed", "archived"]),
                 false,
@@ -484,7 +529,8 @@ mod stored_enum_tests {
         )
         .expect("seed soon-to-be excluded value");
         let error = refusing
-            .schema_seed().apply_schema(schema(vec![
+            .schema_seed()
+            .apply_schema(schema(vec![
                 field("state", domain(&["open", "closed"]), false),
                 field("note", FieldType::String, true),
             ]))
@@ -532,7 +578,8 @@ mod stored_enum_tests {
     fn string_to_enum_scans_existing_rows_in_the_activation_transaction() {
         let mut conforming = LocalDatabase::memory().expect("memory database");
         conforming
-            .schema_seed().apply_schema(schema(vec![field("state", FieldType::String, false)]))
+            .schema_seed()
+            .apply_schema(schema(vec![field("state", FieldType::String, false)]))
             .expect("apply string schema");
         insert(
             &mut conforming,
@@ -541,7 +588,8 @@ mod stored_enum_tests {
         )
         .expect("seed conforming string");
         conforming
-            .schema_seed().apply_schema(schema(vec![field(
+            .schema_seed()
+            .apply_schema(schema(vec![field(
                 "state",
                 domain(&["open", "closed"]),
                 false,
@@ -550,7 +598,8 @@ mod stored_enum_tests {
 
         let mut refusing = LocalDatabase::memory().expect("memory database");
         refusing
-            .schema_seed().apply_schema(schema(vec![field("state", FieldType::String, false)]))
+            .schema_seed()
+            .apply_schema(schema(vec![field("state", FieldType::String, false)]))
             .expect("apply string schema");
         insert(
             &mut refusing,
@@ -559,7 +608,8 @@ mod stored_enum_tests {
         )
         .expect("seed nonconforming string");
         let error = refusing
-            .schema_seed().apply_schema(schema(vec![
+            .schema_seed()
+            .apply_schema(schema(vec![
                 field("state", domain(&["open", "closed"]), false),
                 field("note", FieldType::String, true),
             ]))
@@ -593,19 +643,21 @@ mod stored_enum_tests {
     #[test]
     fn enum_to_string_admits_without_touching_rows() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(schema(vec![field(
-            "state",
-            domain(&["open", "closed"]),
-            false,
-        )]))
-        .expect("apply enum schema");
+        db.schema_seed()
+            .apply_schema(schema(vec![field(
+                "state",
+                domain(&["open", "closed"]),
+                false,
+            )]))
+            .expect("apply enum schema");
         insert(
             &mut db,
             "open_item",
             Map::from_iter([("state".to_owned(), json!("open"))]),
         )
         .expect("seed enum row");
-        db.schema_seed().apply_schema(schema(vec![field("state", FieldType::String, false)]))
+        db.schema_seed()
+            .apply_schema(schema(vec![field("state", FieldType::String, false)]))
             .expect("enum to string is declaration-only");
         assert_eq!(
             db.schema()
@@ -617,7 +669,10 @@ mod stored_enum_tests {
             FieldType::String
         );
         assert_eq!(
-            db.query_reads_read().get("items", "open_item").unwrap().unwrap()["state"],
+            db.query_reads_read()
+                .get("items", "open_item")
+                .unwrap()
+                .unwrap()["state"],
             "open"
         );
     }
@@ -625,10 +680,12 @@ mod stored_enum_tests {
     #[test]
     fn non_string_scalar_to_enum_remains_a_logical_retype() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(schema(vec![field("state", FieldType::Integer, false)]))
+        db.schema_seed()
+            .apply_schema(schema(vec![field("state", FieldType::Integer, false)]))
             .expect("apply integer schema");
         let error = db
-            .schema_seed().apply_schema(schema(vec![field(
+            .schema_seed()
+            .apply_schema(schema(vec![field(
                 "state",
                 domain(&["open", "closed"]),
                 false,
@@ -723,7 +780,7 @@ mod stored_structured_value_tests {
     }
 
     fn insert(db: &mut LocalDatabase, id: &str, values: Map<String, Value>) -> SnapbackResult<()> {
-        db.commit_buffered_writes(
+        db.mutation_writes().commit_buffered_writes(
             &HandlerInput::default(),
             vec![BufferedWrite::Insert {
                 table: "items".to_owned(),
@@ -823,21 +880,22 @@ mod stored_structured_value_tests {
             .unwrap();
         assert_eq!(declared, "TEXT");
 
-        db.execute_mutation(
-            &MutationPlan {
-                steps: vec![MutationStep::Insert {
-                    table: "items".to_owned(),
-                    values: BTreeMap::from([(
-                        "payload".to_owned(),
-                        ValueExpr::Literal(json!({ "nested": { "label": "first" }, "n": 5.0 })),
-                    )]),
-                    bind_id_as: None,
-                }],
-                return_value: None,
-            },
-            &HandlerInput::default(),
-        )
-        .expect("ordinary structured insert");
+        db.mutation_writes()
+            .execute_mutation(
+                &MutationPlan {
+                    steps: vec![MutationStep::Insert {
+                        table: "items".to_owned(),
+                        values: BTreeMap::from([(
+                            "payload".to_owned(),
+                            ValueExpr::Literal(json!({ "nested": { "label": "first" }, "n": 5.0 })),
+                        )]),
+                        bind_id_as: None,
+                    }],
+                    return_value: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("ordinary structured insert");
         let inserted_id: String = db
             .conn
             .query_row("SELECT _id FROM items", [], |row| row.get(0))
@@ -856,21 +914,24 @@ mod stored_structured_value_tests {
             json!(5)
         );
 
-        db.execute_mutation(
-            &MutationPlan {
-                steps: vec![MutationStep::Patch {
-                    table: "items".to_owned(),
-                    id: ValueExpr::Literal(json!(inserted_id.clone())),
-                    values: BTreeMap::from([(
-                        "payload".to_owned(),
-                        ValueExpr::Literal(json!({ "nested": { "label": "patched" }, "n": 6.0 })),
-                    )]),
-                }],
-                return_value: None,
-            },
-            &HandlerInput::default(),
-        )
-        .expect("ordinary structured patch");
+        db.mutation_writes()
+            .execute_mutation(
+                &MutationPlan {
+                    steps: vec![MutationStep::Patch {
+                        table: "items".to_owned(),
+                        id: ValueExpr::Literal(json!(inserted_id.clone())),
+                        values: BTreeMap::from([(
+                            "payload".to_owned(),
+                            ValueExpr::Literal(
+                                json!({ "nested": { "label": "patched" }, "n": 6.0 }),
+                            ),
+                        )]),
+                    }],
+                    return_value: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("ordinary structured patch");
         assert_eq!(
             db.get("items", &inserted_id).unwrap().unwrap()["payload"],
             json!({ "n": 6, "nested": { "label": "patched" } })
@@ -1288,48 +1349,49 @@ mod guarded_commit_tests {
     fn migration_scan_database() -> LocalDatabase {
         use crate::manifest::IndexManifest;
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(SchemaManifest {
-            tables: vec![TableManifest {
-                name: "scanned".to_owned(),
-                fields: vec![
-                    FieldManifest {
-                        name: "k".to_owned(),
-                        field_type: FieldType::String,
-                        optional: false,
-                    },
-                    FieldManifest {
-                        name: "v".to_owned(),
-                        field_type: FieldType::String,
-                        optional: true,
-                    },
-                ],
-                indexes: vec![
-                    IndexManifest {
-                        name: "by_k".to_owned(),
-                        fields: vec!["k".to_owned()],
-                        unique: false,
-                        where_applicable: false,
-                    },
-                    IndexManifest {
-                        name: "by_k_v".to_owned(),
-                        fields: vec!["k".to_owned(), "v".to_owned()],
-                        unique: false,
-                        where_applicable: false,
-                    },
-                ],
-                syncable: true,
-                permission_backing: false,
-                permission_fields: None,
-                search_indexes: Vec::new(),
-                vector_indexes: Vec::new(),
-                search_live_limits: None,
-                membership: None,
-                asset_sharing: None,
-                history: None,
-            }],
-            ..SchemaManifest::default()
-        })
-        .expect("apply scan schema");
+        db.schema_seed()
+            .apply_schema(SchemaManifest {
+                tables: vec![TableManifest {
+                    name: "scanned".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "k".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "v".to_owned(),
+                            field_type: FieldType::String,
+                            optional: true,
+                        },
+                    ],
+                    indexes: vec![
+                        IndexManifest {
+                            name: "by_k".to_owned(),
+                            fields: vec!["k".to_owned()],
+                            unique: false,
+                            where_applicable: false,
+                        },
+                        IndexManifest {
+                            name: "by_k_v".to_owned(),
+                            fields: vec!["k".to_owned(), "v".to_owned()],
+                            unique: false,
+                            where_applicable: false,
+                        },
+                    ],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    membership: None,
+                    asset_sharing: None,
+                    history: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply scan schema");
         let row = |id: &str, k: &str, v: Option<&str>| {
             let mut object = Map::new();
             object.insert("_id".to_owned(), json!(id));
@@ -1339,21 +1401,22 @@ mod guarded_commit_tests {
             }
             object
         };
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "scanned".to_owned(),
-                vec![
-                    row("r1", "alpha", Some("1")),
-                    row("r2", "alpha", Some("2")),
-                    row("r3", "beta", None),
-                    row("r4", "beta", Some("4")),
-                    row("r5", "beta", Some("5")),
-                    row("r6", "gamma", None),
-                    row("r7", "delta", Some("7")),
-                ],
-            )]),
-        })
-        .expect("seed scan rows");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "scanned".to_owned(),
+                    vec![
+                        row("r1", "alpha", Some("1")),
+                        row("r2", "alpha", Some("2")),
+                        row("r3", "beta", None),
+                        row("r4", "beta", Some("4")),
+                        row("r5", "beta", Some("5")),
+                        row("r6", "gamma", None),
+                        row("r7", "delta", Some("7")),
+                    ],
+                )]),
+            })
+            .expect("seed scan rows");
         db
     }
 
@@ -1465,20 +1528,21 @@ mod guarded_commit_tests {
             precondition_rows: complete,
             capability_health: BTreeMap::new(),
         };
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Insert {
-                table: "scanned".to_owned(),
-                id: "r8".to_owned(),
-                values: Map::from_iter([
-                    ("k".to_owned(), json!("epsilon")),
-                    ("v".to_owned(), json!("8")),
-                ]),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("insert one row into the preview's own target data source");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "scanned".to_owned(),
+                    id: "r8".to_owned(),
+                    values: Map::from_iter([
+                        ("k".to_owned(), json!("epsilon")),
+                        ("v".to_owned(), json!("8")),
+                    ]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("insert one row into the preview's own target data source");
         let (changed_head, changed_rows) = db
             .migration_preview_observation_facts(&steps, 10)
             .expect("observe the changed target data");
@@ -1572,13 +1636,14 @@ mod guarded_commit_tests {
                 values,
             }
         };
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![row("r8", "alpha", Some("1")), row("r9", "beta", None)],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("compound uniqueness scan fixtures");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![row("r8", "alpha", Some("1")), row("r9", "beta", None)],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("compound uniqueness scan fixtures");
 
         let request = MigrationKeysetScanRequestV1 {
             table: "scanned".to_owned(),
@@ -1767,75 +1832,79 @@ mod guarded_commit_tests {
 
     fn database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(schema()).expect("apply test schema");
+        db.schema_seed()
+            .apply_schema(schema())
+            .expect("apply test schema");
         db
     }
 
     fn apply_typed_decode_fixture(db: &mut LocalDatabase) {
-        db.schema_seed().apply_schema(SchemaManifest {
-            tables: vec![TableManifest {
-                name: "typed_items".to_owned(),
-                fields: vec![
-                    FieldManifest {
-                        name: "label".to_owned(),
-                        field_type: FieldType::String,
-                        optional: false,
-                    },
-                    FieldManifest {
-                        name: "flag".to_owned(),
-                        field_type: FieldType::Boolean,
-                        optional: false,
-                    },
-                    FieldManifest {
-                        name: "count".to_owned(),
-                        field_type: FieldType::Integer,
-                        optional: false,
-                    },
-                    FieldManifest {
-                        name: "score".to_owned(),
-                        field_type: FieldType::Real,
-                        optional: false,
-                    },
-                    FieldManifest {
-                        name: "payload".to_owned(),
-                        field_type: FieldType::Json,
-                        optional: false,
-                    },
-                    FieldManifest {
-                        name: "note".to_owned(),
-                        field_type: FieldType::String,
-                        optional: true,
-                    },
-                ],
-                indexes: Vec::new(),
-                syncable: true,
-                permission_backing: false,
-                permission_fields: None,
-                search_indexes: Vec::new(),
-                vector_indexes: Vec::new(),
-                search_live_limits: None,
-                membership: None,
-                asset_sharing: None,
-                history: None,
-            }],
-            ..SchemaManifest::default()
-        })
-        .expect("apply typed decode schema");
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "typed_items".to_owned(),
-                vec![Map::from_iter([
-                    ("_id".to_owned(), json!("typed-row")),
-                    ("label".to_owned(), json!("ok")),
-                    ("flag".to_owned(), json!(true)),
-                    ("count".to_owned(), json!(1)),
-                    ("score".to_owned(), json!(1.5)),
-                    ("payload".to_owned(), json!({ "ok": true })),
-                    ("note".to_owned(), Value::Null),
-                ])],
-            )]),
-        })
-        .expect("seed typed decode row");
+        db.schema_seed()
+            .apply_schema(SchemaManifest {
+                tables: vec![TableManifest {
+                    name: "typed_items".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "label".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "flag".to_owned(),
+                            field_type: FieldType::Boolean,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "count".to_owned(),
+                            field_type: FieldType::Integer,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "score".to_owned(),
+                            field_type: FieldType::Real,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "payload".to_owned(),
+                            field_type: FieldType::Json,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "note".to_owned(),
+                            field_type: FieldType::String,
+                            optional: true,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    membership: None,
+                    asset_sharing: None,
+                    history: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply typed decode schema");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "typed_items".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("typed-row")),
+                        ("label".to_owned(), json!("ok")),
+                        ("flag".to_owned(), json!(true)),
+                        ("count".to_owned(), json!(1)),
+                        ("score".to_owned(), json!(1.5)),
+                        ("payload".to_owned(), json!({ "ok": true })),
+                        ("note".to_owned(), Value::Null),
+                    ])],
+                )]),
+            })
+            .expect("seed typed decode row");
     }
 
     fn typed_decode_database() -> LocalDatabase {
@@ -1886,39 +1955,41 @@ mod guarded_commit_tests {
         identity: Option<&ClientMutationIdentity>,
         writes: Vec<BufferedWrite>,
     ) -> SnapbackResult<MutationCommit> {
-        db.commit_buffered_writes_idempotent_guarded(
-            &HandlerInput::default(),
-            BufferedCommitPayload {
-                writes,
-                sequence_allocations: vec![fact],
-                membership_plans: Vec::new(),
-                read_dependencies: Vec::new(),
-                result: json!({ "allocated": true }),
-                ctx_ledger: CtxAnswerLedger::default(),
-                job_enqueues: Vec::new(),
-                job_producer: None,
-                asset_admissions: Vec::new(),
-                asset_grant_ops: Vec::new(),
-            },
-            identity,
-            || Ok(()),
-            || Ok(()),
-        )
+        db.mutation_writes()
+            .commit_buffered_writes_idempotent_guarded(
+                &HandlerInput::default(),
+                BufferedCommitPayload {
+                    writes,
+                    sequence_allocations: vec![fact],
+                    membership_plans: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    result: json!({ "allocated": true }),
+                    ctx_ledger: CtxAnswerLedger::default(),
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
+                    asset_admissions: Vec::new(),
+                    asset_grant_ops: Vec::new(),
+                },
+                identity,
+                || Ok(()),
+                || Ok(()),
+            )
     }
 
     #[test]
     fn sequence_allocation_is_gapless_atomic_replay_safe_and_incarnation_scoped() {
         let mut db = database();
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "items".to_owned(),
-                vec![Map::from_iter([
-                    ("_id".to_owned(), json!("scope")),
-                    ("title".to_owned(), json!("original")),
-                ])],
-            )]),
-        })
-        .expect("seed scope");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("scope")),
+                        ("title".to_owned(), json!("original")),
+                    ])],
+                )]),
+            })
+            .expect("seed scope");
 
         let scope_tables = BTreeSet::from(["items".to_owned()]);
         db.conn
@@ -1943,17 +2014,18 @@ mod guarded_commit_tests {
             .expect("registered brownfield scope activates");
 
         let first = sequence_fact(&db, 1);
-        db.dry_run_buffered_writes(
-            &HandlerInput::default(),
-            Vec::new(),
-            vec![first.clone()],
-            Vec::new(),
-            Vec::new(),
-            json!({ "sequence": 1 }),
-            CtxAnswerLedger::default(),
-            Vec::new(),
-        )
-        .expect("aborted preview validates");
+        db.mutation_writes()
+            .dry_run_buffered_writes(
+                &HandlerInput::default(),
+                Vec::new(),
+                vec![first.clone()],
+                Vec::new(),
+                Vec::new(),
+                json!({ "sequence": 1 }),
+                CtxAnswerLedger::default(),
+                Vec::new(),
+            )
+            .expect("aborted preview validates");
         assert_eq!(
             DbRead::Live(&db)
                 .sequence_next_value(
@@ -1973,7 +2045,8 @@ mod guarded_commit_tests {
             .expect("first allocation commits");
         assert_eq!(committed.sequence_allocations, vec![first.clone()]);
         let replay = db
-            .settlement_read().client_mutation_result(&identity)
+            .settlement_read()
+            .client_mutation_result(&identity)
             .expect("settlement lookup")
             .expect("exact settlement replay short-circuits before handler execution");
         assert_eq!(replay.result, committed.output.result);
@@ -2026,33 +2099,38 @@ mod guarded_commit_tests {
         .expect_err("post-maximum allocation refuses");
         assert_eq!(failure.diagnostic.code, "SNAPBACK_SEQUENCE_EXHAUSTED");
         assert_eq!(
-            db.query_reads_read().get("items", "scope").unwrap().unwrap()["title"],
+            db.query_reads_read()
+                .get("items", "scope")
+                .unwrap()
+                .unwrap()["title"],
             json!("original"),
             "exhaustion rolls back source writes"
         );
 
         let predecessor_incarnation = first.scope_incarnation;
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Delete {
-                table: "items".to_owned(),
-                id: "scope".to_owned(),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("delete old scope");
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Insert {
-                table: "items".to_owned(),
-                id: "scope".to_owned(),
-                values: Map::from_iter([("title".to_owned(), json!("successor"))]),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("recreate scope");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Delete {
+                    table: "items".to_owned(),
+                    id: "scope".to_owned(),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("delete old scope");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "scope".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("successor"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("recreate scope");
         let restarted = sequence_fact(&db, 1);
         assert_ne!(restarted.scope_incarnation, predecessor_incarnation);
         commit_sequence(&mut db, restarted, None, Vec::new())
@@ -2062,16 +2140,17 @@ mod guarded_commit_tests {
     #[test]
     fn malformed_sequence_fact_cannot_commit_before_durable_replay_validation() {
         let mut db = database();
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "items".to_owned(),
-                vec![Map::from_iter([
-                    ("_id".to_owned(), json!("scope")),
-                    ("title".to_owned(), json!("original")),
-                ])],
-            )]),
-        })
-        .expect("seed scope");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("scope")),
+                        ("title".to_owned(), json!("original")),
+                    ])],
+                )]),
+            })
+            .expect("seed scope");
 
         let identity = ClientMutationIdentity::new(
             "cm-malformed-sequence",
@@ -2098,7 +2177,10 @@ mod guarded_commit_tests {
             "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
         );
         assert_eq!(
-            db.query_reads_read().get("items", "scope").unwrap().unwrap()["title"],
+            db.query_reads_read()
+                .get("items", "scope")
+                .unwrap()
+                .unwrap()["title"],
             json!("original"),
             "application writes roll back with the invalid replay fact"
         );
@@ -2114,7 +2196,8 @@ mod guarded_commit_tests {
             "the rejected first invocation burns no sequence value"
         );
         assert!(
-            db.settlement_read().client_mutation_result(&identity)
+            db.settlement_read()
+                .client_mutation_result(&identity)
                 .expect("replay lookup after refusal")
                 .is_none(),
             "the refused invocation leaves no poisoned replay row"
@@ -2124,16 +2207,17 @@ mod guarded_commit_tests {
     #[test]
     fn noncanonical_sequence_scope_id_cannot_commit_or_burn() {
         let mut db = database();
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "items".to_owned(),
-                vec![Map::from_iter([
-                    ("_id".to_owned(), json!("bad/id")),
-                    ("title".to_owned(), json!("original")),
-                ])],
-            )]),
-        })
-        .expect("seed accepts the legacy scope id");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("bad/id")),
+                        ("title".to_owned(), json!("original")),
+                    ])],
+                )]),
+            })
+            .expect("seed accepts the legacy scope id");
 
         let incarnation = DbRead::Live(&db)
             .active_relation_incarnation("items", "bad/id")
@@ -2162,7 +2246,10 @@ mod guarded_commit_tests {
             "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
         );
         assert_eq!(
-            db.query_reads_read().get("items", "bad/id").unwrap().unwrap()["title"],
+            db.query_reads_read()
+                .get("items", "bad/id")
+                .unwrap()
+                .unwrap()["title"],
             json!("original")
         );
         assert_eq!(
@@ -2184,7 +2271,8 @@ mod guarded_commit_tests {
         db.install_sequence_declarations(item_sequence_declarations(), false)
             .expect("empty table enrolls as a sequence scope");
         let failure = db
-            .schema_seed().seed(SeedData {
+            .schema_seed()
+            .seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![Map::from_iter([
@@ -2199,7 +2287,10 @@ mod guarded_commit_tests {
             "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
         );
         assert!(
-            db.query_reads_read().get("items", "bad/id").unwrap().is_none(),
+            db.query_reads_read()
+                .get("items", "bad/id")
+                .unwrap()
+                .is_none(),
             "seed rollback leaves no invalid application row"
         );
         assert!(
@@ -2214,16 +2305,17 @@ mod guarded_commit_tests {
     #[test]
     fn order_field_utf8_bound_refuses_brownfield_and_all_central_writes() {
         let mut db = database();
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "items".to_owned(),
-                vec![Map::from_iter([
-                    ("_id".to_owned(), json!("ordered")),
-                    ("title".to_owned(), json!("four")),
-                ])],
-            )]),
-        })
-        .expect("seed brownfield order row");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("ordered")),
+                        ("title".to_owned(), json!("four")),
+                    ])],
+                )]),
+            })
+            .expect("seed brownfield order row");
 
         let key = ("items".to_owned(), "title".to_owned());
         let too_small = BTreeMap::from([(key.clone(), 3)]);
@@ -2240,20 +2332,22 @@ mod guarded_commit_tests {
             .expect("brownfield row fits the reviewed bound");
         db.set_order_field_bounds(bounds);
 
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Patch {
-                table: "items".to_owned(),
-                id: "ordered".to_owned(),
-                values: Map::from_iter([("title".to_owned(), json!("éééé"))]),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("exact eight-byte UTF-8 value is admitted");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Patch {
+                    table: "items".to_owned(),
+                    id: "ordered".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("éééé"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("exact eight-byte UTF-8 value is admitted");
         let version = db.current_version().expect("version after admitted patch");
 
         let oversized = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Patch {
@@ -2275,11 +2369,15 @@ mod guarded_commit_tests {
             "oversized patch commits no version"
         );
         assert_eq!(
-            db.query_reads_read().get("items", "ordered").unwrap().unwrap()["title"],
+            db.query_reads_read()
+                .get("items", "ordered")
+                .unwrap()
+                .unwrap()["title"],
             "éééé"
         );
 
         let oversized_insert = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Insert {
@@ -2295,7 +2393,12 @@ mod guarded_commit_tests {
             oversized_insert.diagnostic.code,
             "SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED"
         );
-        assert!(db.query_reads_read().get("items", "too-long").unwrap().is_none());
+        assert!(
+            db.query_reads_read()
+                .get("items", "too-long")
+                .unwrap()
+                .is_none()
+        );
     }
 
     fn relation_schema() -> SchemaManifest {
@@ -2440,7 +2543,8 @@ mod guarded_commit_tests {
 
     fn relation_database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory relation database");
-        db.schema_seed().apply_schema(relation_schema())
+        db.schema_seed()
+            .apply_schema(relation_schema())
             .expect("apply relation schema");
         db
     }
@@ -2477,7 +2581,8 @@ mod guarded_commit_tests {
 
     fn generated_sequence_file_database(path: &Path) -> LocalDatabase {
         let mut db = LocalDatabase::open(path).expect("open shared sequence database");
-        db.schema_seed().apply_schema(relation_schema())
+        db.schema_seed()
+            .apply_schema(relation_schema())
             .expect("apply shared relation schema");
         db.install_sequence_declarations(generated_sequence_declarations(), false)
             .expect("install shared sequence declarations");
@@ -2485,17 +2590,18 @@ mod guarded_commit_tests {
     }
 
     fn insert_generated_sequence_scope(db: &mut LocalDatabase, owner: &str, title: &str) {
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Insert {
-                table: "parents".to_owned(),
-                id: "parent-1".to_owned(),
-                values: object(&[("owner", json!(owner)), ("title", json!(title))]),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("insert generated sequence scope");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "parents".to_owned(),
+                    id: "parent-1".to_owned(),
+                    values: object(&[("owner", json!(owner)), ("title", json!(title))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("insert generated sequence scope");
     }
 
     fn generated_sequence_wwa_plan() -> MutationPlan {
@@ -2600,6 +2706,7 @@ mod guarded_commit_tests {
         let input = generated_sequence_input("user-1", "first");
 
         let preview = db
+            .mutation_writes()
             .dry_run_mutation(&plan, &input)
             .expect("generated WWA dry-run");
         assert_eq!(preview.commit.output.result, json!(1));
@@ -2610,11 +2717,24 @@ mod guarded_commit_tests {
             None,
             "dry-run burns no value"
         );
-        assert_eq!(db.query_reads_read().scan_table("children", 10, 0).unwrap().total, 0);
-        assert_eq!(db.query_reads_read().scan_table("activity", 10, 0).unwrap().total, 0);
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("children", 10, 0)
+                .unwrap()
+                .total,
+            0
+        );
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("activity", 10, 0)
+                .unwrap()
+                .total,
+            0
+        );
 
         let identity = ClientMutationIdentity::new("cm_generated_sequence", "addJob", &input);
         let fresh = db
+            .mutation_writes()
             .execute_mutation_idempotent(&plan, &input, &identity)
             .expect("fresh generated WWA allocation");
         assert_eq!(fresh.output.result, json!(1));
@@ -2624,6 +2744,7 @@ mod guarded_commit_tests {
         assert_eq!(sequence_next(&db, &incarnation), Some(2));
 
         let replay = db
+            .mutation_writes()
             .execute_mutation_idempotent(&plan, &input, &identity)
             .expect("exact generated WWA replay");
         assert_eq!(replay.output, fresh.output);
@@ -2632,6 +2753,7 @@ mod guarded_commit_tests {
         assert_eq!(sequence_next(&db, &incarnation), Some(2));
 
         let second = db
+            .mutation_writes()
             .execute_mutation(
                 &generated_sequence_wwa_plan(),
                 &generated_sequence_input("user-1", "second"),
@@ -2669,6 +2791,7 @@ mod guarded_commit_tests {
             return_value: Some(ReturnValue::Binding("position".to_owned())),
         };
         let error = db
+            .mutation_writes()
             .execute_mutation(&failing, &HandlerInput::default())
             .expect_err("later app-write refusal rolls the allocation back");
         assert_eq!(
@@ -2710,6 +2833,7 @@ mod guarded_commit_tests {
         let input = generated_sequence_input("user-1", "moved card");
         let identity = ClientMutationIdentity::new("cm-relay-move-card", "moveCard", &input);
         let fresh = db
+            .mutation_writes()
             .execute_mutation_idempotent(&plan, &input, &identity)
             .expect("Relay moveCard commits");
         assert_eq!(fresh.output.result["sequence"], 1);
@@ -2726,6 +2850,7 @@ mod guarded_commit_tests {
         let encoded_fresh = serde_json::to_vec(&fresh.output).unwrap();
 
         let replay = db
+            .mutation_writes()
             .execute_mutation_idempotent(&plan, &input, &identity)
             .expect("Relay exact replay");
         assert_eq!(serde_json::to_vec(&replay.output).unwrap(), encoded_fresh);
@@ -2761,12 +2886,13 @@ mod guarded_commit_tests {
                         &input,
                     );
                     barrier.wait();
-                    db.execute_mutation_idempotent(
-                        &generated_sequence_wwa_plan(),
-                        &input,
-                        &identity,
-                    )
-                    .expect("concurrent duplicate settles or exact-replays")
+                    db.mutation_writes()
+                        .execute_mutation_idempotent(
+                            &generated_sequence_wwa_plan(),
+                            &input,
+                            &identity,
+                        )
+                        .expect("concurrent duplicate settles or exact-replays")
                 })
             })
             .collect::<Vec<_>>();
@@ -2796,8 +2922,22 @@ mod guarded_commit_tests {
             .unwrap()
             .expect("active parent");
         assert_eq!(sequence_next(&verify, &incarnation), Some(2));
-        assert_eq!(verify.query_reads_read().scan_table("children", 10, 0).unwrap().total, 1);
-        assert_eq!(verify.query_reads_read().scan_table("activity", 10, 0).unwrap().total, 1);
+        assert_eq!(
+            verify
+                .query_reads_read()
+                .scan_table("children", 10, 0)
+                .unwrap()
+                .total,
+            1
+        );
+        assert_eq!(
+            verify
+                .query_reads_read()
+                .scan_table("activity", 10, 0)
+                .unwrap()
+                .total,
+            1
+        );
     }
 
     // @ref LLP 0135#51-sequence-allocation — the contributor local target's
@@ -2833,6 +2973,7 @@ mod guarded_commit_tests {
                     barrier.wait();
                     let started = std::time::Instant::now();
                     let commit = db
+                        .mutation_writes()
                         .execute_mutation_idempotent(
                             &generated_sequence_wwa_plan(),
                             &input,
@@ -2897,12 +3038,14 @@ mod guarded_commit_tests {
 
         let mut missing_db = generated_sequence_database();
         let missing = missing_db
+            .mutation_writes()
             .execute_mutation(&plan, &input)
             .expect_err("missing parent refuses");
 
         let mut hidden_db = generated_sequence_database();
         insert_generated_sequence_scope(&mut hidden_db, "user-1", "hidden");
         let hidden = hidden_db
+            .mutation_writes()
             .execute_mutation(&plan, &input)
             .expect_err("wrong owner refuses");
 
@@ -2944,6 +3087,7 @@ mod guarded_commit_tests {
             .unwrap();
         let allocate = generated_sequence_wwa_plan();
         let penultimate = db
+            .mutation_writes()
             .execute_mutation(
                 &allocate,
                 &generated_sequence_input("user-1", "penultimate"),
@@ -2954,6 +3098,7 @@ mod guarded_commit_tests {
             json!(SEQUENCE_MAX_SAFE_INTEGER - 1)
         );
         let maximum = db
+            .mutation_writes()
             .execute_mutation(&allocate, &generated_sequence_input("user-1", "maximum"))
             .expect("MAX_SAFE_INTEGER is allocatable");
         assert_eq!(maximum.output.result, json!(SEQUENCE_MAX_SAFE_INTEGER));
@@ -2961,8 +3106,16 @@ mod guarded_commit_tests {
             sequence_next(&db, &predecessor),
             Some(i64::try_from(SEQUENCE_MAX_SAFE_INTEGER + 1).unwrap()),
         );
-        let children_before = db.query_reads_read().scan_table("children", 10, 0).unwrap().total;
-        let activity_before = db.query_reads_read().scan_table("activity", 10, 0).unwrap().total;
+        let children_before = db
+            .query_reads_read()
+            .scan_table("children", 10, 0)
+            .unwrap()
+            .total;
+        let activity_before = db
+            .query_reads_read()
+            .scan_table("activity", 10, 0)
+            .unwrap()
+            .total;
         let head_before = db.current_version().unwrap();
         let mut refusal_bytes = Vec::new();
         for attempt in 0..2 {
@@ -2973,23 +3126,33 @@ mod guarded_commit_tests {
                 &input,
             );
             let error = db
+                .mutation_writes()
                 .execute_mutation_idempotent(&allocate, &input, &identity)
                 .expect_err("post-maximum allocation refuses stably");
             assert_eq!(error.diagnostic.code, "SNAPBACK_SEQUENCE_EXHAUSTED");
             refusal_bytes.push(serde_json::to_vec(&error.diagnostic).unwrap());
             assert!(
-                db.settlement_read().client_mutation_result(&identity).unwrap().is_none(),
+                db.settlement_read()
+                    .client_mutation_result(&identity)
+                    .unwrap()
+                    .is_none(),
                 "an exhausted attempt retains no settlement result bytes",
             );
         }
         assert_eq!(refusal_bytes[0], refusal_bytes[1]);
         assert_eq!(db.current_version().unwrap(), head_before);
         assert_eq!(
-            db.query_reads_read().scan_table("children", 10, 0).unwrap().total,
+            db.query_reads_read()
+                .scan_table("children", 10, 0)
+                .unwrap()
+                .total,
             children_before
         );
         assert_eq!(
-            db.query_reads_read().scan_table("activity", 10, 0).unwrap().total,
+            db.query_reads_read()
+                .scan_table("activity", 10, 0)
+                .unwrap()
+                .total,
             activity_before
         );
         assert_eq!(
@@ -2997,16 +3160,17 @@ mod guarded_commit_tests {
             Some(i64::try_from(SEQUENCE_MAX_SAFE_INTEGER + 1).unwrap()),
         );
 
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Delete {
-                table: "parents".to_owned(),
-                id: "parent-1".to_owned(),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("delete predecessor scope");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Delete {
+                    table: "parents".to_owned(),
+                    id: "parent-1".to_owned(),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("delete predecessor scope");
         insert_generated_sequence_scope(&mut db, "user-1", "successor");
         let successor = DbRead::Live(&db)
             .active_relation_incarnation("parents", "parent-1")
@@ -3014,6 +3178,7 @@ mod guarded_commit_tests {
             .expect("successor incarnation");
         assert_ne!(successor, predecessor);
         let restarted = db
+            .mutation_writes()
             .execute_mutation(&allocate, &generated_sequence_input("user-1", "successor"))
             .expect("successor incarnation restarts at one");
         assert_eq!(restarted.output.result, json!(1));
@@ -3044,12 +3209,14 @@ mod guarded_commit_tests {
             .indexes[0]
             .unique = true;
         let mut db = LocalDatabase::memory().expect("incarnation unique database");
-        db.schema_seed().apply_schema(schema)
+        db.schema_seed()
+            .apply_schema(schema)
             .expect("apply unique relation schema");
         db.install_sequence_declarations(generated_sequence_declarations(), false)
             .expect("install sequence declarations");
         insert_generated_sequence_scope(&mut db, "user-1", "predecessor");
         let predecessor = db
+            .mutation_writes()
             .execute_mutation(
                 &generated_sequence_wwa_plan(),
                 &generated_sequence_input("user-1", "predecessor child"),
@@ -3060,18 +3227,20 @@ mod guarded_commit_tests {
             .scope_incarnation
             .clone();
 
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Delete {
-                table: "parents".to_owned(),
-                id: "parent-1".to_owned(),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("delete predecessor scope");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Delete {
+                    table: "parents".to_owned(),
+                    id: "parent-1".to_owned(),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("delete predecessor scope");
         insert_generated_sequence_scope(&mut db, "user-1", "successor");
         let successor = db
+            .mutation_writes()
             .execute_mutation(
                 &generated_sequence_wwa_plan(),
                 &generated_sequence_input("user-1", "successor child"),
@@ -3083,7 +3252,10 @@ mod guarded_commit_tests {
             predecessor_incarnation,
         );
 
-        let rows = db.query_reads_read().scan_table("children", 10, 0).expect("physical children");
+        let rows = db
+            .query_reads_read()
+            .scan_table("children", 10, 0)
+            .expect("physical children");
         assert_eq!(rows.total, 2, "orphaned predecessor child stays physical");
         let incarnations = rows
             .rows
@@ -3165,10 +3337,13 @@ mod guarded_commit_tests {
         let (_before_dir, before_path, before) = file_database();
         drop(before);
         let before_reopen = LocalDatabase::open(&before_path).expect("reopen before composite");
-        assert!(before_reopen.function_generation_record().unwrap().is_none());
         assert!(
-            meta_value(&before_reopen, "projection_plan_digest:raw-before").is_none()
+            before_reopen
+                .function_generation_record()
+                .unwrap()
+                .is_none()
         );
+        assert!(meta_value(&before_reopen, "projection_plan_digest:raw-before").is_none());
         assert_eq!(
             before_reopen
                 .conn
@@ -3237,13 +3412,17 @@ mod guarded_commit_tests {
     #[test]
     fn oq3_failed_function_generation_composite_rolls_back_pins_enrollments_and_record() {
         let mut db = database();
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "items".to_owned(),
-                vec![object(&[("_id", json!("bad/id")), ("title", json!("brownfield"))])],
-            )]),
-        })
-        .expect("seed non-replayable brownfield scope before enrollment");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![object(&[
+                        ("_id", json!("bad/id")),
+                        ("title", json!("brownfield")),
+                    ])],
+                )]),
+            })
+            .expect("seed non-replayable brownfield scope before enrollment");
 
         let error = db
             .commit_function_generation(CommitFunctionGeneration {
@@ -3282,7 +3461,8 @@ mod guarded_commit_tests {
             .install_sequence_declarations(item_sequence_declarations(), false)
             .expect("functions-before-seed enrolls an empty scope");
         fresh
-            .schema_seed().seed(SeedData {
+            .schema_seed()
+            .seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![object(&[
@@ -3295,7 +3475,8 @@ mod guarded_commit_tests {
 
         let mut brownfield = database();
         brownfield
-            .schema_seed().seed(SeedData {
+            .schema_seed()
+            .seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![object(&[("_id", json!("scope")), ("title", json!("old"))])],
@@ -3318,7 +3499,8 @@ mod guarded_commit_tests {
 
         let mut simultaneous = database();
         simultaneous
-            .schema_seed().seed(SeedData {
+            .schema_seed()
+            .seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![object(&[("_id", json!("scope")), ("title", json!("old"))])],
@@ -3377,16 +3559,17 @@ mod guarded_commit_tests {
         let mut db = database();
         db.install_sequence_declarations(item_sequence_declarations(), false)
             .unwrap();
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "items".to_owned(),
-                vec![object(&[
-                    ("_id", json!("scope")),
-                    ("title", json!("active")),
-                ])],
-            )]),
-        })
-        .unwrap();
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![object(&[
+                        ("_id", json!("scope")),
+                        ("title", json!("active")),
+                    ])],
+                )]),
+            })
+            .unwrap();
 
         db.conn
             .execute(
@@ -3435,7 +3618,8 @@ mod guarded_commit_tests {
             .install_sequence_declarations(item_sequence_declarations(), false)
             .unwrap();
         retirement
-            .schema_seed().seed(SeedData {
+            .schema_seed()
+            .seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![object(&[
@@ -3474,7 +3658,8 @@ mod guarded_commit_tests {
             .install_sequence_declarations(item_sequence_declarations(), false)
             .unwrap();
         restart
-            .schema_seed().seed(SeedData {
+            .schema_seed()
+            .seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![object(&[
@@ -3511,6 +3696,7 @@ mod guarded_commit_tests {
             return_value: Some(ReturnValue::Binding("position".to_owned())),
         };
         restart
+            .mutation_writes()
             .execute_mutation(&allocate, &HandlerInput::default())
             .expect("create protected counter state");
 
@@ -3544,16 +3730,17 @@ mod guarded_commit_tests {
         let mut db = database();
         db.install_sequence_declarations(item_sequence_declarations(), false)
             .unwrap();
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "items".to_owned(),
-                vec![object(&[
-                    ("_id", json!("scope")),
-                    ("title", json!("first")),
-                ])],
-            )]),
-        })
-        .unwrap();
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![object(&[
+                        ("_id", json!("scope")),
+                        ("title", json!("first")),
+                    ])],
+                )]),
+            })
+            .unwrap();
         let legitimate_active = DbRead::Live(&db)
             .active_relation_incarnation("items", "scope")
             .unwrap()
@@ -3667,33 +3854,36 @@ mod guarded_commit_tests {
             }],
             return_value: Some(ReturnValue::Binding("position".to_owned())),
         };
-        db.execute_mutation(&allocate, &HandlerInput::default())
+        db.mutation_writes()
+            .execute_mutation(&allocate, &HandlerInput::default())
             .expect("create legitimate predecessor counter");
         let predecessor = DbRead::Live(&db)
             .active_relation_incarnation("items", "scope")
             .unwrap()
             .unwrap();
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Delete {
-                table: "items".to_owned(),
-                id: "scope".to_owned(),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .unwrap();
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Insert {
-                table: "items".to_owned(),
-                id: "scope".to_owned(),
-                values: object(&[("title", json!("second"))]),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .unwrap();
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Delete {
+                    table: "items".to_owned(),
+                    id: "scope".to_owned(),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .unwrap();
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "scope".to_owned(),
+                    values: object(&[("title", json!("second"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .unwrap();
         let successor = DbRead::Live(&db)
             .active_relation_incarnation("items", "scope")
             .unwrap()
@@ -3910,6 +4100,7 @@ mod guarded_commit_tests {
                 return_value: None,
             };
             let error = db
+                .mutation_writes()
                 .execute_mutation(&plan, &HandlerInput::default())
                 .expect_err("stale child cannot be patched or deleted after parent id reuse");
             assert_eq!(error.diagnostic.code, "SNAPBACK_ROW_NOT_FOUND");
@@ -3965,7 +4156,8 @@ mod guarded_commit_tests {
             ]),
         };
         let mut db = relation_database();
-        db.schema_seed().seed(seed.clone())
+        db.schema_seed()
+            .seed(seed.clone())
             .expect("seed stamps relation children");
         let seed_stamp: String = db
             .conn
@@ -3988,21 +4180,22 @@ mod guarded_commit_tests {
         };
         assert_eq!(active_stamp(&db, "parent-a"), seed_stamp);
 
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Insert {
-                table: "children".to_owned(),
-                id: "buffered-child".to_owned(),
-                values: row(&[
-                    ("parentId", json!("parent-a")),
-                    ("position", json!(2)),
-                    ("body", json!("buffered")),
-                ]),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("buffered insert stamps relation");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "children".to_owned(),
+                    id: "buffered-child".to_owned(),
+                    values: row(&[
+                        ("parentId", json!("parent-a")),
+                        ("position", json!(2)),
+                        ("body", json!("buffered")),
+                    ]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("buffered insert stamps relation");
         let buffered_stamp: String = db
             .conn
             .query_row(
@@ -4013,17 +4206,18 @@ mod guarded_commit_tests {
             .expect("buffered stamp");
         assert_eq!(buffered_stamp, seed_stamp);
 
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Patch {
-                table: "children".to_owned(),
-                id: "buffered-child".to_owned(),
-                values: row(&[("parentId", json!("parent-b"))]),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("foreign-key move re-derives relation stamp");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Patch {
+                    table: "children".to_owned(),
+                    id: "buffered-child".to_owned(),
+                    values: row(&[("parentId", json!("parent-b"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("foreign-key move re-derives relation stamp");
         let moved_stamp: String = db
             .conn
             .query_row(
@@ -4036,6 +4230,7 @@ mod guarded_commit_tests {
         assert_eq!(active_stamp(&db, "parent-b"), moved_stamp);
 
         let error = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Patch {
@@ -4144,7 +4339,8 @@ mod guarded_commit_tests {
             tx.rollback().unwrap();
         }
 
-        db.schema_seed().reset_and_seed(Some(seed))
+        db.schema_seed()
+            .reset_and_seed(Some(seed))
             .expect("reset seed recreates and restamps the relation cut");
         let reset_stamp: String = db
             .conn
@@ -4236,9 +4432,11 @@ mod guarded_commit_tests {
             .auth
             .with_client_mutation_settlement(Some(identity.id.as_str()), Some(digest.as_str()));
         let first = db
+            .mutation_writes()
             .execute_mutation_idempotent(&plan, &input, &identity)
             .expect("first activity commit");
         let replay = db
+            .mutation_writes()
             .execute_mutation_idempotent(&plan, &input, &identity)
             .expect("exact replay");
         assert_eq!(first.output, replay.output);
@@ -4295,6 +4493,7 @@ mod guarded_commit_tests {
         };
         let no_op_identity = ClientMutationIdentity::new("cm_activity_noop", "patchTask", &input);
         let error = db
+            .mutation_writes()
             .execute_mutation_idempotent(&no_op, &input, &no_op_identity)
             .expect_err("storage-identical patch is not an activity source effect");
         assert_eq!(
@@ -4313,7 +4512,8 @@ mod guarded_commit_tests {
             .expect("counts after refusal");
         assert_eq!(after, counts);
         assert!(
-            db.settlement_read().client_mutation_result(&no_op_identity)
+            db.settlement_read()
+                .client_mutation_result(&no_op_identity)
                 .expect("settlement lookup")
                 .is_none(),
             "refusal retains no settlement"
@@ -4356,12 +4556,14 @@ mod guarded_commit_tests {
         );
 
         let committed = db
+            .mutation_writes()
             .execute_mutation_idempotent(&plan, &input, &identity)
             .expect("argOpt-shaped omitted property commits without SNAPBACK_ARG_MISSING");
         assert_eq!(committed.output.changed_count, 1);
         let row_id = &committed.changes.first().expect("inserted changed row").id;
         let row = db
-            .query_reads_read().get("items", row_id)
+            .query_reads_read()
+            .get("items", row_id)
             .expect("read committed item")
             .expect("committed item exists");
         assert_eq!(row["rank"], Value::Null);
@@ -4474,6 +4676,7 @@ mod guarded_commit_tests {
         let plan = activity_insert_plan(ReturnValue::Expr(ValueExpr::Arg("result".to_owned())));
 
         let base = db
+            .mutation_writes()
             .dry_run_mutation(&plan, &activity_input(json!("")))
             .expect("measure retained output envelope")
             .commit
@@ -4487,6 +4690,7 @@ mod guarded_commit_tests {
         let (exact_input, exact_identity) =
             input_with_identity_digest("cm_activity_65536", "addTask", json!("x".repeat(padding)));
         let exact = db
+            .mutation_writes()
             .execute_mutation_idempotent(&plan, &exact_input, &exact_identity)
             .expect("65,536-byte retained result commits");
         assert_eq!(
@@ -4495,26 +4699,30 @@ mod guarded_commit_tests {
         );
         assert_eq!(activity_counts(&db), (1, 1));
         let replay = db
+            .mutation_writes()
             .execute_mutation_idempotent(&plan, &exact_input, &exact_identity)
             .expect("exact replay returns retained bytes");
         assert_eq!(replay.output, exact.output);
         assert_eq!(activity_counts(&db), (1, 1));
 
         assert_eq!(
-            db.settlement().acknowledge_client_mutations(
-                &exact_identity.auth_fingerprint,
-                std::slice::from_ref(&exact_identity.id),
-            )
-            .unwrap(),
+            db.settlement()
+                .acknowledge_client_mutations(
+                    &exact_identity.auth_fingerprint,
+                    std::slice::from_ref(&exact_identity.id),
+                )
+                .unwrap(),
             1
         );
         assert_eq!(activity_counts(&db), (1, 1), "ACK reclaims no product data");
         assert!(
-            db.settlement_read().client_mutation_result(&exact_identity)
+            db.settlement_read()
+                .client_mutation_result(&exact_identity)
                 .unwrap()
                 .is_none()
         );
         let after_ack = db
+            .mutation_writes()
             .execute_mutation_idempotent(&plan, &exact_input, &exact_identity)
             .expect("retry after ACK executes because replay evidence is gone");
         assert_ne!(after_ack.output, exact.output);
@@ -4523,9 +4731,12 @@ mod guarded_commit_tests {
         let before_oversize = (
             db.current_version().unwrap(),
             activity_counts(&db),
-            db.settlement_read().client_mutation_retention_info().unwrap(),
+            db.settlement_read()
+                .client_mutation_retention_info()
+                .unwrap(),
         );
         let measured = db
+            .mutation_writes()
             .dry_run_mutation(&plan, &activity_input(json!("")))
             .expect("measure successor output envelope")
             .commit
@@ -4538,6 +4749,7 @@ mod guarded_commit_tests {
             json!("x".repeat(oversized_padding)),
         );
         let error = db
+            .mutation_writes()
             .execute_mutation_idempotent(&plan, &oversized_input, &oversized_identity)
             .expect_err("65,537-byte retained result rolls back the whole profile");
         assert_eq!(
@@ -4548,22 +4760,27 @@ mod guarded_commit_tests {
         assert_eq!(db.current_version().unwrap(), before_oversize.0);
         assert_eq!(activity_counts(&db), before_oversize.1);
         assert_eq!(
-            db.settlement_read().client_mutation_retention_info().unwrap(),
+            db.settlement_read()
+                .client_mutation_retention_info()
+                .unwrap(),
             before_oversize.2
         );
         assert!(
-            db.settlement_read().client_mutation_result(&oversized_identity)
+            db.settlement_read()
+                .client_mutation_result(&oversized_identity)
                 .unwrap()
                 .is_none()
         );
 
         let (purge_input, purge_identity) =
             input_with_identity_digest("cm_activity_purge", "addTask", json!("small"));
-        db.execute_mutation_idempotent(&plan, &purge_input, &purge_identity)
+        db.mutation_writes()
+            .execute_mutation_idempotent(&plan, &purge_input, &purge_identity)
             .expect("settlement to purge");
         let before_purge = activity_counts(&db);
         assert!(
-            db.settlement().purge_client_mutation_settlements(Some(&purge_identity.auth_fingerprint))
+            db.settlement()
+                .purge_client_mutation_settlements(Some(&purge_identity.auth_fingerprint))
                 .unwrap()
                 >= 1
         );
@@ -4573,11 +4790,13 @@ mod guarded_commit_tests {
             "administrative settlement purge preserves activity"
         );
         assert!(
-            db.settlement_read().client_mutation_result(&purge_identity)
+            db.settlement_read()
+                .client_mutation_result(&purge_identity)
                 .unwrap()
                 .is_none()
         );
-        db.execute_mutation_idempotent(&plan, &purge_input, &purge_identity)
+        db.mutation_writes()
+            .execute_mutation_idempotent(&plan, &purge_input, &purge_identity)
             .expect("retry after purge executes again by documented contract");
         assert_eq!(
             activity_counts(&db),
@@ -4639,7 +4858,10 @@ mod guarded_commit_tests {
             assert_eq!(db.current_version().unwrap(), 1, "{label}");
             assert_eq!(activity_counts(&db), (0, 0), "{label}");
             assert!(
-                db.settlement_read().client_mutation_result(&identity).unwrap().is_none(),
+                db.settlement_read()
+                    .client_mutation_result(&identity)
+                    .unwrap()
+                    .is_none(),
                 "{label}"
             );
         }
@@ -4653,12 +4875,18 @@ mod guarded_commit_tests {
         let (input, identity) =
             input_with_identity_digest("cm_fault_activity_validation", "addTask", Value::Null);
         let error = db
+            .mutation_writes()
             .execute_mutation_idempotent(&invalid_activity, &input, &identity)
             .expect_err("activity schema validation failure rolls back source");
         assert_eq!(error.diagnostic.code, "SNAPBACK_FIELD_TYPE_MISMATCH");
         assert_eq!(activity_counts(&db), (0, 0));
         assert_eq!(db.current_version().unwrap(), 1);
-        assert!(db.settlement_read().client_mutation_result(&identity).unwrap().is_none());
+        assert!(
+            db.settlement_read()
+                .client_mutation_result(&identity)
+                .unwrap()
+                .is_none()
+        );
 
         let mut invalid_result = plan;
         invalid_result.return_value = Some(ReturnValue::Expr(ValueExpr::Arg(
@@ -4668,12 +4896,18 @@ mod guarded_commit_tests {
         let (input, identity) =
             input_with_identity_digest("cm_fault_result_validation", "addTask", Value::Null);
         let error = db
+            .mutation_writes()
             .execute_mutation_idempotent(&invalid_result, &input, &identity)
             .expect_err("result construction failure rolls back activity");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ARG_MISSING");
         assert_eq!(activity_counts(&db), (0, 0));
         assert_eq!(db.current_version().unwrap(), 1);
-        assert!(db.settlement_read().client_mutation_result(&identity).unwrap().is_none());
+        assert!(
+            db.settlement_read()
+                .client_mutation_result(&identity)
+                .unwrap()
+                .is_none()
+        );
     }
 
     // @ref LLP 0081#6-compatibility-and-deployment-ordering — barrier-time
@@ -4705,22 +4939,23 @@ mod guarded_commit_tests {
             artifact_generation_digest: None,
             operation_issuance: None,
         };
-        db.execute_mutation_idempotent(
-            &MutationPlan {
-                steps: vec![MutationStep::Insert {
-                    table: "items".to_owned(),
-                    values: BTreeMap::from([(
-                        "title".to_owned(),
-                        ValueExpr::Literal(json!("retained")),
-                    )]),
-                    bind_id_as: None,
-                }],
-                return_value: None,
-            },
-            &HandlerInput::default(),
-            &identity,
-        )
-        .expect("retained mutation");
+        db.mutation_writes()
+            .execute_mutation_idempotent(
+                &MutationPlan {
+                    steps: vec![MutationStep::Insert {
+                        table: "items".to_owned(),
+                        values: BTreeMap::from([(
+                            "title".to_owned(),
+                            ValueExpr::Literal(json!("retained")),
+                        )]),
+                        bind_id_as: None,
+                    }],
+                    return_value: None,
+                },
+                &HandlerInput::default(),
+                &identity,
+            )
+            .expect("retained mutation");
         let tx = db
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -4851,21 +5086,25 @@ mod guarded_commit_tests {
             where_applicable: false,
         }];
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(unique_schema).expect("apply unique index");
+        db.schema_seed()
+            .apply_schema(unique_schema)
+            .expect("apply unique index");
 
         let insert = |id: &str| BufferedWrite::Insert {
             table: "items".to_owned(),
             id: id.to_owned(),
             values: Map::from_iter([("title".to_owned(), json!("same"))]),
         };
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![insert("first")],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("first unique insert");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![insert("first")],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("first unique insert");
         let error = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![insert("second")],
@@ -4877,7 +5116,13 @@ mod guarded_commit_tests {
             error.diagnostic.code,
             "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
         );
-        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
+                .unwrap()
+                .total,
+            1
+        );
     }
 
     #[test]
@@ -4891,7 +5136,8 @@ mod guarded_commit_tests {
         }];
         let mut db = LocalDatabase::memory().expect("memory database");
         let error = db
-            .schema_seed().apply_schema(unsafe_schema)
+            .schema_seed()
+            .apply_schema(unsafe_schema)
             .expect_err("optional unique key needs an explicit carrier fact");
         assert_eq!(
             error.diagnostic.code,
@@ -4909,7 +5155,8 @@ mod guarded_commit_tests {
             where_applicable: true,
         }];
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(where_present_schema)
+        db.schema_seed()
+            .apply_schema(where_present_schema)
             .expect("optional unique key activates");
 
         let insert = |id: &str, title: &str, rank: Option<i64>| {
@@ -4928,15 +5175,17 @@ mod guarded_commit_tests {
             insert("absent-2", "second absent", None),
             insert("present-1", "first present", Some(7)),
         ] {
-            db.commit_buffered_writes(
-                &HandlerInput::default(),
-                vec![write],
-                Vec::new(),
-                Value::Null,
-            )
-            .expect("participating and exempt rows insert");
+            db.mutation_writes()
+                .commit_buffered_writes(
+                    &HandlerInput::default(),
+                    vec![write],
+                    Vec::new(),
+                    Value::Null,
+                )
+                .expect("participating and exempt rows insert");
         }
         let error = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![insert("present-2", "duplicate present", Some(7))],
@@ -4961,7 +5210,8 @@ mod guarded_commit_tests {
             where_applicable: true,
         }];
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(where_present_schema)
+        db.schema_seed()
+            .apply_schema(where_present_schema)
             .expect("compound where-present index activates");
 
         let index_sql: String = db
@@ -4990,15 +5240,17 @@ mod guarded_commit_tests {
             insert("exempt-2", None),
             insert("participating-1", Some(9)),
         ] {
-            db.commit_buffered_writes(
-                &HandlerInput::default(),
-                vec![write],
-                Vec::new(),
-                Value::Null,
-            )
-            .expect("all-present participation is enforced");
+            db.mutation_writes()
+                .commit_buffered_writes(
+                    &HandlerInput::default(),
+                    vec![write],
+                    Vec::new(),
+                    Value::Null,
+                )
+                .expect("all-present participation is enforced");
         }
         let error = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![insert("participating-2", Some(9))],
@@ -5023,13 +5275,14 @@ mod guarded_commit_tests {
                 ("rank".to_owned(), json!(4)),
             ]),
         };
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![insert("first", "first"), insert("second", "second")],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("brownfield duplicate fixture");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![insert("first", "first"), insert("second", "second")],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("brownfield duplicate fixture");
 
         let mut successor = schema();
         successor.tables[0].indexes = vec![crate::manifest::IndexManifest {
@@ -5039,7 +5292,8 @@ mod guarded_commit_tests {
             where_applicable: true,
         }];
         let error = db
-            .schema_seed().apply_schema(successor)
+            .schema_seed()
+            .apply_schema(successor)
             .expect_err("participating duplicates refuse activation");
         assert_eq!(
             error.diagnostic.code,
@@ -5054,24 +5308,25 @@ mod guarded_commit_tests {
     #[test]
     fn adding_unique_where_present_over_absent_brownfield_rows_succeeds() {
         let mut db = database();
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![
-                BufferedWrite::Insert {
-                    table: "items".to_owned(),
-                    id: "absent-1".to_owned(),
-                    values: Map::from_iter([("title".to_owned(), json!("first"))]),
-                },
-                BufferedWrite::Insert {
-                    table: "items".to_owned(),
-                    id: "absent-2".to_owned(),
-                    values: Map::from_iter([("title".to_owned(), json!("second"))]),
-                },
-            ],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("absent brownfield fixture");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![
+                    BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: "absent-1".to_owned(),
+                        values: Map::from_iter([("title".to_owned(), json!("first"))]),
+                    },
+                    BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: "absent-2".to_owned(),
+                        values: Map::from_iter([("title".to_owned(), json!("second"))]),
+                    },
+                ],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("absent brownfield fixture");
 
         let mut successor = schema();
         successor.tables[0].indexes = vec![crate::manifest::IndexManifest {
@@ -5080,7 +5335,8 @@ mod guarded_commit_tests {
             unique: true,
             where_applicable: true,
         }];
-        db.schema_seed().apply_schema(successor)
+        db.schema_seed()
+            .apply_schema(successor)
             .expect("absent rows are exempt during activation");
         assert!(db.schema.tables[0].indexes[0].where_applicable);
     }
@@ -5199,7 +5455,8 @@ mod guarded_commit_tests {
 
     fn relational_database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(relational_schema())
+        db.schema_seed()
+            .apply_schema(relational_schema())
             .expect("apply relational schema");
         let row = |id: &str, fields: Value| {
             let mut object = fields.as_object().cloned().expect("row object");
@@ -5274,7 +5531,8 @@ mod guarded_commit_tests {
         // omitted; b3 has a null join key; b4 is another owner's root and
         // never occupies a window slot. Short page, no refill.
         let (inner, inner_continuation) = db
-            .query_reads_read().query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
+            .query_reads_read()
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
             .expect("inner relational query");
         assert!(
             inner_continuation.is_none(),
@@ -5292,7 +5550,8 @@ mod guarded_commit_tests {
         // Left: every visible root emits; missing/invisible/null-key joined
         // leaves are null — indistinguishable from one another.
         let (left, _) = db
-            .query_reads_read().query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
+            .query_reads_read()
+            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
             .expect("left relational query");
         let titles: Vec<(&str, bool)> = left
             .rows
@@ -5309,7 +5568,8 @@ mod guarded_commit_tests {
         // take=2 the window is [alpha, beta]; beta's author is invisible so
         // inner emits one row, and gamma is never consumed to refill.
         let (windowed, windowed_continuation) = db
-            .query_reads_read().query_relational(&relational_plan(JoinKind::Inner, 2), &input, None)
+            .query_reads_read()
+            .query_relational(&relational_plan(JoinKind::Inner, 2), &input, None)
             .expect("windowed inner query");
         assert_eq!(windowed.rows.len(), 1);
         assert_eq!(windowed.rows[0]["title"], json!("alpha"));
@@ -5333,7 +5593,8 @@ mod guarded_commit_tests {
 
         // take: 0 is an empty page that consumes nothing.
         let (empty, empty_continuation) = db
-            .query_reads_read().query_relational(&relational_plan(JoinKind::Inner, 0), &input, None)
+            .query_reads_read()
+            .query_relational(&relational_plan(JoinKind::Inner, 0), &input, None)
             .expect("take zero");
         assert!(empty.rows.is_empty());
         assert!(empty_continuation.is_none());
@@ -5350,7 +5611,8 @@ mod guarded_commit_tests {
         // claimed-unique joined key is a storage-invariant refusal.
         let mut corrupted = LocalDatabase::memory().expect("memory database");
         corrupted
-            .schema_seed().apply_schema(relational_schema())
+            .schema_seed()
+            .apply_schema(relational_schema())
             .expect("apply relational schema");
         corrupted
             .schema_seed().seed(SeedData {
@@ -5376,7 +5638,8 @@ mod guarded_commit_tests {
             })
             .expect("seed duplicate authors");
         let error = corrupted
-            .query_reads_read().query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
+            .query_reads_read()
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
             .expect_err("duplicate unique key must refuse");
         assert_eq!(
             error.diagnostic.code,
@@ -5387,13 +5650,15 @@ mod guarded_commit_tests {
         let mut no_pairs = relational_plan(JoinKind::Inner, 10);
         no_pairs.join_on.clear();
         let error = db
-            .query_reads_read().query_relational(&no_pairs, &input, None)
+            .query_reads_read()
+            .query_relational(&no_pairs, &input, None)
             .expect_err("zero join pairs");
         assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_PLAN_INVALID");
         let mut too_big = relational_plan(JoinKind::Inner, 10);
         too_big.take = 1025;
         let error = db
-            .query_reads_read().query_relational(&too_big, &input, None)
+            .query_reads_read()
+            .query_relational(&too_big, &input, None)
             .expect_err("take over 1024");
         assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_PLAN_INVALID");
     }
@@ -5412,7 +5677,8 @@ mod guarded_commit_tests {
         // Visible roots for user-a in title order: alpha(b1), beta(b2,
         // author invisible), gamma(b3, null join key).
         let (page1, cursor1) = db
-            .query_reads_read().query_relational(&plan, &input, None)
+            .query_reads_read()
+            .query_relational(&plan, &input, None)
             .expect("first page");
         assert_eq!(page1.rows.len(), 1);
         assert_eq!(page1.rows[0]["title"], json!("alpha"));
@@ -5423,7 +5689,8 @@ mod guarded_commit_tests {
         // Window [beta]: consumed one root, emitted zero rows (invisible
         // author), still progresses.
         let (page2, cursor2) = db
-            .query_reads_read().query_relational(&plan, &input, Some(&cursor1))
+            .query_reads_read()
+            .query_relational(&plan, &input, Some(&cursor1))
             .expect("second page");
         assert!(page2.rows.is_empty(), "all-omitted window emits no rows");
         let cursor2 = cursor2.expect("all-omitted window still progresses");
@@ -5431,7 +5698,8 @@ mod guarded_commit_tests {
 
         // Window [gamma]: null join key, same shape.
         let (page3, cursor3) = db
-            .query_reads_read().query_relational(&plan, &input, Some(&cursor2))
+            .query_reads_read()
+            .query_relational(&plan, &input, Some(&cursor2))
             .expect("third page");
         assert!(page3.rows.is_empty());
         let cursor3 = cursor3.expect("full window continues");
@@ -5440,7 +5708,8 @@ mod guarded_commit_tests {
         // Past the last root: consumes nothing, terminal — end-of-stream
         // is an empty page with no continuation, exactly as pinned.
         let (page4, cursor4) = db
-            .query_reads_read().query_relational(&plan, &input, Some(&cursor3))
+            .query_reads_read()
+            .query_relational(&plan, &input, Some(&cursor3))
             .expect("terminal page");
         assert!(page4.rows.is_empty());
         assert!(cursor4.is_none(), "a short window is terminal");
@@ -5448,7 +5717,8 @@ mod guarded_commit_tests {
         // No skip, no duplicate: the union of consumed roots across pages
         // is exactly the unpaged window.
         let (all, _) = db
-            .query_reads_read().query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
+            .query_reads_read()
+            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
             .expect("unpaged window");
         assert_eq!(all.rows.len(), 3);
     }
@@ -5467,7 +5737,8 @@ mod guarded_commit_tests {
             .map(|s| (*s).to_owned())
             .collect();
         let (inner, _) = db
-            .query_reads_read().query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
+            .query_reads_read()
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
             .expect("inner query");
         assert_eq!(
             crate::rqs::relational_result_encoding_v1(&field_order, &inner.rows)
@@ -5475,7 +5746,8 @@ mod guarded_commit_tests {
             r#"[{"title":"alpha","authorName":"Ada","shelf":"fiction"}]"#,
         );
         let (left, _) = db
-            .query_reads_read().query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
+            .query_reads_read()
+            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
             .expect("left query");
         assert_eq!(
             crate::rqs::relational_result_encoding_v1(&field_order, &left.rows)
@@ -5499,7 +5771,9 @@ mod guarded_commit_tests {
     fn relational_root_window_is_index_served_on_sparse_fixture() {
         use crate::manifest::JoinKind;
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(relational_schema()).expect("apply schema");
+        db.schema_seed()
+            .apply_schema(relational_schema())
+            .expect("apply schema");
         // 3,000 roots; only every 300th belongs to user-a (10 visible),
         // interleaved so a scan would walk the whole table.
         let books: Vec<Map<String, Value>> = (0..3_000)
@@ -5522,15 +5796,20 @@ mod guarded_commit_tests {
                 .cloned()
                 .expect("seed row"),
         ];
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([("books".to_owned(), books), ("authors".to_owned(), authors)]),
-        })
-        .expect("seed sparse fixture");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([
+                    ("books".to_owned(), books),
+                    ("authors".to_owned(), authors),
+                ]),
+            })
+            .expect("seed sparse fixture");
 
         let input = relational_input("user-a");
         let _ = take_keyset_scan_stats();
         let (page, continuation) = db
-            .query_reads_read().query_relational(&relational_plan(JoinKind::Left, 5), &input, None)
+            .query_reads_read()
+            .query_relational(&relational_plan(JoinKind::Left, 5), &input, None)
             .expect("sparse window");
         assert_eq!(page.rows.len(), 5);
         assert!(continuation.is_some(), "full window continues");
@@ -5576,14 +5855,17 @@ mod guarded_commit_tests {
             .expect("seed row");
         let seed = |books: Vec<Map<String, Value>>| {
             let mut db = LocalDatabase::memory().expect("memory database");
-            db.schema_seed().apply_schema(relational_schema()).expect("apply schema");
-            db.schema_seed().seed(SeedData {
-                tables: BTreeMap::from([
-                    ("books".to_owned(), books),
-                    ("authors".to_owned(), vec![author.clone()]),
-                ]),
-            })
-            .expect("seed");
+            db.schema_seed()
+                .apply_schema(relational_schema())
+                .expect("apply schema");
+            db.schema_seed()
+                .seed(SeedData {
+                    tables: BTreeMap::from([
+                        ("books".to_owned(), books),
+                        ("authors".to_owned(), vec![author.clone()]),
+                    ]),
+                })
+                .expect("seed");
             db
         };
 
@@ -5594,7 +5876,8 @@ mod guarded_commit_tests {
             book("b4", "delta"),
         ]);
         let (page1, cursor) = before
-            .query_reads_read().query_relational(&plan, &input, None)
+            .query_reads_read()
+            .query_relational(&plan, &input, None)
             .expect("first page");
         assert_eq!(
             page1
@@ -5616,7 +5899,8 @@ mod guarded_commit_tests {
             book("b4", "delta"),
         ]);
         let (page2, _) = after
-            .query_reads_read().query_relational(&plan, &input, Some(&cursor))
+            .query_reads_read()
+            .query_relational(&plan, &input, Some(&cursor))
             .expect("second page");
         assert_eq!(
             page2
@@ -5680,36 +5964,39 @@ mod guarded_commit_tests {
             entries: vec![("authorSlug".to_owned(), value)],
             id: id.to_owned(),
         };
-        db.query_reads_read().with_pinned_read_view(|view| {
-            // Total order: b1(ada), b4(ada), b2(grace), b3(null).
-            let full = view.query_keyset(&plan, &input, None)?;
-            assert_eq!(ids(&full), vec!["b1", "b4", "b2", "b3"]);
-            // Duplicate order key: the `_id` tie-break carries the boundary.
-            let after_b1 = view.query_keyset(&plan, &input, Some(&boundary(json!("ada"), "b1")))?;
-            assert_eq!(ids(&after_b1), vec!["b4", "b2", "b3"]);
-            // Nulls sort after every value, so they follow a non-null boundary.
-            let after_b2 =
-                view.query_keyset(&plan, &input, Some(&boundary(json!("grace"), "b2")))?;
-            assert_eq!(ids(&after_b2), vec!["b3"]);
-            // A null boundary component admits only later tie-breaks.
-            let after_b3 = view.query_keyset(&plan, &input, Some(&boundary(Value::Null, "b3")))?;
-            assert!(ids(&after_b3).is_empty());
-            // A boundary whose fields do not match the order schema is an
-            // internal invariant refusal, not a silent reposition.
-            let error = view
-                .query_keyset(
-                    &plan,
-                    &input,
-                    Some(&KeysetAfter {
-                        entries: vec![("title".to_owned(), json!("alpha"))],
-                        id: "b1".to_owned(),
-                    }),
-                )
-                .expect_err("mismatched boundary fields must refuse");
-            assert_eq!(error.diagnostic.code, "SNAPBACK_QUERY_KEYSET_INVALID");
-            Ok(())
-        })
-        .expect("pinned keyset probes");
+        db.query_reads_read()
+            .with_pinned_read_view(|view| {
+                // Total order: b1(ada), b4(ada), b2(grace), b3(null).
+                let full = view.query_keyset(&plan, &input, None)?;
+                assert_eq!(ids(&full), vec!["b1", "b4", "b2", "b3"]);
+                // Duplicate order key: the `_id` tie-break carries the boundary.
+                let after_b1 =
+                    view.query_keyset(&plan, &input, Some(&boundary(json!("ada"), "b1")))?;
+                assert_eq!(ids(&after_b1), vec!["b4", "b2", "b3"]);
+                // Nulls sort after every value, so they follow a non-null boundary.
+                let after_b2 =
+                    view.query_keyset(&plan, &input, Some(&boundary(json!("grace"), "b2")))?;
+                assert_eq!(ids(&after_b2), vec!["b3"]);
+                // A null boundary component admits only later tie-breaks.
+                let after_b3 =
+                    view.query_keyset(&plan, &input, Some(&boundary(Value::Null, "b3")))?;
+                assert!(ids(&after_b3).is_empty());
+                // A boundary whose fields do not match the order schema is an
+                // internal invariant refusal, not a silent reposition.
+                let error = view
+                    .query_keyset(
+                        &plan,
+                        &input,
+                        Some(&KeysetAfter {
+                            entries: vec![("title".to_owned(), json!("alpha"))],
+                            id: "b1".to_owned(),
+                        }),
+                    )
+                    .expect_err("mismatched boundary fields must refuse");
+                assert_eq!(error.diagnostic.code, "SNAPBACK_QUERY_KEYSET_INVALID");
+                Ok(())
+            })
+            .expect("pinned keyset probes");
     }
 
     // @ref LLP 0065#2-the-v1-visibility-floor — generated update/delete lower
@@ -5760,31 +6047,33 @@ mod guarded_commit_tests {
             ..HandlerInput::default()
         };
         let transfer_to = |db: &mut LocalDatabase, new_owner: &str| {
-            db.commit_buffered_writes(
-                &HandlerInput::default(),
-                vec![BufferedWrite::Patch {
-                    table: "items".to_owned(),
-                    id: "row-1".to_owned(),
-                    values: Map::from_iter([("title".to_owned(), json!(new_owner))]),
-                }],
-                Vec::new(),
-                Value::Null,
-            )
-            .expect("handwritten owner transfer");
+            db.mutation_writes()
+                .commit_buffered_writes(
+                    &HandlerInput::default(),
+                    vec![BufferedWrite::Patch {
+                        table: "items".to_owned(),
+                        id: "row-1".to_owned(),
+                        values: Map::from_iter([("title".to_owned(), json!(new_owner))]),
+                    }],
+                    Vec::new(),
+                    Value::Null,
+                )
+                .expect("handwritten owner transfer");
         };
         let seed = |db: &mut LocalDatabase| {
-            db.schema_seed().seed(SeedData {
-                tables: BTreeMap::from([(
-                    "items".to_owned(),
-                    vec![
-                        json!({ "_id": "row-1", "title": "user-a", "rank": 1 })
-                            .as_object()
-                            .cloned()
-                            .expect("seed row"),
-                    ],
-                )]),
-            })
-            .expect("seed owned row");
+            db.schema_seed()
+                .seed(SeedData {
+                    tables: BTreeMap::from([(
+                        "items".to_owned(),
+                        vec![
+                            json!({ "_id": "row-1", "title": "user-a", "rank": 1 })
+                                .as_object()
+                                .cloned()
+                                .expect("seed row"),
+                        ],
+                    )]),
+                })
+                .expect("seed owned row");
         };
 
         // Order 1: the transfer lands between the update's preview and its
@@ -5794,10 +6083,12 @@ mod guarded_commit_tests {
         seed(&mut db);
         let input = owner_input("user-a");
         let plan = owner_guard_plan();
-        db.dry_run_mutation(&plan, &input)
+        db.mutation_writes()
+            .dry_run_mutation(&plan, &input)
             .expect("preview against the pre-transfer owner succeeds");
         transfer_to(&mut db, "user-b");
         let error = db
+            .mutation_writes()
             .execute_mutation_guarded(&plan, &input, || Ok(()), || Ok(()))
             .expect_err("commit-time guard must see the concurrent transfer");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ROW_NOT_FOUND");
@@ -5817,13 +6108,14 @@ mod guarded_commit_tests {
         // land; nothing is lost or misattributed.
         let mut db = database();
         seed(&mut db);
-        db.execute_mutation_guarded(
-            &owner_guard_plan(),
-            &owner_input("user-a"),
-            || Ok(()),
-            || Ok(()),
-        )
-        .expect("owner update before the transfer succeeds");
+        db.mutation_writes()
+            .execute_mutation_guarded(
+                &owner_guard_plan(),
+                &owner_input("user-a"),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("owner update before the transfer succeeds");
         transfer_to(&mut db, "user-b");
         let rows = db.query_reads_read().scan_table("items", 10, 0).unwrap();
         assert_eq!(rows.rows[0]["rank"], json!(5), "committed update survives");
@@ -5855,7 +6147,9 @@ mod guarded_commit_tests {
             },
         ];
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(suffix_schema).expect("apply index schema");
+        db.schema_seed()
+            .apply_schema(suffix_schema)
+            .expect("apply index schema");
 
         let index_columns = |db: &LocalDatabase, physical: &str| -> Vec<String> {
             let mut statement = db
@@ -5898,12 +6192,14 @@ mod guarded_commit_tests {
                 .expect("seed row"),
             );
         }
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([("items".to_owned(), rows)]),
-        })
-        .expect("seed duplicate order keys");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([("items".to_owned(), rows)]),
+            })
+            .expect("seed duplicate order keys");
         let result = db
-            .query_reads_read().query(
+            .query_reads_read()
+            .query(
                 &QueryPlan {
                     table: "items".to_owned(),
                     filters: Vec::new(),
@@ -5937,6 +6233,7 @@ mod guarded_commit_tests {
         // The unique constraint ignores the implicit suffix: a duplicate
         // declared key with a fresh _id still loses at commit.
         let error = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Insert {
@@ -5977,7 +6274,8 @@ mod guarded_commit_tests {
         };
         let mut query_db = database();
         query_db
-            .schema_seed().seed(SeedData {
+            .schema_seed()
+            .seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![
@@ -6006,7 +6304,8 @@ mod guarded_commit_tests {
         };
         assert!(
             query_db
-                .query_reads_read().query(&actor_aware_query, &delegated)
+                .query_reads_read()
+                .query(&actor_aware_query, &delegated)
                 .expect("run intersected delegated query")
                 .rows
                 .is_empty(),
@@ -6014,7 +6313,8 @@ mod guarded_commit_tests {
         );
         assert_eq!(
             query_db
-                .query_reads_read().query(&actor_aware_query, &direct)
+                .query_reads_read()
+                .query(&actor_aware_query, &direct)
                 .expect("run direct query")
                 .rows
                 .len(),
@@ -6034,7 +6334,8 @@ mod guarded_commit_tests {
             ..actor_aware_query.clone()
         };
         let intersected = query_db
-            .query_reads_read().query(&disjunctive_query, &delegated)
+            .query_reads_read()
+            .query(&disjunctive_query, &delegated)
             .expect("intersect a disjunctive delegated row rule")
             .rows;
         assert_eq!(
@@ -6073,7 +6374,8 @@ mod guarded_commit_tests {
         };
         assert!(
             query_db
-                .query_reads_read().query(&actor_only_query, &delegated)
+                .query_reads_read()
+                .query(&actor_only_query, &delegated)
                 .expect("a missing direct actor fails closed instead of widening")
                 .rows
                 .is_empty()
@@ -6115,6 +6417,7 @@ mod guarded_commit_tests {
                 return_value: Some(ReturnValue::ChangedCount),
             };
             let error = db
+                .mutation_writes()
                 .execute_mutation(&plan, &delegated)
                 .expect_err("the direct baseline must veto delegated-only authority");
             assert_eq!(error.diagnostic.code, "TEST_AUTH_RULE_DENIED", "{name}");
@@ -6135,6 +6438,7 @@ mod guarded_commit_tests {
             return_value: Some(ReturnValue::ChangedCount),
         };
         let error = db
+            .mutation_writes()
             .execute_mutation(&aliased_actor_rule, &delegated)
             .expect_err("binding aliases cannot hide actor dependence from a trusted guard");
         assert_eq!(error.diagnostic.code, "TEST_AUTH_RULE_DENIED");
@@ -6151,7 +6455,8 @@ mod guarded_commit_tests {
 
     fn permission_database(permission_fields: Option<Vec<&str>>) -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(permission_schema(permission_fields))
+        db.schema_seed()
+            .apply_schema(permission_schema(permission_fields))
             .expect("apply permission schema");
         db
     }
@@ -6160,7 +6465,9 @@ mod guarded_commit_tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("guarded.sqlite3");
         let mut db = LocalDatabase::open(&path).expect("file database");
-        db.schema_seed().apply_schema(schema()).expect("apply test schema");
+        db.schema_seed()
+            .apply_schema(schema())
+            .expect("apply test schema");
         (dir, path, db)
     }
 
@@ -6169,7 +6476,8 @@ mod guarded_commit_tests {
         for surface in ["get", "query", "scan"] {
             let (_dir, path, mut setup) = file_database();
             setup
-                .schema_seed().seed(seed_data("item", "before"))
+                .schema_seed()
+                .seed(seed_data("item", "before"))
                 .expect("seed baseline row");
             drop(setup);
 
@@ -6184,6 +6492,7 @@ mod guarded_commit_tests {
                     .expect("reader pins the baseline head");
                 let mut writer = LocalDatabase::open(writer_path).expect("open sibling writer");
                 let committed = writer
+                    .mutation_writes()
                     .commit_buffered_writes(
                         &HandlerInput::default(),
                         vec![BufferedWrite::Patch {
@@ -6205,13 +6514,15 @@ mod guarded_commit_tests {
                 "get" => (
                     None,
                     reader
-                        .query_reads_read().get("items", "item")
+                        .query_reads_read()
+                        .get("items", "item")
                         .expect("point read")
                         .expect("baseline row"),
                 ),
                 "query" => {
                     let output = reader
-                        .query_reads_read().query(
+                        .query_reads_read()
+                        .query(
                             &QueryPlan {
                                 table: "items".to_owned(),
                                 filters: Vec::new(),
@@ -6226,7 +6537,10 @@ mod guarded_commit_tests {
                     (Some(output.version), output.rows[0].clone())
                 }
                 "scan" => {
-                    let output = reader.query_reads_read().scan_table("items", 10, 0).expect("scan read");
+                    let output = reader
+                        .query_reads_read()
+                        .scan_table("items", 10, 0)
+                        .expect("scan read");
                     (None, output.rows[0].clone())
                 }
                 _ => unreachable!(),
@@ -6262,6 +6576,7 @@ mod guarded_commit_tests {
 
         let first_writer = std::thread::spawn(move || {
             first
+                .mutation_writes()
                 .execute_mutation(&insert_plan(), &HandlerInput::default())
                 .expect("first sibling commit")
                 .output
@@ -6277,6 +6592,7 @@ mod guarded_commit_tests {
             .busy_timeout(std::time::Duration::ZERO)
             .expect("disable busy wait for the reservation probe");
         let blocked = second
+            .mutation_writes()
             .execute_mutation(&insert_plan(), &HandlerInput::default())
             .expect_err("the sibling cannot begin while the first writer owns the reservation");
         assert_eq!(blocked.diagnostic.code, "SNAPBACK_SQLITE_ERROR");
@@ -6294,6 +6610,7 @@ mod guarded_commit_tests {
             .busy_timeout(std::time::Duration::from_secs(5))
             .expect("restore busy timeout");
         let second_version = second
+            .mutation_writes()
             .execute_mutation(&insert_plan(), &HandlerInput::default())
             .expect("second sibling commits after the reservation releases")
             .output
@@ -6302,7 +6619,10 @@ mod guarded_commit_tests {
 
         let reader = LocalDatabase::open(&path).expect("open committed database");
         assert_eq!(reader.current_version().unwrap(), 2);
-        let rows = reader.query_reads_read().scan_table("items", 10, 0).expect("scan commits");
+        let rows = reader
+            .query_reads_read()
+            .scan_table("items", 10, 0)
+            .expect("scan commits");
         assert_eq!(rows.total, 4);
         assert_eq!(
             rows.rows
@@ -6317,7 +6637,8 @@ mod guarded_commit_tests {
     fn reopen_accepts_a_valid_sibling_commit_after_its_initial_preflight() {
         let (_dir, path, mut writer) = file_database();
         let baseline = writer
-            .schema_seed().seed(seed_data("baseline", "before-open"))
+            .schema_seed()
+            .seed(seed_data("baseline", "before-open"))
             .expect("seed the initial open cut");
         let (reached_tx, reached_rx) = mpsc::channel();
         let (release_tx, release_rx) = mpsc::channel();
@@ -6331,7 +6652,8 @@ mod guarded_commit_tests {
         assert_eq!(inspected, baseline.version);
 
         let sibling = writer
-            .schema_seed().seed(seed_data("sibling", "during-open"))
+            .schema_seed()
+            .seed(seed_data("sibling", "during-open"))
             .expect("a sibling writer may commit while the opener validates its old snapshot");
         assert_eq!(sibling.version, baseline.version + 1);
         release_tx.send(()).expect("release the opening snapshot");
@@ -6341,7 +6663,10 @@ mod guarded_commit_tests {
             .expect("opener thread joins")
             .expect("a valid sibling commit is not storage corruption");
         assert_eq!(reopened.current_version().unwrap(), sibling.version);
-        let rows = reopened.query_reads_read().scan_table("items", 10, 0).unwrap();
+        let rows = reopened
+            .query_reads_read()
+            .scan_table("items", 10, 0)
+            .unwrap();
         assert_eq!(rows.total, 2);
         assert_eq!(
             rows.rows
@@ -6460,7 +6785,8 @@ mod guarded_commit_tests {
             );
             assert_eq!(
                 reopened
-                    .settlement_read().client_mutation_result(&identity)
+                    .settlement_read()
+                    .client_mutation_result(&identity)
                     .expect("read the predecessor settlement")
                     .expect("legacy settlement remains retained")
                     .version,
@@ -6490,17 +6816,20 @@ mod guarded_commit_tests {
         hot_table.name = "hot_items".to_owned();
         manifest.tables.push(hot_table);
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(manifest).expect("apply two-table schema");
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "hot_items".to_owned(),
-                vec![Map::from_iter([
-                    ("_id".to_owned(), json!("hot")),
-                    ("title".to_owned(), json!("v1")),
-                ])],
-            )]),
-        })
-        .expect("seed hot table");
+        db.schema_seed()
+            .apply_schema(manifest)
+            .expect("apply two-table schema");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "hot_items".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("hot")),
+                        ("title".to_owned(), json!("v1")),
+                    ])],
+                )]),
+            })
+            .expect("seed hot table");
 
         let query = QueryPlan {
             table: "items".to_owned(),
@@ -6511,7 +6840,10 @@ mod guarded_commit_tests {
             indexed_by: None,
         };
         let input = HandlerInput::default();
-        let output = db.query_reads_read().query(&query, &input).expect("capture cold-table query");
+        let output = db
+            .query_reads_read()
+            .query(&query, &input)
+            .expect("capture cold-table query");
         assert_eq!(output.version, 1);
         let dependency = crate::live_matcher::query_dependencies_from_plan(
             &query,
@@ -6525,17 +6857,18 @@ mod guarded_commit_tests {
         .expect("query dependency");
 
         for title in ["v2", "v3", "v4"] {
-            db.commit_buffered_writes(
-                &input,
-                vec![BufferedWrite::Patch {
-                    table: "hot_items".to_owned(),
-                    id: "hot".to_owned(),
-                    values: Map::from_iter([("title".to_owned(), json!(title))]),
-                }],
-                Vec::new(),
-                Value::Null,
-            )
-            .expect("advance only the hot table");
+            db.mutation_writes()
+                .commit_buffered_writes(
+                    &input,
+                    vec![BufferedWrite::Patch {
+                        table: "hot_items".to_owned(),
+                        id: "hot".to_owned(),
+                        values: Map::from_iter([("title".to_owned(), json!(title))]),
+                    }],
+                    Vec::new(),
+                    Value::Null,
+                )
+                .expect("advance only the hot table");
         }
         let future = now_millis().saturating_add(10_000);
         assert!(
@@ -6546,6 +6879,7 @@ mod guarded_commit_tests {
         assert!(db.journal_floor_version().unwrap() > output.version + 1);
 
         let commit = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &input,
                 vec![BufferedWrite::Insert {
@@ -6579,7 +6913,9 @@ mod guarded_commit_tests {
     #[test]
     fn promotion_head_reservation_defers_real_host_plan_and_buffered_writers_on_current_stream() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(schema()).expect("apply schema");
+        db.schema_seed()
+            .apply_schema(schema())
+            .expect("apply schema");
         let tx = db.conn.transaction().expect("stream transaction");
         let stream = auth_invalidation::ensure_data_version_stream_in(&tx)
             .expect("initialize nonliteral data-version stream");
@@ -6642,6 +6978,7 @@ mod guarded_commit_tests {
             .expect("install active production reservation");
 
         let host_plan = db
+            .mutation_writes()
             .execute_mutation(&insert_plan(), &HandlerInput::default())
             .expect_err("HostPlan must defer inside its SQLite writer transaction");
         assert_eq!(
@@ -6649,6 +6986,7 @@ mod guarded_commit_tests {
             "SNAPBACK_PROMOTION_HEAD_RESERVED"
         );
         let buffered = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Insert {
@@ -6662,7 +7000,8 @@ mod guarded_commit_tests {
             .expect_err("buffered writer must defer inside its SQLite writer transaction");
         assert_eq!(buffered.diagnostic.code, "SNAPBACK_PROMOTION_HEAD_RESERVED");
         assert_eq!(
-            db.query_reads_read().scan_table("items", 10, 0)
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
                 .expect("no partial writes")
                 .total,
             0
@@ -6676,26 +7015,28 @@ mod guarded_commit_tests {
             )
             .expect("release reservation");
         assert_eq!(
-            db.execute_mutation(&insert_plan(), &HandlerInput::default())
+            db.mutation_writes()
+                .execute_mutation(&insert_plan(), &HandlerInput::default())
                 .expect("HostPlan admitted after release")
                 .changes
                 .len(),
             2
         );
         assert_eq!(
-            db.commit_buffered_writes(
-                &HandlerInput::default(),
-                vec![BufferedWrite::Insert {
-                    table: "items".to_owned(),
-                    id: "buffered-admitted".to_owned(),
-                    values: Map::from_iter([("title".to_owned(), json!("admitted"))]),
-                }],
-                Vec::new(),
-                Value::Null,
-            )
-            .expect("buffered writer admitted after release")
-            .changes
-            .len(),
+            db.mutation_writes()
+                .commit_buffered_writes(
+                    &HandlerInput::default(),
+                    vec![BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: "buffered-admitted".to_owned(),
+                        values: Map::from_iter([("title".to_owned(), json!("admitted"))]),
+                    }],
+                    Vec::new(),
+                    Value::Null,
+                )
+                .expect("buffered writer admitted after release")
+                .changes
+                .len(),
             1
         );
     }
@@ -6713,7 +7054,8 @@ mod guarded_commit_tests {
             max_versions_per_record: 32,
         });
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(history_schema)
+        db.schema_seed()
+            .apply_schema(history_schema)
             .expect("schema-declared finite history policy");
         let tx = db.conn.transaction().expect("stream authority tx");
         let stream = auth_invalidation::ensure_data_version_stream_in(&tx)
@@ -6777,6 +7119,7 @@ mod guarded_commit_tests {
         };
         let host_plan_identity = prototype.with_operation_issuance(issuance(0));
         let host_plan = db
+            .mutation_writes()
             .execute_mutation_idempotent(&insert_plan(), &input, &host_plan_identity)
             .expect("covered HostPlan commit");
         assert_eq!(host_plan.changes.len(), 2);
@@ -6785,6 +7128,7 @@ mod guarded_commit_tests {
             ClientMutationIdentity::new("operation-1", "items.bufferedInsert", &input)
                 .with_operation_issuance(issuance(1));
         let buffered = db
+            .mutation_writes()
             .commit_buffered_writes_idempotent_guarded(
                 &input,
                 BufferedCommitPayload {
@@ -6810,7 +7154,8 @@ mod guarded_commit_tests {
             .expect("covered buffered commit");
         assert_eq!(buffered.changes.len(), 1);
         let buffered_row = db
-            .query_reads_read().get("items", "buffered")
+            .query_reads_read()
+            .get("items", "buffered")
             .expect("read buffered postimage")
             .expect("buffered row exists");
         let journal_row: String = db
@@ -6989,7 +7334,8 @@ mod guarded_commit_tests {
         };
         let prototype = ClientMutationIdentity::new("operation-crash-0", function, &input);
         let range = db
-            .settlement().issue_client_operation_identity_range(
+            .settlement()
+            .issue_client_operation_identity_range(
                 "crash-fixture-client",
                 &prototype.authority_instance_id,
                 None,
@@ -7014,30 +7360,33 @@ mod guarded_commit_tests {
     ) -> SnapbackResult<MutationCommit> {
         match writer {
             CoveredWriterFixtureV1::HostPlan => {
-                db.execute_mutation_idempotent(&insert_plan(), input, identity)
+                db.mutation_writes()
+                    .execute_mutation_idempotent(&insert_plan(), input, identity)
             }
-            CoveredWriterFixtureV1::Buffered => db.commit_buffered_writes_idempotent_guarded(
-                input,
-                BufferedCommitPayload {
-                    writes: vec![BufferedWrite::Insert {
-                        table: "items".to_owned(),
-                        id: format!("crash-buffered-{}", identity.id),
-                        values: Map::from_iter([("title".to_owned(), json!("buffered"))]),
-                    }],
-                    sequence_allocations: Vec::new(),
-                    membership_plans: Vec::new(),
-                    read_dependencies: Vec::new(),
-                    result: json!({ "receiptSecret": "classified-operation-output" }),
-                    ctx_ledger: CtxAnswerLedger::default(),
-                    job_enqueues: Vec::new(),
-                    job_producer: None,
-                    asset_admissions: Vec::new(),
-                    asset_grant_ops: Vec::new(),
-                },
-                Some(identity),
-                || Ok(()),
-                || Ok(()),
-            ),
+            CoveredWriterFixtureV1::Buffered => db
+                .mutation_writes()
+                .commit_buffered_writes_idempotent_guarded(
+                    input,
+                    BufferedCommitPayload {
+                        writes: vec![BufferedWrite::Insert {
+                            table: "items".to_owned(),
+                            id: format!("crash-buffered-{}", identity.id),
+                            values: Map::from_iter([("title".to_owned(), json!("buffered"))]),
+                        }],
+                        sequence_allocations: Vec::new(),
+                        membership_plans: Vec::new(),
+                        read_dependencies: Vec::new(),
+                        result: json!({ "receiptSecret": "classified-operation-output" }),
+                        ctx_ledger: CtxAnswerLedger::default(),
+                        job_enqueues: Vec::new(),
+                        job_producer: None,
+                        asset_admissions: Vec::new(),
+                        asset_grant_ops: Vec::new(),
+                    },
+                    Some(identity),
+                    || Ok(()),
+                    || Ok(()),
+                ),
         }
     }
 
@@ -7069,7 +7418,8 @@ mod guarded_commit_tests {
             CoveredWriterFixtureV1::Buffered => "job:host-crash-buffered",
         };
         let issuance = db
-            .settlement().host_operation_issuance(
+            .settlement()
+            .host_operation_issuance(
                 TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
                 upstream_identity,
                 0,
@@ -7094,6 +7444,7 @@ mod guarded_commit_tests {
     ) -> SnapbackResult<MutationCommit> {
         match writer {
             CoveredWriterFixtureV1::HostPlan => db
+                .mutation_writes()
                 .execute_host_mutation_guarded_with_settlement_time(
                     &insert_plan(),
                     input,
@@ -7102,34 +7453,42 @@ mod guarded_commit_tests {
                     || Ok(()),
                     || Ok(()),
                 ),
-            CoveredWriterFixtureV1::Buffered => db.commit_buffered_host_writes_guarded(
-                input,
-                BufferedCommitPayload {
-                    writes: vec![BufferedWrite::Insert {
-                        table: "items".to_owned(),
-                        id: format!("host-crash-buffered-{}", identity.id),
-                        values: Map::from_iter([("title".to_owned(), json!("host buffered"))]),
-                    }],
-                    sequence_allocations: Vec::new(),
-                    membership_plans: Vec::new(),
-                    read_dependencies: Vec::new(),
-                    result: json!({ "receiptSecret": "classified-host-operation-output" }),
-                    ctx_ledger: CtxAnswerLedger::default(),
-                    job_enqueues: Vec::new(),
-                    job_producer: None,
-                    asset_admissions: Vec::new(),
-                    asset_grant_ops: Vec::new(),
-                },
-                Some(identity),
-                || Ok(()),
-                || Ok(()),
-            ),
+            CoveredWriterFixtureV1::Buffered => {
+                db.mutation_writes().commit_buffered_host_writes_guarded(
+                    input,
+                    BufferedCommitPayload {
+                        writes: vec![BufferedWrite::Insert {
+                            table: "items".to_owned(),
+                            id: format!("host-crash-buffered-{}", identity.id),
+                            values: Map::from_iter([("title".to_owned(), json!("host buffered"))]),
+                        }],
+                        sequence_allocations: Vec::new(),
+                        membership_plans: Vec::new(),
+                        read_dependencies: Vec::new(),
+                        result: json!({ "receiptSecret": "classified-host-operation-output" }),
+                        ctx_ledger: CtxAnswerLedger::default(),
+                        job_enqueues: Vec::new(),
+                        job_producer: None,
+                        asset_admissions: Vec::new(),
+                        asset_grant_ops: Vec::new(),
+                    },
+                    Some(identity),
+                    || Ok(()),
+                    || Ok(()),
+                )
+            }
         }
     }
 
     fn assert_operation_commit_absent(db: &LocalDatabase) {
         assert_eq!(db.current_version().expect("version after crash cut"), 0);
-        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).expect("app rows").total, 0);
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
+                .expect("app rows")
+                .total,
+            0
+        );
         for table in [
             "_snapback_changes",
             "_snapback_client_mutations",
@@ -7232,7 +7591,8 @@ mod guarded_commit_tests {
             assert!(replay.changes.is_empty());
             assert_eq!(replay.output, expected);
             let envelopes = reopened
-                .settlement_read().operation_envelopes_for_test()
+                .settlement_read()
+                .operation_envelopes_for_test()
                 .expect("read retained host-child envelopes");
             assert_eq!(envelopes.len(), 1);
             let envelope = &envelopes[0];
@@ -7295,13 +7655,15 @@ mod guarded_commit_tests {
             )
             .expect("remove predecessor replay row fixture");
         let recovered = reopened
-            .settlement_read().client_mutation_result(&identity)
+            .settlement_read()
+            .client_mutation_result(&identity)
             .expect("protected operation lookup")
             .expect("exact protected replay");
         assert_eq!(recovered, expected);
         assert_eq!(
             reopened
-                .query_reads_read().scan_table("items", 10, 0)
+                .query_reads_read()
+                .scan_table("items", 10, 0)
                 .expect("unchanged app rows")
                 .total,
             1,
@@ -7358,7 +7720,8 @@ mod guarded_commit_tests {
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
         assert_eq!(
-            db.query_reads_read().scan_table("items", 10, 0)
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
                 .expect("one retained write")
                 .total,
             1
@@ -7375,15 +7738,17 @@ mod guarded_commit_tests {
         drop(limits);
 
         assert_eq!(
-            db.settlement().acknowledge_client_mutations(
-                &first.auth_fingerprint,
-                std::slice::from_ref(&first.id),
-            )
-            .expect("durable ACK reclaims full result"),
+            db.settlement()
+                .acknowledge_client_mutations(
+                    &first.auth_fingerprint,
+                    std::slice::from_ref(&first.id),
+                )
+                .expect("durable ACK reclaims full result"),
             1
         );
         let expired = db
-            .settlement_read().client_mutation_result(&first)
+            .settlement_read()
+            .client_mutation_result(&first)
             .expect_err("ACKed covered result keeps a compact duplicate barrier");
         assert_eq!(expired.diagnostic.code, "SNAPBACK_OPERATION_RESULT_EXPIRED");
         assert_eq!(expired.diagnostic.details["outcome"], "committed");
@@ -7454,7 +7819,8 @@ mod guarded_commit_tests {
             assert_eq!(horizon.diagnostic.details["terminal"], false);
         }
         assert_eq!(
-            db.query_reads_read().scan_table("items", 10, 0)
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
                 .expect("no below-floor write")
                 .total,
             1
@@ -7467,7 +7833,8 @@ mod guarded_commit_tests {
 
         fn database_with_lanes(lanes: &[&str]) -> LocalDatabase {
             let mut db = LocalDatabase::memory().expect("memory database");
-            db.schema_seed().apply_schema(schema())
+            db.schema_seed()
+                .apply_schema(schema())
                 .expect("apply writer fixture schema");
             let mut covered_lanes = lanes
                 .iter()
@@ -7571,7 +7938,8 @@ mod guarded_commit_tests {
         );
         let host_authority = TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID;
         let host_issuance = ordinary_only
-            .settlement().host_operation_issuance(host_authority, "job:fixture", 0, now_millis())
+            .settlement()
+            .host_operation_issuance(host_authority, "job:fixture", 0, now_millis())
             .expect("server-recorded host incarnation");
         let host_input = HandlerInput::default();
         let host_for_hook = ClientMutationIdentity::for_authority(
@@ -7583,6 +7951,7 @@ mod guarded_commit_tests {
         .with_operation_issuance(host_issuance);
         assert_eq!(
             ordinary_only
+                .mutation_writes()
                 .execute_host_mutation_guarded(
                     &insert_plan(),
                     &host_input,
@@ -7658,7 +8027,8 @@ mod guarded_commit_tests {
 
         let buffered_upstream = "job:buffered-fixture";
         let buffered_issuance = both
-            .settlement().host_operation_issuance(
+            .settlement()
+            .host_operation_issuance(
                 TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
                 buffered_upstream,
                 0,
@@ -7690,6 +8060,7 @@ mod guarded_commit_tests {
             asset_grant_ops: Vec::new(),
         };
         let first_buffered = both
+            .mutation_writes()
             .commit_buffered_host_writes_guarded(
                 &buffered_input,
                 buffered_payload.clone(),
@@ -7700,6 +8071,7 @@ mod guarded_commit_tests {
             .expect("covered buffered host child commit");
         assert_eq!(first_buffered.changes.len(), 1);
         let replayed_buffered = both
+            .mutation_writes()
             .commit_buffered_host_writes_guarded(
                 &buffered_input,
                 buffered_payload,
@@ -7710,7 +8082,8 @@ mod guarded_commit_tests {
             .expect("buffered host child exact replay");
         assert!(replayed_buffered.changes.is_empty());
         let envelopes = both
-            .settlement_read().operation_envelopes_for_test()
+            .settlement_read()
+            .operation_envelopes_for_test()
             .expect("retained buffered host envelope");
         assert_eq!(envelopes.len(), 1);
         assert_eq!(
@@ -7726,7 +8099,8 @@ mod guarded_commit_tests {
         };
 
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(schema())
+        db.schema_seed()
+            .apply_schema(schema())
             .expect("apply writer fixture schema");
         db.install_operation_coverage_for_test(
             vec![crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned()],
@@ -7741,7 +8115,8 @@ mod guarded_commit_tests {
         let issued_at_ms = now_millis();
         let first_upstream = "job:host-lifecycle-first";
         let first_issuance = db
-            .settlement().host_operation_issuance(authority, first_upstream, 0, issued_at_ms)
+            .settlement()
+            .host_operation_issuance(authority, first_upstream, 0, issued_at_ms)
             .expect("server-issued host identity");
         let input = HandlerInput::default();
         let first = ClientMutationIdentity::for_authority(
@@ -7776,6 +8151,7 @@ mod guarded_commit_tests {
 
         let limits = TestRetentionLimits::install(1, u64::MAX);
         let committed = db
+            .mutation_writes()
             .execute_host_mutation_guarded(
                 &insert_plan(),
                 &input,
@@ -7785,6 +8161,7 @@ mod guarded_commit_tests {
             )
             .expect("first host child fills bounded settlement custody");
         let exact_retry = db
+            .mutation_writes()
             .execute_host_mutation_guarded(
                 &insert_plan(),
                 &input,
@@ -7796,6 +8173,7 @@ mod guarded_commit_tests {
         assert!(exact_retry.changes.is_empty());
         assert_eq!(exact_retry.output, committed.output);
         let full = db
+            .mutation_writes()
             .execute_host_mutation_guarded(
                 &insert_plan(),
                 &input,
@@ -7809,7 +8187,8 @@ mod guarded_commit_tests {
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
         assert_eq!(
-            db.query_reads_read().scan_table("items", 10, 0)
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
                 .expect("only one host plan ran")
                 .total,
             2
@@ -7817,11 +8196,13 @@ mod guarded_commit_tests {
         drop(limits);
 
         assert_eq!(
-            db.settlement().purge_client_mutation_settlements(Some(&first.auth_fingerprint))
+            db.settlement()
+                .purge_client_mutation_settlements(Some(&first.auth_fingerprint))
                 .expect("operator purge removes predecessor full-result custody"),
             1
         );
         let replay_after_purge = db
+            .mutation_writes()
             .execute_host_mutation_guarded(
                 &insert_plan(),
                 &input,
@@ -7876,6 +8257,7 @@ mod guarded_commit_tests {
         tx.commit().expect("commit host incarnation rotation");
 
         let replay_after_rotation = db
+            .mutation_writes()
             .execute_host_mutation_guarded(
                 &insert_plan(),
                 &input,
@@ -7887,6 +8269,7 @@ mod guarded_commit_tests {
         assert!(replay_after_rotation.changes.is_empty());
         assert_eq!(replay_after_rotation.output, committed.output);
         let delayed = db
+            .mutation_writes()
             .execute_host_mutation_guarded(
                 &insert_plan(),
                 &input,
@@ -7900,7 +8283,8 @@ mod guarded_commit_tests {
             "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID"
         );
         assert_eq!(
-            db.query_reads_read().scan_table("items", 10, 0)
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
                 .expect("no delayed host write")
                 .total,
             2
@@ -7918,7 +8302,8 @@ mod guarded_commit_tests {
         }
 
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(schema())
+        db.schema_seed()
+            .apply_schema(schema())
             .expect("apply writer fixture schema");
         db.conn
             .execute_batch(
@@ -8121,7 +8506,9 @@ mod guarded_commit_tests {
         }
 
         let mut db = LocalDatabase::memory().expect("armed adversarial database");
-        db.schema_seed().apply_schema(schema()).expect("apply adversarial schema");
+        db.schema_seed()
+            .apply_schema(schema())
+            .expect("apply adversarial schema");
         db.conn
             .execute_batch("CREATE TABLE prearmed_escape(value TEXT)")
             .expect("create unknown pre-arm table fixture");
@@ -8240,7 +8627,8 @@ mod guarded_commit_tests {
         let directory = tempfile::tempdir().expect("registered writer fixture");
         let path = directory.path().join("armed.sqlite3");
         let mut db = LocalDatabase::open(&path).expect("file database");
-        db.schema_seed().apply_schema(schema())
+        db.schema_seed()
+            .apply_schema(schema())
             .expect("apply registered writer schema");
         db.activate_local_target_operation_coverage(1)
             .expect("arm registered writer database");
@@ -8329,7 +8717,8 @@ mod guarded_commit_tests {
     #[test]
     fn llp0162_local_target_activation_names_only_envelope_writers_and_blocks_exclusions() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(schema())
+        db.schema_seed()
+            .apply_schema(schema())
             .expect("apply writer fixture schema");
         db.activate_local_target_operation_coverage(1)
             .expect("activate closed local target manifest");
@@ -8375,14 +8764,16 @@ mod guarded_commit_tests {
         }
 
         let schema_error = db
-            .schema_seed().apply_schema(schema())
+            .schema_seed()
+            .apply_schema(schema())
             .expect_err("schema activation must use its excluded generated authority");
         assert_eq!(
             schema_error.diagnostic.code,
             "SNAPBACK_OPERATION_WRITER_EXCLUDED"
         );
         let reset_error = db
-            .schema_seed().reset()
+            .schema_seed()
+            .reset()
             .expect_err("reset must use its excluded generated authority");
         assert_eq!(
             reset_error.diagnostic.code,
@@ -8417,7 +8808,10 @@ mod guarded_commit_tests {
             .collect::<Vec<_>>();
 
         let mut subset = LocalDatabase::memory().expect("subset database");
-        subset.schema_seed().apply_schema(schema()).expect("subset schema");
+        subset
+            .schema_seed()
+            .apply_schema(schema())
+            .expect("subset schema");
         subset
             .install_operation_coverage_for_test(
                 vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
@@ -8430,7 +8824,10 @@ mod guarded_commit_tests {
         assert!(!subset.agent_safe_exact_operation_coverage_active().unwrap());
 
         let mut superset = LocalDatabase::memory().expect("superset database");
-        superset.schema_seed().apply_schema(schema()).expect("superset schema");
+        superset
+            .schema_seed()
+            .apply_schema(schema())
+            .expect("superset schema");
         let mut extra_writers = exact_writers.clone();
         extra_writers.push("forged::unregistered-writer".to_owned());
         superset
@@ -8443,7 +8840,10 @@ mod guarded_commit_tests {
         );
 
         let mut removed = LocalDatabase::memory().expect("removed database");
-        removed.schema_seed().apply_schema(schema()).expect("removed schema");
+        removed
+            .schema_seed()
+            .apply_schema(schema())
+            .expect("removed schema");
         removed
             .install_operation_coverage_for_test(exact_lanes, exact_writers)
             .expect("install exact manifest");
@@ -8490,7 +8890,8 @@ mod guarded_commit_tests {
         let dir = tempfile::tempdir().expect("writer authority tempdir");
         let path = dir.path().join("writer-authority.sqlite");
         let mut db = LocalDatabase::open(&path).expect("create file database");
-        db.schema_seed().apply_schema(schema())
+        db.schema_seed()
+            .apply_schema(schema())
             .expect("apply writer fixture schema");
         assert_eq!(
             db.conn
@@ -8583,7 +8984,8 @@ mod guarded_commit_tests {
     #[test]
     fn llp0162_writer_authority_installs_only_at_the_active_coverage_cut() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(schema())
+        db.schema_seed()
+            .apply_schema(schema())
             .expect("apply writer fixture schema");
 
         // A dormant connection must preserve SQLite's normal statement-cache
@@ -8665,7 +9067,13 @@ mod guarded_commit_tests {
 
     fn assert_empty(db: &LocalDatabase) {
         assert_eq!(db.current_version().expect("version"), 0);
-        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).expect("scan").total, 0);
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
+                .expect("scan")
+                .total,
+            0
+        );
     }
 
     struct TestRetentionLimits(Option<ClientMutationRetentionLimits>);
@@ -8747,7 +9155,8 @@ mod guarded_commit_tests {
     fn managed_version_scale_database(rows: usize) -> LocalDatabase {
         assert!(rows > 0);
         let mut db = database();
-        db.schema_seed().seed(seed_data("scale-0", "seed"))
+        db.schema_seed()
+            .seed(seed_data("scale-0", "seed"))
             .expect("seed scale baseline and storage head");
         if rows > 1 {
             db.conn
@@ -8776,17 +9185,18 @@ mod guarded_commit_tests {
                 false
             }),
         );
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Patch {
-                table: "items".to_owned(),
-                id: "scale-0".to_owned(),
-                values: Map::from_iter([("title".to_owned(), json!("mutated"))]),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("measure fixed-size buffered mutation");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Patch {
+                    table: "items".to_owned(),
+                    id: "scale-0".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("mutated"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("measure fixed-size buffered mutation");
         db.conn.progress_handler(0, None::<fn() -> bool>);
         steps.load(Ordering::Relaxed)
     }
@@ -8838,7 +9248,13 @@ mod guarded_commit_tests {
     ) {
         assert_eq!(db.current_version().unwrap(), PORTABLE_STORAGE_VERSION_MAX);
         assert_eq!(&db.authorization_version().unwrap(), authorization);
-        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 0);
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
+                .unwrap()
+                .total,
+            0
+        );
         let actual_change_rows: i64 = db
             .conn
             .query_row("SELECT COUNT(*) FROM _snapback_changes", [], |row| {
@@ -8861,7 +9277,8 @@ mod guarded_commit_tests {
             .unwrap();
 
         let error = db
-            .schema_seed().seed_with_authorization(seed_data("exhausted", "must-not-land"))
+            .schema_seed()
+            .seed_with_authorization(seed_data("exhausted", "must-not-land"))
             .expect_err("seed cannot wrap the global storage version");
         assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
         assert_exhaustion_preserved(&db, &authorization, change_rows);
@@ -8880,6 +9297,7 @@ mod guarded_commit_tests {
             .unwrap();
 
         let error = db
+            .mutation_writes()
             .execute_mutation(&insert_plan(), &HandlerInput::default())
             .expect_err("HostPlan cannot wrap the global storage version");
         assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
@@ -8899,6 +9317,7 @@ mod guarded_commit_tests {
             .unwrap();
 
         let error = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 buffered_writes(),
@@ -8921,7 +9340,8 @@ mod guarded_commit_tests {
             .unwrap();
 
         let committed = db
-            .schema_seed().seed_with_authorization(seed_data("last", "portable-final"))
+            .schema_seed()
+            .seed_with_authorization(seed_data("last", "portable-final"))
             .expect("max-1 may commit the final exact JavaScript version");
         assert_eq!(committed.output.version, PORTABLE_STORAGE_VERSION_MAX);
         assert_eq!(db.current_version().unwrap(), PORTABLE_STORAGE_VERSION_MAX);
@@ -8934,10 +9354,17 @@ mod guarded_commit_tests {
             .unwrap();
 
         let error = db
-            .schema_seed().seed_with_authorization(seed_data("past", "must-not-land"))
+            .schema_seed()
+            .seed_with_authorization(seed_data("past", "must-not-land"))
             .expect_err("the portable final version has no successor");
         assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
-        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
+                .unwrap()
+                .total,
+            1
+        );
         assert_eq!(db.authorization_version().unwrap(), authorization);
         assert_eq!(
             db.conn
@@ -9178,7 +9605,9 @@ mod guarded_commit_tests {
                     )
                     .unwrap();
             } else {
-                db.schema_seed().seed(seed_data("second", "second")).unwrap();
+                db.schema_seed()
+                    .seed(seed_data("second", "second"))
+                    .unwrap();
                 db.conn
                     .execute("DELETE FROM _snapback_changes WHERE version = 2", [])
                     .unwrap();
@@ -9199,7 +9628,9 @@ mod guarded_commit_tests {
     #[test]
     fn reopen_refuses_a_managed_row_ahead_of_head_even_after_journal_pruning() {
         let (_dir, path, mut db) = file_database();
-        db.schema_seed().seed(seed_data("future-row", "future")).unwrap();
+        db.schema_seed()
+            .seed(seed_data("future-row", "future"))
+            .unwrap();
         db.conn
             .execute("DELETE FROM _snapback_changes", [])
             .unwrap();
@@ -9452,7 +9883,8 @@ mod guarded_commit_tests {
     #[test]
     fn corrupt_portable_field_representations_fail_every_current_read_lane() {
         let healthy = typed_decode_database()
-            .query_reads_read().get("typed_items", "typed-row")
+            .query_reads_read()
+            .get("typed_items", "typed-row")
             .expect("healthy point read")
             .expect("healthy row");
         assert_eq!(healthy["label"], "ok");
@@ -9507,9 +9939,21 @@ mod guarded_commit_tests {
                 .execute(&sql, [])
                 .unwrap_or_else(|error| panic!("inject {field} corruption: {error}"));
 
-            assert_storage_field_corrupt(db.query_reads_read().get("typed_items", "typed-row"), field, "point");
-            assert_storage_field_corrupt(db.query_reads_read().scan_table("typed_items", 10, 0), field, "scan");
-            assert_storage_field_corrupt(db.query_reads_read().query(&plan, &HandlerInput::default()), field, "query");
+            assert_storage_field_corrupt(
+                db.query_reads_read().get("typed_items", "typed-row"),
+                field,
+                "point",
+            );
+            assert_storage_field_corrupt(
+                db.query_reads_read().scan_table("typed_items", 10, 0),
+                field,
+                "scan",
+            );
+            assert_storage_field_corrupt(
+                db.query_reads_read().query(&plan, &HandlerInput::default()),
+                field,
+                "query",
+            );
         }
     }
 
@@ -9553,7 +9997,8 @@ mod guarded_commit_tests {
             ("non-integer-blob", SqlValue::Blob(vec![0x01, 0x02])),
         ] {
             let mut db = database();
-            db.schema_seed().seed(seed_data("corrupt-row", "must-not-publish"))
+            db.schema_seed()
+                .seed(seed_data("corrupt-row", "must-not-publish"))
                 .expect("seed managed row");
             db.conn
                 .execute(
@@ -9563,7 +10008,8 @@ mod guarded_commit_tests {
                 .expect("corrupt managed row version");
 
             let get_error = db
-                .query_reads_read().get("items", "corrupt-row")
+                .query_reads_read()
+                .get("items", "corrupt-row")
                 .expect_err("point reads must reject a corrupt managed row version");
             assert_eq!(
                 get_error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -9571,7 +10017,8 @@ mod guarded_commit_tests {
             );
 
             let scan_error = db
-                .query_reads_read().scan_table("items", 10, 0)
+                .query_reads_read()
+                .scan_table("items", 10, 0)
                 .expect_err("admin scans must reject a corrupt managed row version");
             assert_eq!(
                 scan_error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -9607,7 +10054,8 @@ mod guarded_commit_tests {
             ),
         ] {
             let mut db = database();
-            db.schema_seed().seed(seed_data("corrupt-row", "must-survive"))
+            db.schema_seed()
+                .seed(seed_data("corrupt-row", "must-survive"))
                 .expect("seed managed row");
             assert_eq!(
                 managed_version_integrity_index_state(&db.conn, "items").unwrap(),
@@ -9624,6 +10072,7 @@ mod guarded_commit_tests {
                 .expect("inject managed row corruption");
 
             let error = db
+                .mutation_writes()
                 .commit_buffered_writes(
                     &HandlerInput::default(),
                     vec![BufferedWrite::Insert {
@@ -9749,7 +10198,8 @@ mod guarded_commit_tests {
     #[test]
     fn reopen_rebuilds_managed_version_indexes_after_upgrade_and_predicate_drift() {
         let (_dir, path, mut db) = file_database();
-        db.schema_seed().seed(seed_data("healthy-on-reopen", "healthy"))
+        db.schema_seed()
+            .seed(seed_data("healthy-on-reopen", "healthy"))
             .expect("seed managed row");
         let (domain_name, head_name) = managed_version_integrity_index_names("items");
         db.conn
@@ -9816,7 +10266,8 @@ mod guarded_commit_tests {
     #[test]
     fn reopen_refuses_corrupt_managed_versions_before_index_upgrade() {
         let (_dir, path, mut db) = file_database();
-        db.schema_seed().seed(seed_data("corrupt-on-reopen", "corrupt"))
+        db.schema_seed()
+            .seed(seed_data("corrupt-on-reopen", "corrupt"))
             .expect("seed managed row");
         let (domain_name, head_name) = managed_version_integrity_index_names("items");
         for name in [&domain_name, &head_name] {
@@ -9855,7 +10306,8 @@ mod guarded_commit_tests {
     #[test]
     fn missing_managed_version_indexes_fall_back_to_fail_closed_scan() {
         let mut db = database();
-        db.schema_seed().seed(seed_data("corrupt-row", "must-survive"))
+        db.schema_seed()
+            .seed(seed_data("corrupt-row", "must-survive"))
             .expect("seed managed row");
         let (domain_name, head_name) = managed_version_integrity_index_names("items");
         for name in [&domain_name, &head_name] {
@@ -9872,6 +10324,7 @@ mod guarded_commit_tests {
         let before = db.current_version().unwrap();
 
         let error = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Insert {
@@ -9899,17 +10352,18 @@ mod guarded_commit_tests {
     #[test]
     fn optional_to_required_rebuild_restores_managed_version_indexes() {
         let mut db = database();
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "items".to_owned(),
-                vec![Map::from_iter([
-                    ("_id".to_owned(), json!("required-row")),
-                    ("title".to_owned(), json!("ready")),
-                    ("rank".to_owned(), json!(1)),
-                ])],
-            )]),
-        })
-        .expect("seed non-null optional value");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("required-row")),
+                        ("title".to_owned(), json!("ready")),
+                        ("rank".to_owned(), json!(1)),
+                    ])],
+                )]),
+            })
+            .expect("seed non-null optional value");
         let mut required = schema();
         required.tables[0]
             .fields
@@ -9917,7 +10371,8 @@ mod guarded_commit_tests {
             .find(|field| field.name == "rank")
             .expect("rank field")
             .optional = false;
-        db.schema_seed().apply_schema(required)
+        db.schema_seed()
+            .apply_schema(required)
             .expect("safe optional-to-required rebuild");
 
         assert_eq!(
@@ -9951,7 +10406,8 @@ mod guarded_commit_tests {
     #[test]
     fn corrupt_managed_row_versions_cannot_hide_in_version_selection() {
         let mut db = database();
-        db.schema_seed().seed(seed_data("corrupt-row", "must-not-publish"))
+        db.schema_seed()
+            .seed(seed_data("corrupt-row", "must-not-publish"))
             .expect("seed managed row");
         db.conn
             .execute(
@@ -9988,7 +10444,8 @@ mod guarded_commit_tests {
         ];
         for (selection, plan) in ["filter", "order"].into_iter().zip(plans) {
             let error = db
-                .query_reads_read().query(&plan, &HandlerInput::default())
+                .query_reads_read()
+                .query(&plan, &HandlerInput::default())
                 .expect_err("a corrupt row version must not influence SQL selection");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -10000,7 +10457,8 @@ mod guarded_commit_tests {
     #[test]
     fn delete_where_cannot_hide_a_corrupt_row_version_in_its_filter() {
         let mut db = database();
-        db.schema_seed().seed(seed_data("corrupt-row", "must-survive"))
+        db.schema_seed()
+            .seed(seed_data("corrupt-row", "must-survive"))
             .expect("seed managed row");
         db.conn
             .execute(
@@ -10023,6 +10481,7 @@ mod guarded_commit_tests {
         };
 
         let error = db
+            .mutation_writes()
             .execute_mutation(&plan, &HandlerInput::default())
             .expect_err("bulk mutation selection must preflight every row version");
         assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
@@ -10038,7 +10497,8 @@ mod guarded_commit_tests {
     #[test]
     fn corrupt_non_high_water_journal_version_cannot_validate_a_stale_query() {
         let mut db = database();
-        db.schema_seed().seed(seed_data("baseline", "disjoint"))
+        db.schema_seed()
+            .seed(seed_data("baseline", "disjoint"))
             .expect("seed query baseline");
         let query = QueryPlan {
             table: "items".to_owned(),
@@ -10053,7 +10513,10 @@ mod guarded_commit_tests {
             indexed_by: None,
         };
         let input = HandlerInput::default();
-        let output = db.query_reads_read().query(&query, &input).expect("capture empty query");
+        let output = db
+            .query_reads_read()
+            .query(&query, &input)
+            .expect("capture empty query");
         let dependency = crate::live_matcher::query_dependencies_from_plan(
             &query,
             &input,
@@ -10065,9 +10528,11 @@ mod guarded_commit_tests {
         .find(|dependency| dependency.kind == CapturedReadKind::Query)
         .expect("table query dependency");
 
-        db.schema_seed().seed(seed_data("matching", "matching"))
+        db.schema_seed()
+            .seed(seed_data("matching", "matching"))
             .expect("matching intervening change");
-        db.schema_seed().seed(seed_data("newer-disjoint", "disjoint"))
+        db.schema_seed()
+            .seed(seed_data("newer-disjoint", "disjoint"))
             .expect("newer disjoint high-water");
         db.conn
             .execute(
@@ -10078,6 +10543,7 @@ mod guarded_commit_tests {
         let before = db.current_version().expect("pre-refusal version");
 
         let error = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &input,
                 vec![BufferedWrite::Insert {
@@ -10091,7 +10557,12 @@ mod guarded_commit_tests {
             .expect_err("a corrupt hidden predecessor must not validate stale reads");
         assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
         assert_eq!(db.current_version().unwrap(), before);
-        assert!(db.query_reads_read().get("items", "must-not-commit").unwrap().is_none());
+        assert!(
+            db.query_reads_read()
+                .get("items", "must-not-commit")
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
@@ -10123,7 +10594,8 @@ mod guarded_commit_tests {
 
         for (name, op, snapshot) in corruptions {
             let mut db = database();
-            db.schema_seed().seed(seed_data("baseline", "baseline"))
+            db.schema_seed()
+                .seed(seed_data("baseline", "baseline"))
                 .expect("seed query baseline");
             let query = QueryPlan {
                 table: "items".to_owned(),
@@ -10138,7 +10610,10 @@ mod guarded_commit_tests {
                 indexed_by: None,
             };
             let input = HandlerInput::default();
-            let output = db.query_reads_read().query(&query, &input).expect("capture empty query");
+            let output = db
+                .query_reads_read()
+                .query(&query, &input)
+                .expect("capture empty query");
             let dependency = crate::live_matcher::query_dependencies_from_plan(
                 &query,
                 &input,
@@ -10149,7 +10624,8 @@ mod guarded_commit_tests {
             .into_iter()
             .find(|dependency| dependency.kind == CapturedReadKind::Query)
             .expect("table query dependency");
-            db.schema_seed().seed(seed_data("intervening", "matching"))
+            db.schema_seed()
+                .seed(seed_data("intervening", "matching"))
                 .expect("intervening change");
             db.conn
                 .execute(
@@ -10161,6 +10637,7 @@ mod guarded_commit_tests {
             let before = db.current_version().expect("pre-refusal version");
 
             let error = db
+                .mutation_writes()
                 .commit_buffered_writes(
                     &input,
                     vec![BufferedWrite::Insert {
@@ -10183,7 +10660,8 @@ mod guarded_commit_tests {
     #[test]
     fn reopen_migrates_a_stale_journal_sentinel_only_after_healthy_preflight() {
         let (_dir, path, mut db) = file_database();
-        db.schema_seed().seed(seed_data("healthy-on-reopen", "healthy"))
+        db.schema_seed()
+            .seed(seed_data("healthy-on-reopen", "healthy"))
             .expect("seed journal row");
         db.conn
             .execute("DROP INDEX _snapback_changes_invalid_committed_version", [])
@@ -10215,7 +10693,8 @@ mod guarded_commit_tests {
     #[test]
     fn reopen_refuses_corrupt_journal_before_sentinel_migration() {
         let (_dir, path, mut db) = file_database();
-        db.schema_seed().seed(seed_data("corrupt-on-reopen", "corrupt"))
+        db.schema_seed()
+            .seed(seed_data("corrupt-on-reopen", "corrupt"))
             .expect("seed journal row");
         db.conn
             .execute("DROP INDEX _snapback_changes_invalid_committed_version", [])
@@ -10252,11 +10731,14 @@ mod guarded_commit_tests {
     #[test]
     fn corrupt_change_journal_versions_fail_closed_without_pruning() {
         let mut db = database();
-        db.schema_seed().seed(seed_data("oldest", "oldest"))
+        db.schema_seed()
+            .seed(seed_data("oldest", "oldest"))
             .expect("seed oldest journal row");
-        db.schema_seed().seed(seed_data("middle", "middle"))
+        db.schema_seed()
+            .seed(seed_data("middle", "middle"))
             .expect("seed valid prunable high-water");
-        db.schema_seed().seed(seed_data("newest", "newest"))
+        db.schema_seed()
+            .seed(seed_data("newest", "newest"))
             .expect("seed preserved table high-water");
         db.conn
             .execute(
@@ -10284,7 +10766,8 @@ mod guarded_commit_tests {
             ),
         ] {
             let mut db = database();
-            db.schema_seed().seed(seed_data("only", "only"))
+            db.schema_seed()
+                .seed(seed_data("only", "only"))
                 .expect("seed table high-water");
             db.conn
                 .execute(
@@ -10333,7 +10816,8 @@ mod guarded_commit_tests {
     #[test]
     fn prune_rejects_a_nonportable_time_floor_without_touching_the_journal() {
         let mut db = database();
-        db.schema_seed().seed(seed_data("only", "only"))
+        db.schema_seed()
+            .seed(seed_data("only", "only"))
             .expect("seed journal row");
         let before = db.change_journal_len().unwrap();
         let error = db
@@ -10353,16 +10837,20 @@ mod guarded_commit_tests {
         let missing_predecessor_observed =
             missing_predecessor.diagnostic.code == "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT";
         assert!(missing_predecessor_observed);
-        db.schema_seed().apply_schema(schema()).expect("initial activation");
+        db.schema_seed()
+            .apply_schema(schema())
+            .expect("initial activation");
         let activated = db.authorization_version().expect("activation version");
         assert_eq!(activated.epoch, 1);
 
-        db.schema_seed().apply_schema(schema())
+        db.schema_seed()
+            .apply_schema(schema())
             .expect("idempotent schema application");
         let after_idempotent = db.authorization_version().unwrap();
         assert_eq!(after_idempotent, activated);
 
         let commit = db
+            .mutation_writes()
             .execute_mutation(&insert_plan(), &HandlerInput::default())
             .expect("ordinary host-plan commit");
         let removed_id = commit.changes[0].id.clone();
@@ -10372,6 +10860,7 @@ mod guarded_commit_tests {
         assert_eq!(witness.version, activated);
 
         let removal = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Delete {
@@ -10404,7 +10893,8 @@ mod guarded_commit_tests {
         let mut without_backing = schema();
         without_backing.tables[0].permission_fields = Some(vec!["rank".to_owned()]);
         let error = db
-            .schema_seed().apply_schema(without_backing)
+            .schema_seed()
+            .apply_schema(without_backing)
             .expect_err("permissionFields requires permissionBacking");
         assert_eq!(
             error.diagnostic.code,
@@ -10413,7 +10903,8 @@ mod guarded_commit_tests {
 
         let mut unknown = permission_schema(Some(vec!["missing"]));
         let error = db
-            .schema_seed().apply_schema(unknown.clone())
+            .schema_seed()
+            .apply_schema(unknown.clone())
             .expect_err("unknown permission field");
         assert_eq!(
             error.diagnostic.code,
@@ -10422,7 +10913,8 @@ mod guarded_commit_tests {
 
         unknown.tables[0].permission_fields = Some(vec!["rank".to_owned(), "rank".to_owned()]);
         let error = db
-            .schema_seed().apply_schema(unknown)
+            .schema_seed()
+            .apply_schema(unknown)
             .expect_err("duplicate permission field");
         assert_eq!(
             error.diagnostic.code,
@@ -10508,46 +11000,48 @@ mod guarded_commit_tests {
             ("text", SqlValue::Text("not-a-version".to_owned())),
         ] {
             let mut db = LocalDatabase::memory().expect("database");
-            db.schema_seed().apply_schema(SchemaManifest {
-                tables: vec![TableManifest {
-                    name: "memberships".to_owned(),
-                    fields: vec![
-                        FieldManifest {
-                            name: "userId".to_owned(),
-                            field_type: FieldType::String,
-                            optional: false,
-                        },
-                        FieldManifest {
-                            name: "boardId".to_owned(),
-                            field_type: FieldType::String,
-                            optional: false,
-                        },
-                    ],
-                    indexes: Vec::new(),
-                    syncable: true,
-                    permission_backing: true,
-                    permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
-                    search_indexes: Vec::new(),
-                    vector_indexes: Vec::new(),
-                    search_live_limits: None,
-                    membership: None,
-                    asset_sharing: None,
-                    history: None,
-                }],
-                ..SchemaManifest::default()
-            })
-            .unwrap();
-            db.schema_seed().seed(SeedData {
-                tables: BTreeMap::from([(
-                    "memberships".to_owned(),
-                    vec![Map::from_iter([
-                        ("_id".to_owned(), json!("grant")),
-                        ("userId".to_owned(), json!("alice")),
-                        ("boardId".to_owned(), json!("board-a")),
-                    ])],
-                )]),
-            })
-            .unwrap();
+            db.schema_seed()
+                .apply_schema(SchemaManifest {
+                    tables: vec![TableManifest {
+                        name: "memberships".to_owned(),
+                        fields: vec![
+                            FieldManifest {
+                                name: "userId".to_owned(),
+                                field_type: FieldType::String,
+                                optional: false,
+                            },
+                            FieldManifest {
+                                name: "boardId".to_owned(),
+                                field_type: FieldType::String,
+                                optional: false,
+                            },
+                        ],
+                        indexes: Vec::new(),
+                        syncable: true,
+                        permission_backing: true,
+                        permission_fields: Some(vec!["userId".to_owned(), "boardId".to_owned()]),
+                        search_indexes: Vec::new(),
+                        vector_indexes: Vec::new(),
+                        search_live_limits: None,
+                        membership: None,
+                        asset_sharing: None,
+                        history: None,
+                    }],
+                    ..SchemaManifest::default()
+                })
+                .unwrap();
+            db.schema_seed()
+                .seed(SeedData {
+                    tables: BTreeMap::from([(
+                        "memberships".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), json!("grant")),
+                            ("userId".to_owned(), json!("alice")),
+                            ("boardId".to_owned(), json!("board-a")),
+                        ])],
+                    )]),
+                })
+                .unwrap();
             assert!(
                 db.room_permission_projection_granted(
                     "memberships",
@@ -10587,13 +11081,21 @@ mod guarded_commit_tests {
         let baseline = db.authorization_version().unwrap();
 
         let dry_run = db
+            .mutation_writes()
             .dry_run_mutation(&insert_plan(), &HandlerInput::default())
             .expect("host-plan dry run");
         assert_eq!(dry_run.commit.authorization, None);
         assert_eq!(db.authorization_version().unwrap(), baseline);
-        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 0);
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
+                .unwrap()
+                .total,
+            0
+        );
 
         let commit = db
+            .mutation_writes()
             .execute_mutation(&insert_plan(), &HandlerInput::default())
             .expect("host-plan commit");
         let witness = commit.authorization.expect("postcommit witness");
@@ -10609,6 +11111,7 @@ mod guarded_commit_tests {
         let input = HandlerInput::default();
 
         let inserted = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &input,
                 vec![BufferedWrite::Insert {
@@ -10628,6 +11131,7 @@ mod guarded_commit_tests {
         assert_eq!(inserted_witness.version.epoch, baseline.epoch + 1);
 
         let disjoint = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &input,
                 vec![BufferedWrite::Patch {
@@ -10644,6 +11148,7 @@ mod guarded_commit_tests {
         assert_eq!(disjoint_witness.version, inserted_witness.version);
 
         let permission = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &input,
                 vec![BufferedWrite::Patch {
@@ -10663,6 +11168,7 @@ mod guarded_commit_tests {
         );
 
         let deleted = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &input,
                 vec![BufferedWrite::Delete {
@@ -10681,7 +11187,8 @@ mod guarded_commit_tests {
         let mut db = permission_database(Some(vec!["rank"]));
         let baseline = db.authorization_version().unwrap();
         let seed = db
-            .schema_seed().seed_with_authorization(seed_data("old", "old data"))
+            .schema_seed()
+            .seed_with_authorization(seed_data("old", "old data"))
             .expect("permission seed");
         assert!(seed.authorization.event);
         assert_eq!(seed.authorization.version.epoch, baseline.epoch + 1);
@@ -10691,7 +11198,8 @@ mod guarded_commit_tests {
         );
 
         let reset = db
-            .schema_seed().reset_and_seed_with_authorization(Some(seed_data("new", "new data")))
+            .schema_seed()
+            .reset_and_seed_with_authorization(Some(seed_data("new", "new data")))
             .expect("reset with seed");
         assert!(reset.authorization.event);
         assert!(reset.authorization.incarnation_rotated);
@@ -10706,7 +11214,8 @@ mod guarded_commit_tests {
         );
 
         let post_reset = db
-            .schema_seed().seed_with_authorization(seed_data("again", "again"))
+            .schema_seed()
+            .seed_with_authorization(seed_data("again", "again"))
             .expect("post-reset permission seed");
         assert_eq!(post_reset.authorization.version.epoch, baseline.epoch);
         assert_ne!(
@@ -10721,9 +11230,11 @@ mod guarded_commit_tests {
         let path = dir.path().join("authorization-version.sqlite3");
         let committed = {
             let mut db = LocalDatabase::open(&path).expect("database");
-            db.schema_seed().apply_schema(permission_schema(None))
+            db.schema_seed()
+                .apply_schema(permission_schema(None))
                 .expect("permission schema");
-            db.execute_mutation(&insert_plan(), &HandlerInput::default())
+            db.mutation_writes()
+                .execute_mutation(&insert_plan(), &HandlerInput::default())
                 .expect("permission commit");
             db.authorization_version().unwrap()
         };
@@ -10737,7 +11248,8 @@ mod guarded_commit_tests {
         let path = dir.path().join("sender-replay-epoch.sqlite3");
         let predecessor = {
             let mut db = LocalDatabase::open(&path).expect("database");
-            db.schema_seed().apply_schema(permission_schema(None))
+            db.schema_seed()
+                .apply_schema(permission_schema(None))
                 .expect("permission schema");
             db.activate_current_auth_catalog()
                 .expect("activate auth catalog");
@@ -10767,7 +11279,8 @@ mod guarded_commit_tests {
 
         let mut reopened = LocalDatabase::open(&path).expect("reopen database");
         reopened
-            .schema_seed().apply_schema(permission_schema(None))
+            .schema_seed()
+            .apply_schema(permission_schema(None))
             .expect("reload permission schema");
         assert_eq!(
             crate::auth::sender_proof::sender_replay_epoch(&reopened.conn)
@@ -10778,7 +11291,8 @@ mod guarded_commit_tests {
 
         let before_stream = reopened.authorization_version().unwrap();
         reopened
-            .schema_seed().reset_and_seed_with_authorization(None)
+            .schema_seed()
+            .reset_and_seed_with_authorization(None)
             .expect("stream reset");
         let after_stream = reopened.authorization_version().unwrap();
         assert_ne!(after_stream.incarnation, before_stream.incarnation);
@@ -10817,13 +11331,20 @@ mod guarded_commit_tests {
             )
             .expect("set maximum epoch");
         let error = db
+            .mutation_writes()
             .execute_mutation(&insert_plan(), &HandlerInput::default())
             .expect_err("nonwrapping epoch must refuse");
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_AUTHORIZATION_EPOCH_EXHAUSTED"
         );
-        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 0);
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
+                .unwrap()
+                .total,
+            0
+        );
         assert_eq!(
             db.authorization_version().unwrap().epoch,
             MAX_AUTHORIZATION_EPOCH
@@ -10833,7 +11354,9 @@ mod guarded_commit_tests {
     #[test]
     fn reset_seed_rolls_back_insert_and_precommit_failures() {
         let mut db = database();
-        db.schema_seed().seed(seed_data("old", "old data")).expect("initial seed");
+        db.schema_seed()
+            .seed(seed_data("old", "old data"))
+            .expect("initial seed");
         let predecessor_incarnation = db
             .ensure_authorization_stream_incarnation()
             .expect("initialize authorization stream");
@@ -10854,10 +11377,12 @@ mod guarded_commit_tests {
                 ],
             )]),
         };
-        db.schema_seed().reset_and_seed(Some(duplicate_seed))
+        db.schema_seed()
+            .reset_and_seed(Some(duplicate_seed))
             .expect_err("duplicate insert must roll back the reset transaction");
         let scan = db
-            .query_reads_read().scan_table("items", 10, 0)
+            .query_reads_read()
+            .scan_table("items", 10, 0)
             .expect("scan after insert failure");
         assert_eq!(scan.total, 1);
         assert_eq!(scan.rows[0]["_id"], "old");
@@ -10877,10 +11402,12 @@ mod guarded_commit_tests {
                 ))
             }));
         });
-        db.schema_seed().reset_and_seed(Some(seed_data("new", "new data")))
+        db.schema_seed()
+            .reset_and_seed(Some(seed_data("new", "new data")))
             .expect_err("precommit injection must roll back the reset transaction");
         let scan = db
-            .query_reads_read().scan_table("items", 10, 0)
+            .query_reads_read()
+            .scan_table("items", 10, 0)
             .expect("scan after commit-boundary failure");
         assert_eq!(scan.total, 1);
         assert_eq!(scan.rows[0]["_id"], "old");
@@ -10891,7 +11418,8 @@ mod guarded_commit_tests {
         );
         assert_eq!(db.authorization_version().unwrap(), predecessor_version);
 
-        db.schema_seed().reset_and_seed(Some(seed_data("new", "new data")))
+        db.schema_seed()
+            .reset_and_seed(Some(seed_data("new", "new data")))
             .expect("successful reset");
         assert_ne!(
             db.authorization_stream_incarnation().unwrap(),
@@ -10932,7 +11460,10 @@ mod guarded_commit_tests {
         );
         assert_empty(&db);
         assert_eq!(
-            db.settlement_read().client_mutation_retention_info().unwrap().records,
+            db.settlement_read()
+                .client_mutation_retention_info()
+                .unwrap()
+                .records,
             0,
             "a rejected output cannot leave an idempotency row"
         );
@@ -10981,7 +11512,8 @@ mod guarded_commit_tests {
                 )
                 .expect("corrupt retained output version");
             let error = db
-                .settlement_read().client_mutation_result(&identity)
+                .settlement_read()
+                .client_mutation_result(&identity)
                 .expect_err("a corrupt replay output version must not be republished");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -11010,7 +11542,8 @@ mod guarded_commit_tests {
                 )
                 .expect("corrupt retained settlement version");
             let error = db
-                .settlement_read().client_mutation_result(&identity)
+                .settlement_read()
+                .client_mutation_result(&identity)
                 .expect_err("a corrupt settlement cursor must not be ignored");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -11047,7 +11580,8 @@ mod guarded_commit_tests {
                 )
                 .expect("corrupt retained exact settlement version");
             let error = db
-                .settlement_read().client_mutation_result(&identity)
+                .settlement_read()
+                .client_mutation_result(&identity)
                 .expect_err("a corrupt exact settlement cursor must not be ignored");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -11071,7 +11605,8 @@ mod guarded_commit_tests {
             )
             .expect("install mismatched settlement version");
         let error = db
-            .settlement_read().client_mutation_result(&identity)
+            .settlement_read()
+            .client_mutation_result(&identity)
             .expect_err("paired durable versions must agree");
         assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
 
@@ -11084,7 +11619,8 @@ mod guarded_commit_tests {
             )
             .expect("install documented legacy sentinel");
         assert_eq!(
-            db.settlement_read().client_mutation_result(&identity)
+            db.settlement_read()
+                .client_mutation_result(&identity)
                 .expect("legacy sentinel remains readable")
                 .expect("retained result")
                 .version,
@@ -11124,6 +11660,7 @@ mod guarded_commit_tests {
         assert_eq!(exact, SqlValue::Integer(0));
 
         let advanced = db
+            .mutation_writes()
             .execute_mutation(&insert_plan(), &HandlerInput::default())
             .expect("advance the global head after settlement");
         assert_eq!(advanced.output.version, 1);
@@ -11138,7 +11675,8 @@ mod guarded_commit_tests {
             .expect("drift only the replay payload version");
 
         let live_error = db
-            .settlement_read().client_mutation_result(&identity)
+            .settlement_read()
+            .client_mutation_result(&identity)
             .expect_err("authoritative zero metadata detects live replay drift");
         assert_eq!(
             live_error.diagnostic.code,
@@ -11174,9 +11712,18 @@ mod guarded_commit_tests {
             )
             .expect("settlement below the fixture limit");
         }
-        let retained = db.settlement_read().client_mutation_retention_info().unwrap();
+        let retained = db
+            .settlement_read()
+            .client_mutation_retention_info()
+            .unwrap();
         assert_eq!(retained.records, 2);
-        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 4);
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
+                .unwrap()
+                .total,
+            4
+        );
         assert_eq!(db.current_version().unwrap(), 2);
 
         let refused = ClientMutationIdentity::new("cm_record_limit_3", "hostPlan", &input);
@@ -11195,11 +11742,32 @@ mod guarded_commit_tests {
             error.diagnostic.code,
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
-        assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap(), retained);
-        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 4);
+        assert_eq!(
+            db.settlement_read()
+                .client_mutation_retention_info()
+                .unwrap(),
+            retained
+        );
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
+                .unwrap()
+                .total,
+            4
+        );
         assert_eq!(db.current_version().unwrap(), 2);
-        assert!(db.settlement_read().client_mutation_result(&first).unwrap().is_some());
-        assert_eq!(db.settlement_read().client_mutation_result(&refused).unwrap(), None);
+        assert!(
+            db.settlement_read()
+                .client_mutation_result(&first)
+                .unwrap()
+                .is_some()
+        );
+        assert_eq!(
+            db.settlement_read()
+                .client_mutation_result(&refused)
+                .unwrap(),
+            None
+        );
     }
 
     #[test]
@@ -11216,7 +11784,10 @@ mod guarded_commit_tests {
             || Ok(()),
         )
         .expect("first settlement");
-        let retained = db.settlement_read().client_mutation_retention_info().unwrap();
+        let retained = db
+            .settlement_read()
+            .client_mutation_retention_info()
+            .unwrap();
         let _limits = TestRetentionLimits::install(10, retained.bytes);
 
         let refused = ClientMutationIdentity::new("cm_byte_limit_2", "hostPlan", &input);
@@ -11235,11 +11806,32 @@ mod guarded_commit_tests {
             error.diagnostic.code,
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
-        assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap(), retained);
-        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 2);
+        assert_eq!(
+            db.settlement_read()
+                .client_mutation_retention_info()
+                .unwrap(),
+            retained
+        );
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
+                .unwrap()
+                .total,
+            2
+        );
         assert_eq!(db.current_version().unwrap(), 1);
-        assert!(db.settlement_read().client_mutation_result(&first).unwrap().is_some());
-        assert_eq!(db.settlement_read().client_mutation_result(&refused).unwrap(), None);
+        assert!(
+            db.settlement_read()
+                .client_mutation_result(&first)
+                .unwrap()
+                .is_some()
+        );
+        assert_eq!(
+            db.settlement_read()
+                .client_mutation_result(&refused)
+                .unwrap(),
+            None
+        );
     }
 
     #[test]
@@ -11290,7 +11882,13 @@ mod guarded_commit_tests {
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
         assert_eq!(error.diagnostic.details["scope"], "auth");
-        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 4);
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
+                .unwrap()
+                .total,
+            4
+        );
 
         let other = ClientMutationIdentity::new("cm_auth_b_1", "hostPlan", &input_b);
         db.execute_mutation_plan_with_lifecycle(
@@ -11302,7 +11900,13 @@ mod guarded_commit_tests {
             || Ok(()),
         )
         .expect("another auth retains independent capacity");
-        assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap().records, 3);
+        assert_eq!(
+            db.settlement_read()
+                .client_mutation_retention_info()
+                .unwrap()
+                .records,
+            3
+        );
         assert_eq!(
             client_mutation_auth_retention_counters(&db.conn, &refused.auth_fingerprint)
                 .unwrap()
@@ -11361,7 +11965,13 @@ mod guarded_commit_tests {
             Err(error) => error,
         };
         assert_eq!(error.diagnostic.details["scope"], "auth");
-        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 2);
+        assert_eq!(
+            db.query_reads_read()
+                .scan_table("items", 10, 0)
+                .unwrap()
+                .total,
+            2
+        );
 
         let other = ClientMutationIdentity::new("cm_auth_bytes_b_1", "hostPlan", &input_b);
         db.execute_mutation_plan_with_lifecycle(
@@ -11373,7 +11983,13 @@ mod guarded_commit_tests {
             || Ok(()),
         )
         .expect("another auth has an independent byte budget");
-        assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap().records, 2);
+        assert_eq!(
+            db.settlement_read()
+                .client_mutation_retention_info()
+                .unwrap()
+                .records,
+            2
+        );
     }
 
     #[test]
@@ -11390,25 +12006,33 @@ mod guarded_commit_tests {
             || Ok(()),
         )
         .expect("settle mutation");
-        let retained = db.settlement_read().client_mutation_retention_info().unwrap();
+        let retained = db
+            .settlement_read()
+            .client_mutation_retention_info()
+            .unwrap();
         assert_eq!(retained.records, 1);
         assert!(retained.bytes > 0);
         assert_eq!(
-            db.settlement().acknowledge_client_mutations("another-auth", std::slice::from_ref(&identity.id))
+            db.settlement()
+                .acknowledge_client_mutations("another-auth", std::slice::from_ref(&identity.id))
                 .unwrap(),
             0,
             "another authority cannot reclaim the result"
         );
         assert_eq!(
-            db.settlement().acknowledge_client_mutations(
-                &identity.auth_fingerprint,
-                &[identity.id.clone(), identity.id.clone()]
-            )
-            .unwrap(),
+            db.settlement()
+                .acknowledge_client_mutations(
+                    &identity.auth_fingerprint,
+                    &[identity.id.clone(), identity.id.clone()]
+                )
+                .unwrap(),
             1,
             "duplicate acknowledgements are idempotently deduplicated"
         );
-        let reclaimed = db.settlement_read().client_mutation_retention_info().unwrap();
+        let reclaimed = db
+            .settlement_read()
+            .client_mutation_retention_info()
+            .unwrap();
         assert_eq!(reclaimed.records, 0);
         assert_eq!(reclaimed.gc_total, 1);
     }
@@ -11438,15 +12062,22 @@ mod guarded_commit_tests {
             || Ok(()),
         )
         .expect("legacy settlement");
-        let before = db.settlement_read().client_mutation_retention_info().unwrap();
+        let before = db
+            .settlement_read()
+            .client_mutation_retention_info()
+            .unwrap();
         let error = db
-            .settlement_read().client_mutation_result(&current)
+            .settlement_read()
+            .client_mutation_result(&current)
             .expect_err("a 64-bit legacy alias cannot be rebound safely");
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED"
         );
-        let after = db.settlement_read().client_mutation_retention_info().unwrap();
+        let after = db
+            .settlement_read()
+            .client_mutation_retention_info()
+            .unwrap();
         assert_eq!(
             after, before,
             "quarantine does not rewrite rows or counters"
@@ -11456,14 +12087,21 @@ mod guarded_commit_tests {
             (1, before.bytes)
         );
         assert_eq!(
-            db.settlement().acknowledge_client_mutations(
-                &legacy_fingerprint,
-                std::slice::from_ref(&current.id),
-            )
-            .unwrap(),
+            db.settlement()
+                .acknowledge_client_mutations(
+                    &legacy_fingerprint,
+                    std::slice::from_ref(&current.id),
+                )
+                .unwrap(),
             1
         );
-        assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap().records, 0);
+        assert_eq!(
+            db.settlement_read()
+                .client_mutation_retention_info()
+                .unwrap()
+                .records,
+            0
+        );
     }
 
     #[test]
@@ -11480,7 +12118,10 @@ mod guarded_commit_tests {
             || Ok(()),
         )
         .expect("settle mutation");
-        let before = db.settlement_read().client_mutation_retention_info().unwrap();
+        let before = db
+            .settlement_read()
+            .client_mutation_retention_info()
+            .unwrap();
         assert_eq!(before.records, 1);
         assert!(before.bytes > 0);
 
@@ -11494,18 +12135,28 @@ mod guarded_commit_tests {
             .unwrap();
         drop(db);
         let mut reopened = LocalDatabase::open(&path).expect("reopen and backfill counters");
-        assert_eq!(reopened.settlement_read().client_mutation_retention_info().unwrap(), before);
+        assert_eq!(
+            reopened
+                .settlement_read()
+                .client_mutation_retention_info()
+                .unwrap(),
+            before
+        );
 
         assert_eq!(
             reopened
-                .settlement().acknowledge_client_mutations(
+                .settlement()
+                .acknowledge_client_mutations(
                     &identity.auth_fingerprint,
                     std::slice::from_ref(&identity.id),
                 )
                 .unwrap(),
             1
         );
-        let after_ack = reopened.settlement_read().client_mutation_retention_info().unwrap();
+        let after_ack = reopened
+            .settlement_read()
+            .client_mutation_retention_info()
+            .unwrap();
         assert_eq!(after_ack.records, 0);
         assert_eq!(after_ack.bytes, 0);
         assert_eq!(after_ack.gc_total, 1);
@@ -11513,7 +12164,10 @@ mod guarded_commit_tests {
 
         let reopened = LocalDatabase::open(&path).expect("reopen acknowledged counters");
         assert_eq!(
-            reopened.settlement_read().client_mutation_retention_info().unwrap(),
+            reopened
+                .settlement_read()
+                .client_mutation_retention_info()
+                .unwrap(),
             after_ack
         );
     }
@@ -11550,13 +12204,23 @@ mod guarded_commit_tests {
             )
             .expect("settle purge fixture");
         }
-        assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap().records, 3);
         assert_eq!(
-            db.settlement().purge_client_mutation_settlements(Some(&identities[0].auth_fingerprint))
+            db.settlement_read()
+                .client_mutation_retention_info()
+                .unwrap()
+                .records,
+            3
+        );
+        assert_eq!(
+            db.settlement()
+                .purge_client_mutation_settlements(Some(&identities[0].auth_fingerprint))
                 .unwrap(),
             2
         );
-        let after_auth = db.settlement_read().client_mutation_retention_info().unwrap();
+        let after_auth = db
+            .settlement_read()
+            .client_mutation_retention_info()
+            .unwrap();
         assert_eq!(after_auth.records, 1);
         assert_eq!(after_auth.gc_total, 0, "admin purge is not client ACK GC");
         assert_eq!(
@@ -11564,13 +12228,36 @@ mod guarded_commit_tests {
                 .unwrap(),
             (0, 0)
         );
-        assert!(db.settlement_read().client_mutation_result(&identities[0]).unwrap().is_none());
-        assert!(db.settlement_read().client_mutation_result(&identities[2]).unwrap().is_some());
+        assert!(
+            db.settlement_read()
+                .client_mutation_result(&identities[0])
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            db.settlement_read()
+                .client_mutation_result(&identities[2])
+                .unwrap()
+                .is_some()
+        );
 
-        assert_eq!(db.settlement().purge_client_mutation_settlements(None).unwrap(), 1);
-        let empty = db.settlement_read().client_mutation_retention_info().unwrap();
+        assert_eq!(
+            db.settlement()
+                .purge_client_mutation_settlements(None)
+                .unwrap(),
+            1
+        );
+        let empty = db
+            .settlement_read()
+            .client_mutation_retention_info()
+            .unwrap();
         assert_eq!((empty.records, empty.bytes), (0, 0));
-        assert!(db.settlement_read().client_mutation_result(&identities[2]).unwrap().is_none());
+        assert!(
+            db.settlement_read()
+                .client_mutation_result(&identities[2])
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
@@ -11664,7 +12351,8 @@ mod guarded_commit_tests {
         insert_unrelated(host);
 
         assert_eq!(
-            db.settlement().purge_client_mutation_settlements(Some(&identity.auth_fingerprint))
+            db.settlement()
+                .purge_client_mutation_settlements(Some(&identity.auth_fingerprint))
                 .expect("purge exact active client partition"),
             1
         );
@@ -11701,7 +12389,8 @@ mod guarded_commit_tests {
             1
         );
         let retry = db
-            .settlement_read().client_mutation_result(&identity)
+            .settlement_read()
+            .client_mutation_result(&identity)
             .expect_err("purged exact partition keeps a result-expired tombstone");
         assert_eq!(retry.diagnostic.code, "SNAPBACK_OPERATION_RESULT_EXPIRED");
         assert_eq!(retry.diagnostic.details["outcome"], "committed");
@@ -11737,6 +12426,7 @@ mod guarded_commit_tests {
         let mut during_iteration = database();
         let checks = Cell::new(0_usize);
         let error = during_iteration
+            .mutation_writes()
             .execute_mutation_guarded(
                 &plan,
                 &input,
@@ -11776,7 +12466,8 @@ mod guarded_commit_tests {
         );
         assert_eq!(
             before_commit
-                .settlement_read().client_mutation_result(&identity)
+                .settlement_read()
+                .client_mutation_result(&identity)
                 .expect("idempotency lookup"),
             None,
             "a rejected precommit cannot retain an idempotency result"
@@ -11790,6 +12481,7 @@ mod guarded_commit_tests {
         let mut during_iteration = database();
         let checks = Cell::new(0_usize);
         let error = during_iteration
+            .mutation_writes()
             .commit_buffered_writes_idempotent_guarded(
                 &input,
                 buffered_payload(),
@@ -11812,6 +12504,7 @@ mod guarded_commit_tests {
         let authorization_before = before_commit.authorization_version().unwrap();
         let identity = ClientMutationIdentity::new("cm_buffer_guard", "ibex", &input);
         let error = before_commit
+            .mutation_writes()
             .commit_buffered_writes_idempotent_guarded(
                 &input,
                 buffered_payload(),
@@ -11828,7 +12521,8 @@ mod guarded_commit_tests {
         );
         assert_eq!(
             before_commit
-                .settlement_read().client_mutation_result(&identity)
+                .settlement_read()
+                .client_mutation_result(&identity)
                 .expect("idempotency lookup"),
             None,
             "a rejected buffered precommit cannot retain an idempotency result"
@@ -11844,42 +12538,43 @@ mod guarded_commit_tests {
         let saw_guarded_final_check = Arc::new(AtomicBool::new(false));
         let checks_before_guard = Arc::new(AtomicUsize::new(0));
 
-        db.execute_mutation_guarded(
-            &insert_plan(),
-            &HandlerInput::default(),
-            {
-                let active = active.clone();
-                let saw_guarded_final_check = saw_guarded_final_check.clone();
-                let checks_before_guard = checks_before_guard.clone();
-                move || {
-                    if active.load(Ordering::SeqCst) {
-                        saw_guarded_final_check.store(true, Ordering::SeqCst);
-                    } else {
-                        checks_before_guard.fetch_add(1, Ordering::SeqCst);
+        db.mutation_writes()
+            .execute_mutation_guarded(
+                &insert_plan(),
+                &HandlerInput::default(),
+                {
+                    let active = active.clone();
+                    let saw_guarded_final_check = saw_guarded_final_check.clone();
+                    let checks_before_guard = checks_before_guard.clone();
+                    move || {
+                        if active.load(Ordering::SeqCst) {
+                            saw_guarded_final_check.store(true, Ordering::SeqCst);
+                        } else {
+                            checks_before_guard.fetch_add(1, Ordering::SeqCst);
+                        }
+                        Ok(())
                     }
-                    Ok(())
-                }
-            },
-            {
-                let active = active.clone();
-                let dropped = dropped.clone();
-                let checks_before_guard = checks_before_guard.clone();
-                move || {
-                    assert!(
-                        checks_before_guard.load(Ordering::SeqCst) >= 3,
-                        "plan iteration must finish before gate acquisition"
-                    );
-                    active.store(true, Ordering::SeqCst);
-                    Ok(CommitVisibilityGuard {
-                        reader,
-                        active,
-                        dropped,
-                        expected_rows: 2,
-                    })
-                }
-            },
-        )
-        .expect("guarded host plan commit");
+                },
+                {
+                    let active = active.clone();
+                    let dropped = dropped.clone();
+                    let checks_before_guard = checks_before_guard.clone();
+                    move || {
+                        assert!(
+                            checks_before_guard.load(Ordering::SeqCst) >= 3,
+                            "plan iteration must finish before gate acquisition"
+                        );
+                        active.store(true, Ordering::SeqCst);
+                        Ok(CommitVisibilityGuard {
+                            reader,
+                            active,
+                            dropped,
+                            expected_rows: 2,
+                        })
+                    }
+                },
+            )
+            .expect("guarded host plan commit");
 
         assert!(saw_guarded_final_check.load(Ordering::SeqCst));
         assert!(dropped.load(Ordering::SeqCst));
@@ -11896,43 +12591,44 @@ mod guarded_commit_tests {
         let saw_guarded_final_check = Arc::new(AtomicBool::new(false));
         let checks_before_guard = Arc::new(AtomicUsize::new(0));
 
-        db.commit_buffered_writes_idempotent_guarded(
-            &HandlerInput::default(),
-            buffered_payload(),
-            None,
-            {
-                let active = active.clone();
-                let saw_guarded_final_check = saw_guarded_final_check.clone();
-                let checks_before_guard = checks_before_guard.clone();
-                move || {
-                    if active.load(Ordering::SeqCst) {
-                        saw_guarded_final_check.store(true, Ordering::SeqCst);
-                    } else {
-                        checks_before_guard.fetch_add(1, Ordering::SeqCst);
+        db.mutation_writes()
+            .commit_buffered_writes_idempotent_guarded(
+                &HandlerInput::default(),
+                buffered_payload(),
+                None,
+                {
+                    let active = active.clone();
+                    let saw_guarded_final_check = saw_guarded_final_check.clone();
+                    let checks_before_guard = checks_before_guard.clone();
+                    move || {
+                        if active.load(Ordering::SeqCst) {
+                            saw_guarded_final_check.store(true, Ordering::SeqCst);
+                        } else {
+                            checks_before_guard.fetch_add(1, Ordering::SeqCst);
+                        }
+                        Ok(())
                     }
-                    Ok(())
-                }
-            },
-            {
-                let active = active.clone();
-                let dropped = dropped.clone();
-                let checks_before_guard = checks_before_guard.clone();
-                move || {
-                    assert!(
-                        checks_before_guard.load(Ordering::SeqCst) >= 3,
-                        "buffered iteration must finish before gate acquisition"
-                    );
-                    active.store(true, Ordering::SeqCst);
-                    Ok(CommitVisibilityGuard {
-                        reader,
-                        active,
-                        dropped,
-                        expected_rows: 2,
-                    })
-                }
-            },
-        )
-        .expect("guarded buffered commit");
+                },
+                {
+                    let active = active.clone();
+                    let dropped = dropped.clone();
+                    let checks_before_guard = checks_before_guard.clone();
+                    move || {
+                        assert!(
+                            checks_before_guard.load(Ordering::SeqCst) >= 3,
+                            "buffered iteration must finish before gate acquisition"
+                        );
+                        active.store(true, Ordering::SeqCst);
+                        Ok(CommitVisibilityGuard {
+                            reader,
+                            active,
+                            dropped,
+                            expected_rows: 2,
+                        })
+                    }
+                },
+            )
+            .expect("guarded buffered commit");
 
         assert!(saw_guarded_final_check.load(Ordering::SeqCst));
         assert!(dropped.load(Ordering::SeqCst));
@@ -11947,6 +12643,7 @@ mod guarded_commit_tests {
         let mut ledger = ledger();
         ledger.now = 123_456_789;
         let commit = db
+            .mutation_writes()
             .commit_buffered_writes_idempotent_guarded(
                 &input,
                 BufferedCommitPayload {
@@ -11997,32 +12694,34 @@ mod guarded_commit_tests {
         .into_iter()
         .map(|row| row.as_object().cloned().expect("seed row"))
         .collect();
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([("items".to_owned(), rows)]),
-        })
-        .expect("seed ordering fixture");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([("items".to_owned(), rows)]),
+            })
+            .expect("seed ordering fixture");
 
         let ids = |direction, limit| {
-            db.query_reads_read().query(
-                &QueryPlan {
-                    table: "items".to_owned(),
-                    filters: Vec::new(),
-                    order: vec![crate::manifest::OrderExpr {
-                        field: "rank".to_owned(),
-                        direction,
-                        max_encoded_bytes: None,
-                    }],
-                    limit,
-                    membership_filters: Vec::new(),
-                    indexed_by: None,
-                },
-                &HandlerInput::default(),
-            )
-            .expect("ordered query")
-            .rows
-            .into_iter()
-            .map(|row| row["_id"].as_str().expect("row id").to_owned())
-            .collect::<Vec<_>>()
+            db.query_reads_read()
+                .query(
+                    &QueryPlan {
+                        table: "items".to_owned(),
+                        filters: Vec::new(),
+                        order: vec![crate::manifest::OrderExpr {
+                            field: "rank".to_owned(),
+                            direction,
+                            max_encoded_bytes: None,
+                        }],
+                        limit,
+                        membership_filters: Vec::new(),
+                        indexed_by: None,
+                    },
+                    &HandlerInput::default(),
+                )
+                .expect("ordered query")
+                .rows
+                .into_iter()
+                .map(|row| row["_id"].as_str().expect("row id").to_owned())
+                .collect::<Vec<_>>()
         };
 
         assert_eq!(
@@ -12042,7 +12741,8 @@ mod guarded_commit_tests {
     fn json_order_fields_fail_closed_before_sql_or_overlay_execution() {
         let db = database();
         let error = db
-            .query_reads_read().query(
+            .query_reads_read()
+            .query(
                 &QueryPlan {
                     table: "items".to_owned(),
                     filters: Vec::new(),
@@ -12273,7 +12973,8 @@ mod membership_write_tests {
                 )
                 .expect("corrupt membership row version");
             let error = db
-                .membership_plans().plan_membership_remove(&user("alice"), "event_members", &host_id)
+                .membership_plans()
+                .plan_membership_remove(&user("alice"), "event_members", &host_id)
                 .expect_err("a corrupt membership cursor must not enter a plan");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -12332,14 +13033,16 @@ mod membership_write_tests {
             };
 
             let preview_error = db
-                .schema_seed().preview_seed_changes(seed.clone())
+                .schema_seed()
+                .preview_seed_changes(seed.clone())
                 .expect_err("preview must preflight every activation source");
             assert_eq!(
                 preview_error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
                 "{source} preview"
             );
             let commit_error = db
-                .schema_seed().seed(seed)
+                .schema_seed()
+                .seed(seed)
                 .expect_err("commit must not let an unrelated seed advance over corruption");
             assert_eq!(
                 commit_error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -12383,7 +13086,8 @@ mod membership_write_tests {
                 ("role".to_owned(), json!("invited")),
             ]);
             let error = db
-                .membership_plans().plan_membership_insert(&user("alice"), "event_members", values)
+                .membership_plans()
+                .plan_membership_insert(&user("alice"), "event_members", values)
                 .expect_err("a corrupt resource cursor must not enter a plan");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -12449,7 +13153,8 @@ mod membership_write_tests {
                 )
                 .expect("corrupt expired membership row version");
             let error = db
-                .membership_plans().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+                .membership_plans()
+                .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
                 .expect_err("a corrupt sweep cursor must not enter a system plan");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -12463,7 +13168,8 @@ mod membership_write_tests {
         let mut db = ready_db();
         create_event(&mut db, "alice");
         let error = db
-            .membership_plans().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", u64::MAX)
+            .membership_plans()
+            .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", u64::MAX)
             .expect_err("the sweep clock must fit the portable SQLite domain");
         assert_eq!(error.diagnostic.code, "SNAPBACK_TIMESTAMP_OUT_OF_RANGE");
     }
@@ -12708,7 +13414,8 @@ mod membership_write_tests {
         let mut db = ready_db();
         let (event_id, _) = create_event(&mut db, "alice");
         let plan = db
-            .membership_plans().plan_membership_insert(
+            .membership_plans()
+            .plan_membership_insert(
                 &writer,
                 "event_members",
                 Map::from_iter([
@@ -12719,7 +13426,8 @@ mod membership_write_tests {
             )
             .expect("autonomous open-join plan");
         let commit = db
-            .membership_plans().commit_membership_plan(&writer, plan)
+            .membership_plans()
+            .commit_membership_plan(&writer, plan)
             .expect("autonomous open-join commit");
         let membership_id = commit_id_for_table(&commit, "event_members");
         assert_eq!(
@@ -12747,23 +13455,27 @@ mod membership_write_tests {
 
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog().expect("auth catalog");
-        db.schema_seed().apply_schema(schema).expect("apply unprotected schema");
+        db.schema_seed()
+            .apply_schema(schema)
+            .expect("apply unprotected schema");
         let event_id = "event-empty";
-        db.commit_buffered_writes(
-            &HandlerInput::default(),
-            vec![BufferedWrite::Insert {
-                table: "events".to_owned(),
-                id: event_id.to_owned(),
-                values: Map::from_iter([("title".to_owned(), json!("empty event"))]),
-            }],
-            Vec::new(),
-            Value::Null,
-        )
-        .expect("create empty resource");
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "events".to_owned(),
+                    id: event_id.to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("empty event"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("create empty resource");
 
         let writer = user("alice");
         let plan = db
-            .membership_plans().plan_membership_insert(
+            .membership_plans()
+            .plan_membership_insert(
                 &writer,
                 "event_members",
                 Map::from_iter([
@@ -12774,6 +13486,7 @@ mod membership_write_tests {
             )
             .expect("plan open join while resource exists");
         let error = db
+            .mutation_writes()
             .commit_buffered_writes_idempotent_guarded(
                 &HandlerInput::default(),
                 BufferedCommitPayload {
@@ -12805,9 +13518,15 @@ mod membership_write_tests {
             error.diagnostic.code,
             "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING"
         );
-        assert!(db.query_reads_read().get("events", event_id).expect("resource read").is_some());
+        assert!(
+            db.query_reads_read()
+                .get("events", event_id)
+                .expect("resource read")
+                .is_some()
+        );
         assert_eq!(
-            db.query_reads_read().scan_table("event_members", 10, 0)
+            db.query_reads_read()
+                .scan_table("event_members", 10, 0)
                 .expect("membership scan")
                 .total,
             0
@@ -12849,10 +13568,12 @@ mod membership_write_tests {
         let mut values = Map::new();
         values.insert("title".to_owned(), json!("party"));
         let plan = db
-            .membership_plans().plan_membership_bootstrap(&writer, "events", values, "event_members")
+            .membership_plans()
+            .plan_membership_bootstrap(&writer, "events", values, "event_members")
             .expect("bootstrap plan");
         let commit = db
-            .membership_plans().commit_membership_plan(&writer, plan)
+            .membership_plans()
+            .commit_membership_plan(&writer, plan)
             .expect("bootstrap commit");
         let event_id = commit_id_for_table(&commit, "events");
         let host_id = commit_id_for_table(&commit, "event_members");
@@ -12887,9 +13608,11 @@ mod membership_write_tests {
         values.insert("eventId".to_owned(), json!(event_id));
         values.insert("role".to_owned(), json!("invited"));
         let plan = db
-            .membership_plans().plan_membership_insert(&writer, "event_members", values)
+            .membership_plans()
+            .plan_membership_insert(&writer, "event_members", values)
             .expect("invite plan");
-        db.membership_plans().commit_membership_plan(&writer, plan)
+        db.membership_plans()
+            .commit_membership_plan(&writer, plan)
             .expect("invite commit");
     }
 
@@ -12900,8 +13623,15 @@ mod membership_write_tests {
         to: &str,
     ) -> SnapbackResult<()> {
         let writer = user(actor);
-        let plan = db.membership_plans().plan_membership_set_role(&writer, "event_members", member_id, to)?;
-        db.membership_plans().commit_membership_plan(&writer, plan).map(|_| ())
+        let plan = db.membership_plans().plan_membership_set_role(
+            &writer,
+            "event_members",
+            member_id,
+            to,
+        )?;
+        db.membership_plans()
+            .commit_membership_plan(&writer, plan)
+            .map(|_| ())
     }
 
     /// Seat a second, real `host` by promoting an invited principal all the way up.
@@ -12957,7 +13687,8 @@ mod membership_write_tests {
             principal,
         )?;
         let result = plan.result.clone();
-        db.membership_plans().commit_membership_plan(&writer, plan)?;
+        db.membership_plans()
+            .commit_membership_plan(&writer, plan)?;
         Ok(result)
     }
 
@@ -13113,10 +13844,12 @@ mod membership_write_tests {
         // (bob) and an absent one (nobody) — no membership probe happened.
         let writer = user("carol");
         let present = db
-            .membership_plans().plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "bob")
+            .membership_plans()
+            .plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "bob")
             .expect_err("guest caller denied");
         let absent = db
-            .membership_plans().plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "nobody")
+            .membership_plans()
+            .plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "nobody")
             .expect_err("guest caller denied on absent target too");
         assert_eq!(
             present.diagnostic.code,
@@ -13136,7 +13869,8 @@ mod membership_write_tests {
 
         // A caller with no row at all (class none): same invariant denial.
         let outsider = db
-            .membership_plans().plan_membership_remove_principal(
+            .membership_plans()
+            .plan_membership_remove_principal(
                 &user("mallory"),
                 "event_members",
                 Some(&event_id),
@@ -13150,7 +13884,8 @@ mod membership_write_tests {
 
         // Self-removal remains removeSelf: typed misuse, before target lookup.
         let this_is_me = db
-            .membership_plans().plan_membership_remove_principal(
+            .membership_plans()
+            .plan_membership_remove_principal(
                 &user("alice"),
                 "event_members",
                 Some(&event_id),
@@ -13164,14 +13899,16 @@ mod membership_write_tests {
 
         // Shape-only argument validation.
         let empty = db
-            .membership_plans().plan_membership_remove_principal(&user("alice"), "event_members", Some(&event_id), "")
+            .membership_plans()
+            .plan_membership_remove_principal(&user("alice"), "event_members", Some(&event_id), "")
             .expect_err("empty principal refuses");
         assert_eq!(
             empty.diagnostic.code,
             "SNAPBACK_MEMBERSHIP_PRINCIPAL_INVALID"
         );
         let missing_resource = db
-            .membership_plans().plan_membership_remove_principal(&user("alice"), "event_members", None, "bob")
+            .membership_plans()
+            .plan_membership_remove_principal(&user("alice"), "event_members", None, "bob")
             .expect_err("resource-scoped removal needs a resource");
         assert_eq!(
             missing_resource.diagnostic.code,
@@ -13183,7 +13920,8 @@ mod membership_write_tests {
         let mut undeclared = ready_db();
         let (undeclared_event, _) = create_event(&mut undeclared, "alice");
         let closed = undeclared
-            .membership_plans().plan_membership_remove_principal(
+            .membership_plans()
+            .plan_membership_remove_principal(
                 &user("alice"),
                 "event_members",
                 Some(&undeclared_event),
@@ -13206,7 +13944,8 @@ mod membership_write_tests {
 
         let writer = user("alice");
         let stale = db
-            .membership_plans().plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "bob")
+            .membership_plans()
+            .plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "bob")
             .expect("absent-target plan");
         assert!(stale.writes.is_empty(), "the no-op plans zero writes");
         assert!(
@@ -13217,7 +13956,8 @@ mod membership_write_tests {
         // bob joins between plan and commit: the captured absence is stale.
         seat_guest(&mut db, "alice", &event_id, "bob");
         let error = db
-            .membership_plans().commit_membership_plan(&writer, stale)
+            .membership_plans()
+            .commit_membership_plan(&writer, stale)
             .expect_err("stale absence capture must not commit");
         assert!(
             error.diagnostic.code.contains("CONFLICT")
@@ -13245,9 +13985,11 @@ mod membership_write_tests {
         let mut values = Map::new();
         values.insert("expiresAt".to_owned(), json!(1));
         let plan = db
-            .membership_plans().plan_membership_patch(&user("bob"), "event_members", &alice_row, values)
+            .membership_plans()
+            .plan_membership_patch(&user("bob"), "event_members", &alice_row, values)
             .expect("expiry patch plan");
-        db.membership_plans().commit_membership_plan(&user("bob"), plan)
+        db.membership_plans()
+            .commit_membership_plan(&user("bob"), plan)
             .expect("expiry patch commit");
 
         // Expired-but-authorized alice removes the other protected holder:
@@ -13323,7 +14065,8 @@ mod membership_write_tests {
             vec![seat("alice", "host"), seat("carol", "guest")],
         );
         let installed = db
-            .schema_seed().ensure_versioned_seed(InstallSeedRequestV1 {
+            .schema_seed()
+            .ensure_versioned_seed(InstallSeedRequestV1 {
                 format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
                 operation_id: "01982c7a-7c00-7000-8000-000000000301".to_owned(),
                 artifact: artifact.clone(),
@@ -13376,20 +14119,22 @@ mod membership_write_tests {
         let carrier = coordinator
             .premark_stream_reset_if_drained()
             .expect("reset carrier");
-        let attempt = db.schema_seed().attempt_versioned_seed_reset_with_authorization_stream(
-            ResetSeedRequestV1 {
-                format_version: SEED_RESET_REQUEST_FORMAT_V1.to_owned(),
-                operation_id: "01982c7a-7c00-7000-8000-000000000302".to_owned(),
-                operation: SeedResetOperationV1::ResetInstall,
-                requested_mode: AuthMode::Dev,
-                expected_data_version_stream: ExpectedDataVersionStreamV1::Present {
-                    value: receipt.data_version_stream.clone(),
+        let attempt = db
+            .schema_seed()
+            .attempt_versioned_seed_reset_with_authorization_stream(
+                ResetSeedRequestV1 {
+                    format_version: SEED_RESET_REQUEST_FORMAT_V1.to_owned(),
+                    operation_id: "01982c7a-7c00-7000-8000-000000000302".to_owned(),
+                    operation: SeedResetOperationV1::ResetInstall,
+                    requested_mode: AuthMode::Dev,
+                    expected_data_version_stream: ExpectedDataVersionStreamV1::Present {
+                        value: receipt.data_version_stream.clone(),
+                    },
+                    artifact: Some(artifact),
                 },
-                artifact: Some(artifact),
-            },
-            carrier.predecessor(),
-            carrier.successor(),
-        );
+                carrier.predecessor(),
+                carrier.successor(),
+            );
         let (_, reset_receipt) = coordinator
             .finish_stream_reset(carrier, attempt)
             .expect("reset-install commits");
@@ -13430,7 +14175,8 @@ mod membership_write_tests {
         // The runtime-only principal provably lost authority; fixture
         // authority survives the same cut.
         let denied = db
-            .membership_plans().plan_membership_remove_principal(
+            .membership_plans()
+            .plan_membership_remove_principal(
                 &user("bob"),
                 "event_members",
                 Some("evt_fixture"),
@@ -13477,14 +14223,15 @@ mod membership_write_tests {
                 ]),
             };
             artifact.seed_digest = artifact_digest(&artifact).expect("digest");
-            db.schema_seed().ensure_versioned_seed(InstallSeedRequestV1 {
-                format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
-                operation_id: operation_id.to_owned(),
-                artifact,
-                requested_mode: AuthMode::Dev,
-                asset_fixtures: None,
-            })
-            .map(|_| ())
+            db.schema_seed()
+                .ensure_versioned_seed(InstallSeedRequestV1 {
+                    format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
+                    operation_id: operation_id.to_owned(),
+                    artifact,
+                    requested_mode: AuthMode::Dev,
+                    asset_fixtures: None,
+                })
+                .map(|_| ())
         };
 
         let unknown_role = install(
@@ -13589,7 +14336,8 @@ mod membership_write_tests {
     ) -> MembershipPlan {
         match operation {
             CallerAuthorityOperation::Insert => db
-                .membership_plans_read().plan_membership_insert(
+                .membership_plans_read()
+                .plan_membership_insert(
                     &user(caller),
                     "event_members",
                     Map::from_iter([
@@ -13600,13 +14348,16 @@ mod membership_write_tests {
                 )
                 .expect("insert plan"),
             CallerAuthorityOperation::SetRole => db
-                .membership_plans_read().plan_membership_set_role(&user(caller), "event_members", target, "cohost")
+                .membership_plans_read()
+                .plan_membership_set_role(&user(caller), "event_members", target, "cohost")
                 .expect("setRole plan"),
             CallerAuthorityOperation::Remove => db
-                .membership_plans_read().plan_membership_remove(&user(caller), "event_members", target)
+                .membership_plans_read()
+                .plan_membership_remove(&user(caller), "event_members", target)
                 .expect("remove plan"),
             CallerAuthorityOperation::Patch => db
-                .membership_plans_read().plan_membership_patch(
+                .membership_plans_read()
+                .plan_membership_patch(
                     &user(caller),
                     "event_members",
                     target,
@@ -13677,10 +14428,12 @@ mod membership_write_tests {
         assert_eq!(after_insert.epoch, after_bootstrap.epoch + 1);
 
         let role_plan = db
-            .membership_plans().plan_membership_set_role(&user("bob"), "event_members", &bob, "guest")
+            .membership_plans()
+            .plan_membership_set_role(&user("bob"), "event_members", &bob, "guest")
             .expect("accept invite");
         let role_commit = db
-            .membership_plans().commit_membership_plan(&user("bob"), role_plan)
+            .membership_plans()
+            .commit_membership_plan(&user("bob"), role_plan)
             .expect("role commit");
         assert!(role_commit.authorization.as_ref().is_some_and(|w| w.event));
         assert_eq!(
@@ -13695,7 +14448,8 @@ mod membership_write_tests {
         assert_eq!(after_role.epoch, after_insert.epoch + 1);
 
         let incidental_plan = db
-            .membership_plans().plan_membership_patch(
+            .membership_plans()
+            .plan_membership_patch(
                 &user("bob"),
                 "event_members",
                 &bob,
@@ -13703,7 +14457,8 @@ mod membership_write_tests {
             )
             .expect("self preferences patch");
         let incidental_commit = db
-            .membership_plans().commit_membership_plan(&user("bob"), incidental_plan)
+            .membership_plans()
+            .commit_membership_plan(&user("bob"), incidental_plan)
             .expect("incidental commit");
         assert!(
             incidental_commit
@@ -13722,7 +14477,8 @@ mod membership_write_tests {
         assert_eq!(db.authorization_version().unwrap(), after_role);
 
         let expiry_plan = db
-            .membership_plans().plan_membership_patch(
+            .membership_plans()
+            .plan_membership_patch(
                 &user("alice"),
                 "event_members",
                 &bob,
@@ -13730,7 +14486,8 @@ mod membership_write_tests {
             )
             .expect("host expiry patch");
         let expiry_commit = db
-            .membership_plans().commit_membership_plan(&user("alice"), expiry_plan)
+            .membership_plans()
+            .commit_membership_plan(&user("alice"), expiry_plan)
             .expect("expiry commit");
         assert!(
             expiry_commit
@@ -13744,10 +14501,12 @@ mod membership_write_tests {
         );
 
         let remove_plan = db
-            .membership_plans().plan_membership_remove(&user("alice"), "event_members", &bob)
+            .membership_plans()
+            .plan_membership_remove(&user("alice"), "event_members", &bob)
             .expect("host removes guest");
         let remove_commit = db
-            .membership_plans().commit_membership_plan(&user("alice"), remove_plan)
+            .membership_plans()
+            .commit_membership_plan(&user("alice"), remove_plan)
             .expect("remove commit");
         assert!(
             remove_commit
@@ -13783,10 +14542,12 @@ mod membership_write_tests {
             ("role".to_owned(), json!("invited")),
         ]);
         let plan = db
-            .membership_plans().plan_membership_insert(&delegated, "event_members", values)
+            .membership_plans()
+            .plan_membership_insert(&delegated, "event_members", values)
             .expect("delegated invite plan");
         let invite = db
-            .membership_plans().commit_membership_plan(&delegated, plan)
+            .membership_plans()
+            .commit_membership_plan(&delegated, plan)
             .expect("delegated invite commit");
         let bob = commit_id_for_table(&invite, "event_members");
         assert_eq!(
@@ -13802,14 +14563,18 @@ mod membership_write_tests {
         set_role(&mut db, "bob", &bob, "guest").expect("accept invite");
         set_role(&mut db, "alice", &bob, "cohost").expect("promote cohost");
         let downgrade = db
-            .membership_plans().plan_membership_set_role(&delegated, "event_members", &bob, "guest")
+            .membership_plans()
+            .plan_membership_set_role(&delegated, "event_members", &bob, "guest")
             .expect("delegated downgrade plan");
-        db.membership_plans().commit_membership_plan(&delegated, downgrade)
+        db.membership_plans()
+            .commit_membership_plan(&delegated, downgrade)
             .expect("delegated downgrade commit");
         let remove = db
-            .membership_plans().plan_membership_remove(&delegated, "event_members", &bob)
+            .membership_plans()
+            .plan_membership_remove(&delegated, "event_members", &bob)
             .expect("delegated kick plan");
-        db.membership_plans().commit_membership_plan(&delegated, remove)
+        db.membership_plans()
+            .commit_membership_plan(&delegated, remove)
             .expect("delegated kick commit");
         assert_eq!(role_of(&db, &bob), None, "the kicked row is gone");
 
@@ -13852,7 +14617,9 @@ mod membership_write_tests {
             });
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog().expect("auth catalog");
-        db.schema_seed().apply_schema(schema).expect("self-seating schema");
+        db.schema_seed()
+            .apply_schema(schema)
+            .expect("self-seating schema");
         db.conn
             .execute(
                 "INSERT INTO _auth_users(
@@ -13885,7 +14652,8 @@ mod membership_write_tests {
             authority_creating_consent: true,
         };
         let plan = db
-            .membership_plans().plan_membership_insert(
+            .membership_plans()
+            .plan_membership_insert(
                 &delegated,
                 "event_members",
                 Map::from_iter([
@@ -13896,7 +14664,8 @@ mod membership_write_tests {
             )
             .expect("consented delegate seats its actor");
         let commit = db
-            .membership_plans().commit_membership_plan(&delegated, plan)
+            .membership_plans()
+            .commit_membership_plan(&delegated, plan)
             .expect("self-seating commit");
         let membership_id = commit_id_for_table(&commit, "event_members");
 
@@ -13948,7 +14717,8 @@ mod membership_write_tests {
         let (host_id, bob_id) = {
             let mut db = LocalDatabase::open(&path).expect("file database");
             db.activate_current_auth_catalog().expect("auth catalog");
-            db.schema_seed().apply_schema(membership_schema())
+            db.schema_seed()
+                .apply_schema(membership_schema())
                 .expect("membership schema");
             let (event_id, host_id) = create_event(&mut db, "alice");
             invite(&mut db, "alice", &event_id, "bob");
@@ -14037,12 +14807,14 @@ mod membership_write_tests {
     #[test]
     fn global_roles_seed_real_rows_and_import_preserves_creation_provenance() {
         let mut db = LocalDatabase::memory().expect("memory db");
-        db.schema_seed().apply_schema(global_role_schema(Some(MembershipProvenance::Creation)))
+        db.schema_seed()
+            .apply_schema(global_role_schema(Some(MembershipProvenance::Creation)))
             .expect("global role schema");
 
         let seed = MembershipWriter::Seed;
         let seed_plan = db
-            .membership_plans().plan_privileged_membership_insert(
+            .membership_plans()
+            .plan_privileged_membership_insert(
                 &seed,
                 "app_roles",
                 Map::from_iter([
@@ -14051,7 +14823,10 @@ mod membership_write_tests {
                 ]),
             )
             .expect("first global admin is seeded");
-        let seed_commit = db.membership_plans().commit_membership_plan(&seed, seed_plan).unwrap();
+        let seed_commit = db
+            .membership_plans()
+            .commit_membership_plan(&seed, seed_plan)
+            .unwrap();
         let alice = commit_id_for_table(&seed_commit, "app_roles");
         assert_eq!(
             db.membership_creation_provenance("app_roles", &alice)
@@ -14078,7 +14853,8 @@ mod membership_write_tests {
 
         let admin = MembershipWriter::Admin;
         let admin_plan = db
-            .membership_plans().plan_privileged_membership_insert(
+            .membership_plans()
+            .plan_privileged_membership_insert(
                 &admin,
                 "app_roles",
                 Map::from_iter([
@@ -14088,7 +14864,8 @@ mod membership_write_tests {
             )
             .expect("admin data-edit plan");
         let admin_commit = db
-            .membership_plans().commit_membership_plan(&admin, admin_plan)
+            .membership_plans()
+            .commit_membership_plan(&admin, admin_plan)
             .expect("admin data-edit commit");
         let bob = commit_id_for_table(&admin_commit, "app_roles");
         assert_eq!(
@@ -14105,7 +14882,8 @@ mod membership_write_tests {
             granted_by_grant: Some("historical-grant".to_owned()),
         };
         let import_plan = db
-            .membership_plans().plan_privileged_membership_insert(
+            .membership_plans()
+            .plan_privileged_membership_insert(
                 &imported,
                 "app_roles",
                 Map::from_iter([
@@ -14115,7 +14893,8 @@ mod membership_write_tests {
             )
             .expect("import plan");
         let import_commit = db
-            .membership_plans().commit_membership_plan(&imported, import_plan)
+            .membership_plans()
+            .commit_membership_plan(&imported, import_plan)
             .expect("import commit");
         let carol = commit_id_for_table(&import_commit, "app_roles");
         assert_eq!(
@@ -14133,7 +14912,8 @@ mod membership_write_tests {
         );
 
         let duplicate = db
-            .membership_plans().plan_privileged_membership_insert(
+            .membership_plans()
+            .plan_privileged_membership_insert(
                 &MembershipWriter::Admin,
                 "app_roles",
                 Map::from_iter([
@@ -14143,7 +14923,8 @@ mod membership_write_tests {
             )
             .expect("admin plan");
         let error = db
-            .membership_plans().commit_membership_plan(&MembershipWriter::Admin, duplicate)
+            .membership_plans()
+            .commit_membership_plan(&MembershipWriter::Admin, duplicate)
             .expect_err("one global role per declaration");
         assert_eq!(
             error.diagnostic.code,
@@ -14156,27 +14937,31 @@ mod membership_write_tests {
         let mut db = LocalDatabase::memory().expect("memory db");
         let mut plain = global_role_schema(None);
         plain.tables[0].membership = None;
-        db.schema_seed().apply_schema(plain).expect("pre-membership shape");
-        db.execute_mutation(
-            &MutationPlan {
-                steps: vec![MutationStep::Insert {
-                    table: "app_roles".to_owned(),
-                    values: BTreeMap::from([
-                        (
-                            "userId".to_owned(),
-                            ValueExpr::Literal(json!("legacy-user")),
-                        ),
-                        ("role".to_owned(), ValueExpr::Literal(json!("admin"))),
-                    ]),
-                    bind_id_as: None,
-                }],
-                return_value: None,
-            },
-            &HandlerInput::default(),
-        )
-        .expect("seed preexisting row");
+        db.schema_seed()
+            .apply_schema(plain)
+            .expect("pre-membership shape");
+        db.mutation_writes()
+            .execute_mutation(
+                &MutationPlan {
+                    steps: vec![MutationStep::Insert {
+                        table: "app_roles".to_owned(),
+                        values: BTreeMap::from([
+                            (
+                                "userId".to_owned(),
+                                ValueExpr::Literal(json!("legacy-user")),
+                            ),
+                            ("role".to_owned(), ValueExpr::Literal(json!("admin"))),
+                        ]),
+                        bind_id_as: None,
+                    }],
+                    return_value: None,
+                },
+                &HandlerInput::default(),
+            )
+            .expect("seed preexisting row");
         let legacy_id = db
-            .query_reads_read().query(
+            .query_reads_read()
+            .query(
                 &QueryPlan {
                     table: "app_roles".to_owned(),
                     filters: Vec::new(),
@@ -14192,7 +14977,8 @@ mod membership_write_tests {
             .as_str()
             .unwrap()
             .to_owned();
-        db.schema_seed().apply_schema(global_role_schema(Some(MembershipProvenance::Full)))
+        db.schema_seed()
+            .apply_schema(global_role_schema(Some(MembershipProvenance::Full)))
             .expect("brownfield provenance adoption");
         assert_eq!(
             db.membership_creation_provenance("app_roles", &legacy_id)
@@ -14216,6 +15002,7 @@ mod membership_write_tests {
         values.insert("eventId".to_owned(), json!(event_id));
         values.insert("role".to_owned(), json!("host"));
         let error = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Insert {
@@ -14249,6 +15036,7 @@ mod membership_write_tests {
             return_value: None,
         };
         let error = db
+            .mutation_writes()
             .execute_mutation(&plan, &HandlerInput::default())
             .expect_err("hostplan membership insert refused");
         assert_eq!(
@@ -14256,7 +15044,10 @@ mod membership_write_tests {
             "SNAPBACK_MEMBERSHIP_HOSTPLAN_WRITE_DENIED"
         );
         // Dry-run shares the path and must refuse identically.
-        match db.dry_run_mutation(&plan, &HandlerInput::default()) {
+        match db
+            .mutation_writes()
+            .dry_run_mutation(&plan, &HandlerInput::default())
+        {
             Err(error) => assert_eq!(
                 error.diagnostic.code,
                 "SNAPBACK_MEMBERSHIP_HOSTPLAN_WRITE_DENIED"
@@ -14281,7 +15072,8 @@ mod membership_write_tests {
             values.insert("eventId".to_owned(), json!(event_id));
             values.insert("role".to_owned(), json!("guest"));
             let error = db
-                .membership_plans().plan_membership_insert(&writer, "event_members", values)
+                .membership_plans()
+                .plan_membership_insert(&writer, "event_members", values)
                 .expect_err("userless open-join must be refused");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_MEMBERSHIP_NO_EFFECTIVE_PRINCIPAL",
@@ -14305,9 +15097,12 @@ mod membership_write_tests {
         // Leave: self remove.
         let writer = user("bob");
         let plan = db
-            .membership_plans().plan_membership_remove(&writer, "event_members", &bob)
+            .membership_plans()
+            .plan_membership_remove(&writer, "event_members", &bob)
             .expect("leave plan");
-        db.membership_plans().commit_membership_plan(&writer, plan).expect("leave");
+        db.membership_plans()
+            .commit_membership_plan(&writer, plan)
+            .expect("leave");
         assert_eq!(role_of(&db, &bob), None);
     }
 
@@ -14322,9 +15117,12 @@ mod membership_write_tests {
         values.insert("eventId".to_owned(), json!(event_id));
         values.insert("role".to_owned(), json!("guest"));
         let plan = db
-            .membership_plans().plan_membership_insert(&writer, "event_members", values.clone())
+            .membership_plans()
+            .plan_membership_insert(&writer, "event_members", values.clone())
             .expect("open join plan");
-        db.membership_plans().commit_membership_plan(&writer, plan).expect("open join");
+        db.membership_plans()
+            .commit_membership_plan(&writer, plan)
+            .expect("open join");
         assert_eq!(
             role_of(&db, &member_id(&db, &event_id, "carol")).as_deref(),
             Some("guest")
@@ -14338,7 +15136,8 @@ mod membership_write_tests {
         with_expiry.insert("role".to_owned(), json!("guest"));
         with_expiry.insert("expiresAt".to_owned(), json!(9_999_999_999_999i64));
         let error = db
-            .membership_plans().plan_membership_insert(&user("dave"), "event_members", with_expiry)
+            .membership_plans()
+            .plan_membership_insert(&user("dave"), "event_members", with_expiry)
             .expect_err("open join cannot seat expiresAt");
         assert_eq!(
             error.diagnostic.code,
@@ -14376,7 +15175,9 @@ mod membership_write_tests {
             "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
         );
         // And bob cannot kick carol (remove other requires host).
-        let plan = db.membership_plans().plan_membership_remove(&user("bob"), "event_members", &carol);
+        let plan =
+            db.membership_plans()
+                .plan_membership_remove(&user("bob"), "event_members", &carol);
         assert_eq!(
             plan.expect_err("non-host kick refused").diagnostic.code,
             "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
@@ -14395,16 +15196,19 @@ mod membership_write_tests {
         let mut prefs = Map::new();
         prefs.insert("notifyPrefs".to_owned(), json!("muted"));
         let plan = db
-            .membership_plans().plan_membership_patch(&user("bob"), "event_members", &bob, prefs)
+            .membership_plans()
+            .plan_membership_patch(&user("bob"), "event_members", &bob, prefs)
             .expect("prefs plan");
-        db.membership_plans().commit_membership_plan(&user("bob"), plan)
+        db.membership_plans()
+            .commit_membership_plan(&user("bob"), plan)
             .expect("prefs");
 
         // Self may NOT extend own expiresAt (the self-renewal hole).
         let mut extend = Map::new();
         extend.insert("expiresAt".to_owned(), json!(9_999_999_999_999i64));
         let error = db
-            .membership_plans().plan_membership_patch(&user("bob"), "event_members", &bob, extend.clone())
+            .membership_plans()
+            .plan_membership_patch(&user("bob"), "event_members", &bob, extend.clone())
             .expect_err("self expiry extend refused");
         assert_eq!(
             error.diagnostic.code,
@@ -14413,9 +15217,11 @@ mod membership_write_tests {
 
         // But a host may extend a guest's expiresAt.
         let plan = db
-            .membership_plans().plan_membership_patch(&user("alice"), "event_members", &bob, extend)
+            .membership_plans()
+            .plan_membership_patch(&user("alice"), "event_members", &bob, extend)
             .expect("host extend plan");
-        db.membership_plans().commit_membership_plan(&user("alice"), plan)
+        db.membership_plans()
+            .commit_membership_plan(&user("alice"), plan)
             .expect("host extend");
     }
 
@@ -14435,21 +15241,27 @@ mod membership_write_tests {
             .from = Some(vec!["guest".to_owned()]);
         let mut restricted = LocalDatabase::memory().unwrap();
         restricted.activate_current_auth_catalog().unwrap();
-        restricted.schema_seed().apply_schema(restricted_schema).unwrap();
+        restricted
+            .schema_seed()
+            .apply_schema(restricted_schema)
+            .unwrap();
         let (event_id, _) = create_event(&mut restricted, "alice");
         invite(&mut restricted, "alice", &event_id, "bob");
         let bob = member_id(&restricted, &event_id, "bob");
         set_role(&mut restricted, "bob", &bob, "guest").unwrap();
         let expiry = Map::from_iter([("expiresAt".to_owned(), json!(5000))]);
         let guest_patch = restricted
-            .membership_plans().plan_membership_patch(&user("alice"), "event_members", &bob, expiry.clone())
+            .membership_plans()
+            .plan_membership_patch(&user("alice"), "event_members", &bob, expiry.clone())
             .expect("guest is in from set");
         restricted
-            .membership_plans().commit_membership_plan(&user("alice"), guest_patch)
+            .membership_plans()
+            .commit_membership_plan(&user("alice"), guest_patch)
             .unwrap();
         set_role(&mut restricted, "alice", &bob, "cohost").unwrap();
         let error = restricted
-            .membership_plans().plan_membership_patch(&user("alice"), "event_members", &bob, expiry.clone())
+            .membership_plans()
+            .plan_membership_patch(&user("alice"), "event_members", &bob, expiry.clone())
             .expect_err("cohost is outside from set");
         assert_eq!(
             error.diagnostic.code,
@@ -14463,7 +15275,8 @@ mod membership_write_tests {
         set_role(&mut unrestricted, "bob", &bob, "guest").unwrap();
         set_role(&mut unrestricted, "alice", &bob, "cohost").unwrap();
         unrestricted
-            .membership_plans().plan_membership_patch(&user("alice"), "event_members", &bob, expiry)
+            .membership_plans()
+            .plan_membership_patch(&user("alice"), "event_members", &bob, expiry)
             .expect("omitted from accepts any current role");
     }
 
@@ -14475,6 +15288,7 @@ mod membership_write_tests {
         // A raw resource insert of a protected declaration's resource is refused;
         // it must go through the bootstrap path.
         let error = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Insert {
@@ -14505,7 +15319,8 @@ mod membership_write_tests {
         usurp.insert("eventId".to_owned(), json!(event_id));
         usurp.insert("role".to_owned(), json!("host"));
         let error = db
-            .membership_plans().plan_membership_insert(&user("mallory"), "event_members", usurp)
+            .membership_plans()
+            .plan_membership_insert(&user("mallory"), "event_members", usurp)
             .expect_err("no bootstrap witness on an existing resource");
         assert_eq!(
             error.diagnostic.code,
@@ -14519,7 +15334,8 @@ mod membership_write_tests {
         let (event_id, host_id) = create_event(&mut db, "alice");
         // Lone host leaving would strand the resource.
         let error = db
-            .membership_plans().plan_membership_remove(&user("alice"), "event_members", &host_id)
+            .membership_plans()
+            .plan_membership_remove(&user("alice"), "event_members", &host_id)
             .expect_err("lone host leave refused");
         assert_eq!(
             error.diagnostic.code,
@@ -14529,14 +15345,17 @@ mod membership_write_tests {
         // Seat a second host; now alice may leave.
         promote_to_host(&mut db, "alice", &event_id, "bob");
         let plan = db
-            .membership_plans().plan_membership_remove(&user("alice"), "event_members", &host_id)
+            .membership_plans()
+            .plan_membership_remove(&user("alice"), "event_members", &host_id)
             .expect("second host present");
-        db.membership_plans().commit_membership_plan(&user("alice"), plan)
+        db.membership_plans()
+            .commit_membership_plan(&user("alice"), plan)
             .expect("alice leaves");
         // And now bob is the lone host again.
         let bob_id = member_id(&db, &event_id, "bob");
         let error = db
-            .membership_plans().plan_membership_remove(&user("bob"), "event_members", &bob_id)
+            .membership_plans()
+            .plan_membership_remove(&user("bob"), "event_members", &bob_id)
             .expect_err("bob is now the lone host");
         assert_eq!(
             error.diagnostic.code,
@@ -14562,7 +15381,8 @@ mod membership_write_tests {
         // B leaving is now refused — A is ineligible, so B is the last eligible
         // holder and the resource would strand permanently.
         let error = db
-            .membership_plans().plan_membership_remove(&user("agent-b"), "event_members", &agent_b_host)
+            .membership_plans()
+            .plan_membership_remove(&user("agent-b"), "event_members", &agent_b_host)
             .expect_err("second-step leave must be refused");
         assert_eq!(
             error.diagnostic.code,
@@ -14614,13 +15434,15 @@ mod membership_write_tests {
         // detect that spending the stale plan would strand the resource.
         let (mut auth_first, agent_a, agent_b) = prepare();
         let stale_remove = auth_first
-            .membership_plans().plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
+            .membership_plans()
+            .plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
             .unwrap();
         auth_first
             .deactivate_agent("agent-a", 100, &membership_schema())
             .unwrap();
         let error = auth_first
-            .membership_plans().commit_membership_plan(&user("agent-b"), stale_remove)
+            .membership_plans()
+            .commit_membership_plan(&user("agent-b"), stale_remove)
             .expect_err("stale removal must observe the survivor's ineligibility");
         assert_eq!(
             error.diagnostic.code,
@@ -14633,10 +15455,12 @@ mod membership_write_tests {
         // the auth side and is the refused second writer.
         let (mut membership_first, agent_a, agent_b) = prepare();
         let remove = membership_first
-            .membership_plans().plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
+            .membership_plans()
+            .plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
             .unwrap();
         membership_first
-            .membership_plans().commit_membership_plan(&user("agent-b"), remove)
+            .membership_plans()
+            .commit_membership_plan(&user("agent-b"), remove)
             .unwrap();
         let error = membership_first
             .deactivate_agent("agent-a", 100, &membership_schema())
@@ -14693,13 +15517,15 @@ mod membership_write_tests {
         // the resource and the aggregate final state is otherwise nonempty.
         let (mut auth_first, target) = prepare();
         let stale_promotion = auth_first
-            .membership_plans().plan_membership_set_role(&user("agent-a"), "event_members", &target, "host")
+            .membership_plans()
+            .plan_membership_set_role(&user("agent-a"), "event_members", &target, "host")
             .unwrap();
         auth_first
             .deactivate_agent("agent-b", 100, &membership_schema())
             .unwrap();
         let error = auth_first
-            .membership_plans().commit_membership_plan(&user("agent-a"), stale_promotion)
+            .membership_plans()
+            .commit_membership_plan(&user("agent-a"), stale_promotion)
             .expect_err("commit must recheck target eligibility after deactivation");
         assert_eq!(
             error.diagnostic.code,
@@ -14712,10 +15538,12 @@ mod membership_write_tests {
         // eligible holder. Both serialized outcomes preserve the invariant.
         let (mut membership_first, target) = prepare();
         let promotion = membership_first
-            .membership_plans().plan_membership_set_role(&user("agent-a"), "event_members", &target, "host")
+            .membership_plans()
+            .plan_membership_set_role(&user("agent-a"), "event_members", &target, "host")
             .unwrap();
         membership_first
-            .membership_plans().commit_membership_plan(&user("agent-a"), promotion)
+            .membership_plans()
+            .commit_membership_plan(&user("agent-a"), promotion)
             .unwrap();
         membership_first
             .deactivate_agent("agent-b", 100, &membership_schema())
@@ -14730,13 +15558,15 @@ mod membership_write_tests {
         let (mut auth_first, _, _, agent_b, _, _) = sessions_holder_fixture(true);
         let manifest = auth_first.schema().clone();
         let demote = auth_first
-            .membership_plans().plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
+            .membership_plans()
+            .plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
             .expect("demotion plan");
         auth_first
             .deactivate_agent("agent-a", 100, &manifest)
             .expect("B remains an eligible host");
         let error = auth_first
-            .membership_plans().commit_membership_plan(&user("agent-a"), demote)
+            .membership_plans()
+            .commit_membership_plan(&user("agent-a"), demote)
             .expect_err("demotion cannot spend a deactivated survivor");
         assert_eq!(
             error.diagnostic.code,
@@ -14749,10 +15579,12 @@ mod membership_write_tests {
         let (mut membership_first, _, agent_a, agent_b, _, _) = sessions_holder_fixture(true);
         let manifest = membership_first.schema().clone();
         let demote = membership_first
-            .membership_plans().plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
+            .membership_plans()
+            .plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
             .expect("demotion plan");
         membership_first
-            .membership_plans().commit_membership_plan(&user("agent-a"), demote)
+            .membership_plans()
+            .commit_membership_plan(&user("agent-a"), demote)
             .expect("demotion commits first");
         let error = membership_first
             .deactivate_agent("agent-a", 100, &manifest)
@@ -14776,11 +15608,13 @@ mod membership_write_tests {
                 sessions_holder_fixture(demote);
             let departure = if demote {
                 auth_first
-                    .membership_plans().plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
+                    .membership_plans()
+                    .plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
                     .expect("demotion plan")
             } else {
                 auth_first
-                    .membership_plans().plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
+                    .membership_plans()
+                    .plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
                     .expect("removal plan")
             };
             auth_first
@@ -14792,7 +15626,8 @@ mod membership_write_tests {
                 user("agent-b")
             };
             let error = auth_first
-                .membership_plans().commit_membership_plan(&writer, departure)
+                .membership_plans()
+                .commit_membership_plan(&writer, departure)
                 .expect_err("departure cannot spend a now-unrecoverable survivor");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND",
@@ -14806,11 +15641,13 @@ mod membership_write_tests {
                 sessions_holder_fixture(demote);
             let departure = if demote {
                 membership_first
-                    .membership_plans().plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
+                    .membership_plans()
+                    .plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
                     .expect("demotion plan")
             } else {
                 membership_first
-                    .membership_plans().plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
+                    .membership_plans()
+                    .plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
                     .expect("removal plan")
             };
             let writer = if demote {
@@ -14819,7 +15656,8 @@ mod membership_write_tests {
                 user("agent-b")
             };
             membership_first
-                .membership_plans().commit_membership_plan(&writer, departure)
+                .membership_plans()
+                .commit_membership_plan(&writer, departure)
                 .expect("membership departure commits first");
             let error = membership_first
                 .revoke_agent_credential_family(&agent_a_credential, 100)
@@ -14847,18 +15685,22 @@ mod membership_write_tests {
 
         // Both leaves are PLANNED against the same snapshot (two eligible hosts).
         let alice_plan = db
-            .membership_plans().plan_membership_remove(&user("alice"), "event_members", &alice_host)
+            .membership_plans()
+            .plan_membership_remove(&user("alice"), "event_members", &alice_host)
             .expect("alice plan");
         let bob_plan = db
-            .membership_plans().plan_membership_remove(&user("bob"), "event_members", &bob_host)
+            .membership_plans()
+            .plan_membership_remove(&user("bob"), "event_members", &bob_host)
             .expect("bob plan");
 
         // The first commits; the second relied on the first's row surviving, so it
         // fails commit-time read-set validation.
-        db.membership_plans().commit_membership_plan(&user("alice"), alice_plan)
+        db.membership_plans()
+            .commit_membership_plan(&user("alice"), alice_plan)
             .expect("alice commits");
         let error = db
-            .membership_plans().commit_membership_plan(&user("bob"), bob_plan)
+            .membership_plans()
+            .commit_membership_plan(&user("bob"), bob_plan)
             .expect_err("bob's concurrent final removal must fail at commit");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
         // Exactly one host remains — the resource is never stranded.
@@ -14881,13 +15723,16 @@ mod membership_write_tests {
                 &target,
             );
             let remove_caller = authority_first
-                .membership_plans().plan_membership_remove(&user("alice"), "event_members", &alice)
+                .membership_plans()
+                .plan_membership_remove(&user("alice"), "event_members", &alice)
                 .expect("second host permits caller removal");
             authority_first
-                .membership_plans().commit_membership_plan(&user("alice"), remove_caller)
+                .membership_plans()
+                .commit_membership_plan(&user("alice"), remove_caller)
                 .expect("caller membership removal commits first");
             let error = authority_first
-                .membership_plans().commit_membership_plan(&user("alice"), stale)
+                .membership_plans()
+                .commit_membership_plan(&user("alice"), stale)
                 .expect_err("stale caller authority must not commit");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT",
@@ -14909,23 +15754,28 @@ mod membership_write_tests {
                 &target,
             );
             let remove_caller = operation_first
-                .membership_plans().plan_membership_remove(&user("alice"), "event_members", &alice)
+                .membership_plans()
+                .plan_membership_remove(&user("alice"), "event_members", &alice)
                 .expect("concurrent caller removal plan");
             operation_first
-                .membership_plans().commit_membership_plan(&user("alice"), operation_plan)
+                .membership_plans()
+                .commit_membership_plan(&user("alice"), operation_plan)
                 .unwrap_or_else(|error| panic!("operation {operation:?} must win: {error}"));
-            if let Err(error) =
-                operation_first.membership_plans().commit_membership_plan(&user("alice"), remove_caller)
+            if let Err(error) = operation_first
+                .membership_plans()
+                .commit_membership_plan(&user("alice"), remove_caller)
             {
                 assert_eq!(
                     error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT",
                     "operation {operation:?}"
                 );
                 let retry = operation_first
-                    .membership_plans().plan_membership_remove(&user("alice"), "event_members", &alice)
+                    .membership_plans()
+                    .plan_membership_remove(&user("alice"), "event_members", &alice)
                     .expect("fresh caller removal plan");
                 operation_first
-                    .membership_plans().commit_membership_plan(&user("alice"), retry)
+                    .membership_plans()
+                    .commit_membership_plan(&user("alice"), retry)
                     .expect("fresh caller removal commits");
             }
         }
@@ -14952,13 +15802,16 @@ mod membership_write_tests {
                 &target,
             );
             let demote_caller = authority_first
-                .membership_plans().plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
+                .membership_plans()
+                .plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
                 .expect("bob may demote alice");
             authority_first
-                .membership_plans().commit_membership_plan(&user("bob"), demote_caller)
+                .membership_plans()
+                .commit_membership_plan(&user("bob"), demote_caller)
                 .expect("caller demotion commits first");
             let error = authority_first
-                .membership_plans().commit_membership_plan(&user("alice"), stale)
+                .membership_plans()
+                .commit_membership_plan(&user("alice"), stale)
                 .expect_err("a host plan cannot survive caller demotion");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT",
@@ -14975,22 +15828,28 @@ mod membership_write_tests {
                 &target,
             );
             let demote_caller = operation_first
-                .membership_plans().plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
+                .membership_plans()
+                .plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
                 .expect("concurrent caller demotion plan");
             operation_first
-                .membership_plans().commit_membership_plan(&user("alice"), operation_plan)
+                .membership_plans()
+                .commit_membership_plan(&user("alice"), operation_plan)
                 .unwrap_or_else(|error| panic!("operation {operation:?} must win: {error}"));
-            if let Err(error) = operation_first.membership_plans().commit_membership_plan(&user("bob"), demote_caller)
+            if let Err(error) = operation_first
+                .membership_plans()
+                .commit_membership_plan(&user("bob"), demote_caller)
             {
                 assert_eq!(
                     error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT",
                     "operation {operation:?}"
                 );
                 let retry = operation_first
-                    .membership_plans().plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
+                    .membership_plans()
+                    .plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
                     .expect("fresh caller demotion plan");
                 operation_first
-                    .membership_plans().commit_membership_plan(&user("bob"), retry)
+                    .membership_plans()
+                    .commit_membership_plan(&user("bob"), retry)
                     .expect("fresh caller demotion commits");
             }
         }
@@ -15004,28 +15863,30 @@ mod membership_write_tests {
             schema
         };
         let other_insert = |db: &LocalDatabase, event_id: &str| {
-            db.membership_plans_read().plan_membership_insert(
-                &user("mallory"),
-                "event_members",
-                Map::from_iter([
-                    ("userId".to_owned(), json!("dave")),
-                    ("eventId".to_owned(), json!(event_id)),
-                    ("role".to_owned(), json!("invited")),
-                ]),
-            )
-            .expect("none-class other insert plan")
+            db.membership_plans_read()
+                .plan_membership_insert(
+                    &user("mallory"),
+                    "event_members",
+                    Map::from_iter([
+                        ("userId".to_owned(), json!("dave")),
+                        ("eventId".to_owned(), json!(event_id)),
+                        ("role".to_owned(), json!("invited")),
+                    ]),
+                )
+                .expect("none-class other insert plan")
         };
         let join = |db: &LocalDatabase, event_id: &str| {
-            db.membership_plans_read().plan_membership_insert(
-                &user("mallory"),
-                "event_members",
-                Map::from_iter([
-                    ("userId".to_owned(), json!("mallory")),
-                    ("eventId".to_owned(), json!(event_id)),
-                    ("role".to_owned(), json!("guest")),
-                ]),
-            )
-            .expect("absent caller may open-join")
+            db.membership_plans_read()
+                .plan_membership_insert(
+                    &user("mallory"),
+                    "event_members",
+                    Map::from_iter([
+                        ("userId".to_owned(), json!("mallory")),
+                        ("eventId".to_owned(), json!(event_id)),
+                        ("role".to_owned(), json!("guest")),
+                    ]),
+                )
+                .expect("absent caller may open-join")
         };
 
         // Membership wins: the caller is no longer class `none`, so the stale
@@ -15034,10 +15895,12 @@ mod membership_write_tests {
         let stale = other_insert(&membership_first, &event_id);
         let caller_join = join(&membership_first, &event_id);
         membership_first
-            .membership_plans().commit_membership_plan(&user("mallory"), caller_join)
+            .membership_plans()
+            .commit_membership_plan(&user("mallory"), caller_join)
             .expect("caller membership appears first");
         let error = membership_first
-            .membership_plans().commit_membership_plan(&user("mallory"), stale)
+            .membership_plans()
+            .commit_membership_plan(&user("mallory"), stale)
             .expect_err("none-class plan must reject an absent-to-present caller race");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
 
@@ -15047,10 +15910,12 @@ mod membership_write_tests {
         let operation_plan = other_insert(&operation_first, &event_id);
         let caller_join = join(&operation_first, &event_id);
         operation_first
-            .membership_plans().commit_membership_plan(&user("mallory"), operation_plan)
+            .membership_plans()
+            .commit_membership_plan(&user("mallory"), operation_plan)
             .expect("none-class operation commits first");
         operation_first
-            .membership_plans().commit_membership_plan(&user("mallory"), caller_join)
+            .membership_plans()
+            .commit_membership_plan(&user("mallory"), caller_join)
             .expect("caller membership commits second");
     }
 
@@ -15060,7 +15925,8 @@ mod membership_write_tests {
         let (event_id, alice_host) = create_event(&mut db, "alice");
         promote_to_host(&mut db, "alice", &event_id, "bob");
         let invite_plan = db
-            .membership_plans().plan_membership_insert(
+            .membership_plans()
+            .plan_membership_insert(
                 &user("alice"),
                 "event_members",
                 Map::from_iter([
@@ -15071,12 +15937,15 @@ mod membership_write_tests {
             )
             .expect("host invite planned");
         let leave = db
-            .membership_plans().plan_membership_remove(&user("alice"), "event_members", &alice_host)
+            .membership_plans()
+            .plan_membership_remove(&user("alice"), "event_members", &alice_host)
             .expect("other host preserves resource");
-        db.membership_plans().commit_membership_plan(&user("alice"), leave)
+        db.membership_plans()
+            .commit_membership_plan(&user("alice"), leave)
             .expect("caller membership removed first");
         let error = db
-            .membership_plans().commit_membership_plan(&user("alice"), invite_plan)
+            .membership_plans()
+            .commit_membership_plan(&user("alice"), invite_plan)
             .expect_err("obsolete host authority must not commit");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
     }
@@ -15102,7 +15971,8 @@ mod membership_write_tests {
         db.schema_seed().apply_schema(schema).unwrap();
         let (event_id, _) = create_event(&mut db, "alice");
         let stale = db
-            .membership_plans().plan_membership_insert(
+            .membership_plans()
+            .plan_membership_insert(
                 &user("mallory"),
                 "event_members",
                 Map::from_iter([
@@ -15113,7 +15983,8 @@ mod membership_write_tests {
             )
             .expect("none-class other insert plan");
         let join = db
-            .membership_plans().plan_membership_insert(
+            .membership_plans()
+            .plan_membership_insert(
                 &user("mallory"),
                 "event_members",
                 Map::from_iter([
@@ -15123,9 +15994,12 @@ mod membership_write_tests {
                 ]),
             )
             .expect("caller joins");
-        db.membership_plans().commit_membership_plan(&user("mallory"), join).unwrap();
+        db.membership_plans()
+            .commit_membership_plan(&user("mallory"), join)
+            .unwrap();
         let error = db
-            .membership_plans().commit_membership_plan(&user("mallory"), stale)
+            .membership_plans()
+            .commit_membership_plan(&user("mallory"), stale)
             .expect_err("empty caller witness must invalidate");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
     }
@@ -15140,7 +16014,8 @@ mod membership_write_tests {
         values.insert("eventId".to_owned(), json!("ghost-event"));
         values.insert("role".to_owned(), json!("guest"));
         let error = db
-            .membership_plans_read().plan_membership_insert(&user("carol"), "event_members", values)
+            .membership_plans_read()
+            .plan_membership_insert(&user("carol"), "event_members", values)
             .expect_err("insert on a missing resource is refused");
         assert_eq!(
             error.diagnostic.code,
@@ -15154,6 +16029,7 @@ mod membership_write_tests {
         let (event_id, _) = create_event(&mut db, "alice");
         // A plain resource delete while the host remains is refused.
         let error = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![BufferedWrite::Delete {
@@ -15171,9 +16047,11 @@ mod membership_write_tests {
         // Teardown clears the whole roster (including the protected host) and
         // deletes the resource.
         let plan = db
-            .membership_plans().plan_membership_teardown(&user("alice"), "events", &event_id)
+            .membership_plans()
+            .plan_membership_teardown(&user("alice"), "events", &event_id)
             .expect("teardown plan");
-        db.membership_plans().commit_membership_plan(&user("alice"), plan)
+        db.membership_plans()
+            .commit_membership_plan(&user("alice"), plan)
             .expect("teardown");
         let remaining: i64 = db
             .conn
@@ -15202,18 +16080,22 @@ mod membership_write_tests {
 
         // Both planned against the same snapshot.
         let join_plan = db
-            .membership_plans().plan_membership_insert(&user("carol"), "event_members", join_values)
+            .membership_plans()
+            .plan_membership_insert(&user("carol"), "event_members", join_values)
             .expect("join plan");
         let teardown_plan = db
-            .membership_plans().plan_membership_teardown(&user("alice"), "events", &event_id)
+            .membership_plans()
+            .plan_membership_teardown(&user("alice"), "events", &event_id)
             .expect("teardown plan");
 
         // Teardown commits first; the racing insert then fails because the
         // resource row it captured is gone — no orphan on a deleted resource.
-        db.membership_plans().commit_membership_plan(&user("alice"), teardown_plan)
+        db.membership_plans()
+            .commit_membership_plan(&user("alice"), teardown_plan)
             .expect("teardown commits");
         let error = db
-            .membership_plans().commit_membership_plan(&user("carol"), join_plan)
+            .membership_plans()
+            .commit_membership_plan(&user("carol"), join_plan)
             .expect_err("open join must lose to the completed teardown");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
     }
@@ -15227,17 +16109,21 @@ mod membership_write_tests {
         join_values.insert("eventId".to_owned(), json!(event_id));
         join_values.insert("role".to_owned(), json!("guest"));
         let join_plan = db
-            .membership_plans().plan_membership_insert(&user("carol"), "event_members", join_values)
+            .membership_plans()
+            .plan_membership_insert(&user("carol"), "event_members", join_values)
             .expect("join plan");
         let teardown_plan = db
-            .membership_plans().plan_membership_teardown(&user("alice"), "events", &event_id)
+            .membership_plans()
+            .plan_membership_teardown(&user("alice"), "events", &event_id)
             .expect("teardown plan");
         // The insert commits first; the teardown's captured roster emptiness is
         // now stale, so it fails rather than orphaning the new member.
-        db.membership_plans().commit_membership_plan(&user("carol"), join_plan)
+        db.membership_plans()
+            .commit_membership_plan(&user("carol"), join_plan)
             .expect("join commits");
         let error = db
-            .membership_plans().commit_membership_plan(&user("alice"), teardown_plan)
+            .membership_plans()
+            .commit_membership_plan(&user("alice"), teardown_plan)
             .expect_err("teardown must lose to the completed open join");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
     }
@@ -15261,9 +16147,11 @@ mod membership_write_tests {
         carol.insert("eventId".to_owned(), json!(event_id));
         carol.insert("role".to_owned(), json!("guest"));
         let plan = db
-            .membership_plans().plan_membership_insert(&user("carol"), "event_members", carol)
+            .membership_plans()
+            .plan_membership_insert(&user("carol"), "event_members", carol)
             .expect("carol join");
-        db.membership_plans().commit_membership_plan(&user("carol"), plan)
+        db.membership_plans()
+            .commit_membership_plan(&user("carol"), plan)
             .expect("carol commit");
         let carol_id = member_id(&db, &event_id, "carol");
         db.conn
@@ -15275,19 +16163,22 @@ mod membership_write_tests {
 
         // A user authority cannot sweep.
         let error = db
-            .membership_plans().plan_membership_sweep_expired(&user("alice"), "event_members", 1000)
+            .membership_plans()
+            .plan_membership_sweep_expired(&user("alice"), "event_members", 1000)
             .expect_err("user cannot sweep");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY");
 
         // System sweeps: carol (guest, expired) is removed; the host is skipped
         // because lastHolder wins over expiry.
         let plan = db
-            .membership_plans().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 1000)
+            .membership_plans()
+            .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 1000)
             .expect("sweep plan");
         assert_eq!(plan.skipped_protected(), std::slice::from_ref(&host_id));
         let before_sweep = db.authorization_version().expect("pre-sweep version");
         let sweep = db
-            .membership_plans().commit_membership_plan(&MembershipWriter::System, plan)
+            .membership_plans()
+            .commit_membership_plan(&MembershipWriter::System, plan)
             .expect("sweep commit");
         let authorization = sweep.authorization.expect("sweep witness");
         assert!(authorization.event, "expiry removal is event 1");
@@ -15326,20 +16217,24 @@ mod membership_write_tests {
             )
             .unwrap();
         let sweep = db
-            .membership_plans().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+            .membership_plans()
+            .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
             .expect("expired row planned");
         let renewal = db
-            .membership_plans().plan_membership_patch(
+            .membership_plans()
+            .plan_membership_patch(
                 &user("alice"),
                 "event_members",
                 &carol,
                 Map::from_iter([("expiresAt".to_owned(), json!(1000))]),
             )
             .expect("host renewal plan");
-        db.membership_plans().commit_membership_plan(&user("alice"), renewal)
+        db.membership_plans()
+            .commit_membership_plan(&user("alice"), renewal)
             .expect("renewal commits first");
         let error = db
-            .membership_plans().commit_membership_plan(&MembershipWriter::System, sweep)
+            .membership_plans()
+            .commit_membership_plan(&MembershipWriter::System, sweep)
             .expect_err("stale sweep cannot delete a renewed row");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
         assert_eq!(role_of(&db, &carol).as_deref(), Some("guest"));
@@ -15359,11 +16254,13 @@ mod membership_write_tests {
             )
             .unwrap();
         let sweep = db
-            .membership_plans().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+            .membership_plans()
+            .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
             .unwrap();
         set_role(&mut db, "alice", &carol, "cohost").unwrap();
         let error = db
-            .membership_plans().commit_membership_plan(&MembershipWriter::System, sweep)
+            .membership_plans()
+            .commit_membership_plan(&MembershipWriter::System, sweep)
             .expect_err("a stale sweep cannot delete a promoted row");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
         assert_eq!(role_of(&db, &carol).as_deref(), Some("cohost"));
@@ -15385,7 +16282,8 @@ mod membership_write_tests {
                 )
                 .unwrap();
             let sweep = db
-                .membership_plans().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+                .membership_plans()
+                .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
                 .unwrap();
             assert_eq!(
                 sweep.writes.len(),
@@ -15413,7 +16311,8 @@ mod membership_write_tests {
             .deactivate_agent(&survivor, 100, &membership_schema())
             .unwrap();
         let error = auth_first
-            .membership_plans().commit_membership_plan(&MembershipWriter::System, sweep)
+            .membership_plans()
+            .commit_membership_plan(&MembershipWriter::System, sweep)
             .expect_err("sweep cannot spend a now-ineligible survivor");
         assert_eq!(
             error.diagnostic.code,
@@ -15425,7 +16324,8 @@ mod membership_write_tests {
         // later deactivation is then refused from the auth side.
         let (mut sweep_first, sweep, survivor, survivor_id) = prepare();
         sweep_first
-            .membership_plans().commit_membership_plan(&MembershipWriter::System, sweep)
+            .membership_plans()
+            .commit_membership_plan(&MembershipWriter::System, sweep)
             .unwrap();
         let error = sweep_first
             .deactivate_agent(&survivor, 100, &membership_schema())
@@ -15449,7 +16349,8 @@ mod membership_write_tests {
                 )
                 .expect("expire both protected holders");
             let sweep = db
-                .membership_plans_read().plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+                .membership_plans_read()
+                .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
                 .expect("expiry plan");
             assert_eq!(sweep.writes.len(), 1);
             assert_eq!(sweep.skipped_protected().len(), 1);
@@ -15486,7 +16387,8 @@ mod membership_write_tests {
             .revoke_agent_credential_family(survivor_credential, 100)
             .expect("the other expired holder is still recoverable before the sweep");
         let error = auth_first
-            .membership_plans().commit_membership_plan(&MembershipWriter::System, sweep)
+            .membership_plans()
+            .commit_membership_plan(&MembershipWriter::System, sweep)
             .expect_err("sweep cannot spend a revoked survivor");
         assert_eq!(
             error.diagnostic.code,
@@ -15504,7 +16406,8 @@ mod membership_write_tests {
             &agent_b_credential
         };
         sweep_first
-            .membership_plans().commit_membership_plan(&MembershipWriter::System, sweep)
+            .membership_plans()
+            .commit_membership_plan(&MembershipWriter::System, sweep)
             .expect("sweep commits first");
         let error = sweep_first
             .revoke_agent_credential_family(survivor_credential, 100)
@@ -15584,7 +16487,8 @@ mod membership_write_tests {
         assert!(!event_ids.iter().any(|event| event == &event_two));
 
         let error = db
-            .query_reads_read().query(&plan, &input)
+            .query_reads_read()
+            .query(&plan, &input)
             .expect_err("generic roster primary reads are private by default");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_READ_PRIVATE");
     }
@@ -15617,7 +16521,10 @@ mod membership_write_tests {
                 },
                 ..HandlerInput::default()
             };
-            let healthy = db.query_reads_read().query(&plan, &input).expect("healthy membership query");
+            let healthy = db
+                .query_reads_read()
+                .query(&plan, &input)
+                .expect("healthy membership query");
             assert_eq!(healthy.rows.len(), 1);
             assert_eq!(healthy.rows[0]["_id"], event_id);
 
@@ -15628,7 +16535,8 @@ mod membership_write_tests {
                 )
                 .unwrap();
             let error = db
-                .query_reads_read().query(&plan, &input)
+                .query_reads_read()
+                .query(&plan, &input)
                 .expect_err("corrupt membership row must not influence EXISTS");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -15736,7 +16644,9 @@ mod membership_write_tests {
         ))
         .expect("todo generated schema");
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.schema_seed().apply_schema(manifest).expect("apply schema");
+        db.schema_seed()
+            .apply_schema(manifest)
+            .expect("apply schema");
         let make_artifact = |version: &str, id: &str| {
             let mut artifact = SeedArtifactV1 {
                 format_version: SEED_ARTIFACT_FORMAT_V1.to_owned(),
@@ -15758,7 +16668,8 @@ mod membership_write_tests {
         };
         let predecessor_artifact = make_artifact("predecessor", "old");
         let predecessor = db
-            .schema_seed().ensure_versioned_seed(InstallSeedRequestV1 {
+            .schema_seed()
+            .ensure_versioned_seed(InstallSeedRequestV1 {
                 format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
                 operation_id: "01982c7a-7c00-7000-8000-000000000201".to_owned(),
                 artifact: predecessor_artifact.clone(),
@@ -15805,28 +16716,35 @@ mod membership_write_tests {
         };
         let request_digest = request.request_digest().expect("request digest");
         inject_reset_commit_failure_for_test();
-        let attempt = db.schema_seed().attempt_versioned_seed_reset_with_authorization_stream(
-            request,
-            carrier.predecessor(),
-            carrier.successor(),
-        );
+        let attempt = db
+            .schema_seed()
+            .attempt_versioned_seed_reset_with_authorization_stream(
+                request,
+                carrier.predecessor(),
+                carrier.successor(),
+            );
         coordinator
             .finish_stream_reset(carrier, attempt)
             .expect_err("precommit fault rolls back");
 
-        let scan = db.query_reads_read().scan_table("todos", 10, 0).expect("predecessor rows");
+        let scan = db
+            .query_reads_read()
+            .scan_table("todos", 10, 0)
+            .expect("predecessor rows");
         assert_eq!(scan.total, 1);
         assert_eq!(scan.rows[0]["_id"], "old");
         assert!(
-            db.schema_seed().replay_versioned_seed_operation(
-                "01982c7a-7c00-7000-8000-000000000202",
-                &request_digest,
-            )
-            .expect("operation lookup")
-            .is_none()
+            db.schema_seed()
+                .replay_versioned_seed_operation(
+                    "01982c7a-7c00-7000-8000-000000000202",
+                    &request_digest,
+                )
+                .expect("operation lookup")
+                .is_none()
         );
         let matched = db
-            .schema_seed().ensure_versioned_seed(InstallSeedRequestV1 {
+            .schema_seed()
+            .ensure_versioned_seed(InstallSeedRequestV1 {
                 format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
                 operation_id: "01982c7a-7c00-7000-8000-000000000203".to_owned(),
                 artifact: predecessor_artifact,

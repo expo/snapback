@@ -779,7 +779,12 @@ fn measure_current_reads(
             ]),
         })
         .collect();
-    database.commit_buffered_writes(&HandlerInput::default(), writes, Vec::new(), Value::Null)?;
+    database.mutation_writes().commit_buffered_writes(
+        &HandlerInput::default(),
+        writes,
+        Vec::new(),
+        Value::Null,
+    )?;
 
     let plan = QueryPlan {
         table: "todos".to_owned(),
@@ -790,9 +795,13 @@ fn measure_current_reads(
         indexed_by: None,
     };
     for _ in 0..4 {
-        database.query_reads_read().get("todos", "bench-read-0256")?;
+        database
+            .query_reads_read()
+            .get("todos", "bench-read-0256")?;
         database.query_reads_read().scan_table("todos", 50, 200)?;
-        database.query_reads_read().query(&plan, &HandlerInput::default())?;
+        database
+            .query_reads_read()
+            .query(&plan, &HandlerInput::default())?;
     }
 
     let mut point = Vec::with_capacity(config.iterations);
@@ -800,7 +809,9 @@ fn measure_current_reads(
     let mut query_plan = Vec::with_capacity(config.iterations);
     for _ in 0..config.iterations {
         let started = Instant::now();
-        database.query_reads_read().get("todos", "bench-read-0256")?;
+        database
+            .query_reads_read()
+            .get("todos", "bench-read-0256")?;
         point.push(started.elapsed().as_secs_f64() * 1_000_000.0);
 
         let started = Instant::now();
@@ -808,7 +819,9 @@ fn measure_current_reads(
         range.push(started.elapsed().as_secs_f64() * 1_000_000.0);
 
         let started = Instant::now();
-        database.query_reads_read().query(&plan, &HandlerInput::default())?;
+        database
+            .query_reads_read()
+            .query(&plan, &HandlerInput::default())?;
         query_plan.push(started.elapsed().as_secs_f64() * 1_000_000.0);
     }
     point.sort_by(|left, right| left.total_cmp(right));
@@ -838,7 +851,7 @@ fn measure_write_bytes() -> crate::diagnostic::SnapbackResult<WriteBytesBench> {
         let before = file_family_bytes(&path)?;
 
         let mut database = LocalDatabase::open(&path)?;
-        database.commit_buffered_writes(
+        database.mutation_writes().commit_buffered_writes(
             &HandlerInput::default(),
             vec![BufferedWrite::Insert {
                 table: "todos".to_owned(),
@@ -1350,11 +1363,12 @@ fn measure_spurious_conflict(config: &BenchConfig) -> crate::diagnostic::Snapbac
             correlation: None,
             ctx_ledger: None,
         };
-        let result = db.commit_buffered_writes(
+        let row_id = db.generate_id();
+        let result = db.mutation_writes().commit_buffered_writes(
             &input,
             vec![BufferedWrite::Insert {
                 table: "todos".to_owned(),
-                id: db.generate_id(),
+                id: row_id,
                 values: json!({ "title": format!("reader-{trial}"), "done": false })
                     .as_object()
                     .cloned()
@@ -1384,11 +1398,12 @@ fn commit_insert(
         correlation: None,
         ctx_ledger: None,
     };
-    db.commit_buffered_writes(
+    let row_id = db.generate_id();
+    db.mutation_writes().commit_buffered_writes(
         &input,
         vec![BufferedWrite::Insert {
             table: table.to_owned(),
-            id: db.generate_id(),
+            id: row_id,
             values: values.as_object().cloned().unwrap_or_default(),
         }],
         Vec::new(),

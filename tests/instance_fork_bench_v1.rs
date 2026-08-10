@@ -183,7 +183,10 @@ fn parent_with_schema(directory: &Path, ballast_mb: u64) -> PathBuf {
     )
     .expect("Todo schema manifest");
     let mut parent = LocalDatabase::open(&source).expect("parent database");
-    parent.schema_seed().apply_schema(schema).expect("apply parent schema");
+    parent
+        .schema_seed()
+        .apply_schema(schema)
+        .expect("apply parent schema");
     drop(parent);
     if ballast_mb > 0 {
         let conn = rusqlite::Connection::open(&source).expect("open parent");

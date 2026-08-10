@@ -52,22 +52,25 @@ fn pooled_readers_no_longer_strand_the_wal_on_shutdown() {
     let wal = sidecar(&path, "-wal");
     let shm = sidecar(&path, "-shm");
     let mut db = LocalDatabase::open(&path).expect("open file-backed database");
-    db.schema_seed().apply_schema(test_schema()).expect("apply test schema");
-    db.execute_mutation(
-        &MutationPlan {
-            steps: vec![MutationStep::Insert {
-                table: "notes".to_owned(),
-                values: BTreeMap::from([(
-                    "body".to_owned(),
-                    ValueExpr::Literal(Value::String("checkpoint me".to_owned())),
-                )]),
-                bind_id_as: None,
-            }],
-            return_value: None,
-        },
-        &HandlerInput::default(),
-    )
-    .expect("commit a WAL-backed application write");
+    db.schema_seed()
+        .apply_schema(test_schema())
+        .expect("apply test schema");
+    db.mutation_writes()
+        .execute_mutation(
+            &MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "notes".to_owned(),
+                    values: BTreeMap::from([(
+                        "body".to_owned(),
+                        ValueExpr::Literal(Value::String("checkpoint me".to_owned())),
+                    )]),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            },
+            &HandlerInput::default(),
+        )
+        .expect("commit a WAL-backed application write");
     assert!(
         std::fs::metadata(&wal).expect("WAL before shutdown").len() > 0,
         "the regression needs a non-empty WAL"

@@ -288,8 +288,8 @@ impl AttemptRecord {
 
     fn retain_live_auth_after_settlement(&mut self) {
         if self.initiator.is_some() {
-            self.live_auth_retain_until = std::time::Instant::now()
-                .checked_add(STREAM_LIVE_AUTH_RETENTION);
+            self.live_auth_retain_until =
+                std::time::Instant::now().checked_add(STREAM_LIVE_AUTH_RETENTION);
         }
     }
 
@@ -429,9 +429,12 @@ fn attempt_error(operation: &'static str, message: &'static str, details: Value)
         .with_details(Value::Object(details))
 }
 
-fn stream_error(code: &'static str, operation: &'static str, message: &'static str) -> SnapbackError {
-    SnapbackError::error(code, "runtime", message)
-        .with_details(json!({ "operation": operation }))
+fn stream_error(
+    code: &'static str,
+    operation: &'static str,
+    message: &'static str,
+) -> SnapbackError {
+    SnapbackError::error(code, "runtime", message).with_details(json!({ "operation": operation }))
 }
 
 fn unix_time_millis() -> u64 {
@@ -552,48 +555,47 @@ impl StreamAttemptRegistry {
             settled_at_ms,
             emitted_bytes,
             chunk_count,
-        ) =
-            match persisted {
-                Some(row) => (
-                    row.token.clone(),
-                    row.runner_generation + 1,
-                    row.progress_commits,
-                    row.cursors_opened,
-                    row.cursors
-                        .iter()
-                        .map(|(id, cursor)| {
-                            (
-                                id.clone(),
-                                CursorRecord {
-                                    initiation_state: cursor.initiation_state,
-                                    open: false,
-                                },
-                            )
-                        })
-                        .collect(),
-                    row.terminal.clone(),
-                    row.function_id.clone(),
-                    row.initiator.clone(),
-                    row.started_at_ms,
-                    row.settled_at_ms,
-                    row.emitted_bytes,
-                    row.chunk_count,
-                ),
-                None => (
-                    Uuid::new_v4().to_string(),
-                    1,
-                    0,
-                    0,
-                    BTreeMap::new(),
-                    None,
-                    metadata.function_id,
-                    metadata.initiator,
-                    metadata.started_at_ms,
-                    None,
-                    0,
-                    0,
-                ),
-            };
+        ) = match persisted {
+            Some(row) => (
+                row.token.clone(),
+                row.runner_generation + 1,
+                row.progress_commits,
+                row.cursors_opened,
+                row.cursors
+                    .iter()
+                    .map(|(id, cursor)| {
+                        (
+                            id.clone(),
+                            CursorRecord {
+                                initiation_state: cursor.initiation_state,
+                                open: false,
+                            },
+                        )
+                    })
+                    .collect(),
+                row.terminal.clone(),
+                row.function_id.clone(),
+                row.initiator.clone(),
+                row.started_at_ms,
+                row.settled_at_ms,
+                row.emitted_bytes,
+                row.chunk_count,
+            ),
+            None => (
+                Uuid::new_v4().to_string(),
+                1,
+                0,
+                0,
+                BTreeMap::new(),
+                None,
+                metadata.function_id,
+                metadata.initiator,
+                metadata.started_at_ms,
+                None,
+                0,
+                0,
+            ),
+        };
         let lease_held = terminal.is_none();
         let live_auth_retain_until = (terminal.is_some() && initiator.is_some())
             .then(|| std::time::Instant::now() + STREAM_LIVE_AUTH_RETENTION);
@@ -989,11 +991,9 @@ impl StreamAttemptRegistry {
             ));
         }
         let now = std::time::Instant::now();
-        while record
-            .recent_emits
-            .front()
-            .is_some_and(|instant| now.duration_since(*instant) >= std::time::Duration::from_secs(1))
-        {
+        while record.recent_emits.front().is_some_and(|instant| {
+            now.duration_since(*instant) >= std::time::Duration::from_secs(1)
+        }) {
             record.recent_emits.pop_front();
         }
         if record.recent_emits.len() >= STREAM_CHUNKS_PER_SECOND {
@@ -1539,7 +1539,9 @@ mod tests {
                 None,
                 StreamAttemptMetadata {
                     function_id: Some("app:rate".to_owned()),
-                    initiator: Some(StreamInitiator::ServiceCredential("credential-a".to_owned())),
+                    initiator: Some(StreamInitiator::ServiceCredential(
+                        "credential-a".to_owned(),
+                    )),
                     started_at_ms: 100,
                 },
             )

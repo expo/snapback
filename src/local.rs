@@ -64,9 +64,9 @@ use crate::runtime::{
 };
 use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit, NetworkSeedOutcome};
 use crate::storage::{
-    AssetDeliveryOutcome, AssetPreparedVariant, AssetPublishOutcome,
-    BufferedCommitPayload, CapturedReadDependency, CapturedReadKind, CapturedWriteDependency,
-    ChangedRow, ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
+    AssetDeliveryOutcome, AssetPreparedVariant, AssetPublishOutcome, BufferedCommitPayload,
+    CapturedReadDependency, CapturedReadKind, CapturedWriteDependency, ChangedRow,
+    ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
     SettlementTimePolicy, ShutdownCheckpointReport, StorageInfo, TableScan,
 };
 use serde::{Deserialize, Serialize};
@@ -786,8 +786,7 @@ impl PendingLiveScheduler {
                 replaced.trace_queued_ms,
                 replaced.coverage_through,
             );
-            pending.first_deferred_at =
-                pending.first_deferred_at.min(replaced.first_deferred_at);
+            pending.first_deferred_at = pending.first_deferred_at.min(replaced.first_deferred_at);
             let mut inherited_commit_versions = replaced.trace_commit_versions;
             inherited_commit_versions.append(&mut pending.trace_commit_versions);
             pending.trace_commit_versions = inherited_commit_versions;
@@ -806,22 +805,12 @@ impl PendingLiveScheduler {
         // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — lane
         // precedence is Authority > Refresh > Data; within a lane inherited
         // age, not the most recent replacement's queue position, orders work.
-        Self::oldest_in_lane(
-            &self.entries,
-            PendingLiveLane::Authority,
-            &self.authority,
-        )
-        .or_else(|| {
-            Self::oldest_in_lane(
-                &self.entries,
-                PendingLiveLane::Refresh,
-                &self.refresh,
-            )
-        })
-        .or_else(|| {
-            Self::oldest_in_lane(&self.entries, PendingLiveLane::Data, &self.data)
-        })
-        .map(str::to_owned)
+        Self::oldest_in_lane(&self.entries, PendingLiveLane::Authority, &self.authority)
+            .or_else(|| {
+                Self::oldest_in_lane(&self.entries, PendingLiveLane::Refresh, &self.refresh)
+            })
+            .or_else(|| Self::oldest_in_lane(&self.entries, PendingLiveLane::Data, &self.data))
+            .map(str::to_owned)
     }
 
     fn pop(&mut self, subscription_id: &str) -> Option<PendingLiveFanout> {
@@ -883,14 +872,11 @@ impl PendingLiveScheduler {
             .filter_map(|(subscription_id, generation)| {
                 entries
                     .get(subscription_id)
-                    .filter(|pending| {
-                        pending.lane == lane && pending.generation == *generation
-                    })
+                    .filter(|pending| pending.lane == lane && pending.generation == *generation)
                     .map(|pending| (subscription_id, *generation, pending))
             })
             .min_by(
-                |(left_id, left_generation, left),
-                 (right_id, right_generation, right)| {
+                |(left_id, left_generation, left), (right_id, right_generation, right)| {
                     left.first_deferred_at
                         .cmp(&right.first_deferred_at)
                         .then_with(|| left_generation.cmp(right_generation))
@@ -4344,11 +4330,7 @@ impl LocalSnapback {
         let sequence_declarations = sequence_declarations_from_functions(&manifest);
 
         let mut preflight = Vec::new();
-        if let Err(error) = self
-            .db
-            .schema()
-            .validate_api_against_functions(&manifest)
-        {
+        if let Err(error) = self.db.schema().validate_api_against_functions(&manifest) {
             preflight.push(error.diagnostic);
         }
         preflight.extend(self.db.schema().api_exposure_diagnostics(&manifest));
@@ -4655,7 +4637,8 @@ impl LocalSnapback {
         self.telemetry.begin_generation_transition();
         match self
             .db
-            .schema_seed().attempt_reset_and_seed_with_authorization_stream(seed, predecessor, successor)
+            .schema_seed()
+            .attempt_reset_and_seed_with_authorization_stream(seed, predecessor, successor)
         {
             AuthTransactionAttempt::Committed(seeded) => {
                 if let Err(error) = self.finish_telemetry_generation_transition(successor.as_str())
@@ -4719,7 +4702,8 @@ impl LocalSnapback {
         request_digest: &str,
     ) -> SnapbackResult<Option<crate::seed_identity::SeedInstallReceiptV1>> {
         self.db
-            .schema_seed().replay_versioned_seed_operation(operation_id, request_digest)
+            .schema_seed()
+            .replay_versioned_seed_operation(operation_id, request_digest)
     }
 
     pub(crate) fn attempt_versioned_seed_reset_with_authorization_stream(
@@ -4743,7 +4727,8 @@ impl LocalSnapback {
         self.telemetry.begin_generation_transition();
         match self
             .db
-            .schema_seed().attempt_versioned_seed_reset_with_authorization_stream(request, predecessor, successor)
+            .schema_seed()
+            .attempt_versioned_seed_reset_with_authorization_stream(request, predecessor, successor)
         {
             AuthTransactionAttempt::Committed((seeded, receipt)) => {
                 if let Err(error) = self.finish_telemetry_generation_transition(successor.as_str())
@@ -5059,10 +5044,8 @@ impl LocalSnapback {
 
     pub(crate) fn publish_generation_ephemeral_collections(&mut self) {
         let ephemeral = self.ephemeral.clone();
-        let ephemeral_collections = served_ephemeral_collections(
-            &self.db.schema().ephemeral_collections,
-            &self.functions,
-        );
+        let ephemeral_collections =
+            served_ephemeral_collections(&self.db.schema().ephemeral_collections, &self.functions);
         crate::exec_guard::run_or_defer_after_local(move || {
             ephemeral
                 .replace_collections(ephemeral_collections)
@@ -5329,8 +5312,7 @@ impl LocalSnapback {
                 "app-api discovery is served by sessions targets only; dev targets use /inspect and local artifacts",
             ));
         };
-        let crate::api_envelope::AppApiDiscoveryEnvelopeV1::Current { sha256 } =
-            discovery.envelope
+        let crate::api_envelope::AppApiDiscoveryEnvelopeV1::Current { sha256 } = discovery.envelope
         else {
             return Err(crate::diagnostic::SnapbackError::error(
                 "SNAPBACK_APP_API_UNAVAILABLE",
@@ -5643,7 +5625,8 @@ impl LocalSnapback {
         // envelope record is not, which the verify-on-read rule tolerates,
         // but the caller deserves the honest classification.
         self.db
-            .api_envelope().record_api_envelope(
+            .api_envelope()
+            .record_api_envelope(
                 &activation_inputs_hash,
                 composed_envelope
                     .as_ref()
@@ -5972,6 +5955,7 @@ impl LocalSnapback {
         };
         let commit = self
             .db
+            .mutation_writes()
             .dry_run_buffered_writes(
                 &input.authority.handler_input(),
                 vec![crate::storage::BufferedWrite::Patch {
@@ -6080,6 +6064,7 @@ impl LocalSnapback {
         //   would spuriously reject unrelated concurrent writes.
         let commit = self
             .db
+            .mutation_writes()
             .commit_buffered_writes(
                 &binding.authority.handler_input(),
                 vec![crate::storage::BufferedWrite::Patch {
@@ -6458,10 +6443,8 @@ impl LocalSnapback {
                     == crate::fork_promotion::ForkEgressPolicyV1::CaptureOnly
                 {
                     let diagnostic_code = error.diagnostic.code.clone();
-                    if let Some(operation) = branch
-                        .db
-                        .branch_ops()
-                        .finalize_captured_effect_operation(
+                    if let Some(operation) =
+                        branch.db.branch_ops().finalize_captured_effect_operation(
                             &effect_context,
                             json!({ "handlerDiagnosticCode": diagnostic_code }),
                             Some(&error.diagnostic.code),
@@ -6503,15 +6486,11 @@ impl LocalSnapback {
                 .diagnostic
                 .as_ref()
                 .map(|diagnostic| diagnostic.code.as_str());
-            if let Some(operation) = branch
-                .db
-                .branch_ops()
-                .finalize_captured_effect_operation(
-                    &effect_context,
-                    run.result.clone().unwrap_or(Value::Null),
-                    diagnostic_code,
-                )?
-            {
+            if let Some(operation) = branch.db.branch_ops().finalize_captured_effect_operation(
+                &effect_context,
+                run.result.clone().unwrap_or(Value::Null),
+                diagnostic_code,
+            )? {
                 return Ok(operation);
             }
         }
@@ -6604,16 +6583,22 @@ impl LocalSnapback {
         let incarnation = self.db.ensure_authorization_stream_incarnation()?;
         let descriptor = descriptor_for_authority(authority, incarnation.as_str())?;
         let _effect = authority.effect_guard("client mutation acknowledgement transaction")?;
-        let current = self.db.settlement().acknowledge_client_mutations_for_authority(
-            &auth_fingerprint(&auth),
-            &descriptor.authority_instance_id,
-            ids,
-        )?;
-        let legacy = self.db.settlement().acknowledge_client_mutations_for_authority(
-            &legacy_auth_fingerprint(&auth),
-            &descriptor.authority_instance_id,
-            ids,
-        )?;
+        let current = self
+            .db
+            .settlement()
+            .acknowledge_client_mutations_for_authority(
+                &auth_fingerprint(&auth),
+                &descriptor.authority_instance_id,
+                ids,
+            )?;
+        let legacy = self
+            .db
+            .settlement()
+            .acknowledge_client_mutations_for_authority(
+                &legacy_auth_fingerprint(&auth),
+                &descriptor.authority_instance_id,
+                ids,
+            )?;
         current.checked_add(legacy).ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID",
@@ -6777,10 +6762,7 @@ impl LocalSnapback {
         auth: Option<&AuthInput>,
     ) -> SnapbackResult<u64> {
         let Some(auth) = auth else {
-            return self
-                .db
-                .settlement()
-                .purge_client_mutation_settlements(None);
+            return self.db.settlement().purge_client_mutation_settlements(None);
         };
         let current = self
             .db
@@ -6839,9 +6821,7 @@ impl LocalSnapback {
             .and_then(|api| api.origins.clone())
     }
 
-    pub(crate) fn api_oauth_manifest(
-        &self,
-    ) -> Option<crate::contract_types::ApiOAuthManifest> {
+    pub(crate) fn api_oauth_manifest(&self) -> Option<crate::contract_types::ApiOAuthManifest> {
         self.db.schema().oauth_manifest().cloned()
     }
 
@@ -8194,10 +8174,7 @@ impl LocalSnapback {
         let now = now_millis();
         // One read transaction: the rows, the referenced blob set, and the
         // head commit version are one consistent picture (the cut witness).
-        let capture = self
-            .db
-            .asset_reads()
-            .capture_export_cut(&app_id, now)?;
+        let capture = self.db.asset_reads().capture_export_cut(&app_id, now)?;
         // Blob objects copy after the row capture closes: blobs are
         // immutable, so a captured object can only disappear via GC — which
         // fails the export whole rather than shipping a partial component.
@@ -8253,9 +8230,7 @@ impl LocalSnapback {
             )
         })?;
         let summary = cut::validation_summary(&capture.manifest);
-        self.db
-            .asset_reads()
-            .record_cut_exported(now, &summary)?;
+        self.db.asset_reads().record_cut_exported(now, &summary)?;
         Ok(serde_json::json!({ "dir": parsed.dir, "cut": summary }))
     }
 
@@ -8540,15 +8515,15 @@ impl LocalSnapback {
         let intent_id = self.asset_intent(&parsed.upload)?.id.clone();
         let asset_id = task.asset_id.clone();
         let now_ms = now_millis();
-        self.db.asset_reads().seed_fixture_upsert(
-            &crate::assets::SeedFixtureMappingV1 {
+        self.db
+            .asset_reads()
+            .seed_fixture_upsert(&crate::assets::SeedFixtureMappingV1 {
                 fixture_id: parsed.fixture_id.clone(),
                 source_digest: parsed.source_digest.clone(),
                 asset_id: asset_id.clone(),
                 intent_id: intent_id.clone(),
                 updated_at_ms: now_ms,
-            },
-        )?;
+            })?;
         Ok(serde_json::json!({ "assetId": asset_id, "reused": false }))
     }
 
@@ -8593,10 +8568,7 @@ impl LocalSnapback {
     /// receipt — it runs the same maintenance the runner runs, now.
     fn asset_host_retry(&mut self, input: Option<&Value>) -> SnapbackResult<Value> {
         let parsed: AssetHostIdInput = asset_host_input(input, "asset.retry")?;
-        let asset = self
-            .db
-            .asset_reads()
-            .require_asset(&parsed.asset_id)?;
+        let asset = self.db.asset_reads().require_asset(&parsed.asset_id)?;
         if asset.availability == crate::assets::AssetAvailability::Deleted {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_RETRY_INELIGIBLE",
@@ -8651,9 +8623,7 @@ impl LocalSnapback {
         attempt_id: &str,
     ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
         let attempt = self.asset_attempt_for_caller(authority, attempt_id)?;
-        self.db
-            .asset_attempts()
-            .attempt_require_current(&attempt)?;
+        self.db.asset_attempts().attempt_require_current(&attempt)?;
         Ok(attempt)
     }
 
@@ -8669,9 +8639,7 @@ impl LocalSnapback {
         use sha2::Digest as _;
 
         let attempt = self.asset_attempt_for_caller(authority, attempt_id)?;
-        self.db
-            .asset_attempts()
-            .attempt_require_current(&attempt)?;
+        self.db.asset_attempts().attempt_require_current(&attempt)?;
         if offset != attempt.acknowledged_offset {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_OFFSET_CONFLICT",
@@ -8795,9 +8763,7 @@ impl LocalSnapback {
                 },
             ));
         }
-        self.db
-            .asset_attempts()
-            .attempt_require_current(&attempt)?;
+        self.db.asset_attempts().attempt_require_current(&attempt)?;
         if attempt.acknowledged_offset != attempt.declared_length {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_TRANSFER_INCOMPLETE",
@@ -8885,18 +8851,18 @@ impl LocalSnapback {
                     })?
             };
 
-        let revoked = self.db.asset_attempts().attempt_finalize_generation_revoked(
-            &attempt.intent_id,
-            attempt.admission.policy_generation,
-        )?;
+        let revoked = self
+            .db
+            .asset_attempts()
+            .attempt_finalize_generation_revoked(
+                &attempt.intent_id,
+                attempt.admission.policy_generation,
+            )?;
         if revoked {
             return Err(asset_intent_generation_revoked_error());
         }
 
-        let on_ready = frozen_intent
-            .on
-            .as_ref()
-            .and_then(|on| on.ready.clone());
+        let on_ready = frozen_intent.on.as_ref().and_then(|on| on.ready.clone());
         Ok(FinalizePreflightV1::Proceed(FinalizePrepareTicketV1 {
             attempt,
             request,
@@ -8919,12 +8885,8 @@ impl LocalSnapback {
         ticket: FinalizePrepareTicketV1,
         preparation: FinalizePreparationV1,
     ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
-        let response = self.asset_attempt_finalize_commit_inner(
-            authority,
-            ticket,
-            preparation,
-            None,
-        )?;
+        let response =
+            self.asset_attempt_finalize_commit_inner(authority, ticket, preparation, None)?;
         self.notify_asset_record_change(std::slice::from_ref(&response.task.asset_id));
         Ok(response)
     }
@@ -9032,10 +8994,13 @@ impl LocalSnapback {
         // The old single-lock choreography made this check immovable between
         // preflight and Phase A. The split admits revocation in that window,
         // so the commit half must repeat it before creating durable state.
-        let revoked = self.db.asset_attempts().attempt_finalize_generation_revoked(
-            &ticket.attempt.intent_id,
-            ticket.attempt.admission.policy_generation,
-        )?;
+        let revoked = self
+            .db
+            .asset_attempts()
+            .attempt_finalize_generation_revoked(
+                &ticket.attempt.intent_id,
+                ticket.attempt.admission.policy_generation,
+            )?;
         if revoked {
             return Err(asset_intent_generation_revoked_error());
         }
@@ -9061,18 +9026,12 @@ impl LocalSnapback {
                 task: asset_task_state(&attempt, asset.as_ref()),
             });
         }
-        self.db
-            .asset_attempts()
-            .attempt_require_current(&attempt)?;
+        self.db.asset_attempts().attempt_require_current(&attempt)?;
 
         let prepared = match preparation {
             FinalizePreparationV1::Prepared(prepared) => prepared,
             FinalizePreparationV1::Refused(failure) => {
-                return self.asset_fail_attempt(
-                    &attempt,
-                    failure.asset_outcome,
-                    failure.refusal,
-                );
+                return self.asset_fail_attempt(&attempt, failure.asset_outcome, failure.refusal);
             }
         };
         let FinalizePrepareTicketV1 {
@@ -9658,15 +9617,20 @@ impl LocalSnapback {
         // On-demand width (LLP 0044 §Ceremony floor): authorize first via
         // the probe transaction below, resolve/materialize the ladder
         // rendition, then sign that concrete variant.
-        let (issued_variant, validate_declared_variant) = if let Some(requested) = request.width_px {
-            self.db.asset_reads().signed_url_width_probe(
-                &schema,
-                caller.as_deref(),
-                asset_id,
-            )?;
-            (self.asset_resolve_width_variant(asset_id, requested)?, false)
+        let (issued_variant, validate_declared_variant) = if let Some(requested) = request.width_px
+        {
+            self.db
+                .asset_reads()
+                .signed_url_width_probe(&schema, caller.as_deref(), asset_id)?;
+            (
+                self.asset_resolve_width_variant(asset_id, requested)?,
+                false,
+            )
         } else {
-            (request.variant.unwrap_or_else(|| "primary".to_owned()), true)
+            (
+                request.variant.unwrap_or_else(|| "primary".to_owned()),
+                true,
+            )
         };
         self.db.asset_reads().signed_url_issue(
             &schema,
@@ -9691,14 +9655,9 @@ impl LocalSnapback {
     ) -> SnapbackResult<AssetDeliveryOutcome> {
         let store = self.asset_store_obj()?;
         let now = now_millis();
-        self.db.asset_reads().deliver_signed(
-            &store,
-            asset_id,
-            variant,
-            token,
-            range_header,
-            now,
-        )
+        self.db
+            .asset_reads()
+            .deliver_signed(&store, asset_id, variant, token, range_header, now)
     }
 
     /// Serve a `public-immutable` alias: no authorization, immutable cache
@@ -9756,10 +9715,10 @@ impl LocalSnapback {
         let caller = Self::asset_caller_principal(authority);
         let now = now_millis();
         let crash = crash_mid_cascade.then_some(asset_test_crash as fn() -> SnapbackError);
-        let fenced_staging = self
-            .db
-            .asset_reads()
-            .delete(caller.as_deref(), asset_id, now, crash)?;
+        let fenced_staging =
+            self.db
+                .asset_reads()
+                .delete(caller.as_deref(), asset_id, now, crash)?;
         if let Some(staging_key) = fenced_staging {
             self.asset_store_obj()?.delete_staging_pair(&staging_key)?;
         }
@@ -11016,7 +10975,11 @@ impl LocalSnapback {
                 expected.authority_instance_id,
                 &settlement,
             ));
-            if let Some(output) = self.db.settlement_read().client_mutation_result(&identity)? {
+            if let Some(output) = self
+                .db
+                .settlement_read()
+                .client_mutation_result(&identity)?
+            {
                 if !acknowledged_client_mutation_ids.is_empty() {
                     self.acknowledge_client_mutations_with_authority(
                         &authority,
@@ -11178,11 +11141,14 @@ impl LocalSnapback {
                             | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
                                 crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
                             )) => {
-                                let preview = self.db.dry_run_mutation_with_settlement_time(
-                                    plan,
-                                    &input,
-                                    settlement_time.as_ref(),
-                                )?;
+                                let preview = self
+                                    .db
+                                    .mutation_writes()
+                                    .dry_run_mutation_with_settlement_time(
+                                        plan,
+                                        &input,
+                                        settlement_time.as_ref(),
+                                    )?;
                                 crate::result_contract::validate_handler_result(
                                     &function,
                                     &preview.commit.output.result,
@@ -11211,7 +11177,8 @@ impl LocalSnapback {
                                 )?;
                                 let membership_plans = self
                                     .db
-                                    .membership_plans().authorize_membership_commands(executed.membership_commands)?;
+                                    .membership_plans()
+                                    .authorize_membership_commands(executed.membership_commands)?;
                                 // Callee admission for buffered enqueues happens before
                                 // any commit work: an inadmissible callee fails the whole
                                 // mutation (rollback schedules nothing).
@@ -11238,19 +11205,22 @@ impl LocalSnapback {
                                     &function,
                                     &payload.result,
                                 )?;
-                                let preview = self.db.dry_run_buffered_writes_with_jobs(
-                                    &input,
-                                    payload.writes.clone(),
-                                    payload.sequence_allocations.clone(),
-                                    payload.membership_plans.clone(),
-                                    payload.read_dependencies.clone(),
-                                    payload.result.clone(),
-                                    payload.ctx_ledger.clone(),
-                                    payload.job_enqueues.clone(),
-                                    payload.job_producer.clone(),
-                                    payload.asset_admissions.clone(),
-                                    payload.asset_grant_ops.clone(),
-                                )?;
+                                let preview = self
+                                    .db
+                                    .mutation_writes()
+                                    .dry_run_buffered_writes_with_jobs(
+                                        &input,
+                                        payload.writes.clone(),
+                                        payload.sequence_allocations.clone(),
+                                        payload.membership_plans.clone(),
+                                        payload.read_dependencies.clone(),
+                                        payload.result.clone(),
+                                        payload.ctx_ledger.clone(),
+                                        payload.job_enqueues.clone(),
+                                        payload.job_producer.clone(),
+                                        payload.asset_admissions.clone(),
+                                        payload.asset_grant_ops.clone(),
+                                    )?;
                                 (
                                     self.authorization_commit_preflight_for_changes(
                                         preview.changes,
@@ -11389,17 +11359,20 @@ impl LocalSnapback {
                         Some(crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. })
                     ) =>
                 {
-                    self.db.execute_host_mutation_guarded_with_settlement_time(
-                        &plan,
-                        &input,
-                        Some(identity),
-                        settlement_time.as_ref(),
-                        || Ok(()),
-                        || prepared.effect_guard("host child mutation transaction"),
-                    )
+                    self.db
+                        .mutation_writes()
+                        .execute_host_mutation_guarded_with_settlement_time(
+                            &plan,
+                            &input,
+                            Some(identity),
+                            settlement_time.as_ref(),
+                            || Ok(()),
+                            || prepared.effect_guard("host child mutation transaction"),
+                        )
                 }
                 Some(identity) => self
                     .db
+                    .mutation_writes()
                     .execute_mutation_idempotent_guarded_with_settlement_time(
                         &plan,
                         &input,
@@ -11407,13 +11380,16 @@ impl LocalSnapback {
                         settlement_time.as_ref(),
                         || prepared.effect_guard("idempotent mutation transaction"),
                     ),
-                None => self.db.execute_mutation_guarded_with_settlement_time(
-                    &plan,
-                    &input,
-                    settlement_time.as_ref(),
-                    || Ok(()),
-                    || prepared.effect_guard("mutation transaction"),
-                ),
+                None => self
+                    .db
+                    .mutation_writes()
+                    .execute_mutation_guarded_with_settlement_time(
+                        &plan,
+                        &input,
+                        settlement_time.as_ref(),
+                        || Ok(()),
+                        || prepared.effect_guard("mutation transaction"),
+                    ),
             },
             StagedMutationExecution::Buffered(payload) => {
                 let payload = *payload;
@@ -11423,21 +11399,25 @@ impl LocalSnapback {
                         Some(crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. })
                     )
                 }) {
-                    self.db.commit_buffered_host_writes_guarded(
-                        &input,
-                        payload,
-                        identity.as_ref(),
-                        || Ok(()),
-                        || prepared.effect_guard("host child ibex mutation transaction"),
-                    )
+                    self.db
+                        .mutation_writes()
+                        .commit_buffered_host_writes_guarded(
+                            &input,
+                            payload,
+                            identity.as_ref(),
+                            || Ok(()),
+                            || prepared.effect_guard("host child ibex mutation transaction"),
+                        )
                 } else {
-                    self.db.commit_buffered_writes_idempotent_guarded(
-                        &input,
-                        payload,
-                        identity.as_ref(),
-                        || Ok(()),
-                        || prepared.effect_guard("ibex mutation transaction"),
-                    )
+                    self.db
+                        .mutation_writes()
+                        .commit_buffered_writes_idempotent_guarded(
+                            &input,
+                            payload,
+                            identity.as_ref(),
+                            || Ok(()),
+                            || prepared.effect_guard("ibex mutation transaction"),
+                        )
                 }
             }
         }
@@ -11726,7 +11706,11 @@ impl LocalSnapback {
                 &canonical_input,
                 expected.authority_instance_id,
             );
-            if let Some(output) = self.db.settlement_read().client_mutation_result(&identity)? {
+            if let Some(output) = self
+                .db
+                .settlement_read()
+                .client_mutation_result(&identity)?
+            {
                 let sequence_allocations = output.settlement_sequence_allocations.clone();
                 return Ok(MutationCommit {
                     output,
@@ -11828,7 +11812,7 @@ impl LocalSnapback {
                     // Validate the exact dry-run result while all writes remain
                     // provisional. Reuse its ctx ledger so generated ids/time are
                     // identical when the guarded transaction executes.
-                    let preview = self.db.dry_run_mutation(plan, &input)?;
+                    let preview = self.db.mutation_writes().dry_run_mutation(plan, &input)?;
                     crate::result_contract::validate_handler_result(
                         &function,
                         &preview.commit.output.result,
@@ -11840,15 +11824,14 @@ impl LocalSnapback {
                         auth_fingerprint: None,
                     });
                     match (branch_operation, identity.as_ref()) {
-                        (Some(branch_operation), None) => self
-                            .db
-                            .branch_ops()
-                            .execute_branch_mutation_guarded(
+                        (Some(branch_operation), None) => {
+                            self.db.branch_ops().execute_branch_mutation_guarded(
                                 plan,
                                 &input,
                                 branch_operation,
                                 || prepared.effect_guard("branch mutation transaction"),
-                            )?,
+                            )?
+                        }
                         (Some(_), Some(_)) => {
                             return Err(SnapbackError::error(
                                 "SNAPBACK_BRANCH_OPERATION_INVALID",
@@ -11856,13 +11839,13 @@ impl LocalSnapback {
                                 "branch mutation carrier cannot compose with a second client identity",
                             ));
                         }
-                        (None, Some(identity)) => self.db.execute_mutation_idempotent_guarded(
-                            plan,
-                            &input,
-                            identity,
-                            || prepared.effect_guard("idempotent mutation transaction"),
-                        )?,
-                        (None, None) => self.db.execute_mutation_guarded(
+                        (None, Some(identity)) => self
+                            .db
+                            .mutation_writes()
+                            .execute_mutation_idempotent_guarded(plan, &input, identity, || {
+                                prepared.effect_guard("idempotent mutation transaction")
+                            })?,
+                        (None, None) => self.db.mutation_writes().execute_mutation_guarded(
                             plan,
                             &input,
                             || Ok(()),
@@ -11888,7 +11871,8 @@ impl LocalSnapback {
                     crate::result_contract::validate_handler_result(&function, &executed.result)?;
                     let membership_plans = self
                         .db
-                        .membership_plans().authorize_membership_commands(executed.membership_commands)?;
+                        .membership_plans()
+                        .authorize_membership_commands(executed.membership_commands)?;
                     let producer_mutation_id = receipt_mutation_id
                         .map(ToOwned::to_owned)
                         .or_else(|| identity.as_ref().map(|identity| identity.id.clone()))
@@ -11930,13 +11914,16 @@ impl LocalSnapback {
                                 "branch mutation carrier cannot compose with a second client identity",
                             ));
                         }
-                        (None, identity) => self.db.commit_buffered_writes_idempotent_guarded(
-                            &input,
-                            payload,
-                            identity,
-                            || Ok(()),
-                            || prepared.effect_guard("ibex mutation transaction"),
-                        )?,
+                        (None, identity) => self
+                            .db
+                            .mutation_writes()
+                            .commit_buffered_writes_idempotent_guarded(
+                                &input,
+                                payload,
+                                identity,
+                                || Ok(()),
+                                || prepared.effect_guard("ibex mutation transaction"),
+                            )?,
                     }
                 }
                 _ => {
@@ -12007,7 +11994,7 @@ impl LocalSnapback {
         );
         let mut result =
             crate::runtime::with_runtime_log_telemetry(self.telemetry.clone(), correlation, || {
-                let commit = self.db.execute_host_mutation_guarded(
+                let commit = self.db.mutation_writes().execute_host_mutation_guarded(
                     plan,
                     &input,
                     identity,
@@ -12250,7 +12237,8 @@ impl LocalSnapback {
         crate::result_contract::validate_handler_result(&function, &executed.result)?;
         let membership_plans = self
             .db
-            .membership_plans().authorize_membership_commands(executed.membership_commands)?;
+            .membership_plans()
+            .authorize_membership_commands(executed.membership_commands)?;
         // Action-hosted nested mutations may enqueue (LLP 0070: actions
         // enqueue follow-up work only through an explicit mutation). The
         // nested commit mints its own producer identity in the receipt id
@@ -12264,29 +12252,32 @@ impl LocalSnapback {
             input.auth.user_id.clone(),
         )?;
         self.ensure_permission_epoch_capacity(&binding.epoch_scopes)?;
-        let commit = self.db.commit_buffered_host_writes_guarded(
-            &input,
-            BufferedCommitPayload {
-                writes: executed.writes,
-                sequence_allocations: executed.sequence_allocations,
-                membership_plans,
-                read_dependencies: executed.reads,
-                result: executed.result,
-                ctx_ledger: executed.ctx_ledger,
-                job_enqueues,
-                job_producer,
-                asset_admissions: executed.asset_admissions,
-                asset_grant_ops: executed.asset_grant_ops,
-            },
-            identity.as_ref(),
-            check_live,
-            || {
-                let admission_guard =
-                    admission.effect_guard("detached nested mutation transaction")?;
-                let caller_guard = before_commit()?;
-                Ok((admission_guard, caller_guard))
-            },
-        )?;
+        let commit = self
+            .db
+            .mutation_writes()
+            .commit_buffered_host_writes_guarded(
+                &input,
+                BufferedCommitPayload {
+                    writes: executed.writes,
+                    sequence_allocations: executed.sequence_allocations,
+                    membership_plans,
+                    read_dependencies: executed.reads,
+                    result: executed.result,
+                    ctx_ledger: executed.ctx_ledger,
+                    job_enqueues,
+                    job_producer,
+                    asset_admissions: executed.asset_admissions,
+                    asset_grant_ops: executed.asset_grant_ops,
+                },
+                identity.as_ref(),
+                check_live,
+                || {
+                    let admission_guard =
+                        admission.effect_guard("detached nested mutation transaction")?;
+                    let caller_guard = before_commit()?;
+                    Ok((admission_guard, caller_guard))
+                },
+            )?;
         Ok(self
             .finish_mutation_commit(
                 name,
@@ -12369,7 +12360,7 @@ impl LocalSnapback {
             | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
                 crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
             )) => {
-                self.db.dry_run_mutation(plan, &input).map(|execution| {
+                self.db.mutation_writes().dry_run_mutation(plan, &input).map(|execution| {
                     let mut diagnostics = Vec::new();
                     // The IR ledger honors D1's declared id bound: past it the
                     // ledger is elided (with a diagnostic), never truncated —
@@ -13487,7 +13478,8 @@ impl LocalSnapback {
         let target_profile = self.db.schema().target_profile.clone();
         let mut invocations = self
             .db
-            .query_reads_read().with_pinned_read_view(|view| {
+            .query_reads_read()
+            .with_pinned_read_view(|view| {
                 prepared_children
                     .iter()
                     .map(|(_, name, function, _, _, prepared, input, _)| {
@@ -15607,9 +15599,8 @@ impl LocalSnapback {
                         quarantine_entry = inherited;
                     }
                     if let (Some(previous), Some(cause)) = (previous, transfer_cause) {
-                        let (obligation, entered) = state
-                            .obligations
-                            .raise_with_quarantine_lifecycle(
+                        let (obligation, entered) =
+                            state.obligations.raise_with_quarantine_lifecycle(
                                 replacement.clone(),
                                 cause,
                                 format!("resume:transfer:{cause}"),
@@ -15756,8 +15747,7 @@ impl LocalSnapback {
                 match retirement {
                     Ok(retirement) => (candidate, retirement),
                     Err(error) => {
-                        if let Some((replacement, connection_scope, _)) =
-                            replacement_stage.as_ref()
+                        if let Some((replacement, connection_scope, _)) = replacement_stage.as_ref()
                         {
                             self.auth_invalidation
                                 .as_mut()
@@ -15778,34 +15768,33 @@ impl LocalSnapback {
                 .obligations
                 .projection(&authorization.scope_id)
                 .expect("fresh quarantine and snapshot resolution remain projected");
-            let invalidation_payload =
-                match serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
+            let invalidation_payload = match serde_json::to_vec(
+                &LiveEnvelope::authorization_invalidation(
                     authorization_invalidation.obligation.clone(),
                     // This durable frame is only a level-triggered wake hint.
                     // The complete snapshot ticket and its rows travel
                     // together in the successful resume response below.
                     None,
                     None,
-                )) {
-                    Ok(payload) => payload,
-                    Err(error) => {
-                        if let Some((replacement, connection_scope, _)) =
-                            replacement_stage.as_ref()
-                        {
-                            self.auth_invalidation
-                                .as_mut()
-                                .expect("state remains installed")
-                                .obligations
-                                .rollback_unpublished_live_scope(replacement, connection_scope);
-                        }
-                        return Err(SnapbackError::error(
-                            "SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED",
-                            "realtime",
-                            "authorization resume invalidation could not be serialized",
-                        )
-                        .with_details(json!({ "error": error.to_string() })));
+                ),
+            ) {
+                Ok(payload) => payload,
+                Err(error) => {
+                    if let Some((replacement, connection_scope, _)) = replacement_stage.as_ref() {
+                        self.auth_invalidation
+                            .as_mut()
+                            .expect("state remains installed")
+                            .obligations
+                            .rollback_unpublished_live_scope(replacement, connection_scope);
                     }
-                };
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED",
+                        "realtime",
+                        "authorization resume invalidation could not be serialized",
+                    )
+                    .with_details(json!({ "error": error.to_string() })));
+                }
+            };
             let predecessor_is_current =
                 self.subscriptions
                     .get(&subscription.id)
@@ -16637,11 +16626,11 @@ impl LocalSnapback {
                         | ResolvedAppAuthority::DevImpersonation { user_id, .. } => Some(
                             crate::stream_attempt::StreamInitiator::SessionUser(user_id.clone()),
                         ),
-                        ResolvedAppAuthority::ServicePrincipal { credential_id, .. } => Some(
-                            crate::stream_attempt::StreamInitiator::ServiceCredential(
+                        ResolvedAppAuthority::ServicePrincipal { credential_id, .. } => {
+                            Some(crate::stream_attempt::StreamInitiator::ServiceCredential(
                                 credential_id.clone(),
-                            ),
-                        ),
+                            ))
+                        }
                         _ => None,
                     },
                     stream_started: None,
@@ -16692,7 +16681,10 @@ impl LocalSnapback {
                     self.db.schema(),
                 )?;
                 let _epoch_scopes = evaluate_permission_epoch_scopes(&function, &canonical_input)?;
-                let preview = self.db.dry_run_mutation(plan, &canonical_input)?;
+                let preview = self
+                    .db
+                    .mutation_writes()
+                    .dry_run_mutation(plan, &canonical_input)?;
                 let mut replay_input = canonical_input;
                 replay_input.ctx_ledger = Some(CtxAnswerLedger {
                     version: ctx_ledger_version(),
@@ -16772,8 +16764,9 @@ impl LocalSnapback {
         let canonical_input = binding.invocation.canonicalize_input(input.clone());
         let membership_plans = self
             .db
-            .membership_plans().authorize_membership_commands(executed.membership_commands.clone())?;
-        let preview = self.db.dry_run_buffered_writes(
+            .membership_plans()
+            .authorize_membership_commands(executed.membership_commands.clone())?;
+        let preview = self.db.mutation_writes().dry_run_buffered_writes(
             &canonical_input,
             executed.writes.clone(),
             executed.sequence_allocations.clone(),
@@ -20468,10 +20461,8 @@ impl LocalSnapback {
         else {
             return;
         };
-        self.live_authority_stats.quarantine_exits = self
-            .live_authority_stats
-            .quarantine_exits
-            .saturating_add(1);
+        self.live_authority_stats.quarantine_exits =
+            self.live_authority_stats.quarantine_exits.saturating_add(1);
         crate::spike_trace::fence(
             subscription_id,
             "quarantine_exit",
@@ -20487,20 +20478,23 @@ impl LocalSnapback {
     /// data-driven classification; the client fence still gates locally until
     /// it applies the proof).
     fn subscription_has_pending_quarantine(&self, subscription: &LiveSubscription) -> bool {
-        subscription.authorization.as_ref().is_some_and(|authorization| {
-            self.auth_invalidation.as_ref().is_some_and(|state| {
-                state
-                    .obligations
-                    .projection(&authorization.scope_id)
-                    .is_some_and(|projection| {
-                        projection.obligation.max_disposition
-                            >= InvalidationDisposition::Quarantine
-                            && !projection.resolution.as_ref().is_some_and(|resolution| {
-                                resolution.revision >= projection.obligation.revision
-                            })
-                    })
+        subscription
+            .authorization
+            .as_ref()
+            .is_some_and(|authorization| {
+                self.auth_invalidation.as_ref().is_some_and(|state| {
+                    state
+                        .obligations
+                        .projection(&authorization.scope_id)
+                        .is_some_and(|projection| {
+                            projection.obligation.max_disposition
+                                >= InvalidationDisposition::Quarantine
+                                && !projection.resolution.as_ref().is_some_and(|resolution| {
+                                    resolution.revision >= projection.obligation.revision
+                                })
+                        })
+                })
             })
-        })
     }
 
     fn enqueue_live_data_fanout(
@@ -21596,16 +21590,14 @@ impl LocalSnapback {
                 )
             })?;
             let cause = state.reserve_cause_sequence()?;
-            Some(
-                state.obligations.raise_with_quarantine_lifecycle(
-                    authorization.scope_id.clone(),
-                    cause,
-                    format!("{cause_label}:{cause}"),
-                    InvalidationDisposition::Quarantine,
-                    proof.clone(),
-                    None,
-                )?,
-            )
+            Some(state.obligations.raise_with_quarantine_lifecycle(
+                authorization.scope_id.clone(),
+                cause,
+                format!("{cause_label}:{cause}"),
+                InvalidationDisposition::Quarantine,
+                proof.clone(),
+                None,
+            )?)
         } else {
             None
         };
@@ -21747,9 +21739,7 @@ impl LocalSnapback {
                     let projection = state.obligations.projection(&child);
                     (inherited, entered, projection)
                 };
-                if entered
-                    && let Some(obligation) = inherited.as_ref()
-                {
+                if entered && let Some(obligation) = inherited.as_ref() {
                     self.record_quarantine_entry(obligation, true);
                 }
                 if let Some(projection) = projection {
@@ -25148,65 +25138,64 @@ fn snapshot_batch_relational_result_contract(
     use crate::manifest::{
         FieldType, JoinKind, ProjectionSource, ResultObjectFieldContract, ResultValueContract,
     };
-    let scalar = |table: &crate::manifest::TableManifest,
-                  field_name: &str|
-     -> ResultValueContract {
-        if field_name == "_id" {
-            return ResultValueContract::Id {
-                table: table.name.clone(),
+    let scalar =
+        |table: &crate::manifest::TableManifest, field_name: &str| -> ResultValueContract {
+            if field_name == "_id" {
+                return ResultValueContract::Id {
+                    table: table.name.clone(),
+                };
+            }
+            let field = table
+                .field(field_name)
+                .expect("relational projection field validated before contract derivation");
+            let value = match &field.field_type {
+                FieldType::String => ResultValueContract::String {
+                    max_bytes: 1_048_576,
+                },
+                FieldType::Enum { values } => ResultValueContract::Union {
+                    variants: values
+                        .iter()
+                        .cloned()
+                        .map(|value| ResultValueContract::Literal {
+                            value: Value::String(value),
+                        })
+                        .collect(),
+                },
+                FieldType::Boolean => ResultValueContract::Boolean,
+                FieldType::Integer => ResultValueContract::Integer {
+                    min: -9_007_199_254_740_991,
+                    max: 9_007_199_254_740_991,
+                },
+                FieldType::Real => ResultValueContract::FiniteReal {
+                    min: -f64::MAX,
+                    max: f64::MAX,
+                },
+                FieldType::Principal => ResultValueContract::Principal,
+                FieldType::Id { table } => ResultValueContract::Id {
+                    table: table.clone(),
+                },
+                FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
+                FieldType::Vector { .. }
+                | FieldType::Json
+                | FieldType::Structured { .. }
+                | FieldType::RelationIncarnation { .. } => {
+                    unreachable!("non-portable relational projection refused before derivation")
+                }
             };
-        }
-        let field = table
-            .field(field_name)
-            .expect("relational projection field validated before contract derivation");
-        let value = match &field.field_type {
-            FieldType::String => ResultValueContract::String {
-                max_bytes: 1_048_576,
-            },
-            FieldType::Enum { values } => ResultValueContract::Union {
-                variants: values
-                    .iter()
-                    .cloned()
-                    .map(|value| ResultValueContract::Literal {
-                        value: Value::String(value),
-                    })
-                    .collect(),
-            },
-            FieldType::Boolean => ResultValueContract::Boolean,
-            FieldType::Integer => ResultValueContract::Integer {
-                min: -9_007_199_254_740_991,
-                max: 9_007_199_254_740_991,
-            },
-            FieldType::Real => ResultValueContract::FiniteReal {
-                min: -f64::MAX,
-                max: f64::MAX,
-            },
-            FieldType::Principal => ResultValueContract::Principal,
-            FieldType::Id { table } => ResultValueContract::Id {
-                table: table.clone(),
-            },
-            FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
-            FieldType::Vector { .. }
-            | FieldType::Json
-            | FieldType::Structured { .. }
-            | FieldType::RelationIncarnation { .. } => {
-                unreachable!("non-portable relational projection refused before derivation")
+            if field.optional {
+                match value {
+                    ResultValueContract::Union { mut variants } => {
+                        variants.insert(0, ResultValueContract::Null);
+                        ResultValueContract::Union { variants }
+                    }
+                    value => ResultValueContract::Union {
+                        variants: vec![ResultValueContract::Null, value],
+                    },
+                }
+            } else {
+                value
             }
         };
-        if field.optional {
-            match value {
-                ResultValueContract::Union { mut variants } => {
-                    variants.insert(0, ResultValueContract::Null);
-                    ResultValueContract::Union { variants }
-                }
-                value => ResultValueContract::Union {
-                    variants: vec![ResultValueContract::Null, value],
-                },
-            }
-        } else {
-            value
-        }
-    };
     let nullable = |value: ResultValueContract| match &value {
         ResultValueContract::Null => value,
         ResultValueContract::Union { variants }
@@ -25457,15 +25446,12 @@ fn validate_function_schema_references(
         }
         for filter in &plan.filters {
             field(&plan.table, &filter.field)?;
-            if table_manifest
-                .field(&filter.field)
-                .is_some_and(|declared| {
-                    matches!(
-                        declared.field_type,
-                        crate::manifest::FieldType::Structured { .. }
-                    )
-                })
-            {
+            if table_manifest.field(&filter.field).is_some_and(|declared| {
+                matches!(
+                    declared.field_type,
+                    crate::manifest::FieldType::Structured { .. }
+                )
+            }) {
                 return Err(SnapbackError::error(
                     "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE",
                     "runtime",
@@ -25478,16 +25464,13 @@ fn validate_function_schema_references(
         }
         for order in &plan.order {
             field(&plan.table, &order.field)?;
-            if table_manifest
-                .field(&order.field)
-                .is_some_and(|declared| {
-                    matches!(
-                        declared.field_type,
-                        crate::manifest::FieldType::Json
-                            | crate::manifest::FieldType::Structured { .. }
-                    )
-                })
-            {
+            if table_manifest.field(&order.field).is_some_and(|declared| {
+                matches!(
+                    declared.field_type,
+                    crate::manifest::FieldType::Json
+                        | crate::manifest::FieldType::Structured { .. }
+                )
+            }) {
                 return Err(SnapbackError::error(
                     "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE",
                     "runtime",

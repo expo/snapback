@@ -59,7 +59,10 @@ fn asset_signed_url_request_accepts_empty_defaults_and_types_parse_refusals() {
         "SNAPBACK_ASSET_REQUEST_INVALID"
     );
     assert_eq!(invalid_json.0.diagnostic.details["field"], "body");
-    assert_eq!(invalid_json.into_response().status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        invalid_json.into_response().status(),
+        StatusCode::BAD_REQUEST
+    );
 
     let unknown = super::parse_asset_signed_url_issue_request(Ok(Bytes::from_static(
         br#"{"surprise":true}"#,
@@ -83,11 +86,8 @@ async fn asset_signed_url_route_empty_and_omitted_body_issue_primary() {
         b"signed-route-defaults",
         "signedUpload",
     );
-    let authority = crate::local::tests::asset_dev_authority(
-        &snapback,
-        "user_a",
-        InvocationSource::HttpQuery,
-    );
+    let authority =
+        crate::local::tests::asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
     let state = Arc::new(Mutex::new(snapback));
 
     for body in [Bytes::new(), Bytes::from_static(b"{}")] {
@@ -100,7 +100,12 @@ async fn asset_signed_url_route_empty_and_omitted_body_issue_primary() {
         .await
         .expect("empty/default issuance succeeds");
         assert_eq!(issued.0.variant, "primary");
-        assert!(issued.0.url.contains(&format!("/{asset_id}/primary?token=")));
+        assert!(
+            issued
+                .0
+                .url
+                .contains(&format!("/{asset_id}/primary?token="))
+        );
         assert_eq!(issued.into_response().status(), StatusCode::OK);
     }
 }
@@ -430,17 +435,17 @@ use crate::local::{
     EnsureAppMode, LiveInvalidationAdmission, LiveSubscribeInput, LocalSnapback, StagedAction,
 };
 use crate::manifest::{
-    ActionPlan, ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ApiDisclosure,
-    ApiAskBilling, ApiAskBudgets, ApiAskManifest, ApiAskModelManifest,
-    ApiAskPerPrincipalDayBudget, ApiAskPerRequestBudget, ApiAskResultVolumeBudget,
-    ApiAskTokenBudget, ApiBudgetsManifest, ApiFunctionExposure, ApiManifest, ApiOAuthBundle,
-    ApiOAuthManifest, AuthInput, AuthManifest,
-    AuthMode, AuthRequirement, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
-    CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, FieldManifest, FieldType,
-    FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
-    HandlerInput, HandlerPlan, IbexModule, InvitedBy, MutationAcknowledgementRequest, MutationPlan,
-    MutationStep, QueryPlan, ReturnValue, SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest,
-    SeedData, TableManifest, TargetCapabilityId, ValueExpr,
+    ActionPlan, ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ApiAskBilling,
+    ApiAskBudgets, ApiAskManifest, ApiAskModelManifest, ApiAskPerPrincipalDayBudget,
+    ApiAskPerRequestBudget, ApiAskResultVolumeBudget, ApiAskTokenBudget, ApiBudgetsManifest,
+    ApiDisclosure, ApiFunctionExposure, ApiManifest, ApiOAuthBundle, ApiOAuthManifest, AuthInput,
+    AuthManifest, AuthMode, AuthRequirement, CronActivationPolicy, CronJitterPolicy,
+    CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule,
+    FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
+    FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, InvitedBy,
+    MutationAcknowledgementRequest, MutationPlan, MutationStep, QueryPlan, ReturnValue,
+    SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, SeedData, TableManifest, TargetCapabilityId,
+    ValueExpr,
 };
 use crate::runtime::{ActionStreamRequest, IbexActionHost};
 use crate::storage::ClientMutationIdentity;
@@ -465,8 +470,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex as StdMutex, OnceLock};
 use std::time::{Duration, Instant};
 use syn::visit::Visit;
-use tokio::net::TcpListener;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+use tokio::net::TcpListener;
 use tokio::sync::{Mutex, Semaphore};
 use tower::ServiceExt as _;
 use uuid::Uuid;
@@ -1478,7 +1483,10 @@ async fn rehearsal_capture_releases_after_charge_and_exact_retry_is_free() {
         .await
         .expect("capture rehearsal code");
     let captured_status = captured.status();
-    assert_eq!(captured.headers()[header::CACHE_CONTROL], "no-store, private");
+    assert_eq!(
+        captured.headers()[header::CACHE_CONTROL],
+        "no-store, private"
+    );
     let captured = response_json(captured).await;
     assert_eq!(captured_status, StatusCode::OK, "{captured:#}");
     assert_eq!(captured["ok"], true, "{captured:#}");
@@ -1512,7 +1520,10 @@ async fn rehearsal_capture_releases_after_charge_and_exact_retry_is_free() {
     assert_eq!(status.status(), StatusCode::OK);
     let status = response_json(status).await;
     assert_eq!(status["ok"], true, "{status:#}");
-    assert_eq!(status["data"]["grants"][0]["remaining"]["challengeAttempts"], 1);
+    assert_eq!(
+        status["data"]["grants"][0]["remaining"]["challengeAttempts"],
+        1
+    );
     assert_eq!(status["data"]["grants"][0]["remaining"]["uses"], 1);
 }
 
@@ -2888,7 +2899,8 @@ async fn protected_room_server_fast_paths_progress_during_affected_commit() {
     let remaining = with_snapback(&state.snapback, |snapback| {
         snapback
             .auth_database_mut()
-            .query_reads_read().scan_table("roomMembers", 10, 0)
+            .query_reads_read()
+            .scan_table("roomMembers", 10, 0)
             .map(|scan| scan.total)
     })
     .await
@@ -3261,12 +3273,7 @@ fn sessions_activation_server_fixture_with_agents(
     clock: Option<Arc<ManualServerAuthClock>>,
     agents: Option<AgentsManifest>,
 ) -> AppState {
-    sessions_activation_server_fixture_with_api(
-        predecessor_functions,
-        clock,
-        agents,
-        None,
-    )
+    sessions_activation_server_fixture_with_api(predecessor_functions, clock, agents, None)
 }
 
 fn sessions_activation_server_fixture_with_api(
@@ -3552,9 +3559,9 @@ async fn sessions_activation_server_fixture_with_ask_async(
                 .find(|function| function.name == name)
                 .expect("ask fixture function")
                 .api_exposure = Some(ApiFunctionExposure {
-                    expose: true,
-                    since: None,
-                });
+                expose: true,
+                since: None,
+            });
         }
         sessions_activation_server_fixture_with_api(
             functions,
@@ -3597,12 +3604,8 @@ async fn sessions_activation_server_fixture_with_ask_async(
                             max_steps: 6,
                             max_wall_ms: 5_000,
                         },
-                        per_principal_day: ApiAskPerPrincipalDayBudget {
-                            max_tokens: 1_000,
-                        },
-                        per_integration_day: Some(ApiAskTokenBudget {
-                            max_tokens: 500,
-                        }),
+                        per_principal_day: ApiAskPerPrincipalDayBudget { max_tokens: 1_000 },
+                        per_integration_day: Some(ApiAskTokenBudget { max_tokens: 500 }),
                         app_monthly: ApiAskTokenBudget { max_tokens: 10_000 },
                         result_volume: ApiAskResultVolumeBudget {
                             max_bytes: result_max_bytes,
@@ -3621,7 +3624,11 @@ async fn sessions_activation_server_fixture_with_ask_async(
 
 async fn ask_provider_stub(
     responses: Vec<Value>,
-) -> (String, Arc<StdMutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
+) -> (
+    String,
+    Arc<StdMutex<Vec<Value>>>,
+    tokio::task::JoinHandle<()>,
+) {
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind ask provider stub");
@@ -3634,7 +3641,10 @@ async fn ask_provider_stub(
             let mut request = Vec::new();
             let mut buffer = [0_u8; 4096];
             let body_start = loop {
-                let read = socket.read(&mut buffer).await.expect("read ask provider call");
+                let read = socket
+                    .read(&mut buffer)
+                    .await
+                    .expect("read ask provider call");
                 assert!(read > 0, "provider request closed before headers");
                 request.extend_from_slice(&buffer[..read]);
                 if let Some(offset) = request.windows(4).position(|window| window == b"\r\n\r\n") {
@@ -3657,17 +3667,19 @@ async fn ask_provider_stub(
                 assert!(read > 0, "provider request closed before body");
                 request.extend_from_slice(&buffer[..read]);
             }
-            let body: Value = serde_json::from_slice(
-                &request[body_start..body_start + content_length],
-            )
-            .expect("provider request JSON");
+            let body: Value =
+                serde_json::from_slice(&request[body_start..body_start + content_length])
+                    .expect("provider request JSON");
             captured_task.lock().unwrap().push(body);
             let body = serde_json::to_vec(&response).expect("provider response JSON");
             let head = format!(
                 "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
                 body.len()
             );
-            socket.write_all(head.as_bytes()).await.expect("write provider head");
+            socket
+                .write_all(head.as_bytes())
+                .await
+                .expect("write provider head");
             socket.write_all(&body).await.expect("write provider body");
         }
     });
@@ -3710,9 +3722,9 @@ async fn sessions_activation_server_fixture_with_oauth_policy_async(
             .find(|function| function.name == "listItems")
             .unwrap()
             .api_exposure = Some(ApiFunctionExposure {
-                expose: true,
-                since: None,
-            });
+            expose: true,
+            since: None,
+        });
         let mut authenticated_items = functions
             .functions
             .iter()
@@ -3730,9 +3742,9 @@ async fn sessions_activation_server_fixture_with_oauth_policy_async(
             .find(|function| function.name == "queuedWrite")
             .unwrap();
         queued_write.api_exposure = Some(ApiFunctionExposure {
-                expose: true,
-                since: None,
-            });
+            expose: true,
+            since: None,
+        });
         queued_write.authority_creating = true;
         sessions_activation_server_fixture_with_api(
             functions,
@@ -3892,16 +3904,26 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
     assert!(initialized.headers().get("mcp-session-id").is_none());
     let initialized = response_json(initialized).await;
     assert_eq!(initialized["result"]["protocolVersion"], "2025-06-18");
-    assert_eq!(initialized["result"]["capabilities"]["tools"]["listChanged"], false);
-    assert_eq!(initialized["result"]["capabilities"]["resources"]["subscribe"], false);
-    assert!(initialized["result"]["instructions"]
-        .as_str()
-        .unwrap()
-        .contains("target-conditional"));
-    assert!(initialized["result"]["instructions"]
-        .as_str()
-        .unwrap()
-        .contains("synchronous MCP tool"));
+    assert_eq!(
+        initialized["result"]["capabilities"]["tools"]["listChanged"],
+        false
+    );
+    assert_eq!(
+        initialized["result"]["capabilities"]["resources"]["subscribe"],
+        false
+    );
+    assert!(
+        initialized["result"]["instructions"]
+            .as_str()
+            .unwrap()
+            .contains("target-conditional")
+    );
+    assert!(
+        initialized["result"]["instructions"]
+            .as_str()
+            .unwrap()
+            .contains("synchronous MCP tool")
+    );
 
     let mut rebound = mcp_protocol_request(
         "POST",
@@ -3927,7 +3949,11 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
             .oneshot(mcp_protocol_request(method, json!({}), None, None, None))
             .await
             .unwrap();
-        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED, "{method}");
+        assert_eq!(
+            response.status(),
+            StatusCode::METHOD_NOT_ALLOWED,
+            "{method}"
+        );
         assert_eq!(response.headers()[header::ALLOW], "POST");
     }
 
@@ -3944,15 +3970,17 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
         .unwrap();
     assert_eq!(listed.status(), StatusCode::OK);
     let listed = response_json(listed).await;
-    assert!(listed["result"]["tools"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|tool| tool["name"] == "run_code")
-        .unwrap()["description"]
-        .as_str()
-        .unwrap()
-        .contains("per-target conditional"));
+    assert!(
+        listed["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|tool| tool["name"] == "run_code")
+            .unwrap()["description"]
+            .as_str()
+            .unwrap()
+            .contains("per-target conditional")
+    );
     let tools = listed["result"]["tools"]
         .as_array()
         .unwrap()
@@ -4040,7 +4068,13 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
         ))
         .await
         .unwrap();
-    assert_eq!(response_json(resources).await["result"]["resources"].as_array().unwrap().len(), 3);
+    assert_eq!(
+        response_json(resources).await["result"]["resources"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
 
     let declared_id = "mcp-client/ops@example.test";
     let called = router
@@ -4063,7 +4097,10 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
         .await
         .unwrap();
     assert_eq!(called.status(), StatusCode::OK);
-    assert_eq!(called.headers()[super::SNAPBACK_CLIENT_ID_STATUS_HEADER], "accepted");
+    assert_eq!(
+        called.headers()[super::SNAPBACK_CLIENT_ID_STATUS_HEADER],
+        "accepted"
+    );
     let called = response_json(called).await;
     assert_eq!(called["result"]["isError"], false);
     assert_eq!(
@@ -4110,10 +4147,12 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
         .await
         .unwrap();
     assert_eq!(sse.status(), StatusCode::OK);
-    assert!(sse.headers()[header::CONTENT_TYPE]
-        .to_str()
-        .unwrap()
-        .starts_with("text/event-stream"));
+    assert!(
+        sse.headers()[header::CONTENT_TYPE]
+            .to_str()
+            .unwrap()
+            .starts_with("text/event-stream")
+    );
     let sse = String::from_utf8(to_bytes(sse.into_body(), 4096).await.unwrap().to_vec()).unwrap();
     assert!(sse.starts_with("event: message\ndata: {"));
 
@@ -4138,9 +4177,11 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
             group_by_caller: true,
         })
         .unwrap();
-    assert!(stats.caller_counts.iter().any(|row| {
-        row.lane == "declared" && row.caller_key == caller_key && row.count >= 1
-    }));
+    assert!(
+        stats.caller_counts.iter().any(|row| {
+            row.lane == "declared" && row.caller_key == caller_key && row.count >= 1
+        })
+    );
 }
 
 #[tokio::test]
@@ -4184,7 +4225,10 @@ async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_polic
         .await
         .unwrap();
     assert_eq!(invalid_redirect.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(response_json(invalid_redirect).await["error"], "invalid_redirect_uri");
+    assert_eq!(
+        response_json(invalid_redirect).await["error"],
+        "invalid_redirect_uri"
+    );
     let open = open_router
         .clone()
         .oneshot(register(json!({
@@ -4196,7 +4240,12 @@ async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_polic
     assert_eq!(open.status(), StatusCode::OK);
     let open = response_json(open).await;
     assert!(open.get("client_secret").is_none());
-    assert!(open["token_endpoint"].as_str().unwrap().ends_with("/auth/oauth/token"));
+    assert!(
+        open["token_endpoint"]
+            .as_str()
+            .unwrap()
+            .ends_with("/auth/oauth/token")
+    );
     let open_client_id = open["client_id"].as_str().unwrap().to_owned();
     let lookup_client_id = open_client_id.clone();
     let open_facts = with_snapback(&open_state.snapback, move |snapback| {
@@ -4212,16 +4261,21 @@ async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_polic
     .unwrap();
     assert_eq!(open_facts.1.0.1, None);
     assert_eq!(open_facts.2, "provisional");
-    assert_eq!(serde_json::from_str::<Value>(&open_facts.3).unwrap(), json!(["https://open.example/callback"]));
+    assert_eq!(
+        serde_json::from_str::<Value>(&open_facts.3).unwrap(),
+        json!(["https://open.example/callback"])
+    );
     let open_provenance = serde_json::from_str::<Value>(&open_facts.1.0.2).unwrap();
     assert_eq!(open_provenance["class"], "integration");
     assert_eq!(open_provenance["mode"], "open");
     let suspended_principal = open_facts.0;
     let suspension_at = open_state.auth_provider.as_ref().unwrap().now_ms();
     with_snapback(&open_state.snapback, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .set_integration_suspended(&suspended_principal, true, suspension_at)
+        snapback.auth_database_mut().set_integration_suspended(
+            &suspended_principal,
+            true,
+            suspension_at,
+        )
     })
     .await
     .unwrap();
@@ -4282,7 +4336,10 @@ async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_polic
     .unwrap();
     assert_eq!(invited_facts.1.0.1, None);
     assert_eq!(invited_facts.2, "unclaimed");
-    assert_eq!(invited_facts.3, (inviter_id.clone(), Some(invited_facts.0.clone())));
+    assert_eq!(
+        invited_facts.3,
+        (inviter_id.clone(), Some(invited_facts.0.clone()))
+    );
     let invited_provenance = serde_json::from_str::<Value>(&invited_facts.1.0.2).unwrap();
     assert_eq!(invited_provenance["inviter"], inviter_id);
     let replay = invited_router
@@ -4293,7 +4350,10 @@ async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_polic
         .await
         .unwrap();
     assert_eq!(replay.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(response_json(replay).await["details"]["code"], "SNAPBACK_AUTH_AGENT_INVITATION_INVALID");
+    assert_eq!(
+        response_json(replay).await["details"]["code"],
+        "SNAPBACK_AUTH_AGENT_INVITATION_INVALID"
+    );
 
     let disabled_state = sessions_activation_server_fixture_with_oauth_policy_async(agent_policy(
         AgentsMode::Disabled,
@@ -4307,7 +4367,10 @@ async fn oauth_dynamic_registration_reuses_open_invited_and_disabled_agent_polic
         .await
         .unwrap();
     assert_eq!(disabled.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(response_json(disabled).await["details"]["code"], "SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED");
+    assert_eq!(
+        response_json(disabled).await["details"]["code"],
+        "SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED"
+    );
 }
 
 #[tokio::test]
@@ -4337,7 +4400,10 @@ async fn oauth_facade_is_wholesale_absent_on_hosted_targets() {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::NOT_FOUND, "{method} {path}");
-        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store, private");
+        assert_eq!(
+            response.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
         assert!(to_bytes(response.into_body(), 64).await.unwrap().is_empty());
     }
 }
@@ -4367,13 +4433,30 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK, "{path}");
-        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store, private");
+        assert_eq!(
+            response.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
         let metadata = response_json(response).await;
-        assert_eq!(metadata["scopes_supported"], json!(["items.read", "items.write"]));
+        assert_eq!(
+            metadata["scopes_supported"],
+            json!(["items.read", "items.write"])
+        );
         if path.ends_with("authorization-server") {
-            assert_eq!(metadata["code_challenge_methods_supported"], json!(["S256"]));
-            assert_eq!(metadata["grant_types_supported"], json!(["authorization_code"]));
-            assert!(metadata["registration_endpoint"].as_str().unwrap().ends_with("/auth/oauth/register"));
+            assert_eq!(
+                metadata["code_challenge_methods_supported"],
+                json!(["S256"])
+            );
+            assert_eq!(
+                metadata["grant_types_supported"],
+                json!(["authorization_code"])
+            );
+            assert!(
+                metadata["registration_endpoint"]
+                    .as_str()
+                    .unwrap()
+                    .ends_with("/auth/oauth/register")
+            );
         } else {
             assert_eq!(metadata["bearer_methods_supported"], json!(["header"]));
         }
@@ -4396,7 +4479,10 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
         .await
         .unwrap();
     assert_eq!(registered.status(), StatusCode::OK);
-    assert_eq!(registered.headers()[header::CACHE_CONTROL], "no-store, private");
+    assert_eq!(
+        registered.headers()[header::CACHE_CONTROL],
+        "no-store, private"
+    );
     let registered = response_json(registered).await;
     let client_id = registered["client_id"].as_str().unwrap().to_owned();
     assert!(client_id.starts_with("intg_"));
@@ -4411,7 +4497,13 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
     );
     let consent = router
         .clone()
-        .oneshot(oauth_protocol_request("GET", &authorize_uri, None, Body::empty(), Some(bearer)))
+        .oneshot(oauth_protocol_request(
+            "GET",
+            &authorize_uri,
+            None,
+            Body::empty(),
+            Some(bearer),
+        ))
         .await
         .unwrap();
     if consent.status() != StatusCode::OK {
@@ -4425,7 +4517,10 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
         .unwrap();
         panic!("OAuth consent failed with {status}: {refusal}");
     }
-    assert_eq!(consent.headers()[header::CACHE_CONTROL], "no-store, private");
+    assert_eq!(
+        consent.headers()[header::CACHE_CONTROL],
+        "no-store, private"
+    );
     let consent = String::from_utf8(
         to_bytes(consent.into_body(), 64 * 1024)
             .await
@@ -4455,7 +4550,10 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
         .await
         .unwrap();
     assert_eq!(approval.status(), StatusCode::FOUND);
-    let location = approval.headers()[header::LOCATION].to_str().unwrap().to_owned();
+    let location = approval.headers()[header::LOCATION]
+        .to_str()
+        .unwrap()
+        .to_owned();
     assert!(location.contains("state=journey-state"));
     let code = location
         .split_once("code=")
@@ -4577,7 +4675,10 @@ async fn oauth_metadata_and_full_authorization_code_journey_are_enabled_only_and
         .await
         .unwrap();
     assert_eq!(authenticated_call.status(), StatusCode::OK);
-    assert_eq!(response_json(authenticated_call).await["result"]["isError"], false);
+    assert_eq!(
+        response_json(authenticated_call).await["result"]["isError"],
+        false
+    );
 
     let hidden_credentialed = router
         .clone()
@@ -4784,8 +4885,8 @@ async fn oauth_authority_creating_consent_reuses_operation_bound_step_up() {
         .as_str()
         .unwrap()
         .to_owned();
-    let mailbox = serde_json::to_value(provider.mailbox_entry(&challenge_id).await.unwrap())
-        .unwrap();
+    let mailbox =
+        serde_json::to_value(provider.mailbox_entry(&challenge_id).await.unwrap()).unwrap();
     let code = mailbox["code"].as_str().unwrap();
     let approved = router
         .oneshot(oauth_protocol_request(
@@ -4800,10 +4901,12 @@ async fn oauth_authority_creating_consent_reuses_operation_bound_step_up() {
         .await
         .unwrap();
     assert_eq!(approved.status(), StatusCode::FOUND);
-    assert!(approved.headers()[header::LOCATION]
-        .to_str()
-        .unwrap()
-        .contains("code=sboac_"));
+    assert!(
+        approved.headers()[header::LOCATION]
+            .to_str()
+            .unwrap()
+            .contains("code=sboac_")
+    );
 }
 
 #[tokio::test]
@@ -4873,11 +4976,13 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
         "https://integration.example:8443"
     );
     assert_eq!(exposed.headers()[header::VARY], "Origin");
-    assert!(exposed.headers()[header::ACCESS_CONTROL_EXPOSE_HEADERS]
-        .to_str()
-        .unwrap()
-        .split(',')
-        .any(|name| name.trim() == super::SNAPBACK_CLIENT_ID_STATUS_HEADER));
+    assert!(
+        exposed.headers()[header::ACCESS_CONTROL_EXPOSE_HEADERS]
+            .to_str()
+            .unwrap()
+            .split(',')
+            .any(|name| name.trim() == super::SNAPBACK_CLIENT_ID_STATUS_HEADER)
+    );
     assert!(
         exposed
             .headers()
@@ -4996,9 +5101,11 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
             ..Default::default()
         })
         .unwrap();
-    assert!(!serde_json::to_string(&telemetry_rows).unwrap().contains(
-        "crawler-7f3a9c/ops@example.com"
-    ));
+    assert!(
+        !serde_json::to_string(&telemetry_rows)
+            .unwrap()
+            .contains("crawler-7f3a9c/ops@example.com")
+    );
 
     let declared_listing = router
         .clone()
@@ -5017,9 +5124,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
         .as_array()
         .unwrap()
         .iter()
-        .find(|row| {
-            row["normalizedId"].as_str() == Some(declared_record.normalized_id.as_str())
-        })
+        .find(|row| row["normalizedId"].as_str() == Some(declared_record.normalized_id.as_str()))
         .unwrap();
     assert_eq!(declared_listing["callerKey"], declared_caller_key);
     assert!(declared_listing["recentUsage"]["count"].as_u64().unwrap() >= 1);
@@ -5060,14 +5165,18 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
         suspended["diagnostic"]["code"],
         "SNAPBACK_API_DECLARED_CLIENT_SUSPENDED"
     );
-    assert!(suspended["diagnostic"]["message"]
-        .as_str()
-        .unwrap()
-        .contains("suspended"));
-    assert!(!suspended["diagnostic"]["message"]
-        .as_str()
-        .unwrap()
-        .contains("revoked"));
+    assert!(
+        suspended["diagnostic"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("suspended")
+    );
+    assert!(
+        !suspended["diagnostic"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("revoked")
+    );
     let resumed_id = declared_record.normalized_id;
     with_snapback(&runtime.snapback, move |snapback| {
         snapback.auth_database_mut().set_declared_client_status(
@@ -5128,7 +5237,10 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
     })
     .await
     .unwrap();
-    assert!(blocked_row.is_none(), "a rejected creation does not allocate or refresh a row");
+    assert!(
+        blocked_row.is_none(),
+        "a rejected creation does not allocate or refresh a row"
+    );
 
     let malformed_declaration = router
         .clone()
@@ -5279,11 +5391,13 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
         preflight.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
         "https://integration.example:8443"
     );
-    assert!(preflight.headers()[header::ACCESS_CONTROL_ALLOW_HEADERS]
-        .to_str()
-        .unwrap()
-        .split(',')
-        .any(|name| name.trim() == super::SNAPBACK_CLIENT_ID_HEADER));
+    assert!(
+        preflight.headers()[header::ACCESS_CONTROL_ALLOW_HEADERS]
+            .to_str()
+            .unwrap()
+            .split(',')
+            .any(|name| name.trim() == super::SNAPBACK_CLIENT_ID_HEADER)
+    );
 
     let mut full_functions = activation_functions('3', false);
     for function in &mut full_functions.functions {
@@ -5354,8 +5468,7 @@ async fn external_ask_is_granted_read_only_receipted_stream_settled_and_mcp_mirr
         .get_or_init(|| StdMutex::new(()))
         .lock()
         .unwrap();
-    let _environment_restore =
-        AskEgressEnvRestore(std::env::var_os("SNAPBACK_OUTBOUND_ACTIONS"));
+    let _environment_restore = AskEgressEnvRestore(std::env::var_os("SNAPBACK_OUTBOUND_ACTIONS"));
     unsafe { std::env::set_var("SNAPBACK_OUTBOUND_ACTIONS", "1") };
 
     let query_call = json!({
@@ -5373,21 +5486,23 @@ async fn external_ask_is_granted_read_only_receipted_stream_settled_and_mcp_mirr
         } }],
         "usage": { "prompt_tokens": 3, "completion_tokens": 2, "total_tokens": 5 }
     });
-    let final_call = |id: &str, answer: &str| json!({
-        "choices": [{ "message": {
-            "role": "assistant",
-            "content": null,
-            "tool_calls": [{
-                "id": id,
-                "type": "function",
-                "function": {
-                    "name": crate::ask::FINAL_TOOL_NAME,
-                    "arguments": serde_json::to_string(&json!({ "answer": answer })).unwrap()
-                }
-            }]
-        } }],
-        "usage": { "prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6 }
-    });
+    let final_call = |id: &str, answer: &str| {
+        json!({
+            "choices": [{ "message": {
+                "role": "assistant",
+                "content": null,
+                "tool_calls": [{
+                    "id": id,
+                    "type": "function",
+                    "function": {
+                        "name": crate::ask::FINAL_TOOL_NAME,
+                        "arguments": serde_json::to_string(&json!({ "answer": answer })).unwrap()
+                    }
+                }]
+            } }],
+            "usage": { "prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6 }
+        })
+    };
     let (provider_base, captured, provider_task) = ask_provider_stub(vec![
         query_call,
         final_call("call-final", "summarized"),
@@ -5443,11 +5558,8 @@ async fn external_ask_is_granted_read_only_receipted_stream_settled_and_mcp_mirr
         "SNAPBACK_API_ASK_AUTHORITY_REQUIRED"
     );
 
-    let declared_state = sessions_activation_server_fixture_with_ask_async(
-        provider_base.clone(),
-        64 * 1024,
-    )
-    .await;
+    let declared_state =
+        sessions_activation_server_fixture_with_ask_async(provider_base.clone(), 64 * 1024).await;
     let declared = app(declared_state)
         .oneshot(
             Request::builder()
@@ -5494,11 +5606,19 @@ async fn external_ask_is_granted_read_only_receipted_stream_settled_and_mcp_mirr
     assert_eq!(response["provider"], expected_provider_identity);
     assert_eq!(response["model"], "stub-model");
     assert_eq!(response["tokenAccounting"]["totalTokens"], 11);
-    assert_eq!(response["provenanceNotProof"]["calls"].as_array().unwrap().len(), 1);
-    assert!(response["provenanceNotProof"]["calls"][0]["argsDigest"]
-        .as_str()
-        .unwrap()
-        .starts_with("hmac-sha256:"));
+    assert_eq!(
+        response["provenanceNotProof"]["calls"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(
+        response["provenanceNotProof"]["calls"][0]["argsDigest"]
+            .as_str()
+            .unwrap()
+            .starts_with("hmac-sha256:")
+    );
     let attempt_token = response["attemptToken"].as_str().unwrap();
     let transcript = router
         .clone()
@@ -5511,10 +5631,12 @@ async fn external_ask_is_granted_read_only_receipted_stream_settled_and_mcp_mirr
     assert_eq!(transcript.status(), StatusCode::OK);
     let transcript = response_json(transcript).await;
     assert_eq!(transcript["terminalCause"], "complete");
-    assert!(transcript["finalText"]
-        .as_str()
-        .unwrap()
-        .contains("provenanceNotProof"));
+    assert!(
+        transcript["finalText"]
+            .as_str()
+            .unwrap()
+            .contains("provenanceNotProof")
+    );
 
     let first_provider_request = captured.lock().unwrap()[0].clone();
     let tool_names = first_provider_request["tools"]
@@ -5538,11 +5660,13 @@ async fn external_ask_is_granted_read_only_receipted_stream_settled_and_mcp_mirr
         ))
         .await
         .unwrap();
-    assert!(response_json(listed).await["result"]["tools"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|tool| tool["name"] == "ask"));
+    assert!(
+        response_json(listed).await["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|tool| tool["name"] == "ask")
+    );
     let mut mcp = mcp_protocol_request(
         "POST",
         json!({
@@ -5610,9 +5734,11 @@ async fn external_ask_is_granted_read_only_receipted_stream_settled_and_mcp_mirr
         redaction_body["diagnostic"]["code"],
         "SNAPBACK_API_ASK_UPSTREAM_INVALID"
     );
-    assert!(!serde_json::to_string(&redaction_body)
-        .unwrap()
-        .contains("redaction-sentinel-provider-key"));
+    assert!(
+        !serde_json::to_string(&redaction_body)
+            .unwrap()
+            .contains("redaction-sentinel-provider-key")
+    );
     let telemetry = state
         .telemetry
         .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
@@ -5621,9 +5747,11 @@ async fn external_ask_is_granted_read_only_receipted_stream_settled_and_mcp_mirr
             ..Default::default()
         })
         .unwrap();
-    assert!(!serde_json::to_string(&telemetry)
-        .unwrap()
-        .contains("redaction-sentinel-provider-key"));
+    assert!(
+        !serde_json::to_string(&telemetry)
+            .unwrap()
+            .contains("redaction-sentinel-provider-key")
+    );
     provider_task.await.unwrap();
 
     let volume_call = json!({
@@ -7514,6 +7642,7 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
     super::with_snapback(&state.snapback, move |snapback| {
         snapback
             .auth_database_mut()
+            .mutation_writes()
             .execute_mutation_idempotent(
                 &MutationPlan {
                     steps: Vec::new(),
@@ -14465,522 +14594,547 @@ async fn registered_agent_completes_the_full_pairing_journey() {
 
 #[tokio::test]
 async fn integration_key_holder_retires_the_complete_installed_family() {
-let state = sessions_activation_server_fixture_with_integrations_async().await;
-with_snapback(&state.snapback, |snapback| {
-snapback
-.auth_database_mut()
-.reconcile_auth_scope_bases(&activation_functions('2', false))
-})
-.await
-.unwrap();
-let owner = mint_test_credential(&state, "integration-owner@example.com").await;
-let bearer = owner["token"].as_str().unwrap().to_owned();
-let router = app(state.clone());
-let registered = router
-.clone()
-.oneshot(agent_registration_http_request(json!({
-"class": "integration",
-"displayName": "Journey Integration",
-"origin": "https://integration.example.test",
-"redirectUris": ["https://integration.example.test/callback"]
-})))
-.await
-.unwrap();
-let registered_status = registered.status();
-let registered = response_json(registered).await;
-assert_eq!(registered_status, StatusCode::OK, "{registered}");
-let integration_id = registered["userId"].as_str().unwrap().to_owned();
-let credential = registered["credential"].as_str().unwrap().to_owned();
+    let state = sessions_activation_server_fixture_with_integrations_async().await;
+    with_snapback(&state.snapback, |snapback| {
+        snapback
+            .auth_database_mut()
+            .reconcile_auth_scope_bases(&activation_functions('2', false))
+    })
+    .await
+    .unwrap();
+    let owner = mint_test_credential(&state, "integration-owner@example.com").await;
+    let bearer = owner["token"].as_str().unwrap().to_owned();
+    let router = app(state.clone());
+    let registered = router
+        .clone()
+        .oneshot(agent_registration_http_request(json!({
+        "class": "integration",
+        "displayName": "Journey Integration",
+        "origin": "https://integration.example.test",
+        "redirectUris": ["https://integration.example.test/callback"]
+        })))
+        .await
+        .unwrap();
+    let registered_status = registered.status();
+    let registered = response_json(registered).await;
+    assert_eq!(registered_status, StatusCode::OK, "{registered}");
+    let integration_id = registered["userId"].as_str().unwrap().to_owned();
+    let credential = registered["credential"].as_str().unwrap().to_owned();
 
-let mut planted_authority = auth_http_request(
-"POST",
-"/auth/integrations/retire",
-serde_json::to_vec(&json!({
-"credential": credential,
-"auth": { "userId": "planted" },
-}))
-.unwrap(),
-true,
-None,
-None,
-);
-offer_auth_client_protocol(&mut planted_authority);
-let planted_authority = router.clone().oneshot(planted_authority).await.unwrap();
-assert_eq!(planted_authority.status(), StatusCode::BAD_REQUEST);
-assert_eq!(
-response_json(planted_authority).await["diagnostic"]["code"],
-"SNAPBACK_AUTH_REQUEST_INVALID"
-);
+    let mut planted_authority = auth_http_request(
+        "POST",
+        "/auth/integrations/retire",
+        serde_json::to_vec(&json!({
+        "credential": credential,
+        "auth": { "userId": "planted" },
+        }))
+        .unwrap(),
+        true,
+        None,
+        None,
+    );
+    offer_auth_client_protocol(&mut planted_authority);
+    let planted_authority = router.clone().oneshot(planted_authority).await.unwrap();
+    assert_eq!(planted_authority.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response_json(planted_authority).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_REQUEST_INVALID"
+    );
 
-let pairing = router
-.clone()
-.oneshot(session_auth_http_request(
-"/auth/pairing-codes",
-br#"{}"#.to_vec(),
-&bearer,
-))
-.await
-.unwrap();
-let pairing = response_json(pairing).await;
-let pairing_request_id = pairing["pairingRequestId"].as_str().unwrap().to_owned();
-let mut pair_request = auth_http_request(
-"POST",
-"/auth/agents/pair",
-serde_json::to_vec(&json!({
-"credential": credential,
-"pairingRequestId": pairing_request_id,
-"pairingCode": pairing["pairingCode"],
-"requestedScopes": [{ "tier": "query" }],
-}))
-.unwrap(),
-true,
-None,
-None,
-);
-offer_auth_client_protocol(&mut pair_request);
-let paired = router.clone().oneshot(pair_request).await.unwrap();
-let paired_status = paired.status();
-let paired = response_json(paired).await;
-assert_eq!(paired_status, StatusCode::OK, "{paired}");
-let approved = router
-.clone()
-.oneshot(session_auth_http_request(
-&format!("/auth/grant-requests/{pairing_request_id}/approve"),
-br#"{}"#.to_vec(),
-&bearer,
-))
-.await
-.unwrap();
-let approved_status = approved.status();
-let approved = response_json(approved).await;
-assert_eq!(approved_status, StatusCode::OK, "{approved}");
-let grant_id = approved["grantId"].as_str().unwrap().to_owned();
+    let pairing = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/pairing-codes",
+            br#"{}"#.to_vec(),
+            &bearer,
+        ))
+        .await
+        .unwrap();
+    let pairing = response_json(pairing).await;
+    let pairing_request_id = pairing["pairingRequestId"].as_str().unwrap().to_owned();
+    let mut pair_request = auth_http_request(
+        "POST",
+        "/auth/agents/pair",
+        serde_json::to_vec(&json!({
+        "credential": credential,
+        "pairingRequestId": pairing_request_id,
+        "pairingCode": pairing["pairingCode"],
+        "requestedScopes": [{ "tier": "query" }],
+        }))
+        .unwrap(),
+        true,
+        None,
+        None,
+    );
+    offer_auth_client_protocol(&mut pair_request);
+    let paired = router.clone().oneshot(pair_request).await.unwrap();
+    let paired_status = paired.status();
+    let paired = response_json(paired).await;
+    assert_eq!(paired_status, StatusCode::OK, "{paired}");
+    let approved = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            &format!("/auth/grant-requests/{pairing_request_id}/approve"),
+            br#"{}"#.to_vec(),
+            &bearer,
+        ))
+        .await
+        .unwrap();
+    let approved_status = approved.status();
+    let approved = response_json(approved).await;
+    assert_eq!(approved_status, StatusCode::OK, "{approved}");
+    let grant_id = approved["grantId"].as_str().unwrap().to_owned();
 
-let mut token_request = auth_http_request(
-"POST",
-"/auth/agents/token",
-serde_json::to_vec(&json!({
-"credential": credential,
-"grantId": grant_id,
-}))
-.unwrap(),
-true,
-None,
-None,
-);
-offer_auth_client_protocol(&mut token_request);
-let token = router.clone().oneshot(token_request).await.unwrap();
-let token_status = token.status();
-let token = response_json(token).await;
-assert_eq!(token_status, StatusCode::OK, "{token}");
-let scoped_token = token["token"].as_str().unwrap().to_owned();
-let integration_principal = integration_id.clone();
-let integration_caller_key = with_snapback(&state.snapback, move |snapback| {
-Ok::<_, SnapbackError>(snapback
-.auth_database_mut()
-.integration_record_if_present(&integration_principal)?
-.unwrap()
-.integration_id)
-})
-.await
-.unwrap();
-let attributed_query = Request::builder()
-.method("POST")
-.uri("/api/v1/query/listItems")
-.header(header::CONTENT_TYPE, "application/json")
-.header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
-.header("x-snapback-auth-client-protocol", "1")
-.via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
-.body(Body::from(r#"{"args":{}}"#))
-.unwrap();
-let attributed_query = router.clone().oneshot(attributed_query).await.unwrap();
-assert_eq!(attributed_query.status(), StatusCode::OK);
-let integration_stats = state
-.telemetry
-.query_stats(&crate::telemetry_query::TelemetryStatsRequestV1 {
-filter: crate::telemetry_query::TelemetryStatsFilterV1 {
-kind: Some("function_run".to_owned()),
-name: Some("listItems".to_owned()),
-caller_key: Some(integration_caller_key.clone()),
-lane: Some("integration".to_owned()),
-..Default::default()
-},
-group_by_caller: true,
-})
-.unwrap();
-assert_eq!(integration_stats.caller_counts.len(), 1);
-assert_eq!(integration_stats.caller_counts[0].count, 1);
+    let mut token_request = auth_http_request(
+        "POST",
+        "/auth/agents/token",
+        serde_json::to_vec(&json!({
+        "credential": credential,
+        "grantId": grant_id,
+        }))
+        .unwrap(),
+        true,
+        None,
+        None,
+    );
+    offer_auth_client_protocol(&mut token_request);
+    let token = router.clone().oneshot(token_request).await.unwrap();
+    let token_status = token.status();
+    let token = response_json(token).await;
+    assert_eq!(token_status, StatusCode::OK, "{token}");
+    let scoped_token = token["token"].as_str().unwrap().to_owned();
+    let integration_principal = integration_id.clone();
+    let integration_caller_key = with_snapback(&state.snapback, move |snapback| {
+        Ok::<_, SnapbackError>(
+            snapback
+                .auth_database_mut()
+                .integration_record_if_present(&integration_principal)?
+                .unwrap()
+                .integration_id,
+        )
+    })
+    .await
+    .unwrap();
+    let attributed_query = Request::builder()
+        .method("POST")
+        .uri("/api/v1/query/listItems")
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
+        .header("x-snapback-auth-client-protocol", "1")
+        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+        .body(Body::from(r#"{"args":{}}"#))
+        .unwrap();
+    let attributed_query = router.clone().oneshot(attributed_query).await.unwrap();
+    assert_eq!(attributed_query.status(), StatusCode::OK);
+    let integration_stats = state
+        .telemetry
+        .query_stats(&crate::telemetry_query::TelemetryStatsRequestV1 {
+            filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                kind: Some("function_run".to_owned()),
+                name: Some("listItems".to_owned()),
+                caller_key: Some(integration_caller_key.clone()),
+                lane: Some("integration".to_owned()),
+                ..Default::default()
+            },
+            group_by_caller: true,
+        })
+        .unwrap();
+    assert_eq!(integration_stats.caller_counts.len(), 1);
+    assert_eq!(integration_stats.caller_counts[0].count, 1);
 
-let opened = router
-.clone()
-.oneshot(connection_open_request(
-Some(&scoped_token),
-json!({ "authInvalidationProtocol": 1 }),
-))
-.await
-.unwrap();
-assert_eq!(opened.status(), StatusCode::OK);
-let opened = response_json(opened).await;
-let connection_id = opened["connectionId"].as_str().unwrap();
-let connection_token = opened["connectionToken"].as_str().unwrap();
-let subscribed = router
-.clone()
-.oneshot(
-Request::builder()
-.method("POST")
-.uri("/live/liveItems/subscribe")
-.header(header::CONTENT_TYPE, "application/json")
-.header(super::CONNECTION_TOKEN_HEADER, connection_token)
-.header("x-snapback-auth-client-protocol", "1")
-.via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
-.header("x-snapback-auth-invalidation-protocol", "1")
-.body(Body::from(
-serde_json::to_vec(&json!({
-"connection_id": connection_id,
-"input": { "args": {} },
-"authorizationNamespace": {
-"clientStoreId": "integration-attribution-store",
-"queryKey": "liveItems:{}",
-"queryInstanceId": 1,
-},
-}))
-.unwrap(),
-))
-.unwrap(),
-)
-.await
-.unwrap();
-let subscribed_status = subscribed.status();
-let subscribed = response_json(subscribed).await;
-assert_eq!(subscribed_status, StatusCode::OK, "{subscribed}");
-let live_events = state
-.telemetry
-.query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
-filter: crate::telemetry_query::TelemetryFilterV1 {
-kind: Some("live_subscribe".to_owned()),
-name: Some("liveItems".to_owned()),
-..Default::default()
-},
-limit: crate::telemetry_query::MAX_EVENT_LIMIT,
-..Default::default()
-})
-.unwrap();
-assert!(live_events.events.iter().any(|event| {
-event.details.as_ref().is_some_and(|details| {
-details["callerLane"] == "integration"
-&& details["callerKey"] == integration_caller_key
-})
-}));
+    let opened = router
+        .clone()
+        .oneshot(connection_open_request(
+            Some(&scoped_token),
+            json!({ "authInvalidationProtocol": 1 }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(opened.status(), StatusCode::OK);
+    let opened = response_json(opened).await;
+    let connection_id = opened["connectionId"].as_str().unwrap();
+    let connection_token = opened["connectionToken"].as_str().unwrap();
+    let subscribed = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/live/liveItems/subscribe")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(super::CONNECTION_TOKEN_HEADER, connection_token)
+                .header("x-snapback-auth-client-protocol", "1")
+                .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+                .header("x-snapback-auth-invalidation-protocol", "1")
+                .body(Body::from(
+                    serde_json::to_vec(&json!({
+                    "connection_id": connection_id,
+                    "input": { "args": {} },
+                    "authorizationNamespace": {
+                    "clientStoreId": "integration-attribution-store",
+                    "queryKey": "liveItems:{}",
+                    "queryInstanceId": 1,
+                    },
+                    }))
+                    .unwrap(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let subscribed_status = subscribed.status();
+    let subscribed = response_json(subscribed).await;
+    assert_eq!(subscribed_status, StatusCode::OK, "{subscribed}");
+    let live_events = state
+        .telemetry
+        .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
+            filter: crate::telemetry_query::TelemetryFilterV1 {
+                kind: Some("live_subscribe".to_owned()),
+                name: Some("liveItems".to_owned()),
+                ..Default::default()
+            },
+            limit: crate::telemetry_query::MAX_EVENT_LIMIT,
+            ..Default::default()
+        })
+        .unwrap();
+    assert!(live_events.events.iter().any(|event| {
+        event.details.as_ref().is_some_and(|details| {
+            details["callerLane"] == "integration" && details["callerKey"] == integration_caller_key
+        })
+    }));
 
-let integrations = Request::builder()
-.uri("/_snapback/api/auth/integrations")
-.header("x-snapback-admin-token", "auth-http-admin")
-.body(Body::empty())
-.unwrap();
-let integrations = router.clone().oneshot(integrations).await.unwrap();
-assert_eq!(integrations.status(), StatusCode::OK);
-let integrations = response_json(integrations).await;
-let integration = integrations["integrations"]
-.as_array()
-.unwrap()
-.iter()
-.find(|row| row["principalUserId"].as_str() == Some(integration_id.as_str()))
-.unwrap();
-assert_eq!(integration["callerKey"], integration_caller_key);
-assert_eq!(integration["status"], "active");
-assert!(matches!(
-integration["ownerClaimState"].as_str(),
-Some("provisional" | "unclaimed" | "claimed")
-));
-assert!(integration["recentUsage"]["count"].as_u64().unwrap() >= 1);
+    let integrations = Request::builder()
+        .uri("/_snapback/api/auth/integrations")
+        .header("x-snapback-admin-token", "auth-http-admin")
+        .body(Body::empty())
+        .unwrap();
+    let integrations = router.clone().oneshot(integrations).await.unwrap();
+    assert_eq!(integrations.status(), StatusCode::OK);
+    let integrations = response_json(integrations).await;
+    let integration = integrations["integrations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["principalUserId"].as_str() == Some(integration_id.as_str()))
+        .unwrap();
+    assert_eq!(integration["callerKey"], integration_caller_key);
+    assert_eq!(integration["status"], "active");
+    assert!(matches!(
+        integration["ownerClaimState"].as_str(),
+        Some("provisional" | "unclaimed" | "claimed")
+    ));
+    assert!(integration["recentUsage"]["count"].as_u64().unwrap() >= 1);
 
-let pending_installation = router
-.clone()
-.oneshot(session_auth_http_request(
-"/auth/pairing-codes",
-br#"{}"#.to_vec(),
-&bearer,
-))
-.await
-.unwrap();
-let pending_installation = response_json(pending_installation).await;
-let pending_installation_id = pending_installation["pairingRequestId"]
-.as_str()
-.unwrap()
-.to_owned();
-let mut pending_installation_request = auth_http_request(
-"POST",
-"/auth/agents/pair",
-serde_json::to_vec(&json!({
-"credential": credential,
-"pairingRequestId": pending_installation_id,
-"pairingCode": pending_installation["pairingCode"],
-"requestedScopes": [{ "tier": "query" }],
-}))
-.unwrap(),
-true,
-None,
-None,
-);
-offer_auth_client_protocol(&mut pending_installation_request);
-let pending_installation_request = router
-.clone()
-.oneshot(pending_installation_request)
-.await
-.unwrap();
-let pending_installation_status = pending_installation_request.status();
-let pending_installation_request = response_json(pending_installation_request).await;
-assert_eq!(
-pending_installation_status,
-StatusCode::OK,
-"{pending_installation_request}"
-);
+    let pending_installation = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/pairing-codes",
+            br#"{}"#.to_vec(),
+            &bearer,
+        ))
+        .await
+        .unwrap();
+    let pending_installation = response_json(pending_installation).await;
+    let pending_installation_id = pending_installation["pairingRequestId"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let mut pending_installation_request = auth_http_request(
+        "POST",
+        "/auth/agents/pair",
+        serde_json::to_vec(&json!({
+        "credential": credential,
+        "pairingRequestId": pending_installation_id,
+        "pairingCode": pending_installation["pairingCode"],
+        "requestedScopes": [{ "tier": "query" }],
+        }))
+        .unwrap(),
+        true,
+        None,
+        None,
+    );
+    offer_auth_client_protocol(&mut pending_installation_request);
+    let pending_installation_request = router
+        .clone()
+        .oneshot(pending_installation_request)
+        .await
+        .unwrap();
+    let pending_installation_status = pending_installation_request.status();
+    let pending_installation_request = response_json(pending_installation_request).await;
+    assert_eq!(
+        pending_installation_status,
+        StatusCode::OK,
+        "{pending_installation_request}"
+    );
 
-let suspend = Request::builder()
-.method("POST")
-.uri(format!(
-"/_snapback/api/auth/integrations/{integration_id}/suspend"
-))
-.header("x-snapback-admin-token", "auth-http-admin")
-.body(Body::empty())
-.unwrap();
-let suspend = router.clone().oneshot(suspend).await.unwrap();
-let suspend_status = suspend.status();
-let suspend = response_json(suspend).await;
-assert_eq!(suspend_status, StatusCode::OK, "{suspend}");
-assert_eq!(suspend["status"], "suspended");
-let suspended_query = Request::builder()
-.method("POST")
-.uri("/query/listItems")
-.header(header::CONTENT_TYPE, "application/json")
-.header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
-.header("x-snapback-auth-client-protocol", "1")
-.via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
-.body(Body::from(r#"{"args":{}}"#))
-.unwrap();
-let suspended_query = router.clone().oneshot(suspended_query).await.unwrap();
-assert_eq!(suspended_query.status(), StatusCode::FORBIDDEN);
-let suspended_query = response_json(suspended_query).await;
-assert_eq!(
-suspended_query["diagnostic"]["code"],
-"SNAPBACK_AUTH_INTEGRATION_SUSPENDED"
-);
-assert!(suspended_query["diagnostic"]["message"]
-.as_str()
-.unwrap()
-.contains("suspended"));
+    let suspend = Request::builder()
+        .method("POST")
+        .uri(format!(
+            "/_snapback/api/auth/integrations/{integration_id}/suspend"
+        ))
+        .header("x-snapback-admin-token", "auth-http-admin")
+        .body(Body::empty())
+        .unwrap();
+    let suspend = router.clone().oneshot(suspend).await.unwrap();
+    let suspend_status = suspend.status();
+    let suspend = response_json(suspend).await;
+    assert_eq!(suspend_status, StatusCode::OK, "{suspend}");
+    assert_eq!(suspend["status"], "suspended");
+    let suspended_query = Request::builder()
+        .method("POST")
+        .uri("/query/listItems")
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
+        .header("x-snapback-auth-client-protocol", "1")
+        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+        .body(Body::from(r#"{"args":{}}"#))
+        .unwrap();
+    let suspended_query = router.clone().oneshot(suspended_query).await.unwrap();
+    assert_eq!(suspended_query.status(), StatusCode::FORBIDDEN);
+    let suspended_query = response_json(suspended_query).await;
+    assert_eq!(
+        suspended_query["diagnostic"]["code"],
+        "SNAPBACK_AUTH_INTEGRATION_SUSPENDED"
+    );
+    assert!(
+        suspended_query["diagnostic"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("suspended")
+    );
 
-let blocked_approval = router
-.clone()
-.oneshot(session_auth_http_request(
-&format!("/auth/grant-requests/{pending_installation_id}/approve"),
-br#"{}"#.to_vec(),
-&bearer,
-))
-.await
-.unwrap();
-assert_eq!(blocked_approval.status(), StatusCode::FORBIDDEN);
-let blocked_approval = response_json(blocked_approval).await;
-assert_eq!(
-blocked_approval["diagnostic"]["code"],
-"SNAPBACK_AUTH_INTEGRATION_SUSPENDED"
-);
-assert!(!blocked_approval["diagnostic"]["message"]
-.as_str()
-.unwrap()
-.contains("revok"));
+    let blocked_approval = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            &format!("/auth/grant-requests/{pending_installation_id}/approve"),
+            br#"{}"#.to_vec(),
+            &bearer,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(blocked_approval.status(), StatusCode::FORBIDDEN);
+    let blocked_approval = response_json(blocked_approval).await;
+    assert_eq!(
+        blocked_approval["diagnostic"]["code"],
+        "SNAPBACK_AUTH_INTEGRATION_SUSPENDED"
+    );
+    assert!(
+        !blocked_approval["diagnostic"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("revok")
+    );
 
-let blocked_pairing = router
-.clone()
-.oneshot(session_auth_http_request(
-"/auth/pairing-codes",
-br#"{}"#.to_vec(),
-&bearer,
-))
-.await
-.unwrap();
-let blocked_pairing = response_json(blocked_pairing).await;
-let blocked_pairing_id = blocked_pairing["pairingRequestId"]
-.as_str()
-.unwrap()
-.to_owned();
-let blocked_pairing_code = blocked_pairing["pairingCode"].as_str().unwrap().to_owned();
-let make_blocked_pairing_request = || {
-let mut request = auth_http_request(
-"POST",
-"/auth/agents/pair",
-serde_json::to_vec(&json!({
-"credential": credential,
-"pairingRequestId": blocked_pairing_id,
-"pairingCode": blocked_pairing_code,
-"requestedScopes": [{ "tier": "query" }],
-}))
-.unwrap(),
-true,
-None,
-None,
-);
-offer_auth_client_protocol(&mut request);
-request
-};
-let blocked_pairing_response = router
-.clone()
-.oneshot(make_blocked_pairing_request())
-.await
-.unwrap();
-assert_eq!(blocked_pairing_response.status(), StatusCode::FORBIDDEN);
-assert_eq!(
-response_json(blocked_pairing_response).await["diagnostic"]["code"],
-"SNAPBACK_AUTH_INTEGRATION_SUSPENDED"
-);
+    let blocked_pairing = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/pairing-codes",
+            br#"{}"#.to_vec(),
+            &bearer,
+        ))
+        .await
+        .unwrap();
+    let blocked_pairing = response_json(blocked_pairing).await;
+    let blocked_pairing_id = blocked_pairing["pairingRequestId"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let blocked_pairing_code = blocked_pairing["pairingCode"].as_str().unwrap().to_owned();
+    let make_blocked_pairing_request = || {
+        let mut request = auth_http_request(
+            "POST",
+            "/auth/agents/pair",
+            serde_json::to_vec(&json!({
+            "credential": credential,
+            "pairingRequestId": blocked_pairing_id,
+            "pairingCode": blocked_pairing_code,
+            "requestedScopes": [{ "tier": "query" }],
+            }))
+            .unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut request);
+        request
+    };
+    let blocked_pairing_response = router
+        .clone()
+        .oneshot(make_blocked_pairing_request())
+        .await
+        .unwrap();
+    assert_eq!(blocked_pairing_response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(blocked_pairing_response).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_INTEGRATION_SUSPENDED"
+    );
 
-let resume = Request::builder()
-.method("POST")
-.uri(format!(
-"/_snapback/api/auth/integrations/{integration_id}/resume"
-))
-.header("x-snapback-admin-token", "auth-http-admin")
-.body(Body::empty())
-.unwrap();
-let resume = router.clone().oneshot(resume).await.unwrap();
-let resume_status = resume.status();
-let resume = response_json(resume).await;
-assert_eq!(resume_status, StatusCode::OK, "{resume}");
-assert_eq!(resume["status"], "active");
-let resumed_approval = router
-.clone()
-.oneshot(session_auth_http_request(
-&format!("/auth/grant-requests/{pending_installation_id}/approve"),
-br#"{}"#.to_vec(),
-&bearer,
-))
-.await
-.unwrap();
-let resumed_approval_status = resumed_approval.status();
-let resumed_approval = response_json(resumed_approval).await;
-assert_eq!(resumed_approval_status, StatusCode::OK, "{resumed_approval}");
-let resumed_grant_id = resumed_approval["grantId"].as_str().unwrap().to_owned();
-let resumed_pairing = router
-.clone()
-.oneshot(make_blocked_pairing_request())
-.await
-.unwrap();
-let resumed_pairing_status = resumed_pairing.status();
-let resumed_pairing = response_json(resumed_pairing).await;
-assert_eq!(resumed_pairing_status, StatusCode::OK, "{resumed_pairing}");
-let resumed_query = Request::builder()
-.method("POST")
-.uri("/query/listItems")
-.header(header::CONTENT_TYPE, "application/json")
-.header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
-.header("x-snapback-auth-client-protocol", "1")
-.via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
-.body(Body::from(r#"{"args":{}}"#))
-.unwrap();
-let resumed_query = router.clone().oneshot(resumed_query).await.unwrap();
-let resumed_status = resumed_query.status();
-let resumed_query = response_json(resumed_query).await;
-assert_eq!(resumed_status, StatusCode::OK, "{resumed_query}");
+    let resume = Request::builder()
+        .method("POST")
+        .uri(format!(
+            "/_snapback/api/auth/integrations/{integration_id}/resume"
+        ))
+        .header("x-snapback-admin-token", "auth-http-admin")
+        .body(Body::empty())
+        .unwrap();
+    let resume = router.clone().oneshot(resume).await.unwrap();
+    let resume_status = resume.status();
+    let resume = response_json(resume).await;
+    assert_eq!(resume_status, StatusCode::OK, "{resume}");
+    assert_eq!(resume["status"], "active");
+    let resumed_approval = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            &format!("/auth/grant-requests/{pending_installation_id}/approve"),
+            br#"{}"#.to_vec(),
+            &bearer,
+        ))
+        .await
+        .unwrap();
+    let resumed_approval_status = resumed_approval.status();
+    let resumed_approval = response_json(resumed_approval).await;
+    assert_eq!(
+        resumed_approval_status,
+        StatusCode::OK,
+        "{resumed_approval}"
+    );
+    let resumed_grant_id = resumed_approval["grantId"].as_str().unwrap().to_owned();
+    let resumed_pairing = router
+        .clone()
+        .oneshot(make_blocked_pairing_request())
+        .await
+        .unwrap();
+    let resumed_pairing_status = resumed_pairing.status();
+    let resumed_pairing = response_json(resumed_pairing).await;
+    assert_eq!(resumed_pairing_status, StatusCode::OK, "{resumed_pairing}");
+    let resumed_query = Request::builder()
+        .method("POST")
+        .uri("/query/listItems")
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
+        .header("x-snapback-auth-client-protocol", "1")
+        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+        .body(Body::from(r#"{"args":{}}"#))
+        .unwrap();
+    let resumed_query = router.clone().oneshot(resumed_query).await.unwrap();
+    let resumed_status = resumed_query.status();
+    let resumed_query = response_json(resumed_query).await;
+    assert_eq!(resumed_status, StatusCode::OK, "{resumed_query}");
 
-let mut retire = auth_http_request(
-"POST",
-"/auth/integrations/retire",
-serde_json::to_vec(&json!({ "credential": credential })).unwrap(),
-true,
-None,
-None,
-);
-offer_auth_client_protocol(&mut retire);
-assert_eq!(router.clone().oneshot(retire).await.unwrap().status(), StatusCode::NO_CONTENT);
+    let mut retire = auth_http_request(
+        "POST",
+        "/auth/integrations/retire",
+        serde_json::to_vec(&json!({ "credential": credential })).unwrap(),
+        true,
+        None,
+        None,
+    );
+    offer_auth_client_protocol(&mut retire);
+    assert_eq!(
+        router.clone().oneshot(retire).await.unwrap().status(),
+        StatusCode::NO_CONTENT
+    );
 
-let dead_query = Request::builder()
-.method("POST")
-.uri("/query/listItems")
-.header(header::CONTENT_TYPE, "application/json")
-.header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
-.header("x-snapback-auth-client-protocol", "1")
-.via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
-.body(Body::from(r#"{"args":{}}"#))
-.unwrap();
-assert_eq!(router.clone().oneshot(dead_query).await.unwrap().status(), StatusCode::UNAUTHORIZED);
+    let dead_query = Request::builder()
+        .method("POST")
+        .uri("/query/listItems")
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::AUTHORIZATION, format!("Bearer {scoped_token}"))
+        .header("x-snapback-auth-client-protocol", "1")
+        .via_hosted_terminator(TEST_HOSTED_CLIENT_SOURCE)
+        .body(Body::from(r#"{"args":{}}"#))
+        .unwrap();
+    assert_eq!(
+        router.clone().oneshot(dead_query).await.unwrap().status(),
+        StatusCode::UNAUTHORIZED
+    );
 
-let mut remint = auth_http_request(
-"POST",
-"/auth/agents/token",
-serde_json::to_vec(&json!({
-"credential": credential,
-"grantId": grant_id,
-}))
-.unwrap(),
-true,
-None,
-None,
-);
-offer_auth_client_protocol(&mut remint);
-assert_eq!(router.oneshot(remint).await.unwrap().status(), StatusCode::UNAUTHORIZED);
-let facts = with_snapback(&state.snapback, move |snapback| {
-let db = snapback.auth_database_mut();
-let record = db.integration_record_for_test(&integration_id)?.unwrap();
-let revoked = db.integration_grant_revoked_for_test(&grant_id)?;
-let resumed_revoked = db.integration_grant_revoked_for_test(&resumed_grant_id)?;
-Ok::<_, SnapbackError>((record.status, revoked, resumed_revoked))
-})
-.await
-.unwrap();
-assert_eq!(facts.0, crate::storage::auth_integrations::IntegrationStatus::Revoked);
-assert!(facts.1);
-assert!(facts.2);
+    let mut remint = auth_http_request(
+        "POST",
+        "/auth/agents/token",
+        serde_json::to_vec(&json!({
+        "credential": credential,
+        "grantId": grant_id,
+        }))
+        .unwrap(),
+        true,
+        None,
+        None,
+    );
+    offer_auth_client_protocol(&mut remint);
+    assert_eq!(
+        router.oneshot(remint).await.unwrap().status(),
+        StatusCode::UNAUTHORIZED
+    );
+    let facts = with_snapback(&state.snapback, move |snapback| {
+        let db = snapback.auth_database_mut();
+        let record = db.integration_record_for_test(&integration_id)?.unwrap();
+        let revoked = db.integration_grant_revoked_for_test(&grant_id)?;
+        let resumed_revoked = db.integration_grant_revoked_for_test(&resumed_grant_id)?;
+        Ok::<_, SnapbackError>((record.status, revoked, resumed_revoked))
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        facts.0,
+        crate::storage::auth_integrations::IntegrationStatus::Revoked
+    );
+    assert!(facts.1);
+    assert!(facts.2);
 }
 
 #[tokio::test]
 async fn production_operator_retirement_requires_process_bound_agent_destroy_capability() {
-let mut state = sessions_activation_server_fixture_with_integrations_async().await;
-Arc::make_mut(&mut state.server).profile = ServerProfile::Prod;
-let (registry, operator) =
-crate::admin_agent_destroy::AgentDestroyCapabilityRegistry::generate(
-"integration-retire-http".to_owned(),
-&OsRandom,
-)
-.unwrap();
-let destroy_capability = operator.expose_secret().to_owned();
-let (_, unrelated) = crate::admin_agent_destroy::AgentDestroyCapabilityRegistry::generate(
-"integration-retire-http".to_owned(),
-&OsRandom,
-)
-.unwrap();
-let unrelated = unrelated.expose_secret().to_owned();
-state = state.with_agent_destroy_capabilities(registry);
-let router = app(state);
-let request = |capability: Option<&str>| {
-let mut builder = Request::builder()
-.method("POST")
-.uri("/_snapback/api/auth/integrations/not-an-integration/retire")
-.header("x-snapback-admin-token", "auth-http-admin");
-if let Some(capability) = capability {
-builder = builder.header(
-crate::admin_agent_destroy::AGENT_DESTROY_CAPABILITY_HEADER,
-capability,
-);
-}
-builder.body(Body::empty()).unwrap()
-};
-let missing = router.clone().oneshot(request(None)).await.unwrap();
-assert_eq!(missing.status(), StatusCode::FORBIDDEN);
-assert_eq!(
-response_json(missing).await["diagnostic"]["code"],
-"SNAPBACK_AUTH_AGENT_DESTROY_CAPABILITY_REQUIRED"
-);
-let wrong = router.clone().oneshot(request(Some(&unrelated))).await.unwrap();
-assert_eq!(wrong.status(), StatusCode::FORBIDDEN);
-let admitted = router
-.oneshot(request(Some(&destroy_capability)))
-.await
-.unwrap();
-assert_eq!(admitted.status(), StatusCode::NOT_FOUND);
-assert_eq!(
-response_json(admitted).await["diagnostic"]["code"],
-"SNAPBACK_AUTH_INTEGRATION_UNKNOWN"
-);
+    let mut state = sessions_activation_server_fixture_with_integrations_async().await;
+    Arc::make_mut(&mut state.server).profile = ServerProfile::Prod;
+    let (registry, operator) =
+        crate::admin_agent_destroy::AgentDestroyCapabilityRegistry::generate(
+            "integration-retire-http".to_owned(),
+            &OsRandom,
+        )
+        .unwrap();
+    let destroy_capability = operator.expose_secret().to_owned();
+    let (_, unrelated) = crate::admin_agent_destroy::AgentDestroyCapabilityRegistry::generate(
+        "integration-retire-http".to_owned(),
+        &OsRandom,
+    )
+    .unwrap();
+    let unrelated = unrelated.expose_secret().to_owned();
+    state = state.with_agent_destroy_capabilities(registry);
+    let router = app(state);
+    let request = |capability: Option<&str>| {
+        let mut builder = Request::builder()
+            .method("POST")
+            .uri("/_snapback/api/auth/integrations/not-an-integration/retire")
+            .header("x-snapback-admin-token", "auth-http-admin");
+        if let Some(capability) = capability {
+            builder = builder.header(
+                crate::admin_agent_destroy::AGENT_DESTROY_CAPABILITY_HEADER,
+                capability,
+            );
+        }
+        builder.body(Body::empty()).unwrap()
+    };
+    let missing = router.clone().oneshot(request(None)).await.unwrap();
+    assert_eq!(missing.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(missing).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_AGENT_DESTROY_CAPABILITY_REQUIRED"
+    );
+    let wrong = router
+        .clone()
+        .oneshot(request(Some(&unrelated)))
+        .await
+        .unwrap();
+    assert_eq!(wrong.status(), StatusCode::FORBIDDEN);
+    let admitted = router
+        .oneshot(request(Some(&destroy_capability)))
+        .await
+        .unwrap();
+    assert_eq!(admitted.status(), StatusCode::NOT_FOUND);
+    assert_eq!(
+        response_json(admitted).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_INTEGRATION_UNKNOWN"
+    );
 }
 
 #[tokio::test]
@@ -21722,7 +21876,8 @@ async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
     assert_eq!(
         snapback
             .auth_database_mut()
-            .query_reads_read().scan_table("items", 10, 0)
+            .query_reads_read()
+            .scan_table("items", 10, 0)
             .expect("scan carrier rows")
             .total,
         1,
@@ -22896,8 +23051,9 @@ fn output_stream_transcripts_survive_process_death_and_cover_terminal_insert_gap
             "conversation",
             FunctionKind::Action,
             FunctionRuntime::IbexModule(IbexModule {
-                source: "globalThis.__snapbackHandlers = { async conversation() { return null; } };"
-                    .to_owned(),
+                source:
+                    "globalThis.__snapbackHandlers = { async conversation() { return null; } };"
+                        .to_owned(),
                 export: "conversation".to_owned(),
             }),
         );
@@ -22944,11 +23100,9 @@ fn output_stream_transcripts_survive_process_death_and_cover_terminal_insert_gap
                 settled_by: crate::stream_attempt::StreamAttemptSettledBy::Authored,
             }),
             function_id: Some("conversation".to_owned()),
-            initiator: Some(
-                crate::stream_attempt::StreamInitiator::ServiceCredential(
-                    "credential-a".to_owned(),
-                ),
-            ),
+            initiator: Some(crate::stream_attempt::StreamInitiator::ServiceCredential(
+                "credential-a".to_owned(),
+            )),
             started_at_ms: 200,
             settled_at_ms: Some(300),
             emitted_bytes: 7,
@@ -23478,7 +23632,7 @@ async fn streaming_action_emits_through_runtime_and_reserved_live_room() {
     return "done";
   }
 };"#
-                .to_owned(),
+            .to_owned(),
             export: "outputStream".to_owned(),
         }),
     );
@@ -23517,7 +23671,9 @@ async fn streaming_action_emits_through_runtime_and_reserved_live_room() {
     .await
     .expect("streaming action completes");
     assert_eq!(result, json!("done"));
-    let attempt_token = attempt_token.await.expect("attempt token published at start");
+    let attempt_token = attempt_token
+        .await
+        .expect("attempt token published at start");
 
     let scope = Scope::from_pairs([("attemptToken", attempt_token.as_str())]);
     let message = state
@@ -23589,8 +23745,9 @@ async fn stream_transcript_route_is_initiator_private_with_exact_403_and_404() {
         "transcriptSource",
         FunctionKind::Action,
         FunctionRuntime::IbexModule(IbexModule {
-            source: "globalThis.__snapbackHandlers = { async transcriptSource() { return 'done'; } };"
-                .to_owned(),
+            source:
+                "globalThis.__snapbackHandlers = { async transcriptSource() { return 'done'; } };"
+                    .to_owned(),
             export: "transcriptSource".to_owned(),
         }),
     );
@@ -24331,8 +24488,7 @@ fn external_client_id_header_profile_is_duplicate_safe_and_external_only() {
         super::declared_client_id_context(spec, &headers)
     };
 
-    let valid = context(external, &["crawler-7f3a9c/OPS@Example.COM"])
-        .expect("external context");
+    let valid = context(external, &["crawler-7f3a9c/OPS@Example.COM"]).expect("external context");
     assert_eq!(valid.status(), Some("accepted"));
     assert_eq!(
         valid.declared.unwrap().value,
@@ -24442,8 +24598,7 @@ fn external_api_buckets_compose_without_declared_sybil_amplification() {
         )
         .expect("one integration cannot exhaust another integration's bucket");
 
-    let blessed_limit = super::EXTERNAL_API_DECLARED_LIMIT
-        * super::EXTERNAL_API_BLESSED_MULTIPLIER;
+    let blessed_limit = super::EXTERNAL_API_DECLARED_LIMIT * super::EXTERNAL_API_BLESSED_MULTIPLIER;
     assert!(blessed_limit > super::EXTERNAL_API_DECLARED_LIMIT);
     let mut blessed = ConnectionRegistryState::default();
     for _ in 0..=super::EXTERNAL_API_DECLARED_LIMIT {

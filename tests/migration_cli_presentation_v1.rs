@@ -75,7 +75,8 @@ fn migrate_preview_renders_bounded_precondition_observations() {
     {
         let mut database = LocalDatabase::open(&db).expect("open predecessor");
         database
-            .schema_seed().apply_schema(predecessor)
+            .schema_seed()
+            .apply_schema(predecessor)
             .expect("apply predecessor");
         let rows = (0..7)
             .map(|index| {
@@ -89,7 +90,8 @@ fn migrate_preview_renders_bounded_precondition_observations() {
             })
             .collect();
         database
-            .schema_seed().seed(SeedData {
+            .schema_seed()
+            .seed(SeedData {
                 tables: BTreeMap::from([("models".to_owned(), rows)]),
             })
             .expect("seed predecessor rows");
@@ -160,7 +162,8 @@ fn migrate_streams_redaction_json_silence_and_render_first_approval() {
     {
         let mut database = LocalDatabase::open(&db).expect("open predecessor");
         database
-            .schema_seed().apply_schema(schema(false))
+            .schema_seed()
+            .apply_schema(schema(false))
             .expect("apply predecessor");
     }
     std::fs::write(

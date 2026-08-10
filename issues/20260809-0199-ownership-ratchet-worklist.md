@@ -75,3 +75,8 @@ pre-existing kernel upward edges explicit (schema_seed -> assets, -> push
 auth/coordinator + session_projection [kernel->sync, relocated from
 storage.rs], -> seed_identity [kernel->generation]). Inversions ride the
 same moves as items 1/3.
+
+**Growth 2026-08-09 (slice-14 finale, re-derived):** mutation_writes ->
+assets/jobs (kernel->background, item-1 family). Catch-ups #6-7:
+ask.rs (background) + storage/ask_spend.rs, storage/asset_grants.rs,
+storage/auth_rehearsal.rs (kernel) + auth/rehearsal.rs (leaf) assigned.

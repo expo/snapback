@@ -86,7 +86,9 @@ use crate::runtime::{
 use crate::storage::auth::AuthTransactionAttempt;
 use axum::extract::rejection::{BytesRejection, FormRejection, JsonRejection, QueryRejection};
 use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
-use axum::extract::{ConnectInfo, DefaultBodyLimit, Extension, Form, OriginalUri, Path, Query, State};
+use axum::extract::{
+    ConnectInfo, DefaultBodyLimit, Extension, Form, OriginalUri, Path, Query, State,
+};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -1185,7 +1187,9 @@ impl DetachedActionHost {
                 "a streaming action requires session, scoped-token, or connection-bound authority",
             )
         })?;
-        let namespace = self.lock_live("stream.initialize")?.stream_attempt_namespace();
+        let namespace = self
+            .lock_live("stream.initialize")?
+            .stream_attempt_namespace();
         let client_key = format!(
             "stream-output:{function_id}:{}",
             self.stream_runner.invocation_id
@@ -2726,15 +2730,9 @@ impl IbexActionHost for DetachedActionHost {
         })?;
         let permit = self
             .ephemeral
-            .begin_server_authorized_room_act(
-                crate::ephemeral::STREAM_COLLECTION_NAME,
-                &scope,
-            )
+            .begin_server_authorized_room_act(crate::ephemeral::STREAM_COLLECTION_NAME, &scope)
             .map_err(Self::ephemeral_error)?;
-        let auth = AuthContext::default().with_room_permission(
-            "_snapback_stream_server",
-            &scope,
-        );
+        let auth = AuthContext::default().with_room_permission("_snapback_stream_server", &scope);
         self.ephemeral
             .publish_with_room_authority(
                 crate::ephemeral::PublishRequest {
@@ -3048,15 +3046,15 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                         telemetry.clone(),
                         correlation,
                         || {
-                        runtime.invoke_ibex_action_prepared(
-                            &module,
-                            input,
-                            &invocation,
-                            metadata,
-                            &mut host,
-                            grants,
-                            Some(execution_deadline),
-                        )
+                            runtime.invoke_ibex_action_prepared(
+                                &module,
+                                input,
+                                &invocation,
+                                metadata,
+                                &mut host,
+                                grants,
+                                Some(execution_deadline),
+                            )
                         },
                     )
                 });
@@ -7168,7 +7166,10 @@ impl ExternalClientIdContext {
     }
 }
 
-fn declared_client_id_context(spec: RouteSpec, headers: &HeaderMap) -> Option<ExternalClientIdContext> {
+fn declared_client_id_context(
+    spec: RouteSpec,
+    headers: &HeaderMap,
+) -> Option<ExternalClientIdContext> {
     if !external_api_route(spec) {
         return None;
     }
@@ -7188,9 +7189,7 @@ fn declared_client_id_context(spec: RouteSpec, headers: &HeaderMap) -> Option<Ex
     }
 }
 
-fn normalize_declared_client_id(
-    raw: &str,
-) -> Result<NormalizedDeclaredClientId, &'static str> {
+fn normalize_declared_client_id(raw: &str) -> Result<NormalizedDeclaredClientId, &'static str> {
     let normalized = raw.nfkc().collect::<String>().trim().to_lowercase();
     if normalized.chars().count() < 16 {
         return Err("ignored-too-short");
@@ -7254,10 +7253,7 @@ fn declared_id_contains_email(value: &str) -> bool {
         })
 }
 
-fn external_api_network_evidence(
-    source: Option<std::net::IpAddr>,
-    now_ms: u64,
-) -> ([u8; 32], u64) {
+fn external_api_network_evidence(source: Option<std::net::IpAddr>, now_ms: u64) -> ([u8; 32], u64) {
     let generation = now_ms / NETWORK_EVIDENCE_ROTATION_MS;
     let grouped = source
         .map(|source| {
@@ -8191,8 +8187,7 @@ impl RouteSpec {
                     RoutePolicy::SessionAuth,
                     CredentialResolution::RequiredSessionOrScopedToken
                 )
-            ))
-                || sessions.invocation_authority != InvocationAuthority::ResolvedCaller
+            )) || sessions.invocation_authority != InvocationAuthority::ResolvedCaller
                 || sessions.legacy_body_policy != LegacyBodyPolicy::Rejected)
         {
             return fail("AppAuth has an incomplete sessions overlay");
@@ -9487,21 +9482,24 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
                 "/_snapback/api/auth/declared-clients/suspend",
                 ResponseSensitivity::OperatorMetadata,
             ),
-            post(admin_declared_client_suspend).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+            post(admin_declared_client_suspend)
+                .layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             write(
                 "/_snapback/api/auth/declared-clients/resume",
                 ResponseSensitivity::OperatorMetadata,
             ),
-            post(admin_declared_client_resume).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+            post(admin_declared_client_resume)
+                .layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             write(
                 "/_snapback/api/auth/declared-clients/delete",
                 ResponseSensitivity::OperatorMetadata,
             ),
-            post(admin_declared_client_delete).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+            post(admin_declared_client_delete)
+                .layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             write(
@@ -10143,12 +10141,9 @@ fn authorize_deferred_operation_preflight(
     allow_public_rehearsal_class: bool,
 ) -> Result<(), ApiError> {
     match runtime.active_policy_auth_mode() {
-        PolicyAuthMode::Dev => crate::admin::authorize_for_mode(
-            &runtime.server,
-            headers,
-            false,
-            PolicyAuthMode::Dev,
-        ),
+        PolicyAuthMode::Dev => {
+            crate::admin::authorize_for_mode(&runtime.server, headers, false, PolicyAuthMode::Dev)
+        }
         PolicyAuthMode::Sessions => {
             let admin = crate::admin::authorize_for_mode(
                 &runtime.server,
@@ -10536,9 +10531,7 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         // mode re-prepares LiveInitialQuery authorities per entry inside the
         // local cut (LLP 0092 §0D.5).
         "/app/bundle" => Some(InvocationSource::HttpQuery),
-        "/mutation/{name}" | "/api/v1/mutation/{name}" => {
-            Some(InvocationSource::HttpMutation)
-        }
+        "/mutation/{name}" | "/api/v1/mutation/{name}" => Some(InvocationSource::HttpMutation),
         "/action/{name}" | "/api/v1/action/{name}" => Some(InvocationSource::HttpAction),
         "/api/v1/run" => Some(InvocationSource::HttpRun),
         "/api/v1/ask" => Some(InvocationSource::HttpAsk),
@@ -10799,8 +10792,7 @@ async fn prepare_registered_route_authority(
                             effective.credential_resolution,
                             CredentialResolution::OptionalSessionOrScopedToken
                                 | CredentialResolution::RequiredSessionOrScopedToken
-                        )
-                            && classify_credential(&bearer) == Some(CredentialClass::ScopedToken)
+                        ) && classify_credential(&bearer) == Some(CredentialClass::ScopedToken)
                         {
                             dispatch_credential_class(&bearer, CredentialClass::ScopedToken)
                                 .map_err(|error| ApiError::from(error.into_snapback_error()))?;
@@ -12017,12 +12009,12 @@ async fn admit_hosted_sender_request(
     // absent carrier on a route that can never legitimately serve an
     // anonymous caller refuses before any body poll instead of deferring to
     // the post-parse function-authority gate.
-    let requires_session_carrier = matches!(
-        effective.credential_resolution,
-        CredentialResolution::RequiredSessionBearer
-            | CredentialResolution::RequiredSessionOrScopedToken
-    )
-        || hosted_function_route_requires_session_carrier(spec, request_uri.path(), runtime);
+    let requires_session_carrier =
+        matches!(
+            effective.credential_resolution,
+            CredentialResolution::RequiredSessionBearer
+                | CredentialResolution::RequiredSessionOrScopedToken
+        ) || hosted_function_route_requires_session_carrier(spec, request_uri.path(), runtime);
     let bearer = match presented {
         PresentedSessionBearer::Absent if !requires_session_carrier => {
             if spec.path == "/connection/open" {
@@ -12207,8 +12199,7 @@ async fn enforce_registered_route_policy_inner(
     }
     // @ref LLP 0204#d8--authority-acquisition-the-ceremony-and-the-facade — the first OAuth facade is local-only and hosted serving refuses the whole family without enumeration.
     if (runtime.hosted_serving.is_some()
-        || runtime.server.auth_deployment
-            == crate::auth::deployment::AuthDeploymentTarget::Hosted)
+        || runtime.server.auth_deployment == crate::auth::deployment::AuthDeploymentTarget::Hosted)
         && matches!(
             spec.path,
             "/.well-known/oauth-authorization-server"
@@ -12219,7 +12210,10 @@ async fn enforce_registered_route_policy_inner(
                 | "/auth/oauth/revoke"
         )
     {
-        return apply_registered_response_controls(effective, hosted_operator_surface_disabled_response());
+        return apply_registered_response_controls(
+            effective,
+            hosted_operator_surface_disabled_response(),
+        );
     }
     // Streamable HTTP MCP requires Origin validation before credentials,
     // admission, or request-body processing so a DNS-rebinding attempt cannot
@@ -12334,8 +12328,7 @@ async fn enforce_registered_route_policy_inner(
     };
     let external_network_evidence = external_api_route(spec).then(|| {
         let now_ms = now_millis();
-        let (digest, generation) =
-            external_api_network_evidence(hosted_effective_source, now_ms);
+        let (digest, generation) = external_api_network_evidence(hosted_effective_source, now_ms);
         (digest, generation, now_ms)
     });
     if let Some((network_digest, _, _)) = external_network_evidence
@@ -13295,23 +13288,23 @@ async fn enforce_registered_route_policy_inner(
                 );
             }
         };
-        prepared_authority = prepared_authority
-            .map(|authority| authority.with_caller_attribution(attribution));
+        prepared_authority =
+            prepared_authority.map(|authority| authority.with_caller_attribution(attribution));
     } else if let Some(authority) = prepared_authority.as_ref() {
-        let attribution = match telemetry_caller_attribution_for_authority(&runtime, authority).await
-        {
-            Ok(attribution) => attribution,
-            Err(error) => {
-                return finish_registered_response(
-                    response_policy,
-                    error.into_response(),
-                    route_admission.as_ref(),
-                    Some(authority),
-                );
-            }
-        };
-        prepared_authority = prepared_authority
-            .map(|authority| authority.with_caller_attribution(attribution));
+        let attribution =
+            match telemetry_caller_attribution_for_authority(&runtime, authority).await {
+                Ok(attribution) => attribution,
+                Err(error) => {
+                    return finish_registered_response(
+                        response_policy,
+                        error.into_response(),
+                        route_admission.as_ref(),
+                        Some(authority),
+                    );
+                }
+            };
+        prepared_authority =
+            prepared_authority.map(|authority| authority.with_caller_attribution(attribution));
     }
     if let Some(authority) = prepared_authority.as_ref() {
         request.extensions_mut().insert(authority.clone());
@@ -13997,20 +13990,22 @@ async fn auth_agent_register(
     let profile = runtime.server.profile;
     let issued = with_snapback(&runtime.snapback, move |snapback| {
         let _effect = route_admission.effect_guard("agent registration transaction")?;
-        snapback.auth_database_mut().register_agent_principal_with_class(
-            policy.mode,
-            invitation.as_ref(),
-            request.display_name,
-            request.operator_contact,
-            request.class,
-            crate::storage::auth_integrations::IntegrationRegistrationFacts {
-                origin: request.origin,
-                redirect_uris: request.redirect_uris,
-            },
-            profile,
-            provider.now_ms(),
-            provider.agent_random_source(),
-        )
+        snapback
+            .auth_database_mut()
+            .register_agent_principal_with_class(
+                policy.mode,
+                invitation.as_ref(),
+                request.display_name,
+                request.operator_contact,
+                request.class,
+                crate::storage::auth_integrations::IntegrationRegistrationFacts {
+                    origin: request.origin,
+                    redirect_uris: request.redirect_uris,
+                },
+                profile,
+                provider.now_ms(),
+                provider.agent_random_source(),
+            )
     })
     .await?;
     Ok(Json(AgentCredentialSecretResponse {
@@ -16144,22 +16139,23 @@ fn recent_caller_usage(
 ) -> Result<RecentCallerUsage, ApiError> {
     let window_end_ms = now_millis() as i64;
     let window_start_ms = window_end_ms.saturating_sub(24 * 60 * 60 * 1_000);
-    let stats = runtime.telemetry.query_stats(
-        &crate::telemetry_query::TelemetryStatsRequestV1 {
-            filter: crate::telemetry_query::TelemetryStatsFilterV1 {
-                from_ms: Some(window_start_ms),
-                to_ms: Some(window_end_ms),
-                lane: Some(lane.to_owned()),
-                ..Default::default()
-            },
-            group_by_caller: true,
-        },
-    )?;
+    let stats =
+        runtime
+            .telemetry
+            .query_stats(&crate::telemetry_query::TelemetryStatsRequestV1 {
+                filter: crate::telemetry_query::TelemetryStatsFilterV1 {
+                    from_ms: Some(window_start_ms),
+                    to_ms: Some(window_end_ms),
+                    lane: Some(lane.to_owned()),
+                    ..Default::default()
+                },
+                group_by_caller: true,
+            })?;
     let mut counts = BTreeMap::new();
     for row in stats.caller_counts {
-        let entry = counts.entry((row.lane, row.caller_key)).or_insert(
-            RecentCallerUsageCount::default(),
-        );
+        let entry = counts
+            .entry((row.lane, row.caller_key))
+            .or_insert(RecentCallerUsageCount::default());
         entry.count = entry.count.saturating_add(row.count);
         entry.error_count = entry.error_count.saturating_add(row.error_count);
     }
@@ -16170,11 +16166,7 @@ fn recent_caller_usage(
     })
 }
 
-fn recent_usage_value(
-    usage: &RecentCallerUsage,
-    lane: &str,
-    caller_key: &str,
-) -> Value {
+fn recent_usage_value(usage: &RecentCallerUsage, lane: &str, caller_key: &str) -> Value {
     let count = usage
         .counts
         .get(&(lane.to_owned(), caller_key.to_owned()))
@@ -16188,9 +16180,7 @@ fn recent_usage_value(
     })
 }
 
-async fn admin_integrations(
-    State(runtime): State<AppState>,
-) -> Result<Json<Value>, ApiError> {
+async fn admin_integrations(State(runtime): State<AppState>) -> Result<Json<Value>, ApiError> {
     let rows = with_snapback(&runtime.snapback, move |snapback| {
         snapback.auth_database_mut().list_integrations()
     })
@@ -16202,7 +16192,9 @@ async fn admin_integrations(
             let caller_key = row.integration_id.clone();
             let recent_usage = recent_usage_value(&usage, "integration", &caller_key);
             let mut value = json!(row);
-            let object = value.as_object_mut().expect("integration record is an object");
+            let object = value
+                .as_object_mut()
+                .expect("integration record is an object");
             object.insert("callerKey".to_owned(), json!(caller_key));
             object.insert("recentUsage".to_owned(), recent_usage);
             value
@@ -16232,9 +16224,7 @@ fn operator_declared_client_id(raw: &str) -> Result<String, ApiError> {
         })
 }
 
-async fn admin_declared_clients(
-    State(runtime): State<AppState>,
-) -> Result<Json<Value>, ApiError> {
+async fn admin_declared_clients(State(runtime): State<AppState>) -> Result<Json<Value>, ApiError> {
     let rows = with_snapback(&runtime.snapback, move |snapback| {
         snapback
             .auth_database_mut()
@@ -18489,26 +18479,27 @@ async fn local_dev_cors(
     // @ref LLP 0025#demo-shape — web-only demos may be served by an ordinary
     // static/Vite origin while talking to the local Snapback server.
     let origin = request.headers().get(header::ORIGIN);
-    let declared_api_origin = if request.uri().path().starts_with("/api/v1/")
-        || request.uri().path() == "/mcp"
-    {
-        let candidate = origin.and_then(|value| value.to_str().ok()).map(str::to_owned);
-        let origins = with_snapback(&runtime.snapback, |snapback| {
-            Ok::<_, SnapbackError>(snapback.api_origins())
-        })
-        .await
-        .ok()
-        .flatten();
-        candidate.and_then(|candidate| {
-            origins
-                .as_ref()
-                .is_some_and(|origins| origins.iter().any(|origin| origin == &candidate))
-                .then(|| HeaderValue::from_str(&candidate).ok())
-                .flatten()
-        })
-    } else {
-        None
-    };
+    let declared_api_origin =
+        if request.uri().path().starts_with("/api/v1/") || request.uri().path() == "/mcp" {
+            let candidate = origin
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned);
+            let origins = with_snapback(&runtime.snapback, |snapback| {
+                Ok::<_, SnapbackError>(snapback.api_origins())
+            })
+            .await
+            .ok()
+            .flatten();
+            candidate.and_then(|candidate| {
+                origins
+                    .as_ref()
+                    .is_some_and(|origins| origins.iter().any(|origin| origin == &candidate))
+                    .then(|| HeaderValue::from_str(&candidate).ok())
+                    .flatten()
+            })
+        } else {
+            None
+        };
     // @ref LLP 0204#d2--surface-1-the-third-party-api — browser integrations
     // use bearer headers, so a declared exact origin is echoed with Vary but
     // never Access-Control-Allow-Credentials.
@@ -18563,7 +18554,8 @@ fn cors_allow_headers() -> &'static HeaderValue {
 fn cors_expose_headers() -> &'static HeaderValue {
     static HEADERS: OnceLock<HeaderValue> = OnceLock::new();
     HEADERS.get_or_init(|| {
-        const BASE_HEADERS: &str = "dpop-nonce, snapback-client-id-status, snapback-network-profile";
+        const BASE_HEADERS: &str =
+            "dpop-nonce, snapback-client-id-status, snapback-network-profile";
         // `location` is deliberately absent: Snapback has no TUS creation
         // route, and no handler emits Location.
         let tus_headers = [
@@ -18696,10 +18688,10 @@ async fn app_api_current(State(runtime): State<AppState>) -> Result<Response, Ap
     Ok(response)
 }
 
-async fn current_app_api_envelope(
-    runtime: &AppState,
-) -> Result<(String, String), ApiError> {
-    with_snapback(&runtime.snapback, |snapback| snapback.current_app_api_envelope())
+async fn current_app_api_envelope(runtime: &AppState) -> Result<(String, String), ApiError> {
+    with_snapback(&runtime.snapback, |snapback| {
+        snapback.current_app_api_envelope()
+    })
     .await
     .map_err(ApiError::from)
 }
@@ -18747,25 +18739,28 @@ fn app_api_projection_response(
 async fn app_api_openapi(State(runtime): State<AppState>) -> Result<Response, ApiError> {
     let (digest, canonical) = current_app_api_envelope(&runtime).await?;
     let oauth = with_snapback(&runtime.snapback, |snapback| {
-        snapback.auth_database_mut().schema().oauth_manifest().cloned()
+        snapback
+            .auth_database_mut()
+            .schema()
+            .oauth_manifest()
+            .cloned()
     })
     .await;
     let document = crate::api_envelope::compose_openapi_document_with_oauth(
         canonical.as_bytes(),
         oauth.as_ref(),
-    ).map_err(
-        |refusal| {
-            SnapbackError::error(
-                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
-                "app-api",
-                "the persisted envelope could not be projected as OpenAPI",
-            )
-            .with_details(json!({
-                "envelopeCode": refusal.code,
-                "error": refusal.message,
-            }))
-        },
-    )?;
+    )
+    .map_err(|refusal| {
+        SnapbackError::error(
+            "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+            "app-api",
+            "the persisted envelope could not be projected as OpenAPI",
+        )
+        .with_details(json!({
+            "envelopeCode": refusal.code,
+            "error": refusal.message,
+        }))
+    })?;
     let body = serde_json::to_vec(&document).map_err(|error| {
         SnapbackError::error(
             "SNAPBACK_APP_API_STATE_PARSE_FAILED",
@@ -18786,25 +18781,26 @@ async fn app_api_openapi(State(runtime): State<AppState>) -> Result<Response, Ap
 async fn app_api_agent_skill(State(runtime): State<AppState>) -> Result<Response, ApiError> {
     let (digest, canonical) = current_app_api_envelope(&runtime).await?;
     let oauth_enabled = with_snapback(&runtime.snapback, |snapback| {
-        snapback.auth_database_mut().schema().oauth_manifest().is_some()
+        snapback
+            .auth_database_mut()
+            .schema()
+            .oauth_manifest()
+            .is_some()
     })
     .await;
-    let skill = crate::api_envelope::compose_agent_skill_with_oauth(
-        canonical.as_bytes(),
-        oauth_enabled,
-    ).map_err(
-        |refusal| {
-            SnapbackError::error(
-                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
-                "app-api",
-                "the persisted envelope could not be projected as an agent skill",
-            )
-            .with_details(json!({
-                "envelopeCode": refusal.code,
-                "error": refusal.message,
-            }))
-        },
-    )?;
+    let skill =
+        crate::api_envelope::compose_agent_skill_with_oauth(canonical.as_bytes(), oauth_enabled)
+            .map_err(|refusal| {
+                SnapbackError::error(
+                    "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                    "app-api",
+                    "the persisted envelope could not be projected as an agent skill",
+                )
+                .with_details(json!({
+                    "envelopeCode": refusal.code,
+                    "error": refusal.message,
+                }))
+            })?;
     app_api_projection_response(
         skill.into_bytes(),
         "text/markdown; charset=utf-8",
@@ -19852,19 +19848,18 @@ async fn execute_auth_host_operation(
                 )
                 .await);
             };
-            let outcome = retire_integration_as_operator(
-                runtime,
-                args.principal_user_id,
-                provider.now_ms(),
-            )
-            .await
-            .map(|retired| json!({
-                "userId": retired.user_id,
-                "credentialIds": retired.credential_ids,
-                "tokenIds": retired.token_ids,
-                "grantIds": retired.grant_ids,
-            }))
-            .map_err(|error| error.0);
+            let outcome =
+                retire_integration_as_operator(runtime, args.principal_user_id, provider.now_ms())
+                    .await
+                    .map(|retired| {
+                        json!({
+                            "userId": retired.user_id,
+                            "credentialIds": retired.credential_ids,
+                            "tokenIds": retired.token_ids,
+                            "grantIds": retired.grant_ids,
+                        })
+                    })
+                    .map_err(|error| error.0);
             Ok(auth_host_result(runtime, request, server_url, outcome).await)
         }
         "auth.integrationSuspend" | "auth.integrationResume" => {
@@ -19891,11 +19886,13 @@ async fn execute_auth_host_operation(
                 provider.now_ms(),
             )
             .await
-            .map(|record| json!({
-                "integrationId": record.integration_id,
-                "userId": record.principal_user_id,
-                "status": record.status.as_str(),
-            }))
+            .map(|record| {
+                json!({
+                    "integrationId": record.integration_id,
+                    "userId": record.principal_user_id,
+                    "status": record.status.as_str(),
+                })
+            })
             .map_err(|error| error.0);
             Ok(auth_host_result(runtime, request, server_url, outcome).await)
         }
@@ -21921,9 +21918,7 @@ async fn current_target_capability_manifest(
 /// passes remains refused here until an author-gated landing replaces this
 /// match arm with the complete checker/executor; there is no partial executor
 /// behind today's unevidenced profiles.
-fn run_code_capability_refusal(
-    manifest: &crate::manifest::CapabilityManifest,
-) -> SnapbackError {
+fn run_code_capability_refusal(manifest: &crate::manifest::CapabilityManifest) -> SnapbackError {
     match crate::manifest::untrusted_code_profile_evidenced(manifest) {
         Err(error) => error,
         Ok(()) => SnapbackError::error(
@@ -22082,8 +22077,8 @@ async fn load_ask_catalog(runtime: &AppState) -> SnapbackResult<AskCatalog> {
         ))
     })
     .await?;
-    let (envelope, _) = crate::api_envelope::parse_and_validate(snapshot.3.as_bytes())
-        .map_err(|refusal| {
+    let (envelope, _) =
+        crate::api_envelope::parse_and_validate(snapshot.3.as_bytes()).map_err(|refusal| {
             SnapbackError::error(
                 "SNAPBACK_APP_API_STATE_PARSE_FAILED",
                 "app-api",
@@ -22109,11 +22104,13 @@ async fn load_ask_catalog(runtime: &AppState) -> SnapbackResult<AskCatalog> {
     let queries = definitions
         .into_iter()
         .filter(|definition| {
-            matches!(definition.kind, FunctionKind::Query | FunctionKind::LiveQuery)
-                && definition
-                    .api_exposure
-                    .as_ref()
-                    .is_some_and(|exposure| exposure.expose)
+            matches!(
+                definition.kind,
+                FunctionKind::Query | FunctionKind::LiveQuery
+            ) && definition
+                .api_exposure
+                .as_ref()
+                .is_some_and(|exposure| exposure.expose)
                 && operations.contains_key(&definition.id)
         })
         .map(|definition| crate::ask::QueryTool {
@@ -22218,12 +22215,12 @@ fn ask_provider_key(
         }
         crate::contract_types::ApiAskBilling::CallerKey => {
             let secret = presented.ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_API_ASK_CALLER_KEY_REQUIRED",
-                        "api",
-                        "caller-key billing requires X-Snapback-Ask-Provider-Key",
-                    )
-                })?;
+                SnapbackError::error(
+                    "SNAPBACK_API_ASK_CALLER_KEY_REQUIRED",
+                    "api",
+                    "caller-key billing requires X-Snapback-Ask-Provider-Key",
+                )
+            })?;
             if secret.is_empty() || secret.len() > 16 * 1024 {
                 return Err(SnapbackError::error(
                     "SNAPBACK_API_ASK_CALLER_KEY_INVALID",
@@ -22310,7 +22307,9 @@ async fn execute_ask_loop(
                 result_bytes,
             };
         };
-        let remaining_tokens = limits.max_tokens.saturating_sub(token_accounting.total_tokens);
+        let remaining_tokens = limits
+            .max_tokens
+            .saturating_sub(token_accounting.total_tokens);
         if remaining_tokens == 0 {
             return AskLoopOutcome {
                 result: Err(ask_limit_refusal(
@@ -22455,10 +22454,7 @@ async fn execute_ask_loop(
                     continue;
                 }
                 let result = if result_schema.is_none() {
-                    arguments
-                        .get("answer")
-                        .cloned()
-                        .unwrap_or(arguments)
+                    arguments.get("answer").cloned().unwrap_or(arguments)
                 } else {
                     arguments
                 };
@@ -22472,7 +22468,10 @@ async fn execute_ask_loop(
                     result_bytes,
                 };
             }
-            let Some(query) = catalog.queries.iter().find(|query| query.tool_name == call.name)
+            let Some(query) = catalog
+                .queries
+                .iter()
+                .find(|query| query.tool_name == call.name)
             else {
                 messages.push(json!({
                     "role": "tool",
@@ -22633,7 +22632,10 @@ async fn start_ask_stream(
         .iter()
         .map(crate::stream_attempt::PersistedStreamAttempt::to_row)
         .collect::<SnapbackResult<Vec<_>>>()?;
-    with_snapback(state, move |snapback| snapback.persist_stream_attempts(&rows)).await?;
+    with_snapback(state, move |snapback| {
+        snapback.persist_stream_attempts(&rows)
+    })
+    .await?;
     registry.clear_flushed(&snapshots);
     Ok((started.attempt_token, runner, started_at_ms))
 }
@@ -22714,9 +22716,7 @@ async fn invoke_ask_core(
         Err(error) => return ApiError::from(error).into_response(),
     };
     let authorized = match catalog.ask.billing {
-        crate::contract_types::ApiAskBilling::App => {
-            authority.resolved().has_ask_consent_scope()
-        }
+        crate::contract_types::ApiAskBilling::App => authority.resolved().has_ask_consent_scope(),
         crate::contract_types::ApiAskBilling::CallerKey => {
             authority.resolved().has_granted_read_scope()
         }
@@ -22737,7 +22737,9 @@ async fn invoke_ask_core(
             .as_ref()
             .and_then(|model| model.secret.clone());
         match secret_name {
-            Some(name) => with_snapback(state, move |snapback| snapback.api_ask_secret(&name)).await,
+            Some(name) => {
+                with_snapback(state, move |snapback| snapback.api_ask_secret(&name)).await
+            }
             None => None,
         }
     } else {
@@ -22833,9 +22835,10 @@ async fn invoke_ask_core(
                 },
             };
             if let Some((attempt_token, runner, started_at_ms)) = stream_attempt {
-                let final_text = serde_json::to_string(&response)
-                    .ok()
-                    .filter(|text| text.len() <= crate::storage::stream_transcripts::STREAM_TRANSCRIPT_FINAL_MAX_BYTES);
+                let final_text = serde_json::to_string(&response).ok().filter(|text| {
+                    text.len()
+                        <= crate::storage::stream_transcripts::STREAM_TRANSCRIPT_FINAL_MAX_BYTES
+                });
                 if let Err(error) = settle_ask_stream(
                     state,
                     attempt_token,
@@ -22999,11 +23002,13 @@ async fn telemetry_caller_attribution_for_authority(
             record.integration_id,
         ));
     }
-    Ok(if matches!(authority.resolved(), ResolvedAppAuthority::Anonymous) {
-        crate::telemetry::CallerAttributionV1::anonymous()
-    } else {
-        crate::telemetry::CallerAttributionV1::first_party()
-    })
+    Ok(
+        if matches!(authority.resolved(), ResolvedAppAuthority::Anonymous) {
+            crate::telemetry::CallerAttributionV1::anonymous()
+        } else {
+            crate::telemetry::CallerAttributionV1::first_party()
+        },
+    )
 }
 
 async fn admit_external_api_lane(
@@ -23074,11 +23079,13 @@ async fn admit_external_api_lane(
         return Ok(crate::telemetry::CallerAttributionV1::first_party());
     };
     let Some(declared) = context.declared.as_ref() else {
-        return Ok(if matches!(authority.resolved(), ResolvedAppAuthority::Anonymous) {
-            crate::telemetry::CallerAttributionV1::anonymous()
-        } else {
-            crate::telemetry::CallerAttributionV1::first_party()
-        });
+        return Ok(
+            if matches!(authority.resolved(), ResolvedAppAuthority::Anonymous) {
+                crate::telemetry::CallerAttributionV1::anonymous()
+            } else {
+                crate::telemetry::CallerAttributionV1::first_party()
+            },
+        );
     };
     // The declared lane is auth-free. Authenticated humans and ordinary agent
     // principals do not become declared merely by adding a caller string.
@@ -23097,12 +23104,8 @@ async fn admit_external_api_lane(
         return Ok(crate::telemetry::CallerAttributionV1::anonymous());
     }
 
-    let existing = declared_client_record_for_admission(
-        runtime,
-        declared.value.clone(),
-        now_ms,
-    )
-    .await?;
+    let existing =
+        declared_client_record_for_admission(runtime, declared.value.clone(), now_ms).await?;
     if existing.is_none()
         && let Err(_) = runtime.connections.consume_external_api(
             ExternalApiThrottleSource::DeclaredCreation(network_digest),
@@ -23139,13 +23142,12 @@ async fn admit_external_api_lane(
             60,
         ));
     }
-    let limit_multiplier = if record.status
-        == crate::storage::declared_clients::DeclaredClientStatus::Blessed
-    {
-        EXTERNAL_API_BLESSED_MULTIPLIER
-    } else {
-        record.age_policy_generation as usize
-    };
+    let limit_multiplier =
+        if record.status == crate::storage::declared_clients::DeclaredClientStatus::Blessed {
+            EXTERNAL_API_BLESSED_MULTIPLIER
+        } else {
+            record.age_policy_generation as usize
+        };
     let limit = EXTERNAL_API_DECLARED_LIMIT * limit_multiplier;
     if let Err(retry_after) = runtime.connections.consume_external_api(
         ExternalApiThrottleSource::Declared(declared.digest),
@@ -24037,14 +24039,9 @@ async fn invoke_mutation(
         if crate::spike_trace::enabled() {
             trace_client_mutation_id = request.client_mutation_id.clone();
         }
-        validate_external_api_request(
-            &state,
-            route,
-            &name,
-            request.expected_generation.is_some(),
-        )
-        .await
-        .map_err(|error| error.with_attribution(attribution.clone()))?;
+        validate_external_api_request(&state, route, &name, request.expected_generation.is_some())
+            .await
+            .map_err(|error| error.with_attribution(attribution.clone()))?;
         if let Some(current_id) = request.client_mutation_id.as_deref()
             && request
                 .acknowledged_client_mutation_ids
@@ -24286,14 +24283,9 @@ async fn invoke_action(
     let Json(request) = input
         .map_err(ApiError::from_json_rejection)
         .map_err(|error| error.with_attribution(attribution.clone()))?;
-    validate_external_api_request(
-        &state,
-        route,
-        &name,
-        request.expected_generation.is_some(),
-    )
-    .await
-    .map_err(|error| error.with_attribution(attribution.clone()))?;
+    validate_external_api_request(&state, route, &name, request.expected_generation.is_some())
+        .await
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
     let input = request.input;
     let stream_connection_id = request.stream_connection_id;
     let expected_generation = request.expected_generation;
@@ -24360,14 +24352,8 @@ async fn invoke_action(
             let background_state = state.clone();
             let background_name = name.clone();
             let task = tokio::spawn(async move {
-                run_staged_app_action(
-                    &background_state,
-                    &background_name,
-                    input,
-                    stage,
-                    "action",
-                )
-                .await
+                run_staged_app_action(&background_state, &background_name, input, stage, "action")
+                    .await
             });
             match receiver.await {
                 Ok(attempt_token) => crate::local::action_run_result(
@@ -24386,7 +24372,9 @@ async fn invoke_action(
                         Err(SnapbackError::error(
                             "SNAPBACK_ACTION_THREAD_FAILED",
                             "runtime",
-                            format!("streaming action task terminated before initialization: {error}"),
+                            format!(
+                                "streaming action task terminated before initialization: {error}"
+                            ),
                         )),
                     )
                 }),
@@ -26760,9 +26748,9 @@ fn ephemeral_auth_from_authority(authority: &ResolvedAppAuthority) -> AuthContex
         // ephemeral source in v1. Keep the projection userless as a second
         // fail-closed wall if a caller reaches this conversion unexpectedly.
         ResolvedAppAuthority::ServicePrincipal { credential_id, .. } => AuthContext {
-            stream_initiator: Some(
-                crate::stream_attempt::StreamInitiator::ServiceCredential(credential_id.clone()),
-            ),
+            stream_initiator: Some(crate::stream_attempt::StreamInitiator::ServiceCredential(
+                credential_id.clone(),
+            )),
             ..AuthContext::default()
         },
         ResolvedAppAuthority::Anonymous
@@ -26777,11 +26765,9 @@ fn ephemeral_auth_from_authority_for_connection(
 ) -> AuthContext {
     let mut auth = ephemeral_auth_from_authority(authority);
     if matches!(authority, ResolvedAppAuthority::Anonymous) {
-        auth.stream_initiator = Some(
-            crate::stream_attempt::StreamInitiator::AnonymousConnection(
-                connection_id.to_owned(),
-            ),
-        );
+        auth.stream_initiator = Some(crate::stream_attempt::StreamInitiator::AnonymousConnection(
+            connection_id.to_owned(),
+        ));
     }
     auth
 }
@@ -27825,15 +27811,12 @@ impl WireSubscribeRequest {
             scope: self.scope,
             connection_id: self.connection_id.clone(),
             auth: match policy_mode {
-                PolicyAuthMode::Sessions => ephemeral_auth_from_authority_for_connection(
-                    authority,
-                    &self.connection_id,
-                ),
-                PolicyAuthMode::Dev => resolved_wire_ephemeral_auth(
-                    self.auth,
-                    policy_mode,
-                    authority,
-                )?,
+                PolicyAuthMode::Sessions => {
+                    ephemeral_auth_from_authority_for_connection(authority, &self.connection_id)
+                }
+                PolicyAuthMode::Dev => {
+                    resolved_wire_ephemeral_auth(self.auth, policy_mode, authority)?
+                }
             },
             since_chunk: self.since_chunk,
         })

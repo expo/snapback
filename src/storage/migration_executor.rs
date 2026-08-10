@@ -5981,7 +5981,8 @@ mod tests {
                 .is_some()
         );
         let rows = db
-            .query_reads_read().query(
+            .query_reads_read()
+            .query(
                 &QueryPlan {
                     table: "items".to_owned(),
                     filters: Vec::new(),
@@ -6077,13 +6078,15 @@ mod tests {
             return_value: None,
         };
         let error = db
+            .mutation_writes()
             .execute_mutation(&mutation, &HandlerInput::default())
             .expect_err("fenced mutation");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_FENCE_CLOSED");
 
         // Query lane refuses.
         let error = db
-            .query_reads_read().query(
+            .query_reads_read()
+            .query(
                 &QueryPlan {
                     table: "items".to_owned(),
                     filters: Vec::new(),
@@ -6099,6 +6102,7 @@ mod tests {
 
         // Buffered (Ibex) lane refuses.
         let error = db
+            .mutation_writes()
             .commit_buffered_writes(
                 &HandlerInput::default(),
                 vec![crate::storage::BufferedWrite::Insert {
@@ -7797,7 +7801,8 @@ mod tests {
     fn staged_generation_migration_proves_and_publishes() {
         let mut db = seeded_db();
         let before: Vec<Value> = db
-            .query_reads_read().query(
+            .query_reads_read()
+            .query(
                 &QueryPlan {
                     table: "items".to_owned(),
                     filters: Vec::new(),
@@ -7850,7 +7855,8 @@ mod tests {
         // Published by swap: live rows carry the transform; every row's
         // content changed (the new note), so §4 restamps all of them.
         let after: Vec<Value> = db
-            .query_reads_read().query(
+            .query_reads_read()
+            .query(
                 &QueryPlan {
                     table: "items".to_owned(),
                     filters: Vec::new(),
@@ -8224,7 +8230,8 @@ mod tests {
     fn fast_rollback_republishes_the_predecessor() {
         let mut db = seeded_db();
         let before: Vec<Value> = db
-            .query_reads_read().query(
+            .query_reads_read()
+            .query(
                 &QueryPlan {
                     table: "items".to_owned(),
                     filters: Vec::new(),
@@ -8285,7 +8292,8 @@ mod tests {
         // Byte-exact republish: the predecessor rows are back, system
         // fields untouched; the successor generation is parked staged.
         let after: Vec<Value> = db
-            .query_reads_read().query(
+            .query_reads_read()
+            .query(
                 &QueryPlan {
                     table: "items".to_owned(),
                     filters: Vec::new(),
@@ -8357,7 +8365,8 @@ mod tests {
             // Effects exactly once: every row backfilled with the constant,
             // none double-stamped past the publication version.
             let rows = db
-                .query_reads_read().query(
+                .query_reads_read()
+                .query(
                     &QueryPlan {
                         table: "items".to_owned(),
                         filters: Vec::new(),

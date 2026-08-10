@@ -1641,7 +1641,9 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
     let persisted_product_count = || {
         rusqlite::Connection::open(&database)
             .unwrap()
-            .query_row("SELECT COUNT(*) FROM products", [], |row| row.get::<_, i64>(0))
+            .query_row("SELECT COUNT(*) FROM products", [], |row| {
+                row.get::<_, i64>(0)
+            })
             .unwrap()
     };
     assert_eq!(persisted_product_count(), 1);
@@ -1687,14 +1689,10 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
         activate_startup_successor: true,
         ..args.clone()
     };
-    let activated = super::compose_auth_mode_startup(
-        &activation_args,
-        &mut snapback,
-        &mut runtime,
-        &readiness,
-    )
-    .await
-    .unwrap();
+    let activated =
+        super::compose_auth_mode_startup(&activation_args, &mut snapback, &mut runtime, &readiness)
+            .await
+            .unwrap();
     assert_eq!(activated.active, AuthMode::Sessions);
     assert_eq!(
         activated.active_deployment.as_ref().unwrap().bundle_hash,
@@ -1723,22 +1721,14 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
         crate::auth::mode::SCHEMA_V1_PREFIX,
         "f".repeat(64)
     ));
-    let invalid_inputs = format!(
-        "{}{}",
-        crate::auth::mode::INPUTS_V1_PREFIX,
-        "e".repeat(64)
-    );
+    let invalid_inputs = format!("{}{}", crate::auth::mode::INPUTS_V1_PREFIX, "e".repeat(64));
     invalid["schema"]["inputsHash"] = json!(&invalid_inputs);
     invalid["functions"]["inputsHash"] = json!(invalid_inputs);
     std::fs::write(&carrier, serde_json::to_vec(&invalid).unwrap()).unwrap();
-    let invalid_error = super::compose_auth_mode_startup(
-        &activation_args,
-        &mut snapback,
-        &mut runtime,
-        &readiness,
-    )
-    .await
-    .unwrap_err();
+    let invalid_error =
+        super::compose_auth_mode_startup(&activation_args, &mut snapback, &mut runtime, &readiness)
+            .await
+            .unwrap_err();
     assert_eq!(
         invalid_error.diagnostic.code,
         "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH"
@@ -1750,8 +1740,7 @@ async fn settled_sessions_pin_refusal_names_supported_repair_paths() {
     assert_eq!(persisted_product_count(), 1);
     let after_invalid = snapback.auth_database_mut().auth_mode_snapshot().unwrap();
     assert_eq!(
-        after_invalid.state.active_deployment,
-        activated.active_deployment,
+        after_invalid.state.active_deployment, activated.active_deployment,
         "an invalid schema successor does not move the durable deployment pin"
     );
 }
@@ -2042,7 +2031,6 @@ fn declared_restore_telemetry_rotates_only_for_applied_and_preserves_replay_boot
 
 #[tokio::test]
 async fn physical_restore_is_quarantined_until_exact_prebind_declaration() {
-
     let directory = tempfile::tempdir().unwrap();
     let source_database = directory.path().join("source.sqlite3");
     let mut database = crate::storage::LocalDatabase::open(&source_database).unwrap();

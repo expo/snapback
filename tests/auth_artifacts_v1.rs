@@ -4,11 +4,10 @@
 use serde_json::json;
 use snapback::manifest::{
     AgentsManifest, AgentsMode, ApiDisclosure, ApiFunctionExposure, ApiManifest, ApiOAuthBundle,
-    ApiOAuthManifest, AuthManifest,
-    AuthMode, AuthRequirement, CapabilityManifest, CapabilityMaturity,
-    CronJobDefinition, FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest,
-    FunctionResultContract, FunctionRuntime, HandlerPlan, IbexModule, InvitedBy, QueryPlan,
-    ResultRowsBound, ResultValueContract, SNAPBACK_SCHEMA_VERSION,
+    ApiOAuthManifest, AuthManifest, AuthMode, AuthRequirement, CapabilityManifest,
+    CapabilityMaturity, CronJobDefinition, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
+    FunctionManifest, FunctionResultContract, FunctionRuntime, HandlerPlan, IbexModule, InvitedBy,
+    QueryPlan, ResultRowsBound, ResultValueContract, SNAPBACK_SCHEMA_VERSION,
     SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, TargetCapabilityId, ValueExpr,
 };
 use std::collections::BTreeMap;
@@ -42,7 +41,10 @@ fn oauth_manifest_requires_explicit_bearer_opt_in_and_exact_exposed_bundles() {
         disclosure: ApiDisclosure::ExposedOnly,
         functions: BTreeMap::from([(
             "listed".to_owned(),
-            ApiFunctionExposure { expose: true, since: None },
+            ApiFunctionExposure {
+                expose: true,
+                since: None,
+            },
         )]),
         origins: None,
         oauth: Some(ApiOAuthManifest {
@@ -50,7 +52,9 @@ fn oauth_manifest_requires_explicit_bearer_opt_in_and_exact_exposed_bundles() {
             bearer: false,
             bundles: BTreeMap::from([(
                 "todos.read".to_owned(),
-                ApiOAuthBundle { functions: vec!["listed".to_owned()] },
+                ApiOAuthBundle {
+                    functions: vec!["listed".to_owned()],
+                },
             )]),
         }),
     });
@@ -60,9 +64,14 @@ fn oauth_manifest_requires_explicit_bearer_opt_in_and_exact_exposed_bundles() {
     );
 
     schema.api.as_mut().unwrap().oauth.as_mut().unwrap().bearer = true;
-    schema.validate_artifact().expect("explicit bearer opt-in activates");
+    schema
+        .validate_artifact()
+        .expect("explicit bearer opt-in activates");
     let mut listed = host_query("listed");
-    listed.api_exposure = Some(ApiFunctionExposure { expose: true, since: None });
+    listed.api_exposure = Some(ApiFunctionExposure {
+        expose: true,
+        since: None,
+    });
     let mut closed = host_query("closed");
     closed.api_exposure = Some(ApiFunctionExposure::default());
     let functions = FunctionManifest {
@@ -181,11 +190,13 @@ fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
     // api.budgets landed with LLP 0204 S4-C: an empty budgets block now
     // parses (inert without api.ask); the meaningful refusals are the
     // ask-without-complete-budgets validation matrix.
-    assert!(serde_json::from_value::<ApiManifest>(json!({
-        "enabled": true,
-        "budgets": {}
-    }))
-    .is_ok());
+    assert!(
+        serde_json::from_value::<ApiManifest>(json!({
+            "enabled": true,
+            "budgets": {}
+        }))
+        .is_ok()
+    );
 
     let mut dev_api = SchemaManifest {
         api: Some(ApiManifest::default()),
@@ -208,8 +219,18 @@ fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
         missing_posture.diagnostic.code,
         "SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED"
     );
-    assert!(missing_posture.diagnostic.message.contains("auth.mode sessions"));
-    assert!(missing_posture.diagnostic.message.contains("auth.agents.mode"));
+    assert!(
+        missing_posture
+            .diagnostic
+            .message
+            .contains("auth.mode sessions")
+    );
+    assert!(
+        missing_posture
+            .diagnostic
+            .message
+            .contains("auth.agents.mode")
+    );
 
     let mut omitted_mode = serde_json::to_value(sessions_schema()).unwrap();
     omitted_mode["auth"]["agents"] = json!({});
@@ -244,7 +265,9 @@ fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
         origins: Some(vec!["https://example.com:8443".to_owned()]),
         oauth: None,
     });
-    schema.validate_artifact().expect("explicit disabled is valid");
+    schema
+        .validate_artifact()
+        .expect("explicit disabled is valid");
 
     let mut listed = host_query("listed");
     listed.api_exposure = Some(ApiFunctionExposure {
@@ -260,10 +283,8 @@ fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
     schema
         .validate_api_against_functions(&functions)
         .expect("compiled exposure matches declaration");
-    let exposed_projection = snapback::manifest::public_function_manifest_for_schema(
-        &schema,
-        functions.clone(),
-    );
+    let exposed_projection =
+        snapback::manifest::public_function_manifest_for_schema(&schema, functions.clone());
     assert_eq!(
         exposed_projection
             .functions
@@ -273,10 +294,8 @@ fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
         vec!["listed"]
     );
     schema.api.as_mut().unwrap().disclosure = ApiDisclosure::Full;
-    let full_projection = snapback::manifest::public_function_manifest_for_schema(
-        &schema,
-        functions.clone(),
-    );
+    let full_projection =
+        snapback::manifest::public_function_manifest_for_schema(&schema, functions.clone());
     assert_eq!(full_projection.functions.len(), 2);
     schema.api.as_mut().unwrap().disclosure = ApiDisclosure::ExposedOnly;
 
@@ -303,7 +322,10 @@ fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
 
     schema.api.as_mut().unwrap().functions.insert(
         "missing".to_owned(),
-        ApiFunctionExposure { expose: true, since: None },
+        ApiFunctionExposure {
+            expose: true,
+            since: None,
+        },
     );
     assert_eq!(
         schema

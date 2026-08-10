@@ -114,7 +114,9 @@ fn catalog_objects(conn: &Connection) -> SnapbackResult<Vec<(String, String, Str
          ORDER BY type, name",
     )?;
     Ok(statement
-        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))?
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?
         .collect::<Result<Vec<_>, _>>()?)
 }
 
@@ -247,7 +249,8 @@ impl LocalDatabase {
                     initiator: parse_initiator(&row.1, row.2)?,
                     started_at_ms: row.3,
                     settled_at_ms: row.4,
-                    terminal_cause: StreamAttemptCause::parse(&row.5).ok_or_else(catalog_corrupt)?,
+                    terminal_cause: StreamAttemptCause::parse(&row.5)
+                        .ok_or_else(catalog_corrupt)?,
                     final_text: row.6,
                     chunk_count: row.7,
                     prompt_tokens: row.8,
@@ -300,8 +303,7 @@ mod tests {
     use super::*;
     use crate::manifest::{FunctionDefinition, FunctionRuntime, IbexModule};
     use crate::stream_attempt::{
-        PersistedStreamCursor, StreamAttemptSettledBy, StreamAttemptTerminal,
-        StreamInitiationState,
+        PersistedStreamCursor, StreamAttemptSettledBy, StreamAttemptTerminal, StreamInitiationState,
     };
     use std::collections::BTreeMap;
 
@@ -342,7 +344,8 @@ mod tests {
             prompt_tokens: None,
             completion_tokens: None,
         };
-        db.settle_stream_transcript(&complete).expect("settle complete");
+        db.settle_stream_transcript(&complete)
+            .expect("settle complete");
         assert_eq!(
             db.stream_transcript("attempt-complete").unwrap(),
             Some(complete.clone())
@@ -403,7 +406,9 @@ mod tests {
             )]),
             terminal: None,
             function_id: Some("app:conversation".to_owned()),
-            initiator: Some(StreamInitiator::AnonymousConnection("connection-a".to_owned())),
+            initiator: Some(StreamInitiator::AnonymousConnection(
+                "connection-a".to_owned(),
+            )),
             started_at_ms: 100,
             settled_at_ms: None,
             emitted_bytes: 12,

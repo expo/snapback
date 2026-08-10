@@ -448,8 +448,10 @@ impl RuntimeManager {
             asset_grant_ops,
             ..
         } = invocation;
-        let membership_plans = db.membership_plans().authorize_membership_commands(membership_commands)?;
-        db.dry_run_buffered_writes_with_jobs(
+        let membership_plans = db
+            .membership_plans()
+            .authorize_membership_commands(membership_commands)?;
+        db.mutation_writes().dry_run_buffered_writes_with_jobs(
             &input,
             writes,
             sequence_allocations,
@@ -2530,7 +2532,13 @@ impl<'a> IbexHostContext<'a> {
                         "ctx.stream.emit requires a string or JSON chunk",
                     )
                 })?;
-                if !(chunk.is_string() || chunk.is_object() || chunk.is_array() || chunk.is_number() || chunk.is_boolean() || chunk.is_null()) {
+                if !(chunk.is_string()
+                    || chunk.is_object()
+                    || chunk.is_array()
+                    || chunk.is_number()
+                    || chunk.is_boolean()
+                    || chunk.is_null())
+                {
                     return Err(SnapbackError::error(
                         "SNAPBACK_STREAM_CHUNK_INVALID",
                         "runtime",
@@ -3409,12 +3417,13 @@ fn callee_from_error_message(message: &str) -> Option<String> {
         .into_iter()
         .find_map(|suffix| {
             let before = message.split_once(suffix)?.0;
-            let candidate = before
-                .split_whitespace()
-                .next_back()?
-                .trim_matches(|character: char| {
-                    matches!(character, '`' | '\'' | '"' | '(' | ')' | '[' | ']')
-                });
+            let candidate =
+                before
+                    .split_whitespace()
+                    .next_back()?
+                    .trim_matches(|character: char| {
+                        matches!(character, '`' | '\'' | '"' | '(' | ')' | '[' | ']')
+                    });
             normalized_callee(candidate)
         })
 }
@@ -5807,14 +5816,18 @@ mod membership_bridge_tests {
     fn ready_db() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog().expect("auth catalog");
-        db.schema_seed().apply_schema(schema()).expect("membership schema");
+        db.schema_seed()
+            .apply_schema(schema())
+            .expect("membership schema");
         db
     }
 
     fn ready_file_db(path: &Path) -> LocalDatabase {
         let mut db = LocalDatabase::open(path).expect("open shared handler sequence database");
         db.activate_current_auth_catalog().expect("auth catalog");
-        db.schema_seed().apply_schema(schema()).expect("shared handler schema");
+        db.schema_seed()
+            .apply_schema(schema())
+            .expect("shared handler schema");
         db
     }
 
@@ -5884,16 +5897,17 @@ mod membership_bridge_tests {
     #[test]
     fn sequence_host_bridge_is_declared_scoped_and_commits_with_the_mutation() {
         let mut db = ready_db();
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([(
-                "scopes".to_owned(),
-                vec![Map::from_iter([
-                    ("_id".to_owned(), json!("event-a")),
-                    ("title".to_owned(), json!("A")),
-                ])],
-            )]),
-        })
-        .expect("seed scope");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "scopes".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("event-a")),
+                        ("title".to_owned(), json!("A")),
+                    ])],
+                )]),
+            })
+            .expect("seed scope");
 
         let mut undeclared = context(&db);
         let error = undeclared
@@ -5922,6 +5936,7 @@ mod membership_bridge_tests {
         let allocations = std::mem::take(&mut ctx.sequence_allocations);
         drop(ctx);
         let committed = db
+            .mutation_writes()
             .commit_buffered_writes_idempotent_guarded(
                 &input(),
                 BufferedCommitPayload {
@@ -6057,16 +6072,17 @@ globalThis.__snapbackHandlers = {
             export: "disclose".to_owned(),
         };
         let seed_scope = |db: &mut LocalDatabase| {
-            db.schema_seed().seed(SeedData {
-                tables: BTreeMap::from([(
-                    "scopes".to_owned(),
-                    vec![Map::from_iter([
-                        ("_id".to_owned(), json!("event-a")),
-                        ("title".to_owned(), json!("A")),
-                    ])],
-                )]),
-            })
-            .expect("seed sequence scope");
+            db.schema_seed()
+                .seed(SeedData {
+                    tables: BTreeMap::from([(
+                        "scopes".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), json!("event-a")),
+                            ("title".to_owned(), json!("A")),
+                        ])],
+                    )]),
+                })
+                .expect("seed sequence scope");
         };
 
         // Run A: T1 discloses value 1 and pauses. T2 commits that same
@@ -6098,10 +6114,12 @@ globalThis.__snapbackHandlers = {
             .expect("T2 handler");
         assert_eq!(t2_result, json!({ "sequence": 1 }));
         let t2_identity = ClientMutationIdentity::new("cm-sequence-t2", "send", &t2_input);
+        let t2_payload = take_sequence_payload(t2_ctx, t2_result.clone());
         let t2_commit = db
+            .mutation_writes()
             .commit_buffered_writes_idempotent_guarded(
                 &t2_input,
-                take_sequence_payload(t2_ctx, t2_result.clone()),
+                t2_payload,
                 Some(&t2_identity),
                 || Ok(()),
                 || Ok(()),
@@ -6112,6 +6130,7 @@ globalThis.__snapbackHandlers = {
 
         let t1_identity = ClientMutationIdentity::new("cm-sequence-t1", "send", &t1_input);
         let t1_error = db
+            .mutation_writes()
             .commit_buffered_writes_idempotent_guarded(
                 &t1_input,
                 t1_payload,
@@ -6132,7 +6151,8 @@ globalThis.__snapbackHandlers = {
                 .is_none()
         );
         let activities = db
-            .query_reads_read().scan_table("sequence_activity", 10, 0)
+            .query_reads_read()
+            .scan_table("sequence_activity", 10, 0)
             .expect("activity rows");
         assert_eq!(activities.total, 1);
         assert_eq!(activities.rows[0]["title"], "t2-committed-activity");
@@ -6171,7 +6191,8 @@ globalThis.__snapbackHandlers = {
         assert_eq!(throw_error.diagnostic.details["message"], "tentative:1");
         assert_eq!(
             throw_db
-                .query_reads_read().scan_table("sequence_activity", 10, 0)
+                .query_reads_read()
+                .scan_table("sequence_activity", 10, 0)
                 .unwrap()
                 .total,
             0
@@ -6223,7 +6244,8 @@ globalThis.__snapbackHandlers = {
                 )
                 .expect("enroll public sequence scope");
             setup
-                .schema_seed().seed(SeedData {
+                .schema_seed()
+                .seed(SeedData {
                     tables: BTreeMap::from([(
                         "scopes".to_owned(),
                         vec![Map::from_iter([
@@ -6266,7 +6288,7 @@ globalThis.__snapbackHandlers = {
                             "sequence derivation performs no application range read"
                         );
                         let payload = take_sequence_payload(ctx, result.clone());
-                        match db.commit_buffered_writes_idempotent_guarded(
+                        match db.mutation_writes().commit_buffered_writes_idempotent_guarded(
                             &input,
                             payload,
                             Some(&identity),
@@ -6313,7 +6335,8 @@ globalThis.__snapbackHandlers = {
         let verify = ready_file_db(&path);
         assert_eq!(
             verify
-                .query_reads_read().scan_table("sequence_activity", SENDERS, 0)
+                .query_reads_read()
+                .scan_table("sequence_activity", SENDERS, 0)
                 .unwrap()
                 .total,
             SENDERS
@@ -6347,34 +6370,37 @@ globalThis.__snapbackHandlers = {
         let commands = std::mem::take(&mut ctx.membership_commands);
         drop(ctx);
         let plans = db
-            .membership_plans().authorize_membership_commands(commands)
+            .membership_plans()
+            .authorize_membership_commands(commands)
             .expect("authorized plans");
-        db.commit_buffered_writes_idempotent_guarded(
-            &input(),
-            BufferedCommitPayload {
-                job_enqueues: Vec::new(),
-                job_producer: None,
-                writes: Vec::new(),
-                sequence_allocations: Vec::new(),
-                asset_admissions: Vec::new(),
-                asset_grant_ops: Vec::new(),
-                membership_plans: plans,
-                read_dependencies: Vec::new(),
-                result: json!(null),
-                ctx_ledger: crate::manifest::CtxAnswerLedger {
-                    version: crate::manifest::CTX_ANSWER_LEDGER_VERSION,
-                    ids: Vec::new(),
-                    now: 1,
-                    auth_fingerprint: None,
+        db.mutation_writes()
+            .commit_buffered_writes_idempotent_guarded(
+                &input(),
+                BufferedCommitPayload {
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
+                    writes: Vec::new(),
+                    sequence_allocations: Vec::new(),
+                    asset_admissions: Vec::new(),
+                    asset_grant_ops: Vec::new(),
+                    membership_plans: plans,
+                    read_dependencies: Vec::new(),
+                    result: json!(null),
+                    ctx_ledger: crate::manifest::CtxAnswerLedger {
+                        version: crate::manifest::CTX_ANSWER_LEDGER_VERSION,
+                        ids: Vec::new(),
+                        now: 1,
+                        auth_fingerprint: None,
+                    },
                 },
-            },
-            None,
-            || Ok(()),
-            || Ok(()),
-        )
-        .expect("sanctioned bridge commit");
+                None,
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("sanctioned bridge commit");
         let rows = db
-            .query_reads_read().scan_table("app_members", 10, 0)
+            .query_reads_read()
+            .scan_table("app_members", 10, 0)
             .expect("membership rows");
         assert_eq!(rows.total, 1);
         let id = rows.rows[0]["_id"].as_str().expect("member id");
@@ -6387,6 +6413,7 @@ globalThis.__snapbackHandlers = {
 
         let mut raw_db = ready_db();
         let error = raw_db
+            .mutation_writes()
             .commit_buffered_writes(
                 &input(),
                 vec![crate::storage::BufferedWrite::Insert {
@@ -6429,26 +6456,29 @@ globalThis.__snapbackHandlers = {
         let commands = std::mem::take(&mut ctx.membership_commands);
         drop(ctx);
         let plans = db
-            .membership_plans().authorize_membership_commands(commands)
+            .membership_plans()
+            .authorize_membership_commands(commands)
             .expect("authorized plans");
-        db.dry_run_buffered_writes(
-            &input(),
-            Vec::new(),
-            Vec::new(),
-            plans,
-            Vec::new(),
-            json!(null),
-            crate::manifest::CtxAnswerLedger {
-                version: crate::manifest::CTX_ANSWER_LEDGER_VERSION,
-                ids: Vec::new(),
-                now: 1,
-                auth_fingerprint: None,
-            },
-            Vec::new(),
-        )
-        .expect("membership dry run");
+        db.mutation_writes()
+            .dry_run_buffered_writes(
+                &input(),
+                Vec::new(),
+                Vec::new(),
+                plans,
+                Vec::new(),
+                json!(null),
+                crate::manifest::CtxAnswerLedger {
+                    version: crate::manifest::CTX_ANSWER_LEDGER_VERSION,
+                    ids: Vec::new(),
+                    now: 1,
+                    auth_fingerprint: None,
+                },
+                Vec::new(),
+            )
+            .expect("membership dry run");
         assert_eq!(
-            db.query_reads_read().scan_table("app_members", 10, 0)
+            db.query_reads_read()
+                .scan_table("app_members", 10, 0)
                 .expect("post-dry-run scan")
                 .total,
             0
@@ -6519,7 +6549,8 @@ globalThis.__snapbackHandlers = {
             .activate_current_auth_catalog()
             .expect("auth catalog");
         creation_only_db
-            .schema_seed().apply_schema(creation_only_schema)
+            .schema_seed()
+            .apply_schema(creation_only_schema)
             .expect("creation-only membership schema");
         let mut creation_only = service_context(&creation_only_db, true);
         let error = creation_only
@@ -6610,35 +6641,39 @@ globalThis.__snapbackHandlers = {
         let commands = std::mem::take(&mut ctx.membership_commands);
         drop(ctx);
         let plans = db
-            .membership_plans().authorize_membership_commands(commands)
+            .membership_plans()
+            .authorize_membership_commands(commands)
             .expect("bootstrap authorization");
-        db.commit_buffered_writes_idempotent_guarded(
-            &input(),
-            BufferedCommitPayload {
-                job_enqueues: Vec::new(),
-                job_producer: None,
-                writes: Vec::new(),
-                sequence_allocations: Vec::new(),
-                asset_admissions: Vec::new(),
-                asset_grant_ops: Vec::new(),
-                membership_plans: plans,
-                read_dependencies: Vec::new(),
-                result: result.clone(),
-                ctx_ledger,
-            },
-            None,
-            || Ok(()),
-            || Ok(()),
-        )
-        .expect("atomic resource and bootstrap-holder commit");
+        db.mutation_writes()
+            .commit_buffered_writes_idempotent_guarded(
+                &input(),
+                BufferedCommitPayload {
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
+                    writes: Vec::new(),
+                    sequence_allocations: Vec::new(),
+                    asset_admissions: Vec::new(),
+                    asset_grant_ops: Vec::new(),
+                    membership_plans: plans,
+                    read_dependencies: Vec::new(),
+                    result: result.clone(),
+                    ctx_ledger,
+                },
+                None,
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("atomic resource and bootstrap-holder commit");
 
         let event = db
-            .query_reads_read().get("events", &event_id)
+            .query_reads_read()
+            .get("events", &event_id)
             .expect("event read")
             .expect("created event");
         assert_eq!(event["title"], "Launch");
         let members = db
-            .query_reads_read().scan_table("event_members", 10, 0)
+            .query_reads_read()
+            .scan_table("event_members", 10, 0)
             .expect("membership scan");
         assert_eq!(members.total, 1);
         assert_eq!(members.rows[0]["eventId"], event_id);

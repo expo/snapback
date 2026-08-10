@@ -96,13 +96,16 @@ fn storage_lane(
     input: &HandlerInput,
 ) -> Result<Vec<Value>, String> {
     let mut db = LocalDatabase::memory().expect("memory storage lane");
-    db.schema_seed().apply_schema(schema.clone())
+    db.schema_seed()
+        .apply_schema(schema.clone())
         .expect("apply corpus schema");
-    db.schema_seed().seed(SeedData {
-        tables: tables.clone(),
-    })
-    .expect("seed corpus rows");
-    db.query_reads_read().query_relational(plan, input, None)
+    db.schema_seed()
+        .seed(SeedData {
+            tables: tables.clone(),
+        })
+        .expect("seed corpus rows");
+    db.query_reads_read()
+        .query_relational(plan, input, None)
         .map(|(output, _)| output.rows)
         .map_err(|error| error.diagnostic.code)
 }
@@ -451,16 +454,20 @@ fn large_sparse_and_duplicate_key_fixtures_stay_correct_and_stable() {
         ..HandlerInput::default()
     };
     let mut db = LocalDatabase::memory().expect("sparse fixture");
-    db.schema_seed().apply_schema(schema).expect("apply sparse schema");
-    db.schema_seed().seed(SeedData {
-        tables: tables.clone(),
-    })
-    .expect("seed sparse rows");
+    db.schema_seed()
+        .apply_schema(schema)
+        .expect("apply sparse schema");
+    db.schema_seed()
+        .seed(SeedData {
+            tables: tables.clone(),
+        })
+        .expect("seed sparse rows");
 
     // Sparse window: exactly the caller's first five roots, no other-owner
     // row in a slot even though 2,990 of 3,000 roots are invisible.
     let (window, continuation) = db
-        .query_reads_read().query_relational(&owner_plan, &input, None)
+        .query_reads_read()
+        .query_relational(&owner_plan, &input, None)
         .expect("sparse window");
     let titles: Vec<&str> = window
         .rows
@@ -476,10 +483,12 @@ fn large_sparse_and_duplicate_key_fixtures_stay_correct_and_stable() {
     // Duplicate order keys: two evaluations are byte-identical, and the
     // window advances purely on the `_id` tie-break.
     let (first, _) = db
-        .query_reads_read().query_relational(&duplicate_plan, &input, None)
+        .query_reads_read()
+        .query_relational(&duplicate_plan, &input, None)
         .expect("duplicate window");
     let (second, _) = db
-        .query_reads_read().query_relational(&duplicate_plan, &input, None)
+        .query_reads_read()
+        .query_relational(&duplicate_plan, &input, None)
         .expect("duplicate window again");
     let order = field_order(&duplicate_plan);
     assert_eq!(
@@ -501,7 +510,9 @@ fn declared_unique_index_refuses_duplicates_at_seed() {
     let corpus = load_corpus();
     let schema = corpus_schema(&corpus);
     let mut db = LocalDatabase::memory().expect("unique fixture");
-    db.schema_seed().apply_schema(schema).expect("apply unique schema");
+    db.schema_seed()
+        .apply_schema(schema)
+        .expect("apply unique schema");
     let tables: BTreeMap<String, Vec<Map<String, Value>>> = serde_json::from_value(json!({
         "books": [],
         "authors": [
@@ -512,7 +523,8 @@ fn declared_unique_index_refuses_duplicates_at_seed() {
     }))
     .expect("unique tables");
     let error = db
-        .schema_seed().seed(SeedData { tables })
+        .schema_seed()
+        .seed(SeedData { tables })
         .expect_err("duplicate slug must refuse under the unique index");
     assert!(
         error.diagnostic.code.starts_with("SNAPBACK_"),

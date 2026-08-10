@@ -9,8 +9,20 @@ struct OAuthErrorBody<'a> {
     details: Option<Value>,
 }
 
-fn oauth_error_response(error: &'static str, description: &'static str, status: StatusCode) -> Response {
-    (status, Json(OAuthErrorBody { error, error_description: Some(description), details: None })).into_response()
+fn oauth_error_response(
+    error: &'static str,
+    description: &'static str,
+    status: StatusCode,
+) -> Response {
+    (
+        status,
+        Json(OAuthErrorBody {
+            error,
+            error_description: Some(description),
+            details: None,
+        }),
+    )
+        .into_response()
 }
 
 fn oauth_snapback_error_response(error: SnapbackError) -> Response {
@@ -23,7 +35,9 @@ fn oauth_snapback_error_response(error: SnapbackError) -> Response {
         "SNAPBACK_AUTH_OAUTH_ACCESS_DENIED" => ("access_denied", StatusCode::FORBIDDEN),
         "SNAPBACK_AUTH_STEP_UP_REQUIRED" => ("access_denied", StatusCode::UNAUTHORIZED),
         "SNAPBACK_AUTH_OAUTH_GRANT_INVALID" => ("invalid_grant", StatusCode::BAD_REQUEST),
-        "SNAPBACK_AUTH_OAUTH_UNAVAILABLE" => ("temporarily_unavailable", StatusCode::SERVICE_UNAVAILABLE),
+        "SNAPBACK_AUTH_OAUTH_UNAVAILABLE" => {
+            ("temporarily_unavailable", StatusCode::SERVICE_UNAVAILABLE)
+        }
         _ => ("invalid_request", StatusCode::BAD_REQUEST),
     };
     (
@@ -60,7 +74,11 @@ async fn oauth_manifest(
         return Err(oauth_not_found());
     }
     with_snapback(&runtime.snapback, |snapback| {
-        snapback.auth_database_mut().schema().oauth_manifest().cloned()
+        snapback
+            .auth_database_mut()
+            .schema()
+            .oauth_manifest()
+            .cloned()
     })
     .await
     .ok_or_else(oauth_not_found)
@@ -72,12 +90,22 @@ fn served_origin(runtime: &AppState, headers: &HeaderMap) -> Result<String, Resp
             .ok()
             .and_then(|host| host.parse::<axum::http::uri::Authority>().ok())
             .ok_or_else(|| {
-                oauth_error_response("invalid_request", "the Host header is invalid", StatusCode::BAD_REQUEST)
+                oauth_error_response(
+                    "invalid_request",
+                    "the Host header is invalid",
+                    StatusCode::BAD_REQUEST,
+                )
             })?
     } else {
         format!("{}:{}", runtime.server.host, runtime.server.port)
             .parse::<axum::http::uri::Authority>()
-            .map_err(|_| oauth_error_response("server_error", "the served origin is unavailable", StatusCode::INTERNAL_SERVER_ERROR))?
+            .map_err(|_| {
+                oauth_error_response(
+                    "server_error",
+                    "the served origin is unavailable",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                )
+            })?
     };
     Ok(format!("http://{authority}"))
 }
@@ -155,34 +183,75 @@ pub(super) async fn oauth_register(
         return oauth_not_found();
     }
     if headers.contains_key(header::AUTHORIZATION) {
-        return oauth_error_response("invalid_request", "Authorization is not accepted at dynamic registration", StatusCode::BAD_REQUEST);
+        return oauth_error_response(
+            "invalid_request",
+            "Authorization is not accepted at dynamic registration",
+            StatusCode::BAD_REQUEST,
+        );
     }
     let Json(input) = match input {
         Ok(input) => input,
-        Err(_) => return oauth_error_response("invalid_client_metadata", "registration metadata is invalid", StatusCode::BAD_REQUEST),
+        Err(_) => {
+            return oauth_error_response(
+                "invalid_client_metadata",
+                "registration metadata is invalid",
+                StatusCode::BAD_REQUEST,
+            );
+        }
     };
     let unique_redirects = input.redirect_uris.iter().collect::<BTreeSet<_>>();
     if input.redirect_uris.is_empty()
         || unique_redirects.len() != input.redirect_uris.len()
-        || input.token_endpoint_auth_method.as_deref().is_some_and(|method| method != "none")
-        || input.redirect_uris.iter().any(|uri| crate::storage::auth_integrations::validate_oauth_redirect_uri(uri).is_err())
+        || input
+            .token_endpoint_auth_method
+            .as_deref()
+            .is_some_and(|method| method != "none")
+        || input
+            .redirect_uris
+            .iter()
+            .any(|uri| crate::storage::auth_integrations::validate_oauth_redirect_uri(uri).is_err())
     {
-        return oauth_error_response("invalid_redirect_uri", "redirect_uris must be exact HTTPS or loopback HTTP URIs", StatusCode::BAD_REQUEST);
+        return oauth_error_response(
+            "invalid_redirect_uri",
+            "redirect_uris must be exact HTTPS or loopback HTTP URIs",
+            StatusCode::BAD_REQUEST,
+        );
     }
     let (provider, policy) = match require_agent_registration_mode(&runtime).await {
         Ok(value) => value,
         Err(error) => return error.into_response(),
     };
-    let invitation = match input.invitation.as_ref().map(parse_creation_invitation).transpose() {
+    let invitation = match input
+        .invitation
+        .as_ref()
+        .map(parse_creation_invitation)
+        .transpose()
+    {
         Ok(value) => value,
-        Err(_) => return oauth_error_response("invalid_client_metadata", "the invitation is invalid", StatusCode::BAD_REQUEST),
+        Err(_) => {
+            return oauth_error_response(
+                "invalid_client_metadata",
+                "the invitation is invalid",
+                StatusCode::BAD_REQUEST,
+            );
+        }
     };
     let origin = match input.client_uri.as_ref() {
         Some(uri) => match uri.parse::<axum::http::Uri>().ok().and_then(|parsed| {
-            Some(format!("{}://{}", parsed.scheme_str()?, parsed.authority()?))
+            Some(format!(
+                "{}://{}",
+                parsed.scheme_str()?,
+                parsed.authority()?
+            ))
         }) {
             Some(origin) => Some(origin),
-            None => return oauth_error_response("invalid_client_metadata", "client_uri is invalid", StatusCode::BAD_REQUEST),
+            None => {
+                return oauth_error_response(
+                    "invalid_client_metadata",
+                    "client_uri is invalid",
+                    StatusCode::BAD_REQUEST,
+                );
+            }
         },
         None => None,
     };
@@ -192,20 +261,22 @@ pub(super) async fn oauth_register(
     let client_name = input.client_name.clone();
     let issued = with_snapback(&runtime.snapback, move |snapback| {
         let _effect = route_admission.effect_guard("OAuth dynamic registration transaction")?;
-        snapback.auth_database_mut().register_agent_principal_with_class(
-            policy.mode,
-            invitation.as_ref(),
-            client_name,
-            None,
-            crate::storage::auth_integrations::AgentRegistrationClass::Integration,
-            crate::storage::auth_integrations::IntegrationRegistrationFacts {
-                origin,
-                redirect_uris: redirects,
-            },
-            profile,
-            registration_provider.now_ms(),
-            registration_provider.agent_random_source(),
-        )
+        snapback
+            .auth_database_mut()
+            .register_agent_principal_with_class(
+                policy.mode,
+                invitation.as_ref(),
+                client_name,
+                None,
+                crate::storage::auth_integrations::AgentRegistrationClass::Integration,
+                crate::storage::auth_integrations::IntegrationRegistrationFacts {
+                    origin,
+                    redirect_uris: redirects,
+                },
+                profile,
+                registration_provider.now_ms(),
+                registration_provider.agent_random_source(),
+            )
     })
     .await;
     let issued = match issued {
@@ -214,12 +285,20 @@ pub(super) async fn oauth_register(
     };
     let principal = issued.user_id.clone();
     let record = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.auth_database_mut().integration_record_if_present(&principal)
+        snapback
+            .auth_database_mut()
+            .integration_record_if_present(&principal)
     })
     .await;
     let record = match record {
         Ok(Some(record)) => record,
-        _ => return oauth_error_response("server_error", "registration state is unavailable", StatusCode::INTERNAL_SERVER_ERROR),
+        _ => {
+            return oauth_error_response(
+                "server_error",
+                "registration state is unavailable",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            );
+        }
     };
     let served_origin = match served_origin(&runtime, &headers) {
         Ok(origin) => origin,
@@ -252,17 +331,29 @@ pub(super) struct OAuthAuthorizeRequest {
 }
 
 fn parse_scope(raw: &str) -> Result<Vec<String>, Response> {
-    let names = raw.split_ascii_whitespace().map(str::to_owned).collect::<Vec<_>>();
+    let names = raw
+        .split_ascii_whitespace()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
     let unique = names.iter().collect::<BTreeSet<_>>();
     if names.is_empty() || unique.len() != names.len() {
-        Err(oauth_error_response("invalid_scope", "scope must name unique bundles", StatusCode::BAD_REQUEST))
+        Err(oauth_error_response(
+            "invalid_scope",
+            "scope must name unique bundles",
+            StatusCode::BAD_REQUEST,
+        ))
     } else {
         Ok(names)
     }
 }
 
 fn html_escape(value: &str) -> String {
-    value.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&#39;")
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
 }
 
 pub(super) async fn oauth_authorize_get(
@@ -276,17 +367,34 @@ pub(super) async fn oauth_authorize_get(
     };
     let query = match query {
         Ok(Query(query)) => query,
-        Err(_) => return oauth_error_response("invalid_request", "authorization parameters are invalid", StatusCode::BAD_REQUEST),
+        Err(_) => {
+            return oauth_error_response(
+                "invalid_request",
+                "authorization parameters are invalid",
+                StatusCode::BAD_REQUEST,
+            );
+        }
     };
     if query.response_type != "code" || query.code_challenge_method != "S256" {
-        return oauth_error_response("unsupported_response_type", "only code with PKCE S256 is supported", StatusCode::BAD_REQUEST);
+        return oauth_error_response(
+            "unsupported_response_type",
+            "only code with PKCE S256 is supported",
+            StatusCode::BAD_REQUEST,
+        );
     }
     let scopes = match parse_scope(&query.scope) {
         Ok(scopes) => scopes,
         Err(response) => return response,
     };
-    if scopes.iter().any(|scope| !oauth.bundles.contains_key(scope)) {
-        return oauth_error_response("invalid_scope", "scope names an unknown bundle", StatusCode::BAD_REQUEST);
+    if scopes
+        .iter()
+        .any(|scope| !oauth.bundles.contains_key(scope))
+    {
+        return oauth_error_response(
+            "invalid_scope",
+            "scope names an unknown bundle",
+            StatusCode::BAD_REQUEST,
+        );
     }
     let (user_id, _) = match require_grant_session(&authority) {
         Ok(session) => session,
@@ -316,23 +424,45 @@ pub(super) async fn oauth_authorize_get(
         Ok(begun) => begun,
         Err(error) => return oauth_snapback_error_response(error),
     };
-    let client = begun.client.display_name.as_deref().unwrap_or(&begun.client.client_id);
-    let bundle_list = begun.bundle_names.iter().map(|scope| format!("<li>{}</li>", html_escape(scope))).collect::<String>();
-    let function_list = begun.scopes.iter().map(|scope| {
-        let step_up = if scope.authority_creating { " — fresh authentication required" } else { "" };
-        format!(
-            "<li><code>{} {}</code>{}</li>",
-            html_escape(scope.kind.as_str()),
-            html_escape(&scope.function_id),
-            step_up,
-        )
-    }).collect::<String>();
+    let client = begun
+        .client
+        .display_name
+        .as_deref()
+        .unwrap_or(&begun.client.client_id);
+    let bundle_list = begun
+        .bundle_names
+        .iter()
+        .map(|scope| format!("<li>{}</li>", html_escape(scope)))
+        .collect::<String>();
+    let function_list = begun
+        .scopes
+        .iter()
+        .map(|scope| {
+            let step_up = if scope.authority_creating {
+                " — fresh authentication required"
+            } else {
+                ""
+            };
+            format!(
+                "<li><code>{} {}</code>{}</li>",
+                html_escape(scope.kind.as_str()),
+                html_escape(&scope.function_id),
+                step_up,
+            )
+        })
+        .collect::<String>();
     let document = format!(
         "<!doctype html><html><head><meta charset=utf-8><title>Authorize integration</title></head><body><main><h1>Authorize {}</h1><p>This integration requests these function bundles:</p><ul>{}</ul><p>They resolve to these exact current function scopes:</p><ul>{}</ul><form method=post action=/auth/oauth/authorize><input type=hidden name=request_id value=\"{}\"><label>Fresh-authentication challenge <input name=challenge_id autocomplete=off></label><label>Code <input name=code autocomplete=one-time-code></label><button name=decision value=approve type=submit>Approve</button><button name=decision value=deny type=submit>Deny</button></form></main></body></html>",
-        html_escape(client), bundle_list, function_list, html_escape(&begun.request_id),
+        html_escape(client),
+        bundle_list,
+        function_list,
+        html_escape(&begun.request_id),
     );
     let mut response = Response::new(Body::from(document));
-    response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("text/html; charset=utf-8"));
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/html; charset=utf-8"),
+    );
     response
 }
 
@@ -359,9 +489,19 @@ fn query_escape(raw: &str) -> String {
 
 fn redirect_with_params(base: &str, pairs: &[(&str, &str)]) -> Result<Response, Response> {
     let separator = if base.contains('?') { '&' } else { '?' };
-    let query = pairs.iter().map(|(key, value)| format!("{}={}", query_escape(key), query_escape(value))).collect::<Vec<_>>().join("&");
+    let query = pairs
+        .iter()
+        .map(|(key, value)| format!("{}={}", query_escape(key), query_escape(value)))
+        .collect::<Vec<_>>()
+        .join("&");
     let location = format!("{base}{separator}{query}");
-    let header = HeaderValue::from_str(&location).map_err(|_| oauth_error_response("server_error", "redirect could not be encoded", StatusCode::INTERNAL_SERVER_ERROR))?;
+    let header = HeaderValue::from_str(&location).map_err(|_| {
+        oauth_error_response(
+            "server_error",
+            "redirect could not be encoded",
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+    })?;
     let mut response = StatusCode::FOUND.into_response();
     response.headers_mut().insert(header::LOCATION, header);
     Ok(response)
@@ -377,7 +517,13 @@ pub(super) async fn oauth_authorize_post(
     }
     let Form(form) = match form {
         Ok(form) => form,
-        Err(_) => return oauth_error_response("invalid_request", "consent form is invalid", StatusCode::BAD_REQUEST),
+        Err(_) => {
+            return oauth_error_response(
+                "invalid_request",
+                "consent form is invalid",
+                StatusCode::BAD_REQUEST,
+            );
+        }
     };
     let (user_id, session_id) = match require_grant_session(&authority) {
         Ok(session) => session,
@@ -390,8 +536,13 @@ pub(super) async fn oauth_authorize_post(
     if form.decision == "deny" {
         let now_ms = provider.now_ms();
         let result = with_snapback(&runtime.snapback, move |snapback| {
-            snapback.auth_database_mut().deny_oauth_authorization(&user_id, &form.request_id, now_ms)
-        }).await;
+            snapback.auth_database_mut().deny_oauth_authorization(
+                &user_id,
+                &form.request_id,
+                now_ms,
+            )
+        })
+        .await;
         return match result {
             Ok(denied) => {
                 let mut pairs = vec![("error", "access_denied")];
@@ -406,7 +557,11 @@ pub(super) async fn oauth_authorize_post(
         };
     }
     if form.decision != "approve" {
-        return oauth_error_response("invalid_request", "decision must be approve or deny", StatusCode::BAD_REQUEST);
+        return oauth_error_response(
+            "invalid_request",
+            "decision must be approve or deny",
+            StatusCode::BAD_REQUEST,
+        );
     }
     let challenge_id = form.challenge_id.clone().filter(|value| !value.is_empty());
     let code = form.code.clone().filter(|value| !value.is_empty());
@@ -417,9 +572,11 @@ pub(super) async fn oauth_authorize_post(
         };
         let admission = provider.admit().await;
         let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
-            let coordination = admission.step_up_coordination(snapback.auth_database_mut(), &challenge_id);
+            let coordination =
+                admission.step_up_coordination(snapback.auth_database_mut(), &challenge_id);
             (admission, coordination)
-        }).await;
+        })
+        .await;
         let coordination = match coordination {
             Ok(coordination) => coordination,
             Err(error) => return map_provider_error(error).into_response(),
@@ -444,7 +601,8 @@ pub(super) async fn oauth_authorize_post(
             proof_admission.as_ref().map(|proof| proof.proof()),
             now_ms,
         )
-    }).await;
+    })
+    .await;
     if let Err(error) = approval {
         return oauth_snapback_error_response(error);
     }
@@ -456,7 +614,8 @@ pub(super) async fn oauth_authorize_post(
             provider.now_ms(),
             provider.agent_random_source(),
         )
-    }).await;
+    })
+    .await;
     let issued = match issued {
         Ok(issued) => issued,
         Err(error) => return oauth_snapback_error_response(error),
@@ -509,14 +668,28 @@ pub(super) async fn oauth_token(
         return oauth_not_found();
     }
     if headers.contains_key(header::AUTHORIZATION) {
-        return oauth_error_response("invalid_client", "public clients do not authenticate at the token endpoint", StatusCode::UNAUTHORIZED);
+        return oauth_error_response(
+            "invalid_client",
+            "public clients do not authenticate at the token endpoint",
+            StatusCode::UNAUTHORIZED,
+        );
     }
     let Form(form) = match form {
         Ok(form) => form,
-        Err(_) => return oauth_error_response("invalid_request", "token request is invalid", StatusCode::BAD_REQUEST),
+        Err(_) => {
+            return oauth_error_response(
+                "invalid_request",
+                "token request is invalid",
+                StatusCode::BAD_REQUEST,
+            );
+        }
     };
     if form.grant_type != "authorization_code" {
-        return oauth_error_response("unsupported_grant_type", "only authorization_code is supported", StatusCode::BAD_REQUEST);
+        return oauth_error_response(
+            "unsupported_grant_type",
+            "only authorization_code is supported",
+            StatusCode::BAD_REQUEST,
+        );
     }
     let provider = match require_agent_routes_available(&runtime) {
         Ok(provider) => provider,
@@ -524,15 +697,18 @@ pub(super) async fn oauth_token(
     };
     let now_ms = provider.now_ms();
     let issued = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.auth_database_mut().mint_scoped_token_for_oauth_code(
-            &form.code,
-            &form.client_id,
-            &form.redirect_uri,
-            &form.code_verifier,
-            now_ms,
-            provider.agent_random_source(),
-        )
-    }).await;
+        snapback
+            .auth_database_mut()
+            .mint_scoped_token_for_oauth_code(
+                &form.code,
+                &form.client_id,
+                &form.redirect_uri,
+                &form.code_verifier,
+                now_ms,
+                provider.agent_random_source(),
+            )
+    })
+    .await;
     let issued = match issued {
         Ok(issued) => issued,
         Err(error) => return oauth_snapback_error_response(error),
@@ -541,17 +717,25 @@ pub(super) async fn oauth_token(
         let token_ids = issued.evicted_token_ids.clone();
         let lifecycle = runtime.auth_terminal_lifecycle.clone();
         let close_by = terminal_close_by(Instant::now());
-        crate::exec_guard::run_or_defer_after_local(move || lifecycle.evict_service_tokens(&token_ids, close_by));
+        crate::exec_guard::run_or_defer_after_local(move || {
+            lifecycle.evict_service_tokens(&token_ids, close_by)
+        });
     }
     let grant_id = issued.grant_id.clone();
     let scope = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.auth_database_mut().oauth_bundle_names_for_grant(&grant_id)
-    }).await.unwrap_or_default().join(" ");
+        snapback
+            .auth_database_mut()
+            .oauth_bundle_names_for_grant(&grant_id)
+    })
+    .await
+    .unwrap_or_default()
+    .join(" ");
     Json(OAuthTokenResponse {
         token: issued.secret,
         expires_in: issued.expires_at_ms.saturating_sub(now_ms) / 1_000,
         scope,
-    }).into_response()
+    })
+    .into_response()
 }
 
 #[derive(Deserialize)]
@@ -571,14 +755,32 @@ pub(super) async fn oauth_revoke(
         return oauth_not_found();
     }
     if headers.contains_key(header::AUTHORIZATION) {
-        return oauth_error_response("invalid_request", "the bearer to revoke belongs in the form body", StatusCode::BAD_REQUEST);
+        return oauth_error_response(
+            "invalid_request",
+            "the bearer to revoke belongs in the form body",
+            StatusCode::BAD_REQUEST,
+        );
     }
     let Form(form) = match form {
         Ok(form) => form,
-        Err(_) => return oauth_error_response("invalid_request", "revocation request is invalid", StatusCode::BAD_REQUEST),
+        Err(_) => {
+            return oauth_error_response(
+                "invalid_request",
+                "revocation request is invalid",
+                StatusCode::BAD_REQUEST,
+            );
+        }
     };
-    if form.token_type_hint.as_deref().is_some_and(|hint| hint != "access_token") {
-        return oauth_error_response("unsupported_token_type", "only access_token is supported", StatusCode::BAD_REQUEST);
+    if form
+        .token_type_hint
+        .as_deref()
+        .is_some_and(|hint| hint != "access_token")
+    {
+        return oauth_error_response(
+            "unsupported_token_type",
+            "only access_token is supported",
+            StatusCode::BAD_REQUEST,
+        );
     }
     let token = match ScopedToken::parse(&form.token) {
         Ok(token) => token,
@@ -594,12 +796,15 @@ pub(super) async fn oauth_revoke(
             form.revoke_grant.unwrap_or(false),
             provider.now_ms(),
         )
-    }).await;
+    })
+    .await;
     if let Ok(revocation) = result {
         if !revocation.token_ids.is_empty() {
             let lifecycle = runtime.auth_terminal_lifecycle.clone();
             let close_by = terminal_close_by(Instant::now());
-            crate::exec_guard::run_or_defer_after_local(move || lifecycle.terminate_service_tokens(&revocation.token_ids, close_by));
+            crate::exec_guard::run_or_defer_after_local(move || {
+                lifecycle.terminate_service_tokens(&revocation.token_ids, close_by)
+            });
         }
     }
     StatusCode::OK.into_response()

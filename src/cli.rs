@@ -355,11 +355,7 @@ async fn compose_auth_mode_startup_with_embedded(
                 if let Err(error) = carrier.require_deployment(&expected) {
                     if !args.activate_startup_successor {
                         return Err(with_settled_pin_repair(
-                            with_expected_deployment(
-                                error,
-                                Some(&expected),
-                                Some(&observed),
-                            ),
+                            with_expected_deployment(error, Some(&expected), Some(&observed)),
                             &args.db,
                         ));
                     }
@@ -369,12 +365,7 @@ async fn compose_auth_mode_startup_with_embedded(
                         ));
                     }
                     return startup_blocking(|| {
-                        activate_startup_sessions_successor(
-                            snapback,
-                            carrier,
-                            &expected,
-                            &observed,
-                        )
+                        activate_startup_sessions_successor(snapback, carrier, &expected, &observed)
                     })
                     .map_err(|error| startup_successor_refused(error, &expected, &observed));
                 }
@@ -3703,9 +3694,8 @@ fn resolve_http_target_for_operation(
                 .map_err(|diagnostic| {
                     anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message)
                 })?;
-            let sidecar = crate::admin_agent_destroy::agent_destroy_capability_sibling(
-                &canonical_ready,
-            )?;
+            let sidecar =
+                crate::admin_agent_destroy::agent_destroy_capability_sibling(&canonical_ready)?;
             match ready_target.read_strict_owner_only_sibling(
                 &sidecar,
                 crate::admin_agent_destroy::MAX_AGENT_DESTROY_CAPABILITY_FILE_BYTES,
@@ -4140,11 +4130,8 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
     // trusted descriptor's token handoff (ENG-24338).
     let requires_impersonation = request_requires_impersonation(&request);
     let requires_agent_destroy = request_requires_agent_destroy(&request);
-    let resolved = resolve_http_target_for_operation(
-        target,
-        requires_impersonation,
-        requires_agent_destroy,
-    )?;
+    let resolved =
+        resolve_http_target_for_operation(target, requires_impersonation, requires_agent_destroy)?;
     let token = target
         .token
         .clone()
@@ -4161,9 +4148,7 @@ fn post_host_op(target: &TargetArgs, request: Value) -> anyhow::Result<Value> {
             capability.expose_secret(),
         );
     }
-    if requires_agent_destroy
-        && let Some(capability) = resolved.agent_destroy_capability.as_ref()
-    {
+    if requires_agent_destroy && let Some(capability) = resolved.agent_destroy_capability.as_ref() {
         http = http.set(
             crate::admin_agent_destroy::AGENT_DESTROY_CAPABILITY_HEADER,
             capability.expose_secret(),

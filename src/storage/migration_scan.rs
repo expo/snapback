@@ -572,14 +572,15 @@ impl LocalDatabase {
         request: &MigrationKeysetScanRequestV1,
         checkpoint: Option<&MigrationKeysetScanCheckpointV1>,
     ) -> SnapbackResult<MigrationKeysetScanBatch> {
-        self.query_reads_read().with_pinned_read_view(|db| match db {
-            DbRead::Pinned { conn, schema } => {
-                migration_keyset_scan_batch_on(conn, schema, request, checkpoint)
-            }
-            DbRead::Live(db) => {
-                migration_keyset_scan_batch_on(&db.conn, &db.schema, request, checkpoint)
-            }
-        })
+        self.query_reads_read()
+            .with_pinned_read_view(|db| match db {
+                DbRead::Pinned { conn, schema } => {
+                    migration_keyset_scan_batch_on(conn, schema, request, checkpoint)
+                }
+                DbRead::Live(db) => {
+                    migration_keyset_scan_batch_on(&db.conn, &db.schema, request, checkpoint)
+                }
+            })
     }
 
     /// Snapshot-pinned preview facts for LLP 0081's separately digested

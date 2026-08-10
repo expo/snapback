@@ -665,10 +665,11 @@ mod tests {
         let mut row = Map::new();
         row.insert("_id".to_owned(), serde_json::json!("item_1"));
         row.insert("owner".to_owned(), serde_json::json!("user_2"));
-        db.schema_seed().seed(SeedData {
-            tables: BTreeMap::from([("items".to_owned(), vec![row])]),
-        })
-        .unwrap();
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([("items".to_owned(), vec![row])]),
+            })
+            .unwrap();
         assert_eq!(db.authorization_version().unwrap(), epoch);
         assert_eq!(db.current_version().unwrap(), 1);
         let error = db

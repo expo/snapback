@@ -700,7 +700,6 @@ impl<'a> SettlementKernel<'a> {
     ) -> SnapbackResult<u64> {
         self.db.purge_client_mutation_settlements(auth_fingerprint)
     }
-
 }
 
 /// Shared-borrow settlement operations for callers holding `&LocalDatabase`.
