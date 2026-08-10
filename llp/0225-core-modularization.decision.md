@@ -16,6 +16,8 @@ the one authorized transition; independent-loop topology)
 **Revised:** 2026-08-10 (d — round-2 revision; see Revision history)
 **Revised:** 2026-08-10 (e — post-round-3 closing fixes; **unreviewed** — see
 Revision history)
+**Revised:** 2026-08-10 (f — round-3 revision under the author's extended
+budget; see Revision history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -297,9 +299,13 @@ not to a full-process recovery claim.
 proof's activation/storage tests and binding on any future change to this
 boundary):
 
-- *Failed-activation-then-retry:* after an injected commit failure, the live
-  manifest, projection pins/digests, and sequence state agree exactly with
-  what physically committed, and a retry converges to the successor.
+- *Failed-activation-then-retry:* after an injected commit failure, the
+  kernel-level rollback tests hold that pins, enrollments, and the
+  generation record agree exactly with what physically committed; the
+  full-`LocalSnapback` retry-convergence witness is part of the
+  reopen-contract obligation recorded in
+  `issues/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`,
+  not yet a landed claim.
 - *Crash/reopen:* the persisted generation record is the sole recovery
   authority — never the process fence or an in-memory schema; the landed
   tests prove kernel-level reopen against it (complete-pair and raw-dev
@@ -359,6 +365,19 @@ requires its named worklist record in the same landing.
   defects (entries naming absent modules, unsorted buckets, ordinal drift,
   invalid baselines) — which is what makes a naive god-file rename a gate
   red (§6).
+- **Honest state of the arm.** The bullets above are the *contract on the
+  arm*, not a claim that the arm currently enforces all of it: at this
+  document's own revision-(d) commit the gate was red with two committed
+  forbidden edges, allowed by the runner's pre-existing-staleness rule. Two
+  enforcement requirements therefore bind alongside the analyzer upgrade:
+  (i) staleness attribution for this gate compares the push against the
+  **last green baseline**, not merely its merge-base — otherwise one
+  allowed red converts every later push's NEW edges into "pre-existing"
+  (the masking path); (ii) every ALLOWED-WITH-STALENESS push must file or
+  refresh the backstop ticket naming the exact stale edges, so a red on
+  main is always a tracked object. "Fixed forward at the next landing" is
+  a convention this Decision makes auditable, not a property the arm yet
+  enforces; `issues/20260810-ownership-gate-analyzer-gaps.md` tracks both.
 - **Known analyzer gap, and the requirement that closes it.** The current
   extractor resolves `crate::`-rooted forms, including grouped use-trees,
   aliases, and `pub use crate::…` re-exports — but **`super::`- and
@@ -474,6 +493,13 @@ so slices can follow product priorities.
   three (§5); bypass-history wording corrected (one bypass, three selection
   gaps); "while Draft" → "until Accepted"; acceptance handoff note added to
   the OQ section.
+- **2026-08-10 (f).** Round-3 revision under the author's extended budget:
+  the "honest state of the arm" paragraph (§5) records that the gate was red
+  at the revision-(d) commit and binds two enforcement requirements —
+  last-green-baseline staleness attribution (closing the masking path) and
+  mandatory stale-edge ticketing on allowed pushes; the
+  failed-activation envelope clause is narrowed to the kernel-level tests
+  that exist, with the full-process retry witness recorded as an obligation.
 - **2026-08-10 (e — UNREVIEWED).** Post-round-3 closing fixes, applied
   after the review budget closed and not seen by any reviewer: the
   connected-clients waiver gains its formal worklist record (item 8,

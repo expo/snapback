@@ -12,6 +12,8 @@ the one authorized transition; independent-loop topology)
 **Revised:** 2026-08-10 (d — round-2 revision; see Status)
 **Revised:** 2026-08-10 (e — post-round-3 closing fixes; **unreviewed** — see
 Status)
+**Revised:** 2026-08-10 (f — round-3 revision under the author's extended
+budget; see Status)
 **Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0011, LLP 0043, LLP 0057,
 LLP 0058, LLP 0081, LLP 0110, LLP 0129, LLP 0133, LLP 0135, LLP 0148,
 LLP 0151, LLP 0158, LLP 0163, LLP 0191,
@@ -57,10 +59,10 @@ its representative authoring surface.
 | **Provider identity** | The provider asserts the subject; Snapback mints the `idn_…` link row recording `(provider installation, subject) → principal` — physically keyed `(provider, subject)` unique; OIDC subjects are canonically `(issuer, subject)`, other providers define their subject per LLP 0151 (email-code: the canonical address) | One auth provider installation | The `(provider, subject)` pair is immutable as recorded; the principal link changes only via LLP 0151 lifecycle flows; **profile claims are mutable attributes, never identity** | auth substrate only — never handler-visible in v1 |
 | **Source key** | The application (client-generable; safe for local-first creation) | Declared unique index scope on one table | Two grades, declared: an **identity-grade** source key is immutable and never reused; a mutable unique field is an ordinary lookup key, not an identity (C-3/C-6) | declared unique field + alternate-key lookup (schema lane) |
 | **Serial identity (identity column)** | Server allocates, always — sequence semantics, gaps allowed | One table within one store lineage: **the table counter never restarts** — its high-water mark is durable and survives restart, fork, and restore, so the public value is the bare numeric with no prefix (M-3) | Immutable after allocation; not writable by handlers, ever | `v.serial({ start })` (schema lane) |
-| **Settlement identity** | Server derives a versioned digest: the base preimage `{authFingerprint, authorityInstanceId, clientMutationId, function, inputFingerprint}`, with issuance-bearing operations additionally binding `operationIssuance` **and** `artifactGenerationDigest` (LLP 0163's complete selected-artifact binding) | Caller/auth + instance + operation (+ selected artifact for issuance-bearing ops) — `authFingerprint` hashes principal/session/user, i.e. the *caller*, not the app | Immutable; replay-stable by construction | `ctx.mutation.settlement()` (LLP 0043) |
+| **Settlement identity** | Server derives a versioned digest: the base preimage `{authFingerprint, authorityInstanceId, clientMutationId, function, inputFingerprint}`, with issuance-bearing operations additionally binding `operationIssuance` **and** `artifactGenerationDigest` (LLP 0163's complete selected-artifact binding) | Caller/auth + instance + operation (+ selected artifact for issuance-bearing ops) — `authFingerprint` hashes principal/session/user — the session-scoped caller, not the app | Immutable; replay-stable by construction | `ctx.mutation.settlement()` (LLP 0043) |
 | **Stream identity** | Framework mints the opaque `versionStream` (LLP 0043/0053); rotated on fork/restore (LLP 0158) | One instance's durable data stream | Rotates as a unit; values never compared across streams | resume tokens, live-query cursors |
 | **Artifact identity** | Toolchain digests the evaluated code graph (LLP 0009/0010/0024) | One deployment's loaded artifacts | Immutable; a new build is a new identity | artifact digests, readiness receipts |
-| **Counter identity** | Framework: `(counterName, scopeTable, scopeRowId, scopeIncarnation)` in `_snapback_sequence_counters_v1` (LLP 0135 §1.1) | The declaring app | N/A — substrate, never app-visible as a value | `AllocateSequence`, handler allocation |
+| **Counter identity** | Framework: `(counterName, scopeTable, scopeRowId, scopeIncarnation)` in `_snapback_sequence_counters_v1` (LLP 0135 §1.1) | One app instance / store lineage (a fork's copy is a divergent sibling, LLP 0158) | N/A — substrate, never app-visible as a value | `AllocateSequence`, handler allocation |
 
 Two clarifications the table cannot carry:
 
@@ -165,7 +167,14 @@ Conversions between namespaces are the trust boundaries. The rules:
   restarts within a store lineage** — the high-water mark is durable and
   survives restart, fork, and restore — so the public serial value is the
   bare numeric with no prefix, and two visible rows can never share one.
-  The successor profile chooses mechanics under that observable contract,
+  The lineage boundary is decided here too: **destructive reset
+  (`resetInstall`, `clear`, legacy reset) begins a new lineage** — data and
+  counters restart together, so no visible collision can arise; import and
+  restore continue the imported store's lineage and high-water; a fork
+  continues its source's high-water, and fork *siblings* may thereafter
+  mint equal bare numerics for different rows — the correct sequence-like
+  outcome, never comparable across instances (C-5, LLP 0158 OQ9). The
+  successor profile chooses mechanics under that observable contract,
   never the contract itself.
 - **M-4 (exhaustion fails closed).** Bounded namespaces (serial identity
   under LLP 0007's JavaScript-safe integer profile) refuse on exhaustion
@@ -272,12 +281,16 @@ platform ask). Constraints from this Decision:
   `ctx.auth.userId`) is the app-side key; provider identities (`idn_…`,
   `(issuer, subject)`) stay inside the auth substrate, and email is a
   mutable attribute and never a stored binding key (C-6).
-- The lane's open design choice — expose verified provider claims on the
-  handler authority projection, or provide a declared privileged
-  provisioning channel for binding rows — is the owner's to make, but
-  either answer must preserve C-2: the binding writer holds both verified
-  sides. Which claims are exposed is a deliberate trust-boundary widening
-  and must be decided claim-by-claim, not wholesale.
+- **Bootstrap conversion (loop-proposed ruling, for author confirmation at
+  acceptance):** a narrowly scoped, verified **bootstrap** conversion
+  `provider identity → app row` is permitted at binding-creation time only
+  — the moment C-2's writer holds both verified sides — after which all
+  steady-state handler access and every durable binding key on the
+  principal. This keeps the "expose verified claims" branch usable without
+  weakening C-6: exposed claims may seed a binding, never key one. Which
+  claims are exposed remains the owner's deliberate, claim-by-claim
+  trust-boundary decision; the privileged-provisioning channel remains the
+  alternative where no claims should reach handlers at all.
 - The guide's broker and frozen-actor-map recipes remain the conforming
   patterns until the amendment lands.
 
@@ -325,14 +338,17 @@ grammar, which verified claims the auth projection exposes, wire encodings,
 diagnostics codes beyond the requirement that they exist and be stable, and
 all sequencing among the lanes (OQ5's envelope-early tail governs). Those
 belong to the owner amendments. Row-incarnation mechanics belong to LLP
-0110/0129's owners; conversions that bind row lifetime cite them (C-3's
-incarnation clause is the interface, not a new mechanism). No comparative
+0110/0129's owners; conversions that bind row lifetime cite them. C-3's
+incarnation clause names the interface; today's registry carries
+incarnations only for registered protected-relation parents, so the owning
+amendments must either extend the substrate to the tables that need it or
+rule an explicit `_id`-only fallback with its stated residual risk. No comparative
 claim against any other system is made (LLP 0183's comparator protocol
 governs).
 
 ## Status
 
-Review, 2026-08-10 (d). Becomes Accepted on author sign-off; each owner lane
+Review, 2026-08-10 (f). Becomes Accepted on author sign-off; each owner lane
 lands as a dated amendment to its owning LLP with a pointer added here.
 
 Revision (c), from dual-family round-1 review: the auth row split into
@@ -346,6 +362,14 @@ the table-scope carrier); M-4 pinned to LLP 0135 §1.5's in-transaction
 refusal shape; the schema amendment's mandatory question list added
 (reservation timing, assignment order, replay, contention evidence);
 Related gains 0008/0011/0057/0058/0133/0158.
+
+Revision (f), round-3 revision under the author's extended budget: the
+verified-claims branch gains the loop-proposed bootstrap-conversion ruling
+(binding-creation-time only; steady state keys on principal — author
+confirms at acceptance); the serial lineage matrix is decided (destructive
+reset = new lineage; import/restore continue; fork siblings may collide,
+never comparable); counter identity rescoped to one instance/lineage; the
+incarnation-carrier gap and caller-fingerprint wording made honest.
 
 Revision (e — UNREVIEWED), post-round-3 closing fixes applied after the
 review budget closed and not seen by any reviewer: the ambiguous "(§3b)"

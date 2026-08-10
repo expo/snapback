@@ -13,6 +13,8 @@ the one authorized transition; independent-loop topology)
 **Revised:** 2026-08-10 (d — round-2 revision; see Revision history)
 **Revised:** 2026-08-10 (e — post-round-3 closing fixes; **unreviewed** — see
 Revision history)
+**Revised:** 2026-08-10 (f — round-3 revision under the author's extended
+budget; see Revision history)
 **Related:** LLP 0057 (auth catalog and provider protocol — the substrate this
 extends), LLP 0151 (first-party identity integrations — tier-1
 username+password sketch and the identities-vs-credentials rule), LLP 0039
@@ -86,28 +88,41 @@ CREATE UNIQUE INDEX "_auth_password_credentials_identity_uq"
 CREATE UNIQUE INDEX "_auth_password_credentials_user_uq"
   ON "_auth_password_credentials"(user_id);   -- one live password per principal
 
-CREATE TABLE "_auth_password_attempts" (      -- the single lockout authority
-  address_hash TEXT NOT NULL,                 -- keyed hash of the canonical
-                                              -- address (no plaintext address
-                                              -- enters this relation)
-  source_class TEXT NOT NULL,
+CREATE TABLE "_auth_password_attempts" (      -- the single accounting authority
+  address TEXT NOT NULL PRIMARY KEY,          -- canonical address; a protected
+                                              -- catalog relation in the same
+                                              -- custody class as
+                                              -- _auth_identities.subject
   window_start_ms INTEGER NOT NULL,
-  failed_count INTEGER NOT NULL DEFAULT 0,
-  locked_until_ms INTEGER,
-  PRIMARY KEY (address_hash, source_class)
+  admitted_count INTEGER NOT NULL DEFAULT 0,  -- windowed budget counter:
+                                              -- every admitted attempt,
+                                              -- NOT reset on success
+  failed_count INTEGER NOT NULL DEFAULT 0,    -- consecutive-failure lockout
+                                              -- counter: reset on success
+  locked_until_ms INTEGER
 );
 ```
 
 **One live password credential per principal** (`_user_uq`): change needs no
-credential selector, and import's attach mode refuses when one exists.
-Failure accounting lives **only** in `_auth_password_attempts` — the
-credential row carries none, so there are not two accounting authorities.
-Addresses enter the ledger as keyed hashes, leaving LLP 0057's
-canonical-address custody list unchanged. `source_class` on the local target
-is the two-valued `loopback` / `remote` partition of the peer address (the
-hosted edge's effective-source grouping takes over when a hosted auth target
-exists); rows are GC'd once their window and any lock expire, under a bounded
-row count whose exhaustion refuses with `SNAPBACK_AUTH_THROTTLED`.
+credential selector, and import's attach mode refuses when one exists. All
+password-path accounting lives **only** in `_auth_password_attempts` — the
+credential row carries none, so there are not two accounting authorities —
+and the two counters have distinct semantics: `admitted_count` is the
+half-open-window budget substrate (every admitted attempt counts, success
+does not reset it — this is what `SNAPBACK_AUTH_THROTTLED` meters), while
+`failed_count` is the consecutive-failure lockout counter that success
+resets. The ledger stores the **canonical address** and is a protected
+catalog relation in the same custody class as `_auth_identities.subject`
+(LLP 0057's canonical-address custody list gains this row — an explicit
+custody amendment, not a drive-by). **There is no source axis in this
+slice**: the local target cannot authenticate a peer's source (that is LLP
+0215's effective-source capability at the hosted edge), so the lock is
+address-level and the honest tradeoff is stated — a third party who knows
+an address can lock its password path for the window; the trusted local
+target accepts this, and a source axis arrives only with a
+target-authenticated effective-source capability. Rows are GC'd once their
+window and any lock expire, under a bounded row count whose exhaustion
+refuses with `SNAPBACK_AUTH_THROTTLED`.
 
 At most one password credential per identity; the identity row (and therefore
 the canonical address, canonicalized exactly per LLP 0057 §Canonical address)
@@ -190,8 +205,12 @@ projections), replacing the pilot's shell-out to `snapback session mint`:
 ```
 snapback auth password signup --url … --email a@b.c --password-stdin
 snapback auth password signin --url … --email a@b.c --password-stdin
-snapback auth password change --url … --password-stdin   # current\nnew\n
+snapback auth password change --url … --session-token-stdin --password-stdin
 ```
+
+The change verb carries its bearer via `--session-token-stdin` (first line of
+stdin, before the password lines) or the documented session-token file flag —
+never argv.
 
 Passwords are accepted **only** via stdin (or `SNAPBACK_PASSWORD` for harness
 ergonomics, documented as test-profile material) — never argv, so they never
@@ -252,18 +271,25 @@ every later refresh with no new column and no DTO change.
   refuses with a typed code — and additionally requires a **fresh
   operation-bound step-up challenge** consumed in the same transaction
   (LLP 0151's rule): the change/set DTO gains an optional
-  `stepUp: { challengeId, code }` member, carried by a new closed
-  password-set entry in the existing operation-tagged step-up enum, bound to
-  the exact session generation, authority instance, operation, and target as
-  the existing step-up consumers are. A stolen bearer alone can neither
+  `stepUp: { challengeId, code, identityId }` member, carried by a new
+  closed password-set entry in the existing operation-tagged step-up enum,
+  bound to the exact session generation, authority instance, operation, and
+  target as the existing step-up consumers are — the **target is the named
+  `'email-code'` identity** (`identityId`), which must belong to the acting
+  principal (ownership validated in the transaction; refused otherwise), so
+  a multi-email principal's set is unambiguous and a single-email
+  principal's is exact. A stolen bearer alone can neither
   rotate nor create the credential. Set on an address whose `'password'`
   identity belongs to a *different* principal **displaces** that identity
-  and its credential — email proof outranks an unverified squat. Displacement
-  retires the squatter's `'password'` identity row, which **revokes the
-  sessions minted through it** (they cascade with the identity — the honest
-  consequence, asserted in acceptance); the displaced principal keeps its
-  account, data, and any sessions minted through other identities, and loses
-  password login. Both change forms write the hash, increment
+  and its credential — email proof outranks an unverified squat.
+  Displacement is a **first-class session-terminal operation**, not a bare
+  FK side effect: the transaction plans the exact session set tied to the
+  displaced identity, atomically retires the identity and credential
+  (removing those sessions with it), and publishes LLP 0059 settlement for
+  exactly that set with the `durableDelete` terminal disposition — the
+  committed ending of a backing authority, which is what this is. The
+  displaced principal keeps its account, data, and any sessions minted
+  through other identities, and loses password login. Both change forms write the hash, increment
   `credential_generation`, rotate the acting session's bearer, and revoke
   the user's other sessions (revocation operation below).
 - **Reset is same-principal only.** `POST /auth/password/reset` resolves the
@@ -297,7 +323,11 @@ concurrent change/reset landed) it **refuses** with the uniform
 `SNAPBACK_AUTH_PASSWORD_INVALID` and performs **no failure accounting** — a
 stale proof never authorizes and never penalizes, mirroring LLP 0059's
 exact-predecessor discipline. (No restart: the old password is simply wrong
-now.)
+now.) The fence covers the **ledger predecessor** too: the final
+transaction re-reads current ledger state under serialization — window
+rollover and `locked_until_ms` included — before any success reset, failure
+increment, or mint, so a lock acquired during the KDF window is honored and
+a rolled window is not double-counted.
 
 **User-scoped revocation operation.** Change and reset use a **new**
 user-scoped revocation (LLP 0057's bulk-revocation transaction is
@@ -336,17 +366,18 @@ assertable-refusal discipline as the rest of the auth surface:
 | `SNAPBACK_AUTH_PASSWORD_WEAK` | screening refusal at signup/change | length < 8, > 1024 bytes, or blocklist hit |
 | `SNAPBACK_AUTH_THROTTLED` | windowed budget or KDF-concurrency cap | reuses LLP 0057's budget machinery |
 
-**Failure accounting is address-keyed and account-existence-blind.** A
-bounded attempt ledger keyed by canonical address (not by credential row)
-records failed attempts whether or not an account exists; the lockout
-threshold and `PASSWORD_LOCKED` fire identically for existing and missing
-addresses, so the lockout state discloses nothing the uniform
-`PASSWORD_INVALID` didn't (LLP 0151's non-oracular rule). Anti-lockout-DoS:
-the lock is scoped to (address, source class) with a global budget backstop,
-so a third party cannot cheaply deny a known address; ledger retention is
-bounded and GC'd. Accounting is transactional; admission (budget + lock
-check) happens **before** KDF work is spent; success resets the address's
-counter; lock expiry reopens without operator action. Signup and signin also
+**Failure accounting is address-keyed and account-existence-blind.** The
+attempt ledger (§Credential storage) records attempts whether or not an
+account exists; the lockout threshold and `PASSWORD_LOCKED` fire
+identically for existing and missing addresses, so the lockout state
+discloses nothing the uniform `PASSWORD_INVALID` didn't (LLP 0151's
+non-oracular rule). The address-level lockout-DoS tradeoff is stated in
+§Credential storage. Accounting is transactional; admission (budget + lock
+check) happens **before** KDF work is spent — note the boundary case: the
+10th attempt admits (only 9 failures exist at admission), spends its KDF,
+fails, and the same transaction that records the 10th failure returns
+`PASSWORD_LOCKED`; success resets `failed_count` only; lock expiry reopens
+without operator action. Signup and signin also
 count against per-address and global rolling windows via 0057's existing
 budget transaction shape — but note 0057's current budget substrate counts
 retained challenge rows, which password signin does not create, so the
@@ -478,12 +509,22 @@ the auth milestone **without hand-rolled hashing and without shelling out to
 
 ## Status
 
-Review (e). Commissioned 2026-08-10 from
+Review (f). Commissioned 2026-08-10 from
 `issues/20260809-password-credential-auth.md`. No implementation has begun.
 
 ## Revision history
 
 - **(a)** initial draft. **(b)** Draft → Review at loop start.
+- **(f)** round-3 revision under the author's extended budget: the attempt
+  ledger drops the source axis (LLP 0215 owns effective-source; the
+  address-level lockout-DoS tradeoff stated honestly), stores the canonical
+  address as a protected catalog relation under an explicit 0057 custody
+  amendment, and gains the windowed `admitted_count` budget counter distinct
+  from the lockout `failed_count`; the verification fence extends to the
+  ledger predecessor; displacement becomes a first-class session-terminal
+  operation with `durableDelete` settlement (LLP 0059); the step-up carrier
+  gains its `identityId` target with ownership validation; the
+  10th-attempt boundary and the CLI bearer carrier are pinned.
 - **(e — UNREVIEWED)** post-round-3 closing fixes applied after the review
   budget closed and not seen by any reviewer: acceptance criterion 7 made
   marker-neutral (the withdrawn catalog-v3 phrase removed); replication

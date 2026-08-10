@@ -34,3 +34,10 @@ entry naming the edge); the gate refuses silent growth. After the extractor
 upgrade, re-derive the baseline and worklist from the complete graph — the
 newly visible pre-existing edges are frozen with attribution, not treated as
 new violations.
+
+3. **Staleness attribution masks new edges after one allowed red** (round-3
+   finding): a red allowed as pre-existing at its baseline makes every later
+   push's identical edges "pre-existing" too. Required: attribute against
+   the last GREEN baseline, and file/refresh the backstop ticket naming the
+   stale edges on every ALLOWED-WITH-STALENESS push (LLP 0225 §5, revision
+   f).
