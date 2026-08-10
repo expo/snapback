@@ -468,3 +468,180 @@ participates in artifact identity while being invisible in the artifact. Both
 produce silent mismatches rather than errors. This session was scoped to
 `demos/eas-payments/` plus this diary, so no ticket was filed under `issues/`;
 per CLAUDE.md and LLP 0061 §5 one should be, with `guide-gap` in the title.
+
+## 2026-08-10 — slice 7: the normalized lifecycle state model
+
+### What the slice is
+
+Slices 1–6 treated a transaction as active or not. This one replaces that
+boolean with a seven-state vocabulary — `active`, `grace`, `retry_hold`,
+`paused`, `pending`, `expired`, `revoked` — where access is granted by exactly
+two of them, `{active, grace}`. The old `refunded` spelling migrated to
+`revoked`.
+
+The whole slice turns on the three middle states. `retry_hold`, `paused`, and
+`pending` are each "no access" for a materially different reason, and none of
+them may ever be expired by a clock: a `retry_hold` subscription has an
+`expiresAt` in the past and is very much alive, and `paused` carries a
+`resumesAt` that is a future *resume*, not a deadline. A date-only sweep
+destroys both.
+
+51/51 green, stable across five consecutive runs.
+
+### What felt good
+
+**Three horizon columns beat one, and the schema could say why.** `expiresAt`
+bounds `active`, `graceUntil` bounds `grace`, `resumesAt` is when a pause ends.
+Collapsing them into one `endsAt` would lose which clock is running, and the
+sweep needs exactly that. Being able to write that reasoning next to the
+columns, in a file codegen actually reads, is the part of Snapback's authoring
+model I keep finding valuable — the constraint and its justification do not
+drift apart because they are the same artifact.
+
+**The derived read model absorbed the change almost for free.** `deriveGrant`
+went from "any active transaction" to "any transaction in an access-granting
+state, with its horizon read from the column that state owns", and every caller
+was already funnelling through it. Slice 3's insistence on a single derivation
+paid off here in a way I did not have to think about: there was exactly one
+place to teach the new rule, and the purchase path and the notification path
+could not diverge.
+
+**`_id` continuity is a better retention proof than an inactive-row read.**
+`getEntitlements` filters to active grants, so a `retry_hold` row is invisible
+to the product surface — and there is no "all grants" read. Rather than add one
+just for the test, the checks capture the grant's `_id` while active and assert
+the *same* row comes back after recovery. If the sweep had deleted it, recovery
+would insert a new row with a new id. That kept the assertion inside the
+product surface instead of widening the API for the benefit of a test.
+
+**Scripted store transitions were the right fixture shape.** Every claim here
+is about a subscription *moving*, and one-off `setState` calls cannot express
+"recovers" versus "lapses". Named scripts (`active->grace->active`,
+`active->retry_hold->active`, `pending->canceled`, …) with an explicit
+`advance()` made the suite read like the state machine it is testing. Advancing
+explicitly rather than on read matters: `applyStoreState` fetches once per
+call, so a self-advancing fixture would have coupled the transition to the
+number of fetches.
+
+### What felt bad, or needed thought
+
+**`v.optional()` means absent, not nullable — and the diagnostic does not say
+so.** This cost the most time in the slice. Passing `expiresAt: null` to an
+optional arg through `ctx.runMutation` fails with
+`SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION: the function was invoked with
+arguments outside its served contract`, wrapped in a generic
+`SNAPBACK_HANDLER_FAILED`. It names neither the field nor the reason, and 22 of
+41 existing checks went red at once, which reads like a much deeper breakage
+than "one nested call passes null instead of omitting a key".
+
+The sharp edge is that **`ctx.db.insert` and `ctx.db.patch` accept `null` for
+an optional field** — that is how you clear one, as diary slice 1 recorded — so
+the same value is fine on the write path and a contract violation on the
+argument path. Both are "optional field, no value", and they disagree. The fix
+is to build the payload conditionally, which is fine once you know; knowing
+cost an hour. This is a guide gap, filed below.
+
+**The sweep and the derivation disagreed, and finding out was the most valuable
+thing in the slice.** My first pass added an idempotency check asserting that
+re-running `applyStoreState` over an unchanged state is a no-op for every
+lifecycle state. It failed on exactly one user: the one whose grace window the
+sweep had just expired. Re-reconciling re-granted the access.
+
+The cause is a genuine design tension, not a bug in the new code. `deriveGrant`
+is deliberately **time-agnostic** — it reads states and horizons but never
+compares them to the clock — and the sweep is the single horizon enforcer. That
+split is what makes the sweep *testable at all*: a purchase can be written with
+a past horizon and still grant access until something sweeps, which is
+precisely how the pre-existing `ivy holds pro before the sweep` check works.
+Make derivation time-aware and that check becomes untestable, because the suite
+cannot advance the clock, so nothing would ever be left for a sweep to do.
+
+The price is that a store still reporting `grace` with an elapsed `graceUntil`
+— a self-contradictory document a real store would have moved to `expired` —
+lets a redundant reconcile resurrect access until the next sweep.
+
+I considered three fixes and took none of them:
+
+- **Normalize at the store boundary** (treat a granting state past its own
+  horizon as `expired`): clean, but it makes the *reconcile* drop access, so
+  the sweep is no longer what expires a lapsed grace window — which is the
+  behavior this slice was asked to demonstrate.
+- **Make derivation time-aware:** kills the sweep's testability, as above.
+- **Record the horizon the sweep retired** on the grant, and let only a
+  strictly later horizon re-grant: this actually satisfies everything, and is
+  what I would build next. It needs one more column than the slice's specified
+  schema, so it was out of scope.
+
+What I did instead was assert the real behavior in both directions — the
+re-grant happens, and the next sweep undoes it, bounding the window at one cron
+interval — so the suite documents the wrinkle rather than hiding it by
+omission, and a future change to time-aware derivation will fail loudly instead
+of quietly changing what the demo claims. It is also recorded in the README and
+in `demo.snapback.json`'s `notClaiming` and `capabilityGaps`.
+
+Recording this honestly felt more useful than a green check would have. The
+temptation to quietly drop the failing user from the loop was real, and it
+would have left a demo that claims idempotency it does not have.
+
+**Same-file helpers must be function declarations, and the reason is easy to
+trip over.** The natural spelling of a closed vocabulary is `const TXN_STATES =
+[...]`. Codegen splices statically reachable same-file *declarations* into each
+handler but does not capture outer consts, so the vocabulary had to become
+`isKnownTxnState()` / `grantsAccess()` / `accessHorizonOf()`. The existing
+`@ref LLP 0108#same-file-helper-sharing` already said this; I extended its
+gloss to say it is *why* these are functions, because the next person will
+reach for the array first.
+
+The upside is real, though: `grantsAccess` ends up being the single predicate
+that decides the access boundary, callable from derivation and from the sweep,
+and that is a better outcome than a shared constant would have been.
+
+**Cron cadence forced the sweep tests through the mutation.** `expireGrants` is
+an `everyMs: 60_000` job, so it is due exactly once per minute of wall clock,
+and the existing cron checks already consume that tick. Slice 7 needs several
+sweeps in sequence, so the new checks call `applyGrantExpiry` directly. That is
+a fair test of what they assert — the state logic lives in the mutation, and
+the tick → action → mutation wiring is proven separately by two existing checks
+— but it is worth naming that the cron seam does not scale to "several sweeps
+in one suite" without either a shorter cadence or a virtual clock, and the jobs
+subsystem's `drainJobs({ nowMs })` has an injected clock that cron's tick seam
+does not.
+
+### Compared to Convex / Supabase
+
+The lifecycle model itself would look much the same on Convex: a status string,
+a derived table, a scheduled function. Two differences showed up.
+
+- **Declared reads/writes caught the blast radius change immediately.** Adding
+  `graceUntil`/`resumesAt` to the reconcile path meant the affected functions'
+  `reads:`/`writes:` were already the review checklist. On Convex I would have
+  had to reason about which functions touch `transactions` by grepping.
+- **The result contract caught the shape change at generation, not at
+  runtime.** Widening `validateReceipt`'s result to make `expiresAt` optional
+  was a declared edit; forgetting it would have failed validation rather than
+  returning `undefined` to a client. Convex infers the return type, so a
+  `pending` transaction returning no `expiresAt` would have been a client-side
+  surprise.
+
+Against both, the `v.optional()`-is-not-nullable asymmetry is the kind of
+papercut neither Convex nor Supabase has, because neither validates nested call
+arguments against a served contract at all. It is a real safety feature with a
+bad error message.
+
+### Guide gaps worth filing
+
+Neither is filed as a ticket: this session was scoped to `demos/eas-payments/`
+plus this diary. Per CLAUDE.md and LLP 0061 §5 both want one, with `guide-gap`
+in the title.
+
+- **`v.optional()` on arguments means absent, not nullable — and it differs
+  from the write path.** `ctx.db.insert`/`patch` accept `null` to clear an
+  optional field; passing `null` for an optional *argument* is
+  `SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION`, reported without naming the
+  field. `guide/backend/mutations.md` and the actions page should state the
+  rule and the asymmetry, and the diagnostic should name the offending
+  argument.
+- **Cron's tick seam has no injected clock, unlike jobs' drain seam.** A suite
+  that needs several runs of an `everyMs` job in one session has no supported
+  way to get them; `guide/backend/cron.md` says not to sleep in tests but does
+  not say what to do when one forced tick per interval is not enough.

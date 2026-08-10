@@ -59,12 +59,23 @@ const OMAR = 'user_omar';
 // her entitlement set is non-empty before and identical after. Pat is a fresh
 // buyer whose subscription proves the feed still ticks.
 const PAT = 'user_pat';
+// Slice 7 — one buyer per lifecycle path, because these checks assert on a
+// subscription MOVING and a shared user would let one transition's outcome
+// stand in for another's.
+const QUINN = 'user_quinn'; // grace holds access, then lapses
+const RUE = 'user_rue'; // grace recovers to active
+const SAM = 'user_sam'; // retry_hold, then recovers
+const TARA = 'user_tara'; // paused, then resumes
+const UMA = 'user_uma'; // pending, then clears
+const VIC = 'user_vic'; // pending, then canceled
+const WES = 'user_wes'; // two transactions: active alongside grace
+const ZOE = 'user_zoe'; // the control: buys once, must never move
 
 const STORE_KEY = 'fake-store-key-slice-2';
 const WRONG_STORE_KEY = 'not-the-store-key';
 const WEBHOOK_SECRET = 'developer-shared-secret-slice-5';
 
-const suite = createSuite('eas-payments / headless', { expectedChecks: 41 });
+const suite = createSuite('eas-payments / headless', { expectedChecks: 51 });
 const cleanups = [];
 let server = null;
 let db = null;
@@ -142,6 +153,19 @@ const changeCursor = async () => {
 const purchases = async (userId) => {
   const { rows } = await db.query(api.listPurchases, { userId });
   return rows;
+};
+
+// Slice 7. The sweep is driven through its mutation rather than db.cronTick()
+// for a mechanical reason: `expireGrants` is an everyMs 60_000 job, so it is due
+// exactly once per minute of wall clock, and the cron checks above already
+// consumed this run's due tick. These checks need several sweeps in a row.
+//
+// That is a fair test of what they are about — the sweep's STATE logic lives in
+// applyGrantExpiry, and the cron wiring (tick -> action -> mutation) is already
+// proven separately by the two cron checks.
+const runSweep = async () => {
+  const res = await db.mutate(api.applyGrantExpiry, {});
+  return res.result ?? res;
 };
 
 // Per-job cron facts live on the AdminRead projection, not the public
@@ -557,7 +581,7 @@ await runAcceptance(suite, async () => {
       environment: 'sandbox',
     }, FRANK);
     store.setState('apple:receipt_frank_2', {
-      status: 'refunded',
+      status: 'revoked',
       expiresAt: store.now - 1_000,
     });
     const res = await notify({ userId: FRANK, store: 'apple', storeTxnId: 'apple:receipt_frank_2' });
@@ -626,7 +650,7 @@ await runAcceptance(suite, async () => {
 
     // A real move does append, so the silence above is not just a dead feed.
     store.setState('stripe:receipt_jo_plus', {
-      status: 'refunded',
+      status: 'revoked',
       expiresAt: store.now - 1_000,
     });
     const second = await notify({ userId: JO, store: 'stripe', storeTxnId: 'stripe:receipt_jo_plus' });
@@ -1002,6 +1026,386 @@ await runAcceptance(suite, async () => {
     assertEqual(page[0].userId, PAT, 'named the buyer');
     assertEqual(await activeEntitlementIds(PAT), ['pro'], 'and pat really holds pro');
     return { seq: page[0].seq };
+  });
+
+  // --- Slice 7: the normalized lifecycle ----------------------------------------
+  //
+  // Everything above treats a transaction as active or not. A real subscription
+  // has more states than that, and the interesting ones are the middle: the
+  // store is still trying to bill, or the user paused, or payment has not
+  // cleared. Each of those is "no access" for a different reason, and only one
+  // of them may ever be expired by a clock.
+  //
+  // The transitions come from scripted store states rather than one-off
+  // setState calls, because every claim here is about MOVEMENT between states.
+  // The suite cannot advance the real clock, so "time passed" is expressed by
+  // moving a deadline into the past and letting the sweep notice.
+
+  // The control buyer. Bought before the lifecycle churn starts; asserted
+  // untouched after it ends. Registered here so isolation is a claim about a
+  // grant that existed throughout, not one created afterwards.
+  await validate({
+    productId: 'plus_monthly',
+    store: 'stripe',
+    receipt: 'receipt_zoe_plus',
+    environment: 'sandbox',
+  }, ZOE);
+  const zoeGrantBefore = await grantFor(ZOE, 'plus');
+
+  await suite.check('grace keeps access ON past expiry, and the sweep leaves it', async () => {
+    // The headline property. expiresAt is in the PAST — the paid window really
+    // did close — and access is still on because graceUntil is in the future.
+    // A model that keyed access off expiresAt alone would have dropped this
+    // user the moment billing failed, which is the outage this slice prevents.
+    store.script('apple:receipt_quinn_pro', 'active->grace->lapse', {
+      productId: 'pro_monthly',
+      environment: 'sandbox',
+    });
+    const bought = await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_quinn_pro',
+      environment: 'sandbox',
+    }, QUINN);
+    assert(bought.ok, `validateReceipt failed: ${JSON.stringify(bought.diagnostic)}`);
+    assertEqual(await activeEntitlementIds(QUINN), ['pro'], 'quinn starts fully active');
+    assertEqual((await grantFor(QUINN, 'pro')).state, 'active', 'and the grant says so');
+
+    // Billing fails: the store moves the transaction into grace.
+    store.advance('apple:receipt_quinn_pro');
+    const res = await notify({ userId: QUINN, store: 'apple', storeTxnId: 'apple:receipt_quinn_pro' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.status, 'grace', 'the store reports grace');
+
+    const grant = await grantFor(QUINN, 'pro');
+    assert(grant, 'the grant is still in the read model');
+    assertEqual(grant.active, true, 'access is still ON during grace');
+    assertEqual(grant.state, 'grace', 'and the read model names WHY it is on');
+    // The horizon switched clocks: it is now graceUntil, not expiresAt.
+    assertEqual(grant.activeUntil, store.now + store.sixtyDaysMs, 'the horizon is graceUntil');
+
+    // The sweep must not touch a grace window that has not closed.
+    await runSweep();
+    assertEqual(await activeEntitlementIds(QUINN), ['pro'], 'the sweep left the open grace window alone');
+    assertEqual((await grantFor(QUINN, 'pro')).state, 'grace', 'still in grace after a sweep');
+    return { activeUntil: grant.activeUntil };
+  });
+
+  await suite.check('a lapsed grace window expires on the sweep, with a feed tick', async () => {
+    // The other half: grace is a deadline, not an amnesty. Once graceUntil is
+    // behind us the sweep is what notices — the store never sent a second
+    // notification, which is exactly why the sweep has to exist.
+    store.advance('apple:receipt_quinn_pro');
+    const res = await notify({ userId: QUINN, store: 'apple', storeTxnId: 'apple:receipt_quinn_pro' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.status, 'grace', 'still grace at the store — only the deadline moved');
+    // Access is still on at this instant: nothing has swept yet.
+    assertEqual(await activeEntitlementIds(QUINN), ['pro'], 'access survives until a sweep runs');
+
+    // Take the cursor AFTER the reconcile, so the tick asserted below is the
+    // sweep's own and not the horizon change the reconcile already reported.
+    const cursor = await changeCursor();
+    const swept = await runSweep();
+    assert(swept.expired >= 1, `the sweep expired something (${swept.expired})`);
+
+    assertEqual(await activeEntitlementIds(QUINN), [], 'access is OFF once grace lapses');
+    const page = await pollChanges(cursor);
+    assertEqual(page.map((r) => r.userId), [QUINN], 'the sweep ticked the doorbell for quinn');
+    return { expired: swept.expired, seq: page[0].seq };
+  });
+
+  await suite.check('grace recovering to active keeps access ON and ticks the state change', async () => {
+    store.script('apple:receipt_rue_pro', 'active->grace->active', {
+      productId: 'pro_monthly',
+      environment: 'sandbox',
+    });
+    await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_rue_pro',
+      environment: 'sandbox',
+    }, RUE);
+    store.advance('apple:receipt_rue_pro');
+    await notify({ userId: RUE, store: 'apple', storeTxnId: 'apple:receipt_rue_pro' });
+    assertEqual((await grantFor(RUE, 'pro')).state, 'grace', 'rue is in grace');
+
+    // The card is replaced and billing succeeds.
+    const cursor = await changeCursor();
+    store.advance('apple:receipt_rue_pro');
+    const res = await notify({ userId: RUE, store: 'apple', storeTxnId: 'apple:receipt_rue_pro' });
+    assertEqual(res.result.changed, true, 'the recovery moved the grant');
+
+    const grant = await grantFor(RUE, 'pro');
+    assertEqual(grant.active, true, 'access never dropped across the recovery');
+    assertEqual(grant.state, 'active', 'and it is fully active again');
+    const page = await pollChanges(cursor);
+    assertEqual(page.map((r) => r.userId), [RUE], 'the recovery is on the feed');
+    return { state: grant.state, seq: page[0].seq };
+  });
+
+  await suite.check('retry_hold is access-OFF but the grant is retained, not expired', async () => {
+    // The trap this state exists to avoid: retry_hold carries an expiresAt in
+    // the PAST (the paid window closed) while the subscription is very much
+    // alive. A date-only sweep would tear it down mid-recovery.
+    store.script('apple:receipt_sam_pro', 'active->retry_hold->active', {
+      productId: 'pro_monthly',
+      environment: 'sandbox',
+    });
+    await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_sam_pro',
+      environment: 'sandbox',
+    }, SAM);
+    // The row identity is the retention proof: if the sweep deleted the grant,
+    // recovery would insert a NEW row with a different _id.
+    const grantId = (await grantFor(SAM, 'pro'))._id;
+
+    store.advance('apple:receipt_sam_pro');
+    const held = await notify({ userId: SAM, store: 'apple', storeTxnId: 'apple:receipt_sam_pro' });
+    assertEqual(held.result.status, 'retry_hold', 'the store is retrying payment');
+    assertEqual(await activeEntitlementIds(SAM), [], 'access is OFF while payment retries');
+
+    // Two sweeps, to be sure this is not an off-by-one survival.
+    await runSweep();
+    await runSweep();
+
+    store.advance('apple:receipt_sam_pro');
+    const recovered = await notify({ userId: SAM, store: 'apple', storeTxnId: 'apple:receipt_sam_pro' });
+    assertEqual(recovered.result.status, 'active', 'payment finally cleared');
+    const grant = await grantFor(SAM, 'pro');
+    assertEqual(grant.active, true, 'access is back');
+    assertEqual(grant.state, 'active', 'as a fully active grant');
+    assertEqual(grant._id, grantId, 'the SAME grant row was reused — the sweep never deleted it');
+    return { grantId: grant._id };
+  });
+
+  await suite.check('paused is access-OFF, survives the sweep, and resumes', async () => {
+    // resumesAt is a future timestamp that is NOT a deadline. A sweep that
+    // expired "anything with a horizon" would destroy every paused
+    // subscription; a sweep that read resumesAt as an expiry would do it
+    // backwards. Neither may happen.
+    store.script('stripe:receipt_tara_plus', 'active->paused->active', {
+      productId: 'plus_monthly',
+      environment: 'sandbox',
+    });
+    await validate({
+      productId: 'plus_monthly',
+      store: 'stripe',
+      receipt: 'receipt_tara_plus',
+      environment: 'sandbox',
+    }, TARA);
+    const grantId = (await grantFor(TARA, 'plus'))._id;
+
+    store.advance('stripe:receipt_tara_plus');
+    const paused = await notify({ userId: TARA, store: 'stripe', storeTxnId: 'stripe:receipt_tara_plus' });
+    assertEqual(paused.result.status, 'paused', 'the user paused the subscription');
+    assertEqual(await activeEntitlementIds(TARA), [], 'a paused subscription grants nothing');
+    // The store still knows when it comes back.
+    assertEqual(
+      store.getState('stripe:receipt_tara_plus').resumesAt,
+      store.now + store.sixtyDaysMs,
+      'the pause carries a future resume, not an expiry',
+    );
+
+    await runSweep();
+    await runSweep();
+
+    store.advance('stripe:receipt_tara_plus');
+    await notify({ userId: TARA, store: 'stripe', storeTxnId: 'stripe:receipt_tara_plus' });
+    const grant = await grantFor(TARA, 'plus');
+    assertEqual(grant.active, true, 'resuming restores access');
+    assertEqual(grant.state, 'active', 'fully active again');
+    assertEqual(grant._id, grantId, 'the same grant row survived the pause and both sweeps');
+    return { grantId: grant._id };
+  });
+
+  await suite.check('pending grants nothing and says nothing, then resolves either way', async () => {
+    // Reuses slice 6's consumable empty-path shape: a transaction that maps to
+    // no access derives no grant, and because appendChange is only reached when
+    // a grant moves, an empty feed page is also proof that no ping was queued.
+    const cursor = await changeCursor();
+    store.script('apple:receipt_uma_pro', 'pending->active', {
+      productId: 'pro_monthly',
+      environment: 'sandbox',
+    });
+    const pending = await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_uma_pro',
+      environment: 'sandbox',
+    }, UMA);
+    assert(pending.ok, `validateReceipt failed: ${JSON.stringify(pending.diagnostic)}`);
+    assertEqual(pending.result.status, 'pending', 'payment has not cleared');
+    // A pending purchase has no window at all — not a zero-length one.
+    assertEqual(pending.result.expiresAt ?? null, null, 'pending carries no expiry');
+    assertEqual(await activeEntitlementIds(UMA), [], 'pending grants nothing');
+    assertEqual(await pollChanges(cursor), [], 'and appends nothing to the feed');
+    // The transaction itself IS recorded — silence is about access, not about
+    // forgetting the purchase happened.
+    assertEqual(
+      (await purchases(UMA)).map((row) => row.status),
+      ['pending'],
+      'the pending transaction is in the audit',
+    );
+
+    // It clears: one grant, one tick.
+    store.advance('apple:receipt_uma_pro');
+    await notify({ userId: UMA, store: 'apple', storeTxnId: 'apple:receipt_uma_pro' });
+    assertEqual(await activeEntitlementIds(UMA), ['pro'], 'clearing grants access');
+    assertEqual((await grantFor(UMA, 'pro')).state, 'active', 'as an active grant');
+    assertEqual(
+      (await pollChanges(cursor)).map((r) => r.userId),
+      [UMA],
+      'exactly one tick, for the clearing — not for the pending',
+    );
+
+    // The other resolution: canceled before it ever cleared.
+    const vicCursor = await changeCursor();
+    store.script('apple:receipt_vic_pro', 'pending->canceled', {
+      productId: 'pro_monthly',
+      environment: 'sandbox',
+    });
+    await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_vic_pro',
+      environment: 'sandbox',
+    }, VIC);
+    store.advance('apple:receipt_vic_pro');
+    const canceled = await notify({ userId: VIC, store: 'apple', storeTxnId: 'apple:receipt_vic_pro' });
+    // 'canceled' normalizes to 'revoked': a payment that never cleared did not
+    // have a window close on it.
+    assertEqual(canceled.result.status, 'revoked', 'a canceled pending purchase is revoked');
+    assertEqual(await activeEntitlementIds(VIC), [], 'no grant was ever created');
+    assertEqual(await pollChanges(vicCursor), [], 'and the whole pending->canceled path is silent');
+    return { uma: 'active', vic: 'revoked' };
+  });
+
+  await suite.check('active outranks grace, and losing the active txn ticks on state alone', async () => {
+    // Two products back `pro`. The grace one carries the LATER horizon on
+    // purpose, so when the active one dies the access horizon does not move at
+    // all — only `state` does. That isolates the reason `state` had to join the
+    // change key: with a key of (active, activeUntil) this transition would be
+    // completely silent, and "your payment is failing" is the most actionable
+    // thing the feed carries.
+    await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_wes_monthly',
+      environment: 'sandbox',
+    }, WES);
+    store.script('apple:receipt_wes_annual', 'active->grace->active', {
+      productId: 'pro_annual',
+      environment: 'sandbox',
+    });
+    await validate({
+      productId: 'pro_annual',
+      store: 'apple',
+      receipt: 'receipt_wes_annual',
+      environment: 'sandbox',
+    }, WES);
+    // Move only the annual product into grace.
+    store.advance('apple:receipt_wes_annual');
+    await notify({ userId: WES, store: 'apple', storeTxnId: 'apple:receipt_wes_annual' });
+
+    const both = await grantFor(WES, 'pro');
+    assertEqual(both.active, true, 'access is on');
+    assertEqual(both.state, 'active', 'active outranks grace — no dunning for a paid-up user');
+    const horizon = store.now + store.sixtyDaysMs;
+    assertEqual(both.activeUntil, horizon, "the grace product's later horizon wins");
+
+    // Now the monthly expires at the store, leaving only the grace product.
+    const cursor = await changeCursor();
+    store.setState('apple:receipt_wes_monthly', {
+      status: 'expired',
+      expiresAt: store.now - 1_000,
+    });
+    const res = await notify({ userId: WES, store: 'apple', storeTxnId: 'apple:receipt_wes_monthly' });
+    assertEqual(res.result.changed, true, 'the grant moved');
+
+    const graceOnly = await grantFor(WES, 'pro');
+    assertEqual(graceOnly.active, true, 'access STAYS ON — the grace product still justifies it');
+    assertEqual(graceOnly.state, 'grace', 'but the reason is now grace');
+    assertEqual(graceOnly.activeUntil, horizon, 'and the horizon did not move at all');
+    const page = await pollChanges(cursor);
+    assertEqual(page.map((r) => r.userId), [WES], 'the state-only change still ticked the doorbell');
+    return { state: graceOnly.state, activeUntil: graceOnly.activeUntil };
+  });
+
+  await suite.check('re-running applyStoreState over the same lifecycle state is a no-op', async () => {
+    // Idempotency has to hold in the middle states too, not just for 'active'.
+    // Sam recovered to active, Tara resumed to active, and Wes's annual product
+    // is sitting in grace — so this covers both access-granting states.
+    const cursor = await changeCursor();
+    for (const [userId, storeName, storeTxnId] of [
+      [SAM, 'apple', 'apple:receipt_sam_pro'],
+      [TARA, 'stripe', 'stripe:receipt_tara_plus'],
+      [WES, 'apple', 'apple:receipt_wes_annual'],
+    ]) {
+      const first = await notify({ userId, store: storeName, storeTxnId });
+      assert(first.ok, `applyStoreState failed for ${userId}: ${JSON.stringify(first.diagnostic)}`);
+      assertEqual(first.result.changed, false, `${userId}: re-reconcile moved nothing`);
+      const second = await notify({ userId, store: storeName, storeTxnId });
+      assertEqual(second.result.changed, false, `${userId}: still nothing on a third read`);
+    }
+    assertEqual(await pollChanges(cursor), [], 'six redundant reconciles appended zero feed rows');
+    return { reconciles: 6 };
+  });
+
+  await suite.check('a swept grace window is re-granted by a redundant reconcile, then re-swept', async () => {
+    // This documents a REAL limitation rather than hiding it, and the shape of
+    // it is worth understanding before trusting the sweep.
+    //
+    // Derivation is deliberately time-agnostic: `deriveGrant` reads states and
+    // horizons but never compares them to the clock, and the sweep is the single
+    // horizon enforcer. That split is what makes the sweep meaningful — a
+    // purchase can be written with a past horizon and still grant access until
+    // something sweeps (see `ivy holds pro before the sweep`).
+    //
+    // The price: Quinn's transaction is still 'grace' at the store with a
+    // graceUntil that has passed — a self-contradictory document a real store
+    // would have moved to 'expired'. Re-reconciling it re-derives access the
+    // sweep just retired, so the grant comes back until the next sweep.
+    //
+    // Bounded, not silent: the next sweep re-expires it, so the window is one
+    // cron interval (60s declared). Asserting both halves here means a future
+    // change that makes derivation time-aware will fail this check loudly
+    // instead of quietly changing what the demo claims.
+    assertEqual(await activeEntitlementIds(QUINN), [], 'quinn starts this check expired');
+
+    const res = await notify({ userId: QUINN, store: 'apple', storeTxnId: 'apple:receipt_quinn_pro' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.status, 'grace', 'the store still reports the contradictory grace');
+    assertEqual(
+      await activeEntitlementIds(QUINN),
+      ['pro'],
+      'the redundant reconcile re-granted access (the documented wrinkle)',
+    );
+    assertEqual((await grantFor(QUINN, 'pro')).state, 'grace', 'as a grace grant again');
+
+    // Self-healing: the very next sweep retires it again.
+    const swept = await runSweep();
+    assert(swept.expired >= 1, `the next sweep re-expired it (${swept.expired})`);
+    assertEqual(await activeEntitlementIds(QUINN), [], 'access is off again after one sweep');
+    return { reGranted: true, expired: swept.expired };
+  });
+
+  await suite.check('the whole lifecycle left the control buyer untouched', async () => {
+    // Isolation across every transition above: Zoe bought before the churn and
+    // never appears in any of it. Version equality is the strong form — not
+    // merely "still active", but "never rewritten at all".
+    const after = await grantFor(ZOE, 'plus');
+    assert(after, 'zoe still holds her grant');
+    assertEqual(await activeEntitlementIds(ZOE), ['plus'], "zoe's access is unchanged");
+    assertEqual(after.state, 'active', 'and still active');
+    assertEqual(after._version, zoeGrantBefore._version, "zoe's grant was never rewritten");
+    assertEqual(after._id, zoeGrantBefore._id, 'and it is the same row');
+    // The other long-lived holders are still intact too, so this is a claim
+    // about the sweep and the reconciles at large, not just about one row.
+    assertEqual(await activeEntitlementIds(ADA), ['pro'], 'ada survived every sweep');
+    assertEqual(await activeEntitlementIds(GRACE), ['plus', 'pro'], 'grace is still fully entitled');
+    return { version: after._version };
   });
 
   await suite.check('an ordinary query is honestly reported as NOT live', async () => {

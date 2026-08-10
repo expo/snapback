@@ -145,11 +145,68 @@ export const listPurchases = defineJsQuery({
 //
 // @ref LLP 0108#same-file-helper-sharing--2026-07-31-normative — statically
 //   reachable same-file declarations are spliced with the calling handler;
-//   imports and outer consts still are not captured.
+//   imports and outer consts still are not captured. That last clause is why
+//   the lifecycle vocabulary below is spelled as function declarations rather
+//   than the array-of-strings constant it obviously wants to be.
+
+// The canonical transaction lifecycle. Seven states, one place.
+function isKnownTxnState(status) {
+  return status === 'active'
+    || status === 'grace'
+    || status === 'retry_hold'
+    || status === 'paused'
+    || status === 'pending'
+    || status === 'expired'
+    || status === 'revoked';
+}
+
+// The access boundary, and the only predicate allowed to decide it. Exactly two
+// of the seven states grant access; the other five are all "no access" for
+// materially different reasons, and conflating any of them with `expired` is
+// the bug this whole model exists to prevent:
+//
+//   retry_hold — payment is failing, the store is still retrying. Access off,
+//                but the subscription is alive and must NOT be time-expired.
+//   paused     — the user deliberately paused (Google Play). Comes back at
+//                `resumesAt`. Also must not be time-expired.
+//   pending    — payment started and has not cleared (SCA, slow ACH, Ask to
+//                Buy). Never granted access, so it has nothing to lose.
+//   expired    — the window closed and nobody is retrying.
+//   revoked    — refunded or revoked by the store.
+//
+// The three middle states change only when the store tells us so, through an
+// applyStoreState re-fetch. Nothing on a clock may move them.
+function grantsAccess(status) {
+  return status === 'active' || status === 'grace';
+}
+
+// Which column bounds a given state's access. `null` means "no horizon", which
+// for an access-granting state means perpetual (a non-consumable).
+function accessHorizonOf(txn) {
+  const raw = txn.status === 'grace' ? txn.graceUntil : txn.expiresAt;
+  return raw === undefined || raw === null ? null : raw;
+}
+
+// Optional integer milliseconds off a store response. Absent is legitimate — a
+// pending purchase has no expiry yet, a paused one has no active window — so
+// this distinguishes "absent" from "present but malformed" rather than
+// defaulting a missing horizon to zero and silently expiring something.
+function readOptionalMs(value, label) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'number' || Math.floor(value) !== value) {
+    throw new Error(label + ' must be an integer when present');
+  }
+  return value;
+}
 
 // What the user's transactions currently justify for one entitlement. Pure
 // read: several products can grant the same entitlement (pro_monthly and
 // pro_annual both grant `pro`), so losing one does not necessarily lose it.
+//
+// Reasons over per-transaction *state*, not over `expiresAt` alone. A grace
+// transaction whose `expiresAt` is long past still grants access until its
+// `graceUntil`, and a retry_hold transaction whose `expiresAt` is in the future
+// grants none — so the date can never be read without the state that scopes it.
 async function deriveGrant(ctx, userId, entitlementId) {
   const mappings = await ctx.db
     .query('productEntitlements')
@@ -163,15 +220,20 @@ async function deriveGrant(ctx, userId, entitlementId) {
     .eq('userId', userId)
     .collect();
 
-  let active = false;
+  let anyActive = false;
+  let anyGrace = false;
   let perpetual = false;
   let maxUntil = -1;
   let source = '';
   for (const txn of transactions) {
-    if (txn.status !== 'active') continue;
     if (productIds.indexOf(txn.productId) < 0) continue;
-    active = true;
-    const until = txn.expiresAt === undefined || txn.expiresAt === null ? null : txn.expiresAt;
+    // The five non-granting states contribute nothing at all — not a shorter
+    // window, not a weaker grant. A pending purchase in particular derives to
+    // exactly the same answer as no purchase, which is what makes it silent.
+    if (!grantsAccess(txn.status)) continue;
+    if (txn.status === 'active') anyActive = true;
+    else anyGrace = true;
+    const until = accessHorizonOf(txn);
     if (until === null) {
       // A non-consumable outranks any dated window.
       if (!perpetual) {
@@ -183,8 +245,21 @@ async function deriveGrant(ctx, userId, entitlementId) {
       if (!perpetual) source = txn.storeTxnId;
     }
   }
+  // The horizon is the MAX across every granting transaction regardless of
+  // which state produced it, so one product's grace window can hold an
+  // entitlement up while another product's active window is what usually does.
   const activeUntil = perpetual || maxUntil < 0 ? null : maxUntil;
-  return { active: active, activeUntil: activeUntil, source: source };
+  // Active outranks grace: if any transaction is fully paid up, the user is not
+  // "in grace" merely because a second, lapsing product also backs the
+  // entitlement. Reporting grace there would invite a dunning message to
+  // someone whose payments are fine.
+  const state = anyActive ? 'active' : (anyGrace ? 'grace' : null);
+  return {
+    active: anyActive || anyGrace,
+    activeUntil: activeUntil,
+    state: state,
+    source: source,
+  };
 }
 
 // Write the derived answer, and report whether it actually moved. The boolean
@@ -208,6 +283,7 @@ async function applyDerivedGrant(ctx, userId, entitlementId) {
       entitlementId: entitlementId,
       active: true,
       activeUntil: derived.activeUntil,
+      state: derived.state,
       source: derived.source,
     });
     return true;
@@ -215,21 +291,34 @@ async function applyDerivedGrant(ctx, userId, entitlementId) {
 
   const current = existing[0];
   const currentUntil = current.activeUntil === undefined ? null : current.activeUntil;
+  const currentState = current.state === undefined ? null : current.state;
   // Going inactive keeps the last transaction that justified the grant, so the
   // row still says why it was ever on.
   const nextSource = derived.source === '' ? current.source : derived.source;
 
-  // What counts as a change is (active, activeUntil) — the answer the app
-  // gates on. `source` is provenance: when one of two products backing the
-  // same entitlement expires, the surviving one becomes the justification, and
-  // the row should say so, but the user's access never moved. Writing that
-  // without reporting a change is what keeps a redundant notification quiet.
-  const accessMoved = current.active !== derived.active || currentUntil !== derived.activeUntil;
+  // What counts as a change is (active, activeUntil, state) — the answer the app
+  // gates on, plus how it is being granted. `state` joined this key because an
+  // active -> grace transition can move NEITHER of the other two: when a second
+  // product's grace window is the later horizon, the user keeps access with the
+  // same `activeUntil` and only the reason changes. That is precisely the
+  // transition a developer wants to hear about (payment is failing), so a key
+  // of (active, activeUntil) alone would drop the most actionable signal the
+  // feed carries.
+  //
+  // `source` is still deliberately NOT in the key: it is provenance, and when
+  // one of two products backing an entitlement lapses, the surviving one
+  // becomes the justification without the user's access moving at all.
+  const accessMoved = current.active !== derived.active
+    || currentUntil !== derived.activeUntil
+    || currentState !== derived.state;
   const sourceMoved = current.source !== nextSource;
   if (!accessMoved && !sourceMoved) return false;
   await ctx.db.patch('entitlementGrants', current._id, {
     active: derived.active,
     activeUntil: derived.activeUntil,
+    // Cleared, not left stale: the invariant is that `state` is non-null exactly
+    // when `active` is true, so an inactive row never names a lifecycle state.
+    state: derived.state,
     source: nextSource,
   });
   return accessMoved;
@@ -319,6 +408,8 @@ export const recordPurchase = defineJsMutation({
     status: v.string(),
     environment: v.string(),
     expiresAt: v.optional(v.integer()),
+    graceUntil: v.optional(v.integer()),
+    resumesAt: v.optional(v.integer()),
   },
   reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints'],
   writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
@@ -335,6 +426,21 @@ export const recordPurchase = defineJsMutation({
     if (args.environment !== 'sandbox' && args.environment !== 'production') {
       throw new Error('environment must be sandbox or production');
     }
+    // The vocabulary is enforced at the write boundary, not just where a store
+    // response is parsed: this mutation is callable directly, and a typo'd
+    // status would otherwise land a row that `grantsAccess` silently reads as
+    // "no access" forever.
+    if (!isKnownTxnState(args.status)) {
+      throw new Error('unknown transaction state: ' + args.status);
+    }
+    const graceUntil = readOptionalMs(args.graceUntil, 'graceUntil');
+    const resumesAt = readOptionalMs(args.resumesAt, 'resumesAt');
+    // A grace transaction with no graceUntil has no access horizon, which
+    // `deriveGrant` would read as perpetual — grace that never ends. Refuse it
+    // at the boundary rather than granting someone free access forever.
+    if (args.status === 'grace' && graceUntil === null) {
+      throw new Error('a grace transaction requires graceUntil');
+    }
 
     // Dedupe on the store's identity, not ours. This is what makes the
     // notification-triggered path safe to replay.
@@ -347,7 +453,7 @@ export const recordPurchase = defineJsMutation({
       return { transactionId: seen[0]._id, deduped: true, grants: 0 };
     }
 
-    const expiresAt = args.expiresAt === undefined ? null : args.expiresAt;
+    const expiresAt = readOptionalMs(args.expiresAt, 'expiresAt');
     const transactionId = await ctx.db.insert('transactions', {
       userId: userId,
       productId: args.productId,
@@ -356,6 +462,8 @@ export const recordPurchase = defineJsMutation({
       status: args.status,
       environment: args.environment,
       expiresAt: expiresAt,
+      graceUntil: graceUntil,
+      resumesAt: resumesAt,
     });
 
     // Derive, never assign: the new transaction is now one input among the
@@ -389,11 +497,16 @@ export const validateReceipt = defineAction({
   },
   uses: ['storeValidation'],
   writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
+  // expiresAt is optional now: a `pending` purchase has not bought a window
+  // yet, and a `paused` one has no active window to report. Forcing an integer
+  // here would have meant inventing one.
   result: results.value(v.object({
     storeTxnId: v.string(),
     status: v.string(),
     environment: v.string(),
-    expiresAt: v.integer(),
+    expiresAt: v.optional(v.integer()),
+    graceUntil: v.optional(v.integer()),
+    resumesAt: v.optional(v.integer()),
     deduped: v.boolean(),
   })),
   handler: async (ctx, args) => {
@@ -431,33 +544,48 @@ export const validateReceipt = defineAction({
     const storeTxnId = String(state.storeTxnId ?? '').trim();
     const status = String(state.status ?? '');
     const environment = String(state.environment ?? '');
-    const expiresAt = state.expiresAt;
     if (!storeTxnId) throw new Error('store returned no storeTxnId');
-    if (status !== 'active' && status !== 'expired' && status !== 'refunded') {
+    if (!isKnownTxnState(status)) {
       throw new Error('store returned an unknown status: ' + status);
     }
     if (environment !== 'sandbox' && environment !== 'production') {
       throw new Error('store returned an unknown environment: ' + environment);
     }
-    if (typeof expiresAt !== 'number' || Math.floor(expiresAt) !== expiresAt) {
-      throw new Error('store returned a non-integer expiresAt');
+    const expiresAt = readOptionalMs(state.expiresAt, 'expiresAt');
+    const graceUntil = readOptionalMs(state.graceUntil, 'graceUntil');
+    const resumesAt = readOptionalMs(state.resumesAt, 'resumesAt');
+    // An access-granting state must come with the horizon that bounds it. This
+    // is the one shape of malformed store response that would grant unbounded
+    // access rather than merely failing, so it is refused explicitly.
+    if (status === 'grace' && graceUntil === null) {
+      throw new Error('store reported grace with no graceUntil');
     }
 
-    const commit = await ctx.runMutation('recordPurchase', {
+    // An optional arg means ABSENT or integer — not nullable. Passing an
+    // explicit null is a served-contract violation, so a horizon this state does
+    // not have is omitted rather than nulled. Same rule on the way out.
+    const payload = {
       productId: args.productId,
       store: args.store,
       storeTxnId: storeTxnId,
       status: status,
       environment: environment,
-      expiresAt: expiresAt,
-    });
-    return {
+    };
+    if (expiresAt !== null) payload.expiresAt = expiresAt;
+    if (graceUntil !== null) payload.graceUntil = graceUntil;
+    if (resumesAt !== null) payload.resumesAt = resumesAt;
+    const commit = await ctx.runMutation('recordPurchase', payload);
+
+    const out = {
       storeTxnId: storeTxnId,
       status: status,
       environment: environment,
-      expiresAt: expiresAt,
       deduped: commit.deduped === true,
     };
+    if (expiresAt !== null) out.expiresAt = expiresAt;
+    if (graceUntil !== null) out.graceUntil = graceUntil;
+    if (resumesAt !== null) out.resumesAt = resumesAt;
+    return out;
   },
 });
 
@@ -481,6 +609,8 @@ export const reconcileTransaction = defineJsMutation({
     status: v.string(),
     environment: v.string(),
     expiresAt: v.optional(v.integer()),
+    graceUntil: v.optional(v.integer()),
+    resumesAt: v.optional(v.integer()),
   },
   reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints'],
   writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
@@ -495,7 +625,15 @@ export const reconcileTransaction = defineJsMutation({
     if (args.environment !== 'sandbox' && args.environment !== 'production') {
       throw new Error('environment must be sandbox or production');
     }
-    const nextUntil = args.expiresAt === undefined ? null : args.expiresAt;
+    if (!isKnownTxnState(args.status)) {
+      throw new Error('unknown transaction state: ' + args.status);
+    }
+    const nextUntil = readOptionalMs(args.expiresAt, 'expiresAt');
+    const nextGrace = readOptionalMs(args.graceUntil, 'graceUntil');
+    const nextResumes = readOptionalMs(args.resumesAt, 'resumesAt');
+    if (args.status === 'grace' && nextGrace === null) {
+      throw new Error('a grace transaction requires graceUntil');
+    }
 
     const seen = await ctx.db
       .query('transactions')
@@ -516,6 +654,8 @@ export const reconcileTransaction = defineJsMutation({
         status: args.status,
         environment: args.environment,
         expiresAt: nextUntil,
+        graceUntil: nextGrace,
+        resumesAt: nextResumes,
       });
       transactionChanged = true;
     } else {
@@ -528,10 +668,21 @@ export const reconcileTransaction = defineJsMutation({
       userId = row.userId;
       productId = row.productId;
       const rowUntil = row.expiresAt === undefined ? null : row.expiresAt;
-      if (row.status !== args.status || rowUntil !== nextUntil) {
+      const rowGrace = row.graceUntil === undefined ? null : row.graceUntil;
+      const rowResumes = row.resumesAt === undefined ? null : row.resumesAt;
+      // All three horizons join the comparison, not just expiresAt. A
+      // subscription moving active -> grace often keeps the same expiresAt and
+      // only gains a graceUntil; treating that as "unchanged" would leave the
+      // stored row claiming the user is still fully paid up.
+      if (row.status !== args.status
+        || rowUntil !== nextUntil
+        || rowGrace !== nextGrace
+        || rowResumes !== nextResumes) {
         await ctx.db.patch('transactions', row._id, {
           status: args.status,
           expiresAt: nextUntil,
+          graceUntil: nextGrace,
+          resumesAt: nextResumes,
         });
         transactionChanged = true;
       }
@@ -595,27 +746,33 @@ export const applyStoreState = defineAction({
     const status = String(state.status ?? '');
     const environment = String(state.environment ?? '');
     const productId = String(state.productId ?? '');
-    const expiresAt = state.expiresAt;
-    if (status !== 'active' && status !== 'expired' && status !== 'refunded') {
+    if (!isKnownTxnState(status)) {
       throw new Error('store returned an unknown status: ' + status);
     }
     if (environment !== 'sandbox' && environment !== 'production') {
       throw new Error('store returned an unknown environment: ' + environment);
     }
     if (!productId) throw new Error('store returned no productId');
-    if (typeof expiresAt !== 'number' || Math.floor(expiresAt) !== expiresAt) {
-      throw new Error('store returned a non-integer expiresAt');
+    const expiresAt = readOptionalMs(state.expiresAt, 'expiresAt');
+    const graceUntil = readOptionalMs(state.graceUntil, 'graceUntil');
+    const resumesAt = readOptionalMs(state.resumesAt, 'resumesAt');
+    if (status === 'grace' && graceUntil === null) {
+      throw new Error('store reported grace with no graceUntil');
     }
 
-    const commit = await ctx.runMutation('reconcileTransaction', {
+    // Absent, never null — see the note on validateReceipt's payload.
+    const payload = {
       userId: args.userId,
       productId: productId,
       store: args.store,
       storeTxnId: storeTxnId,
       status: status,
       environment: environment,
-      expiresAt: expiresAt,
-    });
+    };
+    if (expiresAt !== null) payload.expiresAt = expiresAt;
+    if (graceUntil !== null) payload.graceUntil = graceUntil;
+    if (resumesAt !== null) payload.resumesAt = resumesAt;
+    const commit = await ctx.runMutation('reconcileTransaction', payload);
     return {
       storeTxnId: storeTxnId,
       status: status,
@@ -626,8 +783,27 @@ export const applyStoreState = defineAction({
 
 // --- Expiry -------------------------------------------------------------------
 
-// Sweep grants whose subscription window has closed. Runs unauthenticated
-// under system authority, so it is scoped by by_active rather than by_user.
+// Sweep grants whose access horizon has closed. Runs unauthenticated under
+// system authority, so it is scoped by by_active rather than by_user.
+//
+// State-aware, and the guard is the point of the whole slice. Only 'active' and
+// 'grace' rows own a clock the sweep may enforce:
+//
+//   active     -> expire once expiresAt passes
+//   grace      -> expire once graceUntil passes
+//   retry_hold -> NEVER. The store is still retrying payment; the subscription
+//                 is alive and its `expiresAt` is already in the past, so a
+//                 date-only sweep would tear it down mid-recovery.
+//   paused     -> NEVER. `resumesAt` is a future RESUME, not an expiry. A sweep
+//                 reading it as a deadline would delete paused subscriptions.
+//   pending    -> NEVER. It never granted access; there is nothing to expire.
+//
+// Those three change only when the store says so, via an applyStoreState
+// re-fetch. The three inactive states cannot reach this loop anyway — the
+// by_active scan excludes them — so the explicit state guard is defence in
+// depth for the one shape that could: a row that is active while naming a state
+// this sweep does not own. It is left alone for the reconcile to resolve rather
+// than expired on a horizon nobody promised.
 export const applyGrantExpiry = defineJsMutation({
   args: {},
   reads: ['entitlementGrants', 'entitlementChanges', 'webhookEndpoints'],
@@ -647,11 +823,16 @@ export const applyGrantExpiry = defineJsMutation({
       .collect();
     let expired = 0;
     for (const grant of live) {
+      // Only a state whose clock this sweep owns may be expired by it.
+      const state = grant.state === undefined ? null : grant.state;
+      if (state !== 'active' && state !== 'grace') continue;
       const until = grant.activeUntil;
       // A grant with no activeUntil is perpetual (a non-consumable), so it is
       // never swept.
       if (until !== null && until !== undefined && until <= now) {
-        await ctx.db.patch('entitlementGrants', grant._id, { active: false });
+        // `state: null` alongside `active: false` keeps the read model's
+        // invariant intact — an inactive row never names a lifecycle state.
+        await ctx.db.patch('entitlementGrants', grant._id, { active: false, state: null });
         expired += 1;
         // One feed row per user, not per grant: the developer's question is
         // "whose access moved", and they re-read the whole answer anyway.

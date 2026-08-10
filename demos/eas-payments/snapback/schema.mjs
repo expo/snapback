@@ -6,6 +6,13 @@
 //
 // @ref LLP 0004#handler-api — server-owned _id/_version/_createdAt/_updatedAt,
 //   so nothing here declares a timestamp field the runtime already owns.
+// @ref LLP 0069#generated-application-surface — `transactions.status` is
+//   deliberately NOT that RFC's payment vocabulary. 0069 models one payment
+//   ATTEMPT (notStarted, providerPending, authorized, capturePending, paid,
+//   refunded, disputed, ambiguous, manualReview); this models a SUBSCRIPTION's
+//   entitlement over time (grace, retry_hold, paused). The two are disjoint on
+//   purpose — a reader coming from 0069 should not expect them to line up, and
+//   an adapter will eventually have to translate between them.
 
 import { defineSchema, defineTable, v } from '../../_kit/define.mjs';
 
@@ -42,6 +49,19 @@ export default defineSchema({
 
   // Raw store facts. `environment` ('sandbox' | 'production') rides every row
   // so metering can exclude test transactions later without a backfill.
+  //
+  // `status` is the normalized lifecycle vocabulary, not a boolean in disguise:
+  // 'active' | 'grace' | 'retry_hold' | 'paused' | 'pending' | 'expired' |
+  // 'revoked'. The handlers validate it (see `isKnownTxnState`); exactly two of
+  // the seven grant access (see `grantsAccess`). The old 'refunded' spelling
+  // migrated to 'revoked' so a store-initiated revoke and a refund are one
+  // state — nothing downstream distinguished them.
+  //
+  // Each access-granting state reads its horizon from a DIFFERENT column, which
+  // is why there are three and not one: `expiresAt` bounds 'active',
+  // `graceUntil` bounds 'grace', and `resumesAt` is when a 'paused' subscription
+  // is expected back. Collapsing them into one "endsAt" would lose which clock
+  // is running, and the sweep needs exactly that to know what it may expire.
   transactions: defineTable({
     userId: v.string(),
     productId: v.string(),
@@ -50,6 +70,8 @@ export default defineSchema({
     status: v.string(),
     environment: v.string(),
     expiresAt: v.optional(v.integer()),
+    graceUntil: v.optional(v.integer()),
+    resumesAt: v.optional(v.integer()),
   })
     .index('by_user', ['userId'])
     // by_storeTxn is what makes recordPurchase idempotent: a re-delivered
@@ -57,11 +79,23 @@ export default defineSchema({
     .index('by_storeTxn', ['storeTxnId']),
 
   // The derived read model. Everything above is input; this is the answer.
+  //
+  // `state` is 'active' | 'grace' | null and narrates WHY access is on: a user
+  // in grace has access on borrowed time and is the one a developer may want to
+  // nudge about billing, which `active` alone cannot express. The invariant is
+  // that it is non-null exactly when `active` is true — going inactive clears
+  // it, so the row can never claim a lifecycle state it is not granting.
+  //
+  // `activeUntil` stays a single column on purpose: it is the *access horizon*,
+  // whichever clock produced it (expiresAt while active, graceUntil while in
+  // grace). The read model answers "until when", and the app gating on it should
+  // not have to know which store column that came from.
   entitlementGrants: defineTable({
     userId: v.string(),
     entitlementId: v.string(),
     active: v.boolean(),
     activeUntil: v.optional(v.integer()),
+    state: v.optional(v.string()),
     source: v.string(),
   })
     // by_user backs the client's live query, index-first and auth-scoped.

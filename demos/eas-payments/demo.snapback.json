@@ -54,7 +54,15 @@
       "user_mia",
       "user_nia",
       "user_omar",
-      "user_pat"
+      "user_pat",
+      "user_quinn",
+      "user_rue",
+      "user_sam",
+      "user_tara",
+      "user_uma",
+      "user_vic",
+      "user_wes",
+      "user_zoe"
     ]
   },
   "surfaces": {
@@ -107,6 +115,16 @@
       "consumables are repeatable: two buys are two transactions",
       "listPurchases is a user-scoped audit of store facts only",
       "a subscription still ticks the feed after the consumable path",
+      "grace keeps access ON past expiry, and the sweep leaves it",
+      "a lapsed grace window expires on the sweep, with a feed tick",
+      "grace recovering to active keeps access ON and ticks the state change",
+      "retry_hold is access-OFF but the grant is retained, not expired",
+      "paused is access-OFF, survives the sweep, and resumes",
+      "pending grants nothing and says nothing, then resolves either way",
+      "active outranks grace, and losing the active txn ticks on state alone",
+      "re-running applyStoreState over the same lifecycle state is a no-op",
+      "a swept grace window is re-granted by a redundant reconcile, then re-swept",
+      "the whole lifecycle left the control buyer untouched",
       "an ordinary query is honestly reported as NOT live"
     ]
   },
@@ -118,7 +136,8 @@
     "per_project_isolation",
     "sessions_auth",
     "offerings_and_merchandising",
-    "metering"
+    "metering",
+    "time_aware_grant_derivation"
   ],
   "notClaiming": [
     "real store validation \u2014 validateReceipt and applyStoreState perform real outbound fetches, but against a fake local store fixture, not Apple/Google/Stripe, and with no signature or JWS verification",
@@ -127,6 +146,8 @@
     "webhook body signing \u2014 the ping authenticates the sender with a shared-secret bearer but does not bind the payload; the handler surface exposes no digest primitive to build an HMAC with",
     "SSRF fencing \u2014 webhook endpoint registration checks only the http/https scheme, not loopback or link-local targets",
     "concurrency-safe change-feed sequencing \u2014 seq is minted read-max-plus-one inside the mutation; ctx.sequence.allocate exists but permits one allocation per mutation, and the expiry sweep appends a row per user in one commit",
-    "metering or billing \u2014 transactions carry an environment tag so sandbox rows can be excluded later, and nothing consumes it yet"
+    "metering or billing \u2014 transactions carry an environment tag so sandbox rows can be excluded later, and nothing consumes it yet",
+    "time-aware grant derivation: deriveGrant reads lifecycle states and horizons but never compares them to the clock, so the expiry sweep is the single horizon enforcer. If the store still reports 'grace' with a graceUntil that already passed, a redundant applyStoreState re-grants the access the sweep just retired, until the next sweep undoes it. Bounded by one cron interval (60s declared) and asserted in both directions by the acceptance rather than hidden",
+    "real store lifecycle mapping: the seven states are the engine's normalized vocabulary, not a verified translation of Apple's, Google's, and Stripe's own status models, which differ from each other and carry states this slice does not model (billing retry sub-phases, upgrade/downgrade proration, family sharing)"
   ]
 }

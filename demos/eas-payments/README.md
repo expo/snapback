@@ -85,7 +85,7 @@ acceptance proves this both at the mutation and through a replayed action.
 a grant goes away, and they are independent:
 
 - **The notification path** (`applyStoreState`) — the store says the
-  transaction is now `expired` or `refunded`, and the reconcile revokes
+  transaction is now `expired` or `revoked`, and the reconcile revokes
   immediately. No scheduler involved.
 - **The cron sweep** (`expireGrants` → `expireGrantsSweep` →
   `applyGrantExpiry`) — a window simply ran out and no notification arrived.
@@ -129,6 +129,73 @@ Fixture artifact: the fake store stamps every new receipt with
 `expiresAt = now + 30d`, so these consumable transactions carry an expiry a real
 coin pack would not have. It is inert — nothing derives a grant from them, so
 nothing can expire.
+
+## The lifecycle state model (slice 7)
+
+Slices 1–6 treated a transaction as active or not. Real subscriptions have more
+states than that, and the interesting ones are in the middle. `transactions.status`
+is now a normalized vocabulary of seven:
+
+| State | Access | Why it is not just "expired" |
+| --- | --- | --- |
+| `active` | **yes** | Paid up. Bounded by `expiresAt`. |
+| `grace` | **yes** | Billing failed but the store is holding access open. Bounded by `graceUntil`. |
+| `retry_hold` | no | Payment is failing and the store is still retrying. The subscription is **alive** — its `expiresAt` is already in the past — so a clock must never tear it down. |
+| `paused` | no | The user deliberately paused (Google Play). `resumesAt` is a future **resume**, not a deadline. |
+| `pending` | no | Payment started and has not cleared (SCA, slow ACH, Ask to Buy). It never granted access, so it has nothing to lose. |
+| `expired` | no | The window closed and nobody is retrying. |
+| `revoked` | no | Refunded or revoked by the store. The old `refunded` spelling migrated here. |
+
+**Access-granting states are exactly `{active, grace}`**, and one predicate —
+`grantsAccess` — is the only thing allowed to decide it.
+
+Three consequences the acceptance proves:
+
+- **Grace keeps access on past expiry.** A grace transaction's `expiresAt` is in
+  the past and the user still has access, because the horizon that matters is
+  `graceUntil`. A model keyed off `expiresAt` alone drops the user the moment
+  billing fails, which is the outage this slice exists to prevent.
+- **`retry_hold`, `paused`, and `pending` change only by re-fetch.** They are
+  never time-expired. The sweep guards on state, not just on a date, and the
+  acceptance proves each survives repeated sweeps by asserting the grant row is
+  the **same `_id`** after recovery — if the sweep had deleted it, recovery would
+  insert a new row.
+- **Active outranks grace.** An entitlement backed by one paid-up product and one
+  lapsing product reports `state: 'active'`, so a user whose payments are fine
+  never receives a dunning message on behalf of a second product.
+
+`entitlementGrants` gained `state: 'active' | 'grace' | null`, non-null exactly
+when `active` is true. `activeUntil` stays one column — it is the *access
+horizon*, whichever clock produced it — so an app gating on it never has to know
+which store field it came from.
+
+**The change key grew to `(active, activeUntil, state)`.** `state` had to join it
+because an `active → grace` transition can move neither of the other two: when a
+second product's grace window is the later horizon, the user keeps access with
+the same `activeUntil` and only the reason changes. That is the most actionable
+signal the feed carries ("this customer's payment is failing"), and a key of
+`(active, activeUntil)` would have dropped it silently. The poll payload is
+unchanged — still `{userId, seq}`, with no state in it.
+
+### Known prototype gap: a swept grace window can be re-granted
+
+Derivation is deliberately **time-agnostic**. `deriveGrant` reads states and
+horizons but never compares them to the clock; the sweep is the single horizon
+enforcer. That split is what makes the sweep meaningful and testable at all — a
+purchase can be written with a past horizon and still grant access until
+something sweeps.
+
+The price is a real wrinkle. If the store still reports `grace` with a
+`graceUntil` that has already passed — a self-contradictory document a real store
+would have moved to `expired` — then a redundant `applyStoreState` re-derives the
+access the sweep just retired, and the grant comes back until the next sweep.
+
+It is bounded (one cron interval, 60s declared) and self-healing, and the
+acceptance asserts **both halves** rather than hiding it: the re-grant happens,
+and the next sweep undoes it. The clean fix is either a time-aware derivation
+(which would make the sweep untestable without a movable clock) or recording the
+horizon the sweep retired so only a strictly later one can re-grant. Neither is
+in this slice.
 
 ## The outbound change feed
 
