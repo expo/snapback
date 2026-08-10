@@ -1,12 +1,42 @@
 # LLP 0220: Recipient-bound asset grants — recipes, guide coverage, and the activation-TTL question
 
 **Type:** Plan
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Assets, Auth, Guide, Demos, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-10 (Review → Accepted — accepted to begin implementation
+(author direction in-session); final verdicts bind revision (c) with the (d)
+tail unreviewed and disclosed; round-2 GPT family failed-to-review (three
+runtime deaths, documented in the artifact) — the acceptance rests on the
+Claude family's pre-existing-clean round 2 plus the dual-family round 1.
+OQ4 added at acceptance: an owner-side "revoke all grants on an asset"
+ergonomic affordance is recorded as a future option beside the app-side
+grant-liveness bookkeeping the plan specifies — reviewer-confirmed that the
+plan executes either way.)
 **Revised:** 2026-08-10 (a — initial draft, synthesized from the Clique P2
-pilot evidence and a GPT-5.6-sol design consultation)
+pilot evidence and a GPT-5.6-sol design consultation); 2026-08-10 (b — Draft
+→ Review at llp-super-refine loop start, the one authorized transition;
+sub-orchestrated loop); 2026-08-10 (c — round 1 revision addressing both
+round 1 reviews, dual NOT READY on rev b
+(`llp/reviews/0220-recipient-bound-asset-grants.plan.{claude,gpt-5}.md`):
+D1 now owns reconciling the stale assets.md §Anti-patterns bullet and dead
+anchor; Option C/OQ1 recast TTL per LLP 0053's materialize-expiry-as-write
+model (no new authorization-event kind); recipe distinguishes recipient
+close from owner delete-for-everyone; D3 gains second-open-refusal and
+two-recipient-delete probes; D2 code-list and maturity phrasing, delivery-
+profile split, 1,024-ceiling scope, and witness citations tightened);
+2026-08-10 (d — **UNREVIEWED** post-round-2 revision; round 2 = Claude
+NOT READY with a single in-delta MATERIAL and pre-existing text CLEAN,
+GPT family failed-to-review after three runtime failures (see
+`llp/reviews/0220-recipient-bound-asset-grants.plan.gpt-5.md` §Round 2).
+Fixes: recipient close now owns clearing its grant from owner-visible app
+state so delete-for-everyone stays executable after partial closes, plus a
+close-then-delete D3 probe; D3's second-open probe pinned to the
+consumption-row refusal source; D1 rewords the surviving anti-pattern
+bullet for both spellings; handler ops described as mutation-only; the
+Option C dependency citation re-grounded on LLP 0044. Restored from the
+sealed round-2 capsule after an external checkout revert, blob-verified)
 **Related:** LLP 0210 (asset DX closure — §D5 defines the grant machine this
 Plan documents; Implemented), LLP 0044 (asset pipeline — §"Clique-pilot
 delivery and grant DX closure" dated addition 2026-08-09), LLP 0053
@@ -40,15 +70,17 @@ F5 gap list carried it into the gap-closure program
 **That gap is closed at the primitive level: the recipient-bindable grant
 edge shipped on main after the pilot.** Commit `f706d11c8` ("feat(assets):
 first-class recipient grants — LLP 0210 D5(b) landed", 2026-08-09) landed
-the full machine on the local target, verified in-tree at draft time:
+the full machine on the local target, verified in-tree at draft time (the
+commit identity comes from `git log` directly; no cited document records
+it):
 
 - **Admission-frozen opt-in** — `grants_enabled` on the admitted asset
   record (`src/assets.rs` ~796: "a later deploy cannot retrofit authority
   onto already-admitted bytes"); intent-side `grants: true` in
   `packages/snapback-codegen/define.mjs` (~3995, ~4047).
 - **Handler ops** — `ctx.assets.grant` / `activate` / `revoke` host calls
-  in `packages/snapback-harness/ctx-bootstrap.js` (~766), read-only-denied
-  in queries.
+  in `packages/snapback-harness/ctx-bootstrap.js` (~766), mutation-only
+  (denied in queries and actions alike).
 - **Closed authorization machine** — owner-mint, named-principal-activate,
   owner-or-principal revoke, enforced transactionally in
   `src/storage/asset_grants.rs` (~80 onward, `@ref LLP 0210#d5`), staged
@@ -57,13 +89,18 @@ the full machine on the local target, verified in-tree at draft time:
   revoke blanking, consistent-cut custody, typed refusals, 1,024
   pending-plus-active edges per app; covered by
   `asset_grant_ops_pilot_strict_signed_and_lifecycle` (`src/local/tests.rs`
-  ~2781), `asset_grant_commit_wakes_and_revoke_blanks_live_projection`, and
-  `asset_cut_carries_grants_at_the_same_consistent_cut` (~2151).
+  ~2781), `asset_grant_commit_wakes_and_revoke_blanks_live_projection`
+  (~4541), and `asset_cut_carries_grants_at_the_same_consistent_cut`
+  (~2151).
 - **Docs** — `guide/backend/assets.md` §"Grant and revoke per-recipient
   access" (~627) already makes the grant-ops spelling primary with the
   app-owned-rows composition as the portable fallback, and the
   `backend.assets` capability row names grant ops, `view once` keywords,
-  and the evidence set (local, **partial**; hosted is a nonclaim).
+  and the evidence set (local, **partial**; hosted is a nonclaim). One
+  stale tail remains: the same page's §Anti-patterns still carries a
+  pre-landing bullet ("Do not call the designed grant operations yet …
+  not a shipped API", ~1132) and a dead anchor to the since-renamed
+  fallback section (~1128). D1 owns reconciling both.
 
 What remains is therefore *not* another asset authority abstraction. This
 Plan scopes the closure tail: a dedicated recipe page generalizing the
@@ -93,13 +130,19 @@ question.
   close.
 - **C — bounded activation lease (TTL)**. Extend B so activation
   establishes a server-time `activeUntil`, bounding the crashed-client
-  exposure. But expiration-as-deauthorization collides with LLP 0053's
-  **closed authorization-event universe** — wall-clock passage is
-  deliberately not an authorization event, and v1 has no deadline
-  scheduler — so TTL means a new authorization-event kind, persisted
-  expiration state, an expiry runner, invalidation/GC receipts, and
-  restart/race/signed-URL-lifetime semantics. Deferred behind an evidence
-  gate (below).
+  exposure. Under LLP 0053 wall-clock passage is deliberately not an
+  authorization event: time-limited grants must **materialize expiry as a
+  database write** (event 1), and v1 builds no deadline scheduler. TTL
+  therefore needs *no new authorization-event kind* — grant identity and
+  state are already captured dependencies (LLP 0044 §Asset read
+  authorization, admitted under the framework LLP 0053 §Asset
+  read-authorization inputs established), so an expiry-sweep write
+  invalidates readers through the existing machinery —
+  but it is still non-incremental: persisted deadline state, a
+  scheduler/sweep contract (restart behavior, races with activate/revoke),
+  expiry-write receipts and GC interaction, and signed-URL-lifetime
+  semantics, in a runtime that deliberately has no deadline scheduler
+  today. Deferred behind an evidence gate (below).
 - **D — first-class `viewOnce` / request-count consumption**. Superficially
   the best API; operationally ambiguous — range requests, retries,
   renditions, and parallel fetches mean "one HTTP request" is not "one
@@ -138,35 +181,62 @@ enforcement in `src/storage/asset_grants.rs`):
    that principal's grant. The consumption row is **product state** —
    grant activation alone does not prevent a second logical open during
    the active window.
-3. **Close / delete**: revoke the grant (owner or named principal may).
-   Revoke removes the edge; live projections blank on the same commit.
+3. **Close / delete**: two distinct verbs. *Recipient close* revokes that
+   recipient's own grant (owner or named principal may revoke; revoke
+   removes the edge and live projections blank on the same commit).
+   *Owner delete-for-everyone* must revoke **every** outstanding grant on
+   the message and remove the typed reference in the same mutation —
+   `ctx.assets.revoke` takes one `grantId`, and independent grants
+   provably survive a sibling's revoke (LLP 0210 §D5), so a
+   single-edge delete leaves other recipients authorized. For
+   delete-for-everyone to stay executable, *recipient close* must also
+   clear that grant's id from the owner-visible app state (the same
+   bookkeeping as the fallback recipe's delete-that-row step): a revoked
+   `grantId` refuses as unknown and a staged refusal aborts the whole
+   mutation, so delete-for-everyone must derive and revoke only
+   still-live edges.
 4. **Delivery**: the grant must be the recipient's **sole authority
    path** — use owner-only policy plus `private-strict` delivery for
-   next-request denial; already-issued signed URLs survive until their
-   bearer TTL. Prohibit durable client caching where the product claims
+   next-request denial. (Under the `private-signed` alternative, revoke
+   stops new issuance but already-issued signed URLs survive until their
+   bearer TTL.) Prohibit durable client caching where the product claims
    view-once.
 
 Stated limits, carried verbatim into the page: explicit close is not
-crash-safe; `grants: true` is admission-frozen; 1,024 edges per app makes
-large audiences a non-fit (that is the G4 membership program's territory);
+crash-safe; `grants: true` is admission-frozen; the 1,024-edge ceiling is a
+**global per-app count** of outstanding pending-plus-active grants across
+all assets (revoke releases capacity), not a per-message fanout budget, so
+sustained large audiences are a non-fit (that is the G4 membership
+program's territory);
 view-once cannot prevent screen capture or byte retention after delivery;
 the grant surface is claimed **local-only** — hosted targets must
 capability-gate.
 
 ## Deliverables
 
-- **D1 — Recipe page.** `guide/recipes/view-once-media.md` (working
-  title): the send/open/close/delivery recipe above with CI-verified
-  snippets, the consumption-row-is-product-state and sole-authority-path
-  emphases, the crash-gap honesty note, and the app-owned-rows fallback
-  cross-linked rather than duplicated from `guide/backend/assets.md`.
+- **D1 — Recipe page + guide reconciliation.** `guide/recipes/view-once-media.md`
+  (working title): the send/open/close/delivery recipe above with
+  CI-verified snippets, the consumption-row-is-product-state and
+  sole-authority-path emphases, the crash-gap honesty note, and the
+  app-owned-rows fallback cross-linked rather than duplicated from
+  `guide/backend/assets.md`. D1 also reconciles that page's §Anti-patterns:
+  remove the stale "Do not call the designed grant operations yet" bullet,
+  repoint the dead `#compose-view-once-access-with-per-recipient-grant-rows`
+  anchor at §"Portable fallback: app-owned grant rows", reword the
+  surviving sole-authority anti-pattern bullet so it names the
+  first-class grant edge alongside the fallback grant row, and verify no
+  "not shipped" claim about grant ops remains anywhere on the page.
   *Proof:* `node scripts/check-guide.mjs` green; page frontmatter and
-  snippet classes per `guide/conventions.md`.
+  snippet classes per `guide/conventions.md`; a grep witness that
+  assets.md no longer calls the grant ops unshipped.
 - **D2 — Capability-index and diagnostics truth.** Keep the
   `backend.assets` row honest as D1/D3 land (doc-path addition for the
-  recipe page; maturity stays `partial` until hosted is claimed or
-  explicitly re-scoped), and close the open diagnostics tail: the eight
-  D5(b) grant refusal codes are unclassified in the reviewed HTTP tables
+  recipe page; maturity stays `partial` — any later promotion must resolve
+  or explicitly re-scope every listed nonclaim, hosted included), and
+  close the open diagnostics tail: the eight codes the D5(b) landing
+  added are unclassified in the reviewed HTTP tables — seven
+  `SNAPBACK_ASSET_GRANT*` / `SNAPBACK_ASSET_GRANTS_UNDECLARED` refusals
+  plus `SNAPBACK_CTX_LEDGER_ID_KIND_MISMATCH`
   (`issues/20260809-s5d10-asset-grant-codes-unclassified.md`).
   *Proof:* `s5_d10_production_diagnostic_inventory_cannot_drift` green on
   main; capability row cites the new witnesses.
@@ -175,11 +245,21 @@ capability-gate.
   `src/local/tests.rs`. Extend a messaging-shaped demo (e.g.
   `demos/team-chat` or `demos/messaging-snapback`) or add a minimal one
   with the full recipe, plus an acceptance test mirroring the pilot's
-  hostile probes: non-recipient 403 → recipient open 200 → post-revoke
-  403, and pending-confers-nothing. Land with a diary entry per repo
-  convention. *Proof:* the demo's acceptance suite green in the local
-  proof; diary records the DX delta against the pilot's ~80-line
-  composition.
+  hostile probes and the recipe's load-bearing invariants: non-recipient
+  403 → recipient open 200 → post-revoke 403; pending-confers-nothing; a
+  second logical open — repeated *and* race-concurrent — refused by the
+  unique consumption row, with the probe pinned to that refusal source
+  (a bare re-activate refuses separately as
+  `SNAPBACK_ASSET_GRANT_STATE_INVALID`, and a same-`clientKey` replay
+  returns the original result — neither substitutes for the
+  consumption-row check, so order the open mutation accordingly); a
+  two-recipient owner delete-for-everyone that revokes both edges and the
+  typed reference in one mutation, leaving neither recipient authorized;
+  and close-then-delete — after one recipient closes, delete-for-everyone
+  still succeeds, revoking only the still-live edge.
+  Land with a diary entry per repo convention. *Proof:* the demo's
+  acceptance suite green in the local proof; diary records the DX delta
+  against the pilot's ~80-line composition.
 
 ## Open questions
 
@@ -189,14 +269,23 @@ capability-gate.
   crash/restart acceptance witness or a second application demonstrates
   that explicit close is inadequate** — the pilot's evidence proves the
   explicit 403 → 200 → 403 flow, not an abandoned-view requirement. TTL is
-  not incremental: it adds a new authorization-event kind to LLP 0053's
-  deliberately closed universe plus a scheduler/expiry contract (persisted
-  state, restart behavior, invalidation and GC receipts, signed-URL
-  interaction), and would amend LLP 0044/0210/0053 together. If the
-  evidence arrives, build the lease — not request-count consumption (D).
+  not incremental: per LLP 0053, expiry must materialize as a grant-state
+  write (no new authorization-event kind — grant state is already a
+  captured dependency), which means persisted deadline state plus a
+  scheduler/expiry-sweep contract (restart behavior, races with
+  activate/revoke, invalidation and GC receipts, signed-URL interaction)
+  in a v1 that deliberately builds no deadline scheduler. It would amend
+  LLP 0044/0210 — and LLP 0053 only if the eventual design left the
+  materialize-as-write model. If the evidence arrives, build the lease —
+  not request-count consumption (D).
 - **OQ2 — Forwarding / delegated re-share.** Owner-only minting does not
   support recipient-initiated forwarding; a forwarding product would need
   an explicit granter policy. No current demand; record on first witness.
 - **OQ3 — Hosted claim.** When the hosted asset lane matures, grants need
   their own hosted qualification before the capability row widens beyond
   `local`; until then applications capability-gate deployment targets.
+
+- **OQ4 (added at acceptance):** should an owner-side "revoke all
+  grants on an asset" affordance ship as an ergonomic complement to
+  the app-side grant-liveness bookkeeping? Additive; evaluate after
+  the D3 witness exercises the bookkeeping path.
