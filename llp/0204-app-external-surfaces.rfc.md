@@ -1,12 +1,20 @@
 # LLP 0204: App external surfaces
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** API, Auth, Client integration, Agent tooling, MCP, Codegen,
 Hosted platform, Developer experience, Docs
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** 2026-08-10 (S5 Landing C implements D9.5 approval-gated effects
+**Revised:** 2026-08-10 (Status → Implemented: every S0–S5 sequencing
+deliverable has landed on local targets with per-section dated
+implementation notes; commissioned remainders stay explicitly named —
+hosted gates run as the separate LLP 0039 + LLP 0019 F8 sibling program,
+granted-operation capability links, integration-owned watches, webhook
+reactions, the untrusted-code execution profile behind /api/v1/run, and
+connection-grant streaming (OQ6 v2) each await their named amendments or
+evidence.)
+2026-08-10 (S5 Landing C implements D9.5 approval-gated effects
 and closes the OQ9 multi-use mutating-link dependency: exact pending intents,
 one typed result across four ingress paths, session approval/denial, binding
 revalidation, original-caller execution, step-up for authority creation, and
