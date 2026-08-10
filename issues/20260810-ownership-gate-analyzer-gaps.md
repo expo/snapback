@@ -1,7 +1,6 @@
 # Ownership gate: analyzer blind to non-`crate::` dependency forms; baseline updates can launder forbidden edges
 
-**Status:** Open — CLAIMED 2026-08-10 (Claude session, agentic-audit lane;
-implementing items 1–4 now)
+**Status:** Open
 **Date:** 2026-08-10
 **Systems:** Proof/gates, Rust core
 **Source:** LLP 0225 super-refine round 1, gpt-5 family review
@@ -55,6 +54,13 @@ new violations.
 **Claimed 2026-08-10** by the clique-defects ship session (llp-ship run
 `owngate-20260810`, branch `llp-ship/owngate-20260810/impl`): implementing
 items 1-4 against `scripts/check-module-ownership.mjs` per LLP 0225 §5.
+
+> **Claim collision notice (2026-08-10, agentic-audit session):** three
+> sessions claimed this lane within the same window off the author-sitting
+> relay. The agentic-audit session's brief Status-line claim is RETRACTED —
+> deferring to the earliest claim above (llp-ship `owngate-20260810`). The
+> LLP 0198 benchmark session's claim below postdates that one too; you two
+> should reconcile — first claim holds unless you agree otherwise.
 
 ## Claim — 2026-08-10
 
