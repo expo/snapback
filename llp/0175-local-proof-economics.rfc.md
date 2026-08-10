@@ -10,7 +10,10 @@ gate runner, dependency-aware keep-going, dependency inventory, and retained
 JSONL artifact land together with D3.1 doctor reuse, D3.2 clean exact-
 revision bootstrap receipt reuse, and D3.3 measure-before-clean behavior;
 cadence selection and remaining D3 work stay
-open). 2026-08-05 (whole-document rewrite: adds affected-test cadence,
+open). 2026-08-10 (the author-ruled historical diary alias map gains a strict
+registered drift gate, so new numeric identity collisions are blocked on
+triggering pushes and ticketed by the scheduled backstop). 2026-08-05
+(whole-document rewrite: adds affected-test cadence,
 dependency-aware keep-going, workflow amplification, receipt cadence, and
 test-governance findings; demotes unproven Cargo parallelism and test-target
 consolidation from primary remedies). 2026-08-06 (first Phase-2 cadence slice:
@@ -368,6 +371,7 @@ The registered set is:
 |---|---|
 | `agent-safe-publication-fixtures` | reviewed generated-publication leaf set in `tests/agent_safe_publication_checker_v1.mjs` |
 | `client-bundle-metrology` | active bundle profiles, baselines, and `current.v1.json` |
+| `diary-identity` | author-ruled historical diary-number alias map |
 | `generated-artifacts` | codegen review manifests and committed projections |
 | `contract-meta` | non-generated Contract pure-parameter sidecars |
 | `guide` | generated Guide manifest and flat projection |

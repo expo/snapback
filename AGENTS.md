@@ -56,6 +56,10 @@ keeps its own LLP corpus under [`llp/`](./llp/).
   `NNNN-slug.diary.md`, for example `0001-todo-demo.diary.md`. Use the next
   available number for a new demo; append dated entries to an existing diary
   when continuing work on the same demo.
+- The 11 duplicate prefixes baselined in `scripts/check-diary-identity.mjs`
+  are canonical aliases; references to those IDs require both number and slug,
+  while bare `Diary NNNN` remains authoritative for non-colliding IDs. New
+  collisions are blocked by that check and must not be added to the baseline.
 - Each diary should capture the agent's concrete build experience: what felt
   good or easy, what felt bad or hard, where Snapback was ergonomic or
   surprising, and what workarounds were needed.
