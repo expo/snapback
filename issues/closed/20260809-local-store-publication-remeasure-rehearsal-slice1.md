@@ -48,3 +48,15 @@ gate is separately baseline-stale (backstop ticket
 - gate: `node tests/conformance/local-persistent-store-publication-v1.mjs`
 - regen: `scripts/finalize-local-persistent-store-publication`
 - downstream failure: `tests/acceptance/triage-graph-move1-v1.mjs:833` `verifyRetainedArtifacts`
+
+## Resolution (2026-08-10)
+
+Resolved by a concurrent authorities reconcile on main (`d201b359f
+chore(authorities): reconcile generated and carrier evidence`, with
+`103214d60 test(carriers): requalify exact authority candidate`), which
+re-measured and refreshed the local-store publication carrier record after
+the slice-1 bypass landed. `node
+tests/conformance/local-persistent-store-publication-v1.mjs` now exits 0 on
+origin/main (`da720b591`): carrier `17 PASS / 0 GAP`, triage 8/8, fleet 8/8,
+with `src/local.rs`'s rehearsal accessors included in the carrier hash. No
+further re-measurement needed; the slice-1 metrology drift is cleared.
