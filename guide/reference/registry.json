@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "commit": "d74b6eb2457a0a471bb6fbb6856f5d4397f2d700",
+    "commit": "0fdd8adde92e53db8def43954cf798f4fa367c4f",
     "sourceDigest": "sha256:9101281518d202c3ebb718570025171ca87cd6d51d6ffe35dfafda8ad9e1ee55",
     "publishedClosureVersion": "0.1.17",
     "packageVersions": {

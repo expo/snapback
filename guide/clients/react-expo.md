@@ -201,7 +201,7 @@ back to `curl`, raw host operations, or a one-off verification script.
 > 0.1.13 and newer gate that vocabulary behind Metro's production
 > transform. The LLP 0176 G4 distribution gate itself stays open until a
 > successor-closure ceremony rerun lands its receipts
-> ([the G4 ticket](repo:issues/20260806-guide-gap-g4-live-0110-external-vector.md)).
+> ([the G4 ticket](repo:issues/closed/20260806-guide-gap-g4-live-0110-external-vector.md)).
 > Do not patch `node_modules` or mix source and registry packages to hide a
 > boundary on an older closure.
 
