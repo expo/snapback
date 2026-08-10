@@ -63,3 +63,38 @@ it before the next rerun avoids producing evidence for the wrong arm.
   amended to name the carrier explicitly.
 - The next G4 rerun measures the named path and records the other one as
   out of scope by rule rather than by omission.
+
+## Measured at 0.1.17 — 2026-08-10 — still unruled, with new information
+
+The G4 0.1.17 re-rerun could measure this arm for the first time since 0.1.11,
+because the published runtime now starts a generated app. It did, and the arm
+**failed**.
+
+**Supervised development path, measured.** After a current live query had
+rendered and an image send had committed, the backend was suspended with
+`kill -STOP` (Metro deliberately left up so Expo Go could still fetch its
+bundle) and Expo Go was terminated and cold-relaunched into the project. The app
+stayed at boot `starting` for the full observation window — captured at 19:16:38
+and again at 19:18:43 — and rendered only after `kill -CONT` resumed the
+backend, within 25 s. That is recovery, not a retained offline cold render, and
+it reproduces the 0.1.11 result exactly. Within its 1-hour TTL the 0.1.13
+supervised-binding cache did not produce a retained render under this condition.
+
+**New information for the ruling: the stricter dev variant is unmeasurable under
+Expo Go.** Testing the supervised cache the way it is actually meant to be used
+— supervisor gone entirely — is not possible with this carrier, because killing
+the supervisor also kills Metro, and Expo Go then cannot load the bundle at all.
+So "supervised dev path" is not one testable condition but two, and only the
+weaker one (supervisor alive, backend down) can be measured in Expo Go. A
+development build rather than Expo Go would be needed for the other.
+
+That sharpens question 1 in this ticket: if the arm binds the supervised dev
+path, the ruling also has to say **which** dev condition, and whether the
+carrier that can express it (a development build) is in G4's scope at all.
+
+The release path was not measured and no release-path claim is made; the 0.1.17
+receipts confirm the `NODE_ENV` prune against fresh Hermes bytes but exercised
+no release build on a device.
+
+Receipt:
+[`20260810-g4-external-0117-ios-simulator.md`](../demos/expo-golden-path-fixture/receipts/20260810-g4-external-0117-ios-simulator.md).

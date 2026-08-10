@@ -1,8 +1,7 @@
 # guide-gap: live 0.1.10 external Expo vector cannot run its generated app
 
-**Status:** Open — every named repair is now published (0.1.12 through 0.1.15;
-`latest` = 0.1.15), and the successor G4 rerun that this ticket closes with is
-claimed by [`20260809-g4-rerun-lane-plan.md`](./20260809-g4-rerun-lane-plan.md)
+**Status:** Resolved 2026-08-10 — the 0.1.17 G4 external re-rerun reached both
+frozen milestones on both platforms; see the closing section at the end
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 3
@@ -266,3 +265,36 @@ the ceremony to `m1` and `m2`.
 - Make the exact binding-identity diagnostic searchable in the public guide.
 - Rerun the frozen ceremony measurement, then close this ticket with the
   successor release and G4 receipts.
+
+## 0.1.17 re-rerun — 2026-08-10 — **CLOSED**
+
+The successor closure starts a generated app and the frozen ceremony reached
+both milestones. Against this ticket's own five unproved items:
+
+| Unproved item | 0.1.17 result |
+| --- | --- |
+| Raw published Android supervisor reaching readiness with no adb wrapper | **PROVED** — 3 reverse rules installed, verified, and reclaimed against real `host-16` output, no wrapper on `PATH` |
+| Noninteractive EAS linking on the bare package-root spelling | **Remains closed** — reconfirmed on 0.1.17 |
+| Byte-level strings scan of real `expo export` HBC output | **Remains closed on attribution** — re-run on freshly built 0.1.17 bytes with a fresh Snapback-free control export, not inherited from 0.1.16 |
+| Cold retained relaunch with the backend paused | **Still not proved** — cold relaunch stayed at boot `starting` for over two minutes and rendered only after resume, reproducing 0.1.11 exactly. Tracked in [the scoping ticket](./20260809-g4-cold-boot-arm-dev-vs-release-path.md), which stays open. |
+| Remeasured frozen OQ5 vector | **Measured to both milestones** — `m1 = 14/0/3` at 8 m 22 s, `m2 = 22/0/3` at 15 m 11 s after `t0`, `F = 0` |
+
+Against this ticket's acceptance list: one coherent vector carries the runtime
+activation and picker adapter; one documented registry flow reached a running
+app from an empty directory with no file path or override; the direct
+`commands.send({ image })` type-checks with no consumer cast (`tsc --noEmit`
+clean); both `G4_IOS_PASS` and `G4_ANDROID_PASS` were reached over
+loopback/port-forward only with the LLP 0064 nonclaim held; release exports are
+free of supervisor origin/bootstrap vocabulary and of secret material; and the
+binding-identity diagnostic resolves to a correct public-guide anchor in 1 s.
+
+**Closing this ticket.** Its remaining live descendants are tracked separately
+and are not folded in here: the cold-boot scoping question, the guide's
+fresh-app command, the template `.gitignore`, and the capability-refusal
+diagnosability gap.
+
+Receipts:
+[summary](../demos/expo-golden-path-fixture/receipts/20260810-g4-external-0117-summary.md),
+[iOS](../demos/expo-golden-path-fixture/receipts/20260810-g4-external-0117-ios-simulator.md),
+[Android](../demos/expo-golden-path-fixture/receipts/20260810-g4-external-0117-android-emulator.md),
+[closure/exports/EAS/diagnosis](../demos/expo-golden-path-fixture/receipts/20260810-g4-external-0117-closure-diagnosis.md).

@@ -7,7 +7,17 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-09 (w) — Recorded the G4 external rerun against live
+**Revised:** 2026-08-10 (x) — Recorded the G4 external re-rerun against live
+0.1.17 in a third fresh quarry: **PASS**. Both platforms reached their pass
+markers through published bytes only — iOS `G4_IOS_PASS` on the Air, and
+Android `G4_ANDROID_PASS` unconditionally through the raw public supervisor
+with no adb wrapper, installing/verifying/reclaiming all three reverse rules
+against current adb's `host-16` label. The ruled OQ5 vector is `m1 = 14/0/3` at
+8 m 22 s and `m2 = 22/0/3` at 15 m 11 s after `t0`, with `F = 0` at both
+milestones. Retained cold boot is still **not proved** and the post-finalize
+residue arm was **not reached**; three consumer defects retested and still bite.
+G4's simulator/emulator exit is met and is explicitly not an LLP 0064 claim.
+2026-08-09 (w) — Recorded the G4 external rerun against live
 0.1.16 in a fresh quarry: FAIL, earlier than 0.1.11's. The published
 `@expo/snapback-runtime-*@0.1.16` packages omit
 `bin/packaged-store-qualification.receipt.json`, so the public-package runtime
@@ -1083,6 +1093,88 @@ G4's exit still lacks:** a published closure whose runtime starts a generated
 app, and with it every live arm — `m1`, `m2`, settled Sessions boot,
 loopback-only listener enumeration, raw Android readiness without a wrapper,
 retained cold boot, and truthful command residue. G4 remains open.
+
+**2026-08-10 G4 external 0.1.17 re-rerun — PASS; G4's simulator/emulator exit
+is met. Status remains Accepted.** The re-rerun consumed npm `latest` = 0.1.17
+from source identity `0e6bf1842ab291f2e68416fbf40bd2e6debb4290` (ledger
+`~/snapback-release-ledgers/fastpath-ledger-0.1.17-0e6bf1842a.json`) in a third
+fresh external Git root, `/Users/ccheever/projects/snapback-g4-external-0117`,
+created empty at `t0`; neither retained quarry was read, reused, or mutated,
+and the release lane's suggestion to repoint the 0.1.16 lock was declined
+because it would have forfeited the frozen `t0`. The resolved lock holds only
+published `@expo/snapback-*@0.1.17` names with no `file:`, `link:`, workspace,
+override, or checkout path. The 0.1.16 blocker is repaired in published bytes:
+both runtime packages carry
+`bin/packaged-store-qualification.receipt.json` bound to that exact binary
+identity, and both supervisors advertised `single_table_v1` and started the
+generated backend on the first attempt. iOS ran on the Air
+(`100.70.173.122`, iOS 26.4 simulator) — the original 0.1.11 host, back online,
+so the run is host-comparable rather than substituted — and Android on the mini
+(`100.106.94.95`, AVD `Medium_Phone_API_36.0`, API 36).
+
+**Precisely what is proven.** The iOS simulator reached `G4_IOS_PASS`: settled
+Sessions authority (`kind: session`, `authMode: sessions`), three loopback-only
+listeners, a current live-query render, a real `PHPicker` selection of a
+distinctive 51,465-byte proof image, a proved `committed` image-send command,
+live delivery, and native rendering — corroborated server-side by the message
+row, the `ready` asset record under an ordinary `usr_` principal, the asset
+reference edge, and finalized blobs with empty staging. The Android emulator
+reached `G4_ANDROID_PASS` **unconditionally through the raw public supervisor
+with no adb wrapper**, installing, verifying, and reclaiming all three reverse
+rules against current adb's `host-16` transport label — the live end-to-end
+execution the 0.1.12 repair had never received, and the arm that made 0.1.11 a
+distribution FAIL. Metro closure resolves entirely from app/generated files plus
+public `node_modules` (675/673 sources, zero `/Users/` paths, zero parent
+reach-backs). The release-shape HBC scan was re-run on freshly built 0.1.17
+bytes rather than inherited: `/_snapback/expo/v1/bootstrap`,
+`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`, and `10.0.2.2` are absent on both
+platforms, and the single surviving `localhost` is attributed by a **fresh**
+Snapback-free control export containing exactly one at the same offset. The
+stage-only EAS archive holds 88 app/registry-input files (0.69 MiB) with no
+state, restore lock, export output, source edge, or Git ancestor, and
+noninteractive `eas init`/`eas config` accept the bare `"@expo/snapback-expo"`
+package-root spelling. The ruled OQ5 vector is `m1 = 14/0/3` at **8 m 22 s**
+after `t0` and `m2 = 22/0/3` at **15 m 11 s**, with the mutation's own
+`sentAt` independently placing settlement at `t0 + 902.7 s`; against 0.1.11's
+`112/7/4` that is an 80 % command reduction and seven hand-edited files down to
+**zero**. The bakeoff asymmetry is preserved rather than scored: Diary 0058's
+figures are full-app lanes, 0059 has no clock, 0060 measures orchestration.
+
+**What still fails, recorded rather than absorbed.** Retained cold boot is
+**still not proved**: with the backend paused, a cold Expo Go relaunch stayed at
+boot `starting` for over two minutes and rendered only after the backend
+resumed — the 0.1.11 result exactly. The run also found that the
+supervisor-fully-down variant is unmeasurable under Expo Go, because killing the
+supervisor kills Metro; the dev-path/release-path scoping question therefore
+stays with LLP 0181's owner. The post-finalize truthful-residue arm was **not
+reached**: the published template exposes no finalized-then-refused affordance
+and manufacturing one would have forfeited the `F = 0` measurement. An in-flight
+backend suspension did show no false atomicity — the command sat at
+`transferring · 0%` claiming nothing and committed exactly once on resume — but
+that is not the residue arm. Three consumer defects retested and **still bite**:
+the guide's literal `npx snapback new` fresh-app command still resolves to an
+unrelated registry package, the `expo-chat` template's `.gitignore` still omits
+the sibling restore lock, and `SNAPBACK_CAPABILITY_UNSUPPORTED` still resolves
+to a wrong guide anchor while leaking monorepo source paths to an external
+consumer. One new cosmetic finding: the template's `package.json` pins `^0.1.16`
+inside the 0.1.17 closure.
+
+The complete verdict is
+[`20260810-g4-external-0117-summary.md`](../demos/expo-golden-path-fixture/receipts/20260810-g4-external-0117-summary.md),
+with separate
+[`iOS`](../demos/expo-golden-path-fixture/receipts/20260810-g4-external-0117-ios-simulator.md),
+[`Android`](../demos/expo-golden-path-fixture/receipts/20260810-g4-external-0117-android-emulator.md),
+and
+[`closure/exports/EAS/diagnosis`](../demos/expo-golden-path-fixture/receipts/20260810-g4-external-0117-closure-diagnosis.md)
+receipts; the quarry is archived at
+`~/snapback-release-ledgers/g4-external-0117-quarry-20260810.tar.gz`
+(SHA-256 `627d66373371246847f81a3f7c1cfd3e0b4eeb6f1d1c6594a0a191c2f0bbf72c`).
+**This completes G4's exit as that Exit's own text defines it when no device
+carrier is ready: simulator/emulator evidence, explicitly labeled as _not_ an
+0064 claim.** It explicitly does **not** claim LLP 0064 `Online` for either OS,
+any physical-device evidence, any store or production release artifact, any
+hosted backend, retained offline behavior, or local handler execution. The 0064
+receipt and its device carrier remain G5's.
 
 ### G5 — secure physical-device carrier
 

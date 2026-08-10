@@ -1,6 +1,7 @@
 # G4 restart lane plan: 0.1.16 cut and fresh external rerun
 
-**Status:** Open — the three lanes below are claimed for the G4 restart
+**Status:** Resolved 2026-08-10 — all four lanes executed; the 0.1.17 re-rerun
+reached both frozen milestones on both platforms (see the lane-4 outcome)
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 2
@@ -410,3 +411,53 @@ recorded here as fleet residue, not as a ceremony action.
 This lane retests the three tickets the 0.1.16 run left open — the guide's
 fresh-app command, the template `.gitignore`, and the cold-boot dev/release
 scoping question — and records whether each still bites.
+
+## Lane 4 outcome — 2026-08-10: executed, **PASS**, receipts landed
+
+The 0.1.17 re-rerun ran end to end on branch `g4/rerun-0117` from a third fresh
+quarry and is recorded in
+[`20260810-g4-external-0117-summary.md`](../demos/expo-golden-path-fixture/receipts/20260810-g4-external-0117-summary.md)
+plus its three companion receipts. Against this ticket's own fresh-rerun
+acceptance list:
+
+| Acceptance bullet | Result |
+| --- | --- |
+| Raw published Android supervisor, no adb wrapper, three reverse rules | **RECLAIMED** — installed 3, verified 3, reclaimed 3 against real `host-16` output |
+| Noninteractive `eas init` on the `"@expo/snapback-expo"` root spelling | **RECLAIMED** — reconfirmed on 0.1.17 |
+| Four supervised-vocabulary symbols absent from real HBC bytes | **RECLAIMED on attribution** — re-proved on fresh 0.1.17 bytes with a fresh control export |
+| Cold retained relaunch with the backend paused | **NOT RECLAIMED** — measured and failed; stayed at boot `starting`, rendered only after resume |
+| Frozen OQ5 vector remeasured with bakeoff asymmetry retained | **RECLAIMED** — `m1 = 14/0/3` at 8 m 22 s, `m2 = 22/0/3` at 15 m 11 s, `F = 0`, no comparison scored |
+| Standing LLP 0064 nonclaim | **Held** — no device evidence of any kind |
+
+Five of six reclaimed. The sixth is a real, recorded failure, not a gap.
+
+**Closure boundary, checked.** The qualified registry cut and its retained
+ledger exist (0.1.17 / `0e6bf1842a`), the fresh-quarry Air and mini receipts
+record the full G4 verdict, and the 0110 vector ticket this lane existed to
+close is now closed. The guide boundary/fence sweep belonged to the publication
+lane and is not re-claimed here.
+
+**Closing this ticket.** Four descendants stay open on their own files: the
+[cold-boot scoping question](./20260809-g4-cold-boot-arm-dev-vs-release-path.md),
+the [fresh-app command](./20260809-guide-gap-npx-snapback-new-resolves-wrong-package.md),
+the [template `.gitignore`](./20260809-expo-chat-template-gitignore-restore-lock.md),
+and the consumer-diagnosability half of the
+[runtime-receipt ticket](./20260809-runtime-package-missing-store-qualification-receipt.md).
+
+### 0.1.17 quarry evidence archive
+
+**Source:** `/Users/ccheever/projects/snapback-g4-external-0117`
+**Archive:** `~/snapback-release-ledgers/g4-external-0117-quarry-20260810.tar.gz`
+**Size:** 16,317,884 bytes · **Entries:** 285 · **Excluded:** `node_modules` only
+**sha256:** `627d66373371246847f81a3f7c1cfd3e0b4eeb6f1d1c6594a0a191c2f0bbf72c`
+
+It contains both action ledgers, both supervisor JSONL streams, all seventeen
+platform screenshots, both release exports with source maps, the Snapback-free
+control export, the Maestro flows, and the app itself. The source directory was
+not modified.
+
+Both fleet hosts were fully reclaimed: the Air's dedicated simulator was deleted
+and Maestro removed, the mini's emulator was killed and its run-scoped JDK and
+Maestro removed, and neither host retains a task process, listener, or
+directory. No paid EAS build was started; the 2026-08-06 one-build-per-OS
+authorization remains spent on the 0.1.11 quarry and those builds are cited.

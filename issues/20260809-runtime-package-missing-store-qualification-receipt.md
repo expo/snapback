@@ -367,3 +367,47 @@ promotion through the script.
 - The G4 external rerun against `0.1.17` from the retained quarry
   (`~/snapback-release-ledgers/g4-external-0116-quarry-20260809.tar.gz`). The
   blocker is gone; the ceremony itself has not been re-run.
+
+## G4 0.1.17 re-rerun — 2026-08-10 — the second carried-forward item is now done
+
+The two items carried forward above have split.
+
+**"Rerun the LLP 0176 G4 ceremony" — DONE, and it PASSED.** The re-rerun ran on
+2026-08-10 against live 0.1.17 in a third fresh quarry (not the retained one:
+the frozen OQ5 metric puts `t0` at an empty directory). The blocking half of
+this ticket is confirmed repaired in consumed published bytes:
+`@expo/snapback-runtime-darwin-arm64@0.1.17` carries
+`bin/packaged-store-qualification.receipt.json` (2,377 B) whose `binaryIdentity`
+binds `gitCommit 0e6bf1842ab291f2e68416fbf40bd2e6debb4290`, `gitDirty false`,
+`buildProfile release`, `buildDistribution public-package`. Both supervisors
+advertised `single_table_v1` and started the generated backend on the first
+attempt; iOS reached `G4_IOS_PASS` and Android reached an unconditional
+`G4_ANDROID_PASS`. Receipts:
+[summary](../demos/expo-golden-path-fixture/receipts/20260810-g4-external-0117-summary.md).
+
+**"Public-guide destination for the refusal" — retested, STILL NOT DONE.**
+Verbatim, from the external quarry against the published CLI:
+
+```text
+$ npx snapback guide "SNAPBACK_CAPABILITY_UNSUPPORTED"
+SNAPBACK_CAPABILITY_UNSUPPORTED — diagnostic
+capabilities
+Guide: /_snapback/guide/backend/streamed-actions.md#read-the-refusal-codes
+Emitting sites:
+- packages/snapback-codegen/index.mjs:1381:12
+…
+- src/manifest.rs:13576:18
+```
+
+1 s warm — the speed is fine. The destination is still wrong: that anchor opens
+"Stream diagnostics are structured and value-free…" and is about streamed-action
+refusal families, not target capability advertisement. Monorepo source paths are
+still emitted to a consumer with no checkout. For contrast, the sibling
+`SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` lookup resolves in 1 s to
+`clients/react-expo.md#diagnose-a-binding-identity-mismatch`, a real covering
+section — so the guide's diagnostic-to-anchor mechanism works; this code just
+has no home.
+
+Urgency has genuinely dropped: the refusal this fails to explain no longer fires
+on the paved path. **This ticket now holds only the diagnosability arm.** Keep
+it open on that basis, or split it if the packaging close-out should be filed.

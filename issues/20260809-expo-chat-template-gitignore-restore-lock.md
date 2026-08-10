@@ -60,3 +60,22 @@ lock because no backend ever started. The exposure is a hand-rolled `rsync`,
   `todo-contract`) for the same omission and fix them together.
 - Ships with the next closure; no consumer action needed on an existing app
   beyond adding the line.
+
+## Retested at 0.1.17 — 2026-08-10 — still open, still bites
+
+The `expo-chat` template scaffolded by `create-snapback-app@0.1.17` still ships:
+
+```gitignore
+.snapback/
+.expo/
+dist/
+node_modules/
+snapback/generated/*
+!snapback/generated/artifacts.json
+```
+
+with no `*.snapback.restore.lock` line. Severity is unchanged and still low: the
+G4 re-rerun's two host transports used explicit `rsync --exclude` lists and the
+EAS staging helper excluded the lock (verified again in the 0.1.17 stage-only
+inspection, 88 files / 0.69 MiB), so no lock crossed a host boundary. The
+exposure remains a hand-rolled copy or archive that does not use the helper.

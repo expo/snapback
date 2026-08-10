@@ -67,3 +67,25 @@ somebody else's package, is a disproportionate cost.
 - Regenerate `guide/guide-flat.generated.md` from the fixed source.
 - Add a retrieval or guide check that the fresh-app command does not depend on
   an unscoped bare `snapback` bin resolution.
+
+## Retested at 0.1.17 — 2026-08-10 — still open, still bites verbatim
+
+The LLP 0176 G4 external re-rerun ran the guide's literal instruction again from
+an empty directory, 19 seconds after its frozen `t0`:
+
+```text
+$ npx --yes snapback new snapback-g4-chat --template expo-chat
+npm error could not determine executable to run
+```
+
+Identical to the 0.1.16 observation, and it again cost the run its first author
+decision (`D1` in the frozen OQ5 vector) before anything had been installed. The
+guide's alternative, `npm create snapback-app`, again worked and scaffolded in
+8 seconds.
+
+The cost is now higher than it was, not lower: at 0.1.16 the run died later on a
+packaging blocker, so this was one confusing step on a path that failed anyway.
+At 0.1.17 the rest of the path is clean — 99 seconds to a generated,
+type-checking app and 15 minutes to a committed, rendered image send, with zero
+hand-edited files — so this refusal is now the **only** thing standing between a
+new author and an unbroken paved path.
