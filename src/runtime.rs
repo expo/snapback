@@ -5543,7 +5543,10 @@ mod handler_result_bridge_tests {
 
 #[cfg(test)]
 mod membership_bridge_tests {
-    use super::{IbexHostContext, run_ibex_handler_with_context, with_host_call_trace};
+    use super::{
+        HandlerErrorExposure, IbexHostContext, run_ibex_handler_with_context,
+        run_ibex_handler_with_context_until_with_exposure, with_host_call_trace,
+    };
     use crate::auth::admission::AdmissionLease;
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
     use crate::manifest::{
@@ -6153,9 +6156,17 @@ globalThis.__snapbackHandlers = {
         let throw_input = sequence_input("throw-aborted-activity");
         let throw_identity = ClientMutationIdentity::new("cm-sequence-throw", "send", &throw_input);
         let mut throw_ctx = anonymous_sequence_context(&throw_db, throw_input);
-        let throw_error =
-            run_ibex_handler_with_context(&module(THROW_SOURCE), &mut throw_ctx, None)
-                .expect_err("the handler throw rejects before commit");
+        // The disclosure-channel assertions below inspect the thrown message,
+        // which only development-exposure rendering carries; pin it so the
+        // test does not depend on the ambient SNAPBACK_HANDLER_ERROR_EXPOSURE.
+        let throw_error = run_ibex_handler_with_context_until_with_exposure(
+            &module(THROW_SOURCE),
+            &mut throw_ctx,
+            None,
+            None,
+            HandlerErrorExposure::Development,
+        )
+        .expect_err("the handler throw rejects before commit");
         assert_eq!(throw_error.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
         assert_eq!(throw_error.diagnostic.details["message"], "tentative:1");
         assert_eq!(
