@@ -64,7 +64,6 @@ if (!seedResponse.ok) {
 // running Metro bundle does not become stale merely because the server did.
 const brokerToken = readExistingBrokerToken() ?? randomBytes(32).toString('hex');
 writeFileSync(envPath, [
-  `EXPO_PUBLIC_SNAPBACK_ORIGIN=${publicSnapbackOrigin}`,
   `EXPO_PUBLIC_TANDEM_BROKER_ORIGIN=${publicBrokerOrigin}`,
   `EXPO_PUBLIC_TANDEM_BROKER_TOKEN=${brokerToken}`,
   '',
@@ -111,7 +110,10 @@ const broker = createServer(async (request, response) => {
       cachedBearer = envelope.data.token;
     }
     response.writeHead(200, { 'cache-control': 'no-store', 'content-type': 'application/json' });
-    response.end(JSON.stringify({ bearerToken: cachedBearer }));
+    response.end(JSON.stringify({
+      bearerToken: cachedBearer,
+      serverOrigin: publicSnapbackOrigin,
+    }));
   } catch (error) {
     response.writeHead(500, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));

@@ -52,6 +52,28 @@ function diagnosticError(code, message, details = {}) {
   return error;
 }
 
+// @ref LLP 0114#offline-binding-receipt-dated-amendment-2026-08-01 — receipt
+// fallback gets the original transport-provenance failure first. Only after
+// no receipt can admit the binding do we add application phase and origin
+// context for the caller, without masking any server-answered refusal.
+function bindingOriginUnreachableError(client, cause) {
+  if (cause?.fetchDispatchFailed !== true || typeof client?.baseUrl !== 'string') {
+    return cause;
+  }
+  const attemptedOrigin = client.baseUrl;
+  const error = diagnosticError(
+    'SNAPBACK_REACT_BINDING_ORIGIN_UNREACHABLE',
+    `application binding preparation could not reach ${attemptedOrigin}`,
+    {
+      phase: 'application-binding-preparation',
+      origin: attemptedOrigin,
+      attemptedOrigin,
+    },
+  );
+  Object.defineProperty(error, 'cause', { value: cause });
+  return error;
+}
+
 // 0137 A1-Expo f1: React Native/Hermes ships no WebCrypto, and these binding
 // digests were the first thing the documented Expo path hit ("Cannot read
 // property 'subtle' of undefined" before any session existed). They are
@@ -1477,10 +1499,12 @@ export async function prepareReactBindingForClient(client, options = {}) {
       }
       return binding;
     } catch (error) {
-      if (developmentSync === null) throw error;
+      if (developmentSync === null) throw bindingOriginUnreachableError(client, error);
       const context = error?.[REACT_BINDING_MISMATCH_CONTEXT];
       if (firstMismatchAt === null) {
-        if (context?.localDevelopment !== true) throw error;
+        if (context?.localDevelopment !== true) {
+          throw bindingOriginUnreachableError(client, error);
+        }
         firstMismatchAt = Date.now();
       } else if (
         context?.localDevelopment !== true

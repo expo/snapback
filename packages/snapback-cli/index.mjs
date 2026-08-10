@@ -2226,6 +2226,27 @@ function resolveClientArm(client, projectRoot) {
   return { directory, command: 'bun run dev' };
 }
 
+// @ref LLP 0181#web-browser — only the Expo supervisor installs the
+// credential-free bootstrap rendezvous in Metro's environment. The generic
+// client arm remains surface-agnostic, but a direct `expo start` spelling is
+// high-confidence enough to warn before the child starts.
+export function genericClientCommandAdvisory(command) {
+  if (typeof command !== 'string') return null;
+  const expoStart = /^(?:(?:npx(?:\s+--(?:no-install|yes))?|bunx|yarn|pnpm(?:\s+exec)?|npm\s+exec(?:\s+--)?)\s+)?expo(?:\.cmd)?\s+start(?:\s|$)/u;
+  if (!expoStart.test(command.trim())) return null;
+  return Object.freeze({
+    code: 'SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED',
+    severity: 'warning',
+    subsystem: 'cli',
+    message: 'expo start is running through the generic client arm; no supervised Expo bootstrap origin was installed',
+    details: Object.freeze({
+      command,
+      genericArm: '--client-command',
+      supervisedAlternative: 'snapback dev snapback --expo --expo-platform web',
+    }),
+  });
+}
+
 export async function runDev(options = {}) {
   const backendRoot = resolve(options.backendDirectory ?? 'snapback');
   const projectRoot = resolve(options.projectRoot ?? dirname(backendRoot));
@@ -2582,6 +2603,16 @@ export async function runDev(options = {}) {
   // the machine-readable stdout stays one JSON-line stream.
   let clientProcess = null;
   const startClientArm = () => {
+    const advisory = genericClientCommandAdvisory(clientArm.command);
+    if (advisory !== null) {
+      emitDevEvent({
+        schemaVersion: 'snapback.dev.v1',
+        ok: true,
+        state: 'client-advisory',
+        code: advisory.code,
+        diagnostics: [advisory],
+      });
+    }
     const spawned = spawn(clientArm.command, {
       shell: true,
       cwd: clientArm.directory,
@@ -3133,13 +3164,17 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     output: `${VERIFY_RECEIPT_SCHEMA_VERSION} receipt`, exits: '0 all required stages pass (including machine-distinct passed-without-acceptance); 1 failed/refused stage', recovery: 'Use the failed stage diagnostics and rerun against the same declared app identity.',
   },
   {
-    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--json]',
+    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--json]',
     description: 'Generate, start or attach, load, watch, and optionally supervise a web or Expo client surface.', lifecycle: 'long-running unless --no-watch (Expo supervision is always long-running)',
     output: 'snapback.dev.v1 JSON-line events; snapback.dev-command.v1 JSON lines are accepted on non-TTY stdin while it remains open', exits: '0 requested signal/TTY quit or successful --no-watch; 1 startup/watch/server failure',
     recovery: 'Act on the event diagnostic. Non-TTY stdin EOF only closes the optional control channel; use SIGINT/SIGTERM to stop the dev loop.',
     details: Object.freeze([
       'Bare snapback is discovery-only root help; use snapback dev for the managed authoring loop.',
       'Use native snapback start only when a lower-level harness owns loading and lifecycle.',
+      'Supervised Expo iOS: snapback dev snapback --expo --expo-platform ios (ios is the default).',
+      'Supervised Expo Android: snapback dev snapback --expo --expo-platform android.',
+      'Supervised Expo web: snapback dev snapback --expo --expo-platform web.',
+      '--expo owns the bootstrap environment; --client-command is a generic child and does not install the supervised Expo bootstrap.',
     ]),
   },
   {
@@ -4351,7 +4386,7 @@ export async function runCli(argv, options = {}) {
         'SNAPBACK_CLI_ARGUMENT_INVALID',
         `unknown dev option ${args[0]}; usage: snapback dev [<backend-dir>] [--attach] [--no-watch] `
           + '[--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] '
-          + '[--expo] [--expo-dir <dir>] [--expo-platform ios|android] [--email <address>] '
+          + '[--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] '
           + '[--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--json]',
       );
     }
@@ -4378,10 +4413,10 @@ export async function runCli(argv, options = {}) {
         );
       }
       const platform = expoPlatform ?? 'ios';
-      if (!['ios', 'android'].includes(platform)) {
+      if (!['ios', 'android', 'web'].includes(platform)) {
         throw diagnosticError(
           'SNAPBACK_CLI_ARGUMENT_INVALID',
-          '--expo-platform must be ios or android',
+          '--expo-platform must be ios, android, or web',
           { expoPlatform: platform },
         );
       }

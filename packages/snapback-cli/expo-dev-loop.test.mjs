@@ -228,7 +228,7 @@ async function assertOriginClosed(origin, label) {
   }, { label: `${label} listener cleanup` });
 }
 
-async function runCliSupervisor(target) {
+async function runCliSupervisor(target, platform = 'ios') {
   const cli = join(packageRoot, 'cli.mjs');
   const events = [];
   let stdoutBuffer = '';
@@ -238,6 +238,7 @@ async function runCliSupervisor(target) {
     'dev',
     target.backendRoot,
     '--expo',
+    '--expo-platform', platform,
     '--expo-dir', target.expoRoot,
     '--ready-file', target.readyFile,
     '--db', target.database,
@@ -308,6 +309,17 @@ function assertGrepAbsent(label, files, bearers) {
 }
 
 try {
+  const web = createExpoRoutingPlan({
+    platform: 'web',
+    backendPort: 4001,
+    metroPort: 4002,
+    bootstrapPort: 4003,
+  });
+  assert.equal(web.transport, 'same-host-loopback');
+  assert.equal(web.appHost, '127.0.0.1');
+  assert.deepEqual(web.device, { serial: null, class: 'browser' });
+  assert.deepEqual(web.forwards, []);
+
   // Android headless mechanics: all three ports are installed, verified, and
   // removed with exact adb reverse rules. The 10.0.2.2 posture is explicit but
   // is not selected by the preferred route and creates no listener.
@@ -410,12 +422,14 @@ try {
   // Settled Sessions mode: real mint, provider boot, canonical live/mutation/
   // presence owners, HMR-shaped reattachment, reconnect, and authority barrier.
   const settled = fixture('settled', { sessions: true });
-  const settledRun = await startFixture(settled);
+  const settledRun = await startFixture(settled, { platform: 'web' });
   const { supervisor, events } = settledRun;
   assert.equal(supervisor.state, 'ready');
   assert.equal(supervisor.connectCarrier, 'supervisor-rendezvous');
+  assert.deepEqual(supervisor.device, { serial: null, class: 'browser' });
   const settledReadyEvent = events.find((event) => event.state === 'ready');
   assert.equal(settledReadyEvent?.connectCarrier, 'supervisor-rendezvous');
+  assert.equal(settledReadyEvent?.platform, 'web');
   const supervisorDescriptor = join(dirname(settled.readyFile), 'expo-supervisor.json');
   assert.equal(existsSync(supervisorDescriptor), true);
   assert.equal(statSync(supervisorDescriptor).mode & 0o777, 0o600);
@@ -641,8 +655,9 @@ try {
   // Exercise the packaged command wiring and signal path, not only the
   // programmatic supervisor seam. It reuses the settled database, receives a
   // fresh ordinary session, correlates control events, and joins every child.
-  const cliRun = await runCliSupervisor(settled);
+  const cliRun = await runCliSupervisor(settled, 'web');
   assert.match(cliRun.bearer, /^sbs_/u);
+  assert.equal(cliRun.readyEvent.platform, 'web');
   assertListenerInventory({ listeners: cliRun.listenerEvent.listeners });
   const cliOrigins = {
     backend: cliRun.readyEvent.binding.target.origin,

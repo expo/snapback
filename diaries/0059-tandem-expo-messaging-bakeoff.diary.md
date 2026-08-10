@@ -88,6 +88,23 @@ a meaningful asset ownership contract that the anonymous Convex arm does not
 have, but a first-party local Expo development identity path still feels more
 ceremonious than it should.
 
+### 2026-08-10 — carry the selected backend origin with broker entry
+
+The original local shell wrote a backend origin into Metro's `.env.local` and
+also kept a benchmark-era `http://127.0.0.1:4477` fallback in application
+code. That split was easy to miss when the trusted broker continued minting a
+healthy session but Snapback selected a different backend port: authentication
+succeeded, then binding preparation contacted the stale fallback.
+
+The broker now returns its stack-selected public Snapback origin beside the
+ordinary bearer, and the Expo arm constructs `createExternalSessionClient`
+from that response. This feels cleaner than asking the app and broker to agree
+through two configuration carriers, and it keeps a dynamic port attached to
+the same lifecycle owner that minted the session. The remaining manual broker
+setup is still more ceremony than Convex's anonymous local path, but the
+Snapback boundary is now explicit: bypassing `SnapbackExpoProvider` means the
+custom stack owns both authority and origin propagation.
+
 ## Convex experience
 
 The happy path was compact. `useQuery` and `useMutation` mapped directly into

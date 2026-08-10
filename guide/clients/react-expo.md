@@ -4,8 +4,8 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
-examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-cli/expo-bootstrap-exchange.test.mjs, packages/snapback-expo/asset-source.test.mjs, packages/snapback-expo/supervised-offline-fallback.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs, benchmarks/lanes/native-simulator.md]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/tandem-expo-bakeoff/snapback/scripts/dev-backend.mjs, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/_kit/eas-stage-build.mjs]
+examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-cli/expo-bootstrap-exchange.test.mjs, packages/snapback-cli/expo-dev-loop.test.mjs, packages/snapback-expo/asset-source.test.mjs, packages/snapback-expo/supervised-offline-fallback.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-react/cold-boot-binding.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs, benchmarks/lanes/native-simulator.md]
 status: current
 targets: [local]
 maturity: shipped
@@ -270,12 +270,14 @@ the app needs product-shaped multi-persona behavior. The checkpoint-era
 `useSnapbackQuery({ provider, query, userId })` bridge in an older demo is a
 test-era workaround, not the packaged path.
 
-From an Expo app whose backend is the conventional `snapback/` child, start
-the iOS default or select Android explicitly:
+From an Expo app whose backend is the conventional `snapback/` child, select
+the supervised carrier explicitly (iOS remains the default when the platform
+flag is omitted):
 
 ```sh
-snapback dev --expo
-snapback dev --expo --expo-platform android
+snapback dev snapback --expo --expo-platform ios
+snapback dev snapback --expo --expo-platform android
+snapback dev snapback --expo --expo-platform web
 ```
 
 Ignore both local-state forms before copying, staging, or archiving the app;
@@ -305,6 +307,22 @@ reporting readiness. It also owns signal forwarding and reclaims the backend,
 Metro, bootstrap exchange, binding material, and port forwards on exit
 ([LLP 0181 §Supervised development baseline](repo:llp/0181-zero-configuration-expo.rfc.md#supervised-development-baseline),
 [`runExpoDev`](repo:packages/snapback-cli/expo-dev.mjs)).
+
+`--expo` and `--client-command` are different lifecycle arms. The generic arm
+runs the command in the caller's environment; it does not install
+`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` or publish the supervised bootstrap
+exchange. Therefore this plausible command is not equivalent to the web
+selection above:
+
+```sh shell-check=skip class="anti-pattern" reason="deliberately unsupported generic-arm example contains nested Expo flags"
+snapback dev snapback --client . --client-command "expo start --web"
+```
+
+A recognizable `expo start` routed this way emits
+`SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED` with the exact supported alternative.
+Use the generic arm for independently configured clients; use `--expo` whenever
+`SnapbackExpoProvider` should discover the supervisor without an app-authored
+origin.
 
 When Metro's file watching is inert — `CI` truthy in the effective Metro environment (the supervisor itself defaults `CI=1`), or the project under a watcher-blind root such as `/private/tmp` — the readiness stream carries one advisory `SNAPBACK_EXPO_METRO_WATCH_INERT` event naming the condition and the fix, so a stale bundle is not misread as an application bug.
 
@@ -345,6 +363,7 @@ client generated for one backend shape from being bound to another.
 
 | Carrier | Route selected by the supervised baseline | What stays loopback-only |
 | --- | --- | --- |
+| Expo web | Same-host loopback; `--expo-platform web` starts Expo with `--web` and injects the bootstrap origin before bundling. | Backend, Metro/web, and bootstrap exchange. |
 | iOS simulator | Same-host loopback; the binding and Expo origin use `127.0.0.1`. | Backend, Metro, and bootstrap exchange. |
 | Android emulator | Preferred: one verified `adb reverse` rule for each of the backend, Metro, and bootstrap ports, so the app still addresses `127.0.0.1`. Fallback: the emulator-only `10.0.2.2` host alias under `routing: "port-forward"`. | Every host listener. The fallback is routing posture, not permission to bind on LAN. |
 | Android USB device | Select the exact USB serial with `--android-serial`. The supervisor classifies the `adb devices -l` row, rejects TCP/IP/mDNS adb, and installs/verifies/removes the same three `adb -s <serial> reverse` rules under `routing: "port-forward"`. | Every host listener. The USB mechanism is headless-proven; its live LLP 0064 Online receipt is pending. |
@@ -378,8 +397,10 @@ fix the clocks and restart the supervisor.
 
 ### Run the supervised loop on Expo web
 
-The supervised flow also serves the Expo **web** carrier (`npx expo start`
-pressing `w`, or `--web`) without app-authored proxies or shims. Three
+Run `snapback dev snapback --expo --expo-platform web` to serve the Expo
+**web** carrier without app-authored proxies or shims. The selection launches
+Expo with `--web`; unlike pressing `w` in an independently started Metro
+process, it establishes the supervised bootstrap first. Three
 package-level paves make this work; each keeps its existing security or
 custody boundary:
 
@@ -448,27 +469,39 @@ source-specific admission.
 
 A native app carries an adopted external bearer (see
 [auth/native-apps](../auth/native-apps.md) for how a trusted broker mints it —
-never embed admin authority in the app). The boot sequence is the standard
-prepared-binding path over that client:
+never embed admin authority in the app). A shell that bypasses
+`SnapbackExpoProvider` owns origin propagation too. The selected target's
+ready descriptor or a stack-owned broker/configuration carrier must supply the
+origin; never retain an incidental fixed fallback. Tandem's tested local
+broker returns the selected public origin with the ordinary bearer:
 
-```ts fragment reason="application composition varies by app shell; mirrors the CI-run provider boot in packages/snapback-react tests"
-import { createExternalSessionClient } from '@expo/snapback-client';
-import {
-  SnapbackProvider,
-  createSnapbackReactProvider,
-} from '@expo/snapback-react';
-import { app } from './snapback/generated/app.mjs';
-
-const client = createExternalSessionClient(serverUrl, { bearerToken });
-const binding = await client.prepareReactBinding({ generatedManifest: app });
-const provider = createSnapbackReactProvider(binding);
-// <SnapbackProvider provider={provider}> ... </SnapbackProvider>
+```tsx source=demos/tandem-expo-bakeoff/snapback/src/backend.tsx
+      const brokerPayload = await brokerResponse.json() as { bearerToken?: string; serverOrigin?: string; error?: string };
+      if (!brokerResponse.ok || !brokerPayload.bearerToken || !brokerPayload.serverOrigin) {
+        throw new Error(brokerPayload.error ?? 'The local Tandem identity broker refused session entry.');
+      }
+      activeServerOrigin = brokerPayload.serverOrigin;
+      const client = createExternalSessionClient(brokerPayload.serverOrigin, { bearerToken: brokerPayload.bearerToken });
+      const binding = await client.prepareReactBinding({
+        generatedManifest: { schema, functions, capabilityManifest },
+      });
 ```
 
-`app` is the generated `snapback.app.v1` descriptor — the same complete
-descriptor [the React page](./react.md) teaches. (The older
+The broker source derives `serverOrigin` from the same selected runtime target
+that minted the session. A ready-file-driven harness uses
+`readyDescriptor.serverUrl` for the same reason. The generated
+`snapback.app.v1` descriptor is the preferred binding input [the React
+page](./react.md) teaches; the older
 `{ schema, functions, capabilityManifest }` manifest carrier remains
-admitted for compatibility.)
+admitted for compatibility.
+
+If the selected origin is unreachable and no persisted binding receipt can be
+admitted, `prepareReactBinding` rejects with
+`SNAPBACK_REACT_BINDING_ORIGIN_UNREACHABLE`. Its diagnostic details carry
+`phase: "application-binding-preparation"` plus `attemptedOrigin`, so a UI can
+separate backend reachability from credential rejection without parsing
+`Failed to fetch`. Server-answered auth refusals keep their original code and
+are never wrapped as connectivity.
 
 The first preparation needs the server reachable (deployment verification).
 After one successful online preparation over a registered durable store, an
@@ -923,6 +956,12 @@ the EAS build itself is an external paid service and is not CI-verified.
 - **Do not build a dev-auth multi-persona app on the packaged provider.** Use
   sessions and one adopted session per persona; the legacy per-call-user bridge
   is not the supported composition.
+- **Do not route `expo start` through `--client-command` when the app expects
+  supervised boot.** Select `--expo --expo-platform web`; the generic arm does
+  not inject or publish the bootstrap exchange.
+- **Do not give `createExternalSessionClient` a fixed dev-port fallback.** A
+  custom broker/client shell owns origin propagation and must use its selected
+  ready descriptor or stack-owned configuration carrier.
 - **Do not polyfill RNG with `Math.random`.** When
   `SNAPBACK_CLIENT_WEBCRYPTO_RNG_MISSING` names a missing primitive, install
   a real RNG polyfill (`expo-crypto`).

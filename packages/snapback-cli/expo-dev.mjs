@@ -560,8 +560,8 @@ export function refuseUnsupportedIosUsbForwarding(device, options = {}) {
   );
 }
 
-// @ref LLP 0181#ios-simulator — the iOS simulator consumes resolved same-host
-// loopback origins; application code never supplies one.
+// @ref LLP 0181#web-browser — same-host Expo carriers consume the supervisor's
+// resolved loopback origins; application code never supplies one.
 // @ref LLP 0181#android-emulator — adb reverse is the preferred Android route
 // and maps all three supervised ports to loopback from the app's perspective.
 export function createExpoRoutingPlan({
@@ -581,7 +581,7 @@ export function createExpoRoutingPlan({
   if (ports.some(({ hostPort }) => !Number.isSafeInteger(hostPort) || hostPort < 1)) {
     throw diagnosticError('SNAPBACK_EXPO_ROUTE_INVALID', 'every supervised route needs a valid port');
   }
-  if (platform === 'ios') {
+  if (platform === 'ios' || platform === 'web') {
     return Object.freeze({
       platform,
       transport: 'same-host-loopback',
@@ -590,13 +590,16 @@ export function createExpoRoutingPlan({
       ports,
       forwards: Object.freeze([]),
       fallback: null,
-      device: Object.freeze({ serial: null, class: 'simulator' }),
+      device: Object.freeze({
+        serial: null,
+        class: platform === 'web' ? 'browser' : 'simulator',
+      }),
     });
   }
   if (platform !== 'android') {
     throw diagnosticError(
       'SNAPBACK_EXPO_DEVICE_UNSUPPORTED',
-      'E1 supports only the iOS simulator and Android emulator.',
+      'supervised Expo development supports only iOS, Android, and web',
       { platform },
     );
   }
@@ -1042,7 +1045,7 @@ export async function startBootstrapExchange(getPayload, { onControl } = {}) {
   });
 }
 
-function resolveMetroCommand(command, port) {
+export function resolveExpoMetroCommand(command, port, platform = 'ios') {
   if (Array.isArray(command) && command.length > 0) {
     return { executable: command[0], args: command.slice(1), shell: false, display: command.join(' ') };
   }
@@ -1059,9 +1062,17 @@ function resolveMetroCommand(command, port) {
   }
   return {
     executable: 'npx',
-    args: ['--no-install', 'expo', 'start', '--localhost', '--port', String(port)],
+    args: [
+      '--no-install',
+      'expo',
+      'start',
+      '--localhost',
+      '--port',
+      String(port),
+      ...(platform === 'web' ? ['--web'] : []),
+    ],
     shell: false,
-    display: `npx --no-install expo start --localhost --port ${port}`,
+    display: `npx --no-install expo start --localhost --port ${port}${platform === 'web' ? ' --web' : ''}`,
   };
 }
 
@@ -1071,8 +1082,8 @@ function metroNodeOptions(nodeOptions) {
     .join(' ');
 }
 
-function startMetro({ command, directory, port, bootstrapOrigin, env, emit, onExit }) {
-  const resolved = resolveMetroCommand(command, port);
+function startMetro({ command, directory, port, platform, bootstrapOrigin, env, emit, onExit }) {
+  const resolved = resolveExpoMetroCommand(command, port, platform);
   const child = spawn(resolved.executable, resolved.args, {
     shell: resolved.shell,
     detached: process.platform !== 'win32',
@@ -1138,6 +1149,9 @@ function publicBinding(binding) {
 
 function resolveExpoDeviceSelection(options) {
   const platform = options.platform ?? 'ios';
+  if (platform === 'web') {
+    return Object.freeze({ serial: null, class: 'browser' });
+  }
   if (platform === 'ios') {
     if (options.iosUdid === undefined || options.iosUdid === null) {
       return Object.freeze({ serial: null, class: 'simulator' });
@@ -1160,7 +1174,7 @@ function resolveExpoDeviceSelection(options) {
   if (platform !== 'android') {
     throw diagnosticError(
       'SNAPBACK_EXPO_DEVICE_UNSUPPORTED',
-      'supervised Expo development supports only iOS and Android',
+      'supervised Expo development supports only iOS, Android, and web',
       { platform },
     );
   }
@@ -1455,6 +1469,7 @@ export async function runExpoDev(options = {}) {
       command: options.metroCommand,
       directory: expoDirectory,
       port: metroPort,
+      platform: options.platform ?? 'ios',
       bootstrapOrigin: appOrigin(route.appHost, bootstrap.port),
       env: childEnv,
       emit,

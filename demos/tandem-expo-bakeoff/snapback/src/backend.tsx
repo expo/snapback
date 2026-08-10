@@ -33,11 +33,11 @@ if (Platform.OS !== 'web') {
   registerExpoFileSystemRqsFiles(FileSystem, { crypto: Crypto });
 }
 
-const origin = process.env.EXPO_PUBLIC_SNAPBACK_ORIGIN ?? 'http://127.0.0.1:4477';
 const brokerOrigin = process.env.EXPO_PUBLIC_TANDEM_BROKER_ORIGIN;
 const brokerToken = process.env.EXPO_PUBLIC_TANDEM_BROKER_TOKEN;
 type Provider = ReturnType<typeof createSnapbackReactProvider>;
 type Boot = { status: 'loading' } | { status: 'ready'; client: SnapbackClient; provider: Provider } | { status: 'error'; message: string };
+let activeServerOrigin: string | null = null;
 
 function Root({ children }: PropsWithChildren) {
   const [boot, setBoot] = useState<Boot>({ status: 'loading' });
@@ -55,11 +55,12 @@ function Root({ children }: PropsWithChildren) {
         method: 'POST',
         headers: { authorization: `Bearer ${brokerToken}` },
       });
-      const brokerPayload = await brokerResponse.json() as { bearerToken?: string; error?: string };
-      if (!brokerResponse.ok || !brokerPayload.bearerToken) {
+      const brokerPayload = await brokerResponse.json() as { bearerToken?: string; serverOrigin?: string; error?: string };
+      if (!brokerResponse.ok || !brokerPayload.bearerToken || !brokerPayload.serverOrigin) {
         throw new Error(brokerPayload.error ?? 'The local Tandem identity broker refused session entry.');
       }
-      const client = createExternalSessionClient(origin, { bearerToken: brokerPayload.bearerToken });
+      activeServerOrigin = brokerPayload.serverOrigin;
+      const client = createExternalSessionClient(brokerPayload.serverOrigin, { bearerToken: brokerPayload.bearerToken });
       const binding = await client.prepareReactBinding({
         generatedManifest: { schema, functions, capabilityManifest },
       });
@@ -112,7 +113,8 @@ function useConversation(conversationId: string, viewerId: string): QueryState<C
 }
 
 function publicAssetUrl(assetId: string) {
-  return `${origin}/assets/public/${encodeURIComponent(assetId)}/display`;
+  if (activeServerOrigin === null) throw new Error('Snapback server origin is unavailable before broker entry.');
+  return `${activeServerOrigin}/assets/public/${encodeURIComponent(assetId)}/display`;
 }
 
 function useMessages(conversationId: string, viewerId: string): QueryState<ChatMessage[]> {

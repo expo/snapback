@@ -6,6 +6,13 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-10 (l) — The already-paved supervised web carrier is now
+a first-class `--expo-platform web` selection: the supervisor starts Expo with
+`--web` and injects the bootstrap origin before bundling. A recognizable
+`expo start` routed through LLP 0041's generic client arm warns that no
+supervised bootstrap was installed. Custom external-session shells own origin
+propagation, and a final binding-preparation transport failure carries the
+attempted origin and phase after persisted-receipt fallback declines it.
 **Revised:** 2026-08-07 (k) — The supervised carrier's endpoint vocabulary is
 now confined to literal development-only branches so production Metro/Hermes
 exports prune it, making the carrier inert under the release build condition
@@ -530,6 +537,19 @@ verifies, and removes the forwarding rule. The Android emulator's reserved
 `routing: "port-forward"`, never as a general private/LAN origin, and it does
 not cause the supervisor to create a non-loopback listener.
 
+### Web browser
+
+The web carrier uses the same-host loopback route and the same
+`local-supervised-ipc` bootstrap exchange. `--expo-platform web` starts the
+default Expo command with `--web` and installs the credential-free supervisor
+origin in Metro's environment before the browser bundle is built. LLP 0041's
+generic `--client-command` arm remains environment-transparent: routing an
+independent `expo start --web` through it does not create or publish the
+supervised exchange, and the CLI emits a coded advisory for that recognizable
+mistake. The browser CORS, AppState, asset-source, and binding-admission
+boundaries remain the package contract; this selection adds no LAN/public
+listener or alternate binding format.
+
 ### Real devices in the baseline
 
 A round-2 delta review correctly found this section orphaned by the
@@ -646,6 +666,14 @@ The provider and supervisor join facts by a correlation id and expose:
   session;
 - lifecycle and child-state summaries from their canonical owners; and
 - LLP 0146 typed remediations with preconditions and risk classes.
+
+An external-session shell that constructs its own client also supplies the
+selected origin from a ready descriptor or stack-owned carrier. After LLP
+0114's persisted binding-receipt fallback declines a transport failure,
+binding preparation wraps the browser's opaque fetch error with a stable code,
+the attempted origin, and the `application-binding-preparation` phase. A
+server-answered credential or policy refusal is not connectivity and keeps its
+original diagnostic.
 
 The Expo overlay is a projection of shared diagnostic codes/details. It does
 not rewrite them into an Expo-only taxonomy or automatically apply

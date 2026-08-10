@@ -449,6 +449,19 @@ itself.
     Route terms: "auth.mintSession", "session mint HTTP",
     "SNAPBACK_AUTH_REQUEST_INVALID", "identity broker".
 
+Case 42 absorbs the supervised Expo-web launcher-boundary miss recorded in
+`issues/closed/20260809-guide-gap-supervised-expo-web-launcher-boundary.md`.
+
+42. **Supervised Expo web selection:** "Run an Expo web app through Snapback's
+    supervised bootstrap on a dynamically selected backend port, or compose a
+    custom session broker without losing that selected origin." The run fails
+    if it routes `expo start --web` through `--client-command`, treats that as
+    equivalent to `--expo`, or retains a fixed fallback beside a dynamic
+    target.
+    Expected pages: `clients/react-expo.md`.
+    Route terms: "--expo-platform web", "--client-command",
+    "SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED", "custom broker origin".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

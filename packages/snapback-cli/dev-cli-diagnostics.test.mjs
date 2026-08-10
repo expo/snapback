@@ -14,10 +14,25 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { scaffoldApp } from './index.mjs';
+import { genericClientCommandAdvisory, scaffoldApp } from './index.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const cli = join(packageDir, 'cli.mjs');
+
+for (const command of [
+  'expo start --web',
+  'npx --no-install expo start --web',
+  'bunx expo start',
+  'pnpm exec expo start --web',
+]) {
+  const advisory = genericClientCommandAdvisory(command);
+  assert.equal(advisory?.code, 'SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED');
+  assert.equal(advisory?.details?.supervisedAlternative, 'snapback dev snapback --expo --expo-platform web');
+  assert.match(advisory?.message ?? '', /no supervised Expo bootstrap origin was installed/u);
+}
+for (const command of ['vite', 'npm run web', 'echo expo start', 'next dev']) {
+  assert.equal(genericClientCommandAdvisory(command), null, `${command} is not a high-confidence Expo start command`);
+}
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-dev-diagnostics-')));
 try {
@@ -60,6 +75,15 @@ export const listGhosts = defineQuery({ table: 'ghosts', args: {} });
   const helpSurfaced = `${help.stdout}\n${help.stderr}`;
   assert.match(helpSurfaced, /Usage: snapback dev/, 'help must carry dev usage');
   assert.match(helpSurfaced, /Lifecycle: long-running/, 'help must declare lifecycle');
+  assert.match(helpSurfaced, /--expo-platform ios\|android\|web/u, 'help must expose supervised Expo web');
+  for (const platform of ['ios', 'android', 'web']) {
+    assert.match(
+      helpSurfaced,
+      new RegExp(`snapback dev snapback --expo --expo-platform ${platform}`, 'u'),
+      `help must show the complete supervised ${platform} command`,
+    );
+  }
+  assert.match(helpSurfaced, /--client-command is a generic child/u, 'help must explain the generic-arm boundary');
   assert.doesNotMatch(helpSurfaced, /SNAPBACK_CLI_ARGUMENT_INVALID/);
 
   for (const [args, message] of [
