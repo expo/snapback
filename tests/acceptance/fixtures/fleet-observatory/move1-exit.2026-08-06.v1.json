@@ -9,7 +9,7 @@
     "LLP 0138#status"
   ],
   "source": {
-    "revision": "c6162230643b8e84f467df94a8beacc360b8efb4",
+    "revision": "d201b359f6b303c1b659a602883fa7a75e2385ce",
     "dirty": true,
     "files": [
       {
@@ -26,11 +26,11 @@
       },
       {
         "path": "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
-        "sha256": "5cc319529c9079dcf8f27ef1b6ae35865902d3872ae2ec55d8708e0ac88e0941"
+        "sha256": "7115f8d931a525407d336c12e1e4faa8824add9df837129f9d6e705ae775089d"
       },
       {
         "path": "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
-        "sha256": "5c0bccd678fdc6fecb3b62bcb4aeb81c4f1faeea7fa1012d498625af8e12c0e8"
+        "sha256": "ebf60cb8d647b0b1ae422e5f11916f2fb0b3152904469ea7cc05cdd1be78abf8"
       },
       {
         "path": "demos/fleet-observatory-move1/demo.snapback.json",
@@ -74,16 +74,16 @@
     "status": "PASS",
     "runtime": {
       "serverBinary": "target/debug/snapback",
-      "serverBinarySha256": "fd6b0e91171a5679185afc4b413e29d73347f12ac63c1e2ae9030dbb89ef5840",
+      "serverBinarySha256": "c9fee6da6d81b153c5eaecf28acca863ca7078184a675d50dab8a0cde5d1e89a",
       "launchRung": "configured",
       "readinessReceipt": {
         "path": "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
-        "sha256": "c3fca7bcff06922c5c10960e9c96514dfff2969f5b0c69784fa010fcbf769f45"
+        "sha256": "bc8c0164fa490384633f195a910e21f9b975c47bbe27e118c42ffe2ca72febf4"
       }
     },
     "activation": {
       "format": "snapback.composition-activation-preparation.v1",
-      "activationHash": "sha256:c6585e572754c620faf0885f819636fd835e36ace8e745883a47dcc3e349ca4f",
+      "activationHash": "sha256:604d4807d0b3f6a5698c264c22dd745561c2962ae76871fd70f5d7eb81749aaf",
       "deploymentId": "fleet-observatory-move1-controlled-run"
     }
   },
@@ -129,8 +129,8 @@
         "firstUsefulRows": 100,
         "rowsInstalled": 200,
         "payloadBytes": 49652,
-        "firstUsefulMs": 146.626,
-        "authoritativeCompleteMs": 146.626
+        "firstUsefulMs": 154.643,
+        "authoritativeCompleteMs": 154.643
       }
     },
     "frozenCeilings": {
@@ -191,8 +191,8 @@
       "firstUsefulRows": 100,
       "rowsInstalled": 200,
       "payloadBytes": 49652,
-      "firstUsefulMs": 146.626,
-      "authoritativeCompleteMs": 146.626
+      "firstUsefulMs": 154.643,
+      "authoritativeCompleteMs": 154.643
     }
   },
   "summary": {
@@ -263,14 +263,14 @@
           "physicalCarrierBytes": 48731
         },
         "activePolicy": {
-          "addressKey": "qmk1.rQ3dM1UvcBZpyF3j02AcsLLUOLHutCz8BD9ZXXrYwcg",
+          "addressKey": "qmk1.Rwl9JgKuDKAiMTEEHvkStV9tfDTqyM4wCEMi1w8qEwY",
           "demandState": "demanded-active",
           "effectiveRetentionRequest": "none",
           "retainingReason": {
             "kind": "registrations",
             "entries": [
               {
-                "registrationId": "qreg1_85e106d986080c73c7d413237d332148",
+                "registrationId": "qreg1_382bc68a72e702481b76785691981611",
                 "source": "active",
                 "ownerContextKind": "subscription"
               }
@@ -344,8 +344,8 @@
         "updates": 1000,
         "activeEventMatches": 100,
         "activeRollupMatches": 100,
-        "serverSettlementMs": 2515.538,
-        "clientSettlementMs": 2541.71,
+        "serverSettlementMs": 2494.608,
+        "clientSettlementMs": 2521.271,
         "liveFramesObserved": 1
       }
     },

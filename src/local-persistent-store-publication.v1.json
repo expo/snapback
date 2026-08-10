@@ -5,10 +5,10 @@
     "single_table_v1"
   ],
   "maturity": "experimental",
-  "qualificationReceiptSha256": "sha256:7d6ebf7d96d552952cfda3e2af2ffa2ef665bd48e0f97fe7ac4123064de0d30d",
+  "qualificationReceiptSha256": "sha256:4d832588d87a4a1d41ecc56e38df24e206c280637f03ec3fff8d99d3c114c4f0",
   "supportingReceiptSha256": {
-    "triageBudgetFreeze": "sha256:9127b354ab4dc1aa25821f91de98eb328f789a443e179aa0796fd55b1c9e823d",
-    "triageMove1Exit": "sha256:e2b0358cfe870b0d0768f0cd46eeed480e3508f8496fcfa89871258cd1eed4ad"
+    "triageBudgetFreeze": "sha256:8be62cc8481493ba2e6e14baa830c6d9171b7ad72da4f24ba82be4561a506503",
+    "triageMove1Exit": "sha256:31838b231de0fda505ca50165d9fc093bcf9e3f250d416405190ce8abaee8634"
   },
   "executorSourceSha256": {
     "src/local.rs": "sha256:309d45ba081dab52f662e4bf98daf3197374cf4eacbdbf01e661eab5f8921ff7",

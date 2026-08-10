@@ -6,8 +6,8 @@
     "LLP 0166#executable-acceptance",
     "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
   ],
-  "startedAt": "2026-08-10T05:27:38.627Z",
-  "completedAt": "2026-08-10T05:29:19.701Z",
+  "startedAt": "2026-08-10T05:36:05.629Z",
+  "completedAt": "2026-08-10T05:37:42.838Z",
   "runtime": {
     "node": "v25.9.0",
     "platform": "darwin",
@@ -15,30 +15,13 @@
     "hostnameClass": "local-evidence-machine"
   },
   "source": {
-    "revision": "c6162230643b8e84f467df94a8beacc360b8efb4",
+    "revision": "d201b359f6b303c1b659a602883fa7a75e2385ce",
     "dirty": true,
     "dirtyPaths": [
       "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
       "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
-      "demos/latency-kanban/snapback/generated/artifacts.json",
-      "demos/latency-kanban/snapback/trusted-composition-activation.json",
       "demos/triage-graph/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/trusted-composition-activation.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.377937e3730cb91605a709166e3288975f7fdf47947604a33e445ff7c2b87948.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.44c7307c03e3276356a0f01291e93fc4b2b40a852a6960b5fd739a72dd769f80.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/artifacts.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/capability.manifest.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/contract-data.manifest.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/functions.manifest.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-bindings.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-introspection.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/schema.manifest.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/trusted-composition-activation.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/trusted-composition-activation.json",
       "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
@@ -46,8 +29,6 @@
       "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
       "tests/acceptance/triage-graph-move1-v1-evidence.md",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.bec26ea45b7395d2ca23bb0568cf0861758e1dde4ff51c6541d8d4ee97fe41c4.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.cd0297742a1407f613fe19110e5b75cb3bea7005a1fe1b1a0fabcb4bea736e46.json",
       "target"
     ],
     "files": [
@@ -141,19 +122,19 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-        "sha256": "9127b354ab4dc1aa25821f91de98eb328f789a443e179aa0796fd55b1c9e823d"
+        "sha256": "8be62cc8481493ba2e6e14baa830c6d9171b7ad72da4f24ba82be4561a506503"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-        "sha256": "e2b0358cfe870b0d0768f0cd46eeed480e3508f8496fcfa89871258cd1eed4ad"
+        "sha256": "31838b231de0fda505ca50165d9fc093bcf9e3f250d416405190ce8abaee8634"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "ac0277cd1c66a893f799a261dc92638ea139aaf40afa44d7fbe42a244886aed1"
+        "sha256": "45a25abdeb66e21e2ba8855cf8c55c993ec7464b1d07fbb77e2b8239e6b83a6c"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "19e4a54a3ed95c01d96cd66be024175d6827ba44d47dc971fa635d098d38be2e"
+        "sha256": "849cd800d131658cf15eb925d27833fd12d15f13f59a5083fe92e224f152f82b"
       }
     ]
   },
@@ -303,7 +284,7 @@
           2,
           3
         ],
-        "relaunchToReadableMs": 1552.297,
+        "relaunchToReadableMs": 1526.813,
         "browser": {
           "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
           "version": "Google Chrome 151.0.7922.76",
@@ -316,12 +297,12 @@
         },
         "cleanup": {
           "firstBrowser": {
-            "pid": 74450,
+            "pid": 57453,
             "requestedSignal": "SIGKILL",
             "processTreeExitAttested": true
           },
           "finalBrowser": {
-            "pid": 74725,
+            "pid": 57787,
             "requestedSignal": "SIGTERM",
             "processTreeExitAttested": true
           },
@@ -419,7 +400,7 @@
           {
             "type": "boundary",
             "boundary": "before-rename",
-            "pid": 59273,
+            "pid": 43121,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -430,7 +411,7 @@
           {
             "type": "boundary",
             "boundary": "after-rename-before-directory-sync",
-            "pid": 59280,
+            "pid": 43124,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -463,12 +444,12 @@
       "status": "PASS",
       "evidence": {
         "serverBinary": "target/debug/snapback",
-        "serverBinarySha256": "fd6b0e91171a5679185afc4b413e29d73347f12ac63c1e2ae9030dbb89ef5840",
+        "serverBinarySha256": "c9fee6da6d81b153c5eaecf28acca863ca7078184a675d50dab8a0cde5d1e89a",
         "launchRung": "configured",
         "backendStoppedBeforeRelaunch": true,
         "activationPreparation": {
           "format": "snapback.composition-activation-preparation.v1",
-          "activationHash": "sha256:7dc5e5a0783f708dd504da7a29053db568edf6594a37583279ed2516726a62fd",
+          "activationHash": "sha256:0c77f6b160255ee393a43ba381c271698a24e86d96f31c0ec067eebd01ecf2b1",
           "sourceClass": "temporary-backend-source",
           "next": "rerun Snapback codegen for this backend"
         },
@@ -510,7 +491,7 @@
         },
         "materialization": {
           "records": 1,
-          "qmk1": "qmk1.YCfrswU3akes7rpywFoUMVRSkOSmmWZ8EGKtjfvAQf4",
+          "qmk1": "qmk1.XMJITeXRSTEP9JWjsiA2XuXiV7XgMbvIEXHz2LseqP0",
           "freshness": "retained",
           "fragments": 1,
           "leaseCustody": 1
@@ -679,7 +660,7 @@
           "version": 7,
           "token": "sbrt1.carrier-exit.7"
         },
-        "maintenanceMs": 77043.158
+        "maintenanceMs": 73568.239
       }
     },
     {
@@ -754,14 +735,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 100,
           "hydrationPayloadBytes": 14981,
-          "hydrationElapsedMs": 165.178,
+          "hydrationElapsedMs": 222.054,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-          "budgetFreezeSha256": "9127b354ab4dc1aa25821f91de98eb328f789a443e179aa0796fd55b1c9e823d",
+          "budgetFreezeSha256": "8be62cc8481493ba2e6e14baa830c6d9171b7ad72da4f24ba82be4561a506503",
           "move1Exit": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-          "move1ExitSha256": "e2b0358cfe870b0d0768f0cd46eeed480e3508f8496fcfa89871258cd1eed4ad"
+          "move1ExitSha256": "31838b231de0fda505ca50165d9fc093bcf9e3f250d416405190ce8abaee8634"
         }
       }
     },
@@ -781,14 +762,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 200,
           "hydrationPayloadBytes": 49652,
-          "hydrationElapsedMs": 146.626,
+          "hydrationElapsedMs": 154.643,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-          "budgetFreezeSha256": "ac0277cd1c66a893f799a261dc92638ea139aaf40afa44d7fbe42a244886aed1",
+          "budgetFreezeSha256": "45a25abdeb66e21e2ba8855cf8c55c993ec7464b1d07fbb77e2b8239e6b83a6c",
           "move1Exit": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-          "move1ExitSha256": "19e4a54a3ed95c01d96cd66be024175d6827ba44d47dc971fa635d098d38be2e"
+          "move1ExitSha256": "849cd800d131658cf15eb925d27833fd12d15f13f59a5083fe92e224f152f82b"
         }
       }
     },

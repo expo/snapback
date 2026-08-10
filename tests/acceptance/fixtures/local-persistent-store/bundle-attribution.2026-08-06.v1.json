@@ -2,30 +2,13 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-06",
   "source": {
-    "revision": "c6162230643b8e84f467df94a8beacc360b8efb4",
+    "revision": "d201b359f6b303c1b659a602883fa7a75e2385ce",
     "dirty": true,
     "dirtyPaths": [
       "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
       "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
-      "demos/latency-kanban/snapback/generated/artifacts.json",
-      "demos/latency-kanban/snapback/trusted-composition-activation.json",
       "demos/triage-graph/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/trusted-composition-activation.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.377937e3730cb91605a709166e3288975f7fdf47947604a33e445ff7c2b87948.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.44c7307c03e3276356a0f01291e93fc4b2b40a852a6960b5fd739a72dd769f80.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/artifacts.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/capability.manifest.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/contract-data.manifest.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/functions.manifest.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-bindings.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-introspection.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/schema.manifest.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/trusted-composition-activation.json",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/trusted-composition-activation.json",
       "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
@@ -33,8 +16,6 @@
       "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
       "tests/acceptance/triage-graph-move1-v1-evidence.md",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.bec26ea45b7395d2ca23bb0568cf0861758e1dde4ff51c6541d8d4ee97fe41c4.mjs",
-      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.cd0297742a1407f613fe19110e5b75cb3bea7005a1fe1b1a0fabcb4bea736e46.json",
       "target"
     ],
     "files": [
@@ -128,19 +109,19 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-        "sha256": "9127b354ab4dc1aa25821f91de98eb328f789a443e179aa0796fd55b1c9e823d"
+        "sha256": "8be62cc8481493ba2e6e14baa830c6d9171b7ad72da4f24ba82be4561a506503"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-        "sha256": "e2b0358cfe870b0d0768f0cd46eeed480e3508f8496fcfa89871258cd1eed4ad"
+        "sha256": "31838b231de0fda505ca50165d9fc093bcf9e3f250d416405190ce8abaee8634"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "ac0277cd1c66a893f799a261dc92638ea139aaf40afa44d7fbe42a244886aed1"
+        "sha256": "45a25abdeb66e21e2ba8855cf8c55c993ec7464b1d07fbb77e2b8239e6b83a6c"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "19e4a54a3ed95c01d96cd66be024175d6827ba44d47dc971fa635d098d38be2e"
+        "sha256": "849cd800d131658cf15eb925d27833fd12d15f13f59a5083fe92e224f152f82b"
       }
     ]
   },
