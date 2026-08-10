@@ -12,6 +12,7 @@ import {
   renameSync,
   rmSync,
   symlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -113,6 +114,27 @@ function relevantLines(output) {
   )).join('\n');
 }
 
+function installGuideDriftFixtureChecker(repo) {
+  // This suite exercises revision selection, baseline attribution, refusal,
+  // and reconciliation in the drift runner. Keep that integration fixture
+  // independent of unrelated full-Guide freshness (including package/runtime
+  // projections supplied by the host's dependency mirror): the Guide's own
+  // suites cover those checks. The frozen page digest is enough to make the
+  // committed stale/regenerated transition real.
+  writeFileSync(join(repo, 'scripts/check-guide.mjs'), `#!/usr/bin/env node
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+const manifest = JSON.parse(readFileSync('guide/guide-manifest.generated.json', 'utf8'));
+const page = Object.values(manifest.pages).find((entry) => entry.path === 'guide/index.md');
+const digest = createHash('sha256').update(readFileSync('guide/index.md')).digest('hex');
+if (!page || page.sha256 !== digest) {
+  console.error('[guide-check] error: guide/guide-manifest.generated.json: stale or missing — run node scripts/generate-guide-manifest.mjs');
+  process.exit(1);
+}
+console.log('[guide-check] ok — fixture page digest matches');
+`);
+}
+
 function setupCommittedClone() {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-drift-integration-'));
   const repo = join(scratch, 'repo');
@@ -179,6 +201,18 @@ function setupCommittedClone() {
   assert.equal(contractMeta.status, 0, contractMeta.output);
   const baselineGuide = run(repo, process.execPath, ['scripts/generate-guide-manifest.mjs']);
   assert.equal(baselineGuide.status, 0, baselineGuide.output);
+  installGuideDriftFixtureChecker(repo);
+  // This disposable repository tests changes *after* a coherent baseline.
+  // Normalize ratcheted ownership edges to the cloned source just as the
+  // Guide generator above normalizes its manifest/symbol-registry closure;
+  // otherwise unrelated pre-existing drift changes the fixture's expected
+  // PASS into ALLOWED-WITH-PRE-EXISTING-STALENESS.
+  const baselineOwnership = run(
+    repo,
+    process.execPath,
+    ['scripts/check-module-ownership.mjs', '--update-baseline'],
+  );
+  assert.equal(baselineOwnership.status, 0, baselineOwnership.output);
   commitAll(repo, 'test: install drift enforcement under committed state');
   git(ROOT, ['init', '--bare', '--quiet', remote]);
   git(repo, ['remote', 'rename', 'origin', 'source']);
@@ -295,13 +329,22 @@ test('missing declared dependencies are infrastructure, never stale records', { 
   }
 });
 
-test('agent-safe publication checker passes in the isolated revision environment', { timeout: 60_000 }, () => {
-  const result = runRegisteredGateAtRevision({
-    gate: 'agent-safe-publication-fixtures',
-    isolated: true,
-  });
-  assert.equal(result.ok, true, `${result.stdout}\n${result.stderr}`);
-  assert.equal(result.infrastructureReason, null);
+test('agent-safe publication checker passes in the isolated revision environment', { timeout: 120_000 }, () => {
+  // Exercise nested worktree isolation from a disposable repository. The
+  // source checkout may itself be a managed worktree whose common Git
+  // directory is intentionally read-only to the test process.
+  const { scratch, repo } = setupCommittedClone();
+  try {
+    const result = runRegisteredGateAtRevision({
+      gate: 'agent-safe-publication-fixtures',
+      isolated: true,
+      root: repo,
+    });
+    assert.equal(result.ok, true, `${result.stdout}\n${result.stderr}`);
+    assert.equal(result.infrastructureReason, null);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });
 
 test('diary identity backstop files one ticket for a new collision', { timeout: 60_000 }, () => {

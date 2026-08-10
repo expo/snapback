@@ -1828,6 +1828,22 @@ impl LocalDatabase {
         Ok(())
     }
 
+    #[cfg(test)]
+    fn backup_auth_catalog_after_forced_initialization_failure(
+        &self,
+        image: &File,
+    ) -> SnapbackResult<()> {
+        require_ready_on(&self.conn)?;
+        self.backup_database_image_into_inner(image, true)?;
+        let check = open_backup_image_connection(image, true)?;
+        if !inspect_auth_catalog_on(&check)?.is_ready() {
+            return Err(backup_invalid(
+                "backup database image is not an exact recognized auth catalog",
+            ));
+        }
+        Ok(())
+    }
+
     /// Produce a complete database image with SQLite's online-backup API into
     /// a caller-created staging descriptor. The caller owns the exclusive
     /// maintenance boundary, the retained keyring bytes, and the pinned
@@ -1839,6 +1855,14 @@ impl LocalDatabase {
     /// secure unit created by the command; no page is copied through a
     /// pathname an attacker could redirect.
     pub(crate) fn backup_database_image_into(&self, image: &File) -> SnapbackResult<()> {
+        self.backup_database_image_into_inner(image, false)
+    }
+
+    fn backup_database_image_into_inner(
+        &self,
+        image: &File,
+        mut force_first_initialization_failure: bool,
+    ) -> SnapbackResult<()> {
         // Derive the export scrub from physical custody, not the in-memory
         // manifest projection. A crashed or tampered schema transition must
         // fail toward removing a protected table, never toward exporting it.
@@ -1850,25 +1874,63 @@ impl LocalDatabase {
             [],
             |row| row.get(0),
         )?;
-        let mut output = open_backup_image_connection(image, false)?;
         // A descriptor-bound connection has no usable sibling pathname, so
         // the copy journals in memory: no `-journal`/`-wal` sidecar is ever
         // created or read, which also removes the hot-journal/WAL injection
         // surface a swapped staging directory would otherwise offer. A failed
         // copy discards the staged inode; artifact durability comes from the
         // explicit fsync and publication rename, not a rollback journal.
-        let journal_mode: String =
-            output.query_row("PRAGMA journal_mode = MEMORY", [], |row| row.get(0))?;
-        if !journal_mode.eq_ignore_ascii_case("memory") {
+        //
+        // `sqlite3_backup_init` can exceptionally return NULL while leaving
+        // only the destination connection's stale "not an error" state. That
+        // was observed after earlier suite operations even though the exact
+        // same backup passed in isolation. No page has moved when init fails,
+        // so close that connection and make one bounded attempt from a fresh
+        // descriptor-bound connection. Step/copy failures are never retried.
+        let mut copy_completed = false;
+        for initialization_attempt in 0..2 {
+            let mut output = open_backup_image_connection(image, false)?;
+            let journal_mode: String =
+                output.query_row("PRAGMA journal_mode = MEMORY", [], |row| row.get(0))?;
+            if !journal_mode.eq_ignore_ascii_case("memory") {
+                return Err(backup_invalid(
+                    "backup database image could not be made self-contained",
+                ));
+            }
+
+            if force_first_initialization_failure {
+                force_first_initialization_failure = false;
+                output.close().map_err(|(_, error)| error)?;
+                image
+                    .set_len(0)
+                    .map_err(|_| backup_invalid("could not reset the backup database image"))?;
+                continue;
+            }
+
+            match copy_backup_pages(&self.conn, &mut output) {
+                Ok(()) => {
+                    output.close().map_err(|(_, error)| error)?;
+                    copy_completed = true;
+                    break;
+                }
+                Err(BackupCopyFailure::Initialization(_error)) if initialization_attempt == 0 => {
+                    output.close().map_err(|(_, error)| error)?;
+                    // `PRAGMA journal_mode` initialized an empty SQLite image.
+                    // Restore the still-pinned inode to the pristine state the
+                    // online-backup API expects before reopening it.
+                    image
+                        .set_len(0)
+                        .map_err(|_| backup_invalid("could not reset the backup database image"))?;
+                }
+                Err(BackupCopyFailure::Initialization(error))
+                | Err(BackupCopyFailure::Copy(error)) => return Err(error.into()),
+            }
+        }
+        if !copy_completed {
             return Err(backup_invalid(
-                "backup database image could not be made self-contained",
+                "backup database image initialization did not complete",
             ));
         }
-        {
-            let backup = rusqlite::backup::Backup::new(&self.conn, &mut output)?;
-            backup.run_to_completion(128, Duration::from_millis(1), None)?;
-        }
-        output.close().map_err(|(_, error)| error)?;
         // A WAL-mode header copied from the source would make the standalone
         // image try to create a fresh sidecar merely to open, and SQLite
         // cannot rewrite that header through a descriptor-bound connection
@@ -2078,6 +2140,22 @@ fn open_backup_image_connection(_image: &File, _read_only: bool) -> SnapbackResu
     Err(backup_invalid(
         "descriptor-bound backup images are unsupported on this host",
     ))
+}
+
+enum BackupCopyFailure {
+    Initialization(rusqlite::Error),
+    Copy(rusqlite::Error),
+}
+
+fn copy_backup_pages(
+    source: &Connection,
+    destination: &mut Connection,
+) -> Result<(), BackupCopyFailure> {
+    let backup = rusqlite::backup::Backup::new(source, destination)
+        .map_err(BackupCopyFailure::Initialization)?;
+    backup
+        .run_to_completion(128, Duration::from_millis(1), None)
+        .map_err(BackupCopyFailure::Copy)
 }
 
 /// Rewrite the image's read/write format-version bytes from WAL (2) to
@@ -3362,7 +3440,7 @@ mod tests {
         // anonymous tempfile cannot be opened by SQLite through
         // `/proc/self/fd` on Linux even though the raw descriptor is valid.
         let image = tempfile::NamedTempFile::new().expect("backup image");
-        db.backup_auth_catalog_into(image.as_file())
+        db.backup_auth_catalog_after_forced_initialization_failure(image.as_file())
             .expect("auth backup");
         let backup = open_backup_image_connection(image.as_file(), true).expect("open backup");
         let rows: i64 = backup

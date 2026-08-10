@@ -91,6 +91,28 @@ async fn equal_lane_profile_delays_ack_and_socket_deltas_without_moving_commit_f
 /// release and therefore cannot pay the lane delay twice.
 #[tokio::test]
 async fn middleware_refusals_are_profiled_and_handler_responses_release_once() {
+    let (_, normal) = test_app();
+    let normal_refusal_started = Instant::now();
+    let normal_refusal = normal
+        .clone()
+        .oneshot(raw_json("/query/listTodos", "{"))
+        .await
+        .expect("normal invalid query response");
+    let normal_refusal_elapsed = normal_refusal_started.elapsed();
+    assert_eq!(normal_refusal.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(profile_marker(&normal_refusal), None);
+
+    let normal_handler_started = Instant::now();
+    let normal_handled = normal
+        .oneshot(post_json(
+            "/mutation/createTodo",
+            json!({ "args": { "title": "baseline" }, "auth": { "user_id": "user_1" } }),
+        ))
+        .await
+        .expect("normal handler mutation response");
+    let normal_handler_elapsed = normal_handler_started.elapsed();
+    assert_eq!(normal_handled.status(), StatusCode::OK);
+
     let (state, app) = profiled_app().await;
 
     let invalid_started = Instant::now();
@@ -130,7 +152,8 @@ async fn middleware_refusals_are_profiled_and_handler_responses_release_once() {
     assert_eq!(profile_marker(&unauthorized), Some("middleware-acceptance"));
 
     // Return to dev mode so a real handler response supplies the double-delay
-    // witness. A 120 ms single release stays well below the 240 ms failure.
+    // witness. Compare its added cost with the measured unprofiled handler
+    // and profiled refusal instead of imposing a machine-speed ceiling.
     let _ = state
         .clone()
         .with_policy_auth_posture(PolicyAuthMode::Dev, PolicyAuthMode::Dev);
@@ -149,9 +172,13 @@ async fn middleware_refusals_are_profiled_and_handler_responses_release_once() {
         handler_elapsed >= DELAY,
         "handler response: {handler_elapsed:?}"
     );
+    let handler_profile_cost = handler_elapsed.saturating_sub(normal_handler_elapsed);
+    let refusal_profile_cost = invalid_elapsed.saturating_sub(normal_refusal_elapsed);
     assert!(
-        handler_elapsed < Duration::from_millis(220),
-        "handler response appears double-delayed: {handler_elapsed:?}"
+        handler_profile_cost < refusal_profile_cost + DELAY / 2,
+        "handler response appears double-delayed: handler={handler_elapsed:?} \
+         normal_handler={normal_handler_elapsed:?} refusal={invalid_elapsed:?} \
+         normal_refusal={normal_refusal_elapsed:?}"
     );
     assert_eq!(profile_marker(&handled), Some("middleware-acceptance"));
 
@@ -166,18 +193,10 @@ async fn middleware_refusals_are_profiled_and_handler_responses_release_once() {
     assert!(action_started.elapsed() >= DELAY);
     assert_eq!(profile_marker(&action), Some("middleware-acceptance"));
 
-    let (_, normal) = test_app();
-    let normal_started = Instant::now();
-    let normal_refusal = normal
-        .oneshot(raw_json("/query/listTodos", "{"))
-        .await
-        .expect("normal invalid query response");
-    let normal_elapsed = normal_started.elapsed();
-    assert_eq!(normal_refusal.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(profile_marker(&normal_refusal), None);
     assert!(
-        normal_elapsed < Duration::from_millis(100),
-        "normal refusal should be fast: {normal_elapsed:?}"
+        normal_refusal_elapsed < invalid_elapsed,
+        "profiled refusal must be slower than its measured normal baseline: \
+         normal={normal_refusal_elapsed:?} profiled={invalid_elapsed:?}"
     );
 }
 

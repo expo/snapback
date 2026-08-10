@@ -59,7 +59,13 @@ impl Drop for RamDisk {
 #[test]
 fn out_of_space_copy_fails_closed_and_recover_reaps_the_staging_residue() {
     let Some(disk) = RamDisk::create() else {
-        eprintln!("skipping: this host cannot mount an unprivileged RAM disk");
+        println!(
+            "{{\"schemaVersion\":\"snapback.test-capability-receipt.v1\",\
+             \"suite\":\"instance-fork-disk-pressure-v1\",\
+             \"capability\":\"unprivileged-macos-ram-disk\",\
+             \"status\":\"skipped\",\"executedCount\":0,\
+             \"reason\":\"ram-disk-mount-unavailable\"}}"
+        );
         return;
     };
     let directory = tempfile::tempdir().expect("parent fixture");
@@ -128,4 +134,10 @@ fn out_of_space_copy_fails_closed_and_recover_reaps_the_staging_residue() {
         .query_row("SELECT COUNT(*) FROM ballast", [], |row| row.get(0))
         .expect("parent intact");
     assert_eq!(rows, 8);
+    println!(
+        "{{\"schemaVersion\":\"snapback.test-capability-receipt.v1\",\
+         \"suite\":\"instance-fork-disk-pressure-v1\",\
+         \"capability\":\"unprivileged-macos-ram-disk\",\
+         \"status\":\"executed\",\"executedCount\":1,\"reason\":null}}"
+    );
 }

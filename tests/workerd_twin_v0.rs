@@ -18,6 +18,7 @@ use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,
     FunctionRuntime, HandlerInput, IbexModule, SchemaManifest, SeedData, TableManifest,
 };
+use snapback::runtime::with_development_handler_error_exposure;
 use snapback::workerd_exec::{
     HandlerBackend, HostCallTestMode, InvokeAuthTestMode, detect_workerd_binary,
     with_forced_backend, with_host_call_test_mode, with_invoke_auth_test_mode,
@@ -255,11 +256,37 @@ fn input(args: Value) -> HandlerInput {
     }
 }
 
-/// Skip cleanly (capability fact, not failure) when workerd is unavailable.
+fn workerd_capability_receipt(status: &str, executed_count: u64, reason: Option<&str>) {
+    println!(
+        "{}",
+        json!({
+            "schemaVersion": "snapback.test-capability-receipt.v1",
+            "suite": "workerd-twin-v0",
+            "capability": "workerd",
+            "status": status,
+            "executedCount": executed_count,
+            "reason": reason,
+        })
+    );
+}
+
+fn require_workerd_capability() -> bool {
+    if detect_workerd_binary().is_some() {
+        return true;
+    }
+    workerd_capability_receipt("skipped", 0, Some("workerd-binary-missing"));
+    assert_ne!(
+        std::env::var("SNAPBACK_EXPECT_WORKERD").as_deref(),
+        Ok("1"),
+        "workerd was expected by this proof gate but no twin case executed"
+    );
+    false
+}
+
+/// Skip with a structured capability receipt when workerd is optional.
 macro_rules! require_workerd {
     () => {
-        if detect_workerd_binary().is_none() {
-            println!("SNAPBACK_CAPABILITY_WORKERD_MISSING: skipping workerd twin test");
+        if !require_workerd_capability() {
             return;
         }
     };
@@ -280,6 +307,16 @@ fn probe(snapback: &LocalSnapback, backend: HandlerBackend, handler: &str, name:
         )
     });
     output.rows[0].clone()
+}
+
+#[test]
+fn workerd_capability_gate_executes_at_least_one_twin() {
+    require_workerd!();
+    let snapback = configured();
+    let output = on_v8(|| snapback.invoke_query("listItems", input(json!({}))))
+        .expect("workerd capability-gate query");
+    assert!(output.rows.is_empty());
+    workerd_capability_receipt("executed", 1, None);
 }
 
 #[test]
@@ -629,11 +666,13 @@ fn settlement_diagnostic_getters_cannot_escape_the_failure_envelope() {
             ("stack", "safe settlement failure"),
         ] {
             let mut snapback = configured();
-            let error = with_forced_backend(backend, || {
-                snapback.invoke_mutation(
-                    "settlementHostileErrorGetterProbe",
-                    input(json!({ "getter": getter })),
-                )
+            let error = with_development_handler_error_exposure(|| {
+                with_forced_backend(backend, || {
+                    snapback.invoke_mutation(
+                        "settlementHostileErrorGetterProbe",
+                        input(json!({ "getter": getter })),
+                    )
+                })
             })
             .expect_err("a hostile diagnostic getter must remain a handled failure");
             assert_eq!(

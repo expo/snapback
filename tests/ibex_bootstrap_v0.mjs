@@ -55,7 +55,11 @@ ibex_hermes_linux_source_cache_key() { printf 'fixture-linux\\n'; }
       const frameworks = join(base, 'ios', 'Frameworks');
       touch(join(frameworks, 'hermes-headers', 'hermes', 'hermes.h'));
       touch(join(frameworks, 'hermes-headers', 'jsi', 'jsi.h'));
-      touch(join(frameworks, 'hermes.framework', 'hermes'));
+      mkdirSync(join(frameworks, 'hermes.framework'), { recursive: true });
+      copyFileSync(
+        join(ROOT, 'vendor', 'ibex', 'ios', 'Frameworks', 'hermesvm.framework', 'Versions', '1', 'hermesvm'),
+        join(frameworks, 'hermes.framework', 'hermes'),
+      );
       touch(join(frameworks, 'hermes-profile-provenance.json'), `{\n  "cacheKey": "${cacheKey}",\n  "fixture": true\n}\n`);
       touch(join(base, 'tools', 'hermes', `hermesc-macos-${hermesArch}`));
       return join(frameworks, 'hermes-profile-provenance.json');
@@ -63,7 +67,11 @@ ibex_hermes_linux_source_cache_key() { printf 'fixture-linux\\n'; }
     if (platform === 'linux') {
       touch(join(base, 'linux', 'hermes-headers', 'hermes', 'hermes.h'));
       touch(join(base, 'linux', 'hermes-headers', 'jsi', 'jsi.h'));
-      touch(join(base, 'linux', 'lib', 'libhermesvm.so'));
+      mkdirSync(join(base, 'linux', 'lib'), { recursive: true });
+      copyFileSync(
+        join(ROOT, 'vendor', 'ibex', 'linux', 'lib', 'libhermesvm.so'),
+        join(base, 'linux', 'lib', 'libhermesvm.so'),
+      );
       const receipt = join(base, 'linux', 'lib', 'hermes-profile-provenance.json');
       touch(receipt, `{\n  "cacheKey": "${cacheKey}",\n  "fixture": true\n}\n`);
       touch(join(base, 'tools', 'hermes', `hermesc-linux-${hermesArch}`));
@@ -72,14 +80,45 @@ ibex_hermes_linux_source_cache_key() { printf 'fixture-linux\\n'; }
     return null;
   }
 
+  function initializePinnedVendor(checkout, vendor) {
+    for (const cwd of [vendor, checkout]) {
+      const initialized = spawnSync('git', ['init', '-q'], { cwd, encoding: 'utf8' });
+      assert.equal(initialized.status, 0, initialized.stderr);
+      spawnSync('git', ['config', 'user.email', 'fixture@example.invalid'], { cwd });
+      spawnSync('git', ['config', 'user.name', 'Snapback Fixture'], { cwd });
+      const added = spawnSync('git', ['add', '-A'], { cwd, encoding: 'utf8' });
+      assert.equal(added.status, 0, added.stderr);
+      const committed = spawnSync('git', ['commit', '-qm', 'fixture'], {
+        cwd,
+        encoding: 'utf8',
+      });
+      assert.equal(committed.status, 0, committed.stderr);
+    }
+    return spawnSync('git', ['-C', vendor, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+    }).stdout.trim();
+  }
+
   if (!['darwin', 'linux'].includes(platform)) {
-    process.stdout.write(`ibex_bootstrap_v0 SKIP: unsupported fixture platform ${platform}\n`);
+    process.stdout.write(`${JSON.stringify({
+      schemaVersion: 'snapback.test-capability-receipt.v1',
+      suite: 'ibex-bootstrap-v0',
+      capability: 'ibex-bootstrap-fixture-platform',
+      status: 'skipped',
+      executedCount: 0,
+      reason: `unsupported-platform:${platform}`,
+    })}\n`);
     process.exit(0);
   }
 
   installProfileAuthorities(vendor);
   const matchingKey = platform === 'darwin' ? 'fixture-debug' : 'fixture-linux';
   installArtifacts(vendor, matchingKey);
+  const vendorCommit = initializePinnedVendor(checkout, vendor);
+  const artifactStamp = platform === 'darwin'
+    ? join(vendor, 'ios', 'Frameworks', '.snapback-ibex-gitlink')
+    : join(vendor, 'linux', 'lib', '.snapback-ibex-gitlink');
+  touch(artifactStamp, `${vendorCommit}\n`);
 
   const peerCli = join(peer, 'target', 'debug', 'ibex');
   touch(peerCli, '#!/usr/bin/env sh\nexit 0\n');
@@ -154,6 +193,7 @@ printf '{"ok":true,"receipt":{"buildIdentity":{"gitCommit":"%s","gitDirty":false
   installProfileAuthorities(driftVendor);
   const driftReceipt = installArtifacts(driftVendor, 'fixture-stale');
   installArtifacts(driftPeer, 'fixture-newer');
+  initializePinnedVendor(driftCheckout, driftVendor);
 
   const download = join(driftVendor, 'scripts', 'download-hermes.sh');
   touch(download, `#!/usr/bin/env bash
@@ -178,7 +218,14 @@ printf '%s\\n' '{' '  "cacheKey": "${matchingKey}",' '  "fixture": true' '}' > "
   assert.match(driftResult.stdout, /running vendored Ibex Hermes bootstrap/);
   assert.match(readFileSync(driftReceipt, 'utf8'), new RegExp(matchingKey));
 
-  process.stdout.write('ibex_bootstrap_v0 OK\n');
+  process.stdout.write(`${JSON.stringify({
+    schemaVersion: 'snapback.test-capability-receipt.v1',
+    suite: 'ibex-bootstrap-v0',
+    capability: 'ibex-bootstrap-fixture-platform',
+    status: 'executed',
+    executedCount: 1,
+    reason: null,
+  })}\n`);
 } finally {
   rmSync(scratch, { recursive: true, force: true });
 }
