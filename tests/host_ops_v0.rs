@@ -905,6 +905,7 @@ async fn p6_ready_file_descriptor_is_written_and_validates() {
     let dir = tempfile::tempdir().expect("tempdir");
     let ready_path = dir.path().join("ready.json");
     let args = snapback::cli::Args {
+        activate_startup_successor: false,
         host: "127.0.0.1".to_owned(),
         port: Some(0),
         db: PathBuf::from(".snapback/unused.sqlite3"),
@@ -969,6 +970,7 @@ async fn p6_secret_read_root_sidecar_does_not_survive_descriptor_custody() {
     let dir = tempfile::tempdir().expect("tempdir");
     let ready_path = dir.path().join("dev.ready.json");
     let args = snapback::cli::Args {
+        activate_startup_successor: false,
         host: "127.0.0.1".to_owned(),
         port: Some(0),
         db: PathBuf::from(".snapback/unused.sqlite3"),

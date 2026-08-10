@@ -34,6 +34,7 @@ pub mod admin_secret_read;
 pub(crate) mod agent_safe_publication;
 #[doc(hidden)]
 pub mod api_envelope;
+pub(crate) mod ask;
 #[doc(hidden)]
 pub mod app_data_result;
 #[doc(hidden)]

@@ -36,6 +36,8 @@ fn oauth_manifest_requires_explicit_bearer_opt_in_and_exact_exposed_bundles() {
         InvitedBy::Operators,
     ));
     schema.api = Some(ApiManifest {
+        ask: None,
+        budgets: None,
         enabled: true,
         disclosure: ApiDisclosure::ExposedOnly,
         functions: BTreeMap::from([(
@@ -176,11 +178,14 @@ fn sessions_schema() -> SchemaManifest {
 
 #[test]
 fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
+    // api.budgets landed with LLP 0204 S4-C: an empty budgets block now
+    // parses (inert without api.ask); the meaningful refusals are the
+    // ask-without-complete-budgets validation matrix.
     assert!(serde_json::from_value::<ApiManifest>(json!({
         "enabled": true,
         "budgets": {}
     }))
-    .is_err());
+    .is_ok());
 
     let mut dev_api = SchemaManifest {
         api: Some(ApiManifest::default()),
@@ -193,6 +198,8 @@ fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
 
     dev_api = sessions_schema();
     dev_api.api = Some(ApiManifest {
+        ask: None,
+        budgets: None,
         enabled: true,
         ..ApiManifest::default()
     });
@@ -223,6 +230,8 @@ fn api_manifest_is_sessions_only_explicit_default_closed_and_pair_validated() {
         InvitedBy::Operators,
     ));
     schema.api = Some(ApiManifest {
+        ask: None,
+        budgets: None,
         enabled: true,
         disclosure: ApiDisclosure::ExposedOnly,
         functions: BTreeMap::from([(

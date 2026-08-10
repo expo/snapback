@@ -88,6 +88,12 @@ pub(crate) enum GrantTier {
     Mutation,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum GrantSurface {
+    Ask,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(untagged, deny_unknown_fields)]
 pub(crate) enum GrantScopeRequest {
@@ -98,6 +104,9 @@ pub(crate) enum GrantScopeRequest {
     },
     Tier {
         tier: GrantTier,
+    },
+    Surface {
+        surface: GrantSurface,
     },
 }
 
@@ -128,6 +137,8 @@ pub(crate) struct PendingGrantRequest {
     pub registration_provenance: String,
     pub owner_assumption: AgentOwnershipAssumption,
     pub owner_assumption_warning: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_egress_disclosure: Option<String>,
     pub scopes: Vec<ExactGrantScope>,
     pub created_at_ms: u64,
     pub expires_at_ms: u64,
@@ -1058,6 +1069,15 @@ pub(super) fn resolve_delegated_scopes_on(
                     }
                 }
             }
+            GrantScopeRequest::Surface { surface: GrantSurface::Ask } => {
+                let scope = exact_scope_on(
+                    tx,
+                    super::auth_scope_bases::ASK_SCOPE_ID,
+                    ScopedFunctionKind::Query,
+                )?
+                .ok_or_else(grant_scope_invalid)?;
+                scopes.insert(scope);
+            }
         }
     }
     if scopes.is_empty() || scopes.len() > GRANT_SCOPE_ENTRY_CAP {
@@ -1236,6 +1256,13 @@ fn pending_request_on(
     let (display_name, provenance, owner_user_id) = agent_consent_identity_on(tx, agent_user_id)?;
     let (owner_assumption, owner_assumption_warning) =
         owner_assumption(&owner_user_id, effective_user_id);
+    let data_egress_disclosure = scopes
+        .iter()
+        .any(|scope| scope.function_id == super::auth_scope_bases::ASK_SCOPE_ID)
+        .then(|| {
+            "Allows application data returned by separately granted query scopes to be sent to the app-declared third-party model provider; call receipts are provenance, not proof of answer derivation."
+                .to_owned()
+        });
     Ok(PendingGrantRequest {
         request_id: request_id.to_owned(),
         effective_user_id: effective_user_id.to_owned(),
@@ -1244,6 +1271,7 @@ fn pending_request_on(
         registration_provenance: provenance,
         owner_assumption,
         owner_assumption_warning,
+        data_egress_disclosure,
         scopes: scopes.to_vec(),
         created_at_ms,
         expires_at_ms,
@@ -2037,6 +2065,50 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM _auth_grants", [], |row| row.get(0))
             .unwrap();
         assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn ask_surface_scope_renders_the_data_egress_disclosure() {
+        let random = CounterRandom::new();
+        let (mut db, credential) = ready(&random);
+        scope_basis(
+            &db,
+            super::super::auth_scope_bases::ASK_SCOPE_ID,
+            "query",
+            false,
+        );
+        scope_basis(&db, "fn:read", "query", false);
+
+        let pairing = db.mint_pairing_code("user-a", 1_200, &random).unwrap();
+        let PairingPresentation::Created(request) = db
+            .present_pairing_code(
+                &credential,
+                &pairing.request_id,
+                &pairing.secret,
+                &[
+                    GrantScopeRequest::Surface {
+                        surface: GrantSurface::Ask,
+                    },
+                    GrantScopeRequest::Exact {
+                        function_id: "fn:read".to_owned(),
+                        kind: ScopedFunctionKind::Query,
+                    },
+                ],
+                1_201,
+            )
+            .unwrap()
+        else {
+            panic!("first presentation must create");
+        };
+        assert!(request
+            .scopes
+            .iter()
+            .any(|scope| scope.function_id == super::super::auth_scope_bases::ASK_SCOPE_ID));
+        let disclosure = request
+            .data_egress_disclosure
+            .expect("ask consent must describe third-party model egress");
+        assert!(disclosure.contains("third-party model"));
+        assert!(disclosure.contains("provenance, not proof"));
     }
 
     #[test]

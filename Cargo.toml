@@ -39,6 +39,9 @@ hmac = "0.12"
 http-body = "1"
 ibex-runtime = { path = "vendor/ibex" }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+# Default features pull remote-$ref HTTP/TLS dependencies. Ask validates only
+# caller-supplied in-memory schemas, so keep the file-only resolver.
+jsonschema = { version = "0.46.8", default-features = false, features = ["resolve-file"] }
 kamadak-exif = "0.6"
 libc = "0.2"
 regex = "1"
@@ -86,10 +89,6 @@ windows-sys = { version = "0.61.2", features = [
 ] }
 
 [dev-dependencies]
-# Default features pull resolve-http (reqwest + rustls + aws-lc-sys, compiled
-# from source) for remote $ref resolution. Every use is validator_for() over an
-# in-memory schema, so only the dependency-free resolve-file is kept.
-jsonschema = { version = "0.46.8", default-features = false, features = ["resolve-file"] }
 syn = { version = "2.0", features = ["full", "visit"] }
 # test-util enables tokio's paused clock so the admitted-body ingest deadline
 # (LLP 0058#admitted-body-ingestion) is testable without a 20-second wait.

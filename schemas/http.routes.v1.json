@@ -736,6 +736,15 @@
     {
       "class": "AppData",
       "credential_resolution": "LegacyBodyAuth",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/api/v1/ask",
+      "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "LegacyBodyAuth",
       "inputSchema": {
         "$ref": "mutation.input.schema.json"
       },

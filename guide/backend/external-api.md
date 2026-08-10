@@ -4,7 +4,7 @@ id: backend.external-api
 order: 19
 audience: agent-first
 capabilities: [api.external-exposure]
-authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/api_envelope.rs, src/server.rs, src/server/oauth.rs, src/storage/auth_integrations.rs, src/storage/auth_agent_credentials.rs, src/auth/invocation.rs, src/telemetry.rs, src/telemetry_query.rs]
+authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/api_envelope.rs, src/ask.rs, src/server.rs, src/server/oauth.rs, src/storage/ask_spend.rs, src/storage/auth_integrations.rs, src/storage/auth_agent_credentials.rs, src/auth/invocation.rs, src/telemetry.rs, src/telemetry_query.rs]
 examples: [packages/snapback-codegen/auth-artifacts.test.mjs]
 status: current
 targets: [local]
@@ -17,8 +17,8 @@ reviewed-commit: 339e9fed3500daece2ad90de0d21018e1b00a314
 
 > **Local target only**, and deliberately partial: the exposure core,
 > `/api/v1` family, generated projections, integration records, and the OAuth
-> facade are shipped; remote MCP and billing-grade metering remain LLP 0204
-> S2 work. Loss-tolerant per-caller telemetry attribution and console visibility
+> facade, remote MCP, and the read-only `ask` v1 budget ledger are shipped.
+> General billing-grade metering remains incomplete. Loss-tolerant per-caller telemetry attribution and console visibility
 > are shipped, but are not a non-shedding usage ledger. Hosted targets refuse the facade and granted external lanes until the LLP 0039
 > deployment-security contract lands.
 
@@ -46,7 +46,9 @@ it means no new credentialed onboarding):
   function names in `api.functions` are authoring and activation errors.
 - `since` is an optional additive-only stamp (no deprecation machinery
   exists yet; that waits for the first real deprecation).
-- `budgets` is refused until LLP 0204 S2 lands (the diagnostic says so).
+- `api.budgets.ask` is accepted independently and becomes enforcement
+  authority only when `api.ask.enabled` is true. An enabled ask declaration
+  without every required budget line is refused at generation and activation.
 - `oauth.enabled` requires `api.enabled`. The current facade is bearer-only,
   so `oauth.bearer: true` is an explicit acknowledgment of that weaker
   custody posture; omitting it refuses activation. `oauth.bundles` maps
@@ -85,7 +87,7 @@ the bare finite routes with external-lane semantics:
 - There is no `/api/v1` authorized-lease mint; live data for third parties
   is documented re-polling in v1.
 
-```sh
+```sh reason="basic bearer invocation example using the documented environment placeholders"
 curl -X POST "$APP_BASE_URL/api/v1/query/listTodos" \
   -H 'content-type: application/json' \
   -H "authorization: Bearer $APP_API_TOKEN" \
@@ -120,6 +122,87 @@ Served alongside the envelope, all derived from the same exposed set:
 Exposed queries whose result contract declares a large row bound
 (`maxItems > 100`) without a cursor argument get the
 `SNAPBACK_API_PAGINATION_RECOMMENDED` lint at generation time.
+
+## Read-only near-data `ask`
+
+`POST /api/v1/ask` runs a host-managed model loop over the current exposed
+**query** catalog. Mutations and actions are never offered as tools in v1,
+regardless of the caller's broader grant. The same tool is advertised by the
+remote MCP server when enabled; MCP v1 always waits for the synchronous final
+envelope and does not stream.
+
+Enable it with a complete budget declaration:
+
+```js fragment reason="ask declaration shape; values are application policy, not recommended universal limits"
+api: {
+  enabled: true,
+  ask: {
+    enabled: true,
+    billing: 'caller-key',
+    model: { provider: 'openai-compatible', model: 'provider-model-id' },
+  },
+  budgets: { ask: {
+    perRequest: { maxTokens: 2000, maxSteps: 8, maxWallMs: 30000 },
+    perPrincipalDay: { maxTokens: 20000 },
+    perIntegrationDay: { maxTokens: 10000 },
+    appMonthly: { maxTokens: 500000 },
+    resultVolume: {
+      maxBytes: 262144,
+      maxRows: 500,
+      perPrincipalDayBytes: 2097152,
+    },
+  } },
+}
+```
+
+The single v1 provider class is `openai-compatible`. That exact value uses
+the OpenAI-compatible `/v1/chat/completions` endpoint; a deployment/test may
+declare `openai-compatible:https://provider.example/v1`. Plain HTTP is
+accepted only for a loopback test provider. Provider network use still
+requires the LLP 0009 guarded-egress switch `SNAPBACK_OUTBOUND_ACTIONS=1`.
+The earlier LLP 0204 D5 reference to LLP 0070 for this gate is a mis-cite; the
+implemented authority is LLP 0009 plus the LLP 0036 target secret seam.
+
+With `billing: 'app'`, `model.secret` names an LLP 0036 config entry. Its value
+is runtime-only and never appears in the manifest, database, or response. With
+`billing: 'caller-key'`, send the provider credential only in
+`X-Snapback-Ask-Provider-Key`; it receives an invocation-lifetime redactor and
+is neither persisted nor logged.
+
+App-paid asks require the distinguished `snapback:ask:data-egress` consent
+scope (ordinary signed-in sessions count as their own granted principal).
+Caller-key asks require at least one granted read scope. Anonymous and
+declared-client lanes are refused with `SNAPBACK_API_ASK_AUTHORITY_REQUIRED`
+and an authority-acquisition escalation.
+
+```sh
+curl -X POST "$APP_BASE_URL/api/v1/ask" \
+  -H 'content-type: application/json' \
+  -H "authorization: Bearer $APP_API_TOKEN" \
+  -H "X-Snapback-Ask-Provider-Key: $APP_PROVIDER_KEY" \
+  --data '{"task":"Summarize the open incidents","stream":false}'
+```
+
+Admission transactionally reserves the complete per-request token and result-
+byte maxima in `_snapback_ask_spend`; settlement releases that reservation and
+charges actual observed usage. A crash can therefore strand capacity only in
+the conservative direction. Provider usage fields are authoritative when
+present; otherwise the host estimates bytes/4 and marks `estimated: true`.
+Token, step, wall-time, query-result byte/row, principal-day, optional
+integration-day, and app-month limits all fail with typed diagnostics.
+
+The final envelope names provider/model, token accounting, current durable
+spend, and `provenanceNotProof.calls`. Each call has the function name plus
+domain-separated per-run HMAC commitments of arguments and result. These
+receipts record host-observed provenance; they do not prove that the model's
+answer was derived from those values. `resultSchema` is optional. When given,
+the host validates the final tool arguments and permits two repair turns
+before `SNAPBACK_API_ASK_RESULT_SCHEMA_MISMATCH`.
+
+`stream` defaults to true on HTTP. The request runs as a platform-managed
+attempt and settles the existing private transcript; `stream: false` returns
+only the synchronous final envelope. The current v1 provider adapter does not
+publish intermediate model tokens as live chunks.
 
 ## OAuth 2.1 compatibility facade
 

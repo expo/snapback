@@ -5,7 +5,8 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-09 (LLP 0204 S4 Landing B registers `/api/v1/run` with
+**Revised:** 2026-08-09 (LLP 0204 S4 Landing C registers read-only
+`/api/v1/ask` and MCP `ask`; Landing B registered `/api/v1/run` with
 bounded/digest validation and the evidenced untrusted-code refusal; earlier S4 Landing A private
 stream transcript and cancel routes, S2 Landing E remote MCP server, and Landing C local OAuth facade;
 earlier Landing B declared-client operator routes, Landing A integration lifecycle, and S1 `/api/v1` plus
@@ -1627,8 +1628,9 @@ from the same current envelope: the canonical envelope, OpenAPI projection,
 and agent skill. `describe_api` generates their HTTP discovery pointers and
 the OAuth metadata pointers. At S2 Landing E, `run_code` and `ask` were
 deliberately absent and advertised as deferred to LLP 0204 S4. S4 Landing B
-now registers `run_code` with the same per-target typed capability refusal as
-`/api/v1/run`; `ask` remains deferred to S4-C.
+registered `run_code` with the same per-target typed capability refusal as
+`/api/v1/run`. S4 Landing C registers `ask` only when `api.ask.enabled` and
+its complete budgets are active; MCP execution is synchronous in v1.
 
 Bearer facade tokens, anonymous external admission, exposure and exact grant
 scope, suspension, network/declared/integration budgets, and caller
@@ -1701,7 +1703,40 @@ passes the evidence gate reaches one explicit author-promotion match arm which
 still returns the same typed refusal today. The route's schema-export row is
 honestly null until that promotion lands. MCP `run_code` is a real advertised
 tool with the same target conditionality and refusal; `describe_api` no longer
-lists it as deferred. `ask` remains deferred to S4-C.
+lists it as deferred.
+
+### Read-only near-data ask
+
+`POST /api/v1/ask` is a fifth exact `/api/v1` AppData row with the same dev
+tuple and sessions overlay as `/api/v1/run`: `AppAuth` / `LegacyBodyAuth` /
+`ClientAsserted` becomes `Public` / `OptionalSessionOrScopedToken` /
+`ResolvedCaller`, legacy body authority is rejected, and the response is
+`ApplicationData`. `InvocationSource::HttpAsk` is authority-only. Each nested
+catalog query derives an ordinary `HttpQuery` target from the unchanged
+prepared caller, admission lease, grant scopes, and publication fences.
+
+The handler's closed body is `{ task, resultSchema?, stream? }`; there is no
+`args` or mutation carrier. The distinguished caller-key provider credential
+is accepted only on this POST route in `X-Snapback-Ask-Provider-Key`, never a
+path, query, log, transcript, or durable value. The catalog intersects the
+current envelope projection with exposed `Query`/`LiveQuery` definitions, so
+mutation and action tools are absent regardless of grant.
+
+App-paid execution requires the `snapback:ask:data-egress` consent scope;
+caller-key billing requires a granted read principal. Anonymous and declared
+external lanes therefore reach a typed 403 after ordinary external admission,
+never provider egress. The exact manifest-activated ledger reserves maximum
+tokens/result bytes before execution and transactionally replaces the
+reservation with actual usage after every terminal outcome. Streaming-default
+HTTP requests use the existing host-owned attempt and private transcript
+records; MCP forces the same final envelope synchronously and has no v1 MCP
+stream.
+
+The schema-export row is honestly null because the body and receipt envelope
+remain handler-owned DTOs rather than committed standalone artifacts. Route
+registry parity, sessions forbidden-field probes, invocation-source mapping,
+network-lane classification, status-family review, guide capability/surface
+maps, and MCP tool discovery cover the new row.
 
 ## Status
 

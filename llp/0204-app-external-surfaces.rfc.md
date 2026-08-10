@@ -6,12 +6,14 @@
 Hosted platform, Developer experience, Docs
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** 2026-08-09 (S4 Landing B registers `/api/v1/run` and MCP
-`run_code` with bounded/digest validation and the shared per-target typed
-untrusted-code refusal; no target is promoted and no checker/executor ships.
-Earlier S4 Landing A implements the bounded private streaming-action primitive
-described in D9.1; `ask`, SSE, shared viewing, history queries, and token
-accounting remain deferred).
+**Revised:** 2026-08-09 (S4 Landing C implements read-only `ask` v1 over
+exposed queries: manifest-declared provider/billing and complete budgets,
+durable conservative reserve/actual-settle accounting, caller-scoped provider
+custody, result-schema repair, HMAC-minimized provenance receipts, private
+transcript settlement, and synchronous MCP parity. S4 Landing B registered
+`/api/v1/run`; S4 Landing A implemented the bounded private streaming-action
+primitive. SSE token chunks, shared viewing, and history queries remain
+deferred).
 2026-08-08 (v0.7 — **Accepted** by author direction after
 the OQ8 refinement: the declared-tier contact requirement is satisfied
 by an e-mail address embedded in the client-id string itself, no
@@ -955,6 +957,18 @@ each entry keeps the question and records the ruling.
 
 ## Revision history
 
+- 2026-08-09 — S4 Landing C implemented D5 and the OQ5/OQ7/OQ8 rulings:
+  `api.ask` plus complete `api.budgets.ask`, the manifest-activated exact
+  `_snapback_ask_spend` ledger, `POST /api/v1/ask`, and MCP `ask`. V1 is
+  read-only and catalogues only exposed queries; app-paid authority consumes
+  the distinguished data-egress consent scope, caller-key authority requires
+  a granted read principal, and anonymous/declared callers are refused.
+  Admission reserves per-request maxima transactionally and settlement swaps
+  them for actual token/result-byte spend. Receipts name provider/model,
+  token accounting, current spend, and per-run domain-separated HMAC call
+  commitments under a `provenanceNotProof` field. The D5 phrase “LLP 0070
+  guarded egress” was a mis-cite: the implementation follows LLP 0009's
+  guarded outbound-action gate and LLP 0036's declared runtime secret seam.
 - 2026-08-09 — S4 Landing A implemented the D9.1 private streaming-action
   primitive: action-only manifest fact and implementation identity,
   `ctx.stream.emit`, bounded server-authorized ephemeral delivery, initiator

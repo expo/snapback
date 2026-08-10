@@ -639,9 +639,11 @@ impl LocalDatabase {
                 // must precede raw SQLite constraint failures.
                 // @ref LLP 0056#declaring-a-membership-table
                 apply_schema_tables(tx, &schema_manifest)?;
-                if let Some(functions) = trusted_predecessor_functions.as_ref() {
-                    crate::storage::stream_transcripts::activate_manifest_in(tx, functions)?;
-                }
+                crate::storage::stream_transcripts::activate_manifests_in(
+                    tx,
+                    &schema_manifest,
+                    trusted_predecessor_functions.as_ref(),
+                )?;
                 super::preflight_sequence_enrollments(
                     tx,
                     &schema_manifest,
@@ -874,14 +876,21 @@ impl LocalDatabase {
             &staged.schema_manifest,
         )?;
         crate::storage::declared_clients::activate_manifest_in(&tx, &staged.schema_manifest)?;
-        if let Some(functions) = functions {
-            crate::storage::stream_transcripts::activate_manifest_in(&tx, functions)?;
-        }
+        crate::storage::ask_spend::activate_manifest_in(&tx, &staged.schema_manifest)?;
+        crate::storage::stream_transcripts::activate_manifests_in(
+            &tx,
+            &staged.schema_manifest,
+            functions,
+        )?;
         // @ref LLP 0055#grants — initial sessions activation seeds the durable
         //   exact-function basis rows in the same cut as the existing LLP 0053
         //   activation event. No grant can observe an empty/intermediate set.
         if let Some(functions) = functions {
-            super::auth_scope_bases::reconcile_auth_scope_bases_on(&tx, functions)?;
+            super::auth_scope_bases::reconcile_auth_scope_bases_with_schema_on(
+                &tx,
+                functions,
+                &staged.schema_manifest,
+            )?;
         }
         transaction_step_completed(0)?;
 
@@ -1349,7 +1358,11 @@ impl LocalDatabase {
                 let predecessor_head = current_version_on(tx)?;
                 super::preflight_membership_activation_sources(tx, &manifest, predecessor_head)?;
                 apply_schema_tables(tx, &manifest)?;
-                crate::storage::stream_transcripts::activate_manifest_in(tx, &functions)?;
+                crate::storage::stream_transcripts::activate_manifests_in(
+                    tx,
+                    &manifest,
+                    Some(&functions),
+                )?;
                 super::preflight_sequence_enrollments(
                     tx,
                     &manifest,
@@ -1362,7 +1375,11 @@ impl LocalDatabase {
                     //   authorization event share this transaction; the
                     //   returned witness drives connection/live projection
                     //   before successor admission reopens.
-                    super::auth_scope_bases::reconcile_auth_scope_bases_on(tx, &functions)?;
+                    super::auth_scope_bases::reconcile_auth_scope_bases_with_schema_on(
+                        tx,
+                        &functions,
+                        &manifest,
+                    )?;
                 }
                 let mut seeded_changes = Vec::new();
                 let seed_outcome = match seed {
@@ -1877,6 +1894,7 @@ fn apply_schema_tables(tx: &Transaction<'_>, manifest: &SchemaManifest) -> Snapb
     crate::push::activate_manifest_in(tx, manifest.push_seam.as_ref())?;
     crate::storage::auth_integrations::activate_manifest_in(tx, manifest)?;
     crate::storage::declared_clients::activate_manifest_in(tx, manifest)?;
+    crate::storage::ask_spend::activate_manifest_in(tx, manifest)?;
     Ok(())
 }
 

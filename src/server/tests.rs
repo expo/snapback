@@ -431,7 +431,10 @@ use crate::local::{
 };
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ApiDisclosure,
-    ApiFunctionExposure, ApiManifest, ApiOAuthBundle, ApiOAuthManifest, AuthInput, AuthManifest,
+    ApiAskBilling, ApiAskBudgets, ApiAskManifest, ApiAskModelManifest,
+    ApiAskPerPrincipalDayBudget, ApiAskPerRequestBudget, ApiAskResultVolumeBudget,
+    ApiAskTokenBudget, ApiBudgetsManifest, ApiFunctionExposure, ApiManifest, ApiOAuthBundle,
+    ApiOAuthManifest, AuthInput, AuthManifest,
     AuthMode, AuthRequirement, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
     CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, FieldManifest, FieldType,
     FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
@@ -459,10 +462,11 @@ use std::fs;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, Condvar, Mutex as StdMutex};
+use std::sync::{Arc, Condvar, Mutex as StdMutex, OnceLock};
 use std::time::{Duration, Instant};
 use syn::visit::Visit;
 use tokio::net::TcpListener;
+use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::sync::{Mutex, Semaphore};
 use tower::ServiceExt as _;
 use uuid::Uuid;
@@ -3531,6 +3535,158 @@ async fn sessions_activation_server_fixture_with_integrations_async() -> AppStat
     .expect("construct integration lifecycle fixture off the async workers")
 }
 
+async fn sessions_activation_server_fixture_with_ask_async(
+    provider_base_url: String,
+    result_max_bytes: u64,
+) -> AppState {
+    tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        let mut functions = activation_functions('2', false);
+        for function in &mut functions.functions {
+            function.api_exposure = Some(ApiFunctionExposure::default());
+        }
+        for name in ["listItems", "queuedWrite"] {
+            functions
+                .functions
+                .iter_mut()
+                .find(|function| function.name == name)
+                .expect("ask fixture function")
+                .api_exposure = Some(ApiFunctionExposure {
+                    expose: true,
+                    since: None,
+                });
+        }
+        sessions_activation_server_fixture_with_api(
+            functions,
+            None,
+            Some(AgentsManifest::explicit(
+                AgentsMode::Disabled,
+                InvitedBy::Operators,
+            )),
+            Some(ApiManifest {
+                enabled: true,
+                functions: BTreeMap::from([
+                    (
+                        "listItems".to_owned(),
+                        ApiFunctionExposure {
+                            expose: true,
+                            since: None,
+                        },
+                    ),
+                    (
+                        "queuedWrite".to_owned(),
+                        ApiFunctionExposure {
+                            expose: true,
+                            since: None,
+                        },
+                    ),
+                ]),
+                ask: Some(ApiAskManifest {
+                    enabled: true,
+                    billing: ApiAskBilling::CallerKey,
+                    model: Some(ApiAskModelManifest {
+                        provider: format!("openai-compatible:{provider_base_url}"),
+                        model: "stub-model".to_owned(),
+                        secret: None,
+                    }),
+                }),
+                budgets: Some(ApiBudgetsManifest {
+                    ask: Some(ApiAskBudgets {
+                        per_request: ApiAskPerRequestBudget {
+                            max_tokens: 100,
+                            max_steps: 6,
+                            max_wall_ms: 5_000,
+                        },
+                        per_principal_day: ApiAskPerPrincipalDayBudget {
+                            max_tokens: 1_000,
+                        },
+                        per_integration_day: Some(ApiAskTokenBudget {
+                            max_tokens: 500,
+                        }),
+                        app_monthly: ApiAskTokenBudget { max_tokens: 10_000 },
+                        result_volume: ApiAskResultVolumeBudget {
+                            max_bytes: result_max_bytes,
+                            max_rows: 100,
+                            per_principal_day_bytes: result_max_bytes.saturating_mul(10),
+                        },
+                    }),
+                }),
+                ..ApiManifest::default()
+            }),
+        )
+    })
+    .await
+    .expect("construct ask activation fixture")
+}
+
+async fn ask_provider_stub(
+    responses: Vec<Value>,
+) -> (String, Arc<StdMutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind ask provider stub");
+    let address = listener.local_addr().expect("ask provider stub address");
+    let captured = Arc::new(StdMutex::new(Vec::new()));
+    let captured_task = captured.clone();
+    let task = tokio::spawn(async move {
+        for response in responses {
+            let (mut socket, _) = listener.accept().await.expect("accept ask provider call");
+            let mut request = Vec::new();
+            let mut buffer = [0_u8; 4096];
+            let body_start = loop {
+                let read = socket.read(&mut buffer).await.expect("read ask provider call");
+                assert!(read > 0, "provider request closed before headers");
+                request.extend_from_slice(&buffer[..read]);
+                if let Some(offset) = request.windows(4).position(|window| window == b"\r\n\r\n") {
+                    break offset + 4;
+                }
+            };
+            let headers = String::from_utf8_lossy(&request[..body_start]);
+            let content_length = headers
+                .lines()
+                .find_map(|line| {
+                    line.split_once(':').and_then(|(name, value)| {
+                        name.eq_ignore_ascii_case("content-length")
+                            .then(|| value.trim().parse::<usize>().ok())
+                            .flatten()
+                    })
+                })
+                .expect("provider request content length");
+            while request.len() - body_start < content_length {
+                let read = socket.read(&mut buffer).await.expect("read provider body");
+                assert!(read > 0, "provider request closed before body");
+                request.extend_from_slice(&buffer[..read]);
+            }
+            let body: Value = serde_json::from_slice(
+                &request[body_start..body_start + content_length],
+            )
+            .expect("provider request JSON");
+            captured_task.lock().unwrap().push(body);
+            let body = serde_json::to_vec(&response).expect("provider response JSON");
+            let head = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+                body.len()
+            );
+            socket.write_all(head.as_bytes()).await.expect("write provider head");
+            socket.write_all(&body).await.expect("write provider body");
+        }
+    });
+    (format!("http://{address}/v1"), captured, task)
+}
+
+static ASK_EGRESS_ENV_TEST_LOCK: OnceLock<StdMutex<()>> = OnceLock::new();
+
+struct AskEgressEnvRestore(Option<std::ffi::OsString>);
+
+impl Drop for AskEgressEnvRestore {
+    fn drop(&mut self) {
+        match self.0.take() {
+            Some(value) => unsafe { std::env::set_var("SNAPBACK_OUTBOUND_ACTIONS", value) },
+            None => unsafe { std::env::remove_var("SNAPBACK_OUTBOUND_ACTIONS") },
+        }
+    }
+}
+
 async fn sessions_activation_server_fixture_with_oauth_async() -> AppState {
     sessions_activation_server_fixture_with_oauth_policy_async(agent_policy(
         AgentsMode::Open,
@@ -3741,11 +3897,11 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
     assert!(initialized["result"]["instructions"]
         .as_str()
         .unwrap()
-        .contains("evidenced untrusted-code profile"));
+        .contains("target-conditional"));
     assert!(initialized["result"]["instructions"]
         .as_str()
         .unwrap()
-        .contains("S4-C"));
+        .contains("synchronous MCP tool"));
 
     let mut rebound = mcp_protocol_request(
         "POST",
@@ -3812,10 +3968,9 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
             "snapback_fn_fn_liveitems",
         ])
     );
-    assert!(listed["result"]["_meta"]["snapback/deferredTools"]["run_code"].is_null());
     assert_eq!(
-        listed["result"]["_meta"]["snapback/deferredTools"]["ask"],
-        "deferred to LLP 0204 S4-C"
+        listed["result"]["_meta"]["snapback/ask"],
+        "disabled-by-manifest"
     );
 
     let described = router
@@ -3839,7 +3994,10 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
         described["result"]["structuredContent"]["runCode"]["path"],
         "/api/v1/run"
     );
-    assert!(described["result"]["structuredContent"]["deferredTools"]["run_code"].is_null());
+    assert_eq!(
+        described["result"]["structuredContent"]["ask"]["enabled"],
+        false
+    );
 
     let run_code = router
         .clone()
@@ -4675,6 +4833,8 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
         )]),
         origins: Some(vec!["https://integration.example:8443".to_owned()]),
         oauth: None,
+        ask: None,
+        budgets: None,
     };
     let state = tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -5150,6 +5310,8 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
         )]),
         origins: None,
         oauth: None,
+        ask: None,
+        budgets: None,
     };
     let full_state = tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -5184,6 +5346,315 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
         .collect::<Vec<_>>();
     assert!(full_names.contains(&"listItems"));
     assert!(full_names.contains(&"liveItems"));
+}
+
+#[tokio::test]
+async fn external_ask_is_granted_read_only_receipted_stream_settled_and_mcp_mirrored() {
+    let _environment_lock = ASK_EGRESS_ENV_TEST_LOCK
+        .get_or_init(|| StdMutex::new(()))
+        .lock()
+        .unwrap();
+    let _environment_restore =
+        AskEgressEnvRestore(std::env::var_os("SNAPBACK_OUTBOUND_ACTIONS"));
+    unsafe { std::env::set_var("SNAPBACK_OUTBOUND_ACTIONS", "1") };
+
+    let query_call = json!({
+        "choices": [{ "message": {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [{
+                "id": "call-query",
+                "type": "function",
+                "function": {
+                    "name": "snapback_fn_fn_listitems",
+                    "arguments": "{}"
+                }
+            }]
+        } }],
+        "usage": { "prompt_tokens": 3, "completion_tokens": 2, "total_tokens": 5 }
+    });
+    let final_call = |id: &str, answer: &str| json!({
+        "choices": [{ "message": {
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [{
+                "id": id,
+                "type": "function",
+                "function": {
+                    "name": crate::ask::FINAL_TOOL_NAME,
+                    "arguments": serde_json::to_string(&json!({ "answer": answer })).unwrap()
+                }
+            }]
+        } }],
+        "usage": { "prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6 }
+    });
+    let (provider_base, captured, provider_task) = ask_provider_stub(vec![
+        query_call,
+        final_call("call-final", "summarized"),
+        final_call("call-mcp-final", "mcp summarized"),
+        json!({
+            "choices": [{ "message": {
+                "role": "assistant", "content": null,
+                "tool_calls": [{
+                    "id": "call-schema-invalid", "type": "function",
+                    "function": {
+                        "name": crate::ask::FINAL_TOOL_NAME,
+                        "arguments": "{\"wrong\":true}"
+                    }
+                }]
+            } }],
+            "usage": { "prompt_tokens": 2, "completion_tokens": 2, "total_tokens": 4 }
+        }),
+        json!({
+            "choices": [{ "message": {
+                "role": "assistant", "content": null,
+                "tool_calls": [{
+                    "id": "call-schema-valid", "type": "function",
+                    "function": {
+                        "name": crate::ask::FINAL_TOOL_NAME,
+                        "arguments": "{\"summary\":\"schema summarized\"}"
+                    }
+                }]
+            } }],
+            "usage": { "prompt_tokens": 2, "completion_tokens": 2, "total_tokens": 4 }
+        }),
+        json!({ "providerEcho": "redaction-sentinel-provider-key" }),
+    ])
+    .await;
+    let expected_provider_identity = format!("openai-compatible:{provider_base}");
+    let anonymous_state =
+        sessions_activation_server_fixture_with_ask_async(provider_base.clone(), 64 * 1024).await;
+    let anonymous = app(anonymous_state)
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/ask")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .header(crate::ask::PROVIDER_KEY_HEADER, "anonymous-secret")
+                .body(Body::from(r#"{"task":"read data","stream":false}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(anonymous.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(anonymous).await["diagnostic"]["code"],
+        "SNAPBACK_API_ASK_AUTHORITY_REQUIRED"
+    );
+
+    let declared_state = sessions_activation_server_fixture_with_ask_async(
+        provider_base.clone(),
+        64 * 1024,
+    )
+    .await;
+    let declared = app(declared_state)
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/ask")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header("x-snapback-auth-client-protocol", "1")
+                .header(
+                    super::SNAPBACK_CLIENT_ID_HEADER,
+                    "ask-crawler/ops@example.test",
+                )
+                .header(crate::ask::PROVIDER_KEY_HEADER, "declared-secret")
+                .body(Body::from(r#"{"task":"read data","stream":false}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(declared.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(declared).await["diagnostic"]["code"],
+        "SNAPBACK_API_ASK_AUTHORITY_REQUIRED"
+    );
+
+    let state = sessions_activation_server_fixture_with_ask_async(provider_base, 64 * 1024).await;
+    let credential = mint_test_credential(&state, "ask-reader@example.test").await;
+    let bearer = credential["token"].as_str().unwrap().to_owned();
+    let router = app(state.clone());
+
+    let mut request = session_auth_http_request(
+        "/api/v1/ask",
+        serde_json::to_vec(&json!({ "task": "summarize items" })).unwrap(),
+        &bearer,
+    );
+    request.headers_mut().insert(
+        HeaderName::from_static(crate::ask::PROVIDER_KEY_HEADER),
+        HeaderValue::from_static("caller-provider-secret"),
+    );
+    let response = router.clone().oneshot(request).await.unwrap();
+    let status = response.status();
+    let response = response_json(response).await;
+    assert_eq!(status, StatusCode::OK, "{response}");
+    assert_eq!(response["result"], "summarized");
+    assert_eq!(response["stream"], true);
+    assert_eq!(response["provider"], expected_provider_identity);
+    assert_eq!(response["model"], "stub-model");
+    assert_eq!(response["tokenAccounting"]["totalTokens"], 11);
+    assert_eq!(response["provenanceNotProof"]["calls"].as_array().unwrap().len(), 1);
+    assert!(response["provenanceNotProof"]["calls"][0]["argsDigest"]
+        .as_str()
+        .unwrap()
+        .starts_with("hmac-sha256:"));
+    let attempt_token = response["attemptToken"].as_str().unwrap();
+    let transcript = router
+        .clone()
+        .oneshot(session_auth_get_request(
+            &format!("/streams/{attempt_token}"),
+            &bearer,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(transcript.status(), StatusCode::OK);
+    let transcript = response_json(transcript).await;
+    assert_eq!(transcript["terminalCause"], "complete");
+    assert!(transcript["finalText"]
+        .as_str()
+        .unwrap()
+        .contains("provenanceNotProof"));
+
+    let first_provider_request = captured.lock().unwrap()[0].clone();
+    let tool_names = first_provider_request["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|tool| tool.pointer("/function/name").and_then(Value::as_str))
+        .collect::<BTreeSet<_>>();
+    assert!(tool_names.contains("snapback_fn_fn_listitems"));
+    assert!(tool_names.contains(crate::ask::FINAL_TOOL_NAME));
+    assert!(!tool_names.iter().any(|name| name.contains("queuedwrite")));
+
+    let listed = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/list" }),
+            Some(&bearer),
+            None,
+            None,
+        ))
+        .await
+        .unwrap();
+    assert!(response_json(listed).await["result"]["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|tool| tool["name"] == "ask"));
+    let mut mcp = mcp_protocol_request(
+        "POST",
+        json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": { "name": "ask", "arguments": { "task": "summarize over MCP" } }
+        }),
+        Some(&bearer),
+        None,
+        None,
+    );
+    mcp.headers_mut().insert(
+        HeaderName::from_static(crate::ask::PROVIDER_KEY_HEADER),
+        HeaderValue::from_static("mcp-provider-secret"),
+    );
+    let mcp = router.oneshot(mcp).await.unwrap();
+    let mcp = response_json(mcp).await;
+    assert_eq!(mcp["result"]["isError"], false);
+    assert_eq!(
+        mcp["result"]["structuredContent"]["result"],
+        "mcp summarized"
+    );
+    assert_eq!(mcp["result"]["structuredContent"]["stream"], false);
+
+    let mut schema_request = session_auth_http_request(
+        "/api/v1/ask",
+        serde_json::to_vec(&json!({
+            "task": "return structured summary",
+            "resultSchema": {
+                "type": "object",
+                "required": ["summary"],
+                "properties": { "summary": { "type": "string" } },
+                "additionalProperties": false
+            },
+            "stream": false
+        }))
+        .unwrap(),
+        &bearer,
+    );
+    schema_request.headers_mut().insert(
+        HeaderName::from_static(crate::ask::PROVIDER_KEY_HEADER),
+        HeaderValue::from_static("schema-provider-secret"),
+    );
+    let schema_response = app(state.clone()).oneshot(schema_request).await.unwrap();
+    assert_eq!(schema_response.status(), StatusCode::OK);
+    assert_eq!(
+        response_json(schema_response).await["result"]["summary"],
+        "schema summarized"
+    );
+
+    let mut redaction_request = session_auth_http_request(
+        "/api/v1/ask",
+        serde_json::to_vec(&json!({ "task": "provider failure", "stream": false })).unwrap(),
+        &bearer,
+    );
+    redaction_request.headers_mut().insert(
+        HeaderName::from_static(crate::ask::PROVIDER_KEY_HEADER),
+        HeaderValue::from_static("redaction-sentinel-provider-key"),
+    );
+    let redaction_response = app(state.clone()).oneshot(redaction_request).await.unwrap();
+    assert_eq!(redaction_response.status(), StatusCode::BAD_GATEWAY);
+    let redaction_body = response_json(redaction_response).await;
+    assert_eq!(
+        redaction_body["diagnostic"]["code"],
+        "SNAPBACK_API_ASK_UPSTREAM_INVALID"
+    );
+    assert!(!serde_json::to_string(&redaction_body)
+        .unwrap()
+        .contains("redaction-sentinel-provider-key"));
+    let telemetry = state
+        .telemetry
+        .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
+            filter: Default::default(),
+            limit: crate::telemetry_query::MAX_EVENT_LIMIT,
+            ..Default::default()
+        })
+        .unwrap();
+    assert!(!serde_json::to_string(&telemetry)
+        .unwrap()
+        .contains("redaction-sentinel-provider-key"));
+    provider_task.await.unwrap();
+
+    let volume_call = json!({
+        "choices": [{ "message": {
+            "role": "assistant", "content": null,
+            "tool_calls": [{
+                "id": "call-volume", "type": "function",
+                "function": { "name": "snapback_fn_fn_listitems", "arguments": "{}" }
+            }]
+        } }],
+        "usage": { "prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2 }
+    });
+    let (volume_base, _, volume_task) = ask_provider_stub(vec![volume_call]).await;
+    let volume_state = sessions_activation_server_fixture_with_ask_async(volume_base, 1).await;
+    let volume_credential = mint_test_credential(&volume_state, "ask-volume@example.test").await;
+    let mut volume_request = session_auth_http_request(
+        "/api/v1/ask",
+        serde_json::to_vec(&json!({ "task": "read too much", "stream": false })).unwrap(),
+        volume_credential["token"].as_str().unwrap(),
+    );
+    volume_request.headers_mut().insert(
+        HeaderName::from_static(crate::ask::PROVIDER_KEY_HEADER),
+        HeaderValue::from_static("volume-provider-secret"),
+    );
+    let volume_response = app(volume_state).oneshot(volume_request).await.unwrap();
+    assert_eq!(volume_response.status(), StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(
+        response_json(volume_response).await["diagnostic"]["code"],
+        "SNAPBACK_API_ASK_RESULT_VOLUME_EXHAUSTED"
+    );
+    volume_task.await.unwrap();
 }
 
 #[tokio::test]
@@ -10060,7 +10531,7 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
     // Rotates with the embedded todo demo's generated artifacts; the
     // LLP 0204 S4 stream-fact codegen change is the latest rotation.
-    assert_eq!(details["artifactHash"], "sha256:7521dae65c2efb19");
+    assert_eq!(details["artifactHash"], "sha256:70aa83d67d3b9d1c");
     assert!(
         details["localMissSummary"]["sameMissCount"]
             .as_u64()
@@ -18185,6 +18656,21 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
 ];
 
 const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTH_REHEARSAL_REQUEST_INVALID",
+    "SNAPBACK_API_BUDGETS_INVALID",
+    "SNAPBACK_API_ASK_BUDGETS_INVALID",
+    "SNAPBACK_API_ASK_BUDGETS_REQUIRED",
+    "SNAPBACK_API_ASK_CALLER_KEY_INVALID",
+    "SNAPBACK_API_ASK_CALLER_KEY_REQUIRED",
+    "SNAPBACK_API_ASK_CALLER_KEY_UNEXPECTED",
+    "SNAPBACK_API_ASK_MODEL_INVALID",
+    "SNAPBACK_API_ASK_MANIFEST_INVALID",
+    "SNAPBACK_API_ASK_PROVIDER_INVALID",
+    "SNAPBACK_API_ASK_PROVIDER_UNSUPPORTED",
+    "SNAPBACK_API_ASK_REQUIRES_API",
+    "SNAPBACK_API_ASK_RESULT_SCHEMA_INVALID",
+    "SNAPBACK_API_ASK_SECRET_INVALID",
+    "SNAPBACK_API_ASK_TASK_INVALID",
     "SNAPBACK_STREAM_CHUNK_INVALID",
     "SNAPBACK_STREAM_NOT_DECLARED",
     "SNAPBACK_FUNCTION_STREAM_KIND_INVALID",
@@ -18669,6 +19155,19 @@ const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
 ];
 
 const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTH_REHEARSAL_CARRIER_REQUIRED",
+    "SNAPBACK_AUTH_REHEARSAL_PROFILE_FORBIDDEN",
+    "SNAPBACK_AUTH_REHEARSAL_CONFIG_FORBIDDEN",
+    "SNAPBACK_AUTH_REHEARSAL_SCOPE_DENIED",
+    "SNAPBACK_AUTH_REHEARSAL_SELECTOR_DENIED",
+    "SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH",
+    "SNAPBACK_AUTH_REHEARSAL_EXPIRED",
+    "SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED",
+    "SNAPBACK_AUTH_REHEARSAL_REACHABILITY_PUBLIC",
+    "SNAPBACK_AUTH_REHEARSAL_EGRESS_REFUSED",
+    "SNAPBACK_API_ASK_AUTHORITY_REQUIRED",
+    "SNAPBACK_API_ASK_DISABLED",
+    "SNAPBACK_API_ASK_TOOL_DENIED",
     "SNAPBACK_STREAM_FORBIDDEN",
     "SNAPBACK_STREAM_INITIATOR_REQUIRED",
     "SNAPBACK_STREAM_TRANSCRIPT_FORBIDDEN",
@@ -18800,6 +19299,11 @@ const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
 ];
 
 const CONFLICT_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTH_REHEARSAL_IDEMPOTENCY_CONFLICT",
+    "SNAPBACK_AUTH_REHEARSAL_NAMESPACE_CONSUMED",
+    "SNAPBACK_AUTH_REHEARSAL_DISPOSABLE_REQUIRED",
+    "SNAPBACK_AUTH_REHEARSAL_STATE_PRESENT",
+    "SNAPBACK_AUTH_REHEARSAL_ENVELOPE_INVALID",
     "SNAPBACK_STREAM_CANCELLED",
     "SNAPBACK_STREAM_RUNNER_FENCED",
     "SNAPBACK_STREAM_TERMINAL",
@@ -18991,6 +19495,11 @@ const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
 ];
 
 const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTH_REHEARSAL_BUDGET_EXHAUSTED",
+    "SNAPBACK_API_ASK_BUDGET_EXHAUSTED",
+    "SNAPBACK_API_ASK_REQUEST_BUDGET_EXHAUSTED",
+    "SNAPBACK_API_ASK_RESULT_VOLUME_EXHAUSTED",
+    "SNAPBACK_API_ASK_STEP_LIMIT_EXHAUSTED",
     "SNAPBACK_STREAM_RATE_LIMITED",
     // LLP 0204 S0 — per-user live-invitation cap (a quota, not a fault).
     "SNAPBACK_AUTH_AGENT_INVITATION_CAP",
@@ -19041,6 +19550,7 @@ const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
 const REQUEST_TIMEOUT_DIAGNOSTICS: &[&str] = &["SNAPBACK_REQUEST_BODY_TIMEOUT"];
 
 const GATEWAY_TIMEOUT_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_API_ASK_WALL_TIME_EXHAUSTED",
     "SNAPBACK_FORK_ADMISSION_TIMEOUT",
     "SNAPBACK_FORK_BOOT_TIMEOUT",
     "SNAPBACK_FORK_STOP_TIMEOUT",
@@ -19055,6 +19565,8 @@ const GATEWAY_TIMEOUT_DIAGNOSTICS: &[&str] = &[
 // distinct reviewed family: the upstream failed or is ambiguous, which is
 // neither author fault nor Snapback's own internal failure.
 const BAD_GATEWAY_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_API_ASK_UPSTREAM_FAILED",
+    "SNAPBACK_API_ASK_UPSTREAM_INVALID",
     "SNAPBACK_ADMIN_RELAY_UPSTREAM_FAILED",
     "SNAPBACK_ADMIN_RELAY_UPSTREAM_INVALID",
     "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS",
@@ -19074,6 +19586,13 @@ const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] = &[
 ];
 
 const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_AUTH_REHEARSAL_NAMESPACE_UNAVAILABLE",
+    "SNAPBACK_AUTH_REHEARSAL_REACHABILITY_INVALID",
+    "SNAPBACK_AUTH_REHEARSAL_PRODUCER_PARITY",
+    "SNAPBACK_AUTH_REHEARSAL_EXPORT_KEY_UNAVAILABLE",
+    "SNAPBACK_AUTH_REHEARSAL_PROVENANCE_INVALID",
+    "SNAPBACK_API_ASK_EGRESS_DISABLED",
+    "SNAPBACK_API_ASK_MODEL_NOT_CONFIGURED",
     "SNAPBACK_AUTH_OAUTH_UNAVAILABLE",
     "SNAPBACK_BRANCH_CUSTODY_RECOVERY_REQUIRED",
     "SNAPBACK_BRANCH_EXPIRY_REAP_REQUIRED",
@@ -19172,6 +19691,9 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
 // diagnostics that never normally become an `ApiError`. If one does reach
 // that boundary, the fail-safe class is still 500 rather than a false 4xx.
 const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_API_ASK_RECEIPT_INVALID",
+    "SNAPBACK_API_ASK_RECEIPT_KEY_UNAVAILABLE",
+    "SNAPBACK_API_ASK_SPEND_CATALOG_CORRUPT",
     "SNAPBACK_FUNCTION_GENERATION_EXHAUSTED",
     "SNAPBACK_FUNCTION_GENERATION_INVALID",
     "SNAPBACK_FUNCTION_GENERATION_STATE_CORRUPT",
@@ -19684,6 +20206,10 @@ const HTTP_STATUS_FAMILIES: &[(StatusCode, &[&str])] = &[
     (
         StatusCode::UNPROCESSABLE_ENTITY,
         ASSET_UNPROCESSABLE_DIAGNOSTICS,
+    ),
+    (
+        StatusCode::UNPROCESSABLE_ENTITY,
+        &["SNAPBACK_API_ASK_RESULT_SCHEMA_MISMATCH"],
     ),
     (
         StatusCode::PRECONDITION_FAILED,

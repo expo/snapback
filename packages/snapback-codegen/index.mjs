@@ -1242,16 +1242,13 @@ function validateSchemaApiDefinition(schemaDef, authMode, err) {
     err('SNAPBACK_API_MANIFEST_INVALID', 'api', 'schema api must be an object', {});
     return null;
   }
-  if (Object.hasOwn(api, 'budgets')) {
-    err('SNAPBACK_API_BUDGETS_UNAVAILABLE', 'api', 'api.budgets lands with LLP 0204 S2', {});
-  }
-  const allowed = new Set(['enabled', 'disclosure', 'functions', 'origins', 'oauth', '__agentsModeExplicit']);
+  const allowed = new Set(['enabled', 'disclosure', 'functions', 'origins', 'oauth', 'ask', 'budgets', '__agentsModeExplicit']);
   const shapeValid = !Object.keys(api).some((key) => !allowed.has(key))
     && typeof api.enabled === 'boolean'
     && API_DISCLOSURES.has(api.disclosure)
     && api.functions && typeof api.functions === 'object' && !Array.isArray(api.functions);
   if (!shapeValid) {
-    err('SNAPBACK_API_MANIFEST_INVALID', 'api', 'schema api accepts enabled, disclosure, functions, and origins', {});
+    err('SNAPBACK_API_MANIFEST_INVALID', 'api', 'schema api accepts enabled, disclosure, functions, origins, oauth, ask, and budgets', {});
     return null;
   }
   if (api.enabled === true && api.__agentsModeExplicit !== true) {
@@ -1317,12 +1314,73 @@ function validateSchemaApiDefinition(schemaDef, authMode, err) {
       }
     }
   }
+  if (api.ask !== undefined) {
+    const ask = api.ask;
+    const askShapeValid = ask && typeof ask === 'object' && !Array.isArray(ask)
+      && !Object.keys(ask).some((key) => !['enabled', 'billing', 'model'].includes(key))
+      && typeof ask.enabled === 'boolean'
+      && (ask.billing === 'app' || ask.billing === 'caller-key');
+    if (!askShapeValid) {
+      err('SNAPBACK_API_ASK_MANIFEST_INVALID', 'api', 'api.ask requires enabled: boolean, billing: app | caller-key, and optional model', {});
+    } else {
+      if (ask.enabled && !api.enabled) {
+        err('SNAPBACK_API_ASK_REQUIRES_API', 'api', 'api.ask.enabled requires api.enabled', {});
+      }
+      if (ask.model !== undefined) {
+        const model = ask.model;
+        if (!model || typeof model !== 'object' || Array.isArray(model)
+          || Object.keys(model).some((key) => !['provider', 'model', 'secret'].includes(key))
+          || typeof model.provider !== 'string' || model.provider.length === 0
+          || typeof model.model !== 'string' || model.model.length === 0
+          || (model.secret !== undefined && (typeof model.secret !== 'string' || model.secret.length === 0))) {
+          err('SNAPBACK_API_ASK_MODEL_INVALID', 'api', 'api.ask.model requires non-empty provider/model and an optional LLP 0036 secret entry name', {});
+        }
+        if (ask.billing === 'caller-key' && model?.secret !== undefined) {
+          err('SNAPBACK_API_ASK_MODEL_INVALID', 'api', 'caller-key ask billing must carry its provider credential on X-Snapback-Ask-Provider-Key, not name an app secret', {});
+        }
+      }
+    }
+  }
+  if (api.budgets !== undefined) {
+    const budgets = api.budgets;
+    if (!budgets || typeof budgets !== 'object' || Array.isArray(budgets)
+      || Object.keys(budgets).some((key) => key !== 'ask')) {
+      err('SNAPBACK_API_BUDGETS_INVALID', 'api', 'api.budgets accepts only the optional ask budget block', {});
+    } else if (budgets.ask !== undefined) {
+      const ask = budgets.ask;
+      const positive = (value) => Number.isSafeInteger(value) && value > 0;
+      const exact = (value, keys) => value && typeof value === 'object' && !Array.isArray(value)
+        && Object.keys(value).every((key) => keys.includes(key));
+      const complete = exact(ask, ['perRequest', 'perPrincipalDay', 'perIntegrationDay', 'appMonthly', 'resultVolume'])
+        && exact(ask.perRequest, ['maxTokens', 'maxSteps', 'maxWallMs'])
+        && ['maxTokens', 'maxSteps', 'maxWallMs'].every((key) => positive(ask.perRequest[key]))
+        && exact(ask.perPrincipalDay, ['maxTokens']) && positive(ask.perPrincipalDay.maxTokens)
+        && (ask.perIntegrationDay === undefined
+          || (exact(ask.perIntegrationDay, ['maxTokens']) && positive(ask.perIntegrationDay.maxTokens)))
+        && exact(ask.appMonthly, ['maxTokens']) && positive(ask.appMonthly.maxTokens)
+        && exact(ask.resultVolume, ['maxBytes', 'maxRows', 'perPrincipalDayBytes'])
+        && ['maxBytes', 'maxRows', 'perPrincipalDayBytes'].every((key) => positive(ask.resultVolume[key]));
+      if (!complete) {
+        err('SNAPBACK_API_ASK_BUDGETS_INVALID', 'api', 'api.budgets.ask requires perRequest.{maxTokens,maxSteps,maxWallMs}, perPrincipalDay.maxTokens, appMonthly.maxTokens, and resultVolume.{maxBytes,maxRows,perPrincipalDayBytes}; perIntegrationDay.maxTokens is optional', {});
+      }
+    }
+  }
+  if (api.ask?.enabled === true && api.budgets?.ask === undefined) {
+    err(
+      'SNAPBACK_API_ASK_BUDGETS_REQUIRED',
+      'api',
+      'api.ask.enabled requires api.budgets.ask.perRequest, api.budgets.ask.perPrincipalDay, api.budgets.ask.appMonthly, and api.budgets.ask.resultVolume',
+      {},
+    );
+  }
   return {
     enabled: api.enabled,
     disclosure: api.disclosure,
     functions: api.functions,
     ...(api.origins !== undefined ? { origins: [...api.origins] } : {}),
     ...(api.oauth !== undefined ? { oauth: structuredClone(api.oauth) } : {}),
+    ...(api.ask !== undefined ? { ask: structuredClone(api.ask) } : {}),
+    ...(api.budgets !== undefined ? { budgets: structuredClone(api.budgets) } : {}),
   };
 }
 
@@ -3758,6 +3816,17 @@ export async function generateInProcess(backendDir, options = {}) {
     err,
     schemaDef.pushSeam?.uses ?? [],
   );
+  if (apiManifest?.ask?.billing === 'app' && apiManifest.ask.model?.secret !== undefined) {
+    const entry = configEntries.find(({ name }) => name === apiManifest.ask.model.secret);
+    if (!entry || entry.secret !== true) {
+      err(
+        'SNAPBACK_API_ASK_SECRET_INVALID',
+        'api',
+        `api.ask.model.secret names ${apiManifest.ask.model.secret}, which must be a declared secret LLP 0036 config entry`,
+        { secret: apiManifest.ask.model.secret },
+      );
+    }
+  }
   // @ref LLP 0080#7-generated-authoring-surface — a maintained projection
   // has no function carrier, so its dependence on the relational engine
   // rides the schema-level requirement: a target without
@@ -11880,6 +11949,11 @@ const DEFINITION_EVALUATOR_PROCESS_TIMEOUT_MS = 15_000;
 const DEFINITION_EVALUATOR_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
   'SNAPBACK_API_BUDGETS_UNAVAILABLE',
+  'SNAPBACK_API_ASK_BUDGETS_INVALID',
+  'SNAPBACK_API_ASK_BUDGETS_REQUIRED',
+  'SNAPBACK_API_ASK_MANIFEST_INVALID',
+  'SNAPBACK_API_ASK_MODEL_INVALID',
+  'SNAPBACK_API_ASK_REQUIRES_API',
   'SNAPBACK_DELETE_WHERE_FILTER_INVALID',
   'SNAPBACK_DELETE_WHERE_FILTER_REQUIRED',
   'SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED',

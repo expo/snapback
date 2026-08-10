@@ -9113,6 +9113,12 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             app_function_route("POST", "/api/v1/run"),
             post(invoke_run).layer(DefaultBodyLimit::max(POLICY_BODY_PEEK_LIMIT)),
         ),
+        // @ref LLP 0204#d5--surface-4-the-near-data-ai-interface — ask is an
+        // independently budgeted read-only host loop over exposed queries.
+        RegisteredRoute::new(
+            app_function_route("POST", "/api/v1/ask"),
+            post(invoke_ask).layer(DefaultBodyLimit::max(POLICY_BODY_PEEK_LIMIT)),
+        ),
         // @ref LLP 0204#d91--streaming-conversations — private
         // transcript reads and cancellation are app-data routes. Chunks stay
         // on the live socket; neither operation is an MCP transport.
@@ -10535,6 +10541,7 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         }
         "/action/{name}" | "/api/v1/action/{name}" => Some(InvocationSource::HttpAction),
         "/api/v1/run" => Some(InvocationSource::HttpRun),
+        "/api/v1/ask" => Some(InvocationSource::HttpAsk),
         "/streams/{attempt_token}" => Some(InvocationSource::HttpQuery),
         "/streams/{attempt_token}/cancel" => Some(InvocationSource::HttpAction),
         "/client-mutations/acknowledge" | "/client-mutations/identity-range" => {
@@ -12661,7 +12668,7 @@ async fn enforce_registered_route_policy_inner(
     // run-request decode. LLP 0058's forbidden body-authority check above is
     // transport security, not run-request shape, and keeps its global
     // precedence over every sessions-mode application refusal.
-    if spec.path == "/api/v1/run" {
+    if matches!(spec.path, "/api/v1/run" | "/api/v1/ask") {
         let api_enabled = with_snapback(&runtime.snapback, |snapback| {
             snapback.external_api_enabled()
         })
@@ -13355,6 +13362,7 @@ async fn enforce_registered_route_policy_inner(
                     | InvocationSource::HttpMutation
                     | InvocationSource::HttpAction
                     | InvocationSource::HttpRun
+                    | InvocationSource::HttpAsk
                     | InvocationSource::HttpMcp
             )
         )
@@ -16394,7 +16402,9 @@ fn network_profile_refusal_lane(
         "/action/{name}" | "/api/v1/action/{name}" => {
             Some(crate::network_profile::NetworkEgressLane::QueryResponse)
         }
-        "/api/v1/run" => Some(crate::network_profile::NetworkEgressLane::QueryResponse),
+        "/api/v1/run" | "/api/v1/ask" => {
+            Some(crate::network_profile::NetworkEgressLane::QueryResponse)
+        }
         _ => None,
     }
 }
@@ -21881,6 +21891,7 @@ fn external_api_route(spec: RouteSpec) -> bool {
             | "/api/v1/mutation/{name}"
             | "/api/v1/action/{name}"
             | "/api/v1/run"
+            | "/api/v1/ask"
             | "/mcp"
     )
 }
@@ -21985,6 +21996,908 @@ async fn invoke_run(
     }
     let manifest = current_target_capability_manifest(&runtime).await;
     ApiError::from(run_code_capability_refusal(&manifest)).into_response()
+}
+
+const ASK_TASK_MAX_BYTES: usize = 64 * 1024;
+const ASK_RESULT_SCHEMA_MAX_BYTES: usize = 256 * 1024;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ExternalAskRequest {
+    task: String,
+    #[serde(default)]
+    result_schema: Option<Value>,
+    #[serde(default)]
+    stream: Option<bool>,
+}
+
+#[derive(Clone)]
+struct AskCatalog {
+    ask: crate::contract_types::ApiAskManifest,
+    budgets: crate::contract_types::ApiAskBudgets,
+    provider: crate::ask::ProviderConfig,
+    queries: Vec<crate::ask::QueryTool>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AskProvenance {
+    calls: Vec<crate::ask::CallReceipt>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExternalAskResponse {
+    result: Value,
+    stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attempt_token: Option<String>,
+    provider: String,
+    model: String,
+    token_accounting: crate::ask::TokenAccounting,
+    budget_spend_so_far: crate::storage::ask_spend::AskSpendFacts,
+    provenance_not_proof: AskProvenance,
+}
+
+struct AskLoopCompletion {
+    result: Value,
+    tokens: crate::ask::TokenAccounting,
+    receipts: Vec<crate::ask::CallReceipt>,
+}
+
+struct AskLoopOutcome {
+    result: SnapbackResult<AskLoopCompletion>,
+    tokens: crate::ask::TokenAccounting,
+    result_bytes: u64,
+}
+
+async fn load_ask_catalog(runtime: &AppState) -> SnapbackResult<AskCatalog> {
+    let snapshot = with_snapback(&runtime.snapback, |snapback| {
+        let (ask, budgets) = snapback.api_ask_manifest().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_API_ASK_DISABLED",
+                "api",
+                "ask is disabled because api.ask.enabled and its complete api.budgets.ask declaration are not active",
+            )
+            .with_details(json!({
+                "missingDeclaration": ["api.ask.enabled", "api.budgets.ask"],
+                "escalation": { "action": "ask the app operator to enable the read-only v1 ask surface with complete budgets" }
+            }))
+        })?;
+        let model = ask.model.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_API_ASK_MODEL_NOT_CONFIGURED",
+                "api",
+                "api.ask.model must select the v1 provider and model before ask can run",
+            )
+        })?;
+        let provider = crate::ask::parse_provider(&model.provider, &model.model)?;
+        let (_, canonical) = snapback.current_app_api_envelope()?;
+        Ok::<_, SnapbackError>((
+            ask,
+            budgets,
+            provider,
+            canonical,
+            snapback.served_function_manifest().functions.clone(),
+        ))
+    })
+    .await?;
+    let (envelope, _) = crate::api_envelope::parse_and_validate(snapshot.3.as_bytes())
+        .map_err(|refusal| {
+            SnapbackError::error(
+                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+                "app-api",
+                "the current API envelope cannot compile an ask query catalog",
+            )
+            .with_details(json!({ "envelopeCode": refusal.code }))
+        })?;
+    let operations = crate::api_envelope::projection_operations(&envelope).map_err(|refusal| {
+        SnapbackError::error(
+            "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+            "app-api",
+            "the current API envelope has an invalid operation projection",
+        )
+        .with_details(json!({ "envelopeCode": refusal.code }))
+    })?;
+    let operations = operations
+        .into_iter()
+        .map(|operation| (operation.stable_id.clone(), operation))
+        .collect::<BTreeMap<_, _>>();
+    let mut definitions = snapshot.4;
+    definitions.sort_by(|left, right| left.id.cmp(&right.id));
+    let mut taken = BTreeSet::new();
+    let queries = definitions
+        .into_iter()
+        .filter(|definition| {
+            matches!(definition.kind, FunctionKind::Query | FunctionKind::LiveQuery)
+                && definition
+                    .api_exposure
+                    .as_ref()
+                    .is_some_and(|exposure| exposure.expose)
+                && operations.contains_key(&definition.id)
+        })
+        .map(|definition| crate::ask::QueryTool {
+            tool_name: remote_mcp::function_tool_name(&definition.id, &mut taken),
+            function_name: definition.name,
+            args_schema: operations[&definition.id].args_schema.clone(),
+        })
+        .collect();
+    Ok(AskCatalog {
+        ask: snapshot.0,
+        budgets: snapshot.1,
+        provider: snapshot.2,
+        queries,
+    })
+}
+
+fn ask_spend_subject(
+    authority: &ResolvedAppAuthority,
+) -> SnapbackResult<crate::storage::ask_spend::AskSpendSubject> {
+    match authority {
+        ResolvedAppAuthority::Session { user_id, .. } => {
+            Ok(crate::storage::ask_spend::AskSpendSubject {
+                principal_key: format!("user:{user_id}"),
+                integration_key: None,
+            })
+        }
+        ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id,
+            effective_user_id,
+            credential_id,
+            integration_status,
+            ..
+        } => Ok(crate::storage::ask_spend::AskSpendSubject {
+            principal_key: format!(
+                "principal:{}",
+                effective_user_id.as_ref().unwrap_or(actor_user_id)
+            ),
+            integration_key: integration_status
+                .is_some()
+                .then(|| format!("credential:{credential_id}")),
+        }),
+        _ => Err(ask_authority_refusal()),
+    }
+}
+
+fn ask_authority_refusal() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_API_ASK_AUTHORITY_REQUIRED",
+        "auth",
+        "ask requires a granted principal; anonymous and declared-client tiers cannot authorize model data egress",
+    )
+    .with_details(json!({
+        "escalation": {
+            "action": "obtain a scoped grant with the snapback:ask:data-egress consent scope, or use caller-key billing with a granted read principal",
+            "authorizationServer": "/.well-known/oauth-authorization-server"
+        }
+    }))
+}
+
+fn ask_provider_key(
+    headers: &HeaderMap,
+    catalog: &AskCatalog,
+    app_secret: Option<String>,
+) -> SnapbackResult<(zeroize::Zeroizing<String>, crate::config::SecretRedactor)> {
+    let mut presented_values = headers.get_all(crate::ask::PROVIDER_KEY_HEADER).iter();
+    let presented = presented_values
+        .next()
+        .map(|value| value.to_str())
+        .transpose()
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_API_ASK_CALLER_KEY_INVALID",
+                "api",
+                "the caller provider-key header is not valid text",
+            )
+        })?;
+    if presented_values.next().is_some() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_API_ASK_CALLER_KEY_INVALID",
+            "api",
+            "the caller provider-key header must appear exactly once",
+        ));
+    }
+    match catalog.ask.billing {
+        crate::contract_types::ApiAskBilling::App => {
+            if presented.is_some() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_API_ASK_CALLER_KEY_UNEXPECTED",
+                    "api",
+                    "an app-paid ask request must not present a caller provider key",
+                ));
+            }
+            let secret = app_secret.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_API_ASK_MODEL_NOT_CONFIGURED",
+                    "api",
+                    "the declared api.ask.model.secret has no configured LLP 0036 value",
+                )
+            })?;
+            let redactor = crate::config::SecretRedactor::request_scoped(secret.clone());
+            Ok((zeroize::Zeroizing::new(secret), redactor))
+        }
+        crate::contract_types::ApiAskBilling::CallerKey => {
+            let secret = presented.ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_API_ASK_CALLER_KEY_REQUIRED",
+                        "api",
+                        "caller-key billing requires X-Snapback-Ask-Provider-Key",
+                    )
+                })?;
+            if secret.is_empty() || secret.len() > 16 * 1024 {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_API_ASK_CALLER_KEY_INVALID",
+                    "api",
+                    "the caller provider key must be non-empty and no larger than 16 KiB",
+                ));
+            }
+            let secret = secret.to_owned();
+            let redactor = crate::config::SecretRedactor::request_scoped(secret.clone());
+            Ok((zeroize::Zeroizing::new(secret), redactor))
+        }
+    }
+}
+
+fn accumulate_ask_tokens(
+    total: &mut crate::ask::TokenAccounting,
+    turn: &crate::ask::TokenAccounting,
+) {
+    total.prompt_tokens = total.prompt_tokens.saturating_add(turn.prompt_tokens);
+    total.completion_tokens = total
+        .completion_tokens
+        .saturating_add(turn.completion_tokens);
+    total.total_tokens = total.total_tokens.saturating_add(turn.total_tokens);
+    total.estimated |= turn.estimated;
+}
+
+fn ask_limit_refusal(code: &'static str, dimension: &'static str) -> SnapbackError {
+    SnapbackError::error(code, "api", "the ask request exhausted a declared host-enforced limit")
+        .with_details(json!({
+            "dimension": dimension,
+            "escalation": { "action": "reduce the task or ask the app operator to increase api.budgets.ask" }
+        }))
+}
+
+async fn execute_ask_loop(
+    state: &SharedSnapback,
+    authority: &PreparedAuthority,
+    catalog: &AskCatalog,
+    task: String,
+    result_schema: Option<Value>,
+    provider_key: zeroize::Zeroizing<String>,
+    redactor: crate::config::SecretRedactor,
+) -> AskLoopOutcome {
+    let started = Instant::now();
+    let limits = &catalog.budgets.per_request;
+    let volume = &catalog.budgets.result_volume;
+    let tools = crate::ask::provider_tools(&catalog.queries, result_schema.as_ref());
+    let mut messages = vec![
+        json!({
+            "role": "system",
+            "content": "You are a read-only Snapback data assistant. Use only the supplied query tools. Mutations and actions do not exist. Finish with snapback_final_answer."
+        }),
+        json!({ "role": "user", "content": task }),
+    ];
+    let receipt_key = match crate::ask::ReceiptKey::generate() {
+        Ok(key) => key,
+        Err(error) => {
+            return AskLoopOutcome {
+                result: Err(error),
+                tokens: Default::default(),
+                result_bytes: 0,
+            };
+        }
+    };
+    let mut token_accounting = crate::ask::TokenAccounting::default();
+    let mut result_bytes = 0_u64;
+    let mut result_rows = 0_u64;
+    let mut receipts = Vec::new();
+    let mut schema_retries = 0_u64;
+    let mut steps_used = 0_u64;
+    for _turn in 0..limits.max_steps {
+        if steps_used >= limits.max_steps {
+            break;
+        }
+        steps_used += 1;
+        let wall_limit = Duration::from_millis(limits.max_wall_ms);
+        let Some(remaining_wall) = wall_limit.checked_sub(started.elapsed()) else {
+            return AskLoopOutcome {
+                result: Err(ask_limit_refusal(
+                    "SNAPBACK_API_ASK_WALL_TIME_EXHAUSTED",
+                    "perRequest.maxWallMs",
+                )),
+                tokens: token_accounting,
+                result_bytes,
+            };
+        };
+        let remaining_tokens = limits.max_tokens.saturating_sub(token_accounting.total_tokens);
+        if remaining_tokens == 0 {
+            return AskLoopOutcome {
+                result: Err(ask_limit_refusal(
+                    "SNAPBACK_API_ASK_REQUEST_BUDGET_EXHAUSTED",
+                    "perRequest.maxTokens",
+                )),
+                tokens: token_accounting,
+                result_bytes,
+            };
+        }
+        let turn = match crate::ask::chat_completion(
+            catalog.provider.clone(),
+            zeroize::Zeroizing::new(provider_key.as_str().to_owned()),
+            redactor.clone(),
+            messages.clone(),
+            tools.clone(),
+            remaining_tokens,
+            remaining_wall,
+        )
+        .await
+        {
+            Ok(turn) => turn,
+            Err(error) => {
+                if started.elapsed() >= wall_limit {
+                    return AskLoopOutcome {
+                        result: Err(ask_limit_refusal(
+                            "SNAPBACK_API_ASK_WALL_TIME_EXHAUSTED",
+                            "perRequest.maxWallMs",
+                        )),
+                        tokens: token_accounting,
+                        result_bytes,
+                    };
+                }
+                return AskLoopOutcome {
+                    result: Err(redactor.redact_error(error)),
+                    tokens: token_accounting,
+                    result_bytes,
+                };
+            }
+        };
+        accumulate_ask_tokens(&mut token_accounting, &turn.tokens);
+        if started.elapsed() >= wall_limit {
+            return AskLoopOutcome {
+                result: Err(ask_limit_refusal(
+                    "SNAPBACK_API_ASK_WALL_TIME_EXHAUSTED",
+                    "perRequest.maxWallMs",
+                )),
+                tokens: token_accounting,
+                result_bytes,
+            };
+        }
+        if token_accounting.total_tokens > limits.max_tokens {
+            token_accounting.total_tokens = limits.max_tokens;
+            return AskLoopOutcome {
+                result: Err(ask_limit_refusal(
+                    "SNAPBACK_API_ASK_REQUEST_BUDGET_EXHAUSTED",
+                    "perRequest.maxTokens",
+                )),
+                tokens: token_accounting,
+                result_bytes,
+            };
+        }
+        messages.push(turn.message);
+        if turn.tool_calls.is_empty() {
+            if let Some(content) = turn.content
+                && result_schema.is_none()
+            {
+                return AskLoopOutcome {
+                    result: Ok(AskLoopCompletion {
+                        result: Value::String(content),
+                        tokens: token_accounting.clone(),
+                        receipts,
+                    }),
+                    tokens: token_accounting,
+                    result_bytes,
+                };
+            }
+            return AskLoopOutcome {
+                result: Err(SnapbackError::error(
+                    "SNAPBACK_API_ASK_UPSTREAM_INVALID",
+                    "api",
+                    "the provider returned neither a query tool call nor a usable final answer",
+                )),
+                tokens: token_accounting,
+                result_bytes,
+            };
+        }
+        for call in turn.tool_calls {
+            if started.elapsed() >= wall_limit {
+                return AskLoopOutcome {
+                    result: Err(ask_limit_refusal(
+                        "SNAPBACK_API_ASK_WALL_TIME_EXHAUSTED",
+                        "perRequest.maxWallMs",
+                    )),
+                    tokens: token_accounting,
+                    result_bytes,
+                };
+            }
+            if steps_used >= limits.max_steps {
+                return AskLoopOutcome {
+                    result: Err(ask_limit_refusal(
+                        "SNAPBACK_API_ASK_STEP_LIMIT_EXHAUSTED",
+                        "perRequest.maxSteps",
+                    )),
+                    tokens: token_accounting,
+                    result_bytes,
+                };
+            }
+            steps_used += 1;
+            let arguments: Value = match serde_json::from_str(&call.arguments) {
+                Ok(arguments) => arguments,
+                Err(_) => {
+                    messages.push(json!({
+                        "role": "tool",
+                        "tool_call_id": call.id,
+                        "content": "{\"error\":{\"code\":\"SNAPBACK_REQUEST_JSON_INVALID\"}}"
+                    }));
+                    continue;
+                }
+            };
+            if call.name == crate::ask::FINAL_TOOL_NAME {
+                if let Some(schema) = result_schema.as_ref()
+                    && let Err(_) = crate::ask::validate_result(schema, &arguments)
+                {
+                    schema_retries += 1;
+                    if schema_retries > crate::ask::RESULT_SCHEMA_RETRY_CAP {
+                        return AskLoopOutcome {
+                            result: Err(SnapbackError::error(
+                                "SNAPBACK_API_ASK_RESULT_SCHEMA_MISMATCH",
+                                "api",
+                                "the provider exhausted the resultSchema validation retry cap",
+                            )),
+                            tokens: token_accounting,
+                            result_bytes,
+                        };
+                    }
+                    messages.push(json!({
+                        "role": "tool",
+                        "tool_call_id": call.id,
+                        "content": "{\"error\":{\"code\":\"SNAPBACK_API_ASK_RESULT_SCHEMA_MISMATCH\",\"retryable\":true}}"
+                    }));
+                    continue;
+                }
+                let result = if result_schema.is_none() {
+                    arguments
+                        .get("answer")
+                        .cloned()
+                        .unwrap_or(arguments)
+                } else {
+                    arguments
+                };
+                return AskLoopOutcome {
+                    result: Ok(AskLoopCompletion {
+                        result,
+                        tokens: token_accounting.clone(),
+                        receipts,
+                    }),
+                    tokens: token_accounting,
+                    result_bytes,
+                };
+            }
+            let Some(query) = catalog.queries.iter().find(|query| query.tool_name == call.name)
+            else {
+                messages.push(json!({
+                    "role": "tool",
+                    "tool_call_id": call.id,
+                    "content": "{\"error\":{\"code\":\"SNAPBACK_API_ASK_TOOL_DENIED\",\"message\":\"only cataloged exposed queries may be called\"}}"
+                }));
+                continue;
+            };
+            let input = HandlerInput {
+                args: arguments.clone(),
+                ..HandlerInput::default()
+            };
+            let query_name = query.function_name.clone();
+            let query_authority = match authority.ask_query_authority() {
+                Ok(authority) => authority,
+                Err(error) => {
+                    return AskLoopOutcome {
+                        result: Err(error),
+                        tokens: token_accounting,
+                        result_bytes,
+                    };
+                }
+            };
+            let invoked = with_snapback(state, move |snapback| {
+                snapback.invoke_query_with_dependencies_prepared_generation(
+                    &query_name,
+                    input,
+                    query_authority,
+                    None,
+                )
+            })
+            .await;
+            if started.elapsed() >= wall_limit {
+                return AskLoopOutcome {
+                    result: Err(ask_limit_refusal(
+                        "SNAPBACK_API_ASK_WALL_TIME_EXHAUSTED",
+                        "perRequest.maxWallMs",
+                    )),
+                    tokens: token_accounting,
+                    result_bytes,
+                };
+            }
+            let output = match invoked {
+                Ok(invocation) => invocation.output,
+                Err(error) => {
+                    let refusal = json!({ "error": error.diagnostic });
+                    let content = serde_json::to_string(&refusal)
+                        .unwrap_or_else(|_| "{\"error\":{}}".to_owned());
+                    result_bytes = result_bytes.saturating_add(content.len() as u64);
+                    if result_bytes > volume.max_bytes {
+                        return AskLoopOutcome {
+                            result: Err(ask_limit_refusal(
+                                "SNAPBACK_API_ASK_RESULT_VOLUME_EXHAUSTED",
+                                "resultVolume.maxBytes",
+                            )),
+                            tokens: token_accounting,
+                            result_bytes: volume.max_bytes,
+                        };
+                    }
+                    messages.push(json!({
+                        "role": "tool",
+                        "tool_call_id": call.id,
+                        "content": content
+                    }));
+                    continue;
+                }
+            };
+            let output_value = serde_json::to_value(&output).unwrap_or_else(|_| json!({}));
+            let output_bytes = serde_json::to_vec(&output_value)
+                .map(|bytes| bytes.len() as u64)
+                .unwrap_or(u64::MAX);
+            result_bytes = result_bytes.saturating_add(output_bytes);
+            result_rows = result_rows.saturating_add(output.rows.len() as u64);
+            if result_bytes > volume.max_bytes || result_rows > volume.max_rows {
+                return AskLoopOutcome {
+                    result: Err(ask_limit_refusal(
+                        "SNAPBACK_API_ASK_RESULT_VOLUME_EXHAUSTED",
+                        if result_bytes > volume.max_bytes {
+                            "resultVolume.maxBytes"
+                        } else {
+                            "resultVolume.maxRows"
+                        },
+                    )),
+                    tokens: token_accounting,
+                    result_bytes: result_bytes.min(volume.max_bytes),
+                };
+            }
+            let args_digest = match receipt_key.digest(b"query-args\0", &arguments) {
+                Ok(digest) => digest,
+                Err(error) => {
+                    return AskLoopOutcome {
+                        result: Err(error),
+                        tokens: token_accounting,
+                        result_bytes,
+                    };
+                }
+            };
+            let result_digest = match receipt_key.digest(b"query-result\0", &output_value) {
+                Ok(digest) => digest,
+                Err(error) => {
+                    return AskLoopOutcome {
+                        result: Err(error),
+                        tokens: token_accounting,
+                        result_bytes,
+                    };
+                }
+            };
+            receipts.push(crate::ask::CallReceipt {
+                function: query.function_name.clone(),
+                args_digest,
+                result_digest,
+            });
+            messages.push(json!({
+                "role": "tool",
+                "tool_call_id": call.id,
+                "content": serde_json::to_string(&output_value).unwrap_or_else(|_| "{}".to_owned())
+            }));
+        }
+    }
+    AskLoopOutcome {
+        result: Err(ask_limit_refusal(
+            "SNAPBACK_API_ASK_STEP_LIMIT_EXHAUSTED",
+            "perRequest.maxSteps",
+        )),
+        tokens: token_accounting,
+        result_bytes,
+    }
+}
+
+async fn start_ask_stream(
+    state: &SharedSnapback,
+    initiator: crate::stream_attempt::StreamInitiator,
+) -> SnapbackResult<(String, crate::stream_attempt::StreamRunnerIdentity, u64)> {
+    let started_at_ms = now_millis();
+    let namespace = with_snapback(state, |snapback| snapback.stream_attempt_namespace()).await;
+    let runner = crate::stream_attempt::StreamRunnerIdentity::new(Arc::new(AtomicBool::new(false)));
+    let registry = crate::stream_attempt::global_stream_attempt_registry();
+    let started = registry.start_with_metadata(
+        namespace,
+        &format!("ask:{}", Uuid::new_v4()),
+        &runner,
+        None,
+        crate::stream_attempt::StreamAttemptMetadata {
+            function_id: Some("snapback:ask".to_owned()),
+            initiator: Some(initiator),
+            started_at_ms,
+        },
+    )?;
+    if !started.lease_held {
+        return Err(SnapbackError::error(
+            "SNAPBACK_STREAM_RUNNER_FENCED",
+            "runtime",
+            "the ask streaming attempt did not acquire its runner lease",
+        ));
+    }
+    let snapshots = registry.dirty_snapshots(namespace);
+    let rows = snapshots
+        .iter()
+        .map(crate::stream_attempt::PersistedStreamAttempt::to_row)
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    with_snapback(state, move |snapback| snapback.persist_stream_attempts(&rows)).await?;
+    registry.clear_flushed(&snapshots);
+    Ok((started.attempt_token, runner, started_at_ms))
+}
+
+async fn settle_ask_stream(
+    state: &SharedSnapback,
+    attempt_token: String,
+    runner: crate::stream_attempt::StreamRunnerIdentity,
+    started_at_ms: u64,
+    initiator: crate::stream_attempt::StreamInitiator,
+    cause: crate::stream_attempt::StreamAttemptCause,
+    final_text: Option<String>,
+    tokens: &crate::ask::TokenAccounting,
+) -> SnapbackResult<()> {
+    let registry = crate::stream_attempt::global_stream_attempt_registry();
+    let terminal = registry.settle(&attempt_token, cause, &runner)?;
+    let namespace = with_snapback(state, |snapback| snapback.stream_attempt_namespace()).await;
+    let snapshots = registry.dirty_snapshots(namespace);
+    let rows = snapshots
+        .iter()
+        .map(crate::stream_attempt::PersistedStreamAttempt::to_row)
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    let record = crate::storage::stream_transcripts::StreamTranscriptRecord {
+        attempt_token,
+        function_id: "snapback:ask".to_owned(),
+        initiator,
+        started_at_ms,
+        settled_at_ms: now_millis(),
+        terminal_cause: terminal.cause,
+        final_text,
+        chunk_count: 0,
+        prompt_tokens: Some(tokens.prompt_tokens),
+        completion_tokens: Some(tokens.completion_tokens),
+    };
+    with_snapback(state, move |snapback| {
+        snapback.persist_stream_attempts(&rows)?;
+        snapback.settle_stream_transcript(&record)
+    })
+    .await?;
+    registry.clear_flushed(&snapshots);
+    registry.release_invocation(&runner);
+    Ok(())
+}
+
+async fn invoke_ask_core(
+    runtime: &AppState,
+    state: &SharedSnapback,
+    authority: &PreparedAuthority,
+    headers: &HeaderMap,
+    request: ExternalAskRequest,
+    force_synchronous: bool,
+) -> Response {
+    if request.task.is_empty() || request.task.len() > ASK_TASK_MAX_BYTES {
+        return ApiError::from(SnapbackError::error(
+            "SNAPBACK_API_ASK_TASK_INVALID",
+            "api",
+            "task must be a non-empty string no larger than 64 KiB",
+        ))
+        .into_response();
+    }
+    if let Some(schema) = request.result_schema.as_ref() {
+        if serde_json::to_vec(schema).is_ok_and(|bytes| bytes.len() > ASK_RESULT_SCHEMA_MAX_BYTES) {
+            return ApiError::from(SnapbackError::error(
+                "SNAPBACK_API_ASK_RESULT_SCHEMA_INVALID",
+                "api",
+                "resultSchema exceeds the 256 KiB request limit",
+            ))
+            .into_response();
+        }
+        if let Err(error) = crate::ask::validate_result(schema, &Value::Null)
+            && error.diagnostic.code == "SNAPBACK_API_ASK_RESULT_SCHEMA_INVALID"
+        {
+            return ApiError::from(error).into_response();
+        }
+    }
+    let catalog = match load_ask_catalog(runtime).await {
+        Ok(catalog) => catalog,
+        Err(error) => return ApiError::from(error).into_response(),
+    };
+    let authorized = match catalog.ask.billing {
+        crate::contract_types::ApiAskBilling::App => {
+            authority.resolved().has_ask_consent_scope()
+        }
+        crate::contract_types::ApiAskBilling::CallerKey => {
+            authority.resolved().has_granted_read_scope()
+        }
+    };
+    if !authorized {
+        return ApiError::from(ask_authority_refusal()).into_response();
+    }
+    let subject = match ask_spend_subject(authority.resolved()) {
+        Ok(subject) => subject,
+        Err(error) => return ApiError::from(error).into_response(),
+    };
+    // Resolve app-custodied secret material only after caller authority has
+    // passed. Anonymous/declared refusals never open the LLP 0036 runtime seam.
+    let app_secret = if catalog.ask.billing == crate::contract_types::ApiAskBilling::App {
+        let secret_name = catalog
+            .ask
+            .model
+            .as_ref()
+            .and_then(|model| model.secret.clone());
+        match secret_name {
+            Some(name) => with_snapback(state, move |snapback| snapback.api_ask_secret(&name)).await,
+            None => None,
+        }
+    } else {
+        None
+    };
+    let (provider_key, redactor) = match ask_provider_key(headers, &catalog, app_secret) {
+        Ok(key) => key,
+        Err(error) => return ApiError::from(error).into_response(),
+    };
+    let budgets = catalog.budgets.clone();
+    let reserved = with_snapback(state, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .reserve_ask_spend(now_millis(), subject, &budgets)
+    })
+    .await;
+    let (reservation, _) = match reserved {
+        Ok(reserved) => reserved,
+        Err(error) => return ApiError::from(error).into_response(),
+    };
+    let stream = !force_synchronous && request.stream.unwrap_or(true);
+    let initiator = stream_initiator_from_authority(authority.resolved());
+    let stream_attempt = if stream {
+        match initiator.clone() {
+            Some(initiator) => match start_ask_stream(state, initiator).await {
+                Ok(attempt) => Some(attempt),
+                Err(error) => {
+                    let release = reservation.clone();
+                    let _ = with_snapback(state, move |snapback| {
+                        snapback
+                            .auth_database_mut()
+                            .settle_ask_spend(&release, 0, 0)
+                    })
+                    .await;
+                    return ApiError::from(error).into_response();
+                }
+            },
+            None => {
+                let release = reservation.clone();
+                let _ = with_snapback(state, move |snapback| {
+                    snapback
+                        .auth_database_mut()
+                        .settle_ask_spend(&release, 0, 0)
+                })
+                .await;
+                return ApiError::from(ask_authority_refusal()).into_response();
+            }
+        }
+    } else {
+        None
+    };
+    let outcome = execute_ask_loop(
+        state,
+        authority,
+        &catalog,
+        request.task,
+        request.result_schema,
+        provider_key,
+        redactor,
+    )
+    .await;
+    let actual_tokens = outcome
+        .tokens
+        .total_tokens
+        .min(catalog.budgets.per_request.max_tokens);
+    let actual_bytes = outcome
+        .result_bytes
+        .min(catalog.budgets.result_volume.max_bytes);
+    let settled = with_snapback(state, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .settle_ask_spend(&reservation, actual_tokens, actual_bytes)
+    })
+    .await;
+    let spend = match settled {
+        Ok(spend) => spend,
+        Err(error) => return ApiError::from(error).into_response(),
+    };
+    match outcome.result {
+        Ok(completed) => {
+            let response = ExternalAskResponse {
+                result: completed.result,
+                stream,
+                attempt_token: stream_attempt
+                    .as_ref()
+                    .map(|(attempt_token, _, _)| attempt_token.clone()),
+                provider: catalog.provider.identity.clone(),
+                model: catalog.provider.model.clone(),
+                token_accounting: completed.tokens.clone(),
+                budget_spend_so_far: spend,
+                provenance_not_proof: AskProvenance {
+                    calls: completed.receipts,
+                },
+            };
+            if let Some((attempt_token, runner, started_at_ms)) = stream_attempt {
+                let final_text = serde_json::to_string(&response)
+                    .ok()
+                    .filter(|text| text.len() <= crate::storage::stream_transcripts::STREAM_TRANSCRIPT_FINAL_MAX_BYTES);
+                if let Err(error) = settle_ask_stream(
+                    state,
+                    attempt_token,
+                    runner,
+                    started_at_ms,
+                    initiator.expect("stream requires initiator"),
+                    crate::stream_attempt::StreamAttemptCause::Complete,
+                    final_text,
+                    &completed.tokens,
+                )
+                .await
+                {
+                    return ApiError::from(error).into_response();
+                }
+            }
+            Json(response).into_response()
+        }
+        Err(mut error) => {
+            if let Some(details) = error.diagnostic.details.as_object_mut() {
+                details.insert(
+                    "spendSoFar".to_owned(),
+                    serde_json::to_value(&spend).unwrap_or_else(|_| json!({})),
+                );
+            }
+            if let Some((attempt_token, runner, started_at_ms)) = stream_attempt {
+                let cause = if error.diagnostic.code == "SNAPBACK_API_ASK_WALL_TIME_EXHAUSTED" {
+                    crate::stream_attempt::StreamAttemptCause::TimedOut
+                } else {
+                    crate::stream_attempt::StreamAttemptCause::Failed
+                };
+                if let Err(settlement_error) = settle_ask_stream(
+                    state,
+                    attempt_token,
+                    runner,
+                    started_at_ms,
+                    initiator.expect("stream requires initiator"),
+                    cause,
+                    None,
+                    &outcome.tokens,
+                )
+                .await
+                {
+                    return ApiError::from(settlement_error).into_response();
+                }
+            }
+            ApiError::from(error).into_response()
+        }
+    }
+}
+
+async fn invoke_ask(
+    State(runtime): State<AppState>,
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    input: Result<Json<ExternalAskRequest>, JsonRejection>,
+) -> Response {
+    let Json(request) = match input.map_err(ApiError::from_json_rejection) {
+        Ok(request) => request,
+        Err(error) => return error.into_response(),
+    };
+    invoke_ask_core(&runtime, &state, &authority, &headers, request, false).await
 }
 
 fn external_api_escalation(lane: &str) -> Value {

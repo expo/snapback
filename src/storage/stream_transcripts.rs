@@ -6,6 +6,8 @@
 //!
 //! @ref LLP 0076#dated-amendment-private-action-output-streams-2026-08-09 —
 //! manifest gating, exact terminal shape, and the no-durable-chunks rule.
+//! @ref LLP 0204#d5--surface-4-the-near-data-ai-interface — enabled ask runs
+//! through the same durable terminal/transcript carrier.
 
 use super::{LocalDatabase, SnapbackResult};
 use crate::diagnostic::SnapbackError;
@@ -55,6 +57,29 @@ pub(crate) fn manifest_enabled(manifest: &FunctionManifest) -> bool {
         .functions
         .iter()
         .any(|function| function.stream && function.kind == FunctionKind::Action)
+}
+
+pub(crate) fn manifests_enabled(
+    schema: &crate::manifest::SchemaManifest,
+    functions: Option<&FunctionManifest>,
+) -> bool {
+    schema.ask_manifest().is_some() || functions.is_some_and(manifest_enabled)
+}
+
+pub(crate) fn activate_manifests_in(
+    tx: &Transaction<'_>,
+    schema: &crate::manifest::SchemaManifest,
+    functions: Option<&FunctionManifest>,
+) -> SnapbackResult<()> {
+    if !manifests_enabled(schema, functions) {
+        tx.execute_batch(
+            "DROP INDEX IF EXISTS _snapback_stream_transcripts_initiator;
+             DROP TABLE IF EXISTS _snapback_stream_transcripts;",
+        )?;
+        return Ok(());
+    }
+    tx.execute_batch(TABLE_SQL)?;
+    validate_exact_schema(tx)
 }
 
 pub(crate) fn activate_manifest_in(
@@ -126,8 +151,13 @@ impl LocalDatabase {
         &mut self,
         manifest: &FunctionManifest,
     ) -> SnapbackResult<()> {
+        let schema = self.schema.clone();
         let tx = self.conn.transaction()?;
-        activate_manifest_in(&tx, manifest)?;
+        if schema.ask_manifest().is_some() {
+            activate_manifests_in(&tx, &schema, Some(manifest))?;
+        } else {
+            activate_manifest_in(&tx, manifest)?;
+        }
         tx.commit()?;
         Ok(())
     }

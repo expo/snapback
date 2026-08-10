@@ -65,6 +65,16 @@ impl SecretRedactor {
         Self { patterns }
     }
 
+    /// Construct the invocation-lifetime redactor for a request-scoped secret
+    /// that is deliberately outside the persisted LLP 0036 store.
+    ///
+    /// @ref LLP 0204#d5--surface-4-the-near-data-ai-interface — caller model
+    /// keys are never persisted or logged, but receive the same reversible-
+    /// representation scrubbing as stored secrets while the request exists.
+    pub(crate) fn request_scoped(secret: String) -> Self {
+        Self::new(vec![secret])
+    }
+
     pub(crate) fn redact_text(&self, text: &str) -> String {
         let mut redacted = text.to_owned();
         for pattern in &self.patterns {

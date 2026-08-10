@@ -6841,6 +6841,33 @@ impl LocalSnapback {
         self.db.schema().oauth_manifest().cloned()
     }
 
+    pub(crate) fn api_ask_manifest(
+        &self,
+    ) -> Option<(
+        crate::contract_types::ApiAskManifest,
+        crate::contract_types::ApiAskBudgets,
+    )> {
+        self.db
+            .schema()
+            .ask_manifest()
+            .map(|(ask, budgets)| (ask.clone(), budgets.clone()))
+    }
+
+    /// Runtime-only config grant for the host-managed ask seam. The value is
+    /// cloned directly into one invocation and never enters the database or a
+    /// diagnostic carrier.
+    ///
+    /// @ref LLP 0009#secrets — application code and public projections never
+    ///   receive configured secret material.
+    /// @ref LLP 0036#the-store-and-the-target-seam-d1-d2-d7 — deployment-owned
+    ///   values leave the local store only through a declared runtime seam.
+    pub(crate) fn api_ask_secret(&self, name: &str) -> Option<String> {
+        self.config
+            .values(name)
+            .and_then(|values| values.first())
+            .cloned()
+    }
+
     pub(crate) fn served_function_manifest(&self) -> &FunctionManifest {
         &self.functions
     }

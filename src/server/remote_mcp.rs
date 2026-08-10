@@ -10,6 +10,7 @@ struct Catalog {
     operations: Vec<crate::api_envelope::AppApiOperationProjection>,
     functions: Vec<crate::manifest::FunctionDefinition>,
     oauth: Option<crate::contract_types::ApiOAuthManifest>,
+    ask_enabled: bool,
 }
 
 #[derive(Clone)]
@@ -94,6 +95,7 @@ pub(super) async fn post(
         &authority,
         route,
         &catalog,
+        &headers,
         method,
         params,
     )
@@ -139,6 +141,7 @@ async fn dispatch(
     authority: &PreparedAuthority,
     route: RouteSpec,
     catalog: &Catalog,
+    headers: &HeaderMap,
     method: &str,
     params: Value,
 ) -> Result<Value, RpcFailure> {
@@ -150,12 +153,12 @@ async fn dispatch(
                 "resources": { "subscribe": false, "listChanged": false }
             },
             "serverInfo": { "name": "snapback-app", "version": env!("CARGO_PKG_VERSION") },
-            "instructions": "Tools are generated from the current exposed Snapback API envelope. run_code is registered but executes only on targets carrying the evidenced untrusted-code profile; current targets return a typed capability refusal. ask is deferred to LLP 0204 S4-C."
+            "instructions": "Tools are generated from the current exposed Snapback API envelope. run_code is target-conditional. When enabled, ask is a synchronous MCP tool over exposed queries only and carries the same authority, provider, and budget refusals as POST /api/v1/ask."
         })),
         "ping" => Ok(json!({})),
         "tools/list" => Ok(tool_list(catalog, authority)),
         "tools/call" => {
-            call_tool(runtime, state, read, authority, route, catalog, params).await
+            call_tool(runtime, state, read, authority, route, catalog, headers, params).await
         }
         "resources/list" => Ok(resource_list(catalog)),
         "resources/read" => read_resource(catalog, params),
@@ -182,6 +185,7 @@ async fn load_catalog(runtime: &AppState) -> Result<Catalog, ApiError> {
             canonical,
             snapback.served_function_manifest().functions.clone(),
             snapback.api_oauth_manifest(),
+            snapback.api_ask_manifest().is_some(),
         ))
     })
     .await?;
@@ -226,6 +230,7 @@ async fn load_catalog(runtime: &AppState) -> Result<Catalog, ApiError> {
         operations,
         functions: snapshot.2,
         oauth: snapshot.3,
+        ask_enabled: snapshot.4,
     })
 }
 
@@ -272,7 +277,7 @@ fn function_tools(catalog: &Catalog) -> Vec<FunctionTool> {
     tools
 }
 
-fn function_tool_name(function_id: &str, taken: &mut BTreeSet<String>) -> String {
+pub(super) fn function_tool_name(function_id: &str, taken: &mut BTreeSet<String>) -> String {
     let sanitized = function_id
         .chars()
         .map(|character| {
@@ -317,6 +322,21 @@ fn tool_list(catalog: &Catalog, _authority: &PreparedAuthority) -> Value {
             }
         }),
     ];
+    if catalog.ask_enabled {
+        tools.push(json!({
+            "name": "ask",
+            "description": "Run one host-budgeted, read-only near-data AI task over the exposed query catalog. MCP v1 returns the final envelope synchronously.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["task"],
+                "properties": {
+                    "task": { "type": "string" },
+                    "resultSchema": { "type": "object" }
+                },
+                "additionalProperties": false
+            }
+        }));
+    }
     tools.extend(
         function_tools(catalog)
             .into_iter()
@@ -346,9 +366,7 @@ fn tool_list(catalog: &Catalog, _authority: &PreparedAuthority) -> Value {
         "tools": tools,
         "_meta": {
             "snapback/envelopeDigest": catalog.digest,
-            "snapback/deferredTools": {
-                "ask": "deferred to LLP 0204 S4-C"
-            }
+            "snapback/ask": if catalog.ask_enabled { "enabled-synchronous" } else { "disabled-by-manifest" }
         }
     })
 }
@@ -360,6 +378,7 @@ async fn call_tool(
     authority: &PreparedAuthority,
     route: RouteSpec,
     catalog: &Catalog,
+    headers: &HeaderMap,
     params: Value,
 ) -> Result<Value, RpcFailure> {
     let object = params
@@ -383,11 +402,44 @@ async fn call_tool(
         return response_to_tool_result(response).await;
     }
     if name == "ask" {
-        return Err(RpcFailure {
-            code: -32602,
-            message: "ask is deferred to LLP 0204 S4-C and is not available".to_owned(),
-            data: Some(json!({ "deferredTo": "S4-C", "describeTool": "describe_api" })),
-        });
+        if !catalog.ask_enabled {
+            let response = ApiError::from(SnapbackError::error(
+                "SNAPBACK_API_ASK_DISABLED",
+                "api",
+                "ask is disabled because api.ask.enabled and its complete api.budgets.ask declaration are not active",
+            ))
+            .into_response();
+            return response_to_tool_result(response).await;
+        }
+        let arguments = arguments
+            .as_object()
+            .ok_or_else(|| RpcFailure::invalid("ask arguments must be an object"))?;
+        if arguments.keys().any(|key| !matches!(key.as_str(), "task" | "resultSchema")) {
+            return Err(RpcFailure::invalid("ask accepts only task and resultSchema"));
+        }
+        let task = arguments
+            .get("task")
+            .and_then(Value::as_str)
+            .ok_or_else(|| RpcFailure::invalid("ask requires a string task"))?
+            .to_owned();
+        let result_schema = arguments.get("resultSchema").cloned();
+        if result_schema.as_ref().is_some_and(|schema| !schema.is_object()) {
+            return Err(RpcFailure::invalid("ask resultSchema must be an object"));
+        }
+        let response = super::invoke_ask_core(
+            runtime,
+            state,
+            authority,
+            headers,
+            super::ExternalAskRequest {
+                task,
+                result_schema,
+                stream: Some(false),
+            },
+            true,
+        )
+        .await;
+        return response_to_tool_result(response).await;
     }
     let tools = function_tools(catalog);
     let tool = tools
@@ -538,7 +590,11 @@ fn describe_api(catalog: &Catalog) -> Value {
             "serverInitiatedStreams": false,
             "sessionId": null
         },
-        "deferredTools": { "ask": "LLP 0204 S4-C" }
+        "ask": if catalog.ask_enabled {
+            json!({ "path": "/api/v1/ask", "mcpStreaming": false, "readOnly": true })
+        } else {
+            json!({ "enabled": false, "requires": ["api.ask.enabled", "api.budgets.ask"] })
+        }
     })
 }
 

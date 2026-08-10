@@ -561,11 +561,64 @@ export const membershipResource = Object.freeze({
 // Schema
 // ---------------------------------------------------------------------------
 
-function exactObject(value, where, allowed) {
-  assert(value && typeof value === 'object' && !Array.isArray(value), `${where} must be an object`);
+function exactObject(value, where, allowed, code = undefined) {
+  assert(value && typeof value === 'object' && !Array.isArray(value), `${where} must be an object`, code);
   for (const field of Object.keys(value)) {
-    assert(allowed.has(field), `${where} has unknown field ${field}`);
+    assert(allowed.has(field), `${where} has unknown field ${field}`, code);
   }
+}
+
+function positiveBudgetInteger(value, where) {
+  assert(Number.isSafeInteger(value) && value > 0, `${where} must be a positive safe integer`, 'SNAPBACK_API_ASK_BUDGETS_INVALID');
+  return value;
+}
+
+function normalizeAskBudgets(value) {
+  exactObject(value, 'defineSchema api.budgets', new Set(['ask']), 'SNAPBACK_API_ASK_BUDGETS_INVALID');
+  if (value.ask === undefined) return {};
+  const ask = value.ask;
+  exactObject(ask, 'defineSchema api.budgets.ask', new Set([
+    'perRequest', 'perPrincipalDay', 'perIntegrationDay', 'appMonthly', 'resultVolume',
+  ]), 'SNAPBACK_API_ASK_BUDGETS_INVALID');
+  const required = ['perRequest', 'perPrincipalDay', 'appMonthly', 'resultVolume'];
+  for (const line of required) {
+    assert(Object.hasOwn(ask, line), `defineSchema api.ask.enabled requires api.budgets.ask.${line}`, 'SNAPBACK_API_ASK_BUDGETS_REQUIRED');
+  }
+  exactObject(ask.perRequest, 'defineSchema api.budgets.ask.perRequest', new Set(['maxTokens', 'maxSteps', 'maxWallMs']), 'SNAPBACK_API_ASK_BUDGETS_INVALID');
+  for (const line of ['maxTokens', 'maxSteps', 'maxWallMs']) {
+    assert(Object.hasOwn(ask.perRequest, line), `defineSchema api.ask.enabled requires api.budgets.ask.perRequest.${line}`, 'SNAPBACK_API_ASK_BUDGETS_REQUIRED');
+  }
+  exactObject(ask.perPrincipalDay, 'defineSchema api.budgets.ask.perPrincipalDay', new Set(['maxTokens']), 'SNAPBACK_API_ASK_BUDGETS_INVALID');
+  assert(Object.hasOwn(ask.perPrincipalDay, 'maxTokens'), 'defineSchema api.ask.enabled requires api.budgets.ask.perPrincipalDay.maxTokens', 'SNAPBACK_API_ASK_BUDGETS_REQUIRED');
+  exactObject(ask.appMonthly, 'defineSchema api.budgets.ask.appMonthly', new Set(['maxTokens']), 'SNAPBACK_API_ASK_BUDGETS_INVALID');
+  assert(Object.hasOwn(ask.appMonthly, 'maxTokens'), 'defineSchema api.ask.enabled requires api.budgets.ask.appMonthly.maxTokens', 'SNAPBACK_API_ASK_BUDGETS_REQUIRED');
+  exactObject(ask.resultVolume, 'defineSchema api.budgets.ask.resultVolume', new Set(['maxBytes', 'maxRows', 'perPrincipalDayBytes']), 'SNAPBACK_API_ASK_BUDGETS_INVALID');
+  for (const line of ['maxBytes', 'maxRows', 'perPrincipalDayBytes']) {
+    assert(Object.hasOwn(ask.resultVolume, line), `defineSchema api.ask.enabled requires api.budgets.ask.resultVolume.${line}`, 'SNAPBACK_API_ASK_BUDGETS_REQUIRED');
+  }
+  let perIntegrationDay;
+  if (ask.perIntegrationDay !== undefined) {
+    exactObject(ask.perIntegrationDay, 'defineSchema api.budgets.ask.perIntegrationDay', new Set(['maxTokens']), 'SNAPBACK_API_ASK_BUDGETS_INVALID');
+    assert(Object.hasOwn(ask.perIntegrationDay, 'maxTokens'), 'defineSchema api.budgets.ask.perIntegrationDay requires maxTokens', 'SNAPBACK_API_ASK_BUDGETS_REQUIRED');
+    perIntegrationDay = { maxTokens: positiveBudgetInteger(ask.perIntegrationDay.maxTokens, 'defineSchema api.budgets.ask.perIntegrationDay.maxTokens') };
+  }
+  return {
+    ask: {
+      perRequest: {
+        maxTokens: positiveBudgetInteger(ask.perRequest.maxTokens, 'defineSchema api.budgets.ask.perRequest.maxTokens'),
+        maxSteps: positiveBudgetInteger(ask.perRequest.maxSteps, 'defineSchema api.budgets.ask.perRequest.maxSteps'),
+        maxWallMs: positiveBudgetInteger(ask.perRequest.maxWallMs, 'defineSchema api.budgets.ask.perRequest.maxWallMs'),
+      },
+      perPrincipalDay: { maxTokens: positiveBudgetInteger(ask.perPrincipalDay.maxTokens, 'defineSchema api.budgets.ask.perPrincipalDay.maxTokens') },
+      ...(perIntegrationDay ? { perIntegrationDay } : {}),
+      appMonthly: { maxTokens: positiveBudgetInteger(ask.appMonthly.maxTokens, 'defineSchema api.budgets.ask.appMonthly.maxTokens') },
+      resultVolume: {
+        maxBytes: positiveBudgetInteger(ask.resultVolume.maxBytes, 'defineSchema api.budgets.ask.resultVolume.maxBytes'),
+        maxRows: positiveBudgetInteger(ask.resultVolume.maxRows, 'defineSchema api.budgets.ask.resultVolume.maxRows'),
+        perPrincipalDayBytes: positiveBudgetInteger(ask.resultVolume.perPrincipalDayBytes, 'defineSchema api.budgets.ask.resultVolume.perPrincipalDayBytes'),
+      },
+    },
+  };
 }
 
 function stringArray(value, where, { allowEmpty = false } = {}) {
@@ -1409,14 +1462,7 @@ export function defineSchema(tables, options = {}) {
   let api;
   if (options.api !== undefined) {
     assert(options.api && typeof options.api === 'object' && !Array.isArray(options.api), 'defineSchema option "api" must be an object');
-    if (Object.hasOwn(options.api, 'budgets')) {
-      assert(
-        false,
-        'defineSchema api.budgets lands with LLP 0204 S2',
-        'SNAPBACK_API_BUDGETS_UNAVAILABLE',
-      );
-    }
-    exactObject(options.api, 'defineSchema api', new Set(['enabled', 'disclosure', 'functions', 'origins', 'oauth']));
+    exactObject(options.api, 'defineSchema api', new Set(['enabled', 'disclosure', 'functions', 'origins', 'oauth', 'ask', 'budgets']));
     const enabled = options.api.enabled ?? false;
     const disclosure = options.api.disclosure ?? 'exposed-only';
     const functions = options.api.functions ?? {};
@@ -1462,6 +1508,29 @@ export function defineSchema(tables, options = {}) {
       // preserved for Rust activation to compile against stable function ids.
       oauth = { enabled: oauthEnabled, bearer, bundles: normalizedBundles };
     }
+    let ask;
+    if (options.api.ask !== undefined) {
+      exactObject(options.api.ask, 'defineSchema api.ask', new Set(['enabled', 'billing', 'model']), 'SNAPBACK_API_ASK_MANIFEST_INVALID');
+      assert(Object.hasOwn(options.api.ask, 'enabled'), 'defineSchema api.ask requires enabled', 'SNAPBACK_API_ASK_MANIFEST_INVALID');
+      assert(Object.hasOwn(options.api.ask, 'billing'), 'defineSchema api.ask requires billing', 'SNAPBACK_API_ASK_MANIFEST_INVALID');
+      assert(typeof options.api.ask.enabled === 'boolean', 'defineSchema api.ask.enabled must be a boolean', 'SNAPBACK_API_ASK_MANIFEST_INVALID');
+      assert(options.api.ask.billing === 'app' || options.api.ask.billing === 'caller-key', 'defineSchema api.ask.billing must be app or caller-key', 'SNAPBACK_API_ASK_MANIFEST_INVALID');
+      let model;
+      if (options.api.ask.model !== undefined) {
+        exactObject(options.api.ask.model, 'defineSchema api.ask.model', new Set(['provider', 'model', 'secret']), 'SNAPBACK_API_ASK_MODEL_INVALID');
+        assert(typeof options.api.ask.model.provider === 'string' && options.api.ask.model.provider.length > 0, 'defineSchema api.ask.model.provider must be a non-empty string', 'SNAPBACK_API_ASK_MODEL_INVALID');
+        assert(typeof options.api.ask.model.model === 'string' && options.api.ask.model.model.length > 0, 'defineSchema api.ask.model.model must be a non-empty string', 'SNAPBACK_API_ASK_MODEL_INVALID');
+        assert(options.api.ask.model.secret === undefined || (typeof options.api.ask.model.secret === 'string' && options.api.ask.model.secret.length > 0), 'defineSchema api.ask.model.secret must be a non-empty config entry name', 'SNAPBACK_API_ASK_MODEL_INVALID');
+        model = { ...options.api.ask.model };
+      }
+      assert(options.api.ask.billing !== 'caller-key' || model?.secret === undefined, 'defineSchema caller-key ask billing carries the provider credential on X-Snapback-Ask-Provider-Key and must not name an app secret', 'SNAPBACK_API_ASK_MODEL_INVALID');
+      ask = { enabled: options.api.ask.enabled, billing: options.api.ask.billing, ...(model ? { model } : {}) };
+    }
+    const budgets = options.api.budgets === undefined ? undefined : normalizeAskBudgets(options.api.budgets);
+    if (ask?.enabled === true) {
+      assert(enabled === true, 'defineSchema api.ask.enabled requires api.enabled', 'SNAPBACK_API_ASK_REQUIRES_API');
+      assert(budgets?.ask, 'defineSchema api.ask.enabled requires api.budgets.ask.perRequest, api.budgets.ask.perPrincipalDay, api.budgets.ask.appMonthly, and api.budgets.ask.resultVolume', 'SNAPBACK_API_ASK_BUDGETS_REQUIRED');
+    }
     // @ref LLP 0204#d1--the-exposure-declaration-keystone — preserve the
     // explicit registration posture and the default-closed function map.
     api = {
@@ -1470,6 +1539,8 @@ export function defineSchema(tables, options = {}) {
       functions: normalizedFunctions,
       ...(origins ? { origins } : {}),
       ...(oauth ? { oauth } : {}),
+      ...(ask ? { ask } : {}),
+      ...(budgets ? { budgets } : {}),
       __agentsModeExplicit: Boolean(
         options.auth?.agents && Object.hasOwn(options.auth.agents, 'mode'),
       ),

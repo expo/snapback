@@ -251,6 +251,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/action/{name}"),
         ("POST", "/api/v1/action/{name}"),
         ("POST", "/api/v1/run"),
+        ("POST", "/api/v1/ask"),
         ("GET", "/streams/{attempt_token}"),
         ("POST", "/streams/{attempt_token}/cancel"),
         ("POST", "/app/bundle"),
@@ -482,26 +483,40 @@ fn remote_mcp_rows_pin_the_app_data_policy_tuple() {
 }
 
 #[test]
-fn external_run_row_pins_the_app_data_policy_tuple() {
-    let route = route_registry()
-        .into_iter()
-        .find(|route| route.method == "POST" && route.path == "/api/v1/run")
-        .expect("the run surface is registered");
-    assert_eq!(route.class, RouteClass::AppData);
-    assert_eq!(route.path_policy, RoutePolicy::AppAuth);
-    assert_eq!(route.credential_resolution, CredentialResolution::LegacyBodyAuth);
-    assert_eq!(route.invocation_authority, InvocationAuthority::ClientAsserted);
-    assert_eq!(route.legacy_body_policy, LegacyBodyPolicy::Allowed);
-    assert_eq!(route.response_sensitivity, ResponseSensitivity::ApplicationData);
+fn external_host_loop_rows_pin_the_app_data_policy_tuple() {
+    for path in ["/api/v1/run", "/api/v1/ask"] {
+        let route = route_registry()
+            .into_iter()
+            .find(|route| route.method == "POST" && route.path == path)
+            .expect("the host-managed API surface is registered");
+        assert_eq!(route.class, RouteClass::AppData);
+        assert_eq!(route.path_policy, RoutePolicy::AppAuth);
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::LegacyBodyAuth
+        );
+        assert_eq!(
+            route.invocation_authority,
+            InvocationAuthority::ClientAsserted
+        );
+        assert_eq!(route.legacy_body_policy, LegacyBodyPolicy::Allowed);
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::ApplicationData
+        );
 
-    let sessions = route.effective_for(PolicyAuthMode::Sessions);
-    assert_eq!(sessions.path_policy, RoutePolicy::Public);
-    assert_eq!(
-        sessions.credential_resolution,
-        CredentialResolution::OptionalSessionOrScopedToken
-    );
-    assert_eq!(sessions.invocation_authority, InvocationAuthority::ResolvedCaller);
-    assert_eq!(sessions.legacy_body_policy, LegacyBodyPolicy::Rejected);
+        let sessions = route.effective_for(PolicyAuthMode::Sessions);
+        assert_eq!(sessions.path_policy, RoutePolicy::Public);
+        assert_eq!(
+            sessions.credential_resolution,
+            CredentialResolution::OptionalSessionOrScopedToken
+        );
+        assert_eq!(
+            sessions.invocation_authority,
+            InvocationAuthority::ResolvedCaller
+        );
+        assert_eq!(sessions.legacy_body_policy, LegacyBodyPolicy::Rejected);
+    }
 }
 
 #[test]
@@ -1109,6 +1124,7 @@ fn session_overlay_closes_every_client_asserted_http_route() {
                     | "/action/{name}"
                     | "/api/v1/action/{name}"
                     | "/api/v1/run"
+                    | "/api/v1/ask"
                     | "/mcp"
                     | "/app/bundle" => {
                         CredentialResolution::OptionalSessionOrScopedToken
@@ -2255,6 +2271,14 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
                     "envelopeDigest": "policy_probe",
                     "args": {}
                 }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/api/v1/ask"),
+            SessionBodyProbe {
+                uri: "/api/v1/ask",
+                base: json!({ "task": "policy probe", "stream": false }),
                 forbidden_fields: handler_fields(),
             },
         ),

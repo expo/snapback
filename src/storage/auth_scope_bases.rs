@@ -33,6 +33,14 @@ pub(crate) struct ScopeBasisReconciliation {
     pub became_absent: BTreeSet<String>,
 }
 
+/// Distinguished non-function consent entry for near-data AI. The spelling
+/// makes the data-egress consequence visible even in generic approval UIs
+/// that render exact scope rows without a Snapback-specific label table.
+///
+/// @ref LLP 0204#d5--surface-4-the-near-data-ai-interface — ask consent is
+/// separate from ordinary query scopes and names authorized data egress.
+pub(crate) const ASK_SCOPE_ID: &str = "snapback:ask:data-egress";
+
 impl ScopeBasisReconciliation {
     pub(crate) fn advances_authorization(&self) -> bool {
         !self.basis_advanced.is_empty()
@@ -48,6 +56,18 @@ impl LocalDatabase {
         manifest: &FunctionManifest,
     ) -> SnapbackResult<ScopeBasisReconciliation> {
         self.with_auth_transaction(|tx| reconcile_auth_scope_bases_on(tx, manifest))
+    }
+
+    pub(crate) fn reconcile_auth_scope_bases_with_schema(
+        &mut self,
+        manifest: &FunctionManifest,
+        schema: &crate::manifest::SchemaManifest,
+    ) -> SnapbackResult<ScopeBasisReconciliation> {
+        self.with_auth_transaction(|tx| {
+            let mut result = reconcile_auth_scope_bases_on(tx, manifest)?;
+            reconcile_ask_scope_basis_on(tx, schema, &mut result)?;
+            Ok(result)
+        })
     }
 
     /// Return a callable exact-function basis only when every consent-bound
@@ -139,6 +159,12 @@ pub(super) fn reconcile_auth_scope_bases_on(
 
     let mut reconciliation = ScopeBasisReconciliation::default();
     for (function_id, basis) in &stored {
+        // Distinguished surface scopes are reconciled against their schema
+        // declaration below. Treating one as a removed function here would
+        // churn its basis on every otherwise-no-op generation activation.
+        if function_id == ASK_SCOPE_ID {
+            continue;
+        }
         match incoming.get(function_id) {
             None if basis.present => {
                 let generation = next_generation(basis.generation)?;
@@ -203,6 +229,75 @@ pub(super) fn reconcile_auth_scope_bases_on(
     Ok(reconciliation)
 }
 
+pub(super) fn reconcile_auth_scope_bases_with_schema_on(
+    tx: &rusqlite::Transaction<'_>,
+    manifest: &FunctionManifest,
+    schema: &crate::manifest::SchemaManifest,
+) -> SnapbackResult<ScopeBasisReconciliation> {
+    let mut result = reconcile_auth_scope_bases_on(tx, manifest)?;
+    reconcile_ask_scope_basis_on(tx, schema, &mut result)?;
+    Ok(result)
+}
+
+fn reconcile_ask_scope_basis_on(
+    tx: &rusqlite::Transaction<'_>,
+    schema: &crate::manifest::SchemaManifest,
+    result: &mut ScopeBasisReconciliation,
+) -> SnapbackResult<()> {
+    let enabled = schema.ask_manifest().is_some();
+    let stored = tx
+        .query_row(
+            "SELECT kind, generation, present, authority_creating
+             FROM _auth_scope_bases WHERE function_id = ?1",
+            params![ASK_SCOPE_ID],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?, row.get::<_, i64>(3)?)),
+        )
+        .optional()?;
+    match stored {
+        None if enabled => {
+            tx.execute(
+                "INSERT INTO _auth_scope_bases(function_id, kind, generation, present, authority_creating)
+                 VALUES(?1, 'query', 0, 1, 0)",
+                params![ASK_SCOPE_ID],
+            )?;
+            result.became_present.insert(ASK_SCOPE_ID.to_owned());
+        }
+        Some((kind, generation, present, authority_creating)) => {
+            if generation < 0 || !matches!(present, 0 | 1) || !matches!(authority_creating, 0 | 1) {
+                return Err(scope_basis_corrupt());
+            }
+            let shape_changed = kind != "query" || authority_creating != 0;
+            if enabled {
+                let generation = if shape_changed {
+                    result.basis_advanced.insert(ASK_SCOPE_ID.to_owned());
+                    next_generation(generation as u64)?
+                } else {
+                    generation as u64
+                };
+                if present == 0 {
+                    result.became_present.insert(ASK_SCOPE_ID.to_owned());
+                }
+                if shape_changed || present == 0 {
+                    tx.execute(
+                        "UPDATE _auth_scope_bases SET kind='query', generation=?1, present=1, authority_creating=0 WHERE function_id=?2",
+                        params![generation as i64, ASK_SCOPE_ID],
+                    )?;
+                }
+            } else if present == 1 {
+                let generation = next_generation(generation as u64)?;
+                tx.execute(
+                    "UPDATE _auth_scope_bases SET generation=?1, present=0 WHERE function_id=?2",
+                    params![generation as i64, ASK_SCOPE_ID],
+                )?;
+                result.basis_advanced.insert(ASK_SCOPE_ID.to_owned());
+                result.became_absent.insert(ASK_SCOPE_ID.to_owned());
+            }
+        }
+        None => {}
+    }
+    Ok(())
+}
+
 fn incoming_functions(
     manifest: &FunctionManifest,
 ) -> SnapbackResult<BTreeMap<String, &FunctionDefinition>> {
@@ -246,7 +341,12 @@ fn scope_basis_corrupt() -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::{FunctionDefinition, FunctionRuntime, HandlerPlan, QueryPlan};
+    use crate::manifest::{
+        ApiAskBilling, ApiAskBudgets, ApiAskManifest, ApiAskPerPrincipalDayBudget,
+        ApiAskPerRequestBudget, ApiAskResultVolumeBudget, ApiBudgetsManifest, ApiManifest,
+        ApiAskTokenBudget, FunctionDefinition, FunctionRuntime, HandlerPlan, QueryPlan,
+        SchemaManifest,
+    };
 
     fn function(id: &str, kind: FunctionKind, authority_creating: bool) -> FunctionDefinition {
         let mut function = FunctionDefinition::new(
@@ -277,6 +377,77 @@ mod tests {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog().expect("auth catalog v2");
         db
+    }
+
+    fn ask_schema() -> SchemaManifest {
+        SchemaManifest {
+            api: Some(ApiManifest {
+                enabled: true,
+                ask: Some(ApiAskManifest {
+                    enabled: true,
+                    billing: ApiAskBilling::CallerKey,
+                    model: None,
+                }),
+                budgets: Some(ApiBudgetsManifest {
+                    ask: Some(ApiAskBudgets {
+                        per_request: ApiAskPerRequestBudget {
+                            max_tokens: 10,
+                            max_steps: 4,
+                            max_wall_ms: 1_000,
+                        },
+                        per_principal_day: ApiAskPerPrincipalDayBudget { max_tokens: 100 },
+                        per_integration_day: None,
+                        app_monthly: ApiAskTokenBudget { max_tokens: 1_000 },
+                        result_volume: ApiAskResultVolumeBudget {
+                            max_bytes: 1_000,
+                            max_rows: 10,
+                            per_principal_day_bytes: 10_000,
+                        },
+                    }),
+                }),
+                ..ApiManifest::default()
+            }),
+            ..SchemaManifest::default()
+        }
+    }
+
+    #[test]
+    fn distinguished_ask_basis_is_stable_until_the_schema_disables_it() {
+        let mut db = ready();
+        let functions = manifest(vec![function("fn:read", FunctionKind::Query, false)]);
+        let enabled = ask_schema();
+        let added = db
+            .reconcile_auth_scope_bases_with_schema(&functions, &enabled)
+            .unwrap();
+        assert_eq!(added.became_present, BTreeSet::from([
+            "fn:read".to_owned(),
+            ASK_SCOPE_ID.to_owned(),
+        ]));
+        assert_eq!(
+            db.current_auth_scope_basis(ASK_SCOPE_ID, &FunctionKind::Query, false)
+                .unwrap(),
+            Some(0)
+        );
+
+        let unchanged = db
+            .reconcile_auth_scope_bases_with_schema(&functions, &enabled)
+            .unwrap();
+        assert!(!unchanged.advances_authorization());
+        assert_eq!(
+            db.current_auth_scope_basis(ASK_SCOPE_ID, &FunctionKind::Query, false)
+                .unwrap(),
+            Some(0)
+        );
+
+        let removed = db
+            .reconcile_auth_scope_bases_with_schema(&functions, &SchemaManifest::default())
+            .unwrap();
+        assert_eq!(removed.became_absent, BTreeSet::from([ASK_SCOPE_ID.to_owned()]));
+        assert_eq!(
+            db.current_auth_scope_basis(ASK_SCOPE_ID, &FunctionKind::Query, false)
+                .unwrap(),
+            None
+        );
     }
 
     #[test]

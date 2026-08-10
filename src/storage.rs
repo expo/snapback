@@ -162,6 +162,9 @@ pub(crate) mod auth_integrations;
 #[path = "storage/declared_clients.rs"]
 pub(crate) mod declared_clients;
 
+#[path = "storage/ask_spend.rs"]
+pub(crate) mod ask_spend;
+
 #[path = "storage/stream_transcripts.rs"]
 pub(crate) mod stream_transcripts;
 

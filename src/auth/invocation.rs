@@ -359,6 +359,32 @@ impl ResolvedGrantScope {
 }
 
 impl ResolvedAppAuthority {
+    pub(crate) fn has_ask_consent_scope(&self) -> bool {
+        matches!(self, Self::Session { .. })
+            || matches!(
+                self,
+                Self::ServicePrincipal { scopes, .. }
+                    if scopes.iter().any(|scope| {
+                        scope.function_id()
+                            == crate::storage::auth_scope_bases::ASK_SCOPE_ID
+                            && matches!(scope.kind(), FunctionKind::Query)
+                    })
+            )
+    }
+
+    pub(crate) fn has_granted_read_scope(&self) -> bool {
+        matches!(self, Self::Session { .. })
+            || matches!(
+                self,
+                Self::ServicePrincipal { scopes, .. }
+                    if scopes.iter().any(|scope| {
+                        scope.function_id()
+                            != crate::storage::auth_scope_bases::ASK_SCOPE_ID
+                            && matches!(scope.kind(), FunctionKind::Query | FunctionKind::LiveQuery)
+                    })
+            )
+    }
+
     /// The one derivation of the LLP 0055 §Audit attribution block. Only a
     /// resolved service principal has authority to attribute; every other
     /// class answers `None` and the wire omits the member entirely.
@@ -766,6 +792,9 @@ pub enum InvocationSource {
     /// program is not an app function; any injected-client calls prepare
     /// their own ordinary finite invocation sources.
     HttpRun,
+    /// Outer authority for the read-only near-data AI loop. Nested query
+    /// calls inherit the caller and re-enter ordinary query preparation.
+    HttpAsk,
     /// Streamable-HTTP MCP multiplexes every finite function kind behind one
     /// registered route; the tool dispatcher still enters the same per-kind
     /// finite invocation handlers as `/api/v1/*`.
@@ -835,7 +864,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 38] = [
+    pub const ALL: [Self; 39] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -845,6 +874,7 @@ impl InvocationSource {
         Self::HttpMutation,
         Self::HttpAction,
         Self::HttpRun,
+        Self::HttpAsk,
         Self::HttpMcp,
         Self::LocalQuery,
         Self::LocalMutation,
@@ -901,6 +931,7 @@ impl InvocationSource {
             | Self::PushTokenRegistry
             | Self::AgentGrantManagement
             | Self::HttpRun
+            | Self::HttpAsk
             | Self::ProtectedRecordErasure
             | Self::OperationCoverageActivation
             | Self::MutationSettlementAcknowledgement
@@ -1261,6 +1292,24 @@ impl PreparedAuthority {
         }
         Ok(Self {
             source,
+            ..self.clone()
+        })
+    }
+
+    /// Re-enter the ordinary finite-query gate from the host-owned ask loop.
+    /// This changes only the source/target classification; the exact prepared
+    /// caller, admission lease, grant scopes, and publication fences remain
+    /// unchanged.
+    pub(crate) fn ask_query_authority(&self) -> SnapbackResult<Self> {
+        if !matches!(self.source, InvocationSource::HttpAsk | InvocationSource::HttpMcp) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "only the HTTP or MCP ask host may re-enter ordinary query preparation",
+            ));
+        }
+        Ok(Self {
+            source: InvocationSource::HttpQuery,
             ..self.clone()
         })
     }
@@ -1906,6 +1955,7 @@ fn source_allows_authority(
         | InvocationSource::HttpMutation
         | InvocationSource::HttpAction
         | InvocationSource::HttpRun
+        | InvocationSource::HttpAsk
         | InvocationSource::HttpMcp => {
             ordinary
                 || (mode == AuthMode::Sessions
@@ -2795,6 +2845,7 @@ mod tests {
                 | InvocationSource::HttpMutation
                 | InvocationSource::HttpAction
                 | InvocationSource::HttpRun
+                | InvocationSource::HttpAsk
                 | InvocationSource::HttpMcp => {
                     ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
                 }

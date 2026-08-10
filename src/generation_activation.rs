@@ -110,9 +110,9 @@ impl<'a> GenerationActivation<'a> {
         self.snapback
             .generation_database_mut()
             .install_committed_sequence_declarations(sequence_declarations);
-        // @ref LLP 0204#d91--streaming-conversations — the
-        // protected transcript table exists iff this exact generation carries
-        // at least one streaming action.
+        // @ref LLP 0204#d91--streaming-conversations — the protected
+        // transcript table exists iff this exact generation carries at least
+        // one streaming action or the active schema enables D5 ask.
         if let Err(error) = self
             .snapback
             .generation_database_mut()

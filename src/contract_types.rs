@@ -85,6 +85,86 @@ pub struct ApiManifest {
     pub origins: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub oauth: Option<ApiOAuthManifest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ask: Option<ApiAskManifest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub budgets: Option<ApiBudgetsManifest>,
+}
+
+/// Host-managed near-data AI surface. `model.secret` is a declaration name,
+/// never secret material; caller-key material exists only for one request.
+///
+/// @ref LLP 0204#d5--surface-4-the-near-data-ai-interface — ask is opt-in,
+///   names who pays, and reuses LLP 0036 declarations for app-paid keys.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiAskManifest {
+    pub enabled: bool,
+    pub billing: ApiAskBilling,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<ApiAskModelManifest>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ApiAskBilling {
+    App,
+    CallerKey,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiAskModelManifest {
+    pub provider: String,
+    pub model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secret: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiBudgetsManifest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ask: Option<ApiAskBudgets>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiAskBudgets {
+    pub per_request: ApiAskPerRequestBudget,
+    pub per_principal_day: ApiAskPerPrincipalDayBudget,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub per_integration_day: Option<ApiAskTokenBudget>,
+    pub app_monthly: ApiAskTokenBudget,
+    pub result_volume: ApiAskResultVolumeBudget,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiAskPerRequestBudget {
+    pub max_tokens: u64,
+    pub max_steps: u64,
+    pub max_wall_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiAskPerPrincipalDayBudget {
+    pub max_tokens: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiAskTokenBudget {
+    pub max_tokens: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApiAskResultVolumeBudget {
+    pub max_bytes: u64,
+    pub max_rows: u64,
+    pub per_principal_day_bytes: u64,
 }
 
 /// Standards-interoperability projection over the native LLP 0150 ceremony.

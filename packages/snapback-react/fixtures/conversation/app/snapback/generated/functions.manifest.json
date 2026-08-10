@@ -55,7 +55,7 @@
       }
     }
   ],
-  "bundleHash": "snapback.v1:sessions:function:sha256:dd7266928cd8fa55d044bc54234f09e6135b4b0b52fbbdf662c220bf88abeea3",
+  "bundleHash": "snapback.v1:sessions:function:sha256:f010fac161485238eb7d69ede0c9c6f5051800477ab8e7214704caccf75cbd25",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -1718,7 +1718,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:d363c69a4a5488e72bf278216ca4b0cf136f764f348a937f301aded4499ae51d",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:e52bcd2a793fc86e05ad9d76362ebc5d26d829e29dd6fa76d90760b5a448ea35",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

@@ -102,6 +102,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/telemetry/stats | backend.observability-v1 |
 | /action/{name} | backend.actions |
 | /api/v1/action/{name} | backend.actions |
+| /api/v1/ask | api.external-exposure |
 | /api/v1/mutation/{name} | backend.functions |
 | /api/v1/query/{name} | backend.functions |
 | /api/v1/run | api.external-exposure |

@@ -422,15 +422,111 @@ export default defineSchema({ ${tables} }, {
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({ ${tables} }, {
   auth: { mode: 'sessions', agents: { mode: 'disabled' } },
-  api: { enabled: true, budgets: {} },
+  api: {
+    enabled: true,
+    budgets: { ask: {
+      perRequest: { maxTokens: 100, maxSteps: 4, maxWallMs: 5000 },
+      perPrincipalDay: { maxTokens: 1000 },
+      appMonthly: { maxTokens: 10000 },
+      resultVolume: { maxBytes: 10000, maxRows: 100, perPrincipalDayBytes: 100000 },
+    } },
+  },
 });
 `;
   const result = await generate(backend(budgetsSchema, ordinaryFunctions));
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+}
+
+{
+  const askWithoutBudgets = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: { enabled: true, ask: { enabled: true, billing: 'caller-key' } },
+});
+`;
+  const result = await generate(backend(askWithoutBudgets, ordinaryFunctions));
   assert.equal(result.ok, false);
   assert(result.diagnostics.some(
-    ({ code, message }) => code === 'SNAPBACK_API_BUDGETS_UNAVAILABLE'
-      && /api\.budgets lands with LLP 0204 S2/u.test(message),
+    ({ code, message }) => code === 'SNAPBACK_API_ASK_BUDGETS_REQUIRED'
+      && /perRequest/u.test(message) && /resultVolume/u.test(message),
   ));
+}
+
+{
+  const callerKeyAsk = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: {
+    enabled: true,
+    ask: { enabled: true, billing: 'caller-key', model: { provider: 'openai-compatible', model: 'stub' } },
+    budgets: { ask: {
+      perRequest: { maxTokens: 100, maxSteps: 4, maxWallMs: 5000 },
+      perPrincipalDay: { maxTokens: 1000 },
+      perIntegrationDay: { maxTokens: 500 },
+      appMonthly: { maxTokens: 10000 },
+      resultVolume: { maxBytes: 10000, maxRows: 100, perPrincipalDayBytes: 100000 },
+    } },
+  },
+});
+`;
+  const dir = backend(callerKeyAsk, ordinaryFunctions);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  assert.equal(readJson(join(dir, 'generated', 'schema.manifest.json')).api.ask.billing, 'caller-key');
+}
+
+{
+  const unknownAskKey = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: { enabled: true, ask: { enabled: false, billing: 'app', mutationTools: true } },
+});
+`;
+  const result = await generate(backend(unknownAskKey, ordinaryFunctions));
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some(({ code }) => code === 'SNAPBACK_API_ASK_MANIFEST_INVALID'));
+}
+
+{
+  const callerKeyWithAppSecret = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: {
+    enabled: true,
+    ask: { enabled: false, billing: 'caller-key', model: { provider: 'openai-compatible', model: 'stub', secret: 'providerKey' } },
+  },
+});
+`;
+  const result = await generate(backend(callerKeyWithAppSecret, ordinaryFunctions));
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some(({ code }) => code === 'SNAPBACK_API_ASK_MODEL_INVALID'));
+}
+
+{
+  const appPaidAsk = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: {
+    enabled: true,
+    ask: { enabled: true, billing: 'app', model: { provider: 'openai-compatible', model: 'stub' } },
+    budgets: { ask: {
+      perRequest: { maxTokens: 10, maxSteps: 2, maxWallMs: 1000 },
+      perPrincipalDay: { maxTokens: 20 },
+      appMonthly: { maxTokens: 30 },
+      resultVolume: { maxBytes: 100, maxRows: 5, perPrincipalDayBytes: 200 },
+    } },
+  },
+});
+`;
+  const dir = backend(appPaidAsk, ordinaryFunctions);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  assert.equal(readJson(join(dir, 'generated', 'schema.manifest.json')).api.ask.billing, 'app');
 }
 
 {

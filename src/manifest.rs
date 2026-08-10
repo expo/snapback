@@ -12,8 +12,10 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 
 pub use crate::contract_types::{
-    AgentsManifest, AgentsMode, ApiDisclosure, ApiFunctionExposure, ApiManifest, ApiOAuthBundle,
-    ApiOAuthManifest, AppIdentity,
+    AgentsManifest, AgentsMode, ApiAskBilling, ApiAskBudgets, ApiAskManifest,
+    ApiAskModelManifest, ApiAskPerPrincipalDayBudget, ApiAskPerRequestBudget,
+    ApiAskResultVolumeBudget, ApiAskTokenBudget, ApiBudgetsManifest, ApiDisclosure,
+    ApiFunctionExposure, ApiManifest, ApiOAuthBundle, ApiOAuthManifest, AppIdentity,
     AuthManifest, AuthMode, AuthRequirement, BoundedParentVisibility,
     BoundedProjectionField, DependencySummary, EffectCeiling, EffectCeilingRead,
     EffectCeilingWrite, FieldManifest, FieldType, FunctionArgsContract, FunctionKind,
@@ -510,6 +512,13 @@ impl SchemaManifest {
             .filter(|oauth| oauth.enabled)
     }
 
+    pub fn ask_manifest(&self) -> Option<(&ApiAskManifest, &ApiAskBudgets)> {
+        let api = self.api.as_ref().filter(|api| api.enabled)?;
+        let ask = api.ask.as_ref().filter(|ask| ask.enabled)?;
+        let budgets = api.budgets.as_ref()?.ask.as_ref()?;
+        Some((ask, budgets))
+    }
+
     pub fn agent_registration_diagnostics(&self) -> Vec<Diagnostic> {
         let agents = self.effective_agents_manifest();
         if agents.mode == AgentsMode::Invited && agents.invited_by == InvitedBy::Operators {
@@ -623,6 +632,24 @@ impl SchemaManifest {
                 }
             }
         }
+        if let Some(ask) = &api.ask
+            && ask.billing == ApiAskBilling::App
+            && let Some(secret) = ask.model.as_ref().and_then(|model| model.secret.as_ref())
+        {
+            let declared = functions
+                .config
+                .iter()
+                .any(|entry| entry.name == *secret && entry.secret);
+            if !declared {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_API_ASK_SECRET_INVALID",
+                    "api",
+                    format!(
+                        "api.ask.model.secret names {secret}, which must be a declared secret LLP 0036 config entry"
+                    ),
+                ));
+            }
+        }
         for function in &functions.functions {
             let expected = api
                 .enabled
@@ -725,6 +752,63 @@ impl SchemaManifest {
                             ),
                         ));
                     }
+                }
+            }
+            if let Some(ask) = &api.ask {
+                if ask.enabled && !api.enabled {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_API_ASK_REQUIRES_API",
+                        "api",
+                        "api.ask.enabled requires api.enabled",
+                    ));
+                }
+                if let Some(model) = &ask.model
+                    && (model.provider.is_empty()
+                        || model.provider.len() > 2_048
+                        || model.model.is_empty()
+                        || model.model.len() > 512
+                        || model.secret.as_ref().is_some_and(|secret| {
+                            secret.is_empty() || secret.len() > 512
+                        })
+                        || (ask.billing == ApiAskBilling::CallerKey
+                            && model.secret.is_some()))
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_API_ASK_MODEL_INVALID",
+                        "api",
+                        "api.ask.model requires bounded non-empty provider/model and an optional LLP 0036 secret entry name",
+                    ));
+                }
+                if ask.enabled && api.budgets.as_ref().and_then(|value| value.ask.as_ref()).is_none()
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_API_ASK_BUDGETS_REQUIRED",
+                        "api",
+                        "api.ask.enabled requires api.budgets.ask.perRequest, api.budgets.ask.perPrincipalDay, api.budgets.ask.appMonthly, and api.budgets.ask.resultVolume",
+                    ));
+                }
+            }
+            if let Some(budgets) = api.budgets.as_ref().and_then(|value| value.ask.as_ref()) {
+                let values = [
+                    budgets.per_request.max_tokens,
+                    budgets.per_request.max_steps,
+                    budgets.per_request.max_wall_ms,
+                    budgets.per_principal_day.max_tokens,
+                    budgets.app_monthly.max_tokens,
+                    budgets.result_volume.max_bytes,
+                    budgets.result_volume.max_rows,
+                    budgets.result_volume.per_principal_day_bytes,
+                ];
+                if values.into_iter().any(|value| value == 0 || value > 9_007_199_254_740_991)
+                    || budgets.per_integration_day.as_ref().is_some_and(|budget| {
+                        budget.max_tokens == 0 || budget.max_tokens > 9_007_199_254_740_991
+                    })
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_API_ASK_BUDGETS_INVALID",
+                        "api",
+                        "api.budgets.ask values must be positive portable safe integers",
+                    ));
                 }
             }
         }
@@ -10193,13 +10277,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:929525b7f0f2b651a3601eb174dea9037df46670df1115d0c91a508bb7d1df81";
+    "sha256:e1f1c2f52aed73a731dd902cbef1bf7078ab6e9f5b8fe8a1772bb0644b3d9705";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:26792ac62687742f202e958c960d5950f7da10e68379456e5507da7b35f62cc9";
+    "sha256:f31b4335e14c18d35b167eb1a01f3ceed10e8e817d184eff52878efca30ecbbf";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -10599,7 +10683,7 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:fd1497d57145c0abe0b35447d16d58993f27a719a341b7ede1213cd6adb4cef3"
+                    "sha256:5ac376947fcd4da830a97e0ea24160b7fe5c0f7844190866d03035b2fed41d80"
                         .to_owned(),
                 ),
                 (
@@ -10639,7 +10723,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:f2c01f5a19fd82f3920ade7192b20c4396c270233987c81996d50c5132e55a46"
+                    "sha256:7a08e81f5159a77eac9d4a9723a1228cc73ceff987bf9dbaf9624f988e5df8ca"
                         .to_owned(),
                 ),
                 (
@@ -10664,7 +10748,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:48e4c3269cf78262addc7fd3d4c546936c0a71d9776127034dfcaa2952028a18"
+                    "sha256:bdd9043fc68610826b53bc0bcfc6996277b008e3d251219d194fd6e5f60551f7"
                         .to_owned(),
                 ),
                 (
@@ -10674,7 +10758,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:dc2e1eabcf0b6ffcbe757aeae5fcbc1b5e92b6508197ba4ce6e4173d76518d4a"
+                    "sha256:2834e76a2f83321a18f3278af5802182dd886cd03288f7fe9a51d1c0acfe97bf"
                         .to_owned(),
                 ),
                 (
@@ -10684,7 +10768,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_scope_bases.rs".to_owned(),
-                    "sha256:ffdb6b4d98c159b15a53960435b767a839f3af7b7ddd6e76e4b4eb3975ee2621"
+                    "sha256:5f5435b570084944acfcb8151bb569de0036b391aa64c1a48ff9f2e7c53edfe7"
                         .to_owned(),
                 ),
                 (
@@ -10756,7 +10840,7 @@ fn local_relation_activity_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:f3dd60e051a7d2a7931dc4b60af3a59c3ebed138273230f67ae8709b706df339"
+                "sha256:5238f06e3c1b13023152bcbfdd26ffca56f78af87845e37b79c65759ee41c5e6"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -10847,7 +10931,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:f2c01f5a19fd82f3920ade7192b20c4396c270233987c81996d50c5132e55a46"
+                    "sha256:7a08e81f5159a77eac9d4a9723a1228cc73ceff987bf9dbaf9624f988e5df8ca"
                         .to_owned(),
                 ),
                 (
@@ -10872,7 +10956,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:48e4c3269cf78262addc7fd3d4c546936c0a71d9776127034dfcaa2952028a18"
+                    "sha256:bdd9043fc68610826b53bc0bcfc6996277b008e3d251219d194fd6e5f60551f7"
                         .to_owned(),
                 ),
                 (
@@ -10882,7 +10966,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:dc2e1eabcf0b6ffcbe757aeae5fcbc1b5e92b6508197ba4ce6e4173d76518d4a"
+                    "sha256:2834e76a2f83321a18f3278af5802182dd886cd03288f7fe9a51d1c0acfe97bf"
                         .to_owned(),
                 ),
                 (
@@ -10892,7 +10976,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_scope_bases.rs".to_owned(),
-                    "sha256:ffdb6b4d98c159b15a53960435b767a839f3af7b7ddd6e76e4b4eb3975ee2621"
+                    "sha256:5f5435b570084944acfcb8151bb569de0036b391aa64c1a48ff9f2e7c53edfe7"
                         .to_owned(),
                 ),
                 (
@@ -10964,7 +11048,7 @@ fn local_sequence_allocation_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:f3dd60e051a7d2a7931dc4b60af3a59c3ebed138273230f67ae8709b706df339"
+                "sha256:5238f06e3c1b13023152bcbfdd26ffca56f78af87845e37b79c65759ee41c5e6"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -11096,7 +11180,7 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:fd1497d57145c0abe0b35447d16d58993f27a719a341b7ede1213cd6adb4cef3"
+                    "sha256:5ac376947fcd4da830a97e0ea24160b7fe5c0f7844190866d03035b2fed41d80"
                         .to_owned(),
                 ),
                 (
@@ -11136,7 +11220,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:f2c01f5a19fd82f3920ade7192b20c4396c270233987c81996d50c5132e55a46"
+                    "sha256:7a08e81f5159a77eac9d4a9723a1228cc73ceff987bf9dbaf9624f988e5df8ca"
                         .to_owned(),
                 ),
                 (
@@ -11161,7 +11245,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_grants.rs".to_owned(),
-                    "sha256:48e4c3269cf78262addc7fd3d4c546936c0a71d9776127034dfcaa2952028a18"
+                    "sha256:bdd9043fc68610826b53bc0bcfc6996277b008e3d251219d194fd6e5f60551f7"
                         .to_owned(),
                 ),
                 (
@@ -11171,7 +11255,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:dc2e1eabcf0b6ffcbe757aeae5fcbc1b5e92b6508197ba4ce6e4173d76518d4a"
+                    "sha256:2834e76a2f83321a18f3278af5802182dd886cd03288f7fe9a51d1c0acfe97bf"
                         .to_owned(),
                 ),
                 (
@@ -11181,7 +11265,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_scope_bases.rs".to_owned(),
-                    "sha256:ffdb6b4d98c159b15a53960435b767a839f3af7b7ddd6e76e4b4eb3975ee2621"
+                    "sha256:5f5435b570084944acfcb8151bb569de0036b391aa64c1a48ff9f2e7c53edfe7"
                         .to_owned(),
                 ),
                 (
@@ -11253,7 +11337,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:4c59f56f6dd1d90ec0912213e6b8cbb353e894107bb6f490ca96c1d63c223d7c"
+                "sha256:2929622ab3d5fa813afa24fc3d0082117c6341e7ef915810fd6df924517f75c9"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -13998,6 +14082,115 @@ impl ArtifactDiagnosticExt for SnapbackError {
 mod membership_manifest_grammar_tests {
     use super::*;
     use serde_json::json;
+
+    fn ask_budgets_fixture() -> ApiAskBudgets {
+        ApiAskBudgets {
+            per_request: ApiAskPerRequestBudget {
+                max_tokens: 100,
+                max_steps: 4,
+                max_wall_ms: 5_000,
+            },
+            per_principal_day: ApiAskPerPrincipalDayBudget { max_tokens: 1_000 },
+            per_integration_day: Some(ApiAskTokenBudget { max_tokens: 500 }),
+            app_monthly: ApiAskTokenBudget { max_tokens: 10_000 },
+            result_volume: ApiAskResultVolumeBudget {
+                max_bytes: 10_000,
+                max_rows: 100,
+                per_principal_day_bytes: 100_000,
+            },
+        }
+    }
+
+    fn ask_schema_fixture() -> SchemaManifest {
+        SchemaManifest {
+            schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+            auth: Some(AuthManifest {
+                mode: AuthMode::Sessions,
+                agents: Some(AgentsManifest::explicit(
+                    AgentsMode::Disabled,
+                    InvitedBy::Users,
+                )),
+            }),
+            api: Some(ApiManifest {
+                enabled: true,
+                ask: Some(ApiAskManifest {
+                    enabled: true,
+                    billing: ApiAskBilling::CallerKey,
+                    model: Some(ApiAskModelManifest {
+                        provider: "openai-compatible".to_owned(),
+                        model: "stub".to_owned(),
+                        secret: None,
+                    }),
+                }),
+                ..ApiManifest::default()
+            }),
+            required_capabilities: vec!["auth.sessions.v1".to_owned()],
+            ..SchemaManifest::default()
+        }
+    }
+
+    #[test]
+    fn ask_requires_complete_budgets_but_budgets_are_valid_alone() {
+        let mut ask = ask_schema_fixture();
+        let error = ask
+            .validate_artifact()
+            .expect_err("enabled ask without budgets must fail closed");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_API_ASK_BUDGETS_REQUIRED");
+        assert!(error.diagnostic.message.contains("perRequest"));
+        assert!(error.diagnostic.message.contains("resultVolume"));
+
+        ask.api.as_mut().unwrap().budgets = Some(ApiBudgetsManifest {
+            ask: Some(ask_budgets_fixture()),
+        });
+        ask.validate_artifact().expect("ask plus complete budgets");
+
+        ask.api.as_mut().unwrap().ask = None;
+        ask.validate_artifact().expect("budgets alone are inert and valid");
+    }
+
+    #[test]
+    fn ask_billing_shapes_and_unknown_keys_are_closed() {
+        let caller: ApiAskManifest = serde_json::from_value(json!({
+            "enabled": true,
+            "billing": "caller-key",
+            "model": { "provider": "openai-compatible", "model": "stub" }
+        }))
+        .expect("caller-key shape");
+        assert_eq!(caller.billing, ApiAskBilling::CallerKey);
+        let app: ApiAskManifest = serde_json::from_value(json!({
+            "enabled": true,
+            "billing": "app",
+            "model": { "provider": "openai-compatible", "model": "stub", "secret": "providerKey" }
+        }))
+        .expect("app-paid shape");
+        assert_eq!(app.billing, ApiAskBilling::App);
+        assert!(serde_json::from_value::<ApiAskManifest>(json!({
+            "enabled": true,
+            "billing": "app",
+            "mutationTools": true
+        }))
+        .is_err());
+
+        let mut caller_with_app_secret = ask_schema_fixture();
+        caller_with_app_secret.api.as_mut().unwrap().budgets = Some(ApiBudgetsManifest {
+            ask: Some(ask_budgets_fixture()),
+        });
+        caller_with_app_secret
+            .api
+            .as_mut()
+            .unwrap()
+            .ask
+            .as_mut()
+            .unwrap()
+            .model
+            .as_mut()
+            .unwrap()
+            .secret = Some("providerKey".to_owned());
+        let error = caller_with_app_secret
+            .validate_artifact()
+            .expect_err("caller-key billing must not open the app-secret seam");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_API_ASK_MODEL_INVALID");
+    }
 
     fn result_contract_function(contract: FunctionResultContract) -> FunctionDefinition {
         let mut function = FunctionDefinition::new(
