@@ -1,6 +1,16 @@
 # Multi-image authoring: img1..img4 column splay vs the bounded-array withdrawal — steer or re-rule (LLP 0208 G8 asset slice)
 
-**Status:** Open
+**Status:** Resolved 2026-08-10 — both closure conditions met.
+**Resolution:** (1) The dated author re-ruling landed 2026-08-09 in LLP
+0044's header (withdrawal-scope clarification: `v.array(v.assetRef(...))`
+remains withdrawn, its clause binds the asset-reference vocabulary, and
+plain-data structured values are governed by LLP 0211); multi-asset
+relationships stay on the LLP 0110 bounded-children path. (2) The
+steering half landed in `guide/backend/assets.md` §"Attach several
+assets to one row (multi-image posts)": the page now answers the
+pilot's exact question (a 1–4-image post) with the bounded-children
+recipe anchored to the CI-validated Party Wall composition, so "no
+arrays" reads as "use child rows," not "splay columns."
 **Severity:** P3 (authoring ergonomics; the paved path exists but was not taken)
 **Systems:** Assets, Schema, Codegen, Guide
 **Date:** 2026-08-09

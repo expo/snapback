@@ -192,11 +192,13 @@ per LLP 0189, independent of this Plan's review state:
   from it to product-shaped rosters, not a weakening.
 - **Owner:** LLP 0056 / LLP 0100. New ticket to commission the design
   choice (roster projection and friends — still to file). **The asset
-  slice is filed 2026-08-09:**
-  `issues/20260809-asset-recipient-grant-authority-g4.md`, with the
-  ascending-ambition ladder (recipe / grant primitive / app-bound
-  sharing) recorded for ruling in LLP 0044 §Clique-pilot delivery and
-  grant DX closure; rung (c) is the bridge back to this row's program.
+  slice is CLOSED 2026-08-09:** LLP 0210 ruled the ladder and D5(b)
+  first-class grant ops are implemented (grant/activate/revoke,
+  admission-frozen `grants: true`, quotas, GC, 0053 invalidation; the
+  guide's view-once recipe leads with the grant-ops spelling). Rung (c)
+  — app-bound `assetSharing` — remains deferred to this row's
+  membership program. Ticket resolved at
+  `issues/closed/20260809-asset-recipient-grant-authority-g4.md`.
 
 ### G5. Relational v1 cannot express the follower join (the canonical social query)
 
@@ -248,10 +250,13 @@ per LLP 0189, independent of this Plan's review state:
 - **Closure:** bounded stored arrays (even fixed-max, matching the
   bounded-children philosophy) and unique-where-present index semantics.
 - **Owner:** LLP 0004 / LLP 0131 / LLP 0110. **The multi-asset half is
-  filed 2026-08-09:** `issues/20260809-multi-image-authoring-revisit-g8.md`
-  (steer to the LLP 0110 bounded-children paved path first; any
-  bounded-array revisit is a new author ruling request against the
-  2026-07-31 withdrawal, not a default). The unique-on-optional half landed
+  CLOSED 2026-08-10:** the author's withdrawal-scope clarification (LLP
+  0044 header, 2026-08-09) reaffirmed the bounded-children path for
+  asset references, and the guide's assets page now steers multi-image
+  authoring to that recipe (§"Attach several assets to one row");
+  ticket resolved at
+  `issues/closed/20260809-multi-image-authoring-revisit-g8.md`. The
+  unique-on-optional half landed
   2026-08-09: `issues/closed/20260809-unique-where-present-optional-fields.md`
   (LLP 0007 owner). The plain-data structured-value half (quoted preview,
   poll options — the `v.json()` escapes) LANDED 2026-08-09 under LLP 0211
@@ -301,12 +306,13 @@ per LLP 0189, independent of this Plan's review state:
   pattern into a guide recipe — ~80 lines, survived every hostile probe
   (403 before open, 200 during, 403 after close), and non-obvious
   precisely because of the owner-only attach rule.
-- **Owner:** LLP 0044 / LLP 0180 + guide. **Filed 2026-08-09:**
-  `issues/20260809-asset-upload-dx-papercuts-g11.md` (adds the
-  picker-friendly one-call upload helper and the `task.done` contract
-  legibility finding to this register row's list); the design-shaped
-  remainder is recorded as LLP 0044's dated addition §Clique-pilot
-  delivery and grant DX closure and LLP 0180's 2026-08-09 dated note.
+- **Owner:** LLP 0044 / LLP 0180 + guide. **CLOSED 2026-08-09:** the
+  design was ruled by LLP 0210 (super-refined, author-accepted, now
+  Implemented) and every item landed — D2 issuance defaults + typed
+  refusals, D1 `assets.signedUrl`/issued-URL controller/
+  `useSnapbackAssetUrl`, D3 `assets.upload()` + frozen settlement
+  table, D4 mapping admit+teach, guide sections + view-once recipe.
+  Ticket resolved at `issues/closed/20260809-asset-upload-dx-papercuts-g11.md`.
 
 ### G12. API consistency papercuts
 

@@ -374,6 +374,24 @@ and exact grant, without carrying any bearer.
   },
 ```
 
+## Attach several assets to one row (multi-image posts)
+
+There is no `v.array(v.assetRef(...))` — the withdrawal is a standing
+author ruling (LLP 0044, 2026-07-31; scope reaffirmed 2026-08-09), and
+the answer is **not** a column splay (`img1`…`img4` with four identical
+declarations and four attach calls — the shape the Clique pilot fell
+into). Multi-asset relationships take the bounded-children path: an
+ordered child table whose rows each carry one `v.assetRef`, a typed
+reference to the parent row, and a position field. The parent stays
+cheap to read on its own; the children arrive through an ordinary
+child-row query (or a relational query when the join fits); each child
+attaches independently in the same mutation; and per-asset deletion is
+a row delete instead of a column shuffle. Party Wall (below) is the
+CI-validated composition — its `posts` table is exactly this shape with
+a bound of one, and the same pattern extends to a declared 1–4 bound
+with a `position` column and a uniqueness index on
+`(parentId, position)`.
+
 ## Put typed photos directly in a live feed
 
 `v.assetRef` is a first-class result-contract leaf. A query or live query may
