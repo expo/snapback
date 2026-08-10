@@ -94,15 +94,32 @@ impl SecretRedactor {
 
     pub(crate) fn redact_error(&self, mut error: SnapbackError) -> SnapbackError {
         error.diagnostic = self.redact_diagnostic(error.diagnostic);
+        let mut private_redaction_witnessed = false;
         if let Some(context) = error.private_failure_context_mut() {
             for carrier in &mut context.carriers {
                 if let Some(message) = carrier.message.as_mut() {
-                    *message = self.redact_text(message);
+                    let redacted = self.redact_text(message);
+                    private_redaction_witnessed |= redacted != *message;
+                    *message = redacted;
                 }
                 if let Some(stack) = carrier.stack.as_mut() {
-                    *stack = self.redact_text(stack);
+                    let redacted = self.redact_text(stack);
+                    private_redaction_witnessed |= redacted != *stack;
+                    *stack = redacted;
                 }
             }
+        }
+        // @ref LLP 0036#runtime-exposure-d5-d8 — production handler errors
+        // remain generic, but if the invocation-lifetime redactor scrubbed the
+        // private carrier the public envelope retains a literal, value-free
+        // witness instead of making the required redaction unobservable.
+        if private_redaction_witnessed
+            && error.diagnostic.code == "SNAPBACK_HANDLER_FAILED"
+            && let Some(details) = error.diagnostic.details.as_object_mut()
+        {
+            details
+                .entry("message".to_owned())
+                .or_insert_with(|| serde_json::json!("[REDACTED]"));
         }
         error
     }
@@ -1025,6 +1042,7 @@ mod tests {
         });
 
         let redacted = redactor.redact_error(error);
+        assert_eq!(redacted.diagnostic.details["message"], "[REDACTED]");
         let carrier = &redacted
             .private_failure_context()
             .expect("private failure context survives redaction")

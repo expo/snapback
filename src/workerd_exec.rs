@@ -20,7 +20,7 @@ use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::error_tracking::extract_failure_carrier;
 use crate::manifest::IbexModule;
 use crate::runtime::{
-    IbexHostContext, dispatch_host_call, parse_handler_output, unhandled_rejection_error,
+    IbexHostContext, dispatch_host_call, parse_handler_output_with_claim, unhandled_rejection_error,
 };
 use crate::server::constant_time_str_eq;
 use serde::Deserialize;
@@ -488,7 +488,7 @@ struct InvokeResponse {
 pub(crate) fn run_handler_workerd(
     module: &IbexModule,
     invocation: &mut IbexHostContext<'_>,
-) -> SnapbackResult<Value> {
+) -> SnapbackResult<(SnapbackResult<Value>, Option<String>)> {
     crate::exec_guard::debug_assert_off_async_worker("workerd_invocation");
     let workerd = detect_workerd_binary().ok_or_else(workerd_missing_error)?;
     let compat = compat_config()?;
@@ -882,24 +882,30 @@ pub(crate) fn run_handler_workerd(
                 "structured harness settlement deadline",
             )
         };
-        return Err(
-            SnapbackError::error("SNAPBACK_HANDLER_DID_NOT_SETTLE", "runtime", message)
-                .with_details(json!({
-                    "function": module.export,
-                    "engine": "workerd-v8",
-                    "phase": phase,
-                    "signal": signal,
-                })),
-        );
+        return Ok((
+            Err(
+                SnapbackError::error("SNAPBACK_HANDLER_DID_NOT_SETTLE", "runtime", message)
+                    .with_details(json!({
+                        "function": module.export,
+                        "engine": "workerd-v8",
+                        "phase": phase,
+                        "signal": signal,
+                    })),
+            ),
+            None,
+        ));
     }
     if !response.unhandled_rejections.is_empty() {
-        return Err(unhandled_rejection_error(
-            module,
-            response
-                .unhandled_rejections
-                .iter()
-                .map(|message| extract_failure_carrier(None, Some(message), None))
-                .collect(),
+        return Ok((
+            Err(unhandled_rejection_error(
+                module,
+                response
+                    .unhandled_rejections
+                    .iter()
+                    .map(|message| extract_failure_carrier(None, Some(message), None))
+                    .collect(),
+            )),
+            None,
         ));
     }
     if !response.rejection_detection_supported {
@@ -911,7 +917,7 @@ pub(crate) fn run_handler_workerd(
         ));
     }
     let envelope = response.envelope.unwrap_or_default();
-    parse_handler_output(module, envelope)
+    Ok(parse_handler_output_with_claim(module, envelope))
 }
 
 fn read_authenticated_response(

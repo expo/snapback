@@ -1290,6 +1290,15 @@ pub(crate) struct IbexHostContext<'a> {
     /// outer result-assembly restores this trusted representation; a handler
     /// that forges a stream code without a recorded refusal gets no details.
     stream_refusal: Option<SnapbackError>,
+    /// The last trusted diagnostic returned by the shared host-call table.
+    /// Handler-envelope codes remain claims, but when the final claim matches
+    /// this witness the exact host-built diagnostic can survive the JS round
+    /// trip without admitting a handler-forged platform code.
+    ///
+    /// @ref LLP 0144#invariants-for-any-extension — platform claims require
+    /// corroboration; the witness is recorded in the LLP 0048 shared dispatch
+    /// seam so Ibex and workerd use the same admission rule.
+    host_failure_witness: Option<SnapbackError>,
     /// A **trusted** `SNAPBACK_AUTH_PERMISSION_DENIED` produced by a host
     /// call inside an ACTION (a nested mutation's requireRole/RLS denial
     /// crossing `action.runMutation`), recorded out-of-band (0137 a4-f5 /
@@ -1369,6 +1378,7 @@ impl<'a> IbexHostContext<'a> {
             replay,
             terminal_denial: None,
             stream_refusal: None,
+            host_failure_witness: None,
             denial_witness: None,
         })
     }
@@ -1433,6 +1443,7 @@ impl<'a> IbexHostContext<'a> {
             replay: None,
             terminal_denial: None,
             stream_refusal: None,
+            host_failure_witness: None,
             denial_witness: None,
         })
     }
@@ -3177,6 +3188,9 @@ pub(crate) fn dispatch_host_call(
     let tracing = HOST_CALL_TRACE.with(|slot| slot.borrow().is_some());
     let traced_args = if tracing { Some(args.clone()) } else { None };
     let result = ctx.handle_host_call(op, args);
+    if let Err(error) = &result {
+        ctx.host_failure_witness = Some(error.clone());
+    }
     // @ref LLP 0076#diagnostics — record the structured stream refusal
     // out-of-band so it can be restored past the JS error round-trip.
     if let Err(error) = &result
@@ -3270,7 +3284,10 @@ fn run_ibex_handler_with_context_until_with_exposure(
         invocation
             .admission
             .validate("workerd runtime completion")?;
-        (output, None)
+        match output {
+            Ok(output) => output,
+            Err(error) => (Err(error), None),
+        }
     } else {
         run_handler_ibex_engine_until(module, invocation, pool, deadline)?
     };
@@ -3278,20 +3295,52 @@ fn run_ibex_handler_with_context_until_with_exposure(
     // @ref LLP 0144#invariants-for-any-extension — engine output is still a
     // handler claim. Adjudicate the declared set only after the executor join
     // so the Ibex and workerd-v8 legs cannot drift on admission again.
-    // @ref LLP 0193#program — an agent-triggerable generic failure names the
-    // condition under the managed development supervisor, while the process
-    // default keeps handler-authored message/stack data private. The stable
-    // folded code and declared-refusal admission remain unchanged.
-    let result = project_handler_failure(result, module, invocation.mode, exposure);
     let result = admit_declared_refusal(
         &invocation.declared_refusals,
         &invocation.tracked_refusals,
         result,
     );
+    let result = restore_host_failure_witness(invocation, claimed_code.as_deref(), result);
+    // @ref LLP 0193#program — an agent-triggerable generic failure names the
+    // condition under the managed development supervisor, while the process
+    // default keeps handler-authored message/stack data private. Project only
+    // after claim admission and trusted-host restoration so enrichment cannot
+    // erase an adjudicated platform diagnostic or bypass refusal folding.
+    let result = project_handler_failure(result, module, invocation.mode, exposure);
     // Witness restoration remains action-scoped; actions stay on Ibex, while
     // applying these empty-witness seams after the join is harmless for V8.
     let result = restore_denial_witness(invocation, claimed_code.as_deref(), result);
     restore_stream_refusal(invocation, result)
+}
+
+/// Restore a host-produced diagnostic only when the handler's final envelope
+/// claims the same code. The claim alone remains untrusted and folded to
+/// `SNAPBACK_HANDLER_FAILED`; the out-of-band witness supplies the authority
+/// and the value-safe structured details.
+fn restore_host_failure_witness(
+    invocation: &mut IbexHostContext<'_>,
+    claimed_code: Option<&str>,
+    result: SnapbackResult<Value>,
+) -> SnapbackResult<Value> {
+    match result {
+        Err(mut error) if error.diagnostic.code == "SNAPBACK_HANDLER_FAILED" => {
+            match invocation
+                .host_failure_witness
+                .take()
+                .filter(|recorded| Some(recorded.diagnostic.code.as_str()) == claimed_code)
+            {
+                Some(recorded) => {
+                    let context = error.take_private_failure_context();
+                    Err(match context {
+                        Some(context) => recorded.with_private_failure_context(context),
+                        None => recorded,
+                    })
+                }
+                None => Err(error),
+            }
+        }
+        other => other,
+    }
 }
 
 fn project_handler_failure(
@@ -4071,8 +4120,8 @@ fn with_handler_failure_carrier(error: SnapbackError, carrier: FailureCarrierV1)
 /// [`parse_handler_output`] plus the RAW (pre-fold) claimed code from a
 /// not-ok envelope. The claim is handler-controlled bytes — it is only
 /// meaningful when corroborated by a host-recorded witness (0137 a4-f5,
-/// `restore_denial_witness`); the returned error itself always carries the
-/// folded public code.
+/// `restore_host_failure_witness` / `restore_denial_witness`); the returned
+/// error itself always carries the folded public code.
 pub(crate) fn parse_handler_output_with_claim(
     module: &IbexModule,
     output: String,
