@@ -5,7 +5,10 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-10 (dated amendment: LLP 0215 wave 2c replaces four
+**Revised:** 2026-08-10 (implementation reconciliation: first-class closed-v1
+logical auth export/import now carries stable users, identities, agent recovery
+metadata, and v2 scope bases while excluding all spendable authority; empty-v2
+import rotates the authorization incarnation atomically.) 2026-08-10 (dated amendment: LLP 0215 wave 2c replaces four
 independent throttle constants with the named compatibility budget policy,
 without changing limits, transaction boundaries, profiles, or legacy
 diagnostics). 2026-08-08 (dated amendment: the operator-locus startup
@@ -565,18 +568,30 @@ transaction commits. A rejected reset preserves both durable auth rows and
 mailbox entries. A crash after commit but before the in-memory clear is safe
 because process loss clears the mailbox.
 
-Logical export/import tooling is not built by this item. Its pinned future
-contract is:
+Logical export/import tooling is now implemented by `snapback auth export` and
+`snapback auth import`. Its closed format-1 contract is:
 
 - export users and identities, including canonical subjects;
 - exclude sessions, token hashes, tombstones, verification challenges/digests,
   mailbox entries, and keyring bytes;
-- import into an empty auth catalog, reject identity collisions, and mint no
-  session;
+- require an exact current catalog on export; import only into an exact current
+  empty v2 catalog, reject identity collisions, and mint no session,
+  credential, grant, invitation, or pairing request;
 - regenerate the durable authorization-stream incarnation in the same
   transaction as the destructive import, as LLP 0039 pins and LLP 0059's
-  stream protocol implements; and
+  stream protocol implements;
+- validate the versioned closed shape, explicit nullable fields, canonical
+  subjects, ownership references, deterministic ordering, and scope bases;
+- carry LLP 0055 ownership, registration provenance, deactivation, and
+  `_auth_scope_bases` while structurally omitting every spendable or
+  consent-pending authority class; and
 - never treat logical import as a physical backup.
+
+The acceptance matrix plants session/challenge/credential/grant/token/
+invitation/pairing markers in the source, round-trips the included identity
+facts, proves the markers absent from the artifact and destination, rejects
+older/corrupt/colliding inputs, and proves a nonempty-target refusal leaves
+authorization state unchanged.
 
 ### Garbage collection
 

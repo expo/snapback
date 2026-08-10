@@ -1826,6 +1826,20 @@ pub enum MigrateCommand {
 
 #[derive(clap::Subcommand)]
 pub enum AuthCommand {
+    /// Export credential-free users, identities, and agent scope bases.
+    Export {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Import one credential-free logical artifact into an empty v2 catalog.
+    Import {
+        #[arg(long = "from")]
+        from: PathBuf,
+        #[arg(long)]
+        db: PathBuf,
+    },
     /// Create one quiesced SQLite + exact-keyring backup directory.
     Backup {
         #[arg(long)]
@@ -2801,6 +2815,8 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         },
         Some(HostCommand::Data { command }) => data_command(command),
         Some(HostCommand::Auth { command }) => match command {
+            AuthCommand::Export { db, output } => auth_logical_export(&db, &output),
+            AuthCommand::Import { from, db } => auth_logical_import(&from, &db),
             AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
             AuthCommand::Rehearse { command } => auth_rehearse_command(command),
@@ -2963,6 +2979,76 @@ fn verify_hosted_product_journey(
             "status": "verified",
             "receiptSha256": receipt.receipt_sha256,
             "evidenceArtifacts": artifacts.len(),
+        }))?
+    );
+    Ok(())
+}
+
+// @ref LLP 0055#catalog-and-lifecycle — this offline command emits only the
+// stable identity/recovery facts and scope bases the logical contract includes;
+// the closed artifact has no authority-carrier fields.
+fn auth_logical_export(database_path: &Path, output_file: &Path) -> anyhow::Result<()> {
+    let database_path = resolve_database_path(database_path)?;
+    anyhow::ensure!(
+        database_path.is_file(),
+        "SNAPBACK_AUTH_LOGICAL_EXPORT_INVALID: source database does not exist"
+    );
+    let _instance_lock = DatabaseInstanceLock::acquire(&database_path)?;
+    let database = crate::storage::LocalDatabase::open(&database_path)?;
+    let artifact = database.auth_logical_export()?;
+    crate::auth::logical_transfer::write_artifact(output_file, &artifact)?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({
+            "schemaVersion": "snapback.auth-logical-export-result.v1",
+            "ok": true,
+            "operation": "auth.export",
+            "output": output_file,
+            "formatVersion": artifact.format_version,
+            "authCatalogVersion": artifact.auth_catalog_version,
+            "usersExported": artifact.users.len(),
+            "identitiesExported": artifact.identities.len(),
+            "scopeBasesExported": artifact.scope_bases.len(),
+            "carriesSpendableAuthority": false,
+        }))?
+    );
+    Ok(())
+}
+
+// @ref LLP 0057#catalog-write-and-lifecycle-rules — import admits only an
+// empty current catalog and rotates the durable authorization incarnation in
+// the same transaction as the imported identity facts.
+fn auth_logical_import(input_file: &Path, database_path: &Path) -> anyhow::Result<()> {
+    // Parse and validate before opening the destination, so corrupt or older
+    // artifacts cannot cause even additive SQLite-open work.
+    let artifact = crate::auth::logical_transfer::read_artifact(input_file)?;
+    let database_path = resolve_database_path(database_path)?;
+    anyhow::ensure!(
+        database_path.is_file(),
+        "SNAPBACK_AUTH_LOGICAL_IMPORT_INVALID: destination database does not exist"
+    );
+    let _instance_lock = DatabaseInstanceLock::acquire(&database_path)?;
+    let mut database = crate::storage::LocalDatabase::open(&database_path)?;
+    let outcome = database.auth_logical_import(&artifact)?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({
+            "schemaVersion": outcome.schema_version,
+            "ok": true,
+            "operation": "auth.import",
+            "input": input_file,
+            "database": database_path,
+            "usersImported": outcome.users_imported,
+            "identitiesImported": outcome.identities_imported,
+            "scopeBasesImported": outcome.scope_bases_imported,
+            "ownedAgents": outcome.owned_agents,
+            "unownedAgents": outcome.unowned_agents,
+            "deactivatedAgents": outcome.deactivated_agents,
+            "authorizationIncarnation": outcome.authorization_incarnation,
+            "mintedSessions": 0,
+            "mintedCredentials": 0,
+            "mintedGrants": 0,
+            "unownedAgentProductionPosture": "dormant",
         }))?
     );
     Ok(())

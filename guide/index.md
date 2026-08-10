@@ -238,6 +238,9 @@ proof command, and honest nonclaims without opening every demo.
 - [Agent principals](./auth/agent-principals.md) — register an open or
   user-invited agent, pair it, mint scoped tokens, fence custody, revoke, and
   verify the complete agent journey.
+- [Move auth identities without authority](./auth/logical-transfer.md) —
+  contributor-source logical export/import for stable principal, ownership,
+  identity, deactivation, and scope-basis facts with no spendable authority.
 - [Targets — what each one claims](./auth/targets.md) — local vs hosted
   honesty; how to check the server instead of trusting prose.
 

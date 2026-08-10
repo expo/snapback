@@ -5,7 +5,11 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-08-10 (LLP 0204 S5 Landing C implements exact retained
+**Revised:** 2026-08-10 (the first-class `snapback auth export` / `auth import`
+logical-transfer surface now carries closed v1 principal, ownership, identity,
+deactivation, and scope-basis facts while structurally excluding all spendable
+or consent-pending authority; empty-v2 import rotates authorization incarnation
+and has no-resurrection acceptance coverage.) 2026-08-10 (LLP 0204 S5 Landing C implements exact retained
 service-authority snapshots for pending effects and re-resolves credential,
 generation, grant, token, effective user, expiry, and integration status at
 approval time.)
@@ -1411,8 +1415,11 @@ deactivation/ownership/prefix machinery land here. A **first-class v1→v2
 migration** is deferred — LLP 0057 pins "a future migration changes the marker
 first-class" — so an existing v1 catalog is recognized as legacy (sessions work;
 agents unavailable) rather than silently rebuilt; fresh catalogs are created at
-v2. **Logical export/import** carrying the agent columns awaits LLP 0057's
-export/import tooling (unbuilt); durability is proven across restart today.
+v2. **Logical export/import is implemented** by `snapback auth export` / `auth
+import`: the closed version-1 artifact carries these agent columns, identities,
+and `_auth_scope_bases`; import admits only an empty exact-v2 catalog, rotates
+the authorization incarnation in the same transaction, and has planted-secret
+no-resurrection acceptance coverage. Durability is also proven across restart.
 
 ### Landing decomposition
 
@@ -2207,10 +2214,12 @@ process-local and cannot cross or be forged through JSON.
 
 This checkpoint does not claim all of G7 closed. Owner invitation,
 owner-deactivation, owner re-credentialing, and revoke-all compromise routes
-remain the G2 delivery/lifecycle work described above. Logical export/import is
-also still deliberately absent pending the corpus's LLP 0057 export-tooling
-surface; declared restore and auth downgrade already purge agent authority and
-have no-resurrection acceptance coverage. Those missing trigger/tooling
+remain the G2 delivery/lifecycle work described above. Logical export/import
+has since landed as a closed credential-free format: exact-v2 empty-catalog
+import preserves ownership/deactivation/scope bases, rotates authorization
+incarnation atomically, and resurrects no excluded authority. Declared restore
+and auth downgrade continue to purge agent authority with their existing
+no-resurrection acceptance coverage. The remaining owner/operator trigger
 surfaces must land or be explicitly re-scoped before the G7 ticket can close.
 
 ## Implementation checkpoint: G6 authority-creating effects (2026-07-16)

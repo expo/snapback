@@ -1,0 +1,180 @@
+{
+  "$defs": {
+    "AuthLogicalIdentityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "verifiedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "provider",
+        "subject",
+        "verifiedAtMs"
+      ],
+      "type": "object"
+    },
+    "AuthLogicalPrincipalKindV1": {
+      "enum": [
+        "human",
+        "agent"
+      ],
+      "type": "string"
+    },
+    "AuthLogicalScopeBaseV1": {
+      "additionalProperties": false,
+      "properties": {
+        "authorityCreating": {
+          "type": "boolean"
+        },
+        "functionId": {
+          "type": "string"
+        },
+        "generation": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "present": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "functionId",
+        "kind",
+        "generation",
+        "present",
+        "authorityCreating"
+      ],
+      "type": "object"
+    },
+    "AuthLogicalUserV1": {
+      "additionalProperties": false,
+      "properties": {
+        "createdAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "deactivatedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "displayName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/AuthLogicalPrincipalKindV1"
+        },
+        "operatorContact": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ownerUserId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "registrationProvenance": {
+          "additionalProperties": true,
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "createdAtMs",
+        "kind",
+        "displayName",
+        "operatorContact",
+        "registrationProvenance",
+        "deactivatedAtMs",
+        "ownerUserId"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.logical-export.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The only first-class logical auth artifact. Its closed fields are the\nexclusion mechanism: no bearer, hash, grant, invitation, request, session,\nchallenge, tombstone, mailbox, or key material has a representable slot.",
+  "properties": {
+    "authCatalogVersion": {
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "formatVersion": {
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "identities": {
+      "items": {
+        "$ref": "#/$defs/AuthLogicalIdentityV1"
+      },
+      "type": "array"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "scopeBases": {
+      "items": {
+        "$ref": "#/$defs/AuthLogicalScopeBaseV1"
+      },
+      "type": "array"
+    },
+    "users": {
+      "items": {
+        "$ref": "#/$defs/AuthLogicalUserV1"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "formatVersion",
+    "authCatalogVersion",
+    "users",
+    "identities",
+    "scopeBases"
+  ],
+  "title": "AuthLogicalExportV1",
+  "type": "object"
+}

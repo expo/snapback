@@ -44,6 +44,11 @@ mod auth_catalog_ops;
 // accounting are a protected companion catalog, outside app-addressable
 // schema and the frozen `_auth_*` catalog shape/version.
 pub(crate) mod auth_rehearsal;
+// @ref LLP 0055#catalog-and-lifecycle — logical auth transfer carries stable
+// identity/recovery facts and scope tombstones while structurally omitting all
+// spendable or consent-pending authority.
+#[path = "storage/auth_logical_transfer.rs"]
+pub(crate) mod auth_logical_transfer;
 mod branch_ops;
 mod checkpoints;
 // The item-3 provider integration consumes these crate-private seams after this

@@ -1,6 +1,6 @@
 # Agent-auth logical export/import tooling
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 4
 **Urgency:** 2
 **Ease:** 1
@@ -35,3 +35,17 @@ unowned recovery posture without resurrecting excluded authority.
 - Round-trip, downgrade, corrupt-input, older-format, and no-resurrection
   acceptance cases pass.
 - The Guide documents the inclusion/exclusion boundary and recovery behavior.
+
+## Resolution
+
+Implemented 2026-08-10. `snapback auth export` writes the closed,
+deterministically ordered `snapback.auth-logical-export.v1` shape from one
+exact-v2 catalog snapshot. `snapback auth import` validates that artifact,
+admits only an empty exact-v2 target, imports the included identity/recovery
+facts and scope bases atomically, and rotates the authorization incarnation in
+the same transaction. The format structurally omits spendable and
+consent-pending authority. Focused acceptance plants session/challenge/
+credential/grant/token/invitation/pairing markers, proves round-trip and no
+resurrection, and covers old/catalog-version, corrupt, collision, and
+nonempty-target refusal. The generated schemas and Guide page ship with the
+implementation.

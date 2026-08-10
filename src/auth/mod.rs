@@ -18,6 +18,7 @@ pub mod invalidation;
 pub(crate) mod invocation;
 pub mod keyring;
 pub mod lease;
+pub(crate) mod logical_transfer;
 #[allow(dead_code)] // Wired by the auth lifecycle/operator composition lane.
 pub(crate) mod lifecycle;
 pub mod mailbox;

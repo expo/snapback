@@ -1,0 +1,54 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.logical-import-result.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "authorizationIncarnation": {
+      "type": "string"
+    },
+    "deactivatedAgents": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "identitiesImported": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ownedAgents": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "scopeBasesImported": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "unownedAgents": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "usersImported": {
+      "format": "uint",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "usersImported",
+    "identitiesImported",
+    "scopeBasesImported",
+    "ownedAgents",
+    "unownedAgents",
+    "deactivatedAgents",
+    "authorizationIncarnation"
+  ],
+  "title": "AuthLogicalImportOutcomeV1",
+  "type": "object"
+}

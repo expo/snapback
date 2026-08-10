@@ -301,6 +301,16 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_AUTH_OAUTH_SERVER_ERROR" | "SNAPBACK_AUTH_OAUTH_STATE_CORRUPT" => {
             StatusCode::INTERNAL_SERVER_ERROR
         }
+        // @ref LLP 0057#catalog-write-and-lifecycle-rules — these are offline
+        // operator flows, but retain a truthful fail-safe projection if they
+        // ever cross ApiError: malformed artifacts are caller input, catalog
+        // occupancy/identity reuse are conflicts, and export failure is a
+        // source-store invariant.
+        "SNAPBACK_AUTH_LOGICAL_IMPORT_INVALID"
+        | "SNAPBACK_AUTH_LOGICAL_IMPORT_FORMAT_UNSUPPORTED" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_AUTH_LOGICAL_IMPORT_TARGET_NOT_EMPTY"
+        | "SNAPBACK_AUTH_LOGICAL_IMPORT_IDENTITY_COLLISION" => StatusCode::CONFLICT,
+        "SNAPBACK_AUTH_LOGICAL_EXPORT_INVALID" => StatusCode::INTERNAL_SERVER_ERROR,
         // These are operator-only shutdown controls/failures rather than
         // served request outcomes. Inventory still classifies them explicitly
         // so an accidental HTTP projection remains fail-safe.

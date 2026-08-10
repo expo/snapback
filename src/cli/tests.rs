@@ -1895,7 +1895,39 @@ fn auth_transport_matrix_has_no_sessions_plaintext_override() {
 }
 
 #[test]
-fn auth_backup_restore_and_declared_startup_have_closed_cli_spellings() {
+fn auth_logical_transfer_backup_restore_and_declared_startup_have_closed_cli_spellings() {
+    let export = Cli::parse_from([
+        "snapback",
+        "auth",
+        "export",
+        "--db",
+        "app.sqlite3",
+        "--output",
+        "auth-logical.json",
+    ]);
+    assert!(matches!(
+        export.command,
+        Some(HostCommand::Auth {
+            command: AuthCommand::Export { .. }
+        })
+    ));
+
+    let import = Cli::parse_from([
+        "snapback",
+        "auth",
+        "import",
+        "--from",
+        "auth-logical.json",
+        "--db",
+        "fresh.sqlite3",
+    ]);
+    assert!(matches!(
+        import.command,
+        Some(HostCommand::Auth {
+            command: AuthCommand::Import { .. }
+        })
+    ));
+
     let backup = Cli::parse_from([
         "snapback",
         "auth",
@@ -1953,6 +1985,45 @@ fn auth_backup_restore_and_declared_startup_have_closed_cli_spellings() {
         ])
         .is_err()
     );
+}
+
+#[test]
+fn auth_logical_cli_moves_identity_facts_between_file_databases() {
+    let directory = tempfile::tempdir().unwrap();
+    let source_path = directory.path().join("source.sqlite3");
+    let target_path = directory.path().join("target.sqlite3");
+    let artifact_path = directory.path().join("auth-logical.json");
+
+    {
+        let mut source = crate::storage::LocalDatabase::open(&source_path).unwrap();
+        source.activate_current_auth_catalog().unwrap();
+    }
+    let source = rusqlite::Connection::open(&source_path).unwrap();
+    source
+        .execute(
+            "INSERT INTO _auth_users(id, created_at_ms) VALUES('cli-human', 1)",
+            [],
+        )
+        .unwrap();
+    source
+        .execute(
+            "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
+             VALUES('cli-identity', 'cli-human', 'email-code', 'cli@example.com', 2)",
+            [],
+        )
+        .unwrap();
+    drop(source);
+    {
+        let mut target = crate::storage::LocalDatabase::open(&target_path).unwrap();
+        target.activate_current_auth_catalog().unwrap();
+    }
+
+    super::auth_logical_export(&source_path, &artifact_path).unwrap();
+    super::auth_logical_import(&artifact_path, &target_path).unwrap();
+
+    let artifact = crate::auth::logical_transfer::read_artifact(&artifact_path).unwrap();
+    let target = crate::storage::LocalDatabase::open(&target_path).unwrap();
+    assert_eq!(target.auth_logical_export().unwrap(), artifact);
 }
 
 #[test]

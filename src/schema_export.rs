@@ -23,6 +23,7 @@ use crate::auth::deployment::{
 };
 use crate::auth::handshake::AuthSessionResponse;
 use crate::auth::lease::AuthorizedLease;
+use crate::auth::logical_transfer::{AuthLogicalExportV1, AuthLogicalImportOutcomeV1};
 use crate::auth::rehearsal::{
     AuthRehearsalGrantV1, AuthRehearsalLogicalExportArtifactV1,
     AuthRehearsalReachabilityV1, AuthRehearsalStoreMarkersV1, AuthRehearsalWindowV1,
@@ -885,6 +886,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "auth.mint-session.input.schema.json",
             schemars::schema_for!(MintSessionRequest),
+        ),
+        finish(
+            "auth.logical-export.v1.schema.json",
+            schemars::schema_for!(AuthLogicalExportV1),
+        ),
+        finish(
+            "auth.logical-import-result.v1.schema.json",
+            schemars::schema_for!(AuthLogicalImportOutcomeV1),
         ),
         finish(
             "auth.rehearsal-grant.v1.schema.json",
