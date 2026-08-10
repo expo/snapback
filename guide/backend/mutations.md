@@ -373,11 +373,12 @@ than parsing message text — is
 **Declarative host-plan mutations are a different channel.** `elseError` on
 `get(...)` and the code on `guard(...)` are plan refusals: that code arrives
 as `diagnostic.code` itself, not wrapped in `SNAPBACK_APP_REFUSAL` with an
-`appCode`. Codegen does not cross-check plan codes against `refusals`, so
-declaring the same string in both places documents intent but changes
-nothing. Match plan refusals on `diagnostic.code` and JS-handler refusals on
-`details.appCode`; do not write one client branch expecting both shapes. The
-plan channel's complete semantics are
+`appCode`. Every application plan code must also be declared in `refusals`;
+codegen and server artifact validation reject omissions, while reserved
+`SNAPBACK_` platform codes are exempt. That declaration cross-check does not
+unify the runtime envelopes. Match plan refusals on `diagnostic.code` and
+JS-handler refusals on `details.appCode`; do not write one client branch
+expecting both shapes. The plan channel's complete semantics are
 [refusals from a plan](./declarative-plans.md#refuse-from-a-plan-elseerror-and-guard).
 
 ## Preserve invariants with read sets

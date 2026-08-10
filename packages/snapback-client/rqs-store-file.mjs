@@ -285,6 +285,7 @@ export function createFileRqsResumeStore({
   let writer = false;
   let corrupt = false;
   let migrationMeta = null;
+  let competingWriter = null;
 
   const plainRecord = (value) => (
     value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -315,7 +316,17 @@ export function createFileRqsResumeStore({
   const acquireLock = async () => {
     if (writer || closed) return;
     await files.mkdir(directory);
-    if (heldLocks.has(lockPath)) return; // live sibling instance in this process
+    if (heldLocks.has(lockPath)) {
+      // A same-process sibling is just as authoritative as a foreign holder;
+      // retain enough identity to make the availability refusal actionable.
+      competingWriter = {
+        pid: files.processId(),
+        instanceId: heldLocks.get(lockPath),
+        lockPath,
+        storePath: blobPath,
+      };
+      return;
+    }
     const payload = JSON.stringify({
       pid: files.processId(),
       instanceId,
@@ -323,6 +334,7 @@ export function createFileRqsResumeStore({
     });
     const granted = () => {
       writer = true;
+      competingWriter = null;
       heldLocks.set(lockPath, instanceId);
       files.trackLockForExitCleanup?.(lockPath);
     };
@@ -344,10 +356,19 @@ export function createFileRqsResumeStore({
       const stale = holderPid === null
         || holderPid === files.processId() // our pid, not registered here: a crashed predecessor's leftover
         || files.processAlive(holderPid) !== true;
-      if (!stale) return;
+      if (!stale) {
+        competingWriter = {
+          pid: holderPid,
+          ...(typeof holder?.instanceId === 'string' ? { instanceId: holder.instanceId } : {}),
+          lockPath,
+          storePath: blobPath,
+        };
+        return;
+      }
       await files.unlink(lockPath);
     }
     if (await files.writeFileExclusive(lockPath, payload)) granted();
+    else competingWriter = { pid: null, lockPath, storePath: blobPath };
   };
 
   const readState = async () => {
@@ -746,7 +767,25 @@ export function createFileRqsResumeStore({
       requireOpen();
       return serialized(async () => {
         await acquireLock();
-        if (!writer || corrupt) return false;
+        if (!writer) {
+          const details = competingWriter ?? { pid: null, lockPath, storePath: blobPath };
+          // @ref LLP 0193#program — an agent-triggerable persistence refusal
+          // names both the competing process and the exact contested paths.
+          throw storeError(
+            'SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED',
+            `react binding receipt was not persisted because pid ${details.pid ?? 'unknown'} owns the RQS writer lock ${details.lockPath}`,
+            {
+              reason: 'competing_writer',
+              competingPid: details.pid,
+              ...(details.instanceId === undefined
+                ? {}
+                : { competingInstanceId: details.instanceId }),
+              lockPath: details.lockPath,
+              storePath: details.storePath,
+            },
+          );
+        }
+        if (corrupt) return false;
         const stored = prepareReactBindingReceipt(receipt);
         if (stored === null) return false;
         let state;

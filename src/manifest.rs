@@ -1981,6 +1981,7 @@ impl FunctionManifest {
             validate_args_contract_definition(function)?;
             validate_live_search_contracts(function)?;
             validate_declared_refusals(function)?;
+            validate_plan_refusal_declarations(function)?;
             validate_bounded_skew_definition(function)?;
             validate_sequence_declarations(function)?;
             if let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) = &function.runtime {
@@ -3288,6 +3289,47 @@ fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResu
 /// @ref LLP 0108#declared-application-refusals
 const MAX_DECLARED_REFUSALS: usize = 64;
 const MAX_REFUSAL_CODE_LEN: usize = 64;
+
+/// A declarative mutation's app-namespaced failures share LLP 0108's closed
+/// refusal declaration with imperative `ctx.refuse`. Platform-owned
+/// `SNAPBACK_*` outcomes are intentionally outside that declaration.
+///
+/// @ref LLP 0108#declared-application-refusals
+fn validate_plan_refusal_declarations(function: &FunctionDefinition) -> SnapbackResult<()> {
+    let FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) = &function.runtime else {
+        return Ok(());
+    };
+    for (step_index, step) in plan.steps.iter().enumerate() {
+        let (step_kind, code) = match step {
+            MutationStep::Get {
+                else_error: Some(code),
+                ..
+            } => ("Get", code),
+            MutationStep::Guard { else_error, .. } => ("Guard", else_error),
+            _ => continue,
+        };
+        if code.starts_with("SNAPBACK_")
+            || function.refusals.iter().any(|declared| declared == code)
+        {
+            continue;
+        }
+        return Err(SnapbackError::error(
+            "SNAPBACK_FUNCTION_PLAN_REFUSAL_UNDECLARED",
+            "runtime",
+            format!(
+                "function {} {step_kind} step {step_index} emits undeclared app refusal {code}",
+                function.name
+            ),
+        )
+        .with_details(serde_json::json!({
+            "function": function.name,
+            "refusal": code,
+            "stepKind": step_kind,
+            "stepIndex": step_index,
+        })));
+    }
+    Ok(())
+}
 
 fn validate_declared_refusals(function: &FunctionDefinition) -> SnapbackResult<()> {
     if function.refusals.is_empty() && function.tracked_refusals.is_empty() {
@@ -10381,13 +10423,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:7b5ae0a5dd84ae3f516a82551934d525fc42c89e7beaf31d0032ca3d1a31b611";
+    "sha256:f6379e9ce6155dc9c4299a9e415f0b24fc946bc51e474cf9b97ccb918cf61397";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:46573c581a81ed4309d7580291c45dcd344088432fb87a87b756c4bf30427b27";
+    "sha256:ffd6b3f091cc6c6e894dda8ae880df989eb2b77edfb2cb6e6b0c5f21fd641ed6";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -10822,7 +10864,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:98fdb2359074a93ae4264395ff645c2fc530d5b81e7be9541bc23edbf5ab88ec"
+                    "sha256:be519e6599fc9803d040478879d77650ef0fc77013e9ca6587e481bdae7b2bfd"
                         .to_owned(),
                 ),
                 (
@@ -11025,7 +11067,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:98fdb2359074a93ae4264395ff645c2fc530d5b81e7be9541bc23edbf5ab88ec"
+                    "sha256:be519e6599fc9803d040478879d77650ef0fc77013e9ca6587e481bdae7b2bfd"
                         .to_owned(),
                 ),
                 (
@@ -11319,7 +11361,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:98fdb2359074a93ae4264395ff645c2fc530d5b81e7be9541bc23edbf5ab88ec"
+                    "sha256:be519e6599fc9803d040478879d77650ef0fc77013e9ca6587e481bdae7b2bfd"
                         .to_owned(),
                 ),
                 (
@@ -11441,7 +11483,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:03c27a6cb3cb588b30b740eda85a9e6e42a831fb3e3448ef9d33f02def11226f"
+                "sha256:848b3d58d6f63908f18bdda0b3a56f1de5424484155dd835ae5e0da167269674"
                     .to_owned(),
             )])
         && carrier.client_source_sha256

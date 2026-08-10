@@ -2,17 +2,17 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "79ac057b5cb051404ee3f72478583fc289c2a0dc",
-    "sourceDigest": "sha256:c9c24a25cac5241b1a1a5a4be3a20d035dbba5925eed912b885370926e8239d2"
+    "commit": "abf09c8653821112504e6c3e2751ae3cf013468d",
+    "sourceDigest": "sha256:9b5240214894aae0b7b1f70a558773308502b109970cd4a1ed78e2f0d4134341"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 2932,
+    "codes": 2933,
     "sourceFiles": 402,
-    "emittingSites": 9952,
-    "httpClassified": 918,
+    "emittingSites": 9955,
+    "httpClassified": 919,
     "guideAnchored": 335
   },
   "diagnostics": {
@@ -177,7 +177,7 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 2063,
+          "line": 2064,
           "column": 34
         },
         {
@@ -4120,7 +4120,7 @@
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 192,
+          "line": 220,
           "column": 13
         },
         {
@@ -4522,7 +4522,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 14001,
+          "line": 14043,
           "column": 44
         },
         {
@@ -4552,7 +4552,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 13992,
+          "line": 14034,
           "column": 44
         },
         {
@@ -4639,7 +4639,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12335,
+          "line": 12365,
           "column": 4
         },
         {
@@ -4704,7 +4704,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12336,
+          "line": 12366,
           "column": 4
         },
         {
@@ -4714,7 +4714,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 14431,
+          "line": 14473,
           "column": 44
         },
         {
@@ -4914,7 +4914,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12337,
+          "line": 12367,
           "column": 4
         },
         {
@@ -4969,7 +4969,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12338,
+          "line": 12368,
           "column": 4
         },
         {
@@ -4979,7 +4979,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 14488,
+          "line": 14530,
           "column": 44
         },
         {
@@ -5144,7 +5144,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12339,
+          "line": 12369,
           "column": 4
         },
         {
@@ -5516,7 +5516,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12334,
+          "line": 12364,
           "column": 4
         },
         {
@@ -6504,17 +6504,17 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 13017,
+          "line": 13059,
           "column": 10
         },
         {
           "file": "src/manifest.rs",
-          "line": 13080,
+          "line": 13122,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 13131,
+          "line": 13173,
           "column": 18
         },
         {
@@ -9832,7 +9832,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2234,
+          "line": 2235,
           "column": 30
         }
       ],
@@ -10685,12 +10685,12 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 2193,
+          "line": 2194,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 17418,
+          "line": 17460,
           "column": 14
         }
       ],
@@ -10720,12 +10720,12 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 2183,
+          "line": 2184,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 17405,
+          "line": 17447,
           "column": 14
         }
       ],
@@ -10750,12 +10750,12 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2173,
+          "line": 2174,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 2203,
+          "line": 2204,
           "column": 22
         }
       ],
@@ -10860,12 +10860,12 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 2213,
+          "line": 2214,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 17438,
+          "line": 17480,
           "column": 14
         }
       ],
@@ -12625,7 +12625,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 3258,
+          "line": 3259,
           "column": 10
         },
         {
@@ -12645,7 +12645,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 238,
+          "line": 266,
           "column": 28
         },
         {
@@ -14655,12 +14655,12 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 8860,
+          "line": 8890,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 9334,
+          "line": 9364,
           "column": 21
         },
         {
@@ -14670,7 +14670,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 3740,
+          "line": 3782,
           "column": 10
         },
         {
@@ -18380,12 +18380,12 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 8865,
+          "line": 8895,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 9336,
+          "line": 9366,
           "column": 21
         },
         {
@@ -18395,7 +18395,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 3742,
+          "line": 3784,
           "column": 10
         },
         {
@@ -18896,7 +18896,7 @@
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 237,
+          "line": 265,
           "column": 25
         },
         {
@@ -21984,12 +21984,12 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 9400,
+          "line": 9442,
           "column": 19
         },
         {
           "file": "src/manifest.rs",
-          "line": 9512,
+          "line": 9554,
           "column": 14
         },
         {
@@ -22620,7 +22620,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 4152,
+          "line": 4194,
           "column": 10
         },
         {
@@ -23159,7 +23159,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 5245,
+          "line": 5287,
           "column": 14
         },
         {
@@ -23244,7 +23244,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 3368,
+          "line": 3410,
           "column": 14
         },
         {
@@ -25282,12 +25282,12 @@
         },
         {
           "file": "src/bundle.rs",
-          "line": 1101,
+          "line": 1113,
           "column": 7
         },
         {
           "file": "src/bundle.rs",
-          "line": 1152,
+          "line": 1164,
           "column": 6
         },
         {
@@ -25482,7 +25482,7 @@
         },
         {
           "file": "src/bundle.rs",
-          "line": 919,
+          "line": 931,
           "column": 39
         },
         {
@@ -26231,62 +26231,62 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2972,
+          "line": 2973,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 3129,
+          "line": 3130,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 3194,
+          "line": 3195,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 3207,
+          "line": 3208,
           "column": 10
         },
         {
           "file": "src/manifest.rs",
-          "line": 13887,
+          "line": 13929,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 13895,
+          "line": 13937,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 13904,
+          "line": 13946,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 14863,
+          "line": 14905,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 15636,
+          "line": 15678,
           "column": 46
         },
         {
           "file": "src/manifest.rs",
-          "line": 15813,
+          "line": 15855,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 15821,
+          "line": 15863,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 15860,
+          "line": 15902,
           "column": 14
         },
         {
@@ -28379,6 +28379,11 @@
       "subsystem": "client",
       "sites": [
         {
+          "file": "packages/snapback-cli/expo-dev.mjs",
+          "line": 40,
+          "column": 19
+        },
+        {
           "file": "packages/snapback-client/rqs-store-default.mjs",
           "line": 15,
           "column": 16
@@ -29268,7 +29273,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12825,
+          "line": 12855,
           "column": 20
         }
       ],
@@ -29283,7 +29288,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12286,
+          "line": 12316,
           "column": 8
         }
       ],
@@ -29368,7 +29373,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12598,
+          "line": 12628,
           "column": 10
         }
       ],
@@ -29455,7 +29460,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12383,
+          "line": 12413,
           "column": 140
         }
       ],
@@ -29470,7 +29475,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12694,
+          "line": 12724,
           "column": 25
         }
       ],
@@ -29485,7 +29490,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12692,
+          "line": 12722,
           "column": 40
         }
       ],
@@ -29500,7 +29505,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12682,
+          "line": 12712,
           "column": 23
         }
       ],
@@ -29515,7 +29520,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12686,
+          "line": 12716,
           "column": 23
         }
       ],
@@ -29530,7 +29535,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12677,
+          "line": 12707,
           "column": 74
         }
       ],
@@ -29545,7 +29550,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12725,
+          "line": 12755,
           "column": 61
         }
       ],
@@ -29560,7 +29565,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12672,
+          "line": 12702,
           "column": 23
         }
       ],
@@ -29575,7 +29580,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12711,
+          "line": 12741,
           "column": 25
         }
       ],
@@ -29590,7 +29595,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12702,
+          "line": 12732,
           "column": 23
         }
       ],
@@ -29605,7 +29610,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12715,
+          "line": 12745,
           "column": 27
         }
       ],
@@ -29620,7 +29625,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12721,
+          "line": 12751,
           "column": 25
         }
       ],
@@ -29635,7 +29640,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12409,
+          "line": 12439,
           "column": 21
         }
       ],
@@ -29650,7 +29655,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12676,
+          "line": 12706,
           "column": 47
         }
       ],
@@ -29665,7 +29670,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 7747,
+          "line": 7777,
           "column": 10
         }
       ],
@@ -29695,7 +29700,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 7726,
+          "line": 7756,
           "column": 8
         }
       ],
@@ -29785,7 +29790,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 9587,
+          "line": 9617,
           "column": 12
         }
       ],
@@ -29882,7 +29887,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10206,
+          "line": 10236,
           "column": 14
         }
       ],
@@ -29899,12 +29904,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10195,
+          "line": 10225,
           "column": 16
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10260,
+          "line": 10290,
           "column": 19
         }
       ],
@@ -29921,12 +29926,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10220,
+          "line": 10250,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10228,
+          "line": 10258,
           "column": 14
         }
       ],
@@ -29944,7 +29949,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10278,
+          "line": 10308,
           "column": 12
         }
       ],
@@ -30042,7 +30047,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10251,
+          "line": 10281,
           "column": 14
         }
       ],
@@ -30059,7 +30064,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10140,
+          "line": 10170,
           "column": 15
         }
       ],
@@ -30076,12 +30081,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10166,
+          "line": 10196,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10196,
+          "line": 10226,
           "column": 16
         }
       ],
@@ -30098,7 +30103,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10182,
+          "line": 10212,
           "column": 15
         }
       ],
@@ -30132,7 +30137,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10150,
+          "line": 10180,
           "column": 10
         }
       ],
@@ -30166,12 +30171,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10165,
+          "line": 10195,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10177,
+          "line": 10207,
           "column": 15
         }
       ],
@@ -31355,17 +31360,17 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 5548,
+          "line": 5590,
           "column": 26
         },
         {
           "file": "src/manifest.rs",
-          "line": 5562,
+          "line": 5604,
           "column": 26
         },
         {
           "file": "src/manifest.rs",
-          "line": 5606,
+          "line": 5648,
           "column": 14
         }
       ],
@@ -31385,7 +31390,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2103,
+          "line": 2104,
           "column": 22
         },
         {
@@ -31415,7 +31420,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2086,
+          "line": 2087,
           "column": 22
         },
         {
@@ -31525,7 +31530,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2093,
+          "line": 2094,
           "column": 22
         },
         {
@@ -31555,7 +31560,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2116,
+          "line": 2117,
           "column": 30
         },
         {
@@ -31837,7 +31842,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2131,
+          "line": 2132,
           "column": 26
         },
         {
@@ -33194,7 +33199,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2151,
+          "line": 2152,
           "column": 22
         },
         {
@@ -33949,7 +33954,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 9502,
+          "line": 9544,
           "column": 14
         },
         {
@@ -33999,12 +34004,12 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 9417,
+          "line": 9459,
           "column": 26
         },
         {
           "file": "src/manifest.rs",
-          "line": 9486,
+          "line": 9528,
           "column": 14
         },
         {
@@ -34099,7 +34104,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 9476,
+          "line": 9518,
           "column": 14
         },
         {
@@ -34456,7 +34461,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12340,
+          "line": 12370,
           "column": 4
         }
       ],
@@ -34478,7 +34483,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12341,
+          "line": 12371,
           "column": 4
         }
       ],
@@ -35161,7 +35166,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1321,
+          "line": 1338,
           "column": 24
         },
         {
@@ -35376,7 +35381,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1223,
+          "line": 1240,
           "column": 12
         },
         {
@@ -37965,7 +37970,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 307,
+          "line": 335,
           "column": 8
         }
       ],
@@ -37980,17 +37985,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 655,
+          "line": 683,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 665,
+          "line": 693,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 695,
+          "line": 723,
           "column": 12
         }
       ],
@@ -38007,12 +38012,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 712,
+          "line": 740,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 737,
+          "line": 765,
           "column": 14
         }
       ],
@@ -38027,7 +38032,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 325,
+          "line": 353,
           "column": 6
         }
       ],
@@ -38042,7 +38047,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 354,
+          "line": 382,
           "column": 10
         }
       ],
@@ -38057,12 +38062,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 343,
+          "line": 371,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 364,
+          "line": 392,
           "column": 10
         }
       ],
@@ -38077,12 +38082,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 591,
+          "line": 619,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 641,
+          "line": 669,
           "column": 8
         }
       ],
@@ -38097,7 +38102,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 373,
+          "line": 401,
           "column": 8
         }
       ],
@@ -38112,7 +38117,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1154,
+          "line": 1170,
           "column": 8
         }
       ],
@@ -38282,12 +38287,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 921,
+          "line": 949,
           "column": 57
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 968,
+          "line": 996,
           "column": 55
         }
       ],
@@ -38302,12 +38307,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 974,
+          "line": 1002,
           "column": 55
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 984,
+          "line": 1012,
           "column": 55
         },
         {
@@ -38387,7 +38392,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 946,
+          "line": 974,
           "column": 18
         }
       ],
@@ -38402,17 +38407,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 958,
+          "line": 986,
           "column": 18
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 962,
+          "line": 990,
           "column": 57
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1403,
+          "line": 1420,
           "column": 18
         }
       ],
@@ -38427,7 +38432,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1295,
+          "line": 1312,
           "column": 41
         }
       ],
@@ -38442,7 +38447,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1306,
+          "line": 1323,
           "column": 22
         }
       ],
@@ -38457,12 +38462,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 562,
+          "line": 590,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1138,
+          "line": 1154,
           "column": 8
         }
       ],
@@ -38477,7 +38482,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1612,
+          "line": 1629,
           "column": 10
         }
       ],
@@ -38562,7 +38567,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 437,
+          "line": 465,
           "column": 10
         }
       ],
@@ -38577,12 +38582,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 386,
+          "line": 414,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 394,
+          "line": 422,
           "column": 8
         }
       ],
@@ -38597,7 +38602,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 455,
+          "line": 483,
           "column": 8
         }
       ],
@@ -38612,7 +38617,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 474,
+          "line": 502,
           "column": 8
         }
       ],
@@ -38627,7 +38632,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 462,
+          "line": 490,
           "column": 8
         }
       ],
@@ -38642,7 +38647,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 516,
+          "line": 544,
           "column": 6
         }
       ],
@@ -38659,7 +38664,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 888,
+          "line": 916,
           "column": 6
         }
       ],
@@ -38674,17 +38679,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 752,
+          "line": 780,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 818,
+          "line": 846,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 831,
+          "line": 859,
           "column": 8
         }
       ],
@@ -38699,17 +38704,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 878,
+          "line": 906,
           "column": 12
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1236,
+          "line": 1253,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1336,
+          "line": 1353,
           "column": 16
         }
       ],
@@ -38724,12 +38729,12 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 865,
+          "line": 893,
           "column": 10
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1449,
+          "line": 1466,
           "column": 14
         }
       ],
@@ -38744,8 +38749,8 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1049,
-          "column": 7
+          "line": 49,
+          "column": 5
         }
       ],
       "httpStatus": null,
@@ -38759,17 +38764,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 44,
+          "line": 74,
           "column": 16
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 71,
+          "line": 99,
           "column": 18
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1487,
+          "line": 1504,
           "column": 16
         }
       ],
@@ -38833,22 +38838,22 @@
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 134,
+          "line": 162,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 141,
+          "line": 169,
           "column": 28
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 546,
+          "line": 574,
           "column": 28
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 584,
+          "line": 612,
           "column": 8
         }
       ],
@@ -38863,17 +38868,17 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 200,
+          "line": 228,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 212,
+          "line": 240,
           "column": 8
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 233,
+          "line": 261,
           "column": 6
         }
       ],
@@ -38888,7 +38893,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1568,
+          "line": 1585,
           "column": 34
         }
       ],
@@ -41472,7 +41477,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2474,
+          "line": 2475,
           "column": 10
         },
         {
@@ -41552,57 +41557,57 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 2497,
+          "line": 2498,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 2504,
+          "line": 2505,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 2546,
+          "line": 2547,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 2553,
+          "line": 2554,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 2889,
+          "line": 2890,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 2940,
+          "line": 2941,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 2952,
+          "line": 2953,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 3149,
+          "line": 3150,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 3165,
+          "line": 3166,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 3177,
+          "line": 3178,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 14558,
+          "line": 14600,
           "column": 14
         },
         {
@@ -41622,7 +41627,7 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 4095,
+          "line": 4137,
           "column": 14
         },
         {
@@ -41707,7 +41712,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 3117,
+          "line": 3118,
           "column": 18
         },
         {
@@ -41897,13 +41902,28 @@
         "/_snapback/guide/realtime/live-queries.md#define-one"
       ]
     },
+    "SNAPBACK_FUNCTION_PLAN_REFUSAL_UNDECLARED": {
+      "code": "SNAPBACK_FUNCTION_PLAN_REFUSAL_UNDECLARED",
+      "subsystem": "server",
+      "sites": [
+        {
+          "file": "src/manifest.rs",
+          "line": 3317,
+          "column": 14
+        }
+      ],
+      "httpStatus": 400,
+      "httpStatusClass": "4xx",
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
     "SNAPBACK_FUNCTION_REFUSAL_DECLARATION_INVALID": {
       "code": "SNAPBACK_FUNCTION_REFUSAL_DECLARATION_INVALID",
       "subsystem": "server",
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 3298,
+          "line": 3340,
           "column": 14
         },
         {
@@ -41998,7 +42018,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 15601,
+          "line": 15643,
           "column": 14
         },
         {
@@ -42018,12 +42038,12 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 3334,
+          "line": 3376,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 14528,
+          "line": 14570,
           "column": 14
         },
         {
@@ -42063,12 +42083,12 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12118,
+          "line": 12148,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12118,
+          "line": 12148,
           "column": 71
         }
       ],
@@ -42373,17 +42393,17 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 16968,
+          "line": 17010,
           "column": 30
         },
         {
           "file": "src/manifest.rs",
-          "line": 17001,
+          "line": 17043,
           "column": 34
         },
         {
           "file": "src/manifest.rs",
-          "line": 17012,
+          "line": 17054,
           "column": 30
         }
       ],
@@ -42873,7 +42893,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 8189,
+          "line": 8219,
           "column": 8
         },
         {
@@ -43045,7 +43065,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 7032,
+          "line": 7074,
           "column": 48
         },
         {
@@ -43648,18 +43668,8 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2463,
+          "line": 2464,
           "column": 10
-        },
-        {
-          "file": "src/manifest.rs",
-          "line": 14581,
-          "column": 14
-        },
-        {
-          "file": "src/manifest.rs",
-          "line": 14596,
-          "column": 14
         },
         {
           "file": "src/manifest.rs",
@@ -43668,7 +43678,17 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 14660,
+          "line": 14638,
+          "column": 14
+        },
+        {
+          "file": "src/manifest.rs",
+          "line": 14665,
+          "column": 14
+        },
+        {
+          "file": "src/manifest.rs",
+          "line": 14702,
           "column": 14
         },
         {
@@ -53164,7 +53184,7 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 12540,
+          "line": 12582,
           "column": 10
         },
         {
@@ -57182,12 +57202,12 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 8167,
+          "line": 8197,
           "column": 18
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 8170,
+          "line": 8200,
           "column": 41
         },
         {
@@ -57762,7 +57782,7 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 10493,
+          "line": 10535,
           "column": 54
         }
       ],
@@ -57782,7 +57802,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 10492,
+          "line": 10534,
           "column": 6
         }
       ],
@@ -60941,12 +60961,12 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 3437,
+          "line": 3479,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 3453,
+          "line": 3495,
           "column": 10
         },
         {
@@ -61923,7 +61943,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 6856,
+          "line": 6898,
           "column": 18
         },
         {
@@ -62005,7 +62025,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 6828,
+          "line": 6870,
           "column": 26
         },
         {
@@ -62114,7 +62134,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 6836,
+          "line": 6878,
           "column": 26
         },
         {
@@ -62186,7 +62206,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 6815,
+          "line": 6857,
           "column": 14
         },
         {
@@ -62829,6 +62849,11 @@
           "file": "packages/snapback-client/react-binding.mjs",
           "line": 534,
           "column": 8
+        },
+        {
+          "file": "packages/snapback-client/rqs-store-file.mjs",
+          "line": 775,
+          "column": 14
         },
         {
           "file": "packages/snapback-client/rqs-store.mjs",
@@ -64376,7 +64401,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 4429,
+          "line": 4471,
           "column": 31
         },
         {
@@ -64541,17 +64566,17 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 6529,
+          "line": 6571,
           "column": 10
         },
         {
           "file": "src/manifest.rs",
-          "line": 17033,
+          "line": 17075,
           "column": 29
         },
         {
           "file": "src/manifest.rs",
-          "line": 17037,
+          "line": 17079,
           "column": 24
         },
         {
@@ -67065,7 +67090,7 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 3049,
+          "line": 3050,
           "column": 14
         },
         {
@@ -68111,22 +68136,22 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 6527,
+          "line": 6569,
           "column": 10
         },
         {
           "file": "src/manifest.rs",
-          "line": 16828,
+          "line": 16870,
           "column": 26
         },
         {
           "file": "src/manifest.rs",
-          "line": 16868,
+          "line": 16910,
           "column": 43
         },
         {
           "file": "src/manifest.rs",
-          "line": 16879,
+          "line": 16921,
           "column": 38
         },
         {
@@ -68240,7 +68265,7 @@
         },
         {
           "file": "packages/snapback-client/rqs-store-file.mjs",
-          "line": 468,
+          "line": 489,
           "column": 35
         },
         {
@@ -68442,7 +68467,7 @@
       "sites": [
         {
           "file": "packages/snapback-client/rqs-store-file.mjs",
-          "line": 789,
+          "line": 828,
           "column": 14
         },
         {
@@ -69613,22 +69638,22 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 9715,
+          "line": 9757,
           "column": 25
         },
         {
           "file": "src/manifest.rs",
-          "line": 14319,
+          "line": 14361,
           "column": 9
         },
         {
           "file": "src/manifest.rs",
-          "line": 14364,
+          "line": 14406,
           "column": 38
         },
         {
           "file": "src/manifest.rs",
-          "line": 14365,
+          "line": 14407,
           "column": 41
         },
         {
@@ -69978,7 +70003,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 4765,
+          "line": 4807,
           "column": 18
         },
         {
@@ -70182,7 +70207,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12342,
+          "line": 12372,
           "column": 4
         }
       ],
@@ -70431,7 +70456,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 4492,
+          "line": 4534,
           "column": 14
         },
         {
@@ -70996,7 +71021,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13064,
+          "line": 13094,
           "column": 21
         }
       ],
@@ -71294,7 +71319,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13076,
+          "line": 13106,
           "column": 21
         },
         {
@@ -71407,52 +71432,52 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2017,
+          "line": 2018,
           "column": 30
         },
         {
           "file": "src/manifest.rs",
-          "line": 2292,
+          "line": 2293,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 2307,
+          "line": 2308,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 2332,
+          "line": 2333,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 2372,
+          "line": 2373,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 17103,
+          "line": 17145,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 17128,
+          "line": 17170,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 17155,
+          "line": 17197,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 17168,
+          "line": 17210,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 17186,
+          "line": 17228,
           "column": 14
         },
         {
@@ -71564,17 +71589,17 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2269,
+          "line": 2270,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 17085,
+          "line": 17127,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 17206,
+          "line": 17248,
           "column": 14
         },
         {
@@ -71679,42 +71704,42 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2032,
+          "line": 2033,
           "column": 39
         },
         {
           "file": "src/manifest.rs",
-          "line": 2039,
+          "line": 2040,
           "column": 35
         },
         {
           "file": "src/manifest.rs",
-          "line": 2142,
+          "line": 2143,
           "column": 39
         },
         {
           "file": "src/manifest.rs",
-          "line": 9716,
+          "line": 9758,
           "column": 25
         },
         {
           "file": "src/manifest.rs",
-          "line": 14319,
+          "line": 14361,
           "column": 35
         },
         {
           "file": "src/manifest.rs",
-          "line": 14365,
+          "line": 14407,
           "column": 66
         },
         {
           "file": "src/manifest.rs",
-          "line": 14399,
+          "line": 14441,
           "column": 29
         },
         {
           "file": "src/manifest.rs",
-          "line": 15536,
+          "line": 15578,
           "column": 29
         }
       ],
@@ -71904,7 +71929,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 3569,
+          "line": 3611,
           "column": 10
         },
         {
@@ -71929,32 +71954,32 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 5280,
+          "line": 5322,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 5288,
+          "line": 5330,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 5332,
+          "line": 5374,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 5345,
+          "line": 5387,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 15330,
+          "line": 15372,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 15493,
+          "line": 15535,
           "column": 14
         },
         {
@@ -72075,12 +72100,12 @@
       "sites": [
         {
           "file": "src/manifest.rs",
-          "line": 5273,
+          "line": 5315,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 5325,
+          "line": 5367,
           "column": 18
         },
         {
@@ -72110,18 +72135,13 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 1993,
+          "line": 1994,
           "column": 26
         },
         {
           "file": "src/manifest.rs",
-          "line": 2007,
+          "line": 2008,
           "column": 26
-        },
-        {
-          "file": "src/manifest.rs",
-          "line": 5261,
-          "column": 31
         },
         {
           "file": "src/manifest.rs",
@@ -72130,122 +72150,127 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 5523,
+          "line": 5345,
+          "column": 31
+        },
+        {
+          "file": "src/manifest.rs",
+          "line": 5565,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 5705,
+          "line": 5747,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 5742,
+          "line": 5784,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 5766,
+          "line": 5808,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 5812,
+          "line": 5854,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 5864,
+          "line": 5906,
           "column": 26
         },
         {
           "file": "src/manifest.rs",
-          "line": 5920,
-          "column": 14
-        },
-        {
-          "file": "src/manifest.rs",
-          "line": 5954,
-          "column": 18
-        },
-        {
-          "file": "src/manifest.rs",
-          "line": 5979,
+          "line": 5962,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
           "line": 5996,
-          "column": 22
-        },
-        {
-          "file": "src/manifest.rs",
-          "line": 6011,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 6064,
+          "line": 6021,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 6121,
+          "line": 6038,
+          "column": 22
+        },
+        {
+          "file": "src/manifest.rs",
+          "line": 6053,
+          "column": 18
+        },
+        {
+          "file": "src/manifest.rs",
+          "line": 6106,
+          "column": 14
+        },
+        {
+          "file": "src/manifest.rs",
+          "line": 6163,
           "column": 26
         },
         {
           "file": "src/manifest.rs",
-          "line": 6192,
+          "line": 6234,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 6252,
+          "line": 6294,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 6266,
+          "line": 6308,
           "column": 22
         },
         {
           "file": "src/manifest.rs",
-          "line": 6281,
+          "line": 6323,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 6335,
+          "line": 6377,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 6353,
+          "line": 6395,
           "column": 10
         },
         {
           "file": "src/manifest.rs",
-          "line": 7424,
+          "line": 7466,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 15297,
+          "line": 15339,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 15312,
+          "line": 15354,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 15512,
+          "line": 15554,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 15562,
+          "line": 15604,
           "column": 14
         },
         {
@@ -72302,12 +72327,12 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 6364,
+          "line": 6406,
           "column": 10
         },
         {
           "file": "src/manifest.rs",
-          "line": 15375,
+          "line": 15417,
           "column": 14
         },
         {
@@ -72444,12 +72469,12 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 14302,
+          "line": 14344,
           "column": 18
         },
         {
           "file": "src/manifest.rs",
-          "line": 14323,
+          "line": 14365,
           "column": 18
         }
       ],
@@ -72918,7 +72943,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2415,
+          "line": 2416,
           "column": 14
         },
         {
@@ -74214,12 +74239,12 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 2525,
+          "line": 2526,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 2532,
+          "line": 2533,
           "column": 14
         },
         {
@@ -75099,8 +75124,8 @@
         },
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 1048,
-          "column": 19
+          "line": 48,
+          "column": 17
         },
         {
           "file": "packages/snapback-expo/supervised-environment.mjs",
@@ -75688,7 +75713,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10398,
+          "line": 10428,
           "column": 12
         }
       ],
@@ -75705,12 +75730,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10427,
+          "line": 10457,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10536,
+          "line": 10566,
           "column": 79
         }
       ],
@@ -75727,12 +75752,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10441,
+          "line": 10471,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10492,
+          "line": 10522,
           "column": 17
         }
       ],
@@ -75749,27 +75774,27 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10337,
+          "line": 10367,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10354,
+          "line": 10384,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10366,
+          "line": 10396,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10454,
+          "line": 10484,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10620,
+          "line": 10650,
           "column": 14
         }
       ],
@@ -75787,12 +75812,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10464,
+          "line": 10494,
           "column": 21
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10591,
+          "line": 10621,
           "column": 21
         }
       ],
@@ -75809,17 +75834,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10346,
+          "line": 10376,
           "column": 15
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10376,
+          "line": 10406,
           "column": 17
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10509,
+          "line": 10539,
           "column": 19
         }
       ],
@@ -75836,17 +75861,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10422,
+          "line": 10452,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10522,
+          "line": 10552,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10584,
+          "line": 10614,
           "column": 19
         }
       ],
@@ -75863,17 +75888,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10381,
+          "line": 10411,
           "column": 17
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10414,
+          "line": 10444,
           "column": 19
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10497,
+          "line": 10527,
           "column": 17
         }
       ],
@@ -75890,7 +75915,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10409,
+          "line": 10439,
           "column": 19
         }
       ],
@@ -75907,7 +75932,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10536,
+          "line": 10566,
           "column": 40
         }
       ],
@@ -75924,12 +75949,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10471,
+          "line": 10501,
           "column": 23
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 10602,
+          "line": 10632,
           "column": 23
         }
       ],
@@ -77388,7 +77413,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 9452,
+          "line": 9494,
           "column": 10
         },
         {
@@ -77669,12 +77694,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13309,
+          "line": 13339,
           "column": 5
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 13330,
+          "line": 13360,
           "column": 138
         }
       ],
@@ -77986,7 +78011,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 8708,
+          "line": 8750,
           "column": 14
         },
         {
@@ -78125,27 +78150,27 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 4501,
+          "line": 4543,
           "column": 27
         },
         {
           "file": "src/manifest.rs",
-          "line": 14747,
+          "line": 14789,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 14799,
+          "line": 14841,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 14809,
+          "line": 14851,
           "column": 14
         },
         {
           "file": "src/manifest.rs",
-          "line": 14820,
+          "line": 14862,
           "column": 14
         },
         {
@@ -78257,7 +78282,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 12343,
+          "line": 12373,
           "column": 4
         }
       ],
@@ -78413,7 +78438,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 4687,
+          "line": 4729,
           "column": 14
         },
         {
@@ -79894,7 +79919,7 @@
         },
         {
           "file": "src/manifest.rs",
-          "line": 6448,
+          "line": 6490,
           "column": 14
         },
         {

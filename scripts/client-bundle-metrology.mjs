@@ -1495,6 +1495,64 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-react/package.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.rqs-store-competing-writer.v1.json',
+    profileFilename: 'sessions-custody-offline-queue-profiles.v1.json',
+    workloadVersion: 'rqs-store-competing-writer.2026-08-10.v1',
+    profileIds: Object.freeze([
+      'public-subpath-rqs-store-default',
+      'public-subpath-rqs-store-expo',
+      'public-subpath-rqs-store-file',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.sessions-custody-offline-queue.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-rqs-store-default',
+          'public-subpath-rqs-store-expo',
+          'public-subpath-rqs-store-file',
+        ]),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0090#d3-channel-b--persisted-device-snapshot',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-10',
+      landing: '4a19761fed343c5aa1659b13af05385221817047',
+      fix: 'The landed supervisor RQS custody fix makes the file store name '
+        + 'its competing writer: SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED '
+        + 'now carries the competing PID (when known), instance id, lock '
+        + 'path, and store path, so a stolen single-writer lock is '
+        + 'diagnosable at the refusal instead of by filesystem archaeology. '
+        + 'Regression-tested (rqs-store-file suite, same-process and live '
+        + 'foreign-writer cases).',
+      ticket: 'issues/closed/20260808-rqs-dir-env-leak-supervisor-child.md',
+      standingPolicy: 'LLP 0145 Phase A, 2026-08-10 author ruling: attributed '
+        + 'growth from a landed, receipted fix takes an automatic blessed rollover.',
+      byteDeltas: 'public-subpath-rqs-store-default min 62514->63119 (+605), '
+        + 'gzip 18512->18720 (+208), brotli 16319->16461 (+142); '
+        + 'public-subpath-rqs-store-expo min 42560->43152 (+592), gzip '
+        + '14080->14275 (+195), brotli 12451->12656 (+205); '
+        + 'public-subpath-rqs-store-file min 41094->41690 (+596), gzip '
+        + '13779->13971 (+192), brotli 12227->12401 (+174).',
+      summary: 'Advance exactly the three RQS store closures for the landed '
+        + 'competing-writer refusal diagnostics; every other active ceiling '
+        + 'and the sessions-custody predecessor remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'public-subpath-rqs-store-default',
+      'public-subpath-rqs-store-expo',
+      'public-subpath-rqs-store-file',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store.test.mjs']],
+      ['node', ['packages/snapback-client/package.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {

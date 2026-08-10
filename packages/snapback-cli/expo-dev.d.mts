@@ -3,6 +3,16 @@ export const SUPERVISED_EXCHANGE_FORMAT: 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH: '/_snapback/expo/v1/bootstrap';
 export const METRO_WATCH_BLIND_ROOTS: readonly string[];
 
+export function expoSupervisorChildEnvironment(
+  env?: Readonly<Record<string, string | undefined>>,
+): Record<string, string | undefined>;
+
+export function expoMetroChildEnvironment(options: Readonly<{
+  env?: Readonly<Record<string, string | undefined>>;
+  bootstrapOrigin: string;
+  port: number;
+}>): Record<string, string | undefined>;
+
 export interface MetroWatchAdvisory {
   readonly code: 'SNAPBACK_EXPO_METRO_WATCH_INERT';
   readonly condition: 'ci-environment' | 'watcher-blind-root';

@@ -5,7 +5,8 @@
 **Systems:** Code generation, Client integration, React, Live Queries, RQS, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-08-03 (Accepted 2026-08-03 by the author — decision
+**Revised:** 2026-08-10 (top-level JavaScript route-parameter admission).
+2026-08-03 (Accepted 2026-08-03 by the author — decision
 sitting #2, "accept all that verify",
 `issues/20260803-author-decision-sitting-2.md`; acceptance proceeds with one
 known defect noted rather than blocking: the open register-eligibility
@@ -126,6 +127,24 @@ object shape looks generated.
 The generated `api.mjs` exports both `groups` and `api.groups`. Its declaration
 exports the matching finite `GeneratedQueryGroups` map, so an entry's result
 keys and child results remain exact without casts or row generics.
+
+## 2026-08-10 top-level JavaScript route parameters
+
+For JavaScript query children, served admission derives depth-one `$param`
+target types from the generated `argsContract`. Codegen already emits that
+contract from the authored validators and uses the same scalar vocabulary, so
+this preserves the existing rule: a string-typed JavaScript argument remains
+register-eligible and receives a generated group reference. HostPlan children
+retain their schema-field/plan inference unchanged.
+
+This chooses the server-learns-JavaScript-args resolution over suppressing the
+codegen eligibility claim. Suppression alone cannot produce an admissible
+manifest because LLP 0092 validates the decode type of every emitted route,
+including read-only routes; omitting the route would silently remove a valid
+generated application surface. Missing contracts and non-scalar leaves still
+fail closed. A real regression crosses codegen-produced manifests through
+`LocalSnapback::ensure_app`; a codegen-only fixture is not evidence that the
+seam agrees.
 
 ## Preparation and admission
 

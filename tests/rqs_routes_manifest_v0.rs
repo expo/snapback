@@ -11,6 +11,9 @@ fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback
     snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
 }
 
+use std::fs;
+use std::process::Command;
+
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
@@ -770,6 +773,110 @@ fn generation_rotates_with_route_manifest_identity() {
         snapback.rqs_generation_digest().expect("generation"),
         with_routes
     );
+}
+
+/// Regression for the codegen/server seam in LLP 0112: a depth-one `$param`
+/// mapping into a JavaScript live query remains a valid register-eligible
+/// route because served admission reproduces its generated argument contract.
+/// This crosses the actual codegen output into the real
+/// `LocalSnapback::ensure_app` admission path.
+#[test]
+fn codegen_js_param_route_is_admitted_by_real_ensure_app() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let codegen = root.join("packages/snapback-codegen/index.mjs");
+    let define = root.join("packages/snapback-codegen/define.mjs");
+    let define_url = format!(
+        "file://{}",
+        define
+            .to_string_lossy()
+            .replace('%', "%25")
+            .replace(' ', "%20")
+            .replace('#', "%23")
+            .replace('?', "%3F")
+    );
+    let fixture = tempfile::tempdir().expect("temporary codegen app");
+    fs::write(
+        fixture.path().join("schema.mjs"),
+        format!(
+            "import {{ defineSchema, defineTable, v }} from '{define_url}';\n\
+             export default defineSchema({{ todos: defineTable({{ title: v.string() }}).sync() }});\n"
+        ),
+    )
+    .expect("write schema source");
+    fs::write(
+        fixture.path().join("functions.mjs"),
+        format!(
+            "import {{ defineJsLiveQuery, results, v }} from '{define_url}';\n\
+             export const listTodos = defineJsLiveQuery({{\n\
+               args: {{ title: v.string() }},\n\
+               reads: ['todos'],\n\
+               result: results.documents('todos'),\n\
+               source: 'handlers.mjs',\n\
+               exportName: 'listTodos',\n\
+             }});\n"
+        ),
+    )
+    .expect("write functions source");
+    fs::write(
+        fixture.path().join("handlers.mjs"),
+        "globalThis.__snapbackHandlers = { async listTodos() { return []; } };\n",
+    )
+    .expect("write handler source");
+    fs::write(
+        fixture.path().join("routes.mjs"),
+        format!(
+            "import {{ defineRoutes, routeParam }} from '{define_url}';\n\
+             export default defineRoutes([\n\
+               {{ route: '/todos/:title', queries: [{{ function: 'listTodos', args: {{ title: routeParam('title') }} }}] }},\n\
+             ]);\n"
+        ),
+    )
+    .expect("write routes source");
+
+    let output = Command::new("node")
+        .arg(&codegen)
+        .arg(fixture.path())
+        .output()
+        .expect("run snapback-codegen");
+    assert!(
+        output.status.success(),
+        "codegen failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+
+    let generated = fixture.path().join("generated");
+    let schema: SchemaManifest = serde_json::from_slice(
+        &fs::read(generated.join("schema.manifest.json")).expect("read generated schema"),
+    )
+    .expect("decode generated schema");
+    let functions: FunctionManifest = serde_json::from_slice(
+        &fs::read(generated.join("functions.manifest.json")).expect("read generated functions"),
+    )
+    .expect("decode generated functions");
+    let routes: RoutesManifest = serde_json::from_slice(
+        &fs::read(generated.join("routes.manifest.json")).expect("read generated routes"),
+    )
+    .expect("decode generated routes");
+    assert_eq!(routes.routes.len(), 1, "the JS route remains generated");
+    assert!(
+        routes.routes[0].register_group_eligible,
+        "the generated string mapping remains register-group eligible"
+    );
+
+    let mut snapback = LocalSnapback::memory().expect("in-memory instance");
+    snapback
+        .ensure_app(
+            EnsureAppInput {
+                schema: Some(schema),
+                functions: Some(functions),
+                seed: None,
+                routes: Some(routes),
+            },
+            true,
+            "dev",
+        )
+        .expect("codegen-produced JS route must pass real ensureApp admission");
 }
 
 /// `publicInline` is accepted only beside a valid `authorityIndependent`

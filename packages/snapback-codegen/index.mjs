@@ -7422,14 +7422,44 @@ function validateFunctionRefusalTrackingDefinition(name, def, err) {
     def.trackedRefusals,
     'FUNCTION_TRACKED_REFUSAL_INVALID',
   );
-  if (tracked === null) return;
-  for (const code of tracked) {
+  if (tracked !== null) {
+    for (const code of tracked) {
+      if (!declared.has(code)) {
+        err(
+          'FUNCTION_TRACKED_REFUSAL_INVALID',
+          'function',
+          `${name}: tracked refusal ${code} must also appear in refusals`,
+          { function: name, field: 'trackedRefusals', refusal: code },
+        );
+      }
+    }
+  }
+
+  // @ref LLP 0108#declared-application-refusals — an app-namespaced code
+  // emitted by the declarative mutation plan is part of the same closed
+  // declaration as ctx.refuse(). Platform SNAPBACK_* outcomes remain owned
+  // by the host and cannot appear in the app declaration by design.
+  if (def.__kind !== 'Mutation' || !def.plan || def.writeWithActivityPlan) return;
+  for (const [stepIndex, step] of (def.plan.steps ?? []).entries()) {
+    const [stepKind, body] = Object.entries(step ?? {})[0] ?? [];
+    const code = stepKind === 'Get'
+      ? body?.else_error
+      : (stepKind === 'Guard' ? body?.else_error : null);
+    if (typeof code !== 'string' || code.length === 0 || code.startsWith('SNAPBACK_')) {
+      continue;
+    }
     if (!declared.has(code)) {
       err(
-        'FUNCTION_TRACKED_REFUSAL_INVALID',
+        'FUNCTION_PLAN_REFUSAL_UNDECLARED',
         'function',
-        `${name}: tracked refusal ${code} must also appear in refusals`,
-        { function: name, field: 'trackedRefusals', refusal: code },
+        `${name}: ${stepKind} step ${stepIndex} emits app refusal ${code}, which must appear in refusals`,
+        {
+          function: name,
+          field: 'refusals',
+          refusal: code,
+          stepKind,
+          stepIndex,
+        },
       );
     }
   }

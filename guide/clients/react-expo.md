@@ -618,7 +618,7 @@ The supervisor normally puts its credential-free bootstrap origin into the
 Metro process before Metro builds the application bundle:
 
 ```js source=packages/snapback-cli/expo-dev.mjs fragment="supervisor origin injected into Metro's environment"
-      EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN: bootstrapOrigin,
+    EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN: bootstrapOrigin,
 ```
 
 That environment value is the switch that makes the provider attempt the

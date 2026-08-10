@@ -5,7 +5,9 @@
 **Systems:** Sync, Realtime, API, Auth, Client integration, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-08 (§0E.6's step-3 top-level-only narrowing partially
+**Revised:** 2026-08-10 (depth-one JavaScript route parameters derive from
+the carried argument contract; HostPlan inference is unchanged — see the
+2026-08-10 dated amendment). 2026-08-08 (§0E.6's step-3 top-level-only narrowing partially
 lifted: `$param` references are admitted at object-reachable positions, typed
 from the LLP 0131 argument contract, and literal members may be null, union,
 array, or literal-node values — see "Dated amendment: structured route-group
@@ -996,21 +998,24 @@ admission):
   leaf is not a string/number/boolean argument position;
 - a reference beside other keys, or with a non-string `$param` value.
 
-**Typing authority is split, deliberately.** Depth-1 references keep the
-step-3 AST-derived typing (`function_route_arg_types`, plan filters comparing
-a schema field against `Arg(name)`) **byte-for-byte**, so no app that lowers
-today changes behavior. Depth ≥ 2 references type from the carried argument
-contract (`function_nested_route_arg_types`), whose scalar-leaf rule codegen
-and both server arms reproduce identically: `string`/`principal`/`assetRef`/
-`id` → string, `integer` → integer, `finiteReal` → number, `boolean` →
-boolean, everything else → no entry (fail closed). A function with no
-`argsContract` (pre-0131 manifest) admits no nested reference. Unifying the
-two typing sources is follow-on work, not a v1 obligation.
+**Typing authority is split by runtime and depth, deliberately.** HostPlan
+depth-1 references keep the step-3 AST-derived typing
+(`function_route_arg_types`, plan filters comparing a schema field against
+`Arg(name)`) **byte-for-byte**, so no app that lowers today changes behavior.
+Depth ≥ 2 references type from the carried argument contract
+(`function_nested_route_arg_types`). The 2026-08-10 amendment below also uses
+that contract for JavaScript depth-1 references.
 
-One consequence worth naming: nested references are typable for **JS-handler**
-queries too, because the argument contract exists regardless of whether the
-handler is a declarative plan. The depth-1 seam recorded in
-`issues/20260731-0112-register-eligibility-js-param-seam.md` is unchanged.
+The contract scalar-leaf rule is reproduced identically by codegen and both
+server arms: `string`/`principal`/`assetRef`/`id` → string, `integer` →
+integer, `finiteReal` → number, `boolean` → boolean, everything else → no
+entry (fail closed). A function with no `argsContract` (pre-0131 manifest)
+admits no contract-derived reference.
+
+One consequence worth naming: object-reachable references are typable for
+**JS-handler** queries too, because the argument contract exists regardless of
+whether the handler is a declarative plan. Depth-1 JavaScript handling is
+governed by the 2026-08-10 amendment below.
 
 **Register/mixed group eligibility follows every reference.** `registerGroupEligible`
 and `mixedGroupEligible` already required every `$param`-mapped arg to be
@@ -1030,6 +1035,23 @@ the round-trip equality §0E.6 specifies, restoring the "Predicate parity"
 conformance clause below. (b) The Cloudflare arm admitted a **bare root**
 `{"$param": …}` mapping (its per-key loop never inspected the mapping object
 itself); it now refuses, matching the local arm.
+
+## Dated amendment: depth-one JavaScript route parameters (2026-08-10)
+
+For an `IbexModule` query, `function_route_arg_types` derives depth-one route
+parameter types from the function's carried `argsContract`. This closes the
+codegen/served-admission seam recorded in
+`issues/20260731-0112-register-eligibility-js-param-seam.md`: codegen already
+types the authored JavaScript argument validator and emits the corresponding
+contract, so a generated string mapping is admitted and remains eligible for
+LLP 0112 registration.
+
+This does not change HostPlan inference, which remains schema/plan-derived.
+It also does not permit an uncarried or opaque declaration: a pre-0131
+JavaScript function without `argsContract`, a non-scalar leaf, or any unknown
+contract node has no route decode type and refuses fail-closed. The local
+regression uses codegen-produced schema, function, and route manifests and
+passes them through real `ensureApp` admission.
 
 ## Open questions
 

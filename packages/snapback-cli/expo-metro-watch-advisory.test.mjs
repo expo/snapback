@@ -4,12 +4,14 @@ import {
   realpathSync,
   rmSync,
 } from 'node:fs';
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-import { assessMetroWatchInertness } from './expo-dev.mjs';
+import {
+  assessMetroWatchInertness,
+  expoMetroChildEnvironment,
+  expoSupervisorChildEnvironment,
+} from './expo-dev.mjs';
 
-const packageDirectory = dirname(fileURLToPath(import.meta.url));
+const watchCapableDirectory = '/snapback/project';
 
 function assertFrozen(advisories) {
   assert(Object.isFrozen(advisories));
@@ -19,15 +21,50 @@ function assertFrozen(advisories) {
   }
 }
 
-const defaulted = assessMetroWatchInertness({ env: {}, directory: packageDirectory });
+const parentEnvironment = {
+  SNAPBACK_CLIENT_RQS_DIR: '/tmp/app-owned-rqs',
+  SNAPBACK_RUNTIME_BINARY: '/tmp/snapback',
+};
+const childEnvironment = expoSupervisorChildEnvironment(parentEnvironment);
+assert.equal(
+  Object.hasOwn(childEnvironment, 'SNAPBACK_CLIENT_RQS_DIR'),
+  false,
+  'supervised children must not contend for the caller-owned RQS namespace',
+);
+assert.equal(childEnvironment.SNAPBACK_RUNTIME_BINARY, '/tmp/snapback');
+assert.equal(
+  parentEnvironment.SNAPBACK_CLIENT_RQS_DIR,
+  '/tmp/app-owned-rqs',
+  'child environment derivation must not mutate the supervisor environment',
+);
+
+const defaultMetroEnvironment = expoMetroChildEnvironment({
+  env: childEnvironment,
+  bootstrapOrigin: 'http://127.0.0.1:4288',
+  port: 8081,
+});
+assert.equal(Object.hasOwn(defaultMetroEnvironment, 'CI'), false);
+assert.equal(defaultMetroEnvironment.EXPO_NO_TELEMETRY, '1');
+assert.equal(defaultMetroEnvironment.SNAPBACK_EXPO_METRO_PORT, '8081');
+assert.equal(defaultMetroEnvironment.RCT_METRO_PORT, '8081');
+assert.equal(
+  defaultMetroEnvironment.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN,
+  'http://127.0.0.1:4288',
+);
+for (const ci of ['1', 'true', '0', 'false', '']) {
+  assert.equal(
+    expoMetroChildEnvironment({ env: { CI: ci }, bootstrapOrigin: 'x', port: 1 }).CI,
+    ci,
+    'the supervisor must preserve every explicit caller CI value',
+  );
+}
+
+const defaulted = assessMetroWatchInertness({ env: {}, directory: watchCapableDirectory });
 assertFrozen(defaulted);
-assert.equal(defaulted.length, 1);
-assert.equal(defaulted[0].condition, 'ci-environment');
-assert.equal(defaulted[0].details.defaulted, true);
-assert.equal(defaulted[0].code, 'SNAPBACK_EXPO_METRO_WATCH_INERT');
+assert.deepEqual(defaulted, []);
 
 for (const ci of ['1', 'true']) {
-  const advisories = assessMetroWatchInertness({ env: { CI: ci }, directory: packageDirectory });
+  const advisories = assessMetroWatchInertness({ env: { CI: ci }, directory: watchCapableDirectory });
   assertFrozen(advisories);
   assert.equal(advisories.length, 1);
   assert.equal(advisories[0].condition, 'ci-environment');
@@ -36,7 +73,7 @@ for (const ci of ['1', 'true']) {
 }
 
 for (const ci of ['', '0', 'false']) {
-  const advisories = assessMetroWatchInertness({ env: { CI: ci }, directory: packageDirectory });
+  const advisories = assessMetroWatchInertness({ env: { CI: ci }, directory: watchCapableDirectory });
   assertFrozen(advisories);
   assert.equal(advisories.some((advisory) => advisory.condition === 'ci-environment'), false);
 }
@@ -54,7 +91,7 @@ try {
   assert(['/private/tmp', '/tmp'].includes(pathOnly[0].details.root));
   assert.equal(pathOnly[0].details.directory, realScratchDirectory);
 
-  const both = assessMetroWatchInertness({ env: {}, directory: scratchDirectory });
+  const both = assessMetroWatchInertness({ env: { CI: '1' }, directory: scratchDirectory });
   assertFrozen(both);
   assert.equal(both.length, 2);
   assert.deepEqual(
@@ -78,7 +115,7 @@ assert.equal(missing.length, 1);
 assert.equal(missing[0].condition, 'watcher-blind-root');
 assert.equal(missing[0].details.directory, missingDirectory);
 
-const safe = assessMetroWatchInertness({ env: { CI: '0' }, directory: packageDirectory });
+const safe = assessMetroWatchInertness({ env: { CI: '0' }, directory: watchCapableDirectory });
 assertFrozen(safe);
 assert.deepEqual(safe, []);
 

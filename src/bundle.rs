@@ -762,13 +762,17 @@ pub enum RouteParamType {
     Boolean,
 }
 
-/// AST-derived per-arg decode types for a query's route params (the
-/// schema-driven typing LLP 0092 §0E.6 requires, derived like LLP 0076's
-/// capability inference rather than carried as a manifest field): every plan
-/// filter comparing a schema field against `ValueExpr::Arg(name)` types that
-/// arg by the field's schema type. Conflicting inferences and untypable
-/// fields (`Json`) yield no entry — a `$param` reference to an arg without an
-/// inferred type refuses at admission (fail closed).
+/// Per-arg decode types for a query's route params. HostPlan queries retain
+/// LLP 0092 §0E.6's schema-derived inference: every plan filter comparing a
+/// schema field against `ValueExpr::Arg(name)` types that arg by the field's
+/// schema type. JavaScript queries use the generated argument contract, which
+/// is the served artifact's authoritative declaration for that runtime.
+/// Conflicting, missing, and non-scalar types yield no entry (fail closed).
+///
+/// @ref LLP 0092#dated-amendment-depth-one-javascript-route-parameters-2026-08-10
+///   — depth-one JavaScript positions use the same carried argsContract that
+///   already types nested positions, closing the codegen/ensure seam without
+///   reinterpreting HostPlan inference.
 pub fn function_route_arg_types(
     function: &crate::manifest::FunctionDefinition,
     schema: &crate::manifest::SchemaManifest,
@@ -776,6 +780,15 @@ pub fn function_route_arg_types(
     use crate::manifest::{FieldType, FunctionRuntime, HandlerPlan, ValueExpr};
     let mut types: BTreeMap<String, Option<RouteParamType>> = BTreeMap::new();
     let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
+        if matches!(&function.runtime, FunctionRuntime::IbexModule(_)) {
+            return function_nested_route_arg_types(function)
+                .into_iter()
+                .filter_map(|(path, target)| match path.as_slice() {
+                    [name] => Some((name.clone(), target)),
+                    _ => None,
+                })
+                .collect();
+        }
         return BTreeMap::new();
     };
     let Some(table) = schema.tables.iter().find(|table| table.name == plan.table) else {
@@ -823,8 +836,7 @@ pub fn function_route_arg_types(
 ///
 /// @ref LLP 0092#dated-amendment-structured-route-group-arguments-2026-08-08
 ///   — LLP 0131's carried `argsContract` invalidated step 3's "no
-///   manifest-carried arg schema" premise for nested positions, while
-///   depth-1 positions deliberately keep [`function_route_arg_types`].
+///   manifest-carried arg schema" premise for object-reachable positions.
 pub fn function_nested_route_arg_types(
     function: &crate::manifest::FunctionDefinition,
 ) -> BTreeMap<Vec<String>, RouteParamType> {

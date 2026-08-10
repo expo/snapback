@@ -97,8 +97,9 @@ export const likePost = defineMutation({
   opt-in: accept a client-captured settlement time for one declared field
   when within the bound (below).
 - `auth`, `refusals`, `trackedRefusals` — the shared authored-function keys.
-  Note that `refusals` does **not** govern plan `elseError`/`guard` codes;
-  see [refusal behavior](#refuse-from-a-plan-elseerror-and-guard).
+  Every application code used by plan `elseError`/`guard` must appear in
+  `refusals`; platform codes with the reserved `SNAPBACK_` prefix are exempt.
+  See [refusal behavior](#refuse-from-a-plan-elseerror-and-guard).
 
 For `boundedSkew`, `maxSkewMs` is an integer from 1 through 86,400,000, and
 `field` must name **exactly one direct `runtimeNow()` write** across the
@@ -221,12 +222,11 @@ handler, and the split matters when you write the client branch:
   `diagnostic.code` **itself**. It is not wrapped in
   `SNAPBACK_APP_REFUSAL`, and there is no `details.appCode`. The details
   carry the failing step kind (`Get` additionally names the table and id).
-- The `refusals: [...]` declaration is **not cross-checked** against plan
-  codes today: declaring `'POST_NOT_FOUND'` there (as `likePost` does)
-  documents intent and feeds tooling, but codegen neither requires nor
-  verifies the correspondence — the honest current envelope split is
-  tracked in
-  [this ticket](repo:issues/20260808-plan-refusal-codes-not-crosschecked.md).
+- Every application code in `elseError` or `guard` must also appear in the
+  mutation's `refusals: [...]` declaration. Codegen and server artifact
+  validation reject an undeclared code. This cross-check makes the authored
+  failure vocabulary complete, but it does not change the runtime envelope:
+  plan failures still arrive as `diagnostic.code`, not `details.appCode`.
 - A plan code is a free string. Unlike `ctx.refuse` codes, it may
   deliberately reuse a platform code so distinct failure paths collapse to
   one public outcome — the owner-checked delete below returns the same
@@ -276,9 +276,10 @@ explicit.
 - **Do not branch on `details.appCode` for a plan refusal.** Plan
   `elseError`/`guard` codes arrive as `diagnostic.code` directly; only
   `ctx.refuse` produces the `SNAPBACK_APP_REFUSAL` + `appCode` envelope.
-- **Do not expect `refusals: [...]` to validate plan codes.** The
-  cross-check does not exist today; the declaration is documentation for a
-  plan mutation.
+- **Do not omit application plan codes from `refusals: [...]`.** Codegen and
+  server artifact validation require every non-`SNAPBACK_` `elseError` and
+  `guard` code to be declared. Platform codes retain their reserved namespace
+  and need no application declaration.
 - **Do not use `eq` where `eqv` is meant.** `eq` builds a declarative-query
   filter clause; expression equality inside a plan is `eqv`.
 - **Do not smuggle client time or client-minted ids through `args`** to

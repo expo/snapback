@@ -32,22 +32,50 @@ export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1'
 export const SUPERVISED_EXCHANGE_PATH = '/_snapback/expo/v1/bootstrap';
 export const METRO_WATCH_BLIND_ROOTS = Object.freeze(['/private/tmp', '/tmp']);
 
+export function expoSupervisorChildEnvironment(env = process.env) {
+  const childEnv = { ...(env ?? {}) };
+  // The supervisor coordinates backend and Metro processes, but it is not an
+  // RQS-store owner. Inheriting the caller's file-store namespace lets a
+  // supervised JS child take the app's single-writer lock before the app does.
+  delete childEnv.SNAPBACK_CLIENT_RQS_DIR;
+  return childEnv;
+}
+
+export function expoMetroChildEnvironment({ env, bootstrapOrigin, port }) {
+  const childEnv = {
+    ...(env ?? {}),
+    EXPO_NO_TELEMETRY: '1',
+    EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN: bootstrapOrigin,
+    SNAPBACK_EXPO_METRO_PORT: String(port),
+    RCT_METRO_PORT: String(port),
+    // Expo's --localhost server asks Node to listen on the hostname
+    // "localhost". On IPv6-first Macs that otherwise resolves to ::1,
+    // while the supervised iOS route is deliberately 127.0.0.1. Keep the
+    // public and bound endpoints identical without exposing Metro on LAN.
+    NODE_OPTIONS: metroNodeOptions(env?.NODE_OPTIONS),
+  };
+  // `snapback dev --expo` is a watch loop even when its controller has no
+  // TTY. Omission therefore means ordinary Metro development mode; explicit
+  // CI values remain caller-owned for genuinely hermetic invocations.
+  if (env?.CI === undefined || env?.CI === null) delete childEnv.CI;
+  return childEnv;
+}
+
 export function assessMetroWatchInertness({ env = process.env, directory = null } = {}) {
   const advisories = [];
 
   try {
-    const effectiveCi = env?.CI ?? '1';
-    const defaulted = env?.CI === undefined || env?.CI === null;
-    const normalizedCi = String(effectiveCi).trim().toLowerCase();
-    if (!['', '0', 'false'].includes(normalizedCi)) {
+    const effectiveCi = env?.CI;
+    const normalizedCi = effectiveCi == null
+      ? ''
+      : String(effectiveCi).trim().toLowerCase();
+    if (effectiveCi != null && !['', '0', 'false'].includes(normalizedCi)) {
       advisories.push(Object.freeze({
         code: 'SNAPBACK_EXPO_METRO_WATCH_INERT',
         condition: 'ci-environment',
-        message: defaulted
-          ? 'Metro file watching is inert: the supervisor defaults CI=1 for a non-interactive Expo, and Expo/Metro disable file watching under CI.'
-          : `Metro file watching is inert: CI=${effectiveCi} is set in the environment, and Expo/Metro disable file watching under CI.`,
-        remediation: 'Edits will not rebuild the served bundle. Restart the supervised loop after changes, or pass CI=0 in the supervisor env to re-enable watching.',
-        details: Object.freeze({ ci: String(effectiveCi), defaulted }),
+        message: `Metro file watching is inert: CI=${effectiveCi} is set in the environment, and Expo/Metro disable file watching under CI.`,
+        remediation: 'Edits will not rebuild the served bundle. Unset CI (or pass CI=0) in the supervisor environment to re-enable watching.',
+        details: Object.freeze({ ci: String(effectiveCi), defaulted: false }),
       }));
     }
   } catch {
@@ -1041,19 +1069,7 @@ function startMetro({ command, directory, port, bootstrapOrigin, env, emit, onEx
     shell: resolved.shell,
     detached: process.platform !== 'win32',
     cwd: directory,
-    env: {
-      ...env,
-      CI: env?.CI ?? '1',
-      EXPO_NO_TELEMETRY: '1',
-      EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN: bootstrapOrigin,
-      SNAPBACK_EXPO_METRO_PORT: String(port),
-      RCT_METRO_PORT: String(port),
-      // Expo's --localhost server asks Node to listen on the hostname
-      // "localhost". On IPv6-first Macs that otherwise resolves to ::1,
-      // while the supervised iOS route is deliberately 127.0.0.1. Keep the
-      // public and bound endpoints identical without exposing Metro on LAN.
-      NODE_OPTIONS: metroNodeOptions(env?.NODE_OPTIONS),
-    },
+    env: expoMetroChildEnvironment({ env, bootstrapOrigin, port }),
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const logs = [];
@@ -1166,6 +1182,7 @@ export async function runExpoDev(options = {}) {
   const correlationId = options.correlationId ?? `snapback-expo-${randomUUID()}`;
   const generation = options.supervisorGeneration ?? `supervisor-${randomUUID()}`;
   const startedAt = new Date().toISOString();
+  const childEnv = expoSupervisorChildEnvironment(options.env ?? process.env);
   const backendRoot = resolve(options.backendDirectory ?? 'snapback');
   const projectRoot = resolve(options.projectRoot ?? dirname(backendRoot));
   const database = resolve(options.database ?? join(projectRoot, '.snapback', 'dev.sqlite3'));
@@ -1196,7 +1213,7 @@ export async function runExpoDev(options = {}) {
   let closeSupervisor = null;
   let supervisorDescriptorFile = null;
   try {
-    const selectedDevice = resolveExpoDeviceSelection(options);
+    const selectedDevice = resolveExpoDeviceSelection({ ...options, env: childEnv });
     emit({
       ok: true,
       state: 'device-selected',
@@ -1210,7 +1227,7 @@ export async function runExpoDev(options = {}) {
       readyFile: options.readyFile,
       database,
       runtimeBinary: options.runtimeBinary,
-      env: options.env,
+      env: childEnv,
       attach: options.attach === true,
       watch: true,
       serverStdio: options.serverStdio ?? ['ignore', 'ignore', 'ignore'],
@@ -1250,7 +1267,7 @@ export async function runExpoDev(options = {}) {
           email,
           operatorToken,
           cwd: projectRoot,
-          env: options.env,
+          env: childEnv,
         });
       } finally {
         operatorToken = null;
@@ -1359,7 +1376,7 @@ export async function runExpoDev(options = {}) {
           forwarding = installAndroidPortForwarding(route, {
             adbBinary: options.adbBinary,
             run: options.adbRun,
-            env: options.env,
+            env: childEnv,
           });
           listeners = await waitForListenerInventory({
             backendPid: refreshedReady.pid,
@@ -1441,7 +1458,7 @@ export async function runExpoDev(options = {}) {
       directory: expoDirectory,
       port: metroPort,
       bootstrapOrigin: clientBootstrapOrigin,
-      env: options.env ?? process.env,
+      env: childEnv,
       emit,
       onExit(code, signal, cause) {
         if (!closed) {
@@ -1472,12 +1489,12 @@ export async function runExpoDev(options = {}) {
     });
     emit({ ok: true, state: 'listeners-verified', listeners });
     // Advisory only — never fails the loop. Metro silently disables file
-    // watching under CI (which this supervisor defaults) and cannot see edits
-    // under watcher-blind roots such as /private/tmp; without this warning,
+    // watching under an explicit CI environment and cannot see edits under
+    // watcher-blind roots such as /private/tmp; without this warning,
     // stale bundles get misread as application bugs
     // (issues/20260808-supervisor-warn-metro-watch-blind.md).
     const watchAdvisories = assessMetroWatchInertness({
-      env: options.env ?? process.env,
+      env: childEnv,
       directory: expoDirectory,
     });
     if (watchAdvisories.length > 0) {
@@ -1491,7 +1508,7 @@ export async function runExpoDev(options = {}) {
     forwarding = installAndroidPortForwarding(route, {
       adbBinary: options.adbBinary,
       run: options.adbRun,
-      env: options.env,
+      env: childEnv,
     });
     const finalState = authority.status === 'ready' ? 'ready' : 'authority-required';
     emit({

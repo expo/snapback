@@ -1,6 +1,6 @@
 # Codegen marks `$param`-into-JS-live-query routes registerGroupEligible; the server refuses them at ensureApp
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Impact:** 2
 **Urgency:** 2
 **Ease:** 3
@@ -71,3 +71,34 @@ function_route_arg_types empty-map return for non-HostPlan runtimes
 (src/bundle.rs:427-435). The option-1 (server learns JS arg types) vs
 option-2 (codegen narrows) decision is still unmade; the Campfire
 declarative workaround still stands.
+
+## Resolution (2026-08-10)
+
+Option 1 was selected: served admission now learns depth-one JavaScript query
+argument types from the generated `argsContract`, matching codegen's authored
+validator vocabulary. The HostPlan path remains byte-for-byte schema/plan
+derived, and a missing contract or non-scalar leaf still fails closed.
+
+This became the smaller complete repair once tested across real admission.
+Merely removing `registerGroupEligible` still made `ensureApp` reject the route
+because LLP 0092 must type every route mapping for read-mode decode; making
+option 2 effective would therefore require omitting an otherwise valid route
+and generated API surface. Option 1 is a narrow fallback for `IbexModule`
+queries and preserves the documented LLP 0112 authoring rule.
+
+The regression includes a codegen fixture and a real
+`LocalSnapback::ensure_app` admission of codegen-produced schema, function,
+and route manifests, closing the fake-client-only coverage gap that allowed
+the disagreement.
+
+## Resolution — 2026-08-10
+
+Option 1 (server learns JS argument types): served admission derives
+depth-one scalar types for `IbexModule` routes from the generated
+`argsContract`; HostPlan inference unchanged; missing/pre-0131/non-scalar
+contracts still fail closed. Option 2 was exercised first and proven
+incomplete against real admission (clearing `registerGroupEligible` alone
+still leaves `ensureApp` rejecting the emitted route mapping and would drop a
+valid generated surface). Regression sends codegen-produced manifests through
+real `LocalSnapback::ensure_app` (rqs_routes_manifest_v0: 9/9). Choice
+recorded in LLP 0092 and the dated 2026-08-10 LLP 0112 note.

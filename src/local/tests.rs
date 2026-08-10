@@ -29130,6 +29130,10 @@ fn managed_branch_carrier_fixture() -> LocalSnapback {
         })),
     );
     mutate_admin.auth_requirement = Some(AuthRequirement::Authenticated);
+    mutate_admin.refusals = vec![
+        "ADMIN_ROW_MISSING".to_owned(),
+        "ADMIN_ROW_DENIED".to_owned(),
+    ];
     let attempt_fetch = FunctionDefinition::new(
             "attemptFetch",
             FunctionKind::Action,

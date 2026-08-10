@@ -68,26 +68,35 @@ const guardedPatch = (values) => [
   }),
 ];
 
+const guardedPatchRefusals = [
+  'KANBAN_CARD_NOT_FOUND',
+  'KANBAN_CARD_LOCKED',
+];
+
 export const editCard = defineMutation({
   args: { cardId: v.id('cards'), title: v.string() },
+  refusals: guardedPatchRefusals,
   plan: guardedPatch({ title: arg('title') }),
   returns: returnDocument('cards', arg('cardId')),
 });
 
 export const assignCard = defineMutation({
   args: { cardId: v.id('cards'), assignee: v.string() },
+  refusals: guardedPatchRefusals,
   plan: guardedPatch({ assignee: arg('assignee') }),
   returns: returnDocument('cards', arg('cardId')),
 });
 
 export const archiveCard = defineMutation({
   args: { cardId: v.id('cards') },
+  refusals: guardedPatchRefusals,
   plan: guardedPatch({ archived: lit(true) }),
   returns: returnDocument('cards', arg('cardId')),
 });
 
 export const reorderCard = defineMutation({
   args: { cardId: v.id('cards'), column: v.string(), rank: v.integer() },
+  refusals: guardedPatchRefusals,
   plan: guardedPatch({ column: arg('column'), rank: arg('rank') }),
   returns: returnDocument('cards', arg('cardId')),
 });

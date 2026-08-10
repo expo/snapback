@@ -55,6 +55,71 @@ async function validCase({ schema = validSchema, functions, handlers = {} }) {
   return result;
 }
 
+// Declarative mutation failures use the same closed app-code declaration as
+// imperative ctx.refuse(). Both Get.elseError and Guard must be cross-checked
+// before a functions manifest can be emitted.
+{
+  const declared = await validCase({
+    functions: `
+import { arg, defineMutation, get, guard, lit, v } from '${defineUrl}';
+export const updateTodo = defineMutation({
+  args: { id: v.string() },
+  plan: [
+    get('todos', arg('id'), 'todo', { elseError: 'TODO_NOT_FOUND' }),
+    guard(lit(true), 'TODO_LOCKED'),
+  ],
+  refusals: ['TODO_NOT_FOUND', 'TODO_LOCKED'],
+});
+`,
+  });
+  assert.deepEqual(
+    declared.functionManifest.functions[0].refusals,
+    ['TODO_NOT_FOUND', 'TODO_LOCKED'],
+  );
+
+  const missingGuard = await invalidCase({
+    functions: `
+import { arg, defineMutation, get, guard, lit, v } from '${defineUrl}';
+export const updateTodo = defineMutation({
+  args: { id: v.string() },
+  plan: [
+    get('todos', arg('id'), 'todo', { elseError: 'TODO_NOT_FOUND' }),
+    guard(lit(true), 'TODO_LOCKED'),
+  ],
+  refusals: ['TODO_NOT_FOUND'],
+});
+`,
+  });
+  const guardDiagnostic = missingGuard.find(
+    (diagnostic) => diagnostic.code === 'FUNCTION_PLAN_REFUSAL_UNDECLARED',
+  );
+  assert.ok(guardDiagnostic, `expected undeclared Guard refusal: ${JSON.stringify(missingGuard)}`);
+  assert.match(guardDiagnostic.message, /Guard step 1 emits app refusal TODO_LOCKED/u);
+  assert.deepEqual(
+    {
+      refusal: guardDiagnostic.refusal,
+      stepKind: guardDiagnostic.stepKind,
+      stepIndex: guardDiagnostic.stepIndex,
+    },
+    { refusal: 'TODO_LOCKED', stepKind: 'Guard', stepIndex: 1 },
+  );
+
+  const missingGet = await invalidCase({
+    functions: `
+import { arg, defineMutation, get, v } from '${defineUrl}';
+export const updateTodo = defineMutation({
+  args: { id: v.string() },
+  plan: get('todos', arg('id'), 'todo', { elseError: 'TODO_NOT_FOUND' }),
+});
+`,
+  });
+  const getDiagnostic = missingGet.find(
+    (diagnostic) => diagnostic.code === 'FUNCTION_PLAN_REFUSAL_UNDECLARED',
+  );
+  assert.ok(getDiagnostic, `expected undeclared Get refusal: ${JSON.stringify(missingGet)}`);
+  assert.match(getDiagnostic.message, /Get step 0 emits app refusal TODO_NOT_FOUND/u);
+}
+
 const jsActionFunctions = `
 import { defineAction } from '${defineUrl}';
 export const probe = defineAction({
@@ -1056,6 +1121,17 @@ export const todosByRank = defineLiveQuery({
 });
 `;
 
+const javascriptRouteFunctions = `
+import { defineJsLiveQuery, results, v } from '${defineUrl}';
+export const listTodos = defineJsLiveQuery({
+  args: { title: v.string() },
+  reads: ['todos'],
+  result: results.documents('todos'),
+  source: 'handlers.mjs',
+  exportName: 'listTodos',
+});
+`;
+
 const structuredRouteSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export const boards = defineTable({ title: v.string() });
@@ -1236,6 +1312,42 @@ void wrongParams;
   );
   const index = JSON.parse(readFileSync(join(result.outDir, 'artifacts.json'), 'utf8'));
   assert(index.artifacts.includes('routes.manifest.json'), 'artifact index lists the routes manifest');
+}
+
+{
+  // Depth-one JS route params use the same generated argument contract that
+  // served admission consumes, so the route and its registration reference
+  // remain eligible together.
+  const result = await validCase({
+    functions: javascriptRouteFunctions,
+    handlers: {
+      'handlers.mjs': `
+globalThis.__snapbackHandlers = {
+  async listTodos() { return []; },
+};
+`,
+      'routes.mjs': `
+import { defineRoutes, routeParam } from '${defineUrl}';
+export default defineRoutes([
+  { route: '/todos/:title', queries: [{ function: 'listTodos', args: { title: routeParam('title') } }] },
+]);
+`,
+    },
+  });
+  const routes = JSON.parse(readFileSync(join(result.outDir, 'routes.manifest.json'), 'utf8'));
+  assert.equal(routes.routes.length, 1, 'the valid JS route remains in the manifest');
+  assert.deepEqual(routes.routes[0].queries[0].args, { title: { $param: 'title' } });
+  assert.equal(
+    routes.routes[0].registerGroupEligible,
+    true,
+    'a string-typed depth-one JS route remains register-group eligible',
+  );
+  const apiModule = await import(`${pathToFileURL(join(result.outDir, 'api.mjs')).href}?js-route`);
+  assert.equal(
+    apiModule.groups['/todos/:title'].queries[0].name,
+    'listTodos',
+    'generated group references retain the admitted JS route',
+  );
 }
 
 {

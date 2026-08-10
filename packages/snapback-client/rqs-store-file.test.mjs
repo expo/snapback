@@ -175,7 +175,18 @@ test('React binding receipt is atomic, detached, bounded, uncounted, writer-gate
 
   const { store: reader } = await makeStore(t, { directory });
   assert.equal(reader.isWriter(), false);
-  assert.equal(await reader.commitReactBindingReceipt({ binding: 'refused' }), false);
+  await assert.rejects(
+    reader.commitReactBindingReceipt({ binding: 'refused' }),
+    (error) => {
+      assert.equal(error.code, 'SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED');
+      assert.equal(error.diagnostic.details.reason, 'competing_writer');
+      assert.equal(error.diagnostic.details.competingPid, process.pid);
+      assert.match(error.diagnostic.details.lockPath, /\.v1\.lock$/u);
+      assert.match(error.diagnostic.details.storePath, /\.v1\.json$/u);
+      assert.match(error.message, new RegExp(`pid ${process.pid}`, 'u'));
+      return true;
+    },
+  );
   assert.equal((await reader.loadReactBindingReceipt()).binding, 'todos:list');
   assert.equal(await store.commitReactBindingReceipt(null), false);
   assert.equal(await store.commitReactBindingReceipt(42), false);
@@ -319,6 +330,22 @@ test('a stale lock (dead pid, our own crashed pid, or unreadable) is taken over;
   assert.deepEqual(
     await reader.commit(rqsEntryKey('q', {}), makeEntry()),
     { persisted: false, reason: 'not_writer' },
+  );
+  await assert.rejects(
+    reader.commitReactBindingReceipt({ binding: 'foreign-holder' }),
+    (error) => {
+      assert.equal(error.code, 'SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED');
+      assert.equal(error.diagnostic.details.competingPid, adapter.processId() + 1);
+      assert.equal(
+        error.diagnostic.details.lockPath,
+        join(liveDir, 'rqs-anonymous.v1.lock'),
+      );
+      assert.equal(
+        error.diagnostic.details.storePath,
+        join(liveDir, 'rqs-anonymous.v1.json'),
+      );
+      return true;
+    },
   );
   await reader.close();
 });
