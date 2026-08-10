@@ -8596,6 +8596,7 @@ globalThis.__snapbackHandlers = {
         assert!(
             snapback
                 .db
+                .settlement_read()
                 .client_mutation_result(&stale_identity)
                 .expect("lookup")
                 .is_none(),
@@ -8628,6 +8629,7 @@ globalThis.__snapbackHandlers = {
             .expect("version");
         let recorded = snapback
             .db
+            .settlement_read()
             .client_mutation_result(&resynced_identity)
             .expect("recorded lookup")
             .expect("settled result is recorded");
@@ -8645,6 +8647,7 @@ globalThis.__snapbackHandlers = {
         //    refuses as a reused id, not a second application.
         let error = snapback
             .db
+            .settlement_read()
             .client_mutation_result(&stale_identity)
             .expect_err("the stale form is refused after settlement");
         assert_eq!(error.diagnostic.code, "SNAPBACK_CLIENT_MUTATION_ID_REUSED");

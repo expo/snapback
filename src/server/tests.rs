@@ -20805,6 +20805,7 @@ async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
     );
     let envelopes = snapback
         .auth_database_mut()
+        .settlement_read()
         .operation_envelopes_for_test()
         .expect("load retained host envelopes");
     assert_eq!(envelopes.len(), 1);

@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v1",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 205,
-  "edgeCount": 1210,
+  "moduleCount": 206,
+  "edgeCount": 1215,
   "edges": [
     {
       "from": "src/admin_agent_destroy.rs",
@@ -1483,6 +1483,12 @@
     {
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/auth/admission.rs",
+      "toOwner": "sync-realtime-engine"
+    },
+    {
+      "from": "src/cli.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/auth/backup.rs",
       "toOwner": "background-services"
     },
@@ -1587,6 +1593,12 @@
       "fromOwner": "transport-adapters",
       "to": "src/exec_guard.rs",
       "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/cli.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/generation_activation.rs",
+      "toOwner": "generation-activation-coordinator"
     },
     {
       "from": "src/cli.rs",
@@ -6549,6 +6561,24 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/migration.rs",
       "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/settlement.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/commit_envelope.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/settlement.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/operation_ledger.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/settlement.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/seed_identity.rs",
+      "toOwner": "generation-activation-coordinator"
     },
     {
       "from": "src/storage/stream_transcripts.rs",

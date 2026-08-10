@@ -1282,7 +1282,7 @@ mod guarded_commit_tests {
             .expect("first allocation commits");
         assert_eq!(committed.sequence_allocations, vec![first.clone()]);
         let replay = db
-            .client_mutation_result(&identity)
+            .settlement_read().client_mutation_result(&identity)
             .expect("settlement lookup")
             .expect("exact settlement replay short-circuits before handler execution");
         assert_eq!(replay.result, committed.output.result);
@@ -1423,7 +1423,7 @@ mod guarded_commit_tests {
             "the rejected first invocation burns no sequence value"
         );
         assert!(
-            db.client_mutation_result(&identity)
+            db.settlement_read().client_mutation_result(&identity)
                 .expect("replay lookup after refusal")
                 .is_none(),
             "the refused invocation leaves no poisoned replay row"
@@ -2286,7 +2286,7 @@ mod guarded_commit_tests {
             assert_eq!(error.diagnostic.code, "SNAPBACK_SEQUENCE_EXHAUSTED");
             refusal_bytes.push(serde_json::to_vec(&error.diagnostic).unwrap());
             assert!(
-                db.client_mutation_result(&identity).unwrap().is_none(),
+                db.settlement_read().client_mutation_result(&identity).unwrap().is_none(),
                 "an exhausted attempt retains no settlement result bytes",
             );
         }
@@ -3621,7 +3621,7 @@ mod guarded_commit_tests {
             .expect("counts after refusal");
         assert_eq!(after, counts);
         assert!(
-            db.client_mutation_result(&no_op_identity)
+            db.settlement_read().client_mutation_result(&no_op_identity)
                 .expect("settlement lookup")
                 .is_none(),
             "refusal retains no settlement"
@@ -3809,7 +3809,7 @@ mod guarded_commit_tests {
         assert_eq!(activity_counts(&db), (1, 1));
 
         assert_eq!(
-            db.acknowledge_client_mutations(
+            db.settlement().acknowledge_client_mutations(
                 &exact_identity.auth_fingerprint,
                 std::slice::from_ref(&exact_identity.id),
             )
@@ -3818,7 +3818,7 @@ mod guarded_commit_tests {
         );
         assert_eq!(activity_counts(&db), (1, 1), "ACK reclaims no product data");
         assert!(
-            db.client_mutation_result(&exact_identity)
+            db.settlement_read().client_mutation_result(&exact_identity)
                 .unwrap()
                 .is_none()
         );
@@ -3831,7 +3831,7 @@ mod guarded_commit_tests {
         let before_oversize = (
             db.current_version().unwrap(),
             activity_counts(&db),
-            db.client_mutation_retention_info().unwrap(),
+            db.settlement_read().client_mutation_retention_info().unwrap(),
         );
         let measured = db
             .dry_run_mutation(&plan, &activity_input(json!("")))
@@ -3856,11 +3856,11 @@ mod guarded_commit_tests {
         assert_eq!(db.current_version().unwrap(), before_oversize.0);
         assert_eq!(activity_counts(&db), before_oversize.1);
         assert_eq!(
-            db.client_mutation_retention_info().unwrap(),
+            db.settlement_read().client_mutation_retention_info().unwrap(),
             before_oversize.2
         );
         assert!(
-            db.client_mutation_result(&oversized_identity)
+            db.settlement_read().client_mutation_result(&oversized_identity)
                 .unwrap()
                 .is_none()
         );
@@ -3871,7 +3871,7 @@ mod guarded_commit_tests {
             .expect("settlement to purge");
         let before_purge = activity_counts(&db);
         assert!(
-            db.purge_client_mutation_settlements(Some(&purge_identity.auth_fingerprint))
+            db.settlement().purge_client_mutation_settlements(Some(&purge_identity.auth_fingerprint))
                 .unwrap()
                 >= 1
         );
@@ -3881,7 +3881,7 @@ mod guarded_commit_tests {
             "administrative settlement purge preserves activity"
         );
         assert!(
-            db.client_mutation_result(&purge_identity)
+            db.settlement_read().client_mutation_result(&purge_identity)
                 .unwrap()
                 .is_none()
         );
@@ -3947,7 +3947,7 @@ mod guarded_commit_tests {
             assert_eq!(db.current_version().unwrap(), 1, "{label}");
             assert_eq!(activity_counts(&db), (0, 0), "{label}");
             assert!(
-                db.client_mutation_result(&identity).unwrap().is_none(),
+                db.settlement_read().client_mutation_result(&identity).unwrap().is_none(),
                 "{label}"
             );
         }
@@ -3966,7 +3966,7 @@ mod guarded_commit_tests {
         assert_eq!(error.diagnostic.code, "SNAPBACK_FIELD_TYPE_MISMATCH");
         assert_eq!(activity_counts(&db), (0, 0));
         assert_eq!(db.current_version().unwrap(), 1);
-        assert!(db.client_mutation_result(&identity).unwrap().is_none());
+        assert!(db.settlement_read().client_mutation_result(&identity).unwrap().is_none());
 
         let mut invalid_result = plan;
         invalid_result.return_value = Some(ReturnValue::Expr(ValueExpr::Arg(
@@ -3981,7 +3981,7 @@ mod guarded_commit_tests {
         assert_eq!(error.diagnostic.code, "SNAPBACK_ARG_MISSING");
         assert_eq!(activity_counts(&db), (0, 0));
         assert_eq!(db.current_version().unwrap(), 1);
-        assert!(db.client_mutation_result(&identity).unwrap().is_none());
+        assert!(db.settlement_read().client_mutation_result(&identity).unwrap().is_none());
     }
 
     // @ref LLP 0081#6-compatibility-and-deployment-ordering — barrier-time
@@ -5576,7 +5576,7 @@ mod guarded_commit_tests {
             );
             assert_eq!(
                 reopened
-                    .client_mutation_result(&identity)
+                    .settlement_read().client_mutation_result(&identity)
                     .expect("read the predecessor settlement")
                     .expect("legacy settlement remains retained")
                     .version,
@@ -6104,7 +6104,7 @@ mod guarded_commit_tests {
         };
         let prototype = ClientMutationIdentity::new("operation-crash-0", function, &input);
         let range = db
-            .issue_client_operation_identity_range(
+            .settlement().issue_client_operation_identity_range(
                 "crash-fixture-client",
                 &prototype.authority_instance_id,
                 None,
@@ -6183,7 +6183,7 @@ mod guarded_commit_tests {
             CoveredWriterFixtureV1::Buffered => "job:host-crash-buffered",
         };
         let issuance = db
-            .host_operation_issuance(
+            .settlement().host_operation_issuance(
                 TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
                 upstream_identity,
                 0,
@@ -6345,7 +6345,7 @@ mod guarded_commit_tests {
             assert!(replay.changes.is_empty());
             assert_eq!(replay.output, expected);
             let envelopes = reopened
-                .operation_envelopes_for_test()
+                .settlement_read().operation_envelopes_for_test()
                 .expect("read retained host-child envelopes");
             assert_eq!(envelopes.len(), 1);
             let envelope = &envelopes[0];
@@ -6408,7 +6408,7 @@ mod guarded_commit_tests {
             )
             .expect("remove predecessor replay row fixture");
         let recovered = reopened
-            .client_mutation_result(&identity)
+            .settlement_read().client_mutation_result(&identity)
             .expect("protected operation lookup")
             .expect("exact protected replay");
         assert_eq!(recovered, expected);
@@ -6488,7 +6488,7 @@ mod guarded_commit_tests {
         drop(limits);
 
         assert_eq!(
-            db.acknowledge_client_mutations(
+            db.settlement().acknowledge_client_mutations(
                 &first.auth_fingerprint,
                 std::slice::from_ref(&first.id),
             )
@@ -6496,7 +6496,7 @@ mod guarded_commit_tests {
             1
         );
         let expired = db
-            .client_mutation_result(&first)
+            .settlement_read().client_mutation_result(&first)
             .expect_err("ACKed covered result keeps a compact duplicate barrier");
         assert_eq!(expired.diagnostic.code, "SNAPBACK_OPERATION_RESULT_EXPIRED");
         assert_eq!(expired.diagnostic.details["outcome"], "committed");
@@ -6684,7 +6684,7 @@ mod guarded_commit_tests {
         );
         let host_authority = TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID;
         let host_issuance = ordinary_only
-            .host_operation_issuance(host_authority, "job:fixture", 0, now_millis())
+            .settlement().host_operation_issuance(host_authority, "job:fixture", 0, now_millis())
             .expect("server-recorded host incarnation");
         let host_input = HandlerInput::default();
         let host_for_hook = ClientMutationIdentity::for_authority(
@@ -6771,7 +6771,7 @@ mod guarded_commit_tests {
 
         let buffered_upstream = "job:buffered-fixture";
         let buffered_issuance = both
-            .host_operation_issuance(
+            .settlement().host_operation_issuance(
                 TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
                 buffered_upstream,
                 0,
@@ -6822,7 +6822,7 @@ mod guarded_commit_tests {
             .expect("buffered host child exact replay");
         assert!(replayed_buffered.changes.is_empty());
         let envelopes = both
-            .operation_envelopes_for_test()
+            .settlement_read().operation_envelopes_for_test()
             .expect("retained buffered host envelope");
         assert_eq!(envelopes.len(), 1);
         assert_eq!(
@@ -6853,7 +6853,7 @@ mod guarded_commit_tests {
         let issued_at_ms = now_millis();
         let first_upstream = "job:host-lifecycle-first";
         let first_issuance = db
-            .host_operation_issuance(authority, first_upstream, 0, issued_at_ms)
+            .settlement().host_operation_issuance(authority, first_upstream, 0, issued_at_ms)
             .expect("server-issued host identity");
         let input = HandlerInput::default();
         let first = ClientMutationIdentity::for_authority(
@@ -6929,7 +6929,7 @@ mod guarded_commit_tests {
         drop(limits);
 
         assert_eq!(
-            db.purge_client_mutation_settlements(Some(&first.auth_fingerprint))
+            db.settlement().purge_client_mutation_settlements(Some(&first.auth_fingerprint))
                 .expect("operator purge removes predecessor full-result custody"),
             1
         );
@@ -10043,7 +10043,7 @@ mod guarded_commit_tests {
         );
         assert_empty(&db);
         assert_eq!(
-            db.client_mutation_retention_info().unwrap().records,
+            db.settlement_read().client_mutation_retention_info().unwrap().records,
             0,
             "a rejected output cannot leave an idempotency row"
         );
@@ -10092,7 +10092,7 @@ mod guarded_commit_tests {
                 )
                 .expect("corrupt retained output version");
             let error = db
-                .client_mutation_result(&identity)
+                .settlement_read().client_mutation_result(&identity)
                 .expect_err("a corrupt replay output version must not be republished");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -10121,7 +10121,7 @@ mod guarded_commit_tests {
                 )
                 .expect("corrupt retained settlement version");
             let error = db
-                .client_mutation_result(&identity)
+                .settlement_read().client_mutation_result(&identity)
                 .expect_err("a corrupt settlement cursor must not be ignored");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -10158,7 +10158,7 @@ mod guarded_commit_tests {
                 )
                 .expect("corrupt retained exact settlement version");
             let error = db
-                .client_mutation_result(&identity)
+                .settlement_read().client_mutation_result(&identity)
                 .expect_err("a corrupt exact settlement cursor must not be ignored");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -10182,7 +10182,7 @@ mod guarded_commit_tests {
             )
             .expect("install mismatched settlement version");
         let error = db
-            .client_mutation_result(&identity)
+            .settlement_read().client_mutation_result(&identity)
             .expect_err("paired durable versions must agree");
         assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
 
@@ -10195,7 +10195,7 @@ mod guarded_commit_tests {
             )
             .expect("install documented legacy sentinel");
         assert_eq!(
-            db.client_mutation_result(&identity)
+            db.settlement_read().client_mutation_result(&identity)
                 .expect("legacy sentinel remains readable")
                 .expect("retained result")
                 .version,
@@ -10249,7 +10249,7 @@ mod guarded_commit_tests {
             .expect("drift only the replay payload version");
 
         let live_error = db
-            .client_mutation_result(&identity)
+            .settlement_read().client_mutation_result(&identity)
             .expect_err("authoritative zero metadata detects live replay drift");
         assert_eq!(
             live_error.diagnostic.code,
@@ -10285,7 +10285,7 @@ mod guarded_commit_tests {
             )
             .expect("settlement below the fixture limit");
         }
-        let retained = db.client_mutation_retention_info().unwrap();
+        let retained = db.settlement_read().client_mutation_retention_info().unwrap();
         assert_eq!(retained.records, 2);
         assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 4);
         assert_eq!(db.current_version().unwrap(), 2);
@@ -10306,11 +10306,11 @@ mod guarded_commit_tests {
             error.diagnostic.code,
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
-        assert_eq!(db.client_mutation_retention_info().unwrap(), retained);
+        assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap(), retained);
         assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 4);
         assert_eq!(db.current_version().unwrap(), 2);
-        assert!(db.client_mutation_result(&first).unwrap().is_some());
-        assert_eq!(db.client_mutation_result(&refused).unwrap(), None);
+        assert!(db.settlement_read().client_mutation_result(&first).unwrap().is_some());
+        assert_eq!(db.settlement_read().client_mutation_result(&refused).unwrap(), None);
     }
 
     #[test]
@@ -10327,7 +10327,7 @@ mod guarded_commit_tests {
             || Ok(()),
         )
         .expect("first settlement");
-        let retained = db.client_mutation_retention_info().unwrap();
+        let retained = db.settlement_read().client_mutation_retention_info().unwrap();
         let _limits = TestRetentionLimits::install(10, retained.bytes);
 
         let refused = ClientMutationIdentity::new("cm_byte_limit_2", "hostPlan", &input);
@@ -10346,11 +10346,11 @@ mod guarded_commit_tests {
             error.diagnostic.code,
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
-        assert_eq!(db.client_mutation_retention_info().unwrap(), retained);
+        assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap(), retained);
         assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 2);
         assert_eq!(db.current_version().unwrap(), 1);
-        assert!(db.client_mutation_result(&first).unwrap().is_some());
-        assert_eq!(db.client_mutation_result(&refused).unwrap(), None);
+        assert!(db.settlement_read().client_mutation_result(&first).unwrap().is_some());
+        assert_eq!(db.settlement_read().client_mutation_result(&refused).unwrap(), None);
     }
 
     #[test]
@@ -10413,7 +10413,7 @@ mod guarded_commit_tests {
             || Ok(()),
         )
         .expect("another auth retains independent capacity");
-        assert_eq!(db.client_mutation_retention_info().unwrap().records, 3);
+        assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap().records, 3);
         assert_eq!(
             client_mutation_auth_retention_counters(&db.conn, &refused.auth_fingerprint)
                 .unwrap()
@@ -10484,7 +10484,7 @@ mod guarded_commit_tests {
             || Ok(()),
         )
         .expect("another auth has an independent byte budget");
-        assert_eq!(db.client_mutation_retention_info().unwrap().records, 2);
+        assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap().records, 2);
     }
 
     #[test]
@@ -10501,17 +10501,17 @@ mod guarded_commit_tests {
             || Ok(()),
         )
         .expect("settle mutation");
-        let retained = db.client_mutation_retention_info().unwrap();
+        let retained = db.settlement_read().client_mutation_retention_info().unwrap();
         assert_eq!(retained.records, 1);
         assert!(retained.bytes > 0);
         assert_eq!(
-            db.acknowledge_client_mutations("another-auth", std::slice::from_ref(&identity.id))
+            db.settlement().acknowledge_client_mutations("another-auth", std::slice::from_ref(&identity.id))
                 .unwrap(),
             0,
             "another authority cannot reclaim the result"
         );
         assert_eq!(
-            db.acknowledge_client_mutations(
+            db.settlement().acknowledge_client_mutations(
                 &identity.auth_fingerprint,
                 &[identity.id.clone(), identity.id.clone()]
             )
@@ -10519,7 +10519,7 @@ mod guarded_commit_tests {
             1,
             "duplicate acknowledgements are idempotently deduplicated"
         );
-        let reclaimed = db.client_mutation_retention_info().unwrap();
+        let reclaimed = db.settlement_read().client_mutation_retention_info().unwrap();
         assert_eq!(reclaimed.records, 0);
         assert_eq!(reclaimed.gc_total, 1);
     }
@@ -10549,15 +10549,15 @@ mod guarded_commit_tests {
             || Ok(()),
         )
         .expect("legacy settlement");
-        let before = db.client_mutation_retention_info().unwrap();
+        let before = db.settlement_read().client_mutation_retention_info().unwrap();
         let error = db
-            .client_mutation_result(&current)
+            .settlement_read().client_mutation_result(&current)
             .expect_err("a 64-bit legacy alias cannot be rebound safely");
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED"
         );
-        let after = db.client_mutation_retention_info().unwrap();
+        let after = db.settlement_read().client_mutation_retention_info().unwrap();
         assert_eq!(
             after, before,
             "quarantine does not rewrite rows or counters"
@@ -10567,14 +10567,14 @@ mod guarded_commit_tests {
             (1, before.bytes)
         );
         assert_eq!(
-            db.acknowledge_client_mutations(
+            db.settlement().acknowledge_client_mutations(
                 &legacy_fingerprint,
                 std::slice::from_ref(&current.id),
             )
             .unwrap(),
             1
         );
-        assert_eq!(db.client_mutation_retention_info().unwrap().records, 0);
+        assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap().records, 0);
     }
 
     #[test]
@@ -10591,7 +10591,7 @@ mod guarded_commit_tests {
             || Ok(()),
         )
         .expect("settle mutation");
-        let before = db.client_mutation_retention_info().unwrap();
+        let before = db.settlement_read().client_mutation_retention_info().unwrap();
         assert_eq!(before.records, 1);
         assert!(before.bytes > 0);
 
@@ -10605,18 +10605,18 @@ mod guarded_commit_tests {
             .unwrap();
         drop(db);
         let mut reopened = LocalDatabase::open(&path).expect("reopen and backfill counters");
-        assert_eq!(reopened.client_mutation_retention_info().unwrap(), before);
+        assert_eq!(reopened.settlement_read().client_mutation_retention_info().unwrap(), before);
 
         assert_eq!(
             reopened
-                .acknowledge_client_mutations(
+                .settlement().acknowledge_client_mutations(
                     &identity.auth_fingerprint,
                     std::slice::from_ref(&identity.id),
                 )
                 .unwrap(),
             1
         );
-        let after_ack = reopened.client_mutation_retention_info().unwrap();
+        let after_ack = reopened.settlement_read().client_mutation_retention_info().unwrap();
         assert_eq!(after_ack.records, 0);
         assert_eq!(after_ack.bytes, 0);
         assert_eq!(after_ack.gc_total, 1);
@@ -10624,7 +10624,7 @@ mod guarded_commit_tests {
 
         let reopened = LocalDatabase::open(&path).expect("reopen acknowledged counters");
         assert_eq!(
-            reopened.client_mutation_retention_info().unwrap(),
+            reopened.settlement_read().client_mutation_retention_info().unwrap(),
             after_ack
         );
     }
@@ -10661,13 +10661,13 @@ mod guarded_commit_tests {
             )
             .expect("settle purge fixture");
         }
-        assert_eq!(db.client_mutation_retention_info().unwrap().records, 3);
+        assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap().records, 3);
         assert_eq!(
-            db.purge_client_mutation_settlements(Some(&identities[0].auth_fingerprint))
+            db.settlement().purge_client_mutation_settlements(Some(&identities[0].auth_fingerprint))
                 .unwrap(),
             2
         );
-        let after_auth = db.client_mutation_retention_info().unwrap();
+        let after_auth = db.settlement_read().client_mutation_retention_info().unwrap();
         assert_eq!(after_auth.records, 1);
         assert_eq!(after_auth.gc_total, 0, "admin purge is not client ACK GC");
         assert_eq!(
@@ -10675,13 +10675,13 @@ mod guarded_commit_tests {
                 .unwrap(),
             (0, 0)
         );
-        assert!(db.client_mutation_result(&identities[0]).unwrap().is_none());
-        assert!(db.client_mutation_result(&identities[2]).unwrap().is_some());
+        assert!(db.settlement_read().client_mutation_result(&identities[0]).unwrap().is_none());
+        assert!(db.settlement_read().client_mutation_result(&identities[2]).unwrap().is_some());
 
-        assert_eq!(db.purge_client_mutation_settlements(None).unwrap(), 1);
-        let empty = db.client_mutation_retention_info().unwrap();
+        assert_eq!(db.settlement().purge_client_mutation_settlements(None).unwrap(), 1);
+        let empty = db.settlement_read().client_mutation_retention_info().unwrap();
         assert_eq!((empty.records, empty.bytes), (0, 0));
-        assert!(db.client_mutation_result(&identities[2]).unwrap().is_none());
+        assert!(db.settlement_read().client_mutation_result(&identities[2]).unwrap().is_none());
     }
 
     #[test]
@@ -10775,7 +10775,7 @@ mod guarded_commit_tests {
         insert_unrelated(host);
 
         assert_eq!(
-            db.purge_client_mutation_settlements(Some(&identity.auth_fingerprint))
+            db.settlement().purge_client_mutation_settlements(Some(&identity.auth_fingerprint))
                 .expect("purge exact active client partition"),
             1
         );
@@ -10812,7 +10812,7 @@ mod guarded_commit_tests {
             1
         );
         let retry = db
-            .client_mutation_result(&identity)
+            .settlement_read().client_mutation_result(&identity)
             .expect_err("purged exact partition keeps a result-expired tombstone");
         assert_eq!(retry.diagnostic.code, "SNAPBACK_OPERATION_RESULT_EXPIRED");
         assert_eq!(retry.diagnostic.details["outcome"], "committed");
@@ -10887,7 +10887,7 @@ mod guarded_commit_tests {
         );
         assert_eq!(
             before_commit
-                .client_mutation_result(&identity)
+                .settlement_read().client_mutation_result(&identity)
                 .expect("idempotency lookup"),
             None,
             "a rejected precommit cannot retain an idempotency result"
@@ -10939,7 +10939,7 @@ mod guarded_commit_tests {
         );
         assert_eq!(
             before_commit
-                .client_mutation_result(&identity)
+                .settlement_read().client_mutation_result(&identity)
                 .expect("idempotency lookup"),
             None,
             "a rejected buffered precommit cannot retain an idempotency result"

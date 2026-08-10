@@ -205,6 +205,7 @@
       "src/storage/projection_rebuild.rs",
       "src/storage/push_registry.rs",
       "src/storage/schema_transition.rs",
+      "src/storage/settlement.rs",
       "src/storage/stream_transcripts.rs",
       "src/storage/tests.rs",
       "src/storage/versions.rs",

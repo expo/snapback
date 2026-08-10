@@ -5988,7 +5988,12 @@ globalThis.__snapbackHandlers = {
             db.versions_read().current_version().unwrap(),
             committed_version
         );
-        assert!(db.client_mutation_result(&t1_identity).unwrap().is_none());
+        assert!(
+            db.settlement_read()
+                .client_mutation_result(&t1_identity)
+                .unwrap()
+                .is_none()
+        );
         let activities = db
             .scan_table("sequence_activity", 10, 0)
             .expect("activity rows");
@@ -6028,6 +6033,7 @@ globalThis.__snapbackHandlers = {
         );
         assert!(
             throw_db
+                .settlement_read()
                 .client_mutation_result(&throw_identity)
                 .unwrap()
                 .is_none(),

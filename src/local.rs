@@ -3758,7 +3758,9 @@ impl LocalSnapback {
         &self,
         client_key: &str,
     ) -> SnapbackResult<Option<(String, String)>> {
-        self.db.stream_attempt_by_client_key(client_key)
+        self.db
+            .settlement_read()
+            .stream_attempt_by_client_key(client_key)
     }
 
     pub(crate) fn stream_attempt_namespace(&self) -> usize {
@@ -3826,7 +3828,9 @@ impl LocalSnapback {
         &mut self,
         rows: &[(String, String, String)],
     ) -> SnapbackResult<()> {
-        self.db.upsert_stream_attempts(rows, now_millis())
+        self.db
+            .settlement()
+            .upsert_stream_attempts(rows, now_millis())
     }
 
     pub(crate) fn settle_stream_transcript(
@@ -6553,9 +6557,11 @@ impl LocalSnapback {
     ) -> SnapbackResult<u64> {
         let current = self
             .db
+            .settlement()
             .acknowledge_client_mutations(&auth_fingerprint(auth), ids)?;
         let legacy = self
             .db
+            .settlement()
             .acknowledge_client_mutations(&legacy_auth_fingerprint(auth), ids)?;
         current.checked_add(legacy).ok_or_else(|| {
             SnapbackError::error(
@@ -6577,12 +6583,12 @@ impl LocalSnapback {
         let incarnation = self.db.ensure_authorization_stream_incarnation()?;
         let descriptor = descriptor_for_authority(authority, incarnation.as_str())?;
         let _effect = authority.effect_guard("client mutation acknowledgement transaction")?;
-        let current = self.db.acknowledge_client_mutations_for_authority(
+        let current = self.db.settlement().acknowledge_client_mutations_for_authority(
             &auth_fingerprint(&auth),
             &descriptor.authority_instance_id,
             ids,
         )?;
-        let legacy = self.db.acknowledge_client_mutations_for_authority(
+        let legacy = self.db.settlement().acknowledge_client_mutations_for_authority(
             &legacy_auth_fingerprint(&auth),
             &descriptor.authority_instance_id,
             ids,
@@ -6630,7 +6636,7 @@ impl LocalSnapback {
         let audience =
             operation_client_audience(&expected.authority_instance_id, client_audience_id)?;
         let _effect = authority.effect_guard("operation identity range issuance transaction")?;
-        self.db.issue_client_operation_identity_range(
+        self.db.settlement().issue_client_operation_identity_range(
             &audience,
             &expected.authority_instance_id,
             previous,
@@ -6697,6 +6703,7 @@ impl LocalSnapback {
         };
         Ok(Some(
             self.db
+                .settlement_read()
                 .explain_operation(identity, &current)?
                 .unwrap_or_else(|| {
                     crate::commit_envelope::OperationExplanationV1::authorization_unprovable(
@@ -6719,7 +6726,9 @@ impl LocalSnapback {
             fact_policy: crate::operation_ledger::ExplanationFactPolicyV1::Unprovable,
             administrative: true,
         };
-        self.db.explain_operation(identity, &current)
+        self.db
+            .settlement_read()
+            .explain_operation(identity, &current)
     }
 
     pub(crate) fn acknowledge_client_mutations_with_authority_descriptor(
@@ -6747,13 +6756,18 @@ impl LocalSnapback {
         auth: Option<&AuthInput>,
     ) -> SnapbackResult<u64> {
         let Some(auth) = auth else {
-            return self.db.purge_client_mutation_settlements(None);
+            return self
+                .db
+                .settlement()
+                .purge_client_mutation_settlements(None);
         };
         let current = self
             .db
+            .settlement()
             .purge_client_mutation_settlements(Some(&auth_fingerprint(auth)))?;
         let legacy = self
             .db
+            .settlement()
             .purge_client_mutation_settlements(Some(&legacy_auth_fingerprint(auth)))?;
         current.checked_add(legacy).ok_or_else(|| {
             SnapbackError::error(
@@ -10954,7 +10968,7 @@ impl LocalSnapback {
                 expected.authority_instance_id,
                 &settlement,
             ));
-            if let Some(output) = self.db.client_mutation_result(&identity)? {
+            if let Some(output) = self.db.settlement_read().client_mutation_result(&identity)? {
                 if !acknowledged_client_mutation_ids.is_empty() {
                     self.acknowledge_client_mutations_with_authority(
                         &authority,
@@ -11044,7 +11058,7 @@ impl LocalSnapback {
                 None
             };
             if let Some(identity) = identity.as_ref()
-                && let Some(output) = self.db.client_mutation_result(identity)?
+                && let Some(output) = self.db.settlement_read().client_mutation_result(identity)?
             {
                 crate::result_contract::validate_handler_result(&function, &output.result)?;
                 let sequence_allocations = output.settlement_sequence_allocations.clone();
@@ -11660,7 +11674,7 @@ impl LocalSnapback {
                 &canonical_input,
                 expected.authority_instance_id,
             );
-            if let Some(output) = self.db.client_mutation_result(&identity)? {
+            if let Some(output) = self.db.settlement_read().client_mutation_result(&identity)? {
                 let sequence_allocations = output.settlement_sequence_allocations.clone();
                 return Ok(MutationCommit {
                     output,
@@ -11701,7 +11715,7 @@ impl LocalSnapback {
             None
         };
         if let Some(identity) = identity.as_ref()
-            && let Some(output) = self.db.client_mutation_result(identity)?
+            && let Some(output) = self.db.settlement_read().client_mutation_result(identity)?
         {
             crate::result_contract::validate_handler_result(&function, &output.result)?;
             let sequence_allocations = output.settlement_sequence_allocations.clone();
@@ -18617,7 +18631,7 @@ impl LocalSnapback {
         // write-ahead cursor pre-marks, so a durable winner exists before any
         // new runner can start against the same client key.
         {
-            let rows = db.load_stream_attempts()?;
+            let rows = db.settlement_read().load_stream_attempts()?;
             let mut reconciled = Vec::new();
             let mut reconciled_transcripts = Vec::new();
             for (token, client_key, record_json) in rows {
@@ -18639,7 +18653,8 @@ impl LocalSnapback {
                 }
             }
             if !reconciled.is_empty() {
-                db.upsert_stream_attempts(&reconciled, now_millis())?;
+                db.settlement()
+                    .upsert_stream_attempts(&reconciled, now_millis())?;
             }
             for attempt in &reconciled_transcripts {
                 db.reconcile_stream_transcript_from_attempt(attempt)?;
@@ -19993,7 +20008,7 @@ impl LocalSnapback {
         self.persist_and_validate_prepared_service_authority(authority)?;
         let incarnation = self.db.ensure_authorization_stream_incarnation()?;
         let descriptor = descriptor_for_authority(authority, incarnation.as_str())?;
-        let issuance = self.db.host_operation_issuance(
+        let issuance = self.db.settlement().host_operation_issuance(
             &descriptor.authority_instance_id,
             upstream_identity,
             commit_ordinal,
