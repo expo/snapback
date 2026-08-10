@@ -254,6 +254,7 @@ impl Priority {
 pub(crate) struct CallerAttributionV1 {
     lane: &'static str,
     caller_key: String,
+    approver_key: Option<String>,
 }
 
 impl CallerAttributionV1 {
@@ -261,6 +262,7 @@ impl CallerAttributionV1 {
         Self {
             lane: "anonymous",
             caller_key: "anonymous".to_owned(),
+            approver_key: None,
         }
     }
 
@@ -268,6 +270,7 @@ impl CallerAttributionV1 {
         Self {
             lane: "declared",
             caller_key,
+            approver_key: None,
         }
     }
 
@@ -275,6 +278,7 @@ impl CallerAttributionV1 {
         Self {
             lane: "integration",
             caller_key,
+            approver_key: None,
         }
     }
 
@@ -282,6 +286,7 @@ impl CallerAttributionV1 {
         Self {
             lane: "link",
             caller_key,
+            approver_key: None,
         }
     }
 
@@ -294,6 +299,7 @@ impl CallerAttributionV1 {
         Self {
             lane: "owner",
             caller_key,
+            approver_key: None,
         }
     }
 
@@ -301,14 +307,34 @@ impl CallerAttributionV1 {
         Self {
             lane: "first-party",
             caller_key: String::new(),
+            approver_key: None,
         }
     }
 
+    pub(crate) fn from_effect(lane: &str, caller_key: String) -> Self {
+        match lane {
+            "declared" => Self::declared(caller_key),
+            "integration" => Self::integration(caller_key),
+            "link" => Self::link(caller_key),
+            "anonymous" => Self::anonymous(),
+            _ => Self::first_party(),
+        }
+    }
+
+    pub(crate) fn with_approver(mut self, approver_key: String) -> Self {
+        self.approver_key = Some(approver_key);
+        self
+    }
+
     pub(crate) fn details(&self) -> Value {
-        json!({
+        let mut details = json!({
             "callerLane": self.lane,
             "callerKey": self.caller_key,
-        })
+        });
+        if let Some(approver) = &self.approver_key {
+            details["approverKey"] = Value::String(approver.clone());
+        }
+        details
     }
 }
 
@@ -2510,6 +2536,7 @@ fn scrub_details(details: Option<Value>) -> Option<Value> {
     };
     let legacy_allowed = BTreeSet::from([
         "attempt",
+        "approverKey",
         "callerKey",
         "callerLane",
         "cause",
@@ -3748,7 +3775,7 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
           kind TEXT NOT NULL,
           name TEXT NOT NULL,
           caller_lane TEXT NOT NULL
-            CHECK(caller_lane IN ('anonymous','declared','integration','first-party')),
+            CHECK(caller_lane IN ('anonymous','declared','integration','link','first-party')),
           caller_key TEXT NOT NULL,
           count INTEGER NOT NULL,
           error_count INTEGER NOT NULL,
@@ -3767,7 +3794,7 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
           kind TEXT NOT NULL,
           name TEXT NOT NULL,
           caller_lane TEXT NOT NULL
-            CHECK(caller_lane IN ('anonymous','declared','integration','first-party')),
+            CHECK(caller_lane IN ('anonymous','declared','integration','link','first-party')),
           caller_key TEXT NOT NULL,
           count INTEGER NOT NULL,
           error_count INTEGER NOT NULL,
@@ -6104,6 +6131,10 @@ mod tests {
                 "integration-call",
                 CallerAttributionV1::integration("int_test".to_owned()),
             ),
+            (
+                "link-call",
+                CallerAttributionV1::link("cplk_test".to_owned()),
+            ),
             ("anonymous-call", CallerAttributionV1::anonymous()),
             ("first-party-call", CallerAttributionV1::first_party()),
         ] {
@@ -6134,7 +6165,7 @@ mod tests {
                     |row| row.get(0),
                 )
                 .unwrap();
-            assert_eq!(callers, 4, "different caller facts retain separate rows");
+            assert_eq!(callers, 5, "different caller facts retain separate rows");
             let raw_matches: i64 = connection
                 .query_row(
                     "SELECT count(*) FROM telemetry_events

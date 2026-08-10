@@ -438,7 +438,8 @@ use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ApiAskBilling,
     ApiAskBudgets, ApiAskManifest, ApiAskModelManifest, ApiAskPerPrincipalDayBudget,
     ApiAskPerRequestBudget, ApiAskResultVolumeBudget, ApiAskTokenBudget, ApiBudgetsManifest,
-    ApiDisclosure, ApiFunctionExposure, ApiManifest, ApiOAuthBundle, ApiOAuthManifest, AuthInput,
+    ApiDisclosure, ApiFunctionApproval, ApiFunctionExposure, ApiManifest, ApiOAuthBundle,
+    ApiOAuthManifest, AuthInput,
     AuthManifest, AuthMode, AuthRequirement, CronActivationPolicy, CronJitterPolicy,
     CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule,
     FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
@@ -3510,6 +3511,7 @@ async fn sessions_activation_server_fixture_with_integrations_async() -> AppStat
             function.api_exposure = Some(ApiFunctionExposure {
                 expose: true,
                 since: None,
+                approval: None,
             });
         }
         sessions_activation_server_fixture_with_api(
@@ -3524,6 +3526,7 @@ async fn sessions_activation_server_fixture_with_integrations_async() -> AppStat
                         ApiFunctionExposure {
                             expose: true,
                             since: None,
+                            approval: None,
                         },
                     ),
                     (
@@ -3531,6 +3534,7 @@ async fn sessions_activation_server_fixture_with_integrations_async() -> AppStat
                         ApiFunctionExposure {
                             expose: true,
                             since: None,
+                            approval: None,
                         },
                     ),
                 ]),
@@ -3540,6 +3544,53 @@ async fn sessions_activation_server_fixture_with_integrations_async() -> AppStat
     })
     .await
     .expect("construct integration lifecycle fixture off the async workers")
+}
+
+async fn approval_effect_server_fixture_with_authority_creation(
+    approval: ApiFunctionApproval,
+    authority_creating: bool,
+) -> AppState {
+    tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        let mut functions = activation_functions('2', false);
+        for function in &mut functions.functions {
+            function.api_exposure = Some(ApiFunctionExposure::default());
+        }
+        let queued_write = functions
+            .functions
+            .iter_mut()
+            .find(|function| function.name == "queuedWrite")
+            .unwrap();
+        queued_write.api_exposure = Some(ApiFunctionExposure {
+                expose: true,
+                since: None,
+                approval: Some(approval),
+            });
+        queued_write.authority_creating = authority_creating;
+        sessions_activation_server_fixture_with_api(
+            functions,
+            None,
+            Some(agent_policy(AgentsMode::Disabled, InvitedBy::Operators)),
+            Some(ApiManifest {
+                enabled: true,
+                functions: BTreeMap::from([(
+                    "queuedWrite".to_owned(),
+                    ApiFunctionExposure {
+                        expose: true,
+                        since: None,
+                        approval: Some(approval),
+                    },
+                )]),
+                ..ApiManifest::default()
+            }),
+        )
+    })
+    .await
+    .expect("construct approval-effect fixture off async workers")
+}
+
+async fn approval_effect_server_fixture(approval: ApiFunctionApproval) -> AppState {
+    approval_effect_server_fixture_with_authority_creation(approval, false).await
 }
 
 async fn sessions_activation_server_fixture_with_ask_async(
@@ -3561,6 +3612,7 @@ async fn sessions_activation_server_fixture_with_ask_async(
                 .api_exposure = Some(ApiFunctionExposure {
                 expose: true,
                 since: None,
+                approval: None,
             });
         }
         sessions_activation_server_fixture_with_api(
@@ -3578,6 +3630,7 @@ async fn sessions_activation_server_fixture_with_ask_async(
                         ApiFunctionExposure {
                             expose: true,
                             since: None,
+                            approval: None,
                         },
                     ),
                     (
@@ -3585,6 +3638,7 @@ async fn sessions_activation_server_fixture_with_ask_async(
                         ApiFunctionExposure {
                             expose: true,
                             since: None,
+                            approval: None,
                         },
                     ),
                 ]),
@@ -3724,6 +3778,7 @@ async fn sessions_activation_server_fixture_with_oauth_policy_async(
             .api_exposure = Some(ApiFunctionExposure {
             expose: true,
             since: None,
+            approval: None,
         });
         let mut authenticated_items = functions
             .functions
@@ -3744,6 +3799,7 @@ async fn sessions_activation_server_fixture_with_oauth_policy_async(
         queued_write.api_exposure = Some(ApiFunctionExposure {
             expose: true,
             since: None,
+            approval: None,
         });
         queued_write.authority_creating = true;
         sessions_activation_server_fixture_with_api(
@@ -3758,6 +3814,7 @@ async fn sessions_activation_server_fixture_with_oauth_policy_async(
                         ApiFunctionExposure {
                             expose: true,
                             since: None,
+                            approval: None,
                         },
                     ),
                     (
@@ -3765,6 +3822,7 @@ async fn sessions_activation_server_fixture_with_oauth_policy_async(
                         ApiFunctionExposure {
                             expose: true,
                             since: None,
+                            approval: None,
                         },
                     ),
                     (
@@ -3772,6 +3830,7 @@ async fn sessions_activation_server_fixture_with_oauth_policy_async(
                         ApiFunctionExposure {
                             expose: true,
                             since: None,
+                            approval: None,
                         },
                     ),
                 ]),
@@ -4181,6 +4240,340 @@ async fn remote_mcp_stateless_protocol_lists_and_calls_the_anonymous_external_se
         stats.caller_counts.iter().any(|row| {
             row.lane == "declared" && row.caller_key == caller_key && row.count >= 1
         })
+    );
+}
+
+#[tokio::test]
+async fn approval_gate_returns_one_pending_shape_on_bare_api_mcp_and_link_ingress() {
+    let state = approval_effect_server_fixture(ApiFunctionApproval::Required).await;
+    let router = app(state.clone());
+    let mutation_request = |uri: &str, value: &str| {
+        let mut request = Request::builder()
+            .method("POST")
+            .uri(uri)
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(serde_json::to_vec(&json!({
+                "args": { "value": value },
+            })).unwrap()))
+            .unwrap();
+        offer_auth_client_protocol(&mut request);
+        request
+    };
+    for (uri, value) in [
+        ("/mutation/queuedWrite", "bare-pending"),
+        ("/api/v1/mutation/queuedWrite", "api-pending"),
+    ] {
+        let response = router.clone().oneshot(mutation_request(uri, value)).await.unwrap();
+        let status = response.status();
+        let body = response_json(response).await;
+        assert_eq!(status, StatusCode::ACCEPTED, "{body}");
+        assert_eq!(body["diagnostic"]["code"], "SNAPBACK_EFFECT_APPROVAL_PENDING");
+        assert!(body["diagnostic"]["details"]["effectId"]
+            .as_str().unwrap().starts_with("pfx_"));
+        assert_eq!(body["diagnostic"]["details"]["preview"]["kind"], "disclosed");
+    }
+
+    let mcp = router.clone().oneshot(mcp_protocol_request(
+        "POST",
+        json!({
+            "jsonrpc": "2.0",
+            "id": 41,
+            "method": "tools/call",
+            "params": {
+                "name": "snapback_fn_fn_queuedwrite",
+                "arguments": { "args": { "value": "mcp-pending" } }
+            }
+        }),
+        None,
+        None,
+        None,
+    )).await.unwrap();
+    assert_eq!(mcp.status(), StatusCode::OK);
+    assert!(serde_json::to_string(&response_json(mcp).await).unwrap()
+        .contains("SNAPBACK_EFFECT_APPROVAL_PENDING"));
+
+    let owner = mint_test_credential(&state, "effect-link-owner@example.test").await;
+    let bearer = owner["token"].as_str().unwrap();
+    let minted = router.clone().oneshot(session_auth_http_request(
+        "/capability-links",
+        serde_json::to_vec(&json!({
+            "function": "queuedWrite",
+            "pinnedArgs": { "value": "link-pending" },
+            "uses": 2,
+        })).unwrap(),
+        bearer,
+    )).await.unwrap();
+    let minted_status = minted.status();
+    let minted = response_json(minted).await;
+    assert_eq!(minted_status, StatusCode::OK, "{minted}");
+    assert_eq!(minted["approvalPerUse"], true);
+    let link_url = minted["url"].as_str().unwrap();
+    let invoked = router.clone().oneshot(
+        Request::builder()
+            .method("POST")
+            .uri(format!("{link_url}/invoke"))
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(r#"{"args":{}}"#))
+            .unwrap(),
+    ).await.unwrap();
+    assert_eq!(invoked.status(), StatusCode::ACCEPTED);
+    let invoked = response_json(invoked).await;
+    assert_eq!(
+        invoked["diagnostic"]["code"],
+        "SNAPBACK_EFFECT_APPROVAL_PENDING",
+    );
+    let link_effect_id = invoked["diagnostic"]["details"]["effectId"]
+        .as_str().unwrap();
+    let approved = router.clone().oneshot(session_auth_http_request(
+        &format!("/effects/{link_effect_id}/approve"),
+        br#"{}"#.to_vec(),
+        bearer,
+    )).await.unwrap();
+    assert_eq!(approved.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn external_gate_keeps_first_party_direct_and_approval_executes_or_denies_once() {
+    let external_state = approval_effect_server_fixture(ApiFunctionApproval::External).await;
+    let external_router = app(external_state.clone());
+    let mut anonymous_request =
+        Request::builder()
+            .method("POST")
+            .uri("/mutation/queuedWrite")
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(r#"{"args":{"value":"external-pending"}}"#))
+            .unwrap();
+    offer_auth_client_protocol(&mut anonymous_request);
+    let anonymous = external_router.clone().oneshot(anonymous_request).await.unwrap();
+    assert_eq!(anonymous.status(), StatusCode::ACCEPTED);
+    let user = mint_test_credential(&external_state, "effect-first-party@example.test").await;
+    let direct = external_router.clone().oneshot(session_auth_http_request(
+        "/mutation/queuedWrite",
+        br#"{"args":{"value":"first-party-direct"}}"#.to_vec(),
+        user["token"].as_str().unwrap(),
+    )).await.unwrap();
+    assert_eq!(direct.status(), StatusCode::OK);
+
+    let state = approval_effect_server_fixture(ApiFunctionApproval::Required).await;
+    let router = app(state.clone());
+    let approver = mint_test_credential(&state, "effect-approver@example.test").await;
+    let bearer = approver["token"].as_str().unwrap();
+    let create = |value: &'static str| {
+        let mut request = Request::builder()
+            .method("POST")
+            .uri("/mutation/queuedWrite")
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(serde_json::to_vec(&json!({
+                "args": { "value": value },
+            })).unwrap()))
+            .unwrap();
+        offer_auth_client_protocol(&mut request);
+        request
+    };
+    let pending = response_json(router.clone().oneshot(create("approved-effect"))
+        .await.unwrap()).await;
+    let effect_id = pending["diagnostic"]["details"]["effectId"]
+        .as_str().unwrap().to_owned();
+
+    let mut inbox = Request::builder()
+        .method("GET")
+        .uri("/effects")
+        .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+        .body(Body::empty())
+        .unwrap();
+    offer_auth_client_protocol(&mut inbox);
+    let inbox = response_json(router.clone().oneshot(inbox).await.unwrap()).await;
+    assert!(inbox.as_array().unwrap().iter().any(|effect| effect["id"] == effect_id));
+
+    let approved = router.clone().oneshot(session_auth_http_request(
+        &format!("/effects/{effect_id}/approve"),
+        br#"{}"#.to_vec(),
+        bearer,
+    )).await.unwrap();
+    assert_eq!(approved.status(), StatusCode::OK);
+    assert_eq!(approved.headers()["x-snapback-effect-id"], effect_id);
+    let _approved_body = response_json(approved).await;
+    let lookup_id = effect_id.clone();
+    let stored = with_snapback(&state.snapback, move |snapback| {
+        snapback.auth_database_mut().pending_effect(&lookup_id, super::now_millis())
+    }).await.unwrap();
+    assert_eq!(stored.status, crate::storage::pending_effects::PendingEffectStatus::Executed);
+    assert_eq!(
+        stored.journal.iter().map(|entry| entry.transition.as_str()).collect::<Vec<_>>(),
+        ["created", "approved", "executed"],
+    );
+    state.telemetry.force_flush().unwrap();
+    assert!(state.telemetry
+        .event_details_for_test("function_run", "queuedWrite")
+        .into_iter()
+        .flatten()
+        .any(|details| {
+            details["callerLane"] == "anonymous"
+                && details["callerKey"] == "anonymous"
+                && details["approverKey"] == approver["session"]["userId"]
+        }));
+
+    let denied = response_json(router.clone().oneshot(create("denied-effect"))
+        .await.unwrap()).await;
+    let denied_id = denied["diagnostic"]["details"]["effectId"].as_str().unwrap();
+    let denied = router.clone().oneshot(session_auth_http_request(
+        &format!("/effects/{denied_id}/deny"),
+        br#"{}"#.to_vec(),
+        bearer,
+    )).await.unwrap();
+    assert_eq!(denied.status(), StatusCode::OK);
+    assert_eq!(response_json(denied).await["status"], "refused");
+}
+
+#[tokio::test]
+async fn authority_creating_effect_requires_operation_bound_step_up() {
+    let state = approval_effect_server_fixture_with_authority_creation(
+        ApiFunctionApproval::Required,
+        true,
+    ).await;
+    let provider = state.auth_provider.clone().expect("effect auth provider");
+    let router = app(state.clone());
+    let approver = mint_test_credential(&state, "effect-step-up@example.test").await;
+    let bearer = approver["token"].as_str().unwrap();
+    let mut invoke = Request::builder()
+        .method("POST")
+        .uri("/mutation/queuedWrite")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(r#"{"args":{"value":"step-up-effect"}}"#))
+        .unwrap();
+    offer_auth_client_protocol(&mut invoke);
+    let pending = response_json(router.clone().oneshot(invoke).await.unwrap()).await;
+    let effect_id = pending["diagnostic"]["details"]["effectId"]
+        .as_str().unwrap().to_owned();
+
+    let missing = router.clone().oneshot(session_auth_http_request(
+        &format!("/effects/{effect_id}/approve"),
+        br#"{}"#.to_vec(),
+        bearer,
+    )).await.unwrap();
+    assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        response_json(missing).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_STEP_UP_REQUIRED",
+    );
+
+    let challenge = router.clone().oneshot(session_auth_http_request(
+        "/auth/step-up/request",
+        serde_json::to_vec(&json!({
+            "operation": "effectApproval",
+            "effectId": effect_id,
+        })).unwrap(),
+        bearer,
+    )).await.unwrap();
+    assert_eq!(challenge.status(), StatusCode::OK);
+    let challenge_id = response_json(challenge).await["challengeId"]
+        .as_str().unwrap().to_owned();
+    let mailbox = serde_json::to_value(
+        provider.mailbox_entry(&challenge_id).await.unwrap(),
+    ).unwrap();
+    let code = mailbox["code"].as_str().unwrap();
+    let approved = router.clone().oneshot(session_auth_http_request(
+        &format!("/effects/{effect_id}/approve"),
+        serde_json::to_vec(&json!({
+            "stepUp": { "challengeId": challenge_id, "code": code },
+        })).unwrap(),
+        bearer,
+    )).await.unwrap();
+    assert_eq!(approved.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn effect_approval_refuses_generation_rotation() {
+    let state = approval_effect_server_fixture(ApiFunctionApproval::Required).await;
+    let router = app(state.clone());
+    let approver = mint_test_credential(&state, "effect-revalidation@example.test").await;
+    let bearer = approver["token"].as_str().unwrap();
+    let pending_request = |value: &'static str| {
+        let mut request = Request::builder()
+            .method("POST")
+            .uri("/mutation/queuedWrite")
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(serde_json::to_vec(&json!({
+                "args": { "value": value },
+            })).unwrap()))
+            .unwrap();
+        offer_auth_client_protocol(&mut request);
+        request
+    };
+    let rotated = response_json(
+        router.clone().oneshot(pending_request("rotate-before-approval"))
+            .await.unwrap(),
+    ).await;
+    let rotated_id = rotated["diagnostic"]["details"]["effectId"]
+        .as_str().unwrap().to_owned();
+    let mut successor = activation_functions('4', false);
+    for function in &mut successor.functions {
+        function.api_exposure = Some(ApiFunctionExposure::default());
+    }
+    successor.functions.iter_mut()
+        .find(|function| function.name == "queuedWrite")
+        .unwrap().api_exposure = Some(ApiFunctionExposure {
+            expose: true,
+            since: None,
+            approval: Some(ApiFunctionApproval::Required),
+        });
+    let activated = router.clone().oneshot(auth_http_request(
+        "POST",
+        "/_snapback/api/functions/load",
+        serde_json::to_vec(&successor).unwrap(),
+        true,
+        Some("auth-http-admin"),
+        None,
+    )).await.unwrap();
+    assert_eq!(activated.status(), StatusCode::OK, "{}", response_json(activated).await);
+    let refused = router.clone().oneshot(session_auth_http_request(
+        &format!("/effects/{rotated_id}/approve"),
+        br#"{}"#.to_vec(),
+        bearer,
+    )).await.unwrap();
+    assert_eq!(refused.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        response_json(refused).await["diagnostic"]["code"],
+        "SNAPBACK_EFFECT_BINDING_STALE",
+    );
+}
+
+#[tokio::test]
+async fn effect_approval_refuses_a_revoked_original_session() {
+    let state = approval_effect_server_fixture(ApiFunctionApproval::Required).await;
+    let router = app(state.clone());
+    let original = mint_test_credential(&state, "effect-original@example.test").await;
+    let original_bearer = original["token"].as_str().unwrap();
+    let approver = mint_test_credential(&state, "effect-successor@example.test").await;
+    let approver_bearer = approver["token"].as_str().unwrap();
+    let pending = response_json(router.clone().oneshot(session_auth_http_request(
+        "/mutation/queuedWrite",
+        br#"{"args":{"value":"revoked-original"}}"#.to_vec(),
+        original_bearer,
+    )).await.unwrap()).await;
+    let effect_id = pending["diagnostic"]["details"]["effectId"]
+        .as_str().unwrap().to_owned();
+    let logout = router.clone().oneshot(session_auth_http_request(
+        "/auth/logout",
+        br#"{}"#.to_vec(),
+        original_bearer,
+    )).await.unwrap();
+    assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+    let refused = router.clone().oneshot(session_auth_http_request(
+        &format!("/effects/{effect_id}/approve"),
+        br#"{}"#.to_vec(),
+        approver_bearer,
+    )).await.unwrap();
+    assert!(!refused.status().is_success());
+    assert!(response_json(refused).await["diagnostic"]["code"]
+        .as_str().unwrap().starts_with("SNAPBACK_AUTH_"));
+    let lookup_id = effect_id.clone();
+    let stored = with_snapback(&state.snapback, move |snapback| {
+        snapback.auth_database_mut().pending_effect(&lookup_id, super::now_millis())
+    }).await.unwrap();
+    assert_eq!(
+        stored.status,
+        crate::storage::pending_effects::PendingEffectStatus::Refused,
     );
 }
 
@@ -4923,6 +5316,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
         .api_exposure = Some(ApiFunctionExposure {
         expose: true,
         since: Some("v1".to_owned()),
+        approval: None,
     });
     let api = ApiManifest {
         enabled: true,
@@ -4932,6 +5326,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
             ApiFunctionExposure {
                 expose: true,
                 since: Some("v1".to_owned()),
+                approval: None,
             },
         )]),
         origins: Some(vec!["https://integration.example:8443".to_owned()]),
@@ -5411,6 +5806,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
         .api_exposure = Some(ApiFunctionExposure {
         expose: true,
         since: None,
+        approval: None,
     });
     let full_api = ApiManifest {
         enabled: true,
@@ -5420,6 +5816,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
             ApiFunctionExposure {
                 expose: true,
                 since: None,
+                approval: None,
             },
         )]),
         origins: None,
@@ -10660,7 +11057,7 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
     // Rotates with the embedded todo demo's generated artifacts; the
     // LLP 0204 S4 stream-fact codegen change is the latest rotation.
-    assert_eq!(details["artifactHash"], "sha256:70aa83d67d3b9d1c");
+    assert_eq!(details["artifactHash"], "sha256:52d8ad3ef1e5d803");
     assert!(
         details["localMissSummary"]["sameMissCount"]
             .as_u64()
@@ -18810,6 +19207,9 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
 ];
 
 const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_EFFECT_INPUT_INVALID",
+    "SNAPBACK_API_APPROVAL_QUERY_INVALID",
+    "SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE",
     "SNAPBACK_WATCH_INPUT_INVALID",
     "SNAPBACK_ASSET_GRANT_INPUT_INVALID",
     "SNAPBACK_CAPABILITY_LINK_ARGS_CONTRACT_REQUIRED",
@@ -19320,6 +19720,7 @@ const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
 ];
 
 const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_EFFECT_APPROVAL_DENIED",
     "SNAPBACK_WATCH_AUTHORITY_DEAD",
     "SNAPBACK_WATCH_OWNER_DENIED",
     "SNAPBACK_ASSET_GRANT_FORBIDDEN",
@@ -19431,6 +19832,7 @@ const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
 ];
 
 const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_EFFECT_NOT_FOUND",
     "SNAPBACK_WATCH_NOT_FOUND",
     "SNAPBACK_ASSET_GRANT_UNKNOWN",
     "SNAPBACK_CAPABILITY_LINK_FUNCTION_INVALID",
@@ -19476,6 +19878,8 @@ const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
 ];
 
 const CONFLICT_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_EFFECT_BINDING_STALE",
+    "SNAPBACK_EFFECT_STATE_INVALID",
     "SNAPBACK_WATCH_STATUS_INVALID",
     "SNAPBACK_ASSET_GRANTS_UNDECLARED",
     "SNAPBACK_ASSET_GRANT_CONFLICT",
@@ -19880,6 +20284,7 @@ const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
 // diagnostics that never normally become an `ApiError`. If one does reach
 // that boundary, the fail-safe class is still 500 rather than a false 4xx.
 const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_EFFECT_CATALOG_CORRUPT",
     "SNAPBACK_WATCH_CATALOG_CORRUPT",
     "SNAPBACK_WATCH_JOB_INVALID",
     "SNAPBACK_CAPABILITY_LINK_CATALOG_CORRUPT",
@@ -20408,6 +20813,7 @@ const INTERNAL_SERVER_ERROR_DIAGNOSTICS: &[&str] = &[
 ];
 
 const HTTP_STATUS_FAMILIES: &[(StatusCode, &[&str])] = &[
+    (StatusCode::ACCEPTED, &["SNAPBACK_EFFECT_APPROVAL_PENDING"]),
     (StatusCode::BAD_REQUEST, BAD_REQUEST_DIAGNOSTICS),
     (StatusCode::BAD_REQUEST, APP_API_BAD_REQUEST_DIAGNOSTICS),
     (StatusCode::UNAUTHORIZED, UNAUTHORIZED_DIAGNOSTICS),
@@ -20453,6 +20859,7 @@ const HTTP_STATUS_FAMILIES: &[(StatusCode, &[&str])] = &[
 ];
 
 const GONE_DIAGNOSTICS: &[&str] = &[
+    "SNAPBACK_EFFECT_EXPIRED",
     "SNAPBACK_BRANCH_EXPIRED",
     "SNAPBACK_BRANCH_GRANT_STALE",
     "SNAPBACK_CHECKPOINT_INVALID",
@@ -24469,6 +24876,9 @@ fn agent_management_routes_have_independent_exact_throttle_budgets() {
             "/auth/oauth/revoke",
             "/auth/oauth/token",
             "/auth/pairing-codes",
+            "/effects",
+            "/effects/{id}/approve",
+            "/effects/{id}/deny",
         ]
     );
     assert_eq!(agent_paths["/auth/agents/token"], 600);

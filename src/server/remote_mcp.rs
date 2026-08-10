@@ -495,6 +495,7 @@ async fn call_tool(
                 State(state.clone()),
                 Extension(authority.clone()),
                 Extension(route),
+                None,
                 Path(tool.function_name.clone()),
                 Result::<_, JsonRejection>::Ok(Json(MutationRequest {
                     input,
@@ -510,6 +511,7 @@ async fn call_tool(
             HeaderMap::new(),
             Extension(authority.clone()),
             Extension(route),
+            None,
             Path(tool.function_name.clone()),
             Result::<_, JsonRejection>::Ok(Json(FunctionCallRequest {
                 input,

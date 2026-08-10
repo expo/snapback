@@ -1203,6 +1203,48 @@ impl AuthCoordinator {
         )
     }
 
+    /// Rehydrate a bearer-free session snapshot for one approved effect and
+    /// return the same final-publication fence used by bearer resolution.
+    /// Every durable identity coordinate and the stream incarnation must
+    /// still be current; no bearer is recovered or retained.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn prepare_retained_effect_session(
+        &self,
+        authorization_stream_incarnation: &str,
+        session_id: &str,
+        user_id: &str,
+        provider: &str,
+        generation: u64,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<PreparedBearerAuthority> {
+        let resolved = self.resolve_bound_connection_session(
+            authorization_stream_incarnation,
+            session_id,
+            user_id,
+            provider,
+            generation,
+            epoch_now_ms,
+            monotonic_now,
+        )?;
+        let BoundSessionResolution::Current(authority) = resolved else {
+            return Err(projection_unavailable());
+        };
+        let topology = self.lock_topology()?;
+        if topology.global_rebuild_required
+            || topology.projection.incarnation().as_str() != authorization_stream_incarnation
+        {
+            return Err(projection_unavailable());
+        }
+        let publication = topology
+            .projection
+            .session_publication_fence(session_id, generation)?;
+        Ok(PreparedBearerAuthority {
+            authority,
+            publication,
+        })
+    }
+
     /// Publish the later deadline only after the provider's durable result is
     /// known (or its explicit no-write result is known). Refresh never calls
     /// this path.

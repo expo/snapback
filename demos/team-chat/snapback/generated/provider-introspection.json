@@ -1872,8 +1872,8 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "implementationHash": "sha256:2987c6e0439ccd94",
-    "inputsHash": "d9e147d88a9c1d93a2a15f46e41583e27c1076fbc87e0cdc494dc0173fd193f3",
-    "schemaHash": "sha256:11ac2858276d922e"
+    "implementationHash": "sha256:7005e47a2541e162",
+    "inputsHash": "06245b3951a81f3178d399eb45c9ee4ccf68fa8f29d24d1b5b67cb063192fd87",
+    "schemaHash": "sha256:3a52049f933fc957"
   }
 }

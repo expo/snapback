@@ -6,7 +6,12 @@
 Hosted platform, Developer experience, Docs
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** 2026-08-09 (S5 Landing B implements D9.3 durable watches for
+**Revised:** 2026-08-10 (S5 Landing C implements D9.5 approval-gated effects
+and closes the OQ9 multi-use mutating-link dependency: exact pending intents,
+one typed result across four ingress paths, session approval/denial, binding
+revalidation, original-caller execution, step-up for authority creation, and
+minter-only link approval.)
+2026-08-09 (S5 Landing B implements D9.3 durable watches for
 user-owned standing rules: session-only management, credential-free
 `revalidatePrincipal` evaluation, exposed-live-query predicates, function
 reactions, durable invalidation-driven jobs, edge/debounce/budget controls,
@@ -887,6 +892,27 @@ not audit. What it can honestly narrow is the *first landing's scope* —
 an audit log covering only approval-gated operations is a smaller
 deliverable than one covering every external mutation, which may pull
 the gated date earlier.
+
+**Implementation note — S5 Landing C (2026-08-10).** The schema accepts
+`approval: "required" | "external"` only on exposed mutations/actions and
+compiles the closed fact onto the function manifest and public envelope.
+`required` gates every caller; `external` keeps direct first-party sessions
+immediate while service/integration/link and anonymous external lanes create a
+24-hour (maximum seven-day) exact `_snapback_pending_effects` intent. Bare,
+`/api/v1`, MCP, and link invocation share the
+`SNAPBACK_EFFECT_APPROVAL_PENDING` 202 shape.
+
+V1 honestly emits only `kind: "disclosed"`: the preview names the function's
+declared write set and canonical args digest, never a fabricated dry run.
+Approval and denial use the LLP 0150 session inbox/decision ceremony. Approval
+revalidates expiry, function identity/kind, generation, exposure and current
+gate, argument binding, original session or exact grant/credential generation,
+approver policy, and link minter lineage, with operation-bound step-up for
+`authorityCreating`. Execution then enters the ordinary mutation/action path
+under the original caller semantics and records the approver separately.
+Every state change appends a bounded journal fact. Expiry is lazy; a jobs-based
+sweeper remains a tidy-up, not a correctness dependency. Granted capability
+links and a genuine function-specific dry-run interface remain deferred.
 
 ## D10 — What falls out for free (the pitch, and the test)
 

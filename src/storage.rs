@@ -170,6 +170,11 @@ pub(crate) mod declared_clients;
 #[path = "storage/capability_links.rs"]
 pub(crate) mod capability_links;
 
+// @ref LLP 0204#d95--approval-gated-effects — approval intents and their
+// transition journal are protected manifest-owned state, never app rows.
+#[path = "storage/pending_effects.rs"]
+pub(crate) mod pending_effects;
+
 // @ref LLP 0204#d93--durable-watches-end-user-automations — standing watch intent, bounded edge
 // state, and its firing journal are a manifest-activated protected companion.
 #[path = "storage/watches.rs"]

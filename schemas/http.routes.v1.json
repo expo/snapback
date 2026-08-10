@@ -1288,6 +1288,33 @@
     },
     {
       "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/effects",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/effects/{id}/approve",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/effects/{id}/deny",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
       "credential_resolution": "None",
       "inputSchema": null,
       "method": "POST",

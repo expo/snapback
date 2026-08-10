@@ -229,6 +229,26 @@ impl StepUpBinding {
             target_id: "creation".to_owned(),
         }
     }
+
+    /// Bind fresh authentication to approval of one exact pending effect.
+    // @ref LLP 0204#d95--approval-gated-effects — authority-creating effects
+    // reuse the existing operation-bound, single-use step-up ceremony.
+    pub(crate) fn effect_approval(
+        user_id: String,
+        session_id: String,
+        session_generation: u64,
+        authority_instance_id: String,
+        effect_id: String,
+    ) -> Self {
+        Self {
+            user_id,
+            session_id,
+            session_generation,
+            authority_instance_id,
+            operation: "effectApproval",
+            target_id: effect_id,
+        }
+    }
 }
 
 impl fmt::Debug for StepUpBinding {

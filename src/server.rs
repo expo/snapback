@@ -120,6 +120,7 @@ use uuid::Uuid;
 
 mod api_error;
 mod asset_routes;
+mod effects;
 mod instance_home;
 mod oauth;
 mod remote_mcp;
@@ -127,6 +128,7 @@ mod response_types;
 
 pub use api_error::*;
 use asset_routes::*;
+use effects::*;
 use instance_home::*;
 use oauth::*;
 pub use response_types::*;
@@ -7112,6 +7114,8 @@ fn agent_route_throttle_limit(path: &str) -> Option<usize> {
         "/auth/grants" => Some(120),
         "/auth/grants/by-actor/{actor_id}" => Some(60),
         "/auth/grants/{id}" => Some(60),
+        "/effects" => Some(120),
+        "/effects/{id}/approve" | "/effects/{id}/deny" => Some(60),
         "/auth/agents/rotate" => Some(10),
         // LLP 0062's process-per-command agent lane mints one short-lived
         // carrier per invocation. Six hundred credential-and-grant-bound
@@ -9224,6 +9228,47 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             ),
             delete(capability_link_revoke).layer(DefaultBodyLimit::max(0)),
         ),
+        // @ref LLP 0031#approval-gated-effect-family — effect management is
+        // session-only; execution reconstructs the frozen original caller.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "GET",
+                "/effects",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            get(effect_list).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/effects/{id}/approve",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(effect_approve).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/effects/{id}/deny",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(effect_deny).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
         // @ref LLP 0204#d93--durable-watches-end-user-automations — watch lifecycle is session
         // authority only; standing executions reconstruct credential-free
         // owner authority through their registered internal sources.
@@ -10772,6 +10817,9 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
             Some(InvocationSource::CapabilityLinkManagement)
         }
         "/capability-links/{token}/invoke" => Some(InvocationSource::HttpCapabilityLink),
+        "/effects" | "/effects/{id}/approve" | "/effects/{id}/deny" => {
+            Some(InvocationSource::EffectManagement)
+        }
         "/watches"
         | "/watches/{id}"
         | "/watches/{id}/suspend"
@@ -13923,6 +13971,10 @@ enum StepUpRequest {
         request_id: String,
     },
     AgentInvitation {},
+    EffectApproval {
+        #[serde(rename = "effectId")]
+        effect_id: String,
+    },
 }
 
 struct PairingCodeSecretResponse {
@@ -14147,6 +14199,49 @@ fn agent_invitation_step_up_binding(
     ))
 }
 
+fn effect_step_up_binding(
+    authority: &PreparedAuthority,
+    effect_id: String,
+) -> Result<StepUpBinding, ApiError> {
+    authority
+        .validate_admission("effect approval step-up binding")
+        .map_err(ApiError::from)?;
+    if !matches!(
+        authority.source(),
+        InvocationSource::AgentGrantManagement | InvocationSource::EffectManagement
+    ) || authority.active_mode() != AuthMode::Sessions
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_INVOCATION_SOURCE_INVALID",
+            "auth",
+            "effect step-up requires exact session authority",
+        )
+        .into());
+    }
+    let ResolvedAppAuthority::Session {
+        user_id,
+        session_id,
+        generation,
+        authority_instance_id,
+        ..
+    } = authority.resolved()
+    else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_INVOCATION_SOURCE_INVALID",
+            "auth",
+            "effect step-up requires a session principal",
+        )
+        .into());
+    };
+    Ok(StepUpBinding::effect_approval(
+        user_id.clone(),
+        session_id.clone(),
+        *generation,
+        authority_instance_id.clone(),
+        effect_id,
+    ))
+}
+
 /// Fresh-authentication requests derive their human address from the exact
 /// live session. The wire chooses only a closed operation and target; it can
 /// neither redirect delivery nor mint an unbound proof.
@@ -14166,6 +14261,9 @@ async fn auth_step_up_request(
             grant_step_up_binding(&authority, request_id)?
         }
         StepUpRequest::AgentInvitation {} => agent_invitation_step_up_binding(&authority)?,
+        StepUpRequest::EffectApproval { effect_id } => {
+            effect_step_up_binding(&authority, effect_id)?
+        }
     };
     let admission = provider.admit().await;
     let now_ms = provider.now_ms();
@@ -23597,6 +23695,8 @@ struct CapabilityLinkMintRequest {
     caller_args: Vec<String>,
     expires_in_ms: Option<u64>,
     uses: Option<u64>,
+    #[serde(default)]
+    approval: bool,
 }
 
 #[derive(Serialize)]
@@ -23606,6 +23706,7 @@ struct CapabilityLinkMintResponse {
     url: String,
     expires_at_ms: u64,
     remaining_uses: Option<u64>,
+    approval_per_use: bool,
 }
 
 #[derive(Serialize)]
@@ -23617,6 +23718,7 @@ struct CapabilityLinkLandingResponse {
     caller_args: Vec<String>,
     expires_at_ms: u64,
     remaining_uses: Option<u64>,
+    approval_per_use: bool,
 }
 
 #[derive(Deserialize)]
@@ -23732,23 +23834,43 @@ async fn capability_link_mint(
     let minter_session_id = session_id.clone();
     let minter_authority_instance_id = authority_instance_id.clone();
     let remaining_uses = request.uses;
+    let requested_approval = request.approval;
     let effect_authority = authority.clone();
     let minted = with_snapback(&state, move |snapback| {
         let _effect = effect_authority.effect_guard("capability-link mint transaction")?;
         let function = snapback.capability_link_mint_function(&function_name)?;
         let function_kind = capability_link_kind(&function.kind);
+        if requested_approval
+            && matches!(
+                function_kind,
+                crate::storage::capability_links::CapabilityLinkFunctionKind::Query
+            )
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CAPABILITY_LINK_INPUT_INVALID",
+                "capability-links",
+                "approval is valid only for mutation and action links",
+            ));
+        }
+        let approval_per_use = requested_approval
+            || function
+                .api_exposure
+                .as_ref()
+                .and_then(|exposure| exposure.approval)
+                .is_some();
         if matches!(
             function_kind,
             crate::storage::capability_links::CapabilityLinkFunctionKind::Mutation
                 | crate::storage::capability_links::CapabilityLinkFunctionKind::Action
         ) && remaining_uses != Some(1)
+            && !approval_per_use
         {
             return Err(SnapbackError::error(
                 "SNAPBACK_CAPABILITY_LINK_MUTATION_APPROVAL_REQUIRED",
                 "capability-links",
-                "mutating v1 capability links must be single-use until the approval gate lands",
+                "mutating links with more than one use require api.functions.<name>.approval or approval: true per use",
             )
-            .with_details(json!({ "dependency": "LLP 0204 D9.5" })));
+            .with_details(json!({ "approvalMechanism": "/effects" })));
         }
         crate::args_contract::validate_function_args_template(
             &function,
@@ -23767,6 +23889,7 @@ async fn capability_link_mint(
                 caller_args,
                 expires_at_ms,
                 remaining_uses,
+                approval_per_use,
                 now_ms,
             },
         )
@@ -23777,6 +23900,7 @@ async fn capability_link_mint(
         url: format!("/capability-links/{}", minted.token),
         expires_at_ms: minted.record.expires_at_ms,
         remaining_uses: minted.record.remaining_uses,
+        approval_per_use: minted.record.approval_per_use,
     }))
 }
 
@@ -23801,6 +23925,7 @@ async fn capability_link_landing(
         caller_args: link.caller_args,
         expires_at_ms: link.expires_at_ms,
         remaining_uses: link.remaining_uses,
+        approval_per_use: link.approval_per_use,
     }))
 }
 
@@ -23900,6 +24025,7 @@ async fn capability_link_invoke(
                 State(state.clone()),
                 Extension(authority),
                 Extension(route),
+                Some(Extension(ResolvedCapabilityLink(link.clone()))),
                 Path(function.name),
                 Ok(Json(request)),
             )
@@ -23914,6 +24040,7 @@ async fn capability_link_invoke(
                 HeaderMap::new(),
                 Extension(authority),
                 Extension(route),
+                Some(Extension(ResolvedCapabilityLink(link.clone()))),
                 Path(function.name),
                 Ok(Json(request)),
             )
@@ -23925,7 +24052,9 @@ async fn capability_link_invoke(
         .extensions()
         .get::<TelemetryDiagnosticCode>()
         .map(|code| code.0.as_str())
-        .unwrap_or(if response.status().is_success() {
+        .unwrap_or(if response.status() == StatusCode::ACCEPTED {
+            "approval-pending"
+        } else if response.status().is_success() {
             "ok"
         } else {
             "failed"
@@ -24967,6 +25096,7 @@ async fn invoke_mutation(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
     Extension(route): Extension<RouteSpec>,
+    effect_link: Option<Extension<ResolvedCapabilityLink>>,
     Path(name): Path<String>,
     input: Result<Json<MutationRequest>, JsonRejection>,
 ) -> Response {
@@ -24991,6 +25121,15 @@ async fn invoke_mutation(
         validate_external_api_request(&state, route, &name, request.expected_generation.is_some())
             .await
             .map_err(|error| error.with_attribution(attribution.clone()))?;
+        require_effect_approval_if_configured(
+            &state,
+            &authority,
+            &name,
+            &request.input.args,
+            effect_link.as_ref().map(|Extension(link)| &link.0),
+        )
+        .await
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
         if let Some(current_id) = request.client_mutation_id.as_deref()
             && request
                 .acknowledged_client_mutation_ids
@@ -25208,6 +25347,201 @@ fn observe_mutation_settlement(
     )
 }
 
+/// Freeze a mutating invocation as a disclosed pending effect when the
+/// compiled function gate or a link's per-use posture requires approval.
+/// The typed ACCEPTED diagnostic is shared by bare HTTP, `/api/v1`, MCP, and
+/// capability-link invocation.
+// @ref LLP 0204#d95--approval-gated-effects — all external ingress converges
+// here before the ordinary mutation/action effect path.
+async fn require_effect_approval_if_configured(
+    state: &SharedSnapback,
+    authority: &PreparedAuthority,
+    name: &str,
+    args: &Value,
+    link: Option<&crate::storage::capability_links::CapabilityLinkRecord>,
+) -> Result<(), ApiError> {
+    if authority.source() == InvocationSource::EffectExecution {
+        return Ok(());
+    }
+    let name = name.to_owned();
+    let args = args.clone();
+    let authority = authority.clone();
+    let link = link.cloned();
+    let record = with_snapback(state, move |snapback| {
+        let function = match snapback.function_definition(&name).cloned() {
+            Some(function) => function,
+            None => {
+                return Err(crate::authoring_suggestion::unknown_function_error(
+                    snapback.served_function_manifest(),
+                    &name,
+                    &[FunctionKind::Mutation, FunctionKind::Action],
+                ));
+            }
+        };
+        if !matches!(function.kind, FunctionKind::Mutation | FunctionKind::Action) {
+            return Ok(None);
+        }
+        let approval = function
+            .api_exposure
+            .as_ref()
+            .and_then(|exposure| exposure.approval);
+        let gated = match approval {
+            Some(crate::manifest::ApiFunctionApproval::Required) => true,
+            Some(crate::manifest::ApiFunctionApproval::External) => {
+                !matches!(authority.resolved(), ResolvedAppAuthority::Session { .. })
+            }
+            None => link.as_ref().is_some_and(|link| link.approval_per_use),
+        };
+        if !gated {
+            return Ok(None);
+        }
+        if !function
+            .api_exposure
+            .as_ref()
+            .is_some_and(|exposure| exposure.expose)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EFFECT_BINDING_STALE",
+                "effects",
+                "the approval gate no longer names an exposed function",
+            ));
+        }
+        crate::args_contract::validate_function_args(&function, &args)?;
+        let _prepared = InvocationGate::prepare_function(authority.clone(), &function)?;
+        let generation = snapback
+            .function_invocation_facts(authority.active_mode())?
+            .map(|facts| facts.active_generation)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_EFFECT_BINDING_STALE",
+                    "effects",
+                    "the active function generation cannot be frozen for approval",
+                )
+            })?;
+        let caller = authority.telemetry_caller_details().unwrap_or_else(|| {
+            json!({ "callerLane": "first-party", "callerKey": "first-party" })
+        });
+        let caller_lane = caller
+            .get("callerLane")
+            .and_then(Value::as_str)
+            .unwrap_or("first-party")
+            .to_owned();
+        let caller_key = caller
+            .get("callerKey")
+            .and_then(Value::as_str)
+            .filter(|key| !key.is_empty())
+            .map(str::to_owned)
+            .unwrap_or_else(|| match authority.resolved() {
+                ResolvedAppAuthority::Session { user_id, .. } => user_id.clone(),
+                ResolvedAppAuthority::ServicePrincipal { actor_user_id, .. } => {
+                    actor_user_id.clone()
+                }
+                _ => "anonymous".to_owned(),
+            });
+        let snapshot = match authority.resolved() {
+            ResolvedAppAuthority::Anonymous => {
+                crate::storage::pending_effects::PendingEffectAuthority::Anonymous
+            }
+            ResolvedAppAuthority::Session {
+                user_id,
+                session_id,
+                provider,
+                generation,
+                authority_instance_id,
+                ..
+            } => {
+                crate::storage::pending_effects::PendingEffectAuthority::Session {
+                    user_id: user_id.clone(),
+                    session_id: session_id.clone(),
+                    provider: provider.clone(),
+                    generation: *generation,
+                    authority_instance_id: authority_instance_id.clone(),
+                    authorization_stream_incarnation: authority
+                        .authorization_stream_incarnation()
+                        .ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_EFFECT_BINDING_STALE",
+                                "effects",
+                                "session effect authority has no authorization-stream binding",
+                            )
+                        })?
+                        .to_owned(),
+                }
+            }
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id,
+                credential_id,
+                credential_generation,
+                grant_id,
+                token_id,
+                effective_user_id,
+                token_expires_at_ms,
+                ..
+            } => {
+                crate::storage::pending_effects::PendingEffectAuthority::ServicePrincipal {
+                    actor_user_id: actor_user_id.clone(),
+                    credential_id: credential_id.clone(),
+                    credential_generation: *credential_generation,
+                    grant_id: grant_id.clone(),
+                    token_id: token_id.clone(),
+                    effective_user_id: effective_user_id.clone(),
+                    token_expires_at_ms: *token_expires_at_ms,
+                }
+            }
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_EFFECT_INPUT_INVALID",
+                    "effects",
+                    "this internal authority class cannot create an external approval intent",
+                ));
+            }
+        };
+        let mut declared_write_set = function.write_set_summary.tables.clone();
+        if let Some(primary) = function.write_set_summary.primary_table.clone() {
+            declared_write_set.push(primary);
+        }
+        let link_origin_id = link.as_ref().map(|link| link.id.clone());
+        let approver_principal_id = link
+            .as_ref()
+            .map(|link| link.minter_principal_id.clone());
+        snapback
+            .auth_database_mut()
+            .create_pending_effect(crate::storage::pending_effects::CreatePendingEffect {
+                function_id: function.id,
+                function_name: function.name,
+                function_kind: function.kind,
+                args,
+                caller_lane,
+                caller_key,
+                authority: snapshot,
+                generation,
+                link_origin_id,
+                approver_principal_id,
+                declared_write_set,
+                now_ms: now_millis(),
+                ttl_ms: crate::storage::pending_effects::DEFAULT_TTL_MS,
+            })
+            .map(Some)
+    })
+    .await?;
+    let Some(record) = record else {
+        return Ok(());
+    };
+    Err(ApiError::from(
+        SnapbackError::error(
+            "SNAPBACK_EFFECT_APPROVAL_PENDING",
+            "effects",
+            "the effect is frozen and awaits approval",
+        )
+        .with_details(json!({
+            "effectId": record.id,
+            "approvalPointer": format!("/effects/{}/approve", record.id),
+            "expiresAtMs": record.expires_at_ms,
+            "preview": record.preview,
+        })),
+    ))
+}
+
 /// App-data action runner for side-effectful app work that is not a transaction:
 /// browser clients can trigger action egress without reaching through the admin
 /// function runner, while writes still happen only through declared mutations.
@@ -25225,6 +25559,7 @@ async fn invoke_action(
     headers: HeaderMap,
     Extension(authority): Extension<PreparedAuthority>,
     Extension(route): Extension<RouteSpec>,
+    effect_link: Option<Extension<ResolvedCapabilityLink>>,
     Path(name): Path<String>,
     input: Result<Json<FunctionCallRequest>, JsonRejection>,
 ) -> Result<Json<FunctionResponse<crate::local::FunctionRunResult>>, ApiError> {
@@ -25235,6 +25570,15 @@ async fn invoke_action(
     validate_external_api_request(&state, route, &name, request.expected_generation.is_some())
         .await
         .map_err(|error| error.with_attribution(attribution.clone()))?;
+    require_effect_approval_if_configured(
+        &state,
+        &authority,
+        &name,
+        &request.input.args,
+        effect_link.as_ref().map(|Extension(link)| &link.0),
+    )
+    .await
+    .map_err(|error| error.with_attribution(attribution.clone()))?;
     let input = request.input;
     let stream_connection_id = request.stream_connection_id;
     let expected_generation = request.expected_generation;

@@ -65,6 +65,11 @@
     },
     {
       "body": "timeOrdered",
+      "kind": "PendingEffect",
+      "prefix": "pfx"
+    },
+    {
+      "body": "timeOrdered",
       "kind": "Watch",
       "prefix": "wtch"
     },

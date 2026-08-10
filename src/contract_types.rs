@@ -204,6 +204,19 @@ pub enum ApiDisclosure {
     Full,
 }
 
+/// Approval posture for externally reachable durable effects.
+///
+/// `required` gates every caller. `external` preserves direct first-party
+/// session calls while gating service-principal, integration, and link lanes.
+// @ref LLP 0204#d95--approval-gated-effects — this closed fact is compiled
+// onto the function definition and therefore cannot diverge by ingress lane.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum ApiFunctionApproval {
+    Required,
+    External,
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ApiFunctionExposure {
@@ -211,6 +224,8 @@ pub struct ApiFunctionExposure {
     pub expose: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub since: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approval: Option<ApiFunctionApproval>,
 }
 
 /// App policy for creating new agent principals. Absence is deliberately

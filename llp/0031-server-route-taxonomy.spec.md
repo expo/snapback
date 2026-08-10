@@ -5,7 +5,10 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-09 (LLP 0204 S5 Landing B registers the user-owned durable
+**Revised:** 2026-08-10 (LLP 0204 S5 Landing C registers the session-only
+pending-effect inbox and approve/deny routes; bare, `/api/v1`, MCP, and
+capability-link mutating calls converge on one typed 202 approval result.)
+2026-08-09 (LLP 0204 S5 Landing B registers the user-owned durable
 watch create, list, delete, suspend, and resume rows as exact session-only
 AppData management operations; integration-owned creation remains deferred.)
 2026-08-09 (LLP 0204 S5 Landing A implements the anonymous-set
@@ -1442,8 +1445,10 @@ the continued validity of the human minter principal rather than the liveness
 of that original session. Bounded `use_count` plus last-use/outcome facts and
 the `link` telemetry attribution lane are the v1 per-use journal; full audit
 rows remain owned by the audit-log program. Extending the bearer to granted
-operations and the D9.5 pending-approval ceremony remain commissioned future
-amendments and confer no authority today.
+operations remains commissioned. S5 Landing C implements D9.5 for the
+anonymous-set carrier: mutating links may be multi-use only when the function
+gate or the mint's `approval: true` makes every use a pending effect, and the
+minter is the only approver.
 
 The path placeholder is credential material, not a loggable identifier. Router
 normalization must replace it with the registered template before access-log,
@@ -1777,6 +1782,39 @@ remain handler-owned DTOs rather than committed standalone artifacts. Route
 registry parity, sessions forbidden-field probes, invocation-source mapping,
 network-lane classification, status-family review, guide capability/surface
 maps, and MCP tool discovery cover the new row.
+
+## Dated amendment: LLP 0204 S5 approval-gated effect family (2026-08-10)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md) D9.5 and
+the OQ9 ruling; **implemented** by `S5 Landing C`.
+
+### Approval-gated effect family
+
+The management family adds three exact root AppData rows:
+
+| Route | Policy tuple | Result |
+| --- | --- | --- |
+| `GET /effects` | `SessionAuth` / `RequiredSessionBearer` / `ResolvedCaller`; legacy body authority rejected | `SensitiveApplicationData`; returns at most 256 live pending effects the session user may approve, with link-originated effects visible only to the minter |
+| `POST /effects/{id}/approve` | same tuple; ordinary function policy is revalidated for the approver and the frozen original caller | `SensitiveApplicationData`; atomically decides, then executes through the ordinary mutation/action path with original-caller attribution plus the approver fact |
+| `POST /effects/{id}/deny` | same tuple; exact approver selection rechecked in the decision transaction | `SensitiveApplicationData`; terminally refuses the effect without function execution |
+
+`EffectManagement` is a session-only authority source. The internal
+`EffectExecution` source is not route-selectable: it exists solely to restore
+the frozen original caller after approval and cannot recursively create a
+second pending effect. Approval revalidates function id/kind, active generation,
+current exposure and approval gate, argument contract and digest, original
+authority, current approver policy, expiry, and capability-link minter lineage.
+Authority-creating functions consume the existing operation-bound step-up
+proof in the same decision transaction.
+
+Mutation/action calls on the bare routes, `/api/v1`, remote MCP tools, and
+capability links all return HTTP-style `202` with
+`SNAPBACK_EFFECT_APPROVAL_PENDING`, an opaque `pfx_` id, approval pointer,
+expiry, and disclosed prospective-effect receipt. The receipt is explicitly
+not a dry run: v1 contains only the canonical args digest and declared write
+set. The exact manifest-activated `_snapback_pending_effects` ledger bounds
+arguments, previews, authority snapshots, and journal facts; lazy reads and
+decisions durably settle expiry without adding a scheduler.
 
 ## Status
 

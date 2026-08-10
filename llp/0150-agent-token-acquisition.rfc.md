@@ -6,7 +6,10 @@
 Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-08 (LLP 0204 commissioned the capability-link bearer
+**Revised:** 2026-08-10 (LLP 0204 S5 Landing C reuses this RFC's
+session-authenticated inbox, display, human-veto, approve/deny, and
+operation-bound step-up ceremony for the sibling pending-effect record.)
+2026-08-08 (LLP 0204 commissioned the capability-link bearer
 exception and the integration-class ownership displacement cross-reference;
 design only, with no implementation or capability claim — see the dated
 amendment). 2026-08-02 (decision-sitting propagation: OQ2 is answered with
@@ -839,9 +842,10 @@ of every new route.
 **Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md), D7,
 D9.4, and the OQ9 ruling.
 
-**Status:** design amendment only. This section extends the bearer-exception
-inventory of this Draft RFC; it does not claim that capability-link minting,
-serving, approval, or revocation is implemented.
+**Status:** the external-anonymous capability-link carrier and revocation
+shipped in LLP 0204 S5 Landing A; S5 Landing C ships the pending-effect
+approval sibling and multi-use mutating-link rule. Granted-function links
+remain commissioned.
 
 ### Closed v1 exception
 
@@ -917,6 +921,23 @@ the approver**. Possession cannot select another approver, and record ownership
 does not silently substitute. Approval remains prospective authorization of
 the bound effect, not proof that a preview is correct; LLP 0204 D9.5 owns that
 distinction.
+
+### Implemented sibling effect ceremony
+
+S5 Landing C deliberately does not reinterpret a pending effect as an agent
+grant request. It is a sibling durable object, but reuses this RFC's human
+ceremony: a session-only pending inbox, bounded prospective-effect display,
+explicit approve or deny, operation-bound step-up when the underlying function
+is `authorityCreating`, an atomic decision, and a pollable terminal record.
+The approver authorizes the frozen effect class; the disclosed preview is not
+presented as verified simulation.
+
+Approval revalidates current function/exposure policy and the frozen original
+authority before normal-path execution. The function runs with original caller
+attribution plus a separate approver fact, never as the approving session.
+Expiry and denial are terminal journal outcomes. Link effects bind the minter
+as approver; other effects apply current app-user function policy. This reuse
+does not seat principal ownership, issue a grant, or create a bearer.
 
 ### Integration ownership displacement cross-reference
 

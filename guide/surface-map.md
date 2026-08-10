@@ -154,6 +154,9 @@ here (or listed here but gone from the code).
 | /capability-links/{id} | api.external-exposure |
 | /capability-links/{token} | api.external-exposure |
 | /capability-links/{token}/invoke | api.external-exposure |
+| /effects | api.external-exposure |
+| /effects/{id}/approve | api.external-exposure |
+| /effects/{id}/deny | api.external-exposure |
 | /watches | api.external-exposure |
 | /watches/{id} | api.external-exposure |
 | /watches/{id}/resume | api.external-exposure |

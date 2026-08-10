@@ -1472,13 +1472,20 @@ export function defineSchema(tables, options = {}) {
     const normalizedFunctions = {};
     for (const [name, exposure] of Object.entries(functions)) {
       assert(exposure && typeof exposure === 'object' && !Array.isArray(exposure), `defineSchema api.functions.${name} must be an object`);
-      exactObject(exposure, `defineSchema api.functions.${name}`, new Set(['expose', 'since']));
+      exactObject(exposure, `defineSchema api.functions.${name}`, new Set(['expose', 'since', 'approval']));
       const expose = exposure.expose ?? false;
       assert(typeof expose === 'boolean', `defineSchema api.functions.${name}.expose must be a boolean`);
       assert(exposure.since === undefined || typeof exposure.since === 'string', `defineSchema api.functions.${name}.since must be a string`);
+      assert(
+        exposure.approval === undefined
+          || exposure.approval === 'required'
+          || exposure.approval === 'external',
+        `defineSchema api.functions.${name}.approval must be required or external`,
+      );
       normalizedFunctions[name] = {
         expose,
         ...(exposure.since !== undefined ? { since: exposure.since } : {}),
+        ...(exposure.approval !== undefined ? { approval: exposure.approval } : {}),
       };
     }
     let origins;

@@ -2129,6 +2129,13 @@ fn validate_exact(
     }) {
         super::capability_links::validate_exact_schema(conn)?;
     }
+    // @ref LLP 0204#d95--approval-gated-effects — recognize the exact
+    // manifest-owned approval companion without widening the auth catalog.
+    if objects.iter().any(|object| {
+        object.kind == "table" && object.name == super::pending_effects::PENDING_EFFECT_TABLE
+    }) {
+        super::pending_effects::validate_exact_schema(conn)?;
+    }
     // @ref LLP 0204#d91--streaming-conversations — the
     // function-manifest companion is recognized only in its exact shape.
     if objects.iter().any(|object| {

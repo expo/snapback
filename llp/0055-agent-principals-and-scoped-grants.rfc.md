@@ -5,7 +5,11 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-08-09 (LLP 0204 S5 Landing B implements user-owned durable
+**Revised:** 2026-08-10 (LLP 0204 S5 Landing C implements exact retained
+service-authority snapshots for pending effects and re-resolves credential,
+generation, grant, token, effective user, expiry, and integration status at
+approval time.)
+2026-08-09 (LLP 0204 S5 Landing B implements user-owned durable
 watch anchors with credential-free `revalidatePrincipal` authority, a
 365-day finite lifetime, and immediate death on principal/basis/function
 revocation. Integration-owned `capturedGrant` issuance remains commissioned.)
@@ -2574,6 +2578,26 @@ or extend authority. The integration-owned `capturedGrant` arm is refused with
 the immutable per-watch `watchAnchor` grant issuance path exist. That deferral
 does not weaken this section's exact-watch, exact-function, fresh-consent, or
 instant-revocation requirements.
+
+### Pending-effect authority snapshots
+
+**Implementation checkpoint (S5 Landing C, 2026-08-10).** LLP 0204 D9.5's
+pending-effect record freezes the original service caller's actor,
+credential id and generation, grant id, token id and deadline, and optional
+effective user. Approval does not turn the approving user into the executing
+principal. Immediately before the effect decision, the protected catalog
+re-resolves that exact tuple and rechecks current credential generation,
+credential/principal activity, grant status and expiry, scoped-token status
+and expiry, effective-user equality, scope bases, and integration suspension.
+A rotated/revoked/suspended or otherwise stale tuple refuses the effect and
+appends the coded terminal transition; it never falls back to the approver's
+authority or mints a replacement token.
+
+Non-link effects use dynamic local approver policy: the session user must
+currently be allowed to invoke the underlying function. Link-originated
+effects are the OQ9 exception and bind the minter principal as the sole
+approver while still revalidating the live minter/link lineage. These records
+are consent intents, not grants, tokens, or new authority carriers.
 
 ### Suspension is not revocation
 

@@ -14,8 +14,9 @@ use std::sync::OnceLock;
 pub use crate::contract_types::{
     AgentsManifest, AgentsMode, ApiAskBilling, ApiAskBudgets, ApiAskManifest, ApiAskModelManifest,
     ApiAskPerPrincipalDayBudget, ApiAskPerRequestBudget, ApiAskResultVolumeBudget,
-    ApiAskTokenBudget, ApiBudgetsManifest, ApiDisclosure, ApiFunctionExposure, ApiManifest,
-    ApiOAuthBundle, ApiOAuthManifest, AppIdentity, AuthManifest, AuthMode, AuthRequirement,
+    ApiAskTokenBudget, ApiBudgetsManifest, ApiDisclosure, ApiFunctionApproval,
+    ApiFunctionExposure, ApiManifest, ApiOAuthBundle, ApiOAuthManifest, AppIdentity, AuthManifest,
+    AuthMode, AuthRequirement,
     BoundedParentVisibility, BoundedProjectionField, DependencySummary, EffectCeiling,
     EffectCeilingRead, EffectCeilingWrite, FieldManifest, FieldType, FunctionArgsContract,
     FunctionKind, FunctionResultContract, IbexModule, IndexManifest, InvitedBy, JoinEquality,
@@ -607,6 +608,31 @@ impl SchemaManifest {
                 "api",
                 format!("api.functions names unknown function {name}"),
             ));
+        }
+        for (name, exposure) in &api.functions {
+            if exposure.approval.is_some() && !exposure.expose {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE",
+                    "api",
+                    format!(
+                        "api.functions.{name}.approval requires expose: true so the gated effect has an externally named surface"
+                    ),
+                ));
+            }
+            if exposure.approval.is_some()
+                && functions.functions.iter().any(|function| {
+                    function.name == *name
+                        && matches!(function.kind, FunctionKind::Query | FunctionKind::LiveQuery)
+                })
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_API_APPROVAL_QUERY_INVALID",
+                    "api",
+                    format!(
+                        "api.functions.{name}.approval is valid only for mutations and actions"
+                    ),
+                ));
+            }
         }
         if let Some(oauth) = &api.oauth {
             for (bundle_name, bundle) in &oauth.bundles {
@@ -10355,13 +10381,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:8f0ef3164bbad817e9b70de3da3b5dbe5ca0c39824a0b93e716fb1df5079c9c8";
+    "sha256:51cf891c1beba7de933d06b098c08c9c01518a9357abd1910e702b86a5947e42";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:02fa333fa3dacb73eb142859ece93652cfb29116774fcd53871d08f091ec13f0";
+    "sha256:7e198690715515e52f0176a315107a4dd920a367fd2bda693635f5159dcc55cd";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -10801,17 +10827,17 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:61829b8e5bf5e075f3c1dc4ac117dcb1b028e83d474815f575864c57ee4d7d2d"
+                    "sha256:08f4254932bb132f38f5724b16ca2496ba2e242babb1345e456a176eb83f9bb0"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth.rs".to_owned(),
-                    "sha256:a8e14ef001f6cfe12750d43d0fe15ab733675c5e20960ffbaeca5a803cd54fea"
+                    "sha256:62db9dbaa684e1a751a4a8a8714c9d58e5f72cd2831f994f6bcf7b0b1ed8745c"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth_agent_credentials.rs".to_owned(),
-                    "sha256:a1a9e442245d47595d56d3a5de34540a8fb598d9d09f9a138919d78c6be3f649"
+                    "sha256:1cdbdf5c1eafe12c686659701ca3a9aafb86d33ede1be76b97509349b337dd4d"
                         .to_owned(),
                 ),
                 (
@@ -10836,7 +10862,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:3fcaa061c3d66ce0bbfb2cda821b871c2ed9091d4b58df6d19997a44e3ed1a9c"
+                    "sha256:19f27e7b53b9aa6011072f49ec323d7a8913168b28b016d1e591e4f13ceba2a2"
                         .to_owned(),
                 ),
                 (
@@ -10918,7 +10944,7 @@ fn local_relation_activity_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:7b4508b46e18d076844c75a47400f5ad522c179227b8b8e3e1f1fbc4085d1356"
+                "sha256:b919225f8e29baf665bffa85f54a02f8170373db06cd221521c8966888ce1f17"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -11009,17 +11035,17 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:61829b8e5bf5e075f3c1dc4ac117dcb1b028e83d474815f575864c57ee4d7d2d"
+                    "sha256:08f4254932bb132f38f5724b16ca2496ba2e242babb1345e456a176eb83f9bb0"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth.rs".to_owned(),
-                    "sha256:a8e14ef001f6cfe12750d43d0fe15ab733675c5e20960ffbaeca5a803cd54fea"
+                    "sha256:62db9dbaa684e1a751a4a8a8714c9d58e5f72cd2831f994f6bcf7b0b1ed8745c"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth_agent_credentials.rs".to_owned(),
-                    "sha256:a1a9e442245d47595d56d3a5de34540a8fb598d9d09f9a138919d78c6be3f649"
+                    "sha256:1cdbdf5c1eafe12c686659701ca3a9aafb86d33ede1be76b97509349b337dd4d"
                         .to_owned(),
                 ),
                 (
@@ -11044,7 +11070,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:3fcaa061c3d66ce0bbfb2cda821b871c2ed9091d4b58df6d19997a44e3ed1a9c"
+                    "sha256:19f27e7b53b9aa6011072f49ec323d7a8913168b28b016d1e591e4f13ceba2a2"
                         .to_owned(),
                 ),
                 (
@@ -11126,7 +11152,7 @@ fn local_sequence_allocation_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:7b4508b46e18d076844c75a47400f5ad522c179227b8b8e3e1f1fbc4085d1356"
+                "sha256:b919225f8e29baf665bffa85f54a02f8170373db06cd221521c8966888ce1f17"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -11298,17 +11324,17 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:61829b8e5bf5e075f3c1dc4ac117dcb1b028e83d474815f575864c57ee4d7d2d"
+                    "sha256:08f4254932bb132f38f5724b16ca2496ba2e242babb1345e456a176eb83f9bb0"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth.rs".to_owned(),
-                    "sha256:a8e14ef001f6cfe12750d43d0fe15ab733675c5e20960ffbaeca5a803cd54fea"
+                    "sha256:62db9dbaa684e1a751a4a8a8714c9d58e5f72cd2831f994f6bcf7b0b1ed8745c"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth_agent_credentials.rs".to_owned(),
-                    "sha256:a1a9e442245d47595d56d3a5de34540a8fb598d9d09f9a138919d78c6be3f649"
+                    "sha256:1cdbdf5c1eafe12c686659701ca3a9aafb86d33ede1be76b97509349b337dd4d"
                         .to_owned(),
                 ),
                 (
@@ -11333,7 +11359,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:3fcaa061c3d66ce0bbfb2cda821b871c2ed9091d4b58df6d19997a44e3ed1a9c"
+                    "sha256:19f27e7b53b9aa6011072f49ec323d7a8913168b28b016d1e591e4f13ceba2a2"
                         .to_owned(),
                 ),
                 (
@@ -11415,7 +11441,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:3abc0c8d2a83126629edbaff8acbc95804d8054f35c5192bf1ac37a952c35e8c"
+                "sha256:496c9520f9ac32a018000e49e8934c3ae910c5be340ed2d5b4eb6d97d2b4ad5f"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -13803,6 +13829,72 @@ impl CapabilityManifest {
             .into_iter()
             .filter_map(|capability| capability.parse::<TargetCapabilityId>().ok())
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod approval_manifest_tests {
+    use super::*;
+
+    fn exposure(approval: ApiFunctionApproval, expose: bool) -> ApiFunctionExposure {
+        ApiFunctionExposure {
+            expose,
+            since: None,
+            approval: Some(approval),
+        }
+    }
+
+    fn function(name: &str, kind: FunctionKind, exposure: ApiFunctionExposure) -> FunctionDefinition {
+        let mut function = FunctionDefinition::new(
+            name,
+            kind,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: Vec::new(),
+                return_value: None,
+            })),
+        );
+        function.api_exposure = Some(exposure);
+        function
+    }
+
+    fn schema(name: &str, exposure: ApiFunctionExposure) -> SchemaManifest {
+        SchemaManifest {
+            api: Some(ApiManifest {
+                enabled: true,
+                functions: BTreeMap::from([(name.to_owned(), exposure)]),
+                ..ApiManifest::default()
+            }),
+            ..SchemaManifest::default()
+        }
+    }
+
+    #[test]
+    fn approval_requires_exposed_mutation_or_action_in_rust_activation() {
+        let hidden = exposure(ApiFunctionApproval::Required, false);
+        let error = schema("write", hidden.clone())
+            .validate_api_against_functions(&FunctionManifest {
+                functions: vec![function("write", FunctionKind::Mutation, hidden)],
+                ..FunctionManifest::default()
+            })
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE");
+
+        let query = exposure(ApiFunctionApproval::External, true);
+        let error = schema("read", query.clone())
+            .validate_api_against_functions(&FunctionManifest {
+                functions: vec![function("read", FunctionKind::Query, query)],
+                ..FunctionManifest::default()
+            })
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_API_APPROVAL_QUERY_INVALID");
+
+        let mutation = exposure(ApiFunctionApproval::External, true);
+        schema("write", mutation.clone())
+            .validate_api_against_functions(&FunctionManifest {
+                functions: vec![function("write", FunctionKind::Mutation, mutation)],
+                ..FunctionManifest::default()
+            })
+            .expect("an exposed mutation accepts the external approval posture");
     }
 }
 

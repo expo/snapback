@@ -4,7 +4,7 @@ id: backend.external-api
 order: 19
 audience: agent-first
 capabilities: [api.external-exposure]
-authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/api_envelope.rs, src/ask.rs, src/server.rs, src/server/oauth.rs, src/storage/ask_spend.rs, src/storage/auth_integrations.rs, src/storage/auth_agent_credentials.rs, src/auth/invocation.rs, src/telemetry.rs, src/telemetry_query.rs]
+authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/api_envelope.rs, src/ask.rs, src/server.rs, src/server/effects.rs, src/server/oauth.rs, src/storage/ask_spend.rs, src/storage/pending_effects.rs, src/storage/capability_links.rs, src/storage/auth_integrations.rs, src/storage/auth_agent_credentials.rs, src/auth/invocation.rs, src/telemetry.rs, src/telemetry_query.rs]
 examples: [packages/snapback-codegen/auth-artifacts.test.mjs]
 status: current
 targets: [local]
@@ -17,7 +17,8 @@ reviewed-commit: 339e9fed3500daece2ad90de0d21018e1b00a314
 
 > **Local target only**, and deliberately partial: the exposure core,
 > `/api/v1` family, generated projections, integration records, and the OAuth
-> facade, remote MCP, and the read-only `ask` v1 budget ledger are shipped.
+> facade, remote MCP, the read-only `ask` v1 budget ledger, capability links,
+> durable user watches, and approval-gated effects are shipped.
 > General billing-grade metering remains incomplete. Loss-tolerant per-caller telemetry attribution and console visibility
 > are shipped, but are not a non-shedding usage ledger. Hosted targets refuse the facade and granted external lanes until the LLP 0039
 > deployment-security contract lands.
@@ -46,6 +47,9 @@ it means no new credentialed onboarding):
   function names in `api.functions` are authoring and activation errors.
 - `since` is an optional additive-only stamp (no deprecation machinery
   exists yet; that waits for the first real deprecation).
+- `approval` is optional and valid only on an exposed mutation or action.
+  `'required'` gates every caller; `'external'` keeps direct first-party
+  sessions immediate while external/service/link callers require approval.
 - `api.budgets.ask` is accepted independently and becomes enforcement
   authority only when `api.ask.enabled` is true. An enabled ask declaration
   without every required budget line is refused at generation and activation.
@@ -71,6 +75,47 @@ indistinguishable from a first-party anonymous caller, so `expose: false`
 removes advertisement, projections, and credentialed callability — it
 cannot remove bare-route anonymous reachability while the function's own
 auth admits anonymous callers.
+
+## Approval-gated effects
+
+Declare the gate beside exposure:
+
+```js fragment reason="approval policy excerpt; function names are app-specific"
+api: {
+  enabled: true,
+  functions: {
+    createTodo: { expose: true, approval: 'external' },
+    deleteTodo: { expose: true, approval: 'required' },
+  },
+}
+```
+
+An approval-gated mutation/action does not execute on initial admission. Bare
+HTTP, `/api/v1`, remote MCP, and capability-link invocation all return the same
+`SNAPBACK_EFFECT_APPROVAL_PENDING` result with HTTP-style status 202, a `pfx_`
+effect id, `/effects/{id}/approve` pointer, expiry, and prospective-effect
+preview. V1 previews are always `kind: 'disclosed'`: they contain the canonical
+args digest and the function's declared write set. They are not dry-run output
+and must not be presented as verified simulation.
+
+Signed-in app users see currently approvable intents at `GET /effects` and
+decide them with `POST /effects/{id}/approve` or `/deny`. Non-link effects use
+the app's current function policy to resolve approvers. A link-originated
+effect is visible and approvable only by the link minter. An
+`authorityCreating` function additionally requires the ordinary operation-
+bound step-up proof in the approval body.
+
+Approval rechecks expiry, current generation, function identity and kind,
+exposure and gate, args binding, the original caller's current authority, the
+approver's current function policy, and link/minter lineage where present.
+Only then does the normal mutation/action path execute under the original
+caller attribution with a separate approver fact. Denial, expiry, stale
+binding, and execution outcome settle into the bounded effect journal.
+
+Mutating capability links may have more than one use when the target function
+is approval-gated or the mint request sets `approval: true`; each possessor use
+creates a separate minter-approved effect. Generic dry-run previews, proactive
+expiry sweeping, and granted-function links are not shipped in v1.
 
 ## The `/api/v1` family
 

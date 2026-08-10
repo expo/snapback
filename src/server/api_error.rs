@@ -99,6 +99,20 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
     //   the SNAPBACK_BUNDLE_* HTTP status mapping (codes authoritative,
     //   statuses advisory).
     match code {
+        // @ref LLP 0204#d95--approval-gated-effects — pending is an accepted
+        // durable intent; management, expiry, stale binding, and protected
+        // catalog failures retain distinct retry families.
+        "SNAPBACK_EFFECT_APPROVAL_PENDING" => StatusCode::ACCEPTED,
+        "SNAPBACK_EFFECT_INPUT_INVALID"
+        | "SNAPBACK_API_APPROVAL_QUERY_INVALID"
+        | "SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_EFFECT_APPROVAL_DENIED" => StatusCode::FORBIDDEN,
+        "SNAPBACK_EFFECT_NOT_FOUND" => StatusCode::NOT_FOUND,
+        "SNAPBACK_EFFECT_BINDING_STALE" | "SNAPBACK_EFFECT_STATE_INVALID" => {
+            StatusCode::CONFLICT
+        }
+        "SNAPBACK_EFFECT_EXPIRED" => StatusCode::GONE,
+        "SNAPBACK_EFFECT_CATALOG_CORRUPT" => StatusCode::INTERNAL_SERVER_ERROR,
         // @ref LLP 0204#d93--durable-watches-end-user-automations — management input/ownership,
         // lifecycle, quota, deferred integration, and catalog failures keep
         // distinct retry postures. Internal job/catalog corruption stays 5xx.

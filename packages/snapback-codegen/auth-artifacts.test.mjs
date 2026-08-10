@@ -305,6 +305,63 @@ export default defineSchema({ ${tables} }, {
   );
 }
 
+// @ref LLP 0204#d95--approval-gated-effects — approval is a closed compiled
+// exposure fact; it requires exposure and may name only mutations/actions.
+{
+  const approvalSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: {
+    enabled: true,
+    functions: { createTodo: { expose: true, approval: 'external' } },
+  },
+});
+`;
+  const dir = backend(approvalSchema, ordinaryFunctions);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const functions = readJson(join(dir, 'generated', 'functions.manifest.json')).functions;
+  assert.deepEqual(functions.find(({ name }) => name === 'createTodo').apiExposure, {
+    expose: true,
+    approval: 'external',
+  });
+}
+
+for (const [exposure, code] of [
+  ["{ expose: false, approval: 'required' }", 'SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE'],
+  ["{ expose: true, approval: 'sometimes' }", 'CODEGEN_MODULE_EVALUATION_FAILED'],
+]) {
+  const schema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: { enabled: true, functions: { createTodo: ${exposure} } },
+});
+`;
+  const result = await generate(backend(schema, ordinaryFunctions));
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some((diagnostic) => diagnostic.code === code));
+}
+
+{
+  const queryApprovalSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ ${tables} }, {
+  auth: { mode: 'sessions', agents: { mode: 'disabled' } },
+  api: {
+    enabled: true,
+    functions: { listTodos: { expose: true, approval: 'required' } },
+  },
+});
+`;
+  const result = await generate(backend(queryApprovalSchema, ordinaryFunctions));
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some(
+    (diagnostic) => diagnostic.code === 'SNAPBACK_API_APPROVAL_QUERY_INVALID',
+  ));
+}
+
 {
   const unknownFunctionSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';

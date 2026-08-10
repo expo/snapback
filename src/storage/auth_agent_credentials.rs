@@ -1177,6 +1177,73 @@ impl LocalDatabase {
         self.retained_service_authority_is_live_readonly(authority, now_ms)
     }
 
+    /// Re-resolve a bearer-free pending-effect snapshot to the complete
+    /// current grant scopes and deadlines. Exact ids and generation are
+    /// predicates, so token rotation/revocation and grant changes fail closed.
+    pub(crate) fn resolve_retained_service_authority(
+        &mut self,
+        authority: RetainedServiceAuthority<'_>,
+        now_ms: u64,
+    ) -> SnapbackResult<ResolvedScopedToken> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        self.with_auth_transaction(|tx| {
+            require_agent_clock_on(tx, now_ms)?;
+            let generation = i64::try_from(authority.credential_generation)
+                .map_err(|_| agent_credential_state_corrupt())?;
+            let row = tx.query_row(
+                "SELECT t.id, g.id, g.actor_user_id, g.effective_user_id,
+                        t.credential_id, t.credential_generation, g.scopes,
+                        t.expires_at_ms, g.expires_at_ms
+                 FROM _auth_grant_tokens AS t
+                 JOIN _auth_grants AS g ON g.id = t.grant_id
+                 JOIN _auth_agent_credentials AS c ON c.id = t.credential_id
+                 JOIN _auth_users AS u ON u.id = g.actor_user_id
+                 WHERE t.id = ?1 AND t.grant_id = ?2 AND t.credential_id = ?3
+                   AND t.credential_generation = ?4 AND g.actor_user_id = ?5
+                   AND g.effective_user_id IS ?6
+                   AND t.revoked_at_ms IS NULL AND t.expires_at_ms > ?7
+                   AND g.revoked_at_ms IS NULL
+                   AND (g.expires_at_ms IS NULL OR g.expires_at_ms > ?7)
+                   AND c.revoked_at_ms IS NULL AND c.generation = ?4
+                   AND c.user_id = ?5 AND u.kind = 'agent'
+                   AND u.deactivated_at_ms IS NULL",
+                params![
+                    authority.token_id, authority.grant_id, authority.credential_id,
+                    generation, authority.actor_user_id, authority.effective_user_id,
+                    now_ms as i64,
+                ],
+                |row| Ok(StoredScopedToken {
+                    token_id: row.get(0)?, grant_id: row.get(1)?,
+                    actor_user_id: row.get(2)?, effective_user_id: row.get(3)?,
+                    credential_id: row.get(4)?, credential_generation: row.get(5)?,
+                    scopes_json: row.get(6)?, expires_at_ms: row.get(7)?,
+                    grant_expires_at_ms: row.get(8)?,
+                }),
+            ).optional()?;
+            let Some(row) = row else {
+                return Err(scoped_token_invalid(ScopedTokenAuthorityDisposition::Carrier));
+            };
+            let scopes = current_grant_scopes_on(tx, &row.scopes_json)?;
+            let integration_status = super::auth_integrations::record_for_principal_on(
+                tx, &row.actor_user_id,
+            )?.map(|record| record.status);
+            Ok(ResolvedScopedToken {
+                token_id: row.token_id,
+                grant_id: row.grant_id,
+                actor_user_id: row.actor_user_id,
+                effective_user_id: row.effective_user_id,
+                credential_id: row.credential_id,
+                credential_generation: row.credential_generation as u64,
+                scopes,
+                expires_at_ms: row.expires_at_ms as u64,
+                grant_expires_at_ms: row.grant_expires_at_ms
+                    .map(u64::try_from).transpose()
+                    .map_err(|_| agent_credential_state_corrupt())?,
+                integration_status,
+            })
+        })
+    }
+
     /// Exact read-only twin for an invocation that already owns the app lock.
     /// The resolving auth path advanced the durable clock floor; this seam
     /// avoids a second write transaction immediately before an app effect.

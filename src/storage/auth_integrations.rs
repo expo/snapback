@@ -1419,6 +1419,7 @@ mod tests {
             crate::contract_types::ApiFunctionExposure {
                 expose: true,
                 since: None,
+                approval: None,
             },
         );
         api.oauth = Some(crate::contract_types::ApiOAuthManifest {

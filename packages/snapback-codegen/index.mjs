@@ -1277,10 +1277,14 @@ function validateSchemaApiDefinition(schemaDef, authMode, err) {
   }
   for (const [name, exposure] of Object.entries(api.functions ?? {})) {
     if (!exposure || typeof exposure !== 'object' || Array.isArray(exposure)
-      || Object.keys(exposure).some((key) => !['expose', 'since'].includes(key))
+      || Object.keys(exposure).some((key) => !['expose', 'since', 'approval'].includes(key))
       || typeof exposure.expose !== 'boolean'
-      || (exposure.since !== undefined && typeof exposure.since !== 'string')) {
-      err('SNAPBACK_API_FUNCTION_EXPOSURE_INVALID', 'api', `api.functions.${name} must contain expose: boolean and optional since: string`, { function: name });
+      || (exposure.since !== undefined && typeof exposure.since !== 'string')
+      || (exposure.approval !== undefined
+        && exposure.approval !== 'required' && exposure.approval !== 'external')) {
+      err('SNAPBACK_API_FUNCTION_EXPOSURE_INVALID', 'api', `api.functions.${name} must contain expose: boolean, optional since: string, and optional approval: required | external`, { function: name });
+    } else if (exposure.approval !== undefined && exposure.expose !== true) {
+      err('SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE', 'api', `api.functions.${name}.approval requires expose: true`, { function: name });
     }
   }
   if (api.origins !== undefined) {
@@ -1404,6 +1408,9 @@ function compileApiExposure(api, functions, err, diagnostics) {
   for (const name of Object.keys(api.functions)) {
     if (!functionsByName.has(name)) {
       err('SNAPBACK_API_FUNCTION_UNKNOWN', 'api', `api.functions names unknown function ${name}`, { function: name });
+    } else if (api.functions[name].approval !== undefined
+      && (functionsByName.get(name).kind === 'Query' || functionsByName.get(name).kind === 'LiveQuery')) {
+      err('SNAPBACK_API_APPROVAL_QUERY_INVALID', 'api', `api.functions.${name}.approval is valid only for mutations and actions`, { function: name });
     }
   }
   for (const [bundleName, bundle] of Object.entries(api.oauth?.bundles ?? {})) {
@@ -1421,6 +1428,7 @@ function compileApiExposure(api, functions, err, diagnostics) {
     fn.apiExposure = {
       expose: exposure.expose,
       ...(exposure.since !== undefined ? { since: exposure.since } : {}),
+      ...(exposure.approval !== undefined ? { approval: exposure.approval } : {}),
     };
     const rows = fn.resultContract?.kind === 'records' ? fn.resultContract.rows : null;
     const hasContinuation = (fn.argsContract?.fields ?? []).some(

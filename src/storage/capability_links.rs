@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS _snapback_capability_links (
     CHECK(expires_at_ms BETWEEN 0 AND 9007199254740991),
   remaining_uses INTEGER
     CHECK(remaining_uses IS NULL OR remaining_uses BETWEEN 0 AND 9007199254740991),
+  approval_per_use INTEGER NOT NULL DEFAULT 0 CHECK(approval_per_use IN (0, 1)),
   status TEXT NOT NULL CHECK(status IN ('active', 'revoked')),
   created_at_ms INTEGER NOT NULL
     CHECK(created_at_ms BETWEEN 0 AND 9007199254740991),
@@ -107,6 +108,7 @@ pub(crate) struct CapabilityLinkRecord {
     pub caller_args: Vec<String>,
     pub expires_at_ms: u64,
     pub remaining_uses: Option<u64>,
+    pub approval_per_use: bool,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
     pub use_count: u64,
@@ -126,6 +128,7 @@ pub(crate) struct MintCapabilityLink {
     pub caller_args: Vec<String>,
     pub expires_at_ms: u64,
     pub remaining_uses: Option<u64>,
+    pub approval_per_use: bool,
     pub now_ms: u64,
 }
 
@@ -155,9 +158,41 @@ pub(crate) fn activate_manifest_in(
         return Ok(());
     }
     tx.execute_batch(TABLE_SQL)?;
+    if !table_has_column(tx, "approval_per_use")? {
+        tx.execute_batch(
+            "DROP INDEX IF EXISTS _snapback_capability_links_minter;
+             DROP INDEX IF EXISTS _snapback_capability_links_expiry;
+             ALTER TABLE _snapback_capability_links RENAME TO _snapback_capability_links_previous;",
+        )?;
+        tx.execute_batch(TABLE_SQL)?;
+        tx.execute_batch(
+            "INSERT INTO _snapback_capability_links(
+               id, token_lookup, token_hash, minter_principal_id,
+               minter_session_id, minter_authority_instance_id, function_id,
+               function_name, function_kind, pinned_args_json, caller_args_json,
+               expires_at_ms, remaining_uses, approval_per_use, status,
+               created_at_ms, updated_at_ms, use_count, last_used_at_ms,
+               last_outcome)
+             SELECT id, token_lookup, token_hash, minter_principal_id,
+               minter_session_id, minter_authority_instance_id, function_id,
+               function_name, function_kind, pinned_args_json, caller_args_json,
+               expires_at_ms, remaining_uses, 0, status, created_at_ms,
+               updated_at_ms, use_count, last_used_at_ms, last_outcome
+             FROM _snapback_capability_links_previous;
+             DROP TABLE _snapback_capability_links_previous;",
+        )?;
+    }
     tx.execute_batch(MINTER_INDEX_SQL)?;
     tx.execute_batch(EXPIRY_INDEX_SQL)?;
     validate_exact_schema(tx)
+}
+
+fn table_has_column(conn: &Connection, column: &str) -> SnapbackResult<bool> {
+    let mut statement = conn.prepare("PRAGMA table_info(_snapback_capability_links)")?;
+    let names = statement
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(names.iter().any(|name| name == column))
 }
 
 pub(super) fn validate_exact_schema(conn: &Connection) -> SnapbackResult<()> {
@@ -252,8 +287,8 @@ fn row_for_id_on(conn: &Connection, id: &str) -> SnapbackResult<Option<Capabilit
         "SELECT id, minter_principal_id, minter_session_id,
                 minter_authority_instance_id, function_id, function_name,
                 function_kind, pinned_args_json, caller_args_json,
-                expires_at_ms, remaining_uses, created_at_ms, updated_at_ms,
-                use_count, last_used_at_ms, last_outcome
+                expires_at_ms, remaining_uses, approval_per_use, created_at_ms,
+                updated_at_ms, use_count, last_used_at_ms, last_outcome
          FROM _snapback_capability_links WHERE id = ?1",
         params![id],
         |row| {
@@ -269,11 +304,12 @@ fn row_for_id_on(conn: &Connection, id: &str) -> SnapbackResult<Option<Capabilit
                 row.get::<_, String>(8)?,
                 row.get::<_, i64>(9)? as u64,
                 row.get::<_, Option<i64>>(10)?.map(|value| value as u64),
-                row.get::<_, i64>(11)? as u64,
+                row.get::<_, i64>(11)? != 0,
                 row.get::<_, i64>(12)? as u64,
                 row.get::<_, i64>(13)? as u64,
-                row.get::<_, Option<i64>>(14)?.map(|value| value as u64),
-                row.get::<_, Option<String>>(15)?,
+                row.get::<_, i64>(14)? as u64,
+                row.get::<_, Option<i64>>(15)?.map(|value| value as u64),
+                row.get::<_, Option<String>>(16)?,
             ))
         },
     )
@@ -293,11 +329,12 @@ fn row_for_id_on(conn: &Connection, id: &str) -> SnapbackResult<Option<Capabilit
             caller_args,
             expires_at_ms: row.9,
             remaining_uses: row.10,
-            created_at_ms: row.11,
-            updated_at_ms: row.12,
-            use_count: row.13,
-            last_used_at_ms: row.14,
-            last_outcome: row.15,
+            approval_per_use: row.11,
+            created_at_ms: row.12,
+            updated_at_ms: row.13,
+            use_count: row.14,
+            last_used_at_ms: row.15,
+            last_outcome: row.16,
         })
     })
     .transpose()
@@ -382,9 +419,9 @@ impl LocalDatabase {
                    minter_session_id, minter_authority_instance_id,
                    function_id, function_name, function_kind, pinned_args_json,
                    caller_args_json, expires_at_ms, remaining_uses, status,
-                   created_at_ms, updated_at_ms, use_count
+                   approval_per_use, created_at_ms, updated_at_ms, use_count
                  ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11,
-                          ?12, ?13, 'active', ?14, ?14, 0)",
+                          ?12, ?13, 'active', ?14, ?15, ?15, 0)",
                 params![
                     id,
                     token_lookup,
@@ -399,7 +436,7 @@ impl LocalDatabase {
                     caller_args_json,
                     request.expires_at_ms as i64,
                     request.remaining_uses.map(|value| value as i64),
-                    request.now_ms as i64,
+                    i64::from(request.approval_per_use), request.now_ms as i64,
                 ],
             )?;
             Ok(())
@@ -421,6 +458,28 @@ impl LocalDatabase {
             return Err(unavailable());
         }
         resolve_on(&self.conn, token, now_ms)
+    }
+
+    /// Revalidate a link-originated approval against the live minter lineage.
+    /// Exhaustion is intentionally irrelevant here: the invocation consumed
+    /// its use before creating the pending effect.
+    pub(crate) fn capability_link_effect_origin(
+        &self,
+        id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<CapabilityLinkRecord> {
+        let live: Option<()> = self.conn.query_row(
+            "SELECT 1 FROM _snapback_capability_links AS l
+             JOIN _auth_users AS u ON u.id = l.minter_principal_id
+             WHERE l.id = ?1 AND l.status = 'active' AND l.expires_at_ms > ?2
+               AND u.kind = 'human' AND u.deactivated_at_ms IS NULL",
+            params![id, now_ms as i64],
+            |_| Ok(()),
+        ).optional()?;
+        if live.is_none() {
+            return Err(unavailable());
+        }
+        row_for_id_on(&self.conn, id)?.ok_or_else(catalog_corrupt)
     }
 
     /// Atomically consume one use. The principal-validity and revocation
@@ -582,6 +641,7 @@ mod tests {
             caller_args: vec!["caller".to_owned()],
             expires_at_ms,
             remaining_uses: uses,
+            approval_per_use: false,
             now_ms: 10,
         })
         .expect("mint capability link")

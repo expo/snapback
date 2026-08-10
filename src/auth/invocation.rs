@@ -859,6 +859,11 @@ pub enum InvocationSource {
     /// Session-only capability-link mint/revoke management. This is an
     /// authority-only scoped-grant operation, never a function runner.
     CapabilityLinkManagement,
+    /// Session-only inbox, approve, and deny operations for durable effects.
+    EffectManagement,
+    /// The ordinary mutation/action path after one approved intent has been
+    /// revalidated. This source suppresses recursive approval creation only.
+    EffectExecution,
     /// Session-only lifecycle management for durable watches.
     WatchManagement,
     /// One credential-free standing query evaluation after principal and
@@ -932,7 +937,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 44] = [
+    pub const ALL: [Self; 46] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -946,6 +951,8 @@ impl InvocationSource {
         Self::HttpMcp,
         Self::HttpCapabilityLink,
         Self::CapabilityLinkManagement,
+        Self::EffectManagement,
+        Self::EffectExecution,
         Self::WatchManagement,
         Self::WatchEvaluation,
         Self::WatchReaction,
@@ -1002,6 +1009,7 @@ impl InvocationSource {
             | Self::HostOperationFunctionRun
             | Self::BranchOperation
             | Self::WatchReaction => InvocationTarget::Function(FunctionKindConstraint::Any),
+            Self::EffectExecution => InvocationTarget::Function(FunctionKindConstraint::Any),
             Self::BootstrapHandshake
             | Self::AuthRefresh
             | Self::AuthLogout
@@ -1010,6 +1018,7 @@ impl InvocationSource {
             | Self::HttpRun
             | Self::HttpAsk
             | Self::CapabilityLinkManagement
+            | Self::EffectManagement
             | Self::WatchManagement
             | Self::ProtectedRecordErasure
             | Self::OperationCoverageActivation
@@ -2056,6 +2065,7 @@ fn source_allows_authority(
         | InvocationSource::AuthLogout
         | InvocationSource::AgentGrantManagement
         | InvocationSource::CapabilityLinkManagement
+        | InvocationSource::EffectManagement
         | InvocationSource::WatchManagement
         | InvocationSource::PushTokenRegistry => {
             mode == AuthMode::Sessions && matches!(resolved, ResolvedAppAuthority::Session { .. })
@@ -2072,6 +2082,11 @@ fn source_allows_authority(
         }
         InvocationSource::HttpCapabilityLink => {
             matches!(resolved, ResolvedAppAuthority::Anonymous)
+        }
+        InvocationSource::EffectExecution => {
+            ordinary
+                || (mode == AuthMode::Sessions
+                    && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. }))
         }
         InvocationSource::WatchEvaluation | InvocationSource::WatchReaction => {
             mode == AuthMode::Sessions
@@ -2745,6 +2760,7 @@ mod tests {
         exposed_query.api_exposure = Some(crate::manifest::ApiFunctionExposure {
             expose: true,
             since: None,
+            approval: None,
         });
         let mut closed_query = exposed_query.clone();
         closed_query.name = "closedQuery".to_owned();
@@ -2762,6 +2778,7 @@ mod tests {
         exposed_mutation.api_exposure = Some(crate::manifest::ApiFunctionExposure {
             expose: true,
             since: None,
+            approval: None,
         });
         let mut closed_mutation = exposed_mutation.clone();
         closed_mutation.name = "closedMutation".to_owned();
@@ -2964,6 +2981,7 @@ mod tests {
                 | InvocationSource::AuthLogout
                 | InvocationSource::AgentGrantManagement
                 | InvocationSource::CapabilityLinkManagement
+                | InvocationSource::EffectManagement
                 | InvocationSource::WatchManagement
                 | InvocationSource::PushTokenRegistry => {
                     mode == AuthMode::Sessions && matches!(kind, Kind::Session)
@@ -2974,6 +2992,9 @@ mod tests {
                 | InvocationSource::HttpRun
                 | InvocationSource::HttpAsk
                 | InvocationSource::HttpMcp => {
+                    ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
+                }
+                InvocationSource::EffectExecution => {
                     ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
                 }
                 InvocationSource::HttpCapabilityLink => matches!(kind, Kind::Anonymous),

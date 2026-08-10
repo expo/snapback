@@ -77,6 +77,9 @@ pub enum Kind {
     /// One durable shareable capability-link record. The bearer secret has a
     /// separate credential spelling and is never stored in this identifier.
     CapabilityLink,
+    /// One durable approval-gated effect intent. The record is protected
+    /// storage; the id is the observable management handle.
+    PendingEffect,
     /// One durable standing-query watch. Creation time is ordinary owner
     /// operational metadata, so the body remains time ordered.
     Watch,
@@ -160,6 +163,9 @@ impl Kind {
             // @ref LLP 0204#d94--shareable-capability-links — the observable
             // link id is safe attribution; the raw URL token remains secret.
             Kind::CapabilityLink => ("cplk", TimeOrdered),
+            // @ref LLP 0204#d95--approval-gated-effects — pending-effect ids
+            // are ordinary time-ordered management handles, never bearers.
+            Kind::PendingEffect => ("pfx", TimeOrdered),
             // @ref LLP 0204#d93--durable-watches-end-user-automations — watch ids are observable
             // management handles; no standing authority is encoded in them.
             Kind::Watch => ("wtch", TimeOrdered),
@@ -228,6 +234,7 @@ pub const ALL: &[Kind] = &[
     Kind::Grant,
     Kind::Integration,
     Kind::CapabilityLink,
+    Kind::PendingEffect,
     Kind::Watch,
     Kind::Mutation,
     Kind::Connection,

@@ -864,9 +864,27 @@
       ],
       "type": "string"
     },
+    "ApiFunctionApproval": {
+      "description": "Approval posture for externally reachable durable effects.\n\n`required` gates every caller. `external` preserves direct first-party\nsession calls while gating service-principal, integration, and link lanes.",
+      "enum": [
+        "required",
+        "external"
+      ],
+      "type": "string"
+    },
     "ApiFunctionExposure": {
       "additionalProperties": false,
       "properties": {
+        "approval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApiFunctionApproval"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "expose": {
           "default": false,
           "type": "boolean"
