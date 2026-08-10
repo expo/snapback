@@ -48,3 +48,8 @@ is endorsed wholesale — see the author ruling recorded in
 server-owned always, non-empty-table refusal in v1, `v.serial({ start })` as
 the working spelling). That ticket lands as this Decision's first
 schema-owner amendment.
+
+- **2026-08-10:** the coordinating Decision now exists as Draft —
+  `llp/0226-identity-architecture.decision.md` (namespaces, conversion rules
+  C-1–C-6, mint conformance M-1–M-5, the LLP 0135 fence clearance, the three
+  owner lanes, and the `v.serial({ start })` spelling ruling).

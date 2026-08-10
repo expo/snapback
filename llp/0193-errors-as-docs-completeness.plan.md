@@ -5,7 +5,11 @@
 **Systems:** Diagnostics, Error handling, Guide, Agent experience, CI
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-08 (implementation amendment: replaces the 200–500 intake estimate with the audit's measured ~2,418 production-code vocabulary and records the measurement method.) 2026-08-08 (Accepted by Charlie Cheever — author ruling in session; final review binding per llp/reviews/0193-*.run.md close-out: 0194 dual-READY at r8, the others accepted with the enumerated r9 tail.) 2026-08-08 (r9, round-7 fixes: the residue routing re-derived from diary 0069's record — run 5's refusal-reachable set is EMPTY (1/4 → 0196, 2/3/5 → 0194, 6 = guide-anchor gap, no refusal incident), replacing r8's unverified 1/4/6 enumeration; D7 terminology narrowed to the typed-remediation requirement vs OQ6's carrier.) 2026-08-08 (r8, round-6 fixes: ledger fields made orthogonal (representation / target kind / OQ6 mechanism); candidate-vs-published closure validation so unreleased diagnostics stay landable; exit criterion 5 requires downgrade+refix+retest for ineffective A-grades, bounded to the first post-ratchet run; carrier trigger = OQ6 carrier SHIPS; three-of-six residues enumerated.) 2026-08-08 (r7, author-merge: Charlie's reconciliation —
+**Revised:** 2026-08-10 (amendment: accepts ownership of the `snapback
+feedback` verb per the 2026-08-10 author ruling on
+`issues/20260809-snapback-feedback-verb-proposal.md` — design added as a
+dated amendment under Phase 4; explicit invocation only, the
+0207-rejected telemetry stays rejected.) 2026-08-08 (implementation amendment: replaces the 200–500 intake estimate with the audit's measured ~2,418 production-code vocabulary and records the measurement method.) 2026-08-08 (Accepted by Charlie Cheever — author ruling in session; final review binding per llp/reviews/0193-*.run.md close-out: 0194 dual-READY at r8, the others accepted with the enumerated r9 tail.) 2026-08-08 (r9, round-7 fixes: the residue routing re-derived from diary 0069's record — run 5's refusal-reachable set is EMPTY (1/4 → 0196, 2/3/5 → 0194, 6 = guide-anchor gap, no refusal incident), replacing r8's unverified 1/4/6 enumeration; D7 terminology narrowed to the typed-remediation requirement vs OQ6's carrier.) 2026-08-08 (r8, round-6 fixes: ledger fields made orthogonal (representation / target kind / OQ6 mechanism); candidate-vs-published closure validation so unreleased diagnostics stay landable; exit criterion 5 requires downgrade+refix+retest for ineffective A-grades, bounded to the first post-ratchet run; carrier trigger = OQ6 carrier SHIPS; three-of-six residues enumerated.) 2026-08-08 (r7, author-merge: Charlie's reconciliation —
 the evidence claim narrowed to the refusal-reachable three-of-six subset
 with the rest routed to 0194/0196; the ledger grades resolution quality
 and closure binding (carrier/target/applicability/one-attempt witness
@@ -140,6 +144,128 @@ scanned literal identifiers in `src/**/*.rs` (1,248 distinct) and
 then deduplicated the two sets to a 2,418-identifier union. This measurement is
 the sizing input for Phase 1; grading still distinguishes actual diagnostics
 from environment names, protocol constants, and other non-emitting vocabulary.
+
+### Dated amendment — 2026-08-10: the `snapback feedback` verb (Phase 4 intake)
+
+Accepted in principle by author ruling 2026-08-10 on
+`issues/20260809-snapback-feedback-verb-proposal.md` (origin: the LLP
+0207 dissolution). This Plan owns the verb because Phase 4's grading
+loop is its consumer: the npm-consumer population is invisible to the
+loop today (LLP 0202 theme 5's surface inventory shows no feedback
+affordance), so refusal grading runs on internal benchmark evidence
+only. The ruling's fences bind this design: **explicit invocation only,
+no ambient collection** — the opt-in `SNAPBACK_*` frequency telemetry
+killed in the 0207 review
+(`llp/reviews/0207-agent-efficiency-round-two.gpt-5.md`, round 1
+concern 6) stays rejected, and nothing here reintroduces it. The verb
+never runs as a side effect of any other command, installs no hooks,
+counts nothing, and transmits nothing except during a deliberate
+`snapback feedback` invocation by the user or an agent acting on the
+user's visible intent (the expo-skill-feedback posture).
+
+**Verb surface.** `snapback feedback "<text>"` with optional
+`--category "<category>"` and `--subject "<subject>"` — a single
+non-interactive command, mirroring the expo-skill-feedback shape
+(`npx --yes submit-expo-feedback@latest "TEXT" --category ... --subject
+...`). It works from any installed closure — the npm-distributed CLI,
+not just a checkout — and never prompts: every path through it is a
+print-and-exit or a send-and-exit.
+
+**What gets sent — exhaustive.** The payload contains exactly:
+
+1. the free-text message, and the `--category` / `--subject` values if
+   given;
+2. the CLI version and the installed closure/package version
+   identifiers as the installed distribution itself reports them
+   (the `snapback --version` surface);
+3. the platform triple (e.g. `aarch64-apple-darwin`);
+4. a payload schema-version field, a client-generated random report id
+   (not derived from any machine or user identifier), and a send
+   timestamp.
+
+Nothing else, and everything not listed is excluded by construction:
+no source code, no file paths, no working directory, no environment
+variables, no project/app/schema names or contents, no error
+transcripts (unless the user pastes text into the message themselves),
+no usage counts or command history, no hostname, username, machine id,
+or persistent client identifier, and no ambient usage data of any
+kind. The receiving endpoint must not persist transport metadata
+(client IP) with the report.
+
+**Consent copy and acknowledgment.** On first use the verb sends
+nothing: it prints the consent copy plus the exact composed payload
+and exits 0, instructing a re-run with `--consent`. Proposed copy:
+
+> `snapback feedback` sends exactly: your message (with any
+> `--category`/`--subject`), your Snapback CLI and package versions,
+> and your platform (e.g. `aarch64-apple-darwin`). Nothing else — no
+> code, paths, environment, project data, or usage data — and nothing
+> is ever sent except when you run this command. Reports go to the
+> Snapback maintainers and are deleted after 12 months. Re-run with
+> `--consent` to acknowledge and send; later invocations will send
+> without this notice.
+
+`--consent` records the acknowledgment as
+`~/.snapback/feedback-consent.json` (consent-copy version +
+timestamp); subsequent invocations send directly. If the config
+directory is unwritable, `--consent` sends without persisting and the
+notice repeats next time. A material change to the payload or copy
+bumps the consent-copy version and re-triggers the notice.
+
+**Endpoint ownership.** Primary: `POST
+https://snapback.expo.app/api/feedback`, an Expo Router API route on
+the existing EAS Hosting project (`@ccheever/snapback`) that already
+serves the docs site (`website/`, LLP 0041/0195 pipeline) — the one
+hosted surface this repo owns and redeploys on every closure
+publication. This requires flipping `website/app.json` from
+`web.output: "static"` to `"server"` (EAS Hosting runs API routes on
+its Workers runtime); the route validates the schema and forwards the
+report to Linear (Exact project, `snapback-feedback` label) via an API
+token held as an EAS Hosting environment secret. Stated fallback: if
+the static→server flip is judged too coupled to the docs site, a
+dedicated minimal Worker under the repo's existing `cloudflare/`
+deploy tooling serves the same route at a dedicated hostname, same
+schema, same Linear forward. The CLI reads the endpoint URL from its
+build, not the environment.
+
+**Retention and read access.** Reports are retained **12 months** from
+receipt, then deleted; what survives past deletion is only what a
+Phase 4 audit has already distilled into graded-ledger entries,
+tickets, or LLP amendments (which carry no more than the report's
+substance). Readable by Snapback maintainers only — the Linear
+workspace (Charlie plus agents operating with his credentials); never
+public, never republished raw.
+
+**Feeding Phase 4.** The standing post-run grading audit gains a
+second standing input: each grading session sweeps `snapback-feedback`
+reports received since the previous sweep. A report that names or
+implies a `SNAPBACK_*` code is graded as a sighting against the
+ledger — a B/C sighting joins Phase 2's evidence-order queue ahead of
+un-sighted codes, and an A-grade code reported as still costing search
+or bisection triggers exit criterion 5's downgrade-and-refix rule. A
+report naming no code routes as naturalistic evidence to LLP 0186's
+failure-to-recovery trace amendment or to a guide-gap ticket. The
+report's version fields bind the sighting to a closure, exactly as
+ledger applicability requires. Reports are advisory audit input, never
+benchmark data: they never enter a metered window (LLP 0197's fairness
+rules are unaffected).
+
+**Failure behavior.** The verb must never block or break a workflow:
+one bounded network attempt (connect+send timeout on the order of 5
+seconds), no retries, no background work. On any failure — offline,
+DNS, non-2xx, timeout — it **drops** the report: it prints a one-line
+notice plus the composed payload so the user can retry or file
+manually, and exits 0. No queue: a queued report would be sent later
+as a side effect of some unrelated invocation, which is exactly the
+ambient-transmission behavior the fences prohibit. Only argument
+errors (empty text, unknown flag) exit non-zero.
+
+**Proposals for the author** (concrete answers proposed above; confirm
+or adjust): (1) the 12-month retention window; (2) the primary
+endpoint's static→server flip of the docs site versus going straight
+to the `cloudflare/` Worker fallback; (3) final wording sign-off on
+the consent copy. Everything else in this amendment is designed, not
+open.
 
 ## Exit criteria
 

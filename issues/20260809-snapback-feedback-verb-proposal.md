@@ -43,3 +43,9 @@ Accepted in principle — build it. Ownership assigned as proposed to LLP 0193
 only, no ambient collection (the rejected telemetry stays rejected); the
 owner designs endpoint ownership, retention, and consent copy before the
 verb ships. Nothing else blocks on this.
+
+**2026-08-10:** Amendment draft exists — LLP 0193 now carries the design
+as "Dated amendment — 2026-08-10: the `snapback feedback` verb (Phase 4
+intake)" (surface, exhaustive payload, consent copy, endpoint, retention,
+Phase 4 wiring, failure behavior; three short items flagged for author
+confirmation).

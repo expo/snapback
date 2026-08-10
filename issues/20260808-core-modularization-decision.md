@@ -102,3 +102,9 @@ the first slice, not after — see the companion ruling approving
 Decision's enforcement arm. Next action: author the Decision LLP recording
 the ownership map, dependency direction, transaction boundaries, and
 migration sequence.
+
+**2026-08-10:** Decision draft authored at
+`llp/0225-core-modularization.decision.md` (Status: Draft, awaiting author
+review); it consolidates LLP 0199 with the shipped ownership-manifest
+vocabulary, the unconditional pre-push gate, and the landed
+generation-activation first slice.
