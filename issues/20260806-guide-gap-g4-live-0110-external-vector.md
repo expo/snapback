@@ -207,6 +207,49 @@ The rerun and the 0.1.16 cut it consumes are claimed in
 [`20260809-g4-rerun-lane-plan.md`](./20260809-g4-rerun-lane-plan.md). Do not
 start either lane without editing that ticket first.
 
+## 0.1.16 rerun — 2026-08-09 — still open, and the blocker moved
+
+The fresh-quarry rerun against live 0.1.16 ran and **failed earlier than the
+0.1.11 rerun did**. Full receipts:
+[summary](../demos/expo-golden-path-fixture/receipts/20260809-g4-external-0116-summary.md),
+[iOS](../demos/expo-golden-path-fixture/receipts/20260809-g4-external-0116-ios-simulator.md),
+[Android](../demos/expo-golden-path-fixture/receipts/20260809-g4-external-0116-android-emulator.md),
+[closure/exports/EAS/diagnosis](../demos/expo-golden-path-fixture/receipts/20260809-g4-external-0116-closure-diagnosis.md).
+
+What this ticket's five unproved items did:
+
+| Unproved item | 0.1.16 result |
+| --- | --- |
+| Raw published Android supervisor reaching readiness with no adb wrapper | **Still unproved** — the run never reached the adb stage. The repair is confirmed only by inspecting published bytes against live `host-16 tcp:4287 tcp:4287` output. |
+| Noninteractive EAS linking on the bare package-root spelling | **CLOSED** — `eas init --non-interactive --force` created and linked `@ccheever/snapback-chat` with `"plugins": ["@expo/snapback-expo"]`. |
+| Byte-level strings scan of real `expo export` HBC output | **CLOSED on attribution** — `/_snapback/expo/v1/bootstrap`, `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`, and `10.0.2.2` all absent on both platforms; the single surviving `localhost` is present in an identical count in a Snapback-free control export. |
+| Cold retained relaunch with the backend paused | **Still unproved and untestable** — nothing booted. The dev-path/release-path scoping question is routed to LLP 0181's owner in [`20260809-g4-cold-boot-arm-dev-vs-release-path.md`](./20260809-g4-cold-boot-arm-dev-vs-release-path.md). |
+| Remeasured frozen OQ5 vector | **Measured to the blocker only** — `C/F/D = 50/0/2` about 5–7 minutes after `t0`; `m1` and `m2` not reached. |
+
+Every 0.1.11 **authoring** finding in this ticket's summary is now absorbed by
+the published `expo-chat` template: the missing complete install command, the
+sibling scaffold-and-copy ceremony, the broad TypeScript include, and the
+missing store registration all disappear. `npm create snapback-app` reaches a
+generated, type-checking Sessions chat app in 1 m 29 s with **zero** hand-edited
+files.
+
+The ticket stays open because a **new blocking packaging regression** replaced
+the old blockers: the published 0.1.16 runtime packages omit
+`bin/packaged-store-qualification.receipt.json`, so the public-package runtime
+cannot advertise `single_table_v1` and no generated app starts — the same
+`SNAPBACK_CAPABILITY_UNSUPPORTED` class of failure this ticket was originally
+opened for at 0.1.10. It is tracked in
+[`20260809-runtime-package-missing-store-qualification-receipt.md`](./20260809-runtime-package-missing-store-qualification-receipt.md),
+with two smaller consumer defects in
+[`20260809-guide-gap-npx-snapback-new-resolves-wrong-package.md`](./20260809-guide-gap-npx-snapback-new-resolves-wrong-package.md)
+and
+[`20260809-expo-chat-template-gitignore-restore-lock.md`](./20260809-expo-chat-template-gitignore-restore-lock.md).
+
+Close this ticket when a successor closure starts a generated app and the
+retained quarry
+(`~/snapback-release-ledgers/g4-external-0116-quarry-20260809.tar.gz`) reruns
+the ceremony to `m1` and `m2`.
+
 ## Acceptance
 
 - Publish one coherent package vector containing the `single_table_v1`

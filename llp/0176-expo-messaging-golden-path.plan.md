@@ -7,7 +7,18 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-09 (v) — A5 edit recovery resolved: managed sessions restart
+**Revised:** 2026-08-09 (w) — Recorded the G4 external rerun against live
+0.1.16 in a fresh quarry: FAIL, earlier than 0.1.11's. The published
+`@expo/snapback-runtime-*@0.1.16` packages omit
+`bin/packaged-store-qualification.receipt.json`, so the public-package runtime
+cannot advertise `single_table_v1` and no generated app starts
+(`m1`/`m2` not reached; blocker at `C/F/D = 50/0/2`). Two arms nevertheless
+closed for the first time: the byte-level release-HBC scan finds Snapback's
+supervised-development vocabulary absent, and noninteractive `eas init`
+accepts the bare package-root plugin spelling. Simulator/emulator evidence
+remains explicitly NOT an LLP 0064 claim, and this rerun produced no device
+evidence and started no paid EAS build.
+2026-08-09 (v) — A5 edit recovery resolved: managed sessions restart
 now activates a complete valid cold successor through LLP 0058's explicit
 pre-bind mechanism, reports from/to identities, preserves application rows for
 the comment-only mechanical case, and keeps invalid successors fail-closed. 2026-08-09 (u) — A2's source and published package-closure halves
@@ -992,6 +1003,86 @@ and
 receipts. Simulator/emulator evidence is explicitly **NOT an LLP 0064 claim**;
 the iOS EAS artifact is simulator-only, neither build ran on a physical device,
 and no production/store release artifact is claimed. G4 remains open.
+
+**2026-08-09 G4 external 0.1.16 rerun — FAIL; Status remains Accepted.** The
+rerun consumed npm `latest` = 0.1.16 from source identity
+`ee21fa4a82c5486e1e4abf48e67a1745e7316e83` (ledger
+`~/snapback-release-ledgers/fastpath-ledger-0.1.16-ee21fa4a82.json`) in a new,
+separate Git root at `/Users/ccheever/projects/snapback-g4-external-0116`; the
+0.1.11 quarry was neither read nor mutated. The resolved lock holds only
+published `@expo/snapback-*@0.1.16` names with no `file:`, link, workspace,
+override, resolution, or monorepo path. The Air was offline for the whole
+session, so the iOS-simulator host was the apartment M1 Max MacBook Pro
+(`100.72.251.34`) on the same iOS 26.4 runtime the 0.1.11 Air run used; the
+Android host was unchanged.
+
+The authoring path is transformed and the distribution is broken. `npm create
+snapback-app` scaffolds the `expo-chat` template — Sessions-mode schema, the
+image-bearing `send` command, the ImagePicker chat screen, file-store and
+crypto registration, and the plugin root spelling already wired — reaching a
+generated, type-checking app in **1 m 29 s with zero hand-edited files**
+(`C/F/D = 12/0/2`), retiring every 0.1.11 authoring finding. Then the published
+runtime refuses its own generated backend on all three machines with
+`SNAPBACK_CAPABILITY_UNSUPPORTED: target does not support required capability
+single_table_v1`, exiting before any ready file, listener, or Metro process
+exists. The cause is packaging: `@expo/snapback-runtime-darwin-arm64@0.1.16`
+and `-linux-x64@0.1.16` omit `bin/packaged-store-qualification.receipt.json`,
+which their 0.1.15 counterparts ship and which the public-package advertisement
+path requires; the identical app boots on 0.1.15 and refuses on 0.1.16. The
+fast-path publication lane makes no assertion the qualified-staging lane
+already makes, so the closure published green
+([`issues/20260809-runtime-package-missing-store-qualification-receipt.md`](../issues/20260809-runtime-package-missing-store-qualification-receipt.md)).
+The frozen ceremony therefore stopped at a **first blocking observation about
+5–7 minutes after `t0` at `C/F/D = 50/0/2` (`A = 52`)**, with `m1` and `m2` not
+reached and three of five guarantee rows unproved. No comparison against
+Diaries 0058/0059/0060 is scored; their asymmetries are unchanged.
+
+Three arms nevertheless closed. First, the **release-export measurement that
+LLP 0181's prune repair explicitly deferred to this rerun is discharged against
+real Hermes bytes**: `/_snapback/expo/v1/bootstrap`,
+`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`, and `10.0.2.2` are all absent from
+both release HBC bundles (each was present once at 0.1.11), along with
+`__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__` and `[::1]`; the one surviving
+`localhost` is proven baseline React Native by a Snapback-free control export
+that contains exactly the same single occurrence. Second, **noninteractive
+`eas init` and `eas config` accept the documented bare `"@expo/snapback-expo"`
+package-root spelling**, closing the 0.1.11 EAS resolution failure with no
+`./app.plugin` workaround. Third, Metro closure and the stage-only boundary
+both pass — 675/673 sources resolving only to app, generated, Metro-virtual,
+and public `node_modules` entries with no host or monorepo path, and an 87-file
+/ 0.69 MiB stage carrying no state, restore lock, export, source edge, or Git
+ancestor. No paid EAS build was started: the 2026-08-06 authorization was one
+build per OS and both already ran, so this rerun cites them.
+
+The raw Android arm failed upstream of the gate it was meant to retest, so the
+0.1.12 adb transport-label repair is confirmed only by inspection — current adb
+still reports `host-16 tcp:4287 tcp:4287`, and the published 0.1.16 verifier
+parses that row tolerantly — while live Android readiness with no wrapper
+stays unproved. Retained cold boot was not testable at all, and the question of
+whether that arm binds the supervised dev path or LLP 0181's release
+`prepareReactBinding` receipt is routed to 0181's owner
+([`issues/20260809-g4-cold-boot-arm-dev-vs-release-path.md`](../issues/20260809-g4-cold-boot-arm-dev-vs-release-path.md)).
+Two further consumer defects were filed: the guide's first fresh-app command
+`npx snapback new` resolves to an unrelated registry package in an empty
+directory, and the `expo-chat` template's `.gitignore` omits the sibling
+restore lock the guide requires.
+
+The complete verdict is
+[`20260809-g4-external-0116-summary.md`](../demos/expo-golden-path-fixture/receipts/20260809-g4-external-0116-summary.md),
+with separate
+[`iOS`](../demos/expo-golden-path-fixture/receipts/20260809-g4-external-0116-ios-simulator.md),
+[`Android`](../demos/expo-golden-path-fixture/receipts/20260809-g4-external-0116-android-emulator.md),
+and
+[`closure/exports/EAS/diagnosis`](../demos/expo-golden-path-fixture/receipts/20260809-g4-external-0116-closure-diagnosis.md)
+receipts; the quarry is archived at
+`~/snapback-release-ledgers/g4-external-0116-quarry-20260809.tar.gz` for an
+immediate rerun. No screenshot exists for either platform because no app screen
+was ever rendered. All simulator/emulator evidence is explicitly **NOT an LLP
+0064 claim** and this rerun produced no device evidence of any kind. **What
+G4's exit still lacks:** a published closure whose runtime starts a generated
+app, and with it every live arm — `m1`, `m2`, settled Sessions boot,
+loopback-only listener enumeration, raw Android readiness without a wrapper,
+retained cold boot, and truthful command residue. G4 remains open.
 
 ### G5 — secure physical-device carrier
 

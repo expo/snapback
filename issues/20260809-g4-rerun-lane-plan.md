@@ -278,6 +278,55 @@ and
 receipts under
 `demos/expo-golden-path-fixture/receipts/20260806-g4-external-0111-*`.
 
+## Lane 3 outcome — 2026-08-09: executed, FAIL, receipts landed
+
+The fresh-quarry rerun ran end to end on branch `g4/rerun-0116` and is
+recorded in
+[`20260809-g4-external-0116-summary.md`](../demos/expo-golden-path-fixture/receipts/20260809-g4-external-0116-summary.md)
+plus its three companion receipts. Against this ticket's own fresh-rerun
+acceptance list:
+
+| Acceptance bullet | Result |
+| --- | --- |
+| Raw published Android supervisor, no adb wrapper, three reverse rules | **NOT RECLAIMED** — blocked upstream; the run never reached the adb stage |
+| Noninteractive `eas init` on the `"@expo/snapback-expo"` root spelling | **RECLAIMED** |
+| Four supervised-vocabulary symbols absent from real HBC bytes | **RECLAIMED on attribution** — 3 absent outright; the 4th (`localhost`) is proven baseline React Native by a Snapback-free control export |
+| Cold retained relaunch with the backend paused | **NOT RECLAIMED** — untestable; scoping question routed to LLP 0181's owner |
+| Frozen OQ5 vector remeasured with bakeoff asymmetry retained | **Measured to the blocker** — `C/F/D = 50/0/2`, `m1`/`m2` not reached, no comparison scored |
+| Standing LLP 0064 nonclaim | **Held** — no device evidence of any kind |
+
+Cause: the published `@expo/snapback-runtime-*@0.1.16` packages omit
+`bin/packaged-store-qualification.receipt.json`, so the public-package runtime
+cannot advertise `single_table_v1` and no generated app starts. This is a
+defect in the lane-2 cut, not in lane 3's execution, and it is filed as
+[`20260809-runtime-package-missing-store-qualification-receipt.md`](./20260809-runtime-package-missing-store-qualification-receipt.md).
+Two smaller consumer defects were also filed
+([guide fresh-app command](./20260809-guide-gap-npx-snapback-new-resolves-wrong-package.md),
+[template gitignore](./20260809-expo-chat-template-gitignore-restore-lock.md)),
+plus the [cold-boot scoping question](./20260809-g4-cold-boot-arm-dev-vs-release-path.md).
+
+No paid EAS build was started; the 2026-08-06 one-build-per-OS authorization
+was already spent on the 0.1.11 quarry and those builds are cited instead. Both
+fleet hosts were fully reclaimed.
+
+### 0.1.16 quarry evidence archive
+
+Following this ticket's own 0.1.11 durability lesson, the commitless 0.1.16
+quarry is archived off-machine:
+
+**Source:** `/Users/ccheever/projects/snapback-g4-external-0116`
+**Archive:** `~/snapback-release-ledgers/g4-external-0116-quarry-20260809.tar.gz`
+**Size:** 11,866,269 bytes · **Entries:** 426 · **Excluded:** `node_modules` only
+**sha256:** `06d8db51e3a199d8046eb17c9c38d61290ed17793069129025bf58ac29b2a756`
+
+It contains `G4-ACTION-LEDGER.md`, both supervisor JSONL streams, all four
+`dist-g4-*` exports with source maps, the 0.1.15 differential probe, the bare
+control export, and the app itself. The source directory was not modified.
+
+**This lane does not close the ticket.** A successor closure that starts a
+generated app, and a rerun of the retained quarry to `m1` and `m2`, is what
+closes it.
+
 ## Closure boundary
 
 Close this ticket only after the qualified 0.1.16 registry cut and its retained
