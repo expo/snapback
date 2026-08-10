@@ -62,7 +62,12 @@
       "user_uma",
       "user_vic",
       "user_wes",
-      "user_zoe"
+      "user_zoe",
+      "user_anil",
+      "user_bea",
+      "user_chen",
+      "user_dev",
+      "user_elif"
     ]
   },
   "surfaces": {
@@ -125,6 +130,11 @@
       "re-running applyStoreState over the same lifecycle state is a no-op",
       "a swept grace window is re-granted by a redundant reconcile, then re-swept",
       "the whole lifecycle left the control buyer untouched",
+      "the ack lands before the deadline, so the deadline is harmless",
+      "a consumable is CONSUMED, which is what lets it be re-bought",
+      "a missed ack is auto-refunded by the store, and we reconcile it OFF",
+      "acknowledging twice is a no-op",
+      "an Apple purchase owes no server ack and none is sent",
       "an ordinary query is honestly reported as NOT live"
     ]
   },
@@ -137,7 +147,8 @@
     "sessions_auth",
     "offerings_and_merchandising",
     "metering",
-    "time_aware_grant_derivation"
+    "time_aware_grant_derivation",
+    "real_store_acknowledgement_apis"
   ],
   "notClaiming": [
     "real store validation \u2014 validateReceipt and applyStoreState perform real outbound fetches, but against a fake local store fixture, not Apple/Google/Stripe, and with no signature or JWS verification",
@@ -148,6 +159,8 @@
     "concurrency-safe change-feed sequencing \u2014 seq is minted read-max-plus-one inside the mutation; ctx.sequence.allocate exists but permits one allocation per mutation, and the expiry sweep appends a row per user in one commit",
     "metering or billing \u2014 transactions carry an environment tag so sandbox rows can be excluded later, and nothing consumes it yet",
     "time-aware grant derivation: deriveGrant reads lifecycle states and horizons but never compares them to the clock, so the expiry sweep is the single horizon enforcer. If the store still reports 'grace' with a graceUntil that already passed, a redundant applyStoreState re-grants the access the sweep just retired, until the next sweep undoes it. Bounded by one cron interval (60s declared) and asserted in both directions by the acceptance rather than hidden",
-    "real store lifecycle mapping: the seven states are the engine's normalized vocabulary, not a verified translation of Apple's, Google's, and Stripe's own status models, which differ from each other and carry states this slice does not model (billing retry sub-phases, upgrade/downgrade proration, family sharing)"
+    "real store lifecycle mapping: the seven states are the engine's normalized vocabulary, not a verified translation of Apple's, Google's, and Stripe's own status models, which differ from each other and carry states this slice does not model (billing retry sub-phases, upgrade/downgrade proration, family sharing)",
+    "real store acknowledgement APIs: the ack and consume calls go to the fake store's own routes, not to Google Play's purchases.products:acknowledge / :consume or subscriptions:acknowledge, and the three-day deadline is a compressed fixture (3s by default) enforced by an explicit test seam rather than by real elapsed time",
+    "acknowledgement of a notification-first purchase is enqueued but the deadline is not otherwise monitored: nothing scans for transactions still ackState 'pending' past their deadline, so a purchase whose ack job exhausted all five attempts is only discovered when something re-fetches it"
   ]
 }

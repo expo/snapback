@@ -47,6 +47,23 @@ export const appConfig = defineConfig({
       + 'acceptance sets one. The real adapters take an Apple App Store Server '
       + 'API key, a Google service account, or a Stripe secret key.',
   },
+  // Slice 8. The acknowledgement job's payload is just a storeTxnId, so unlike
+  // validateReceipt and applyStoreState the ack action cannot be handed a store
+  // URL by its caller — a job's arguments are minted inside a mutation that has
+  // no idea what port a test fixture bound. Config is the paved way to inject a
+  // deployment-specific endpoint, and it is what the testing-seam comments on
+  // those two actions already said a real adapter should use instead of
+  // accepting a caller URL.
+  storeBaseUrl: {
+    description: 'Base URL of the store API used for server-side acknowledgement',
+    purpose: 'Lets the acknowledgement job reach the store without a caller-supplied URL',
+    required: false,
+    pool: false,
+    howToGet:
+      'Prototype: the acceptance sets the fake store\'s OS-assigned origin here. '
+      + 'Real adapters carry a per-store constant (Google Play Developer API) '
+      + 'rather than a configured value.',
+  },
   developerWebhookSecret: {
     description: 'Shared secret presented to the developer webhook endpoint',
     purpose: 'Lets the receiving developer authenticate that a ping came from us',
@@ -116,6 +133,10 @@ export const listPurchases = defineJsQuery({
     status: v.string(),
     environment: v.string(),
     createdAt: v.integer(),
+    // Slice 8. Still store facts, so they belong in the audit: whether the
+    // store was told we accepted the purchase, and whether it was ever owed.
+    ackState: v.string(),
+    serverAckRequired: v.boolean(),
   })),
   handler: async (ctx) => {
     const rows = await ctx.db
@@ -132,6 +153,8 @@ export const listPurchases = defineJsQuery({
       environment: row.environment,
       // The server owns the timestamp; the handler never mints one.
       createdAt: row._createdAt,
+      ackState: row.ackState,
+      serverAckRequired: row.serverAckRequired,
     }));
   },
 });
@@ -185,6 +208,21 @@ function grantsAccess(status) {
 function accessHorizonOf(txn) {
   const raw = txn.status === 'grace' ? txn.graceUntil : txn.expiresAt;
   return raw === undefined || raw === null ? null : raw;
+}
+
+// Which adapters owe the store a server-side acknowledgement (slice 8).
+//
+// Only Google. Apple's acknowledgement is the client calling StoreKit's
+// `finish` on a completed transaction — there is no server endpoint to call, and
+// a server that tried would be inventing one. Stripe has no acknowledgement
+// concept at all. Google Play is the outlier: an unacknowledged purchase is
+// auto-refunded and revoked after three days, which makes acking a correctness
+// requirement rather than hygiene.
+//
+// Keyed on the adapter rather than on a per-product flag because the obligation
+// belongs to the store's protocol, not to what was sold.
+function serverAckRequiredFor(store) {
+  return store === 'google';
 }
 
 // Optional integer milliseconds off a store response. Absent is legitimate — a
@@ -380,6 +418,48 @@ async function appendChange(ctx, userId, seq, now, mayEnqueue) {
   return true;
 }
 
+// Schedule the store acknowledgement for a freshly recorded transaction, in the
+// SAME commit that recorded it (slice 8, reusing slice 5's outbox shape).
+//
+// Transactional enqueue is what makes the obligation safe to owe: a rolled-back
+// purchase provably schedules no ack, and a committed one provably schedules
+// exactly one. There is no window where the row exists and the obligation does
+// not, which for a three-day deadline is the difference between "retried" and
+// "auto-refunded".
+//
+// The idempotency key is the store's own transaction id, so however many times
+// this mutation is retried the queue holds one ack per purchase.
+// `maxAttempts: 5` mirrors the webhook ladder — finite, because a store that
+// refuses five times needs an operator, not more retries.
+//
+// The operation rides in the payload because the choice needs `products.kind`
+// and an action cannot read: there is no `ctx.runQuery`, and a mutation that
+// only reads is refused at generation ("defineJsMutation requires declared
+// writes or sequences"). Deciding here is safe in a way deciding a transaction's
+// STATUS here would not be — `kind` is our own catalog fact and does not drift
+// under a job the way a store's status does.
+async function enqueueAcknowledgement(ctx, store, productId, storeTxnId) {
+  if (!serverAckRequiredFor(store)) return false;
+  // Consumables are CONSUMED, which also acknowledges. That is not a
+  // preference: an unconsumed consumable cannot be bought again, so plain
+  // acknowledge would silently cap the user at one purchase forever.
+  const products = await ctx.db
+    .query('products')
+    .withIndex('by_product')
+    .eq('productId', productId)
+    .collect();
+  const kind = products.length === 0 ? '' : products[0].kind;
+  await ctx.jobs.enqueue(
+    'acknowledgePurchase',
+    {
+      storeTxnId: storeTxnId,
+      operation: kind === 'consumable' ? 'consume' : 'acknowledge',
+    },
+    { idempotencyKey: 'ack:' + storeTxnId, maxAttempts: 5 },
+  );
+  return true;
+}
+
 // Recompute every entitlement a product can affect. Returns how many moved.
 async function applyProductEntitlements(ctx, userId, productId) {
   const mappings = await ctx.db
@@ -454,6 +534,7 @@ export const recordPurchase = defineJsMutation({
     }
 
     const expiresAt = readOptionalMs(args.expiresAt, 'expiresAt');
+    const ackRequired = serverAckRequiredFor(args.store);
     const transactionId = await ctx.db.insert('transactions', {
       userId: userId,
       productId: args.productId,
@@ -464,6 +545,10 @@ export const recordPurchase = defineJsMutation({
       expiresAt: expiresAt,
       graceUntil: graceUntil,
       resumesAt: resumesAt,
+      // Every purchase starts unacknowledged. Whether anyone owes the store an
+      // acknowledgement is the adapter's business, recorded alongside it.
+      ackState: 'pending',
+      serverAckRequired: ackRequired,
     });
 
     // Derive, never assign: the new transaction is now one input among the
@@ -472,6 +557,11 @@ export const recordPurchase = defineJsMutation({
     if (granted > 0) {
       await appendChange(ctx, userId, (await readMaxChangeSeq(ctx)) + 1, ctx.runtime.now(), true);
     }
+    // Enqueued after the grant is written, and unconditionally on the grant
+    // having moved: the obligation is owed for the PURCHASE, not for the
+    // entitlement. A consumable grants nothing and still has to be consumed
+    // before it can be bought again.
+    await enqueueAcknowledgement(ctx, args.store, args.productId, storeTxnId);
     return { transactionId: transactionId, deduped: false, grants: granted };
   },
 });
@@ -656,7 +746,15 @@ export const reconcileTransaction = defineJsMutation({
         expiresAt: nextUntil,
         graceUntil: nextGrace,
         resumesAt: nextResumes,
+        ackState: 'pending',
+        serverAckRequired: serverAckRequiredFor(args.store),
       });
+      // A notification can be the first time we hear about a purchase, and that
+      // purchase owes the store an acknowledgement exactly like one we recorded
+      // ourselves. Enqueuing here too closes what would otherwise be a hole
+      // where a notification-first Google purchase is never acknowledged and is
+      // auto-refunded three days later.
+      await enqueueAcknowledgement(ctx, args.store, productId, storeTxnId);
       transactionChanged = true;
     } else {
       const row = seen[0];
@@ -1022,6 +1120,112 @@ export const notifyDeveloper = defineAction({
       throw new Error('developer endpoint refused: ' + response.status);
     }
     return { delivered: true, status: response.status, attempt: attempt };
+  },
+});
+
+// --- Store acknowledgement (slice 8) -------------------------------------------
+
+// Record that the store accepted our acknowledgement.
+//
+// Every durable guard lives here rather than in the action, because this is the
+// only place that can see current state at commit time. The action carries a
+// route; this decides whether the fact is allowed to land.
+export const markAcknowledged = defineJsMutation({
+  args: { storeTxnId: v.string(), ackState: v.string() },
+  reads: ['transactions'],
+  writes: ['transactions'],
+  result: results.value(v.object({ changed: v.boolean(), ackState: v.string() })),
+  handler: async (ctx, args) => {
+    if (args.ackState !== 'acknowledged' && args.ackState !== 'consumed') {
+      throw new Error('ackState must be acknowledged or consumed');
+    }
+    const rows = await ctx.db
+      .query('transactions')
+      .withIndex('by_storeTxn')
+      .eq('storeTxnId', args.storeTxnId)
+      .collect();
+    if (rows.length === 0) throw new Error('unknown storeTxnId');
+    const txn = rows[0];
+    // Nothing was owed, so nothing may be recorded. This keeps an Apple or
+    // Stripe row honest even if something calls the ack action directly.
+    if (txn.serverAckRequired !== true) {
+      return { changed: false, ackState: txn.ackState };
+    }
+    // One-way and idempotent: acknowledgement is a fact about the past, so a
+    // duplicate job re-asserting it changes nothing. This is what makes the
+    // queue's at-least-once delivery safe here.
+    if (txn.ackState === 'acknowledged' || txn.ackState === 'consumed') {
+      return { changed: false, ackState: txn.ackState };
+    }
+    await ctx.db.patch('transactions', txn._id, { ackState: args.ackState });
+    return { changed: true, ackState: args.ackState };
+  },
+});
+
+// The acknowledgement itself. Run by the durable job queue, so a store that is
+// briefly unreachable is retried rather than leaving a purchase to be
+// auto-refunded on the three-day deadline.
+//
+// Structurally identical to slice 5's notifyDeveloper: resolve, one outbound
+// call, commit the outcome through a mutation, throw to ask for another attempt.
+// The difference is who is owed — the developer's ping is a courtesy the feed
+// makes redundant, while this one is an obligation with a refund attached, which
+// is why it is enqueued for every qualifying purchase rather than only when
+// something moved.
+//
+// @ref LLP 0036#runtime-exposure-d5-d8 — expose() rather than asBearer(): the
+//   store origin is a configured endpoint, not a credential, and it has to be
+//   concatenated into a URL rather than materialized into a header.
+export const acknowledgePurchase = defineAction({
+  args: { storeTxnId: v.string(), operation: v.string() },
+  uses: ['storeValidation', 'storeBaseUrl'],
+  writes: ['transactions'],
+  result: results.value(v.object({
+    operation: v.string(),
+    acknowledged: v.boolean(),
+    changed: v.boolean(),
+  })),
+  handler: async (ctx, args) => {
+    const storeTxnId = String(args.storeTxnId ?? '').trim();
+    if (!storeTxnId) throw new Error('storeTxnId is required');
+    const operation = String(args.operation ?? '');
+    if (operation !== 'acknowledge' && operation !== 'consume') {
+      throw new Error('operation must be acknowledge or consume');
+    }
+
+    const baseUrl = String(ctx.secrets.get('storeBaseUrl').expose() ?? '').trim();
+    if (!baseUrl) throw new Error('storeBaseUrl config is required to acknowledge');
+    const route = operation === 'consume' ? '/consume/' : '/acknowledge/';
+
+    // Both store routes are idempotent, as Google's are, so a retried job
+    // re-asserting an acknowledgement is safe on the store's side too.
+    const response = await ctx.fetch({
+      url: baseUrl + route + storeTxnId,
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: ctx.secrets.get('storeValidation').asBearer(),
+      },
+      body: '{}',
+    });
+    if (!response.ok) {
+      // Throwing is what asks the queue for another attempt. Deliberately NOT
+      // recorded as acknowledged: the store is the only authority on whether it
+      // accepted, and guessing here is exactly what the three-day deadline
+      // punishes — we would believe we were safe while the refund landed.
+      throw new Error('store refused acknowledgement: ' + response.status);
+    }
+
+    // The mutation owns every durable guard: not-owed, and already-settled.
+    const commit = await ctx.runMutation('markAcknowledged', {
+      storeTxnId: storeTxnId,
+      ackState: operation === 'consume' ? 'consumed' : 'acknowledged',
+    });
+    return {
+      operation: operation,
+      acknowledged: true,
+      changed: commit.changed === true,
+    };
   },
 });
 

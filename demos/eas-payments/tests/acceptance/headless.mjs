@@ -70,12 +70,20 @@ const UMA = 'user_uma'; // pending, then clears
 const VIC = 'user_vic'; // pending, then canceled
 const WES = 'user_wes'; // two transactions: active alongside grace
 const ZOE = 'user_zoe'; // the control: buys once, must never move
+// Slice 8 — acknowledgement. These buy on GOOGLE, the only adapter that carries a
+// server-side ack obligation, so every earlier check's apple/stripe purchases
+// stay outside this machinery entirely.
+const ANIL = 'user_anil'; // ack lands, then the deadline passes harmlessly
+const BEA = 'user_bea'; // consumable: consume, then re-buy
+const CHEN = 'user_chen'; // ack suppressed, so the deadline auto-refunds
+const DEV = 'user_dev'; // double acknowledgement
+const ELIF = 'user_elif'; // apple: no server ack is owed
 
 const STORE_KEY = 'fake-store-key-slice-2';
 const WRONG_STORE_KEY = 'not-the-store-key';
 const WEBHOOK_SECRET = 'developer-shared-secret-slice-5';
 
-const suite = createSuite('eas-payments / headless', { expectedChecks: 51 });
+const suite = createSuite('eas-payments / headless', { expectedChecks: 56 });
 const cleanups = [];
 let server = null;
 let db = null;
@@ -168,6 +176,18 @@ const runSweep = async () => {
   return res.result ?? res;
 };
 
+// Slice 8. One purchase's row out of the audit, so a check can read its ackState
+// without caring where it sits among the user's other purchases.
+const purchaseOf = async (userId, storeTxnId) => {
+  const rows = await purchases(userId);
+  return rows.find((row) => row.storeTxnId === storeTxnId) ?? null;
+};
+// Outbound acknowledgement calls the store has actually received. This is the
+// definitive evidence for "no server ack was sent" — stronger than inspecting
+// the job queue, because it observes the effect rather than the intent.
+const ackCalls = (storeTxnId) => store.requests.filter((r) => r.method === 'POST'
+  && (r.path === `/acknowledge/${storeTxnId}` || r.path === `/consume/${storeTxnId}`));
+
 // Per-job cron facts live on the AdminRead projection, not the public
 // /inspect one — /inspect carries aggregate posture only (guide/backend/cron).
 const cronJob = async (name) => {
@@ -235,6 +255,8 @@ await runAcceptance(suite, async () => {
       'applyStoreState',
       'applyGrantExpiry',
       'expireGrantsSweep',
+      'acknowledgePurchase',
+      'markAcknowledged',
     ]) {
       assert(names.includes(required), `missing function ${required} in ${names}`);
     }
@@ -255,6 +277,11 @@ await runAcceptance(suite, async () => {
   // value can only be set once that manifest is loaded.
   await setStoreKey(STORE_KEY);
   await setConfig('developerWebhookSecret', WEBHOOK_SECRET);
+  // Slice 8. The ack job's payload cannot carry a URL — its arguments are minted
+  // inside a mutation that has no idea what port the fixture bound — so the
+  // store origin arrives as config, which is what a real adapter's per-store
+  // constant would be.
+  await setConfig('storeBaseUrl', store.baseUrl);
 
   await suite.check('deterministic reset + declarative seed installs the catalog', async () => {
     await db.reset();
@@ -665,8 +692,18 @@ await runAcceptance(suite, async () => {
   await suite.check('no registered endpoint means no delivery is scheduled', async () => {
     // Everything so far ran with no webhook registered, so the feed has been
     // filling without ever scheduling a ping.
+    //
+    // Scoped to notifyDeveloper rather than asserting the whole queue is empty.
+    // The claim is about DELIVERY, and slice 8 legitimately puts acknowledgement
+    // jobs on the same queue — an unrelated obligation that has nothing to do
+    // with whether a developer endpoint is registered.
     const jobs = await admin.listJobs();
-    assertEqual(jobs.jobs ?? jobs.rows ?? [], [], 'nothing enqueued before registration');
+    const queued = jobs.jobs ?? jobs.rows ?? [];
+    assertEqual(
+      queued.filter((job) => job.action === 'notifyDeveloper'),
+      [],
+      'no delivery enqueued before registration',
+    );
     assertEqual(developer.received.length, 0, 'developer heard nothing');
   });
 
@@ -990,7 +1027,12 @@ await runAcceptance(suite, async () => {
     for (const row of rows) {
       assertEqual(
         Object.keys(row).sort(),
-        ['createdAt', 'environment', 'productId', 'status', 'store', 'storeTxnId'],
+        [
+          // Slice 8 added the two acknowledgement facts. Still store facts, so
+          // the audit's "nothing derived" contract holds.
+          'ackState', 'createdAt', 'environment', 'productId',
+          'serverAckRequired', 'status', 'store', 'storeTxnId',
+        ],
         'purchase row shape',
       );
       assert(row.createdAt > 0, 'the server stamped the row');
@@ -1406,6 +1448,258 @@ await runAcceptance(suite, async () => {
     assertEqual(await activeEntitlementIds(ADA), ['pro'], 'ada survived every sweep');
     assertEqual(await activeEntitlementIds(GRACE), ['plus', 'pro'], 'grace is still fully entitled');
     return { version: after._version };
+  });
+
+  // --- Slice 8: acknowledgement as a store obligation ---------------------------
+  //
+  // Acknowledgement is not bookkeeping. Google auto-refunds the user and revokes
+  // the purchase if it is not acknowledged within three days, and a consumable
+  // must be CONSUMED before it can be bought again. So the ack is a correctness
+  // requirement with a refund attached, and it gets the same reliability
+  // machinery as the decision-20 webhook: enqueued inside the purchase's own
+  // commit, with an idempotency key and a finite retry ladder.
+  //
+  // Only Google carries the obligation. Apple's ack is the client calling
+  // StoreKit `finish`, and Stripe has no such concept — which is why every check
+  // above, all apple/stripe, sits entirely outside this machinery.
+
+  await suite.check('the ack lands before the deadline, so the deadline is harmless', async () => {
+    const bought = await validate({
+      productId: 'pro_monthly',
+      store: 'google',
+      receipt: 'receipt_anil_pro',
+      environment: 'sandbox',
+    }, ANIL);
+    assert(bought.ok, `validateReceipt failed: ${JSON.stringify(bought.diagnostic)}`);
+    assertEqual(await activeEntitlementIds(ANIL), ['pro'], 'anil holds pro');
+
+    // Owed, and not yet met: the obligation is visible in our own audit.
+    const before = await purchaseOf(ANIL, 'google:receipt_anil_pro');
+    assertEqual(before.serverAckRequired, true, 'google purchases owe a server ack');
+    assertEqual(before.ackState, 'pending', 'and it has not been sent yet');
+    assertEqual(ackCalls('google:receipt_anil_pro').length, 0, 'nothing sent before the drain');
+
+    // The job was enqueued in the purchase's commit; draining runs it.
+    await drain();
+    assertEqual(ackCalls('google:receipt_anil_pro').length, 1, 'exactly one acknowledgement call');
+    assertEqual(
+      store.getState('google:receipt_anil_pro').ackState,
+      'acknowledged',
+      'the STORE records the acknowledgement',
+    );
+    const after = await purchaseOf(ANIL, 'google:receipt_anil_pro');
+    assertEqual(after.ackState, 'acknowledged', 'and so do we');
+
+    // Now the three-day deadline passes. An acknowledged purchase is untouched.
+    const revoked = store.elapseAckDeadline();
+    assert(
+      !revoked.includes('google:receipt_anil_pro'),
+      `an acknowledged purchase must not be auto-refunded (revoked: ${JSON.stringify(revoked)})`,
+    );
+    // Proven by re-fetching rather than by trusting our own row.
+    const res = await notify({ userId: ANIL, store: 'google', storeTxnId: 'google:receipt_anil_pro' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.status, 'active', 'the store still reports active past the deadline');
+    assertEqual(await activeEntitlementIds(ANIL), ['pro'], 'the grant SURVIVES the deadline');
+    return { ackState: after.ackState, deadlineMs: store.ackDeadlineMs };
+  });
+
+  await suite.check('a consumable is CONSUMED, which is what lets it be re-bought', async () => {
+    // The operation is chosen from our catalog's `kind`, not from the store: an
+    // unconsumed consumable cannot be purchased again, so picking plain
+    // acknowledge here would silently cap the user at one coin pack forever.
+    const first = await validate({
+      productId: 'coins_100',
+      store: 'google',
+      receipt: 'receipt_bea_coins_1',
+      environment: 'sandbox',
+    }, BEA);
+    assert(first.ok, `validateReceipt failed: ${JSON.stringify(first.diagnostic)}`);
+    await drain();
+
+    assertEqual(
+      store.requests.filter((r) => r.path === '/consume/google:receipt_bea_coins_1').length,
+      1,
+      'the consume route was used, not acknowledge',
+    );
+    assertEqual(
+      ackCalls('google:receipt_bea_coins_1').length,
+      1,
+      'and exactly one acknowledgement call was made',
+    );
+    assertEqual(
+      store.getState('google:receipt_bea_coins_1').ackState,
+      'consumed',
+      'the store marks it consumed',
+    );
+    assertEqual(
+      (await purchaseOf(BEA, 'google:receipt_bea_coins_1')).ackState,
+      'consumed',
+      'consumables land on consumed, not acknowledged',
+    );
+    // A consumable still grants no entitlement (slice 6 holds).
+    assertEqual(await activeEntitlementIds(BEA), [], 'a consumable grants nothing');
+
+    // Re-buy: a distinct receipt is a distinct storeTxnId, so this is a real
+    // second purchase and not a dedupe no-op.
+    const second = await validate({
+      productId: 'coins_100',
+      store: 'google',
+      receipt: 'receipt_bea_coins_2',
+      environment: 'sandbox',
+    }, BEA);
+    assert(second.ok, `validateReceipt failed: ${JSON.stringify(second.diagnostic)}`);
+    assertEqual(second.result.deduped, false, 'the re-buy is a new transaction');
+    await drain();
+
+    const coins = (await purchases(BEA)).filter((row) => row.productId === 'coins_100');
+    assertEqual(coins.length, 2, 'two coin packs recorded');
+    assertEqual(new Set(coins.map((row) => row.storeTxnId)).size, 2, 'two distinct store ids');
+    assertEqual(
+      coins.map((row) => row.ackState),
+      ['consumed', 'consumed'],
+      'both were consumed, so a third purchase would also be possible',
+    );
+    return { coinPacks: coins.length };
+  });
+
+  await suite.check('a missed ack is auto-refunded by the store, and we reconcile it OFF', async () => {
+    // The consequence the whole slice exists to avoid, made observable.
+    const bought = await validate({
+      productId: 'pro_monthly',
+      store: 'google',
+      receipt: 'receipt_chen_pro',
+      environment: 'sandbox',
+    }, CHEN);
+    assert(bought.ok, `validateReceipt failed: ${JSON.stringify(bought.diagnostic)}`);
+    assertEqual(await activeEntitlementIds(CHEN), ['pro'], 'chen holds pro to begin with');
+
+    // The store refuses every acknowledgement attempt.
+    store.suppressAck('google:receipt_chen_pro');
+    // Drain past the finite ladder. The job dies; the obligation stays unmet.
+    await drain(6);
+    assert(
+      ackCalls('google:receipt_chen_pro').length >= 2,
+      `the engine really did try (${ackCalls('google:receipt_chen_pro').length} attempts)`,
+    );
+    assertEqual(
+      store.getState('google:receipt_chen_pro').ackState,
+      'pending',
+      'the store never recorded an acknowledgement',
+    );
+    // The critical negative: a refused ack must NOT be recorded as sent. Marking
+    // it optimistically is what would leave us believing we were safe while the
+    // refund landed.
+    assertEqual(
+      (await purchaseOf(CHEN, 'google:receipt_chen_pro')).ackState,
+      'pending',
+      'and neither did we',
+    );
+
+    // Three days pass at the store.
+    const revoked = store.elapseAckDeadline();
+    assert(
+      revoked.includes('google:receipt_chen_pro'),
+      `the store auto-refunds the unacknowledged purchase (revoked: ${JSON.stringify(revoked)})`,
+    );
+    assertEqual(store.getState('google:receipt_chen_pro').autoRefunded, true, 'refunded, not merely expired');
+    // Access is still on until we hear about it — the store never pushed.
+    assertEqual(await activeEntitlementIds(CHEN), ['pro'], 'we do not know yet');
+
+    // The re-fetch is how we find out, exactly as in slice 3.
+    const res = await notify({ userId: CHEN, store: 'google', storeTxnId: 'google:receipt_chen_pro' });
+    assert(res.ok, `applyStoreState failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(res.result.status, 'revoked', 'the store reports the revoke');
+    assertEqual(await activeEntitlementIds(CHEN), [], 'the grant is flipped OFF');
+    return { revoked: revoked.length, attempts: ackCalls('google:receipt_chen_pro').length };
+  });
+
+  await suite.check('acknowledging twice is a no-op', async () => {
+    // At-least-once delivery means a duplicate job is normal, not exceptional.
+    // Acknowledgement is a fact about the past, so re-asserting it must change
+    // nothing — and the guard lives in the mutation, the only place that can see
+    // current state at commit time.
+    await validate({
+      productId: 'pro_annual',
+      store: 'google',
+      receipt: 'receipt_dev_annual',
+      environment: 'sandbox',
+    }, DEV);
+
+    const firstRun = await db.action(api.acknowledgePurchase, {
+      args: { storeTxnId: 'google:receipt_dev_annual', operation: 'acknowledge' },
+      userId: DEV,
+    });
+    assert(firstRun.ok, `acknowledgePurchase failed: ${JSON.stringify(firstRun.diagnostic)}`);
+    assertEqual(firstRun.result.changed, true, 'the first acknowledgement moved the row');
+    assertEqual(
+      (await purchaseOf(DEV, 'google:receipt_dev_annual')).ackState,
+      'acknowledged',
+      'recorded',
+    );
+    const versionAfterFirst = (await grantFor(DEV, 'pro'))._version;
+
+    const secondRun = await db.action(api.acknowledgePurchase, {
+      args: { storeTxnId: 'google:receipt_dev_annual', operation: 'acknowledge' },
+      userId: DEV,
+    });
+    assert(secondRun.ok, `acknowledgePurchase failed: ${JSON.stringify(secondRun.diagnostic)}`);
+    assertEqual(secondRun.result.changed, false, 'the second acknowledgement changed nothing');
+    assertEqual(
+      (await purchaseOf(DEV, 'google:receipt_dev_annual')).ackState,
+      'acknowledged',
+      'still acknowledged, not double-counted',
+    );
+    assertEqual((await grantFor(DEV, 'pro'))._version, versionAfterFirst, 'the grant was not rewritten');
+
+    // The queued job for the same purchase is also still safe to run.
+    await drain();
+    assertEqual(
+      (await purchaseOf(DEV, 'google:receipt_dev_annual')).ackState,
+      'acknowledged',
+      'and the queued job is a no-op too',
+    );
+    return { changedTwice: false };
+  });
+
+  await suite.check('an Apple purchase owes no server ack and none is sent', async () => {
+    // Apple's acknowledgement is the client calling StoreKit `finish`. There is
+    // no server endpoint to call, so a server that "acknowledged" would be
+    // inventing a protocol. The adapter rule is what keeps us out of it.
+    const bought = await validate({
+      productId: 'pro_monthly',
+      store: 'apple',
+      receipt: 'receipt_elif_pro',
+      environment: 'sandbox',
+    }, ELIF);
+    assert(bought.ok, `validateReceipt failed: ${JSON.stringify(bought.diagnostic)}`);
+
+    const row = await purchaseOf(ELIF, 'apple:receipt_elif_pro');
+    assertEqual(row.serverAckRequired, false, 'no server ack is owed for apple');
+    // Still 'pending', and that is correct: pending means "not acknowledged by
+    // us", which for Apple is the permanent and expected state. The separate
+    // boolean is what keeps it from reading as overdue.
+    assertEqual(row.ackState, 'pending', 'ackState stays pending, which is not a debt here');
+
+    const before = store.requests.length;
+    await drain();
+    assertEqual(ackCalls('apple:receipt_elif_pro').length, 0, 'no acknowledgement call was made');
+    assertEqual(
+      store.requests.slice(before).filter((r) => r.path.startsWith('/acknowledge/')
+        || r.path.startsWith('/consume/')).length,
+      0,
+      'the drain sent no acknowledgement of any kind',
+    );
+
+    // And the deadline cannot touch it: only Google auto-refunds for a missing
+    // server ack, so an unacknowledged Apple purchase is not at risk.
+    const revoked = store.elapseAckDeadline();
+    assert(
+      !revoked.includes('apple:receipt_elif_pro'),
+      `apple is exempt from the ack deadline (revoked: ${JSON.stringify(revoked)})`,
+    );
+    assertEqual(await activeEntitlementIds(ELIF), ['pro'], 'the grant is unaffected throughout');
+    return { serverAckRequired: false, ackCalls: 0 };
   });
 
   await suite.check('an ordinary query is honestly reported as NOT live', async () => {

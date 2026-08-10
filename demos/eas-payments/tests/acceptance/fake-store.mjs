@@ -121,22 +121,43 @@ function applyPatch(current, patch) {
 }
 
 /**
- * @param {{ apiKey: string, now?: number }} options
+ * @param {{ apiKey: string, now?: number, ackDeadlineMs?: number }} options
+ *
+ * `ackDeadlineMs` is the compressed stand-in for Google's three-day
+ * acknowledgement deadline. Three real days is 259_200_000 ms; the fixture
+ * scales it to something a suite can cross deliberately, and crossing it is an
+ * explicit `elapseAckDeadline()` call rather than anything wall-clock.
  */
-export async function startFakeStore({ apiKey, now = Date.now() }) {
+export async function startFakeStore({ apiKey, now = Date.now(), ackDeadlineMs = 3_000 }) {
   // storeTxnId -> transaction document. Seeded lazily by /validate, mutable by
   // the test through setState so slice 3 can flip an answer between calls.
   const transactions = new Map();
   const requests = [];
   // storeTxnId -> { steps, at }. Installed by `script`, stepped by `advance`.
   const scripts = new Map();
+  // storeTxnIds whose ack/consume endpoint should refuse, so a test can watch
+  // what happens when the obligation is never met.
+  const suppressed = new Set();
+  // The store's own clock for deadline purposes only. Deliberately separate from
+  // `now`, which existing checks use for expiry arithmetic and which must not
+  // move under them.
+  let ackClockMs = now;
 
-  const defaultsFor = (storeTxnId, productId, environment) => ({
+  const defaultsFor = (storeTxnId, productId, environment, storeName = 'apple') => ({
     storeTxnId,
     productId,
     status: 'active',
     environment,
     expiresAt: now + THIRTY_DAYS_MS,
+    // Acknowledgement facts. Google's purchase resource really does carry an
+    // acknowledgementState, so returning it is faithful — but our engine never
+    // reads it back, because we track our own obligation.
+    ackState: 'pending',
+    // Which adapter sold it. Only Google's protocol carries the obligation, so
+    // only Google rows are eligible for the deadline sweep — an Apple or Stripe
+    // transaction is never auto-refunded for want of a server ack.
+    storeName,
+    purchasedAtMs: now,
   });
 
   const send = (res, status, body) => {
@@ -174,9 +195,38 @@ export async function startFakeStore({ apiKey, now = Date.now() }) {
       if (!transactions.has(storeTxnId)) {
         transactions.set(
           storeTxnId,
-          defaultsFor(storeTxnId, body.productId, body.environment),
+          defaultsFor(storeTxnId, body.productId, body.environment, body.store),
         );
       }
+      send(res, 200, transactions.get(storeTxnId));
+      return;
+    }
+
+    // Acknowledgement (slice 8). Two routes because Google has two operations:
+    // `acknowledge` for a durable purchase, and `consume` for a consumable —
+    // which acknowledges AND makes the product buyable again. Both are
+    // idempotent, as the real API is.
+    if (req.method === 'POST'
+      && (url.pathname.startsWith('/acknowledge/') || url.pathname.startsWith('/consume/'))) {
+      const consuming = url.pathname.startsWith('/consume/');
+      const prefix = consuming ? '/consume/' : '/acknowledge/';
+      const storeTxnId = decodeURIComponent(url.pathname.slice(prefix.length));
+      const found = transactions.get(storeTxnId);
+      if (!found) {
+        send(res, 404, { error: 'unknown transaction' });
+        return;
+      }
+      // The suppression switch: the store refuses to record the acknowledgement,
+      // which is what a real outage looks like from our side. The engine must
+      // NOT mark it acknowledged on a refusal.
+      if (suppressed.has(storeTxnId)) {
+        send(res, 503, { error: 'acknowledgement unavailable' });
+        return;
+      }
+      transactions.set(storeTxnId, {
+        ...found,
+        ackState: consuming ? 'consumed' : 'acknowledged',
+      });
       send(res, 200, transactions.get(storeTxnId));
       return;
     }
@@ -215,6 +265,48 @@ export async function startFakeStore({ apiKey, now = Date.now() }) {
 
     getState(storeTxnId) {
       return transactions.get(storeTxnId) ?? null;
+    },
+
+    ackDeadlineMs,
+
+    /**
+     * Make the ack/consume endpoint refuse for one transaction, so a test can
+     * let the obligation go unmet and watch the store's deadline enforce it.
+     */
+    suppressAck(storeTxnId, on = true) {
+      if (on) suppressed.add(storeTxnId);
+      else suppressed.delete(storeTxnId);
+      return on;
+    },
+
+    /**
+     * Cross the acknowledgement deadline: advance the store's ack clock past it
+     * and enforce the obligation exactly as Google does — an unacknowledged
+     * purchase is auto-refunded and revoked.
+     *
+     * Scoped to Google transactions on purpose. Apple and Stripe carry no server
+     * acknowledgement obligation, so their rows are untouched however long they
+     * sit unacknowledged, and the suite's slice 1-7 fixtures cannot be collateral
+     * damage of a later slice's sweep.
+     *
+     * Returns the ids it revoked, so a caller asserts on a real effect rather
+     * than on the call having happened.
+     */
+    elapseAckDeadline() {
+      ackClockMs += ackDeadlineMs + 1;
+      const revoked = [];
+      for (const [storeTxnId, doc] of transactions) {
+        if (doc.storeName !== 'google') continue;
+        if (doc.ackState !== 'pending') continue;
+        if (doc.purchasedAtMs + ackDeadlineMs > ackClockMs) continue;
+        const next = { ...doc, status: 'revoked', autoRefunded: true };
+        // A revoked purchase has no live window and no pause to come back from.
+        delete next.graceUntil;
+        delete next.resumesAt;
+        transactions.set(storeTxnId, next);
+        revoked.push(storeTxnId);
+      }
+      return revoked;
     },
 
     /**

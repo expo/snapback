@@ -72,6 +72,26 @@ export default defineSchema({
     expiresAt: v.optional(v.integer()),
     graceUntil: v.optional(v.integer()),
     resumesAt: v.optional(v.integer()),
+
+    // Acknowledgement (slice 8). This is not bookkeeping — it is a STORE
+    // OBLIGATION with a deadline. Google auto-refunds the user and revokes the
+    // purchase if it is not acknowledged within 3 days, and a consumable must be
+    // CONSUMED (which also acknowledges) before it can be bought again.
+    //
+    // 'pending' -> 'acknowledged' (durables) or 'consumed' (consumables). The
+    // transition is one-way: nothing un-acknowledges a purchase.
+    ackState: v.string(),
+
+    // Whether the obligation is OURS. Apple's acknowledgement is client-side
+    // (StoreKit `finish`), and Stripe has no acknowledgement concept at all, so
+    // for both of those a server-side ack is not merely unnecessary — there is
+    // no endpoint to call. Only Google carries a server obligation, so this is
+    // false for every other adapter and the ack job is never enqueued.
+    //
+    // Kept as its own boolean rather than a fourth ackState value: "nobody owes
+    // an acknowledgement" and "we owe one and have not sent it" are different
+    // facts, and collapsing them would make a pending Apple row look overdue.
+    serverAckRequired: v.boolean(),
   })
     .index('by_user', ['userId'])
     // by_storeTxn is what makes recordPurchase idempotent: a re-delivered

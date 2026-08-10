@@ -645,3 +645,158 @@ in the title.
   that needs several runs of an `everyMs` job in one session has no supported
   way to get them; `guide/backend/cron.md` says not to sleep in tests but does
   not say what to do when one forced tick per interval is not enough.
+
+## 2026-08-10 — slice 8: acknowledgement as a store obligation
+
+### What the slice is
+
+Acknowledgement is the first thing in this demo that is not our own invention.
+Google auto-refunds the user and revokes the purchase if it is not acknowledged
+within three days, and a consumable must be CONSUMED before it can be bought
+again. Apple's acknowledgement is client-side (StoreKit `finish`) and Stripe
+has no such concept, so only one adapter of the three carries a server
+obligation.
+
+`transactions` gained `ackState` ('pending' -> 'acknowledged' | 'consumed') and
+`serverAckRequired`. `recordPurchase` enqueues `acknowledgePurchase` in the
+same commit that writes the transaction and the grant, with `idempotencyKey:
+'ack:' + storeTxnId` and `maxAttempts: 5` — slice 5's outbox shape, reused
+verbatim.
+
+56/56 green, stable across four consecutive runs.
+
+### What felt good
+
+**Reusing slice 5's outbox was genuinely a copy.** Enqueue transactionally,
+idempotency key on the store's own identity, finite ladder, throw to ask for
+another attempt, commit the outcome through a mutation. Nothing about the
+webhook pattern turned out to be webhook-specific, which is the best evidence
+that slice 5 found the right shape rather than a shape that happened to work
+once.
+
+**Transactional enqueue is the whole reason this is safe to owe.** A
+rolled-back purchase provably schedules no ack; a committed one provably
+schedules exactly one. There is no window where the row exists and the
+obligation does not — and over a three-day deadline that window is the
+difference between "retried" and "the user got auto-refunded". On a
+queue-plus-database stack this is the exact seam where you hand-roll an outbox
+and get it subtly wrong; here it was one call inside the mutation that already
+existed.
+
+**The negative assertion was the easiest one to write and the most valuable.**
+"A refused ack must not be recorded as sent" is the failure mode that would
+hurt most in production — believing we were safe while the refund landed — and
+the fixture's `suppressAck` switch made it three lines: suppress, drain past
+the ladder, assert `ackState` is still 'pending' on both sides. The engine's
+own structure did the work, because the only thing that writes `ackState` is a
+mutation the action calls *after* a successful response.
+
+**Two fields beat a fourth enum value.** `serverAckRequired` next to `ackState`
+rather than an `ackState: 'not_required'`. "Nobody owes an acknowledgement" and
+"we owe one and have not sent it" are different facts, and collapsing them
+would make every pending Apple row look permanently overdue. The slice-7 lesson
+about `state` being non-null exactly when `active` is true was the same shape
+of argument, and having made it once made this one obvious.
+
+**Asserting on the store's received requests, not on the job queue.** For
+"Apple sends nothing", the queue tells you about intent and the store tells you
+about effect. Checking `store.requests` for `/acknowledge/` and `/consume/`
+paths is the stronger claim and it cannot be satisfied by a job that was
+enqueued and silently skipped.
+
+### What felt bad, or needed thought
+
+**An action cannot read, and the workaround is refused at generation.** This
+was the design pivot of the slice. Choosing consume vs acknowledge needs
+`products.kind`. Actions have no `ctx.db`. There is no `ctx.runQuery` — I
+grepped the host-op surface and the ctx bootstrap to be sure. So the paved
+answer is "call a mutation", and I wrote a read-only `resolveAcknowledgement`
+mutation with `writes: []`.
+
+Codegen refused it: `defineJsMutation requires declared writes or sequences`.
+
+That is a defensible rule — a mutation that writes nothing is a query — but
+combined with the absence of `ctx.runQuery` it means **an action has no
+sanctioned way to read durable state at all**. The two rules are individually
+reasonable and jointly leave a hole. My options were:
+
+- declare `writes: ['transactions']` on a mutation that never writes, which is
+  exactly the over-broad authority this demo praises Snapback for making
+  visible;
+- fold the read into the mutation that *does* write, which cannot work because
+  the outbound call has to sit between the read and the write;
+- decide at enqueue time and put the answer in the payload.
+
+I took the third. It is safe here in a way it would not be for a transaction's
+*status*: `kind` is our own catalog fact and does not drift under a queued job,
+whereas a store status absolutely does — which is the whole thesis of slices 3
+and 7. Every durable guard still runs at execution time inside
+`markAcknowledged`, the only place that can see current state at commit time.
+But I want to be clear that I chose it because the platform closed the other
+doors, not because it was my first design. Filed as a gap below.
+
+**A pre-existing check was over-broad and slice 8 exposed it.** `no registered
+endpoint means no delivery is scheduled` asserted the *entire* job queue was
+empty. It passed for three slices because nothing else enqueued. The moment
+acknowledgement joined the same `default` queue it broke — and the trigger was
+a slice-1 check that happens to buy on `google` for reasons that have nothing
+to do with adapters (it is testing live delivery).
+
+The fix was to scope the assertion to `action === 'notifyDeveloper'`, which is
+what the check's name and intent already claimed. Worth recording as a habit:
+when a check asserts on a shared subsystem's *global* state, it is implicitly
+asserting that no future feature will ever use that subsystem. That is a claim
+about the future, and it will be wrong. The narrower assertion is both more
+honest and more durable.
+
+**`suppressAck` needed to refuse, not to lie.** My first instinct was a switch
+that made the endpoint return 200 without recording. That would have tested a
+dishonest store rather than an unreachable one, and it would have let a bug
+where we mark acknowledged on any 200 slip through. Returning 503 exercises the
+real failure mode and costs six drain rounds to walk the ladder.
+
+**The compressed deadline had to be scoped, or it would have been collateral
+damage.** A store-wide "revoke everything unacknowledged" sweep would have
+destroyed the slice 1-7 fixtures the moment slice 8 called it. Scoping it to
+Google transactions is not a test convenience — it is what the real obligation
+is, since Apple and Stripe never auto-refund for a missing server ack. Getting
+the fixture's scope right *because* the domain rule is narrow was a pleasant
+case of accuracy and convenience pointing the same way.
+
+### Compared to Convex / Supabase
+
+Closest comparison is Convex's scheduler plus a mutation. Two differences.
+
+- **Transactional enqueue is native here and manual there.** Convex's
+  `ctx.scheduler.runAfter` inside a mutation is also transactional, so this one
+  is a draw with Convex — but against Supabase (or any Postgres-plus-worker
+  stack) it is the difference between one call and an outbox table with its own
+  poller.
+- **`uses:` made the config grant reviewable.** Adding `storeBaseUrl` to the
+  ack action's `uses` list is the entire authorization story, and a reader can
+  see that the ack action reads two config entries and writes one table without
+  reading the handler. The papercut is that `expose()` is the only way to get a
+  plain string out of a config handle, and it reads like a secret escape hatch
+  even when the value is a URL — I annotated the call rather than leave a
+  reader wondering why a non-secret needed exposing.
+
+### Guide gaps worth filing
+
+Not filed as tickets: this session was scoped to `demos/eas-payments/` plus
+this diary. Per CLAUDE.md and LLP 0061 §5 both want one, with `guide-gap` in
+the title.
+
+- **An action has no sanctioned way to read durable state.** No `ctx.db`, no
+  `ctx.runQuery`, and a read-only mutation is refused with `defineJsMutation
+  requires declared writes or sequences`. The jobs and actions pages both say
+  "an action calls a mutation for durable effects" without addressing reads.
+  The guide should either name the intended pattern (payload carries what the
+  action needs, decided at enqueue time) or the platform should admit a
+  read-only callee — silence currently pushes authors toward declaring a write
+  they never perform.
+- **Nothing documents that config is the way to give a job an endpoint.** A
+  job's arguments are minted inside a mutation, which cannot know a
+  runtime-discovered origin, so the testing-seam trick of passing
+  `storeBaseUrl` as an action argument does not generalize to queued work.
+  Config plus `expose()` is the answer and I had to derive it;
+  `guide/backend/jobs.md` is where a reader would look.

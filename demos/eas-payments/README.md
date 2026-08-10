@@ -197,6 +197,79 @@ and the next sweep undoes it. The clean fix is either a time-aware derivation
 horizon the sweep retired so only a strictly later one can re-grant. Neither is
 in this slice.
 
+## Acknowledgement as a store obligation (slice 8)
+
+Acknowledgement is not bookkeeping. It is an obligation with a deadline and a
+refund attached:
+
+- **Google auto-refunds the user and revokes the purchase** if it is not
+  acknowledged within three days.
+- **A consumable must be CONSUMED** (which also acknowledges) before it can be
+  bought again. Acknowledging a consumable without consuming it silently caps the
+  user at one purchase, forever.
+- **Apple needs no server acknowledgement at all.** Apple's ack is the client
+  calling StoreKit `finish`; there is no server endpoint, so a server that
+  "acknowledged" would be inventing a protocol. **Stripe** has no such concept
+  either.
+
+Because the Engine is authoritative and always online, it acknowledges Google
+purchases server-side, using the same reliability machinery as the decision-20
+webhook: `recordPurchase` enqueues `acknowledgePurchase` **in the same commit**
+that writes the transaction and the grant, with
+`idempotencyKey: 'ack:' + storeTxnId` and `maxAttempts: 5`.
+
+Transactional enqueue is what makes the obligation safe to owe. A rolled-back
+purchase provably schedules no ack, and a committed one provably schedules
+exactly one — there is no window where the row exists and the obligation does
+not, which over a three-day deadline is the difference between "retried" and
+"auto-refunded".
+
+`transactions` carries two new fields:
+
+| Field | Meaning |
+| --- | --- |
+| `ackState` | `'pending'` → `'acknowledged'` (durables) or `'consumed'` (consumables). One-way. |
+| `serverAckRequired` | Whether the obligation is **ours**. True only for Google. |
+
+These are two fields rather than a fourth `ackState` value because "nobody owes
+an acknowledgement" and "we owe one and have not sent it" are different facts.
+Collapsing them would make every pending Apple row look permanently overdue.
+
+Three properties the acceptance proves, and one it proves by its absence:
+
+- **The ack beats the deadline.** After it lands, crossing the three-day deadline
+  leaves the grant untouched — verified by re-fetching from the store, not by
+  trusting our own row.
+- **Consume enables re-buy.** A consumable lands on `consumed`, and a second
+  purchase of the same product succeeds as a new `storeTxnId`.
+- **A refused ack is never recorded as sent.** The store is the only authority on
+  whether it accepted. Marking it optimistically is exactly what the deadline
+  punishes — we would believe we were safe while the refund landed. With the
+  fixture's `suppressAck` on, the engine exhausts all five attempts, records
+  nothing, and the store then auto-refunds; the grant flips off through an
+  ordinary `applyStoreState` re-fetch, the same mechanism as any other revoke.
+- **Apple sends nothing.** No ack job is enqueued and no outbound call is made,
+  asserted on the store's received requests rather than on the job queue — the
+  effect, not the intent.
+
+Duplicate delivery is normal on an at-least-once queue, so `markAcknowledged` is
+one-way and idempotent: it refuses to move a settled row and refuses to record
+anything for a transaction that owed nothing.
+
+### Where the operation is decided, and why not at execution time
+
+The job payload carries `{ storeTxnId, operation }`. Deciding the operation at
+enqueue time is a compromise the platform forces: choosing consume vs acknowledge
+needs `products.kind`, an action has no `ctx.db`, there is no `ctx.runQuery`, and
+a mutation that only reads is refused at generation (`defineJsMutation requires
+declared writes or sequences`). So a read-only "resolve" mutation is not
+available.
+
+It is a safe thing to decide early in a way that a transaction's *status* would
+not be: `kind` is our own catalog fact and does not drift under a queued job.
+Every durable guard still runs at execution time inside `markAcknowledged`, which
+is the only place that can see current state at commit time.
+
 ## The outbound change feed
 
 The mirror image of the notification rule. Just as we refuse to trust a store's
