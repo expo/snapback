@@ -1879,6 +1879,12 @@ impl IbexActionHost for DetachedActionHost {
         // inside this exact detached action host and every operation passes
         // validate_host_call before dispatch.
         self.validate_stream_authority("fetchStream.open")?;
+        let _egress = crate::auth::rehearsal::ExternalEgressGate::prepare(
+            self.authority.rehearsal_provenance(),
+            self.authority.profile(),
+            crate::auth::rehearsal::RegisteredEgressChannel::RuntimeFetch,
+            crate::auth::rehearsal::RegisteredEgressAdapter::Real,
+        )?;
         // @ref LLP 0076#settlement-and-retry — automatically re-dispatched
         // cron/durable invocations are excluded from streamed actions until
         // resumable retry semantics exist: an automatic retry cannot prove
@@ -2163,6 +2169,12 @@ impl IbexActionHost for DetachedActionHost {
         request: crate::runtime::HostFetchRequest,
     ) -> SnapbackResult<crate::runtime::HostFetchResponse> {
         self.validate_host_call("host.fetch")?;
+        let _egress = crate::auth::rehearsal::ExternalEgressGate::prepare(
+            self.authority.rehearsal_provenance(),
+            self.authority.profile(),
+            crate::auth::rehearsal::RegisteredEgressChannel::RuntimeFetch,
+            crate::auth::rehearsal::RegisteredEgressAdapter::Real,
+        )?;
         let fetch_error = |code: &str, message: &str| {
             SnapbackError::error(code, "runtime", message).with_details(json!({
                 "operation": "fetch",
@@ -2302,6 +2314,12 @@ impl IbexActionHost for DetachedActionHost {
         request: crate::push::PushSendRequestV1,
     ) -> SnapbackResult<crate::push::PushSendReservationResponseV1> {
         self.validate_host_call("push.send")?;
+        let _egress = crate::auth::rehearsal::ExternalEgressGate::prepare(
+            self.authority.rehearsal_provenance(),
+            self.authority.profile(),
+            crate::auth::rehearsal::RegisteredEgressChannel::PushProvider,
+            crate::auth::rehearsal::RegisteredEgressAdapter::Real,
+        )?;
         let trigger_mode = if self.deferred_push_grant.is_some()
             && matches!(self.authority.resolved(), ResolvedAppAuthority::System)
         {
@@ -3660,6 +3678,7 @@ pub(crate) async fn execute_job_claim_detached(
     let metadata = LocalSnapback::job_claim_metadata(&claim);
     let action = claim.action.clone();
     let deferred_push_grant = claim.push_grant.clone();
+    let rehearsal_provenance = claim.rehearsal_provenance.clone();
     let staged = {
         let action = action.clone();
         let admission = claim.admission_lease().clone();
@@ -3668,6 +3687,7 @@ pub(crate) async fn execute_job_claim_detached(
                 &action,
                 admission,
                 deferred_push_grant,
+                rehearsal_provenance,
             )
         })
         .await
@@ -11253,10 +11273,15 @@ async fn prepare_registered_route_authority(
             ),
         None => authority,
     };
-    Ok(Some(match service_publication {
+    let authority = match service_publication {
         Some(publication) => authority.with_service_publication(publication),
         None => authority,
-    }))
+    };
+    Ok(Some(
+        authority
+            .with_rehearsal_authority_registry(runtime.auth_rehearsal_live_grants.clone())
+            .map_err(ApiError::from)?,
+    ))
 }
 
 async fn record_successful_finite_session_use(
@@ -15440,11 +15465,20 @@ fn propagate_committed_revocation(
         );
 }
 
+#[derive(Clone)]
+struct RehearsalSessionDerivation {
+    provenance: crate::auth::rehearsal::AuthRehearsalProvenanceV1,
+    governing_not_after_ms: u64,
+    exercise: crate::storage::auth_rehearsal::RehearsalExercisePlan,
+    require_existing_identity: bool,
+}
+
 async fn coordinated_mint_session(
     runtime: &AppState,
     provider: &Arc<AuthProvider>,
     admission: AddressAdmission,
     route_admission: &AdmissionLease,
+    rehearsal: Option<RehearsalSessionDerivation>,
 ) -> Result<CredentialIssue, SnapbackError> {
     let coordinator = runtime.auth_coordinator.clone().ok_or_else(|| {
         SnapbackError::error(
@@ -15470,7 +15504,19 @@ async fn coordinated_mint_session(
             admission.plan_mint_session(snapback.auth_database_mut(), now_ms)
         })
         .await;
-        let plan = plan.map_err(ProviderError::into_snapback_error)?;
+        let mut plan = plan.map_err(ProviderError::into_snapback_error)?;
+        if let Some(rehearsal) = rehearsal.clone() {
+            if rehearsal.require_existing_identity && plan.creates_identity() {
+                return Err(crate::auth::rehearsal::authority_ended());
+            }
+            plan.bind_rehearsal_provenance(
+                rehearsal.provenance,
+                rehearsal.governing_not_after_ms,
+            )
+            .map_err(ProviderError::into_snapback_error)?;
+            plan.bind_rehearsal_effect(rehearsal.exercise)
+                .map_err(ProviderError::into_snapback_error)?;
+        }
         let carrier = coordinator.premark_issuance(plan).await?;
         let commit_plan = carrier.plan().commit_plan();
         let effect_admission = route_admission.clone();
@@ -15518,9 +15564,11 @@ async fn coordinated_mint_session(
             IssuanceFinish::Committed(issue) => return Ok(issue),
             IssuanceFinish::CodeInvalid
             | IssuanceFinish::CodeLocked
-            | IssuanceFinish::SenderKeyBound => {
+            | IssuanceFinish::SenderKeyBound
+            | IssuanceFinish::RehearsalReplay(_) => {
                 return Err(auth_provider_unavailable_error());
             }
+            IssuanceFinish::RehearsalDenied(error) => return Err(error),
             IssuanceFinish::CandidateCollision => continue,
             IssuanceFinish::PredecessorChanged => continue,
         }
@@ -15535,6 +15583,7 @@ async fn coordinated_exchange_session(
     code: String,
     sender_issuance: Option<SenderIssuanceCommitment>,
     route_admission: &AdmissionLease,
+    rehearsal: Option<RehearsalSessionDerivation>,
 ) -> Result<CredentialIssue, ProviderError> {
     let coordinator = runtime.auth_coordinator.clone().ok_or_else(|| {
         ProviderError::from(SnapbackError::error(
@@ -15593,6 +15642,13 @@ async fn coordinated_exchange_session(
                     // the sender issuance re-mints the candidate bearer in
                     // the versioned `sbs2_` spelling before premark.
                     plan.bind_sender_issuance(commitment, provider.agent_random_source())?;
+                }
+                if let Some(rehearsal) = rehearsal.clone() {
+                    plan.bind_rehearsal_provenance(
+                        rehearsal.provenance,
+                        rehearsal.governing_not_after_ms,
+                    )?;
+                    plan.bind_rehearsal_effect(rehearsal.exercise)?;
                 }
                 let commit_code = code.clone();
                 let carrier = coordinator
@@ -15666,6 +15722,14 @@ async fn coordinated_exchange_session(
                     }
                     IssuanceFinish::SenderKeyBound => {
                         return Err(crate::auth::provider::sender_key_bound());
+                    }
+                    IssuanceFinish::RehearsalReplay(_) => {
+                        return Err(ProviderError::from(
+                            crate::auth::rehearsal::authority_ended(),
+                        ));
+                    }
+                    IssuanceFinish::RehearsalDenied(error) => {
+                        return Err(ProviderError::from(error));
                     }
                     IssuanceFinish::CandidateCollision => continue,
                     IssuanceFinish::PredecessorChanged => continue,
@@ -15884,6 +15948,7 @@ async fn auth_exchange(
                 code.as_str().to_owned(),
                 sender_issuance,
                 &route_admission,
+                None,
             )
             .await
         }
@@ -19403,7 +19468,7 @@ pub(crate) fn project_auth_runtime_facts(inspect: &mut InspectState, runtime: &A
                 .auth_rehearsal_live_grants
                 .write()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            live.retain(|_, expires_at| *expires_at > now_ms);
+            live.retain(|_, authority| authority.expires_at_ms > now_ms);
             if live.is_empty() {
                 "available"
             } else {
@@ -20025,7 +20090,13 @@ async fn execute_auth_host_operation(
                     .auth_rehearsal_live_grants
                     .write()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .insert(grant_id.to_owned(), expires_at);
+                    .insert(
+                        grant_id.to_owned(),
+                        crate::auth::rehearsal::RehearsalLiveAuthority {
+                            expires_at_ms: expires_at,
+                            parent_grant_id: None,
+                        },
+                    );
             }
             Ok(auth_host_result(runtime, request, server_url, outcome).await)
         }
@@ -20144,8 +20215,236 @@ async fn execute_auth_host_operation(
                 )
             })
             .await;
-            if let Err(error) = resolved {
-                return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+            let grant = match resolved {
+                Ok(grant) => grant,
+                Err(error) => {
+                    return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                }
+            };
+
+            if let crate::auth::rehearsal::RehearsalExerciseRequestV1::ChallengeRedeem {
+                challenge_id,
+                code,
+                ..
+            } = args.clone()
+            {
+                let admission = provider.admit().await;
+                let lookup_challenge_id = challenge_id.clone();
+                let (admission, coordination) = with_snapback(
+                    &runtime.snapback,
+                    move |snapback| {
+                        let coordination = admission.exchange_coordination(
+                            snapback.auth_database_mut(),
+                            &lookup_challenge_id,
+                        );
+                        (admission, coordination)
+                    },
+                )
+                .await;
+                let coordination = match coordination {
+                    Ok(Some(coordination)) => coordination,
+                    Ok(None) => {
+                        return Ok(auth_host_result(
+                            runtime,
+                            request,
+                            server_url,
+                            Err(crate::auth::rehearsal::authority_ended()),
+                        )
+                        .await);
+                    }
+                    Err(error) => {
+                        return Ok(auth_host_result(
+                            runtime,
+                            request,
+                            server_url,
+                            Err(error.into_snapback_error()),
+                        )
+                        .await);
+                    }
+                };
+                let resolved_contact = coordination.address().clone();
+                let provenance = match crate::auth::rehearsal::AuthRehearsalProvenanceV1::for_grant(
+                    &grant,
+                    true,
+                ) {
+                    Ok(provenance) => provenance,
+                    Err(error) => {
+                        return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                    }
+                };
+                let exercise = crate::storage::auth_rehearsal::RehearsalExercisePlan {
+                    carrier_hash,
+                    bindings,
+                    request: args,
+                    resolved_contact: Some(resolved_contact),
+                    semantic_success: true,
+                    outcome: serde_json::json!({
+                        "kind": "authRehearsalSession.v1",
+                        "challengeId": challenge_id,
+                    }),
+                    now_ms,
+                };
+                let exchange = match admission.for_exchange(coordination).await {
+                    Ok(exchange) => exchange,
+                    Err(error) => {
+                        return Ok(auth_host_result(
+                            runtime,
+                            request,
+                            server_url,
+                            Err(error.into_snapback_error()),
+                        )
+                        .await);
+                    }
+                };
+                let outcome = coordinated_exchange_session(
+                    runtime,
+                    &provider,
+                    exchange,
+                    code,
+                    None,
+                    route_admission,
+                    Some(RehearsalSessionDerivation {
+                        provenance,
+                        governing_not_after_ms: grant.expires_at,
+                        exercise,
+                        require_existing_identity: false,
+                    }),
+                )
+                .await
+                .map_err(ProviderError::into_snapback_error)
+                .and_then(|issue| {
+                    let (credential, _committed_revocation) = issue.into_parts();
+                    serde_json::to_value(credential).map_err(|_| auth_provider_unavailable_error())
+                });
+                return Ok(auth_host_result(runtime, request, server_url, outcome).await);
+            }
+
+            if let crate::auth::rehearsal::RehearsalExerciseRequestV1::FixtureIdentityCreate {
+                email,
+                ..
+            } = args.clone()
+            {
+                let admission = match provider.admit_email(&email).await {
+                    Ok(admission) => admission,
+                    Err(error) => {
+                        return Ok(auth_host_result(
+                            runtime,
+                            request,
+                            server_url,
+                            Err(error.into_snapback_error()),
+                        )
+                        .await);
+                    }
+                };
+                let address = admission.address().clone();
+                let planned = with_snapback(&runtime.snapback, move |snapback| {
+                    admission.plan_mint_session(snapback.auth_database_mut(), now_ms)
+                })
+                .await;
+                let planned = match planned {
+                    Ok(planned) => planned,
+                    Err(error) => {
+                        return Ok(auth_host_result(
+                            runtime,
+                            request,
+                            server_url,
+                            Err(error.into_snapback_error()),
+                        )
+                        .await);
+                    }
+                };
+                let provenance = match crate::auth::rehearsal::AuthRehearsalProvenanceV1::for_grant(
+                    &grant,
+                    false,
+                ) {
+                    Ok(provenance) => provenance,
+                    Err(error) => {
+                        return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                    }
+                };
+                let identity = planned.planned_identity();
+                let exercise = crate::storage::auth_rehearsal::RehearsalExercisePlan {
+                    carrier_hash,
+                    bindings,
+                    request: args,
+                    resolved_contact: Some(address.clone()),
+                    semantic_success: true,
+                    outcome: serde_json::Value::Object(Default::default()),
+                    now_ms,
+                };
+                let outcome = with_snapback(&runtime.snapback, move |snapback| {
+                    snapback
+                        .auth_database_mut()
+                        .auth_rehearsal_create_identity(
+                            exercise,
+                            identity,
+                            &address,
+                            &provenance,
+                            grant.expires_at,
+                        )
+                        .map(|outcome| match outcome {
+                            crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Fresh(value)
+                            | crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Replay(value) => value,
+                        })
+                })
+                .await;
+                return Ok(auth_host_result(runtime, request, server_url, outcome).await);
+            }
+
+            if let crate::auth::rehearsal::RehearsalExerciseRequestV1::FixtureSessionMint {
+                email,
+                ..
+            } = args.clone()
+            {
+                let admission = match provider.admit_email(&email).await {
+                    Ok(admission) => admission,
+                    Err(error) => {
+                        return Ok(auth_host_result(
+                            runtime,
+                            request,
+                            server_url,
+                            Err(error.into_snapback_error()),
+                        )
+                        .await);
+                    }
+                };
+                let address = admission.address().clone();
+                let provenance = match crate::auth::rehearsal::AuthRehearsalProvenanceV1::for_grant(
+                    &grant,
+                    false,
+                ) {
+                    Ok(provenance) => provenance,
+                    Err(error) => {
+                        return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                    }
+                };
+                let exercise = crate::storage::auth_rehearsal::RehearsalExercisePlan {
+                    carrier_hash,
+                    bindings,
+                    request: args,
+                    resolved_contact: Some(address),
+                    semantic_success: true,
+                    outcome: serde_json::json!({ "kind": "authRehearsalSession.v1" }),
+                    now_ms,
+                };
+                let outcome = coordinated_mint_session(
+                    runtime,
+                    &provider,
+                    admission,
+                    route_admission,
+                    Some(RehearsalSessionDerivation {
+                        provenance,
+                        governing_not_after_ms: grant.expires_at,
+                        exercise,
+                        require_existing_identity: true,
+                    }),
+                )
+                .await
+                .and_then(|issue| {
+                    let (credential, _committed_revocation) = issue.into_parts();
+                    serde_json::to_value(credential).map_err(|_| auth_provider_unavailable_error())
+                });
+                return Ok(auth_host_result(runtime, request, server_url, outcome).await);
             }
 
             let mut resolved_contact = None;
@@ -20238,7 +20537,13 @@ async fn execute_auth_host_operation(
                     return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
                 }
             };
-            let outcome = coordinated_mint_session(runtime, &provider, admission, route_admission)
+            let outcome = coordinated_mint_session(
+                runtime,
+                &provider,
+                admission,
+                route_admission,
+                None,
+            )
                 .await
                 .and_then(|issue| {
                     let (credential, committed_revocation) = issue.into_parts();

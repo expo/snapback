@@ -89,3 +89,16 @@ High on the need for a decision and on the no-rewrite recommendation. Medium on
 the exact first slice; generation activation is suggested because this review
 found a concrete atomicity failure there, but the author should choose the
 sequence based on current product priorities.
+
+## Author ruling — 2026-08-10
+
+Approved as written, all three parts: (1) the incremental core-modularization
+Decision is commissioned; (2) no rewrite — strangler-style extraction behind
+the existing façade, preserving the root LLP's load-bearing invariants; (3)
+the first slice is generation activation. One addition to the commission: the
+lightweight structural check (dependency-direction gate) must land **with**
+the first slice, not after — see the companion ruling approving
+`issues/20260809-ownership-gate-prepush-tier.md`, which becomes this
+Decision's enforcement arm. Next action: author the Decision LLP recording
+the ownership map, dependency direction, transaction boundaries, and
+migration sequence.

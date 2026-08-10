@@ -56,3 +56,12 @@ recipe (fetch origin, number above the union of local and origin trees,
 land promptly). Remains: the canonical disposition for the existing 11
 (rename vs alias) is an author call; recommended wiring is `--strict` in
 the scheduled drift backstop so a new collision files a ticket.
+
+## Author ruling — 2026-08-10
+
+**Alias, don't rename.** The baselined collision map in
+`scripts/check-diary-identity.mjs` is the canonical disposition for the 11
+historical duplicates; existing filenames and citations stay untouched. Bare
+"Diary NNNN" is authoritative only for non-colliding IDs; the 11 colliding
+IDs require a qualified reference (number + slug). Wire `--strict` into the
+scheduled drift backstop so a NEW collision files a ticket automatically.

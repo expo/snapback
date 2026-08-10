@@ -705,6 +705,7 @@ fn enqueue_on(
         max_attempts: crate::jobs::JOBS_MAX_ATTEMPTS_CEILING,
         available_at_ms,
         push_grant: None,
+        rehearsal_provenance: None,
     };
     crate::jobs::insert_enqueued_jobs_in_tx(
         conn,

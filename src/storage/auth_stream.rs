@@ -184,6 +184,8 @@ impl LocalDatabase {
             }
             causes
         };
+        let mut rehearsal_provenance =
+            super::auth_rehearsal::rehearsal_session_provenance_by_id(&tx)?;
         let sessions = {
             let mut statement = tx.prepare(
                 "SELECT id, user_id, identity_id, authority_instance_id,
@@ -206,6 +208,7 @@ impl LocalDatabase {
                         absolute_expires_at_ms: row.get(9)?,
                         revoked_at_ms: row.get(10)?,
                         terminal_cause: None,
+                        rehearsal_provenance: rehearsal_provenance.remove(&row.get::<_, String>(0)?),
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?;
@@ -217,6 +220,11 @@ impl LocalDatabase {
         if !terminal_causes.is_empty() {
             return Err(projection_corrupt(
                 "session terminal-cause metadata names a missing session",
+            ));
+        }
+        if !rehearsal_provenance.is_empty() {
+            return Err(projection_corrupt(
+                "rehearsal session provenance names a missing session",
             ));
         }
         let superseded_tokens = {

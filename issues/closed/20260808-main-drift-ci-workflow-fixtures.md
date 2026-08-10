@@ -1,6 +1,6 @@
 # main drift: ci-workflow-fixtures has a stale committed record
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -44,3 +44,10 @@ node tests/ci_workflows_v0.mjs
 
 Commit the reconciled record with the measured change, verify the gate, record
 the resolution here, and move this ticket to `issues/closed/`.
+
+## Resolution — 2026-08-10
+
+Gate re-run green on a clean checkout of `ec96f04e5`:
+`node tests/ci_workflows_v0.mjs` → PASS (10 workflows, 46 immutable action
+pins), exit 0. The committed record was reconciled by intervening landings;
+nothing further to regenerate. Closing per the idempotent-while-open rule.

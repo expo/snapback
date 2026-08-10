@@ -105,3 +105,19 @@ second allocation authority.
 **Next action:** write the coordinating identity-architecture Decision
 (`issues/20260808-identity-architecture-decision.md`), then land this as its
 schema-owner amendment.
+
+## Author ruling — 2026-08-10
+
+The design groundwork above is endorsed wholesale: extend LLP 0135's
+`_snapback_sequence_counters_v1` (no second counter authority); sequence
+semantics per LLP 0191 §3 (strictly increasing, gaps allowed, an aborted or
+rolled-back mutation burns its value); **server-owned always** (a
+client-supplied value refuses with a stable code — `GENERATED ALWAYS`
+semantics under the `BY DEFAULT` spelling); v1 refuses adding the column to
+non-empty tables; `v.serial({ start })` is the working spelling, with the
+final name owned by the Decision. Greenlit now: write the coordinating
+identity-architecture Decision
+(`issues/20260808-identity-architecture-decision.md`) with this ticket as its
+first schema-owner amendment. An import-time escape hatch for preserving
+legacy numeric values may be designed later if demand appears; it is out of
+v1.

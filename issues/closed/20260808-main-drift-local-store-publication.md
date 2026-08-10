@@ -1,6 +1,6 @@
 # main drift: local-store-publication has a stale committed record
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -44,3 +44,14 @@ scripts/finalize-local-persistent-store-publication
 
 Commit the reconciled record with the measured change, verify the gate, record
 the resolution here, and move this ticket to `issues/closed/`.
+
+## Resolution — 2026-08-10
+
+`src/local.rs` had drifted from the carrier pin
+(`sha256:91efdfbb…` → `sha256:ab484d69…`). Reconciled in this landing via
+`node scripts/refresh-publication-carrier.mjs` (carrier
+`b04dc7bd759a` → `74d83e1cddc5`), then
+`node tests/conformance/local-persistent-store-publication-v1.mjs` → exit 0,
+status `published`, carrier exit `17 PASS / 0 GAP`, triage/fleet Move-1
+`8/8 PASS`. Custody checker (`tests/agent_safe_publication_checker_v1.mjs`)
+reports fail 0.

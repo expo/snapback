@@ -162,3 +162,12 @@ Still open, from the integrated-diff adversarial review:
    and contradictory Rust facts; `cloudflare/test/acceptance.network-profile.mjs`
    exercises the corresponding startup/runtime test, hosted-primary,
    hosted-derived, missing, malformed, and contradictory deployment matrix.
+
+## Resolution — 2026-08-10
+
+Every numbered item in both sections carries a dated `Resolved 2026-08-04/05`
+entry naming its owning tests (socket ack/delta timing, HTTP clamp,
+middleware-origin refusals, timer coalescing via the bounded-timer owning
+test, MCP authority projection pinned to the Rust builtins, and the OQ3
+fork-exception gate with the CF derived-identity binding). Nothing in the
+ticket remains open; closing as fully discharged.

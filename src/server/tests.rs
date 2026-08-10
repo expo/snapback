@@ -1307,7 +1307,13 @@ async fn rehearsal_capability_manifest_reports_absent_available_and_active() {
         .auth_rehearsal_live_grants
         .write()
         .unwrap()
-        .insert("grant-active".to_owned(), super::now_millis() + 60_000);
+        .insert(
+            "grant-active".to_owned(),
+            crate::auth::rehearsal::RehearsalLiveAuthority {
+                expires_at_ms: super::now_millis() + 60_000,
+                parent_grant_id: None,
+            },
+        );
     assert_eq!(projected_rehearsal_status(&state).await, "active");
     Arc::make_mut(&mut state.server).profile = ServerProfile::Prod;
     assert_eq!(projected_rehearsal_status(&state).await, "absent");
@@ -7412,7 +7418,13 @@ async fn mint_test_credential(state: &AppState, email: &str) -> serde_json::Valu
         .expect("installed auth provider");
     let admission = provider.admit_email(email).await.expect("admit test email");
     let route_admission = test_route_admission(state).0;
-    let issue = super::coordinated_mint_session(state, &provider, admission, &route_admission)
+    let issue = super::coordinated_mint_session(
+        state,
+        &provider,
+        admission,
+        &route_admission,
+        None,
+    )
         .await
         .expect("mint test session");
     let (credential, _committed_revocation) = issue.into_parts();
@@ -17721,7 +17733,13 @@ async fn postcommit_admin_mint_cap_finalize_failure_still_terminalizes_eviction(
     let admission = provider.admit_email(email).await.expect("admit cap email");
     let route_admission = test_route_admission(&state).0;
 
-    let error = super::coordinated_mint_session(&state, &provider, admission, &route_admission)
+    let error = super::coordinated_mint_session(
+        &state,
+        &provider,
+        admission,
+        &route_admission,
+        None,
+    )
         .await
         .expect_err("injected postcommit issuance finalize failure");
     assert_eq!(
@@ -24326,6 +24344,7 @@ fn synthetic_connection_authority(bound: BoundGrantAuthority) -> PreparedConnect
             authority_instance_id: Uuid::now_v7().to_string(),
             session_not_after_ms: u64::MAX,
             provider_not_after_ms: None,
+            rehearsal_provenance: None,
         },
     };
     PreparedConnectionOpenAuthority {

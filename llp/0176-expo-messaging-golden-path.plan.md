@@ -1374,6 +1374,16 @@ to create replacement primitives. Tickets include
    logs, with asymmetries stated, not from re-run competitor arms. The
    metric definition is frozen in the G4 receipt before any number is
    claimed.
+6. **Ruled 2026-08-10:** the guarantees ledger's retained-cold-boot row binds
+   the **release path** — LLP 0181's `prepareReactBinding` persisted receipt
+   — not the supervised development cache, whose 1-hour TTL convenience is
+   explicitly outside the guarantee. Because measuring a release build on a
+   device is the same device-evidence boundary that already defers LLP 0064
+   `Online` claims, the retained-cold-boot measurement moves to G5 as a
+   named row; G4 records the arm as carried by G5 by rule, not by omission,
+   and the G4 0.1.17 PASS stands with this arm scoped out by rule. Evidence
+   and full ruling:
+   `issues/closed/20260809-g4-cold-boot-arm-dev-vs-release-path.md`.
 
 ## Status
 

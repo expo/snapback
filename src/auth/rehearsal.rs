@@ -10,17 +10,352 @@ use crate::diagnostic::{SnapbackError, SnapbackResult};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 use zeroize::{Zeroize as _, Zeroizing};
 
 pub const AUTH_REHEARSAL_GRANT_KIND: &str = "authRehearsalGrant.v1";
 pub const AUTH_REHEARSAL_STATUS_KIND: &str = "authRehearsalStatus.v1";
+pub const AUTH_REHEARSAL_PROVENANCE_KIND: &str = "authRehearsalProvenance.v1";
 pub const AUTH_REHEARSAL_CAPABILITY_HEADER: &str = "x-snapback-auth-rehearsal-capability";
 pub const MAX_REHEARSAL_CAPABILITY_FILE_BYTES: usize = 128;
 pub const MAX_REHEARSAL_TTL_MS: u64 = 24 * 60 * 60 * 1_000;
 pub const MAX_REHEARSAL_COUNT: u64 = 9_007_199_254_740_991;
+
+/// Exact authority that governed a rehearsal-derived identity, session, or
+/// assurance. A window always retains its parent grant; collapsing it to the
+/// parent would incorrectly let the child outlive an independently-ended
+/// window.
+///
+/// @ref LLP 0213#governing-authority — window-mediated derivation records both
+///   the window and its parent grant.
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+pub enum RehearsalGoverningAuthorityV1 {
+    Grant { grant_id: String },
+    Window {
+        window_id: String,
+        parent_grant_id: String,
+    },
+}
+
+impl RehearsalGoverningAuthorityV1 {
+    pub fn authority_ids(&self) -> (&str, Option<&str>) {
+        match self {
+            Self::Grant { grant_id } => (grant_id, None),
+            Self::Window {
+                window_id,
+                parent_grant_id,
+            } => (window_id, Some(parent_grant_id)),
+        }
+    }
+}
+
+/// Sealed server-only lineage attached to prepared invocation authority and
+/// protected durable intents. The digests bind the actual effective-authority
+/// and assurance decisions; application payloads never construct this value.
+///
+/// @ref LLP 0213#provenance-shape — canonical, duplicate-free governing
+///   authority sets are monotone under composition.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthRehearsalProvenanceV1 {
+    pub kind: String,
+    pub governing_authorities: Vec<RehearsalGoverningAuthorityV1>,
+    pub authority_decision_digest: String,
+    pub assurance_decision_digest: String,
+}
+
+impl AuthRehearsalProvenanceV1 {
+    pub fn from_governing_authority(
+        governing_authority: RehearsalGoverningAuthorityV1,
+        authority_decision_digest: String,
+        assurance_decision_digest: String,
+    ) -> SnapbackResult<Self> {
+        let value = Self {
+            kind: AUTH_REHEARSAL_PROVENANCE_KIND.to_owned(),
+            governing_authorities: vec![governing_authority],
+            authority_decision_digest,
+            assurance_decision_digest,
+        };
+        value.validate()?;
+        Ok(value)
+    }
+
+    pub fn for_grant(grant: &AuthRehearsalGrantV1, assurance_used: bool) -> SnapbackResult<Self> {
+        let authority_decision_digest = digest_serializable(
+            b"snapback.auth-rehearsal.authority-decision.v1\0",
+            &(grant.grant_id.as_str(), grant.instance_id.as_str(), grant.expires_at),
+        )?;
+        let assurance_decision_digest = digest_serializable(
+            b"snapback.auth-rehearsal.assurance-decision.v1\0",
+            &(grant.grant_id.as_str(), assurance_used),
+        )?;
+        Self::from_governing_authority(
+            RehearsalGoverningAuthorityV1::Grant {
+                grant_id: grant.grant_id.clone(),
+            },
+            authority_decision_digest,
+            assurance_decision_digest,
+        )
+    }
+
+    pub fn validate(&self) -> SnapbackResult<()> {
+        if self.kind != AUTH_REHEARSAL_PROVENANCE_KIND
+            || self.governing_authorities.is_empty()
+            || !self
+                .governing_authorities
+                .windows(2)
+                .all(|pair| pair[0] < pair[1])
+            || !valid_digest(&self.authority_decision_digest)
+            || !valid_digest(&self.assurance_decision_digest)
+        {
+            return Err(provenance_invalid());
+        }
+        let uuid_v7 = |value: &str| {
+            uuid::Uuid::parse_str(value).is_ok_and(|id| id.get_version_num() == 7)
+        };
+        for authority in &self.governing_authorities {
+            let (authority_id, parent) = authority.authority_ids();
+            if !uuid_v7(authority_id) || parent.is_some_and(|value| !uuid_v7(value)) {
+                return Err(provenance_invalid());
+            }
+        }
+        Ok(())
+    }
+
+    pub fn canonical_union(&self, other: &Self) -> SnapbackResult<Self> {
+        self.validate()?;
+        other.validate()?;
+        let governing_authorities = self
+            .governing_authorities
+            .iter()
+            .chain(other.governing_authorities.iter())
+            .cloned()
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let authority_decision_digest = digest_serializable(
+            b"snapback.auth-rehearsal.authority-union.v1\0",
+            &(
+                self.authority_decision_digest.as_str(),
+                other.authority_decision_digest.as_str(),
+                &governing_authorities,
+            ),
+        )?;
+        let assurance_decision_digest = digest_serializable(
+            b"snapback.auth-rehearsal.assurance-union.v1\0",
+            &(
+                self.assurance_decision_digest.as_str(),
+                other.assurance_decision_digest.as_str(),
+                &governing_authorities,
+            ),
+        )?;
+        Self::from_parts(
+            governing_authorities,
+            authority_decision_digest,
+            assurance_decision_digest,
+        )
+    }
+
+    fn from_parts(
+        governing_authorities: Vec<RehearsalGoverningAuthorityV1>,
+        authority_decision_digest: String,
+        assurance_decision_digest: String,
+    ) -> SnapbackResult<Self> {
+        let value = Self {
+            kind: AUTH_REHEARSAL_PROVENANCE_KIND.to_owned(),
+            governing_authorities,
+            authority_decision_digest,
+            assurance_decision_digest,
+        };
+        value.validate()?;
+        Ok(value)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RehearsalLiveAuthority {
+    pub expires_at_ms: u64,
+    pub parent_grant_id: Option<String>,
+}
+
+pub type RehearsalLiveAuthorityRegistry =
+    Arc<RwLock<BTreeMap<String, RehearsalLiveAuthority>>>;
+
+/// Process-bound level-triggered authority checker. Restart starts with an
+/// empty registry, so durable derived rows from an older boot remain inert.
+#[derive(Clone, Debug)]
+pub struct RehearsalAuthorityFence {
+    provenance: AuthRehearsalProvenanceV1,
+    live: RehearsalLiveAuthorityRegistry,
+}
+
+impl RehearsalAuthorityFence {
+    pub fn new(
+        provenance: AuthRehearsalProvenanceV1,
+        live: RehearsalLiveAuthorityRegistry,
+    ) -> SnapbackResult<Self> {
+        provenance.validate()?;
+        Ok(Self { provenance, live })
+    }
+
+    pub fn validate_at(&self, now_ms: u64) -> SnapbackResult<()> {
+        let live = self
+            .live
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for authority in &self.provenance.governing_authorities {
+            let (authority_id, expected_parent) = authority.authority_ids();
+            let Some(current) = live.get(authority_id) else {
+                return Err(authority_ended());
+            };
+            if now_ms >= current.expires_at_ms
+                || current.parent_grant_id.as_deref() != expected_parent
+            {
+                return Err(authority_ended());
+            }
+            if let Some(parent_grant_id) = expected_parent {
+                let Some(parent) = live.get(parent_grant_id) else {
+                    return Err(authority_ended());
+                };
+                if now_ms >= parent.expires_at_ms || parent.parent_grant_id.is_some() {
+                    return Err(authority_ended());
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn try_publish<T>(
+        &self,
+        now_ms: u64,
+        publish: impl FnOnce() -> SnapbackResult<T>,
+    ) -> SnapbackResult<T> {
+        // Hold the read side across the publication cut. Revocation removes
+        // the entry under the write side, making the terminal transition and
+        // final publication mutually ordered rather than check-then-act.
+        let live = self
+            .live
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for authority in &self.provenance.governing_authorities {
+            let (authority_id, expected_parent) = authority.authority_ids();
+            let Some(current) = live.get(authority_id) else {
+                return Err(authority_ended());
+            };
+            if now_ms >= current.expires_at_ms
+                || current.parent_grant_id.as_deref() != expected_parent
+            {
+                return Err(authority_ended());
+            }
+            if let Some(parent_grant_id) = expected_parent {
+                let Some(parent) = live.get(parent_grant_id) else {
+                    return Err(authority_ended());
+                };
+                if now_ms >= parent.expires_at_ms || parent.parent_grant_id.is_some() {
+                    return Err(authority_ended());
+                }
+            }
+        }
+        publish()
+    }
+}
+
+/// Identity-core assurance carrier reserved for LLP 0214 integration. Its
+/// use-time validator is complete here even though this lane does not invent
+/// or activate new assurance kinds.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RehearsalAssuranceV1 {
+    pub kind: String,
+    pub provenance: String,
+    pub issued_at: u64,
+    pub expires_at: u64,
+    pub governing_authority: RehearsalGoverningAuthorityV1,
+}
+
+impl RehearsalAssuranceV1 {
+    pub fn validate_use_at(
+        &self,
+        now_ms: u64,
+        live: RehearsalLiveAuthorityRegistry,
+    ) -> SnapbackResult<()> {
+        if self.kind.is_empty()
+            || self.provenance != "rehearsal"
+            || self.issued_at >= self.expires_at
+            || now_ms >= self.expires_at
+        {
+            return Err(authority_ended());
+        }
+        let provenance = AuthRehearsalProvenanceV1::from_governing_authority(
+            self.governing_authority.clone(),
+            digest_serializable(
+                b"snapback.auth-rehearsal.assurance-authority.v1\0",
+                &self.governing_authority,
+            )?,
+            digest_serializable(
+                b"snapback.auth-rehearsal.assurance-use.v1\0",
+                &(self.kind.as_str(), self.issued_at, self.expires_at),
+            )?,
+        )?;
+        RehearsalAuthorityFence::new(provenance, live)?.validate_at(now_ms)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RegisteredEgressChannel {
+    RuntimeFetch,
+    PushProvider,
+    NotificationProvider,
+    Webhook,
+    ExternalQueue,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RegisteredEgressAdapter {
+    Real,
+    DeclaredSimulator,
+    DeclaredTestAdapter,
+}
+
+#[derive(Debug)]
+pub struct ExternalEgressPermit {
+    _private: (),
+}
+
+pub struct ExternalEgressGate;
+
+impl ExternalEgressGate {
+    /// One registered decision point used before any provider secret or
+    /// network construction. Exemption is a closed activation-time adapter
+    /// classification, never a request argument, hostname, or environment
+    /// assertion.
+    ///
+    /// @ref LLP 0213#the-single-external-egress-gate — marked work admits only
+    ///   declared simulator/test adapters on non-production profiles.
+    pub fn prepare(
+        provenance: Option<&AuthRehearsalProvenanceV1>,
+        profile: crate::admin::ServerProfile,
+        _channel: RegisteredEgressChannel,
+        adapter: RegisteredEgressAdapter,
+    ) -> SnapbackResult<ExternalEgressPermit> {
+        if let Some(provenance) = provenance {
+            provenance.validate()?;
+            let declared_test_adapter = matches!(
+                adapter,
+                RegisteredEgressAdapter::DeclaredSimulator
+                    | RegisteredEgressAdapter::DeclaredTestAdapter
+            );
+            if profile == crate::admin::ServerProfile::Prod || !declared_test_adapter {
+                return Err(egress_refused());
+            }
+        }
+        Ok(ExternalEgressPermit { _private: () })
+    }
+}
 
 #[derive(
     Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, JsonSchema,
@@ -1352,5 +1687,150 @@ mod tests {
                 .code,
             "SNAPBACK_AUTH_REHEARSAL_REQUEST_INVALID"
         );
+    }
+
+    fn digest(byte: char) -> String {
+        format!("sha256:{}", byte.to_string().repeat(64))
+    }
+
+    #[test]
+    fn grant_and_window_governors_are_level_triggered_at_use_and_publication() {
+        let grant_id = uuid::Uuid::now_v7().to_string();
+        let window_id = uuid::Uuid::now_v7().to_string();
+        let registry: RehearsalLiveAuthorityRegistry =
+            Arc::new(RwLock::new(BTreeMap::new()));
+        registry.write().unwrap().insert(
+            grant_id.clone(),
+            RehearsalLiveAuthority {
+                expires_at_ms: 1_000,
+                parent_grant_id: None,
+            },
+        );
+        registry.write().unwrap().insert(
+            window_id.clone(),
+            RehearsalLiveAuthority {
+                expires_at_ms: 800,
+                parent_grant_id: Some(grant_id.clone()),
+            },
+        );
+        let provenance = AuthRehearsalProvenanceV1::from_governing_authority(
+            RehearsalGoverningAuthorityV1::Window {
+                window_id: window_id.clone(),
+                parent_grant_id: grant_id.clone(),
+            },
+            digest('a'),
+            digest('b'),
+        )
+        .unwrap();
+        let fence = RehearsalAuthorityFence::new(provenance, registry.clone()).unwrap();
+        fence.validate_at(799).unwrap();
+        assert_eq!(
+            fence.validate_at(800).unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED"
+        );
+
+        registry.write().unwrap().get_mut(&window_id).unwrap().expires_at_ms = 900;
+        assert_eq!(fence.try_publish(850, || Ok(7)).unwrap(), 7);
+        registry.write().unwrap().remove(&window_id);
+        assert_eq!(
+            fence.try_publish(850, || Ok(7)).unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED"
+        );
+
+        registry.write().unwrap().insert(
+            window_id,
+            RehearsalLiveAuthority {
+                expires_at_ms: 900,
+                parent_grant_id: Some(grant_id.clone()),
+            },
+        );
+        registry.write().unwrap().remove(&grant_id);
+        assert_eq!(
+            fence.validate_at(850).unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED"
+        );
+    }
+
+    #[test]
+    fn simulated_assurance_rechecks_governor_at_use_time() {
+        let grant_id = uuid::Uuid::now_v7().to_string();
+        let registry: RehearsalLiveAuthorityRegistry =
+            Arc::new(RwLock::new(BTreeMap::new()));
+        registry.write().unwrap().insert(
+            grant_id.clone(),
+            RehearsalLiveAuthority {
+                expires_at_ms: 1_000,
+                parent_grant_id: None,
+            },
+        );
+        let assurance = RehearsalAssuranceV1 {
+            kind: "email_verified".to_owned(),
+            provenance: "rehearsal".to_owned(),
+            issued_at: 100,
+            expires_at: 900,
+            governing_authority: RehearsalGoverningAuthorityV1::Grant {
+                grant_id: grant_id.clone(),
+            },
+        };
+        assurance.validate_use_at(899, registry.clone()).unwrap();
+        registry.write().unwrap().remove(&grant_id);
+        assert_eq!(
+            assurance
+                .validate_use_at(899, registry)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED"
+        );
+    }
+
+    #[test]
+    fn external_egress_requires_declared_nonproduction_adapter() {
+        let provenance = AuthRehearsalProvenanceV1::from_governing_authority(
+            RehearsalGoverningAuthorityV1::Grant {
+                grant_id: uuid::Uuid::now_v7().to_string(),
+            },
+            digest('c'),
+            digest('d'),
+        )
+        .unwrap();
+        assert_eq!(
+            ExternalEgressGate::prepare(
+                Some(&provenance),
+                crate::admin::ServerProfile::Test,
+                RegisteredEgressChannel::RuntimeFetch,
+                RegisteredEgressAdapter::Real,
+            )
+            .unwrap_err()
+            .diagnostic
+            .code,
+            "SNAPBACK_AUTH_REHEARSAL_EGRESS_REFUSED"
+        );
+        ExternalEgressGate::prepare(
+            Some(&provenance),
+            crate::admin::ServerProfile::Test,
+            RegisteredEgressChannel::NotificationProvider,
+            RegisteredEgressAdapter::DeclaredSimulator,
+        )
+        .unwrap();
+        assert_eq!(
+            ExternalEgressGate::prepare(
+                Some(&provenance),
+                crate::admin::ServerProfile::Prod,
+                RegisteredEgressChannel::Webhook,
+                RegisteredEgressAdapter::DeclaredTestAdapter,
+            )
+            .unwrap_err()
+            .diagnostic
+            .code,
+            "SNAPBACK_AUTH_REHEARSAL_EGRESS_REFUSED"
+        );
+        ExternalEgressGate::prepare(
+            None,
+            crate::admin::ServerProfile::Prod,
+            RegisteredEgressChannel::ExternalQueue,
+            RegisteredEgressAdapter::Real,
+        )
+        .unwrap();
     }
 }

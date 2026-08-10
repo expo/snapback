@@ -1,10 +1,15 @@
 # LLP 0194: Generated API reference surface
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Guide, Documentation, Client packages, Types, Build
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
+**Revised:** 2026-08-10 (flipped to Implemented: acceptance 1–4 landed at
+dd4126140; item 5 completed when the LLP 0195 public projection deployed —
+https://snapback.expo.app serves the generated reference pages and
+`/guide/reference/registry.json` with the same registry identities. Closure
+recorded in `issues/closed/20260808-llp0194-symbol-registry-execution.md`.)
 **Revised:** 2026-08-09 (authored symbol lifecycle facts — the registry
 gains `replaces`/`removedIn`/replacement-identity fields authored at the
 change site, and publication refuses an undeclared removal; see the

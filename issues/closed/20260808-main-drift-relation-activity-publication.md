@@ -1,6 +1,6 @@
 # main drift: relation-activity-publication has a stale committed record
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -44,3 +44,12 @@ node scripts/refresh-publication-carrier.mjs
 
 Commit the reconciled record with the measured change, verify the gate, record
 the resolution here, and move this ticket to `issues/closed/`.
+
+## Resolution — 2026-08-10
+
+Reconciled in this landing by the same
+`scripts/refresh-publication-carrier.mjs` run as the local-store record
+(the refresh also updated the sequence-allocation carrier and the pinned
+readers under `tests/conformance/`).
+`node tests/conformance/relation-activity-publication-v1.mjs` → exit 0,
+status `passed` (sbbc1 passed, canonical boundary ordering passed).

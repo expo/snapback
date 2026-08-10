@@ -2480,6 +2480,11 @@ pub struct LocalSnapback {
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L5's idle-cost
     // gate applies to every autonomous scheduler, including one-off jobs.
     jobs_active: Arc<AtomicBool>,
+    /// Clone-shared process-only governor registry. Durable rehearsal rows are
+    /// intentionally not loaded into it after restart, making old derived
+    /// sessions and deferred work inert by construction.
+    auth_rehearsal_live_grants:
+        crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
     /// In-flight watch evaluations by owner. Action evaluation retains its
     /// slot across detached execution; a cancelled worker therefore fails
     /// closed (throttled) until process recovery clears this hint.
@@ -3542,6 +3547,12 @@ impl LocalSnapback {
         self.db
             .authorization_stream_incarnation()
             .map(|incarnation| incarnation.as_str().to_owned())
+    }
+
+    pub(crate) fn auth_rehearsal_live_registry(
+        &self,
+    ) -> crate::auth::rehearsal::RehearsalLiveAuthorityRegistry {
+        self.auth_rehearsal_live_grants.clone()
     }
 
     pub(crate) fn auth_rehearsal_state_present_at_open(&self) -> SnapbackResult<bool> {
@@ -16715,6 +16726,7 @@ impl LocalSnapback {
         name: &str,
         admission: AdmissionLease,
         deferred_push_grant: Option<crate::push::PushDeferredGrantV1>,
+        rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
     ) -> SnapbackResult<StagedAction> {
         let function = self.function(name)?.clone();
         admission.validate("job action staging")?;
@@ -16728,6 +16740,10 @@ impl LocalSnapback {
             admission,
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::System,
+        )?
+        .with_deferred_rehearsal_provenance(
+            rehearsal_provenance,
+            self.auth_rehearsal_live_grants.clone(),
         )?;
         let prepared = InvocationGate::prepare_function(authority, &function)?;
         Ok(self.staged_mode(&function, prepared, deferred_push_grant))
@@ -19569,6 +19585,7 @@ impl LocalSnapback {
             maintenance_prune_reported_at_ms: None,
             cron_active: Arc::new(AtomicBool::new(false)),
             jobs_active: Arc::new(AtomicBool::new(jobs_active)),
+            auth_rehearsal_live_grants: Arc::new(std::sync::RwLock::new(BTreeMap::new())),
             watch_evaluations: BTreeMap::new(),
             last_persisted_cron: None,
             cron_state_writes: 0,

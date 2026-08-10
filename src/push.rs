@@ -3936,6 +3936,7 @@ mod tests {
                     .expect("authority instance id"),
                 session_not_after_ms: 4_000_000_000_000,
                 provider_not_after_ms: None,
+                rehearsal_provenance: None,
             },
         )
         .expect("prepared session authority")
