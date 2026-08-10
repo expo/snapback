@@ -446,4 +446,3 @@ mod tests {
         assert!(!current_effect_gate(&function, true));
     }
 }
-

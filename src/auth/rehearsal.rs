@@ -5,8 +5,12 @@
 //! Protected persistence and atomic accounting live in
 //! `storage/auth_rehearsal.rs`; the server layer never receives raw SQL.
 
-use crate::auth::crypto::{CanonicalAddress, CryptoError, RandomSource, RehearsalBearer};
+use crate::auth::crypto::{
+    CanonicalAddress, CryptoError, RandomSource, RehearsalBearer, decode_canonical_base64url,
+    encode_base64url,
+};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use hmac::{Hmac, Mac as _};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
@@ -14,15 +18,196 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
+use subtle::ConstantTimeEq as _;
 use zeroize::{Zeroize as _, Zeroizing};
 
 pub const AUTH_REHEARSAL_GRANT_KIND: &str = "authRehearsalGrant.v1";
 pub const AUTH_REHEARSAL_STATUS_KIND: &str = "authRehearsalStatus.v1";
 pub const AUTH_REHEARSAL_PROVENANCE_KIND: &str = "authRehearsalProvenance.v1";
+pub const AUTH_REHEARSAL_WINDOW_KIND: &str = "authRehearsalWindow.v1";
+pub const AUTH_REHEARSAL_REACHABILITY_KIND: &str = "authRehearsalReachability.v1";
+pub const AUTH_REHEARSAL_STORE_MARKERS_KIND: &str = "authRehearsalStoreMarkers.v1";
+pub const AUTH_REHEARSAL_EXPORT_ENVELOPE_KIND: &str = "authRehearsalExportEnvelope.v1";
+pub const AUTH_REHEARSAL_LOGICAL_EXPORT_KIND: &str = "authRehearsalLogicalExport.v1";
+pub const AUTH_REHEARSAL_EXPORT_KEY_CAPSULE_KIND: &str =
+    "authRehearsalExportVerificationKeyCapsule.v1";
 pub const AUTH_REHEARSAL_CAPABILITY_HEADER: &str = "x-snapback-auth-rehearsal-capability";
 pub const MAX_REHEARSAL_CAPABILITY_FILE_BYTES: usize = 128;
+pub const MAX_REHEARSAL_EXPORT_KEY_CAPSULE_BYTES: usize = 512;
 pub const MAX_REHEARSAL_TTL_MS: u64 = 24 * 60 * 60 * 1_000;
 pub const MAX_REHEARSAL_COUNT: u64 = 9_007_199_254_740_991;
+pub const REHEARSAL_WINDOW_NAMESPACE_BYTES: usize = 24;
+pub const REHEARSAL_WINDOW_NAMESPACE_LABEL_CHARS: usize = 39;
+pub const REHEARSAL_WINDOW_NAMESPACE_SUFFIX: &str = ".rehearsal.invalid";
+
+/// Mint one 192-bit, lowercase RFC 4648 base32 selector namespace. The host
+/// owns generation; callers can request window behavior but never selector
+/// bytes.
+///
+/// @ref LLP 0213#namespace-spelling-and-entropy — 24 CSPRNG bytes become one
+///   39-character lowercase unpadded base32 label under `.rehearsal.invalid`.
+pub fn generate_window_namespace(
+    random: &dyn RandomSource,
+) -> Result<Zeroizing<String>, CryptoError> {
+    let mut bytes = [0_u8; REHEARSAL_WINDOW_NAMESPACE_BYTES];
+    if let Err(error) = random.fill(&mut bytes) {
+        bytes.zeroize();
+        return Err(error);
+    }
+    let mut label = String::with_capacity(REHEARSAL_WINDOW_NAMESPACE_LABEL_CHARS);
+    const ALPHABET: &[u8; 32] = b"abcdefghijklmnopqrstuvwxyz234567";
+    let mut accumulator = 0_u32;
+    let mut bits = 0_u8;
+    for byte in bytes {
+        accumulator = (accumulator << 8) | u32::from(byte);
+        bits += 8;
+        while bits >= 5 {
+            bits -= 5;
+            label.push(ALPHABET[((accumulator >> bits) & 0x1f) as usize] as char);
+        }
+    }
+    if bits != 0 {
+        label.push(ALPHABET[((accumulator << (5 - bits)) & 0x1f) as usize] as char);
+    }
+    bytes.zeroize();
+    debug_assert_eq!(label.len(), REHEARSAL_WINDOW_NAMESPACE_LABEL_CHARS);
+    label.push_str(REHEARSAL_WINDOW_NAMESPACE_SUFFIX);
+    Ok(Zeroizing::new(label))
+}
+
+pub fn generate_window_namespace_candidates(
+    request: &RehearsalMintRequestV1,
+    random: &dyn RandomSource,
+) -> Result<Vec<[Zeroizing<String>; 3]>, CryptoError> {
+    let count = request
+        .effect_selectors
+        .window_install
+        .as_ref()
+        .map_or(0, |selector| selector.window_plans.len());
+    let mut candidates = Vec::with_capacity(count);
+    for _ in 0..count {
+        candidates.push([
+            generate_window_namespace(random)?,
+            generate_window_namespace(random)?,
+            generate_window_namespace(random)?,
+        ]);
+    }
+    Ok(candidates)
+}
+
+pub fn window_namespace_digest(namespace: &str) -> SnapbackResult<String> {
+    if !valid_window_namespace(namespace) {
+        return Err(request_invalid());
+    }
+    Ok(domain_digest_bytes(
+        b"snapback.auth-rehearsal.window-namespace.v1\0",
+        namespace.as_bytes(),
+    ))
+}
+
+pub fn valid_window_namespace(namespace: &str) -> bool {
+    let Some(label) = namespace.strip_suffix(REHEARSAL_WINDOW_NAMESPACE_SUFFIX) else {
+        return false;
+    };
+    label.len() == REHEARSAL_WINDOW_NAMESPACE_LABEL_CHARS
+        && label
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || (b'2'..=b'7').contains(&byte))
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MintedWindowNamespaceV1 {
+    pub window_plan_id: String,
+    pub namespace: String,
+}
+
+impl zeroize::Zeroize for MintedWindowNamespaceV1 {
+    fn zeroize(&mut self) {
+        self.namespace.zeroize();
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum RehearsalReachabilityExposureV1 {
+    PublishedPublic,
+    NotPublicByDesign,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum RehearsalTargetClassV1 {
+    Wave1Local,
+    PublicByDesign,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReachabilityProducerPolicyV1 {
+    Wave1LocalAbsenceException,
+    ReachabilityFactProducerRequired,
+}
+
+impl RehearsalTargetClassV1 {
+    pub fn producer_policy(self) -> ReachabilityProducerPolicyV1 {
+        // @ref LLP 0213#producer-parity-gate — every target class has one
+        //   closed producer classification; only wave-1 local may omit a fact.
+        match self {
+            Self::Wave1Local => ReachabilityProducerPolicyV1::Wave1LocalAbsenceException,
+            Self::PublicByDesign => ReachabilityProducerPolicyV1::ReachabilityFactProducerRequired,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthRehearsalReachabilityV1 {
+    pub kind: String,
+    pub target_class: RehearsalTargetClassV1,
+    pub exposure: RehearsalReachabilityExposureV1,
+    pub producer_version: u32,
+    pub target_build_digest: String,
+    pub deployment_config_digest: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RehearsalReachabilityAdmissionV1 {
+    pub target_class: RehearsalTargetClassV1,
+    pub expected_target_build_digest: String,
+    pub fact: Option<AuthRehearsalReachabilityV1>,
+}
+
+impl RehearsalReachabilityAdmissionV1 {
+    /// Decide install admission without turning topology detection into the
+    /// foreign-caller boundary. The named local absence path intentionally
+    /// proceeds on selector entropy, including loopback behind a proxy.
+    ///
+    /// @ref LLP 0213#reachability-fact — published-public refuses, malformed
+    ///   or missing-required facts refuse, and wave-1 local absence proceeds.
+    pub fn validate_for_install(&self) -> SnapbackResult<()> {
+        match (&self.fact, self.target_class.producer_policy()) {
+            (None, ReachabilityProducerPolicyV1::Wave1LocalAbsenceException) => Ok(()),
+            (None, ReachabilityProducerPolicyV1::ReachabilityFactProducerRequired) => {
+                Err(producer_parity())
+            }
+            (Some(fact), _) => {
+                if fact.kind != AUTH_REHEARSAL_REACHABILITY_KIND
+                    || fact.target_class != self.target_class
+                    || fact.producer_version != 1
+                    || !valid_digest(&fact.target_build_digest)
+                    || !valid_digest(&fact.deployment_config_digest)
+                    || fact.target_build_digest != self.expected_target_build_digest
+                {
+                    return Err(reachability_invalid());
+                }
+                if fact.exposure == RehearsalReachabilityExposureV1::PublishedPublic {
+                    return Err(reachability_public());
+                }
+                Ok(())
+            }
+        }
+    }
+}
 
 /// Exact authority that governed a rehearsal-derived identity, session, or
 /// assurance. A window always retains its parent grant; collapsing it to the
@@ -96,6 +281,34 @@ impl AuthRehearsalProvenanceV1 {
         Self::from_governing_authority(
             RehearsalGoverningAuthorityV1::Grant {
                 grant_id: grant.grant_id.clone(),
+            },
+            authority_decision_digest,
+            assurance_decision_digest,
+        )
+    }
+
+    pub fn for_window(
+        window: &AuthRehearsalWindowV1,
+        assurance_used: bool,
+    ) -> SnapbackResult<Self> {
+        window.validate_record()?;
+        let authority_decision_digest = digest_serializable(
+            b"snapback.auth-rehearsal.window-authority-decision.v1\0",
+            &(
+                window.window_id.as_str(),
+                window.grant_id.as_str(),
+                window.instance_id.as_str(),
+                window.expires_at,
+            ),
+        )?;
+        let assurance_decision_digest = digest_serializable(
+            b"snapback.auth-rehearsal.window-assurance-decision.v1\0",
+            &(window.window_id.as_str(), assurance_used),
+        )?;
+        Self::from_governing_authority(
+            RehearsalGoverningAuthorityV1::Window {
+                window_id: window.window_id.clone(),
+                parent_grant_id: window.grant_id.clone(),
             },
             authority_decision_digest,
             assurance_decision_digest,
@@ -480,6 +693,9 @@ pub struct WindowBudgetLimitsV1 {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowPlanSelectorV1 {
     pub window_plan_id: String,
+    /// Empty only on the caller-owned mint request. The host fills the digest
+    /// before the immutable grant is committed.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub namespace_digest: String,
     pub enabled_effects: Vec<RehearsalEffect>,
     pub window_budget_limits: WindowBudgetLimitsV1,
@@ -763,6 +979,233 @@ pub struct AuthRehearsalGrantV1 {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthRehearsalWindowV1 {
+    pub kind: String,
+    pub window_id: String,
+    pub grant_id: String,
+    pub window_plan_id: String,
+    pub namespace_digest: String,
+    pub instance_id: String,
+    pub boot_nonce: String,
+    pub app_id: String,
+    pub activation_digest: String,
+    pub created_at: u64,
+    pub expires_at: u64,
+    pub revoked_at: Option<u64>,
+}
+
+impl AuthRehearsalWindowV1 {
+    pub fn validate_record(&self) -> SnapbackResult<()> {
+        if self.kind != AUTH_REHEARSAL_WINDOW_KIND
+            || !uuid_v7(&self.window_id)
+            || !uuid_v7(&self.grant_id)
+            || !uuid_v7(&self.window_plan_id)
+            || !valid_digest(&self.namespace_digest)
+            || !uuid_v7(&self.instance_id)
+            || self.boot_nonce.is_empty()
+            || self.app_id.is_empty()
+            || !valid_digest(&self.activation_digest)
+            || self.created_at >= self.expires_at
+            || self.revoked_at.is_some_and(|value| value < self.created_at)
+        {
+            return Err(request_invalid());
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthRehearsalStoreMarkersV1 {
+    pub kind: String,
+    pub store_id: String,
+    pub disposable_at_creation: bool,
+    pub disposable_marker_id: Option<String>,
+    pub rehearsal_admitted: bool,
+    pub first_admission_at: Option<u64>,
+    pub first_admission_grant_digest: Option<String>,
+    pub first_admission_effect: Option<RehearsalEffect>,
+}
+
+impl AuthRehearsalStoreMarkersV1 {
+    pub fn validate(&self) -> SnapbackResult<()> {
+        let disposable_shape = self.disposable_at_creation == self.disposable_marker_id.is_some();
+        let admission_shape = if self.rehearsal_admitted {
+            self.first_admission_at.is_some()
+                && self
+                    .first_admission_grant_digest
+                    .as_ref()
+                    .is_some_and(|value| valid_digest(value))
+                && self.first_admission_effect.is_some()
+        } else {
+            self.first_admission_at.is_none()
+                && self.first_admission_grant_digest.is_none()
+                && self.first_admission_effect.is_none()
+        };
+        if self.kind != AUTH_REHEARSAL_STORE_MARKERS_KIND
+            || !uuid_v7(&self.store_id)
+            || !disposable_shape
+            || self
+                .disposable_marker_id
+                .as_deref()
+                .is_some_and(|value| !uuid_v7(value))
+            || !admission_shape
+        {
+            return Err(request_invalid());
+        }
+        Ok(())
+    }
+
+    pub fn production_ineligible(&self) -> bool {
+        self.disposable_at_creation || self.rehearsal_admitted
+    }
+
+    pub fn marker_state(&self) -> AuthRehearsalMarkerStateV1 {
+        AuthRehearsalMarkerStateV1 {
+            disposable_at_creation: self.disposable_at_creation,
+            disposable_marker_id: self.disposable_marker_id.clone(),
+            rehearsal_admitted: self.rehearsal_admitted,
+            first_admission_at: self.first_admission_at,
+            first_admission_grant_digest: self.first_admission_grant_digest.clone(),
+            first_admission_effect: self.first_admission_effect,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthRehearsalMarkerStateV1 {
+    pub disposable_at_creation: bool,
+    pub disposable_marker_id: Option<String>,
+    pub rehearsal_admitted: bool,
+    pub first_admission_at: Option<u64>,
+    pub first_admission_grant_digest: Option<String>,
+    pub first_admission_effect: Option<RehearsalEffect>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthRehearsalSnapshotWitnessV1 {
+    pub authorization_incarnation: String,
+    pub database_version: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthRehearsalLogicalExportPayloadV1 {
+    pub kind: String,
+    pub source_store_id: String,
+    pub snapshot_witness: AuthRehearsalSnapshotWitnessV1,
+    pub body: serde_json::Value,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthRehearsalExportEnvelopeV1 {
+    pub kind: String,
+    pub artifact_id: String,
+    pub source_store_id: String,
+    pub payload_sha256: String,
+    pub marker_state: AuthRehearsalMarkerStateV1,
+    pub snapshot_witness: AuthRehearsalSnapshotWitnessV1,
+    pub source_key_id: String,
+    pub mac: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthRehearsalLogicalExportArtifactV1 {
+    pub envelope: AuthRehearsalExportEnvelopeV1,
+    pub payload: Vec<u8>,
+}
+
+pub struct RehearsalExportVerificationKey(Zeroizing<[u8; 32]>);
+
+impl RehearsalExportVerificationKey {
+    pub(crate) fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(Zeroizing::new(bytes))
+    }
+
+    pub(crate) fn expose_secret(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl fmt::Debug for RehearsalExportVerificationKey {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("RehearsalExportVerificationKey([REDACTED])")
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RehearsalExportVerificationKeyCapsuleWireV1 {
+    kind: String,
+    source_store_id: String,
+    source_key_id: String,
+    key_base64url: String,
+}
+
+/// Materialize the independently transferred, store/key-specific verifier in
+/// a brand-new strict owner-only file. The capsule is deliberately not an
+/// export-artifact field or ordinary JSON response.
+///
+/// @ref LLP 0213#cross-host-verification-key-custody — cross-host HMAC trust
+///   is explicit owner-only custody keyed by source store and auth-key id.
+pub(crate) fn write_export_verification_key_capsule(
+    path: &Path,
+    source_store_id: &str,
+    source_key_id: &str,
+    key: &RehearsalExportVerificationKey,
+) -> SnapbackResult<()> {
+    if !uuid::Uuid::parse_str(source_store_id).is_ok_and(|id| id.get_version_num() == 7)
+        || crate::auth::crypto::AuthKeyId::parse(source_key_id).is_err()
+    {
+        return Err(export_key_unavailable());
+    }
+    let wire = RehearsalExportVerificationKeyCapsuleWireV1 {
+        kind: AUTH_REHEARSAL_EXPORT_KEY_CAPSULE_KIND.to_owned(),
+        source_store_id: source_store_id.to_owned(),
+        source_key_id: source_key_id.to_owned(),
+        key_base64url: encode_base64url(key.expose_secret()),
+    };
+    let mut bytes = serde_json::to_vec(&wire).map_err(|_| export_key_unavailable())?;
+    let result = crate::secure_file::write_new_owner_only(path, &bytes)
+        .map_err(|_| export_key_unavailable());
+    bytes.zeroize();
+    result
+}
+
+/// Read one explicitly selected trust-store capsule without following links
+/// or repairing permissions. Expected source ids are caller-owned lookup keys;
+/// capsule-provided ids cannot redirect verification.
+pub(crate) fn read_export_verification_key_capsule(
+    path: &Path,
+    expected_source_store_id: &str,
+    expected_source_key_id: &str,
+) -> SnapbackResult<RehearsalExportVerificationKey> {
+    let mut bytes =
+        crate::secure_file::read_strict_owner_only(path, MAX_REHEARSAL_EXPORT_KEY_CAPSULE_BYTES)
+            .map_err(|_| export_key_unavailable())?;
+    let parsed = serde_json::from_slice::<RehearsalExportVerificationKeyCapsuleWireV1>(&bytes);
+    bytes.zeroize();
+    let mut wire = parsed.map_err(|_| export_key_unavailable())?;
+    let result = if wire.kind != AUTH_REHEARSAL_EXPORT_KEY_CAPSULE_KIND
+        || wire.source_store_id != expected_source_store_id
+        || wire.source_key_id != expected_source_key_id
+    {
+        Err(export_key_unavailable())
+    } else {
+        let key = decode_canonical_base64url::<32>(&wire.key_base64url)
+            .map_err(|_| export_key_unavailable())?;
+        Ok(RehearsalExportVerificationKey::from_bytes(key))
+    };
+    wire.key_base64url.zeroize();
+    result
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RehearsalMintRequestV1 {
     pub scopes: Vec<RehearsalEffect>,
     pub effect_selectors: EffectSelectorsV1,
@@ -802,6 +1245,7 @@ impl AuthRehearsalGrantV1 {
             &self.effect_selectors,
             &self.limits,
             self.expires_at,
+            true,
         )?;
         for count in [
             self.consumed.challenge_attempts,
@@ -869,6 +1313,7 @@ impl RehearsalMintRequestV1 {
             &self.effect_selectors,
             &self.limits,
             self.expires_at,
+            false,
         )
     }
 
@@ -882,6 +1327,7 @@ fn validate_grant_shape(
     selectors: &EffectSelectorsV1,
     limits: &RehearsalLimitsV1,
     expires_at: u64,
+    committed_namespaces: bool,
 ) -> SnapbackResult<()> {
     if scopes.is_empty() || limits.max_uses == 0 || !scopes.windows(2).all(|pair| pair[0] < pair[1])
     {
@@ -949,7 +1395,7 @@ fn validate_grant_shape(
     {
         return Err(request_invalid());
     }
-    validate_selector_shapes(selectors, expires_at)?;
+    validate_selector_shapes(selectors, scopes, expires_at, committed_namespaces)?;
     if let Some(selector) = &selectors.window_install
         && limits.window_installs != selector.window_plans.len() as u64
     {
@@ -971,7 +1417,9 @@ pub const ALL_REHEARSAL_EFFECTS: [RehearsalEffect; 8] = [
 
 fn validate_selector_shapes(
     selectors: &EffectSelectorsV1,
+    scopes: &[RehearsalEffect],
     grant_expires_at: u64,
+    committed_namespaces: bool,
 ) -> SnapbackResult<()> {
     // @ref LLP 0213#total-effect-to-selector-mapping — selectors are finite,
     //   exact, nonempty, and never default to all/current/localhost.
@@ -1044,7 +1492,11 @@ fn validate_selector_shapes(
         && (selector.window_plans.len() > 1_024
             || !selector.window_plans.iter().all(|plan| {
                 uuid_v7(&plan.window_plan_id)
-                    && valid_digest(&plan.namespace_digest)
+                    && if committed_namespaces {
+                        valid_digest(&plan.namespace_digest)
+                    } else {
+                        plan.namespace_digest.is_empty()
+                    }
                     && plan.expires_no_later_than <= grant_expires_at
                     && plan.expires_no_later_than > 0
                     && !plan.enabled_effects.is_empty()
@@ -1052,6 +1504,14 @@ fn validate_selector_shapes(
                         .enabled_effects
                         .windows(2)
                         .all(|pair| pair[0] < pair[1])
+                    && plan.enabled_effects.iter().all(|effect| {
+                        matches!(
+                            effect,
+                            RehearsalEffect::ChallengeCapture
+                                | RehearsalEffect::ChallengeRedeem
+                                | RehearsalEffect::VerificationSimulate
+                        ) && scopes.contains(effect)
+                    })
                     && [
                         plan.window_budget_limits.challenge_attempts,
                         plan.window_budget_limits.verification_simulations,
@@ -1355,9 +1815,49 @@ pub fn selector_allows(
                     })
                 })
         }),
-        // Later slices own the additional semantic selector resolution. Their
-        // DTOs are closed now, but slice 1 fails them closed.
-        _ => false,
+        RehearsalExerciseRequestV1::VerificationSimulate { identity_id, .. } => grant
+            .effect_selectors
+            .verification_simulate
+            .as_ref()
+            .is_some_and(|selector| {
+                selector.identities.iter().any(|identity| match identity {
+                    IdentitySelectorV1::IdentityId {
+                        identity_id: expected,
+                    } => expected == identity_id,
+                    // Fixture aliases and window namespaces require protected
+                    // receipt resolution at the storage boundary.
+                    IdentitySelectorV1::FixtureAlias { .. }
+                    | IdentitySelectorV1::WindowNamespace { .. } => false,
+                })
+            }),
+        RehearsalExerciseRequestV1::WindowInstall { window_plan_id, .. } => grant
+            .effect_selectors
+            .window_install
+            .as_ref()
+            .is_some_and(|selector| {
+                selector
+                    .window_plans
+                    .iter()
+                    .any(|plan| plan.window_plan_id == *window_plan_id)
+            }),
+        RehearsalExerciseRequestV1::BudgetRehearsalAllocate {
+            budget_name, units, ..
+        } => {
+            *units > 0
+                && grant
+                    .effect_selectors
+                    .budget_rehearsal_allocate
+                    .as_ref()
+                    .is_some_and(|selector| {
+                        selector
+                            .allocations
+                            .iter()
+                            .any(|allocation| allocation.budget_name == *budget_name)
+                    })
+        }
+        RehearsalExerciseRequestV1::ClockAuthAdvance { advance_ms, .. } => {
+            *advance_ms > 0 && grant.effect_selectors.clock_auth_advance.is_some()
+        }
     }
 }
 
@@ -1388,9 +1888,203 @@ pub fn digest_serializable<T: Serialize>(domain: &[u8], value: &T) -> SnapbackRe
     Ok(domain_digest_bytes(domain, &bytes))
 }
 
+pub(crate) fn derive_export_verification_key(
+    auth_key: &[u8; 32],
+    source_store_id: &str,
+    source_key_id: &str,
+) -> SnapbackResult<RehearsalExportVerificationKey> {
+    if !uuid_v7(source_store_id) || crate::auth::crypto::AuthKeyId::parse(source_key_id).is_err() {
+        return Err(envelope_invalid());
+    }
+    let mut mac =
+        Hmac::<Sha256>::new_from_slice(auth_key).expect("HMAC-SHA-256 accepts a 32-byte key");
+    mac.update(b"snapback.auth-rehearsal.export-key.v1\0");
+    update_hmac_lp(&mut mac, source_store_id.as_bytes())?;
+    update_hmac_lp(&mut mac, source_key_id.as_bytes())?;
+    let output = mac.finalize().into_bytes();
+    let mut key = [0_u8; 32];
+    key.copy_from_slice(&output);
+    Ok(RehearsalExportVerificationKey::from_bytes(key))
+}
+
+/// Seal the exact payload bytes and snapshot marker state with the pinned
+/// HMAC-SHA-256 envelope profile. The key passed here is already the
+/// store-specific derived verification key; it is never serialized.
+///
+/// @ref LLP 0213#mac-primitive — JSON is decoded/re-encoded into a closed,
+///   length-prefixed MAC input rather than treated as canonical bytes.
+pub(crate) fn seal_export_envelope(
+    payload: &[u8],
+    markers: &AuthRehearsalStoreMarkersV1,
+    snapshot_witness: AuthRehearsalSnapshotWitnessV1,
+    source_key_id: String,
+    key: &RehearsalExportVerificationKey,
+) -> SnapbackResult<AuthRehearsalExportEnvelopeV1> {
+    markers.validate()?;
+    validate_snapshot_witness(&snapshot_witness)?;
+    if crate::auth::crypto::AuthKeyId::parse(&source_key_id).is_err() {
+        return Err(envelope_invalid());
+    }
+    let mut envelope = AuthRehearsalExportEnvelopeV1 {
+        kind: AUTH_REHEARSAL_EXPORT_ENVELOPE_KIND.to_owned(),
+        artifact_id: uuid::Uuid::now_v7().to_string(),
+        source_store_id: markers.store_id.clone(),
+        payload_sha256: encode_base64url(&Sha256::digest(payload)),
+        marker_state: markers.marker_state(),
+        snapshot_witness,
+        source_key_id,
+        mac: String::new(),
+    };
+    let encoded = encode_envelope_without_mac(&envelope)?;
+    let mut mac = Hmac::<Sha256>::new_from_slice(key.expose_secret())
+        .expect("HMAC-SHA-256 accepts a 32-byte key");
+    mac.update(b"snapback.auth-rehearsal.export-envelope.v1\0");
+    update_hmac_lp(&mut mac, &encoded)?;
+    envelope.mac = encode_base64url(&mac.finalize().into_bytes());
+    Ok(envelope)
+}
+
+/// Verify integrity before parsing or admitting payload state. A single
+/// generic diagnostic covers edits, payload substitution, splices, and replay
+/// against a different store/witness.
+pub(crate) fn verify_export_envelope(
+    envelope: &AuthRehearsalExportEnvelopeV1,
+    payload: &[u8],
+    key: &RehearsalExportVerificationKey,
+) -> SnapbackResult<AuthRehearsalLogicalExportPayloadV1> {
+    validate_export_envelope_shape(envelope)?;
+    let encoded = encode_envelope_without_mac(envelope)?;
+    let mut mac = Hmac::<Sha256>::new_from_slice(key.expose_secret())
+        .expect("HMAC-SHA-256 accepts a 32-byte key");
+    mac.update(b"snapback.auth-rehearsal.export-envelope.v1\0");
+    update_hmac_lp(&mut mac, &encoded)?;
+    let expected = mac.finalize().into_bytes();
+    let supplied =
+        decode_canonical_base64url::<32>(&envelope.mac).map_err(|_| envelope_invalid())?;
+    if expected.as_slice().ct_eq(&supplied).unwrap_u8() != 1 {
+        return Err(envelope_invalid());
+    }
+    let observed_payload_digest = encode_base64url(&Sha256::digest(payload));
+    if observed_payload_digest != envelope.payload_sha256 {
+        return Err(envelope_invalid());
+    }
+    let decoded: AuthRehearsalLogicalExportPayloadV1 =
+        serde_json::from_slice(payload).map_err(|_| envelope_invalid())?;
+    if decoded.kind != AUTH_REHEARSAL_LOGICAL_EXPORT_KIND
+        || decoded.source_store_id != envelope.source_store_id
+        || decoded.snapshot_witness != envelope.snapshot_witness
+    {
+        return Err(envelope_invalid());
+    }
+    Ok(decoded)
+}
+
+fn validate_snapshot_witness(witness: &AuthRehearsalSnapshotWitnessV1) -> SnapbackResult<()> {
+    if !uuid_v7(&witness.authorization_incarnation)
+        || witness.database_version > MAX_REHEARSAL_COUNT
+    {
+        return Err(envelope_invalid());
+    }
+    Ok(())
+}
+
+fn validate_export_envelope_shape(envelope: &AuthRehearsalExportEnvelopeV1) -> SnapbackResult<()> {
+    let markers = AuthRehearsalStoreMarkersV1 {
+        kind: AUTH_REHEARSAL_STORE_MARKERS_KIND.to_owned(),
+        store_id: envelope.source_store_id.clone(),
+        disposable_at_creation: envelope.marker_state.disposable_at_creation,
+        disposable_marker_id: envelope.marker_state.disposable_marker_id.clone(),
+        rehearsal_admitted: envelope.marker_state.rehearsal_admitted,
+        first_admission_at: envelope.marker_state.first_admission_at,
+        first_admission_grant_digest: envelope.marker_state.first_admission_grant_digest.clone(),
+        first_admission_effect: envelope.marker_state.first_admission_effect,
+    };
+    if envelope.kind != AUTH_REHEARSAL_EXPORT_ENVELOPE_KIND
+        || !uuid_v7(&envelope.artifact_id)
+        || decode_canonical_base64url::<32>(&envelope.payload_sha256).is_err()
+        || decode_canonical_base64url::<32>(&envelope.mac).is_err()
+        || crate::auth::crypto::AuthKeyId::parse(&envelope.source_key_id).is_err()
+    {
+        return Err(envelope_invalid());
+    }
+    markers.validate().map_err(|_| envelope_invalid())?;
+    validate_snapshot_witness(&envelope.snapshot_witness)
+}
+
+fn encode_envelope_without_mac(
+    envelope: &AuthRehearsalExportEnvelopeV1,
+) -> SnapbackResult<Vec<u8>> {
+    let mut output = Vec::new();
+    append_lp(&mut output, envelope.kind.as_bytes())?;
+    append_lp(&mut output, envelope.artifact_id.as_bytes())?;
+    append_lp(&mut output, envelope.source_store_id.as_bytes())?;
+    append_lp(&mut output, envelope.payload_sha256.as_bytes())?;
+    output.push(u8::from(envelope.marker_state.disposable_at_creation));
+    append_optional_string(
+        &mut output,
+        envelope.marker_state.disposable_marker_id.as_deref(),
+    )?;
+    output.push(u8::from(envelope.marker_state.rehearsal_admitted));
+    append_optional_u64(&mut output, envelope.marker_state.first_admission_at);
+    append_optional_string(
+        &mut output,
+        envelope
+            .marker_state
+            .first_admission_grant_digest
+            .as_deref(),
+    )?;
+    append_optional_string(
+        &mut output,
+        envelope
+            .marker_state
+            .first_admission_effect
+            .map(RehearsalEffect::as_str),
+    )?;
+    append_lp(
+        &mut output,
+        envelope
+            .snapshot_witness
+            .authorization_incarnation
+            .as_bytes(),
+    )?;
+    output.extend_from_slice(&envelope.snapshot_witness.database_version.to_be_bytes());
+    append_lp(&mut output, envelope.source_key_id.as_bytes())?;
+    Ok(output)
+}
+
+fn append_lp(output: &mut Vec<u8>, bytes: &[u8]) -> SnapbackResult<()> {
+    let length = u32::try_from(bytes.len()).map_err(|_| envelope_invalid())?;
+    output.extend_from_slice(&length.to_be_bytes());
+    output.extend_from_slice(bytes);
+    Ok(())
+}
+
+fn append_optional_string(output: &mut Vec<u8>, value: Option<&str>) -> SnapbackResult<()> {
+    output.push(u8::from(value.is_some()));
+    if let Some(value) = value {
+        append_lp(output, value.as_bytes())?;
+    }
+    Ok(())
+}
+
+fn append_optional_u64(output: &mut Vec<u8>, value: Option<u64>) {
+    output.push(u8::from(value.is_some()));
+    if let Some(value) = value {
+        output.extend_from_slice(&value.to_be_bytes());
+    }
+}
+
+fn update_hmac_lp(mac: &mut Hmac<Sha256>, bytes: &[u8]) -> SnapbackResult<()> {
+    let length = u32::try_from(bytes.len()).map_err(|_| envelope_invalid())?;
+    mac.update(&length.to_be_bytes());
+    mac.update(bytes);
+    Ok(())
+}
+
 pub struct MintedRehearsalGrant {
     pub grant: AuthRehearsalGrantV1,
     carrier: RehearsalBearer,
+    window_namespaces: Zeroizing<Vec<MintedWindowNamespaceV1>>,
 }
 
 /// Schema-only declaration for the no-store mint payload. Runtime assembly is
@@ -1403,11 +2097,20 @@ pub struct RehearsalMintResultV1 {
     pub kind: String,
     pub grant: AuthRehearsalGrantV1,
     pub carrier: String,
+    pub window_namespaces: Vec<MintedWindowNamespaceV1>,
 }
 
 impl MintedRehearsalGrant {
-    pub fn new(grant: AuthRehearsalGrantV1, carrier: RehearsalBearer) -> Self {
-        Self { grant, carrier }
+    pub fn new(
+        grant: AuthRehearsalGrantV1,
+        carrier: RehearsalBearer,
+        window_namespaces: Vec<MintedWindowNamespaceV1>,
+    ) -> Self {
+        Self {
+            grant,
+            carrier,
+            window_namespaces: Zeroizing::new(window_namespaces),
+        }
     }
 
     pub fn into_value(self) -> serde_json::Value {
@@ -1415,6 +2118,7 @@ impl MintedRehearsalGrant {
             "kind": "authRehearsalMintResult.v1",
             "grant": self.grant,
             "carrier": self.carrier.expose_secret(),
+            "windowNamespaces": self.window_namespaces.as_slice(),
         })
     }
 }
@@ -1836,5 +2540,76 @@ mod tests {
             RegisteredEgressAdapter::Real,
         )
         .unwrap();
+    }
+
+    #[test]
+    fn window_namespace_is_192_bit_host_generated_lowercase_base32() {
+        struct FixedRandom;
+        impl RandomSource for FixedRandom {
+            fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+                for (index, byte) in destination.iter_mut().enumerate() {
+                    *byte = index as u8;
+                }
+                Ok(())
+            }
+        }
+        let namespace = generate_window_namespace(&FixedRandom).unwrap();
+        assert!(valid_window_namespace(&namespace));
+        assert_eq!(
+            namespace.len(),
+            REHEARSAL_WINDOW_NAMESPACE_LABEL_CHARS + REHEARSAL_WINDOW_NAMESPACE_SUFFIX.len()
+        );
+        assert_eq!(
+            namespace.as_str(),
+            "aaaqeayeaudaocajbifqydiob4ibceqtcqkrmfy.rehearsal.invalid"
+        );
+        assert!(valid_digest(&window_namespace_digest(&namespace).unwrap()));
+        assert!(!valid_window_namespace("example.invalid"));
+    }
+
+    #[test]
+    fn reachability_fact_is_defense_in_depth_with_one_named_absence_exception() {
+        let build = digest('e');
+        RehearsalReachabilityAdmissionV1 {
+            target_class: RehearsalTargetClassV1::Wave1Local,
+            expected_target_build_digest: build.clone(),
+            fact: None,
+        }
+        .validate_for_install()
+        .expect("wave-1 local, including proxy-re-exposed loopback, proceeds on entropy");
+
+        assert_eq!(
+            RehearsalReachabilityAdmissionV1 {
+                target_class: RehearsalTargetClassV1::PublicByDesign,
+                expected_target_build_digest: build.clone(),
+                fact: None,
+            }
+            .validate_for_install()
+            .unwrap_err()
+            .diagnostic
+            .code,
+            "SNAPBACK_AUTH_REHEARSAL_PRODUCER_PARITY"
+        );
+
+        let published = AuthRehearsalReachabilityV1 {
+            kind: AUTH_REHEARSAL_REACHABILITY_KIND.to_owned(),
+            target_class: RehearsalTargetClassV1::PublicByDesign,
+            exposure: RehearsalReachabilityExposureV1::PublishedPublic,
+            producer_version: 1,
+            target_build_digest: build.clone(),
+            deployment_config_digest: digest('f'),
+        };
+        assert_eq!(
+            RehearsalReachabilityAdmissionV1 {
+                target_class: RehearsalTargetClassV1::PublicByDesign,
+                expected_target_build_digest: build,
+                fact: Some(published),
+            }
+            .validate_for_install()
+            .unwrap_err()
+            .diagnostic
+            .code,
+            "SNAPBACK_AUTH_REHEARSAL_REACHABILITY_PUBLIC"
+        );
     }
 }

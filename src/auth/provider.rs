@@ -2435,6 +2435,27 @@ impl AddressAdmission {
         database: &mut LocalDatabase,
         now_ms: u64,
     ) -> ProviderResult<RequestCodeResponse> {
+        self.request_code_inner(database, now_ms, None)
+    }
+
+    /// Ordinary request-code choreography with a server-resolved rehearsal
+    /// window. The app request remains unchanged; the window is selected from
+    /// the canonical contact namespace before this protected mutation.
+    pub(crate) fn request_code_for_rehearsal_window(
+        &self,
+        database: &mut LocalDatabase,
+        now_ms: u64,
+        window: &crate::auth::rehearsal::AuthRehearsalWindowV1,
+    ) -> ProviderResult<RequestCodeResponse> {
+        self.request_code_inner(database, now_ms, Some(window))
+    }
+
+    fn request_code_inner(
+        &self,
+        database: &mut LocalDatabase,
+        now_ms: u64,
+        rehearsal_window: Option<&crate::auth::rehearsal::AuthRehearsalWindowV1>,
+    ) -> ProviderResult<RequestCodeResponse> {
         validate_now(now_ms)?;
         if !self.provider().profile.permits_capture() {
             return Err(provider_unavailable());
@@ -2481,17 +2502,33 @@ impl AddressAdmission {
                 Err(_) => continue,
             };
 
-            let outcome = database.auth_catalog().insert_verification_challenge(
-                &self.address,
-                &challenge_id,
-                &digest,
-                &key_id,
-                now_ms,
-                expires_at_ms,
-                self.provider()
-                    .profile
-                    .exempts_capture_address_request_budget(),
-            );
+            let outcome = match rehearsal_window {
+                Some(window) => database
+                    .auth_catalog()
+                    .insert_verification_challenge_for_rehearsal_window(
+                        &self.address,
+                        &challenge_id,
+                        &digest,
+                        &key_id,
+                        now_ms,
+                        expires_at_ms,
+                        self.provider()
+                            .profile
+                            .exempts_capture_address_request_budget(),
+                        window,
+                    ),
+                None => database.auth_catalog().insert_verification_challenge(
+                    &self.address,
+                    &challenge_id,
+                    &digest,
+                    &key_id,
+                    now_ms,
+                    expires_at_ms,
+                    self.provider()
+                        .profile
+                        .exempts_capture_address_request_budget(),
+                ),
+            };
 
             match outcome {
                 Ok(RequestInsertOutcome::Inserted) => {

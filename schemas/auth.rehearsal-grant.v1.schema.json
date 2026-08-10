@@ -543,6 +543,7 @@
           "type": "integer"
         },
         "namespaceDigest": {
+          "description": "Empty only on the caller-owned mint request. The host fills the digest\nbefore the immutable grant is committed.",
           "type": "string"
         },
         "windowBudgetLimits": {
@@ -554,7 +555,6 @@
       },
       "required": [
         "windowPlanId",
-        "namespaceDigest",
         "enabledEffects",
         "windowBudgetLimits",
         "expiresNoLaterThan"

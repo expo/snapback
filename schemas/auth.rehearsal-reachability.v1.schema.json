@@ -1,0 +1,53 @@
+{
+  "$defs": {
+    "RehearsalReachabilityExposureV1": {
+      "enum": [
+        "publishedPublic",
+        "notPublicByDesign"
+      ],
+      "type": "string"
+    },
+    "RehearsalTargetClassV1": {
+      "enum": [
+        "wave1Local",
+        "publicByDesign"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.rehearsal-reachability.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "deploymentConfigDigest": {
+      "type": "string"
+    },
+    "exposure": {
+      "$ref": "#/$defs/RehearsalReachabilityExposureV1"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "producerVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "targetBuildDigest": {
+      "type": "string"
+    },
+    "targetClass": {
+      "$ref": "#/$defs/RehearsalTargetClassV1"
+    }
+  },
+  "required": [
+    "kind",
+    "targetClass",
+    "exposure",
+    "producerVersion",
+    "targetBuildDigest",
+    "deploymentConfigDigest"
+  ],
+  "title": "AuthRehearsalReachabilityV1",
+  "type": "object"
+}

@@ -426,6 +426,22 @@
         }
       ]
     },
+    "MintedWindowNamespaceV1": {
+      "additionalProperties": false,
+      "properties": {
+        "namespace": {
+          "type": "string"
+        },
+        "windowPlanId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "windowPlanId",
+        "namespace"
+      ],
+      "type": "object"
+    },
     "RehearsalConsumedV1": {
       "additionalProperties": false,
       "properties": {
@@ -632,6 +648,7 @@
           "type": "integer"
         },
         "namespaceDigest": {
+          "description": "Empty only on the caller-owned mint request. The host fills the digest\nbefore the immutable grant is committed.",
           "type": "string"
         },
         "windowBudgetLimits": {
@@ -643,7 +660,6 @@
       },
       "required": [
         "windowPlanId",
-        "namespaceDigest",
         "enabledEffects",
         "windowBudgetLimits",
         "expiresNoLaterThan"
@@ -664,12 +680,19 @@
     },
     "kind": {
       "type": "string"
+    },
+    "windowNamespaces": {
+      "items": {
+        "$ref": "#/$defs/MintedWindowNamespaceV1"
+      },
+      "type": "array"
     }
   },
   "required": [
     "kind",
     "grant",
-    "carrier"
+    "carrier",
+    "windowNamespaces"
   ],
   "title": "RehearsalMintResultV1",
   "type": "object"

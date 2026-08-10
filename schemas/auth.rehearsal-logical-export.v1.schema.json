@@ -1,0 +1,144 @@
+{
+  "$defs": {
+    "AuthRehearsalExportEnvelopeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactId": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "mac": {
+          "type": "string"
+        },
+        "markerState": {
+          "$ref": "#/$defs/AuthRehearsalMarkerStateV1"
+        },
+        "payloadSha256": {
+          "type": "string"
+        },
+        "snapshotWitness": {
+          "$ref": "#/$defs/AuthRehearsalSnapshotWitnessV1"
+        },
+        "sourceKeyId": {
+          "type": "string"
+        },
+        "sourceStoreId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "artifactId",
+        "sourceStoreId",
+        "payloadSha256",
+        "markerState",
+        "snapshotWitness",
+        "sourceKeyId",
+        "mac"
+      ],
+      "type": "object"
+    },
+    "AuthRehearsalMarkerStateV1": {
+      "additionalProperties": false,
+      "properties": {
+        "disposableAtCreation": {
+          "type": "boolean"
+        },
+        "disposableMarkerId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "firstAdmissionAt": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "firstAdmissionEffect": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RehearsalEffect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "firstAdmissionGrantDigest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rehearsalAdmitted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "disposableAtCreation",
+        "rehearsalAdmitted"
+      ],
+      "type": "object"
+    },
+    "AuthRehearsalSnapshotWitnessV1": {
+      "additionalProperties": false,
+      "properties": {
+        "authorizationIncarnation": {
+          "type": "string"
+        },
+        "databaseVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "authorizationIncarnation",
+        "databaseVersion"
+      ],
+      "type": "object"
+    },
+    "RehearsalEffect": {
+      "enum": [
+        "challenge.capture",
+        "challenge.redeem",
+        "fixture.identity.create",
+        "fixture.session.mint",
+        "verification.simulate",
+        "window.install",
+        "budget.rehearsal.allocate",
+        "clock.auth.advance"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.rehearsal-logical-export.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "envelope": {
+      "$ref": "#/$defs/AuthRehearsalExportEnvelopeV1"
+    },
+    "payload": {
+      "items": {
+        "format": "uint8",
+        "maximum": 255,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "envelope",
+    "payload"
+  ],
+  "title": "AuthRehearsalLogicalExportArtifactV1",
+  "type": "object"
+}

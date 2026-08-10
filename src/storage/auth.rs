@@ -1964,6 +1964,7 @@ pub(super) fn reset_auth_catalog_in(tx: &Transaction<'_>) -> SnapbackResult<()> 
         return Ok(());
     };
     require_ready_on(tx)?;
+    super::auth_rehearsal::terminalize_rehearsal_authority_for_reset_in(tx)?;
     tx.execute(
         "DELETE FROM _snapback_meta WHERE substr(key, 1, ?1) = ?2",
         params![
@@ -2469,7 +2470,7 @@ fn normalize_schema_sql(sql: &str) -> String {
 /// Read the persisted auth-clock floor within a caller-owned transaction.
 /// A missing key is the zero floor; any stored value is validated as an
 /// in-range non-negative integer or fails closed as catalog corruption.
-fn read_session_clock_floor_on(conn: &Connection) -> SnapbackResult<u64> {
+pub(super) fn read_session_clock_floor_on(conn: &Connection) -> SnapbackResult<u64> {
     let stored: Option<String> = conn
         .query_row(
             "SELECT value FROM _snapback_meta WHERE key = ?1",
@@ -2492,7 +2493,10 @@ fn read_session_clock_floor_on(conn: &Connection) -> SnapbackResult<u64> {
 
 /// Raise the persisted auth-clock floor to at least `observed_ms` and return
 /// the resulting floor. The stored value never decreases.
-fn advance_session_clock_floor_on(tx: &Transaction<'_>, observed_ms: u64) -> SnapbackResult<u64> {
+pub(super) fn advance_session_clock_floor_on(
+    tx: &Transaction<'_>,
+    observed_ms: u64,
+) -> SnapbackResult<u64> {
     let current = read_session_clock_floor_on(tx)?;
     let floor = current.max(observed_ms);
     if floor != current {

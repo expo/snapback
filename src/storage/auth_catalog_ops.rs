@@ -365,6 +365,7 @@ impl LocalDatabase {
         now_ms: u64,
         expires_at_ms: u64,
         exempts_capture_address_request_budget: bool,
+        rehearsal_window: Option<&crate::auth::rehearsal::AuthRehearsalWindowV1>,
     ) -> SnapbackResult<RequestInsertOutcome> {
         self.with_auth_transaction(|transaction| {
             let global_lower =
@@ -417,7 +418,18 @@ impl LocalDatabase {
                     expires_at_ms as i64,
                 ],
             ) {
-                Ok(_) => Ok(RequestInsertOutcome::Inserted),
+                Ok(_) => {
+                    if let Some(window) = rehearsal_window {
+                        crate::storage::auth_rehearsal::consume_rehearsal_window_challenge_in(
+                            transaction,
+                            window,
+                            challenge_id.as_str(),
+                            address,
+                            now_ms,
+                        )?;
+                    }
+                    Ok(RequestInsertOutcome::Inserted)
+                }
                 Err(error) if crate::auth::provider::is_constraint_error(&error) => {
                     Err(crate::auth::provider::internal_collision_snapback())
                 }
@@ -2048,6 +2060,31 @@ impl<'a> AuthCatalogKernel<'a> {
             now_ms,
             expires_at_ms,
             exempts_capture_address_request_budget,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn insert_verification_challenge_for_rehearsal_window(
+        &mut self,
+        address: &CanonicalAddress,
+        challenge_id: &ChallengeId,
+        digest: &CodeDigest,
+        key_id: &str,
+        now_ms: u64,
+        expires_at_ms: u64,
+        exempts_capture_address_request_budget: bool,
+        window: &crate::auth::rehearsal::AuthRehearsalWindowV1,
+    ) -> SnapbackResult<RequestInsertOutcome> {
+        self.write_db().auth_insert_verification_challenge(
+            address,
+            challenge_id,
+            digest,
+            key_id,
+            now_ms,
+            expires_at_ms,
+            exempts_capture_address_request_budget,
+            Some(window),
         )
     }
 

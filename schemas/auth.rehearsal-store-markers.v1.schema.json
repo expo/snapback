@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "RehearsalEffect": {
+      "enum": [
+        "challenge.capture",
+        "challenge.redeem",
+        "fixture.identity.create",
+        "fixture.session.mint",
+        "verification.simulate",
+        "window.install",
+        "budget.rehearsal.allocate",
+        "clock.auth.advance"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.rehearsal-store-markers.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "disposableAtCreation": {
+      "type": "boolean"
+    },
+    "disposableMarkerId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "firstAdmissionAt": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "firstAdmissionEffect": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RehearsalEffect"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "firstAdmissionGrantDigest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "kind": {
+      "type": "string"
+    },
+    "rehearsalAdmitted": {
+      "type": "boolean"
+    },
+    "storeId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "storeId",
+    "disposableAtCreation",
+    "rehearsalAdmitted"
+  ],
+  "title": "AuthRehearsalStoreMarkersV1",
+  "type": "object"
+}

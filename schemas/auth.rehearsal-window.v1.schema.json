@@ -1,0 +1,67 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.rehearsal-window.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "activationDigest": {
+      "type": "string"
+    },
+    "appId": {
+      "type": "string"
+    },
+    "bootNonce": {
+      "type": "string"
+    },
+    "createdAt": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "expiresAt": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "grantId": {
+      "type": "string"
+    },
+    "instanceId": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "namespaceDigest": {
+      "type": "string"
+    },
+    "revokedAt": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "windowId": {
+      "type": "string"
+    },
+    "windowPlanId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "windowId",
+    "grantId",
+    "windowPlanId",
+    "namespaceDigest",
+    "instanceId",
+    "bootNonce",
+    "appId",
+    "activationDigest",
+    "createdAt",
+    "expiresAt"
+  ],
+  "title": "AuthRehearsalWindowV1",
+  "type": "object"
+}

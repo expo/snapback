@@ -24,8 +24,10 @@ use crate::auth::deployment::{
 use crate::auth::handshake::AuthSessionResponse;
 use crate::auth::lease::AuthorizedLease;
 use crate::auth::rehearsal::{
-    AuthRehearsalGrantV1, RehearsalExerciseRequestV1, RehearsalMintRequestV1,
-    RehearsalMintResultV1, RehearsalRevokeRequestV1, RehearsalStatusRequestV1,
+    AuthRehearsalGrantV1, AuthRehearsalLogicalExportArtifactV1,
+    AuthRehearsalReachabilityV1, AuthRehearsalStoreMarkersV1, AuthRehearsalWindowV1,
+    RehearsalExerciseRequestV1, RehearsalMintRequestV1, RehearsalMintResultV1,
+    RehearsalRevokeRequestV1, RehearsalStatusRequestV1,
 };
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
@@ -887,6 +889,22 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "auth.rehearsal-grant.v1.schema.json",
             schemars::schema_for!(AuthRehearsalGrantV1),
+        ),
+        finish(
+            "auth.rehearsal-window.v1.schema.json",
+            schemars::schema_for!(AuthRehearsalWindowV1),
+        ),
+        finish(
+            "auth.rehearsal-reachability.v1.schema.json",
+            schemars::schema_for!(AuthRehearsalReachabilityV1),
+        ),
+        finish(
+            "auth.rehearsal-store-markers.v1.schema.json",
+            schemars::schema_for!(AuthRehearsalStoreMarkersV1),
+        ),
+        finish(
+            "auth.rehearsal-logical-export.v1.schema.json",
+            schemars::schema_for!(AuthRehearsalLogicalExportArtifactV1),
         ),
         finish(
             "auth.rehearsal-mint.input.v1.schema.json",

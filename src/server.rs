@@ -16029,11 +16029,29 @@ async fn auth_request_code(
         .await
         .map_err(map_provider_error)?;
     let now_ms = provider.now_ms();
+    let window_address = admission.address().clone();
+    let rehearsal_window = match rehearsal_binding_facts(&runtime).await {
+        Ok(bindings) => with_snapback(&runtime.snapback, move |snapback| {
+            snapback
+                .auth_database_mut()
+                .auth_rehearsal_window_for_contact(&window_address, &bindings, now_ms)
+        })
+        .await
+        .map_err(ApiError::from)?,
+        Err(_) => None,
+    };
     let response = with_snapback(&runtime.snapback, move |snapback| {
         let _effect = route_admission
             .effect_guard("auth request-code transaction")
             .map_err(ProviderError::from)?;
-        admission.request_code(snapback.auth_database_mut(), now_ms)
+        match rehearsal_window.as_ref() {
+            Some(window) => admission.request_code_for_rehearsal_window(
+                snapback.auth_database_mut(),
+                now_ms,
+                window,
+            ),
+            None => admission.request_code(snapback.auth_database_mut(), now_ms),
+        }
     })
     .await
     .map_err(map_provider_error)?;
@@ -16078,6 +16096,57 @@ async fn auth_exchange(
     let coordination = coordination.map_err(map_provider_error)?;
     let issue = match coordination {
         Some(coordination) => {
+            let resolved_contact = coordination.address().clone();
+            let window_derivation = match rehearsal_binding_facts(&runtime).await {
+                Ok(bindings) => {
+                    let lookup_challenge_id = challenge_id.as_str().to_owned();
+                    let lookup_bindings = bindings.clone();
+                    let resolved = with_snapback(&runtime.snapback, move |snapback| {
+                        snapback
+                            .auth_database_mut()
+                            .auth_rehearsal_window_for_challenge(
+                                &lookup_challenge_id,
+                                &lookup_bindings,
+                                now_ms,
+                            )
+                    })
+                    .await
+                    .map_err(ApiError::from)?;
+                    resolved
+                        .map(|resolved| {
+                            let provenance = crate::auth::rehearsal::AuthRehearsalProvenanceV1::for_window(
+                                &resolved.window,
+                                true,
+                            )?;
+                            Ok::<_, SnapbackError>(RehearsalSessionDerivation {
+                                provenance,
+                                governing_not_after_ms: resolved.window.expires_at,
+                                exercise: crate::storage::auth_rehearsal::RehearsalExercisePlan {
+                                    carrier_hash: resolved.carrier_hash,
+                                    bindings,
+                                    request: crate::auth::rehearsal::RehearsalExerciseRequestV1::VerificationSimulate {
+                                        // The provider challenge is the protected receipt
+                                        // resolved by storage; no app-supplied window
+                                        // authority enters this key.
+                                        idempotency_key: challenge_id.as_str().to_owned(),
+                                        identity_id: resolved.window.window_plan_id,
+                                    },
+                                    resolved_contact: Some(resolved_contact),
+                                    semantic_success: true,
+                                    outcome: serde_json::json!({
+                                        "kind": "authRehearsalWindowSession.v1",
+                                        "challengeId": challenge_id.as_str(),
+                                    }),
+                                    now_ms,
+                                },
+                                require_existing_identity: false,
+                            })
+                        })
+                        .transpose()
+                        .map_err(ApiError::from)?
+                }
+                Err(_) => None,
+            };
             let exchange = admission
                 .for_exchange(coordination)
                 .await
@@ -16089,7 +16158,7 @@ async fn auth_exchange(
                 code.as_str().to_owned(),
                 sender_issuance,
                 &route_admission,
-                None,
+                window_derivation,
             )
             .await
         }
@@ -20227,6 +20296,22 @@ async fn execute_auth_host_operation(
                         .await);
                     }
                 };
+            let window_namespace_candidates =
+                match crate::auth::rehearsal::generate_window_namespace_candidates(
+                    &args,
+                    provider.agent_random_source(),
+                ) {
+                    Ok(candidates) => candidates,
+                    Err(_) => {
+                        return Ok(auth_host_result(
+                            runtime,
+                            request,
+                            server_url,
+                            Err(crate::auth::rehearsal::namespace_unavailable()),
+                        )
+                        .await);
+                    }
+                };
             let outcome = with_snapback(&runtime.snapback, move |snapback| {
                 snapback
                     .auth_database_mut()
@@ -20234,6 +20319,7 @@ async fn execute_auth_host_operation(
                         request: args,
                         bindings,
                         carrier,
+                        window_namespace_candidates,
                         now_ms,
                     })
                     .map(crate::auth::rehearsal::MintedRehearsalGrant::into_value)
@@ -20325,11 +20411,15 @@ async fn execute_auth_host_operation(
                 Err(crate::auth::rehearsal::authority_ended())
             };
             if outcome.is_ok() {
-                runtime
+                let mut live = runtime
                     .auth_rehearsal_live_grants
                     .write()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .remove(&revoked_grant_id);
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                live.retain(|authority_id, authority| {
+                    authority_id != &revoked_grant_id
+                        && authority.parent_grant_id.as_deref()
+                            != Some(revoked_grant_id.as_str())
+                });
             }
             Ok(auth_host_result(runtime, request, server_url, outcome).await)
         }
@@ -20380,6 +20470,93 @@ async fn execute_auth_host_operation(
                     return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
                 }
             };
+
+            if matches!(
+                &args,
+                crate::auth::rehearsal::RehearsalExerciseRequestV1::WindowInstall { .. }
+            ) {
+                let exercise = crate::storage::auth_rehearsal::RehearsalExercisePlan {
+                    carrier_hash,
+                    bindings: bindings.clone(),
+                    request: args,
+                    resolved_contact: None,
+                    semantic_success: true,
+                    outcome: serde_json::Value::Object(Default::default()),
+                    now_ms,
+                };
+                // The current server is the named wave-1 local target. It has
+                // no target-authored reachability fact, so installation
+                // deliberately proceeds on selector entropy. A loopback bind
+                // behind a proxy takes this same branch.
+                // @ref LLP 0213#reachability-fact
+                let reachability = crate::auth::rehearsal::RehearsalReachabilityAdmissionV1 {
+                    target_class: crate::auth::rehearsal::RehearsalTargetClassV1::Wave1Local,
+                    expected_target_build_digest: bindings.activation_digest.clone(),
+                    fact: None,
+                };
+                let outcome = with_snapback(&runtime.snapback, move |snapback| {
+                    snapback.auth_database_mut().auth_rehearsal_install_window(
+                        crate::storage::auth_rehearsal::RehearsalWindowInstallPlan {
+                            exercise,
+                            reachability,
+                        },
+                    )
+                })
+                .await;
+                let outcome =
+                    outcome.and_then(|(outcome, window)| {
+                        runtime
+                            .auth_rehearsal_live_grants
+                            .write()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
+                            .insert(
+                                window.window_id.clone(),
+                                crate::auth::rehearsal::RehearsalLiveAuthority {
+                                    expires_at_ms: window.expires_at,
+                                    parent_grant_id: Some(window.grant_id.clone()),
+                                },
+                            );
+                        match outcome {
+                            crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Fresh(
+                                value,
+                            )
+                            | crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Replay(
+                                value,
+                            ) => Ok(value),
+                        }
+                    });
+                return Ok(auth_host_result(runtime, request, server_url, outcome).await);
+            }
+
+            if matches!(
+                &args,
+                crate::auth::rehearsal::RehearsalExerciseRequestV1::ClockAuthAdvance { .. }
+            ) {
+                let exercise = crate::storage::auth_rehearsal::RehearsalExercisePlan {
+                    carrier_hash,
+                    bindings,
+                    request: args,
+                    resolved_contact: None,
+                    semantic_success: true,
+                    outcome: serde_json::Value::Object(Default::default()),
+                    now_ms,
+                };
+                let outcome = with_snapback(&runtime.snapback, move |snapback| {
+                    snapback
+                        .auth_database_mut()
+                        .auth_rehearsal_advance_auth_clock(exercise)
+                        .map(|outcome| match outcome {
+                            crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Fresh(
+                                value,
+                            )
+                            | crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Replay(
+                                value,
+                            ) => value,
+                        })
+                })
+                .await;
+                return Ok(auth_host_result(runtime, request, server_url, outcome).await);
+            }
 
             if let crate::auth::rehearsal::RehearsalExerciseRequestV1::ChallengeRedeem {
                 challenge_id,
