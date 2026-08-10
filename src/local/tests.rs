@@ -2729,6 +2729,7 @@ globalThis.__snapbackHandlers = {
         );
         snapback
             .db
+            .schema_seed()
             .apply_schema(asset_reference_schema())
             .expect("grant atomicity schema");
         snapback
