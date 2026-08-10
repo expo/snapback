@@ -48,3 +48,9 @@ new violations.
    legacy unassigned set (four entries) shrink-only via predecessor
    comparison; every new module must take a real owner (LLP 0225 §5,
    revision g).
+
+## Claim
+
+**Claimed 2026-08-10** by the clique-defects ship session (llp-ship run
+`owngate-20260810`, branch `llp-ship/owngate-20260810/impl`): implementing
+items 1-4 against `scripts/check-module-ownership.mjs` per LLP 0225 §5.
