@@ -2565,6 +2565,7 @@ mod tests {
         let mut source_version = 0;
         for _ in 0..100 {
             source_version = db
+                .mutation_writes()
                 .execute_mutation(&plan, &HandlerInput::default())
                 .unwrap()
                 .output
