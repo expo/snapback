@@ -2119,7 +2119,7 @@ test('committed result-expired becomes durable result-gone and blocks ordered su
       quarantined: 0, resultGone: 1, replaying: false,
       oldestPendingAtMs: (await store.outboxRecords())
         .find((record) => record.status === 'pending').enqueuedAt,
-      drainPhase: 'idle', nextRetryAtMs: null, blockedReason: null,
+      drainPhase: 'idle', lastAttemptAtMs: null, nextRetryAtMs: null, blockedReason: null,
     },
   );
 });
@@ -2180,7 +2180,7 @@ test('recreated file-backed client preserves result-gone without redelivery', as
       quarantined: 0, resultGone: 1, replaying: false,
       oldestPendingAtMs: (await reopenedStore.outboxRecords())
         .find((record) => record.status === 'pending').enqueuedAt,
-      drainPhase: 'idle', nextRetryAtMs: null, blockedReason: null,
+      drainPhase: 'idle', lastAttemptAtMs: null, nextRetryAtMs: null, blockedReason: null,
     },
   );
   const replay = await recreatedClient.replayQueuedMutations();
@@ -2526,7 +2526,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
     {
       supported: false, pending: 0, failed: 0, stranded: 0,
       quarantined: 0, resultGone: 0, replaying: false,
-      oldestPendingAtMs: null, drainPhase: 'idle', nextRetryAtMs: null,
+      oldestPendingAtMs: null, drainPhase: 'idle', lastAttemptAtMs: null, nextRetryAtMs: null,
       blockedReason: null,
     },
   );
@@ -2538,7 +2538,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
     {
       supported: true, pending: 0, failed: 0, stranded: 0,
       quarantined: 0, resultGone: 0, replaying: false,
-      oldestPendingAtMs: null, drainPhase: 'idle', nextRetryAtMs: null,
+      oldestPendingAtMs: null, drainPhase: 'idle', lastAttemptAtMs: null, nextRetryAtMs: null,
       blockedReason: null,
     },
   );
@@ -2556,7 +2556,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
     {
       supported: true, pending: 2, failed: 0, stranded: 0,
       quarantined: 0, resultGone: 0, replaying: false,
-      oldestPendingAtMs, drainPhase: 'idle', nextRetryAtMs: null,
+      oldestPendingAtMs, drainPhase: 'idle', lastAttemptAtMs: null, nextRetryAtMs: null,
       blockedReason: null,
     },
   );
@@ -2591,7 +2591,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
     {
       supported: true, pending: 0, failed: 1, stranded: 0,
       quarantined: 0, resultGone: 0, replaying: false,
-      oldestPendingAtMs: null, drainPhase: 'idle', nextRetryAtMs: null,
+      oldestPendingAtMs: null, drainPhase: 'idle', lastAttemptAtMs: null, nextRetryAtMs: null,
       blockedReason: null,
     },
     'failed records stay visible; settled records leave the counts',

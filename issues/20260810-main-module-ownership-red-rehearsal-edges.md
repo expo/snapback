@@ -23,3 +23,14 @@ convention; fix the edges (move the shared type down / invert the admin
 call) or record explicit reviewed waivers per LLP 0225 §2. Do not absorb
 them via `--update-baseline` without that record — that is the laundering
 path LLP 0225 §2 forbids.
+
+**2026-08-10 (LLP 0199 slice-1 re-application landing):** both edges
+entered `ownership.baseline.json` at that landing's commissioned
+`--update-baseline` (the ratchet refresh cannot exclude individual live
+edges — the monotonicity gap in
+issues/20260810-ownership-gate-analyzer-gaps.md). This is recorded, not
+waived: the growth entry in
+issues/20260809-0199-ownership-ratchet-worklist.md files both edges into
+item 3's inversion family, and this ticket stays open until they are
+inverted or explicitly waived per LLP 0225 §2. The gate is green again on
+main; the burn-down obligation is unchanged.

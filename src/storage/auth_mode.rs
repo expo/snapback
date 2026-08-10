@@ -1008,7 +1008,11 @@ impl LocalDatabase {
         // @ref LLP 0055#companion-obligations — downgrade ends all agent
         // bearer and pending-consent authority in the same transaction as
         // browser-session revocation; principals and scope tombstones survive.
-        if catalog == crate::storage::auth::AuthCatalogState::ReadyV2 {
+        if matches!(
+            catalog,
+            crate::storage::auth::AuthCatalogState::ReadyV2
+                | crate::storage::auth::AuthCatalogState::ReadyV3
+        ) {
             crate::storage::auth::terminate_agent_authority_in(&tx)?;
         }
         transaction_step_completed(0)?;

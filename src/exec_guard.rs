@@ -17,6 +17,12 @@ use std::cell::{Cell, RefCell};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+/// Highest auth lock rank forbidden inside a local SQLite write scope.
+///
+/// @ref LLP 0059#locking-and-linearization — topology, stream/session, and
+///   registry locks must be released before entering the global app lane.
+pub(crate) const AUTH_LOCK_RANK_CONNECTION_REGISTRY: u8 = 40;
+
 pub(crate) type AfterLocalEffect = Box<dyn FnOnce() + Send + 'static>;
 type AfterLocalOwner = Box<dyn Send + 'static>;
 
@@ -287,9 +293,7 @@ impl ManagedLocalHandoff {
 #[track_caller]
 pub(crate) fn debug_assert_auth_lock_outside_local_snapback(rank: u8) {
     #[cfg(debug_assertions)]
-    if rank <= crate::auth::session_projection::AUTH_LOCK_RANK_CONNECTION_REGISTRY
-        && LOCAL_APP_WRITE_DEPTH.with(Cell::get) != 0
-    {
+    if rank <= AUTH_LOCK_RANK_CONNECTION_REGISTRY && LOCAL_APP_WRITE_DEPTH.with(Cell::get) != 0 {
         panic!(
             "auth rank {rank} entered while LocalSnapback write scope was active; stage the effect before the bounded auth handoff (LLP 0059)"
         );

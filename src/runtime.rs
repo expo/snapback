@@ -25,7 +25,7 @@ use crate::warm_vm::WarmVmPool;
 use libc::{c_char, c_int, c_void, size_t};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::env;
@@ -3150,13 +3150,39 @@ enum HandlerErrorExposure {
     Development,
 }
 
+thread_local! {
+    static HANDLER_ERROR_EXPOSURE_OVERRIDE: Cell<Option<HandlerErrorExposure>> = const { Cell::new(None) };
+}
+
+struct HandlerErrorExposureOverrideGuard(Option<HandlerErrorExposure>);
+
+impl Drop for HandlerErrorExposureOverrideGuard {
+    fn drop(&mut self) {
+        HANDLER_ERROR_EXPOSURE_OVERRIDE.with(|slot| slot.set(self.0));
+    }
+}
+
 impl HandlerErrorExposure {
     fn from_process_environment() -> Self {
+        if let Some(exposure) = HANDLER_ERROR_EXPOSURE_OVERRIDE.with(Cell::get) {
+            return exposure;
+        }
         match env::var(HANDLER_ERROR_EXPOSURE_ENV).ok().as_deref() {
             Some("development") => Self::Development,
             _ => Self::Redacted,
         }
     }
+}
+
+/// Run one synchronous invocation with development handler-error projection.
+/// This test/conformance seam is thread-local so parallel cases never mutate
+/// the process-wide deployment environment.
+#[doc(hidden)]
+pub fn with_development_handler_error_exposure<T>(run: impl FnOnce() -> T) -> T {
+    let previous = HANDLER_ERROR_EXPOSURE_OVERRIDE
+        .with(|slot| slot.replace(Some(HandlerErrorExposure::Development)));
+    let _guard = HandlerErrorExposureOverrideGuard(previous);
+    run()
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

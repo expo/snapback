@@ -6,7 +6,9 @@
 Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-10 (LLP 0204 S5 Landing C reuses this RFC's
+**Revised:** 2026-08-10 (LLP 0204 commissioned the granted-operation
+capability-link bearer-exception entry for reads and writes; design only, with
+no implementation or capability claim — see the dated amendment.) 2026-08-10 (LLP 0204 S5 Landing C reuses this RFC's
 session-authenticated inbox, display, human-veto, approve/deny, and
 operation-bound step-up ceremony for the sibling pending-effect record.)
 2026-08-08 (LLP 0204 commissioned the capability-link bearer
@@ -93,7 +95,9 @@ deliberately left open for the review loop.)
 **Related:** LLP 0055 (agent principals and scoped grants — the token and
 grant model this RFC acquires *into*), LLP 0077 (sender-constrained auth —
 the wire/replay model this RFC extends to agent principals under a
-deliberately weaker custody profile), LLP 0106
+deliberately weaker custody profile), LLP 0058 (shared invocation
+authority — the sealed `CapabilityLinkPossessor` variant the granted
+capability-link amendment adds), LLP 0106
 (agent-native account bootstrap — the flow pattern; explicitly *not* the
 authority), LLP 0149 (agent application consumption — proposes the
 grant-request compiler this RFC consumes), LLP 0053 (authorization
@@ -954,6 +958,84 @@ ownership rule here. For integration flows, “the LLP 0150 ceremony” therefor
 means this RFC's request/display/human-veto/poll **shape with the named LLP 0055
 registration-class and ownership amendments**; it must not be described as
 verbatim inheritance of this section's ordinary ownership result.
+
+## Dated amendment: LLP 0204 granted capability-link bearer exception (2026-08-10)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md), D9.4,
+the OQ9 ruling, and the 2026-08-10 author sitting's full granted-operation
+extension. LLP 0055's
+[matching amendment](./0055-agent-principals-and-scoped-grants.rfc.md#dated-amendment-llp-0204-granted-capability-links-2026-08-10)
+is the authority owner; LLP 0058 owns the sealed resolved variant, and LLP 0031
+owns its route and response classes.
+
+**Status:** commissioned design only. This entry does not make a granted
+capability link mintable or invocable and does not broaden the implemented
+external-anonymous exception above.
+
+### Bearer-exception inventory delta
+
+[Invariant 1](#summary)'s bearer-exception inventory gains exactly one entry:
+
+| Exception | Bearer conveys | Governing authority | Status |
+| --- | --- | --- | --- |
+| Granted-operation capability-link URL | Invocation of one exact exposed read or write under an immutable narrowed link-grant ceiling, subject to expiry, use count, approval, lineage, and ordinary authorization gates | LLP 0055 granted-link amendment; LLP 0058 `CapabilityLinkPossessor`; LLP 0031 `GrantedCapabilityLinkInvoke` | Commissioned design only |
+
+This is the granted counterpart to the
+[2026-08-08 external-anonymous capability-link exception](#dated-amendment-llp-0204-capability-link-bearer-exception-2026-08-08),
+not a replacement or restatement of it. Every rule in that amendment's
+[Secret-URL discipline](#secret-url-discipline) and
+[Mint lineage, revocation, and mutation](#mint-lineage-revocation-and-mutation)
+continues to bind unless this section states the granted-authority delta below.
+Implementations must reference those inherited requirements rather than fork a
+second copy that can drift.
+
+### Granted-authority delta
+
+Possession of the URL is acknowledged bearer **invocation** authority for the
+link only. It is not a proof-of-possession agent credential, an OAuth/PAT token,
+a session, a scoped `sbagt_` token, a connection grant, or authority to acquire,
+refresh, rotate, delegate, or enumerate any of those. There is no exchange
+endpoint: the URL secret goes only to the inert GET landing and explicit POST
+invoke resolver registered by LLP 0031.
+
+Unlike the anonymous entry, this bearer may reach a function that anonymous
+authority cannot. The widening is bounded by LLP 0055's immutable child link
+grant and LLP 0058's `CapabilityLinkPossessor` authority. The actor is the link
+possessor carrier, never the minter; the effective principal comes from the
+admitted minting authority; the grant attribution is the child `linkGrantId`;
+and the parent minter authority/grant remains separate revocation lineage.
+Nothing in this bearer exception creates a principal for the possessor or lets
+the minter masquerade as the caller.
+
+The carrier covers reads and writes only through the one registered invoke
+operation. A query or finite live-query snapshot may execute after the full
+gate. A mutation or action is always approval-gated on every use or single-use;
+the minter is the approver, and approval reconstructs the original
+link-possessor authority rather than executing as the approving session.
+Authority-creating effects retain their independent grant-consent and step-up
+requirements.
+
+The inherited lineage rule applies to the actual LLP 0055 lifecycle. A parent
+grant's revocation or expiry kills the descendant link. Hygiene rotation via
+`POST /auth/agents/rotate` preserves the grant and therefore does not kill the
+link merely because credential generation or token carrier changed. Owner
+`POST /auth/agents/{id}/credential`, under the owner session plus step-up,
+terminally revokes every grant and therefore kills every descendant granted
+link; `integration.retire` and user/actor grant revocation do likewise. This
+entry creates no alternate lifecycle semantics.
+
+All inherited URL-secret controls remain mandatory: 7-day default and 30-day
+hard maximum expiry, instant direct and lineage revocation, one exact exposed
+function and bounded argument template, durable per-use journaling without the
+token or values, completely inert GET, explicit POST for every read or write,
+preview-crawler safety, no-store responses, `Referrer-Policy: no-referrer`, no
+third-party subresources or token-bearing redirects, normalized route logging,
+and no token in logs, diagnostics, receipts, traces, analytics, or referrers.
+
+Finally, this exception is local/trusted-local only. It inherits LLP 0055's
+wholesale hosted service-principal refusal for reads and writes; support for the
+anonymous capability-link exception on a hosted target is not evidence that the
+granted exception is admitted there.
 
 ## Non-goals
 

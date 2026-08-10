@@ -56,6 +56,8 @@ pub mod auth;
 pub(crate) mod authoring_suggestion;
 #[doc(hidden)]
 pub mod bench;
+#[doc(hidden)]
+pub mod bench_fixture;
 pub(crate) mod bounded_children_cursor;
 #[doc(hidden)]
 pub mod branches;
@@ -67,10 +69,10 @@ pub mod cli;
 pub mod commit_envelope;
 #[doc(hidden)]
 pub mod completeness;
-pub(crate) mod connected_clients;
 #[doc(hidden)]
 pub mod config;
 pub mod conformance;
+pub(crate) mod connected_clients;
 pub(crate) mod contract_exact;
 // @ref LLP 0225#1-ownership-map — owner 1: crate-private generation
 // activation coordinator.
@@ -110,6 +112,7 @@ pub(crate) mod guide_reference;
 pub mod handler_wire;
 #[doc(hidden)]
 pub mod host_ops;
+pub mod host_ops_contract;
 #[doc(hidden)]
 pub mod identity;
 #[doc(hidden)]
@@ -119,9 +122,9 @@ pub mod instance_fork;
 pub(crate) mod instance_lock;
 #[doc(hidden)]
 pub mod jobs;
-pub(crate) mod webhooks;
 pub mod live_coalesce;
 pub(crate) mod watches;
+pub(crate) mod webhooks;
 
 pub(crate) mod live_matcher;
 #[doc(hidden)]
@@ -155,6 +158,7 @@ pub mod result_contract;
 pub mod result_transform;
 #[doc(hidden)]
 pub mod rqs;
+pub mod rqs_contract;
 #[doc(hidden)]
 pub mod runtime;
 #[doc(hidden)]

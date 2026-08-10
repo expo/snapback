@@ -5,7 +5,9 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-08-10 (the first-class `snapback auth export` / `auth import`
+**Revised:** 2026-08-10 (LLP 0204 commissioned the full granted-operation
+capability-link authority carrier for reads and writes; design only, with no
+implementation or capability claim — see the dated amendment.) 2026-08-10 (the first-class `snapback auth export` / `auth import`
 logical-transfer surface now carries closed v1 principal, ownership, identity,
 deactivation, and scope-basis facts while structurally excluding all spendable
 or consent-pending authority; empty-v2 import rotates authorization incarnation
@@ -2643,6 +2645,167 @@ owner re-credentialing's all-grant revocation, and from `integration.retire`.
 Those verbs remain terminal. Implementations and operator UI must never label
 suspension as credential/grant revocation or infer fresh consent from
 resumption.
+
+## Dated amendment: LLP 0204 granted capability links (2026-08-10)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md), D9.4,
+the OQ9 ruling, and the 2026-08-10 author sitting's full granted-operation
+extension.
+
+**Status:** commissioned design only. No granted-link mint, carrier, resolved
+authority, route, read, or write is implemented or capability-claimed by this
+amendment. The external-anonymous S5 Landing A carrier remains the only shipped
+capability-link invocation carrier.
+
+### Bounded service-principal authority for a possessor
+
+A **granted capability link** is a service-principal authority class with a
+different carrier. The request presents the capability-link URL secret rather
+than an agent credential plus scoped token. Possession proves only authority to
+attempt the one invocation bound by the link; it does not authenticate the
+possessor as the minter, an agent principal, or the effective principal.
+
+The mint transaction creates one immutable **link grant** with its own
+`linkGrantId`. Its resolution is exact:
+
+- **actor** — `capabilityLinkPossessor { linkId }`, a sealed carrier actor with
+  no `userId`, credential, credential generation, token, membership, owner, or
+  registration record. Audit must not attribute the invocation to the minter;
+  the minter appears only in lineage;
+- **effective principal** — the effective principal carried by the admitted
+  minting authority. A granted link therefore requires a minting authority with
+  an effective principal: a direct session or a delegated
+  `ServicePrincipal`. Anonymous, `AdminBypass`, `System`, dev-impersonation,
+  and autonomous service-principal authority cannot mint this carrier; and
+- **grant** — the immutable link grant, whose ceiling is the exact intersection
+  of the minting authority, the app's current authorization for the effective
+  principal, the one exposed function's `{fn, kind, basis}` scope, the
+  validated argument template, expiry, and optional use count. It has no tier
+  wildcard, cannot gain reach through manifest growth, cannot address another
+  route or function, and cannot mint a scoped token or connection grant.
+
+The link grant records a sealed `minterAuthorityRef`. For a delegated
+`ServicePrincipal` this includes the parent `grantId`, minter actor principal,
+and effective principal. For a direct session it includes the session's
+server-derived principal and authority-instance lineage; this is the
+session-as-degenerate-grant case described in [Summary](#summary), not a
+caller-supplied identity. Every response and durable journal projection keeps
+`linkGrantId`, `linkId`, `minterAuthorityRef`, and the effective principal
+distinct. No projection may collapse the possessor actor into the minter.
+
+LLP 0058's matching dated amendment adds the named sealed resolved-authority
+variant and handler projection. It is the only shared-gate construction path
+for this carrier; no generic bearer fallback, body authority, or anonymous
+projection may exercise the link grant.
+
+### Mint is a scoped delegation operation
+
+Minting a granted link consumes authority; ordinary permission to call a
+function is not by itself permission to publish that authority as a bearer
+URL. The closed scope vocabulary gains an exact-function
+`capabilityLinkMint` operation. A delegated service principal must hold that
+operation for the same `{fn, kind, basis}` in addition to its ordinary call
+scope. A direct session reaches the same host-owned mint gate under the
+effective user's current function authorization and app policy. The mint gate
+runs before the link secret or link grant exists and refuses tier/wildcard
+delegation.
+
+The child ceiling must be a subset of the minting authority at creation and at
+every use. The mint transaction binds the current exposure declaration,
+function kind and scope basis, canonical pinned/caller-argument template,
+effective principal, minter lineage, expiry, use bound, and mutation posture.
+Changing a caller-supplied argument cannot select a broader function, scope, or
+effective principal; ordinary schema validation precedes the function gate.
+The expiry is `min(requested, 30 days, parent authority remaining)` with a
+7-day default, so a child cannot outlive its parent and app source cannot raise
+the platform maximum.
+
+### Lineage and the existing lifecycle verbs
+
+A granted link never becomes independent authority. Invocation reloads the
+link grant and revalidates its unexpired/unrevoked state, the effective
+principal, current exposure and function basis, minter lineage, parent grant
+where present, integration admission where present, remaining use count, and
+the ordinary function authorization gates before preparing a handler.
+Revoking or expiring a parent grant terminally kills every descendant link
+grant; the link cannot be reminted or rebound without fresh live mint
+authority. Direct link revocation remains instant and exact-link-scoped.
+
+The credential verbs keep their actual LLP 0055 meanings:
+
+- `POST /auth/agents/rotate` is the grant-preserving hygiene rotation. A
+  descendant link does not compare the mint-time `credentialGeneration` or
+  `tokenId` at use, so rotation drops the minter's old token carriers and
+  connections but does **not** kill a link while its parent grant remains
+  live. This amendment does not reinterpret rotation as consent revocation or
+  a global kill.
+- `POST /auth/agents/{id}/credential` is owner re-credentialing under the
+  owner's session bearer plus operation-bound step-up. It terminally revokes
+  every grant; descendant links therefore die through their parent grants and
+  require fresh consent before any replacement may be minted.
+- `integration.retire`, user revocation of an installation grant, bulk grant
+  revocation, grant expiry, principal deactivation, and terminal scope-basis
+  invalidation likewise kill descendant link grants through their existing
+  grant-ending semantics. Reversible integration suspension blocks use while
+  suspended but does not turn resumption into fresh consent or revive a link
+  whose parent grant ended.
+
+This is deliberately parent-**grant** lineage, not mint-time token lineage.
+The scoped token authorizes the mint request and then leaves no carrier
+authority behind; expiry or cap eviction of that token cannot silently change
+the grant-preserving lifecycle into token-bound consent.
+
+### Reads, writes, approval, and settlement
+
+The carrier admits the exact exposed operation named by the link grant: reads
+(`query`, or the finite snapshot of a `liveQuery`) and writes (`mutation` or
+`action`). Every operation still passes the ordinary auth requirement, grant
+scope, effective-principal non-widening, permission-backing effect, admission,
+and result controls. A link cannot invoke host operations, auth/grant
+management, retained/offline reads, connection open, ephemeral rooms, or any
+surface outside the registered capability-link invocation operation.
+
+A mutation or action is valid only when **every use is approval-gated or the
+link is single-use**, exactly as LLP 0204 OQ9 rules. Approval creates the LLP
+0204 D9.5 pending-effect sibling; its frozen authority snapshot is the
+`CapabilityLinkPossessor` tuple and link/parent lineage, not a fabricated
+credential-generation/token tuple. Immediately before execution it revalidates
+the link grant, parent grant, effective principal, current scope basis,
+arguments, use state, and minter-as-approver rule. A single-use write consumes
+its use and wins execution in one atomic admission decision. Approval,
+single-use, and any `authorityCreating` effect gates compose; none substitutes
+for another.
+
+Every actual use receives a monotonic per-link ordinal and a durable pre-dispatch
+journal fact containing only redacted identities, lineage, function, argument-
+template digest, decision, and coded outcome. Bearer bytes and application
+values never enter that journal. A refused or uncertain mutating attempt settles
+to one exact result and cannot be replayed into a second effect.
+
+### Granted-link plane boundary
+
+Granted-link invocation is a service-principal invocation for the plane rule.
+It is admitted only on **local or trusted-local** targets carrying LLP 0060's
+target-authored deployment capability. Every hosted granted-link read, write,
+mint through delegated authority, and approval execution is refused wholesale
+under [Plane boundary](#plane-boundary), with the same structured capability/auth
+diagnostic as other hosted service-principal calls. The separate hosted-gates
+program must land and explicitly amend this boundary before any hosted cell may
+open; serving the already-anonymous S5 Landing A link family does not imply
+granted-link authority.
+
+### Acceptance obligations for an implementing spec
+
+The implementing spec must prove: possessor attribution never becomes the
+minter; a link cannot acquire a user/principal record or membership; the child
+scope is a strict subset and a function/basis change never widens or revives it;
+rotation preserves a live parent grant and link while owner re-credentialing
+and every parent-grant ending kill it; token expiry alone does not kill it;
+suspension blocks without revocation/resurrection confusion; reads and writes
+both traverse the shared gate; approval-gated and single-use writes cannot
+double execute under retries or races; direct and lineage revocation win one
+exact terminal outcome; and every hosted carrier/operation cell refuses before
+handler evaluation.
 
 ## Status
 

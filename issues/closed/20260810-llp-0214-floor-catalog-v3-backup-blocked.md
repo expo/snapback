@@ -54,3 +54,19 @@ Correction: the earlier focused fix lane's "deadlock" was not a real deadlock �
 its prompt set `DYLD_FRAMEWORK_PATH`, which hangs the SQLite online-backup path
 (see the withdrawn hang ticket). Re-running the fix WITHOUT that override lets
 the backup tests actually run, so this is tractable. Retrying.
+
+## Resolved (2026-08-10) — LANDED
+
+Unblocked and landed as commit `961b8be8c`. The backup regression was fixed by
+extending the auth backup manifest to a closed **format-2** covering the
+catalog-v3 table/state inventory + recovery-code keyring references (format-1
+retained for v1/v2; all backup security assertions kept, not relaxed). The
+earlier fix-lane "deadlock" was the DYLD_FRAMEWORK_PATH hang, not a real
+deadlock — re-running tests without that override let the fix proceed.
+
+Verified without DYLD: `auth:: 383/0`, `auth::backup:: 26/0`, `auth::throttle 7/7`,
+schema drift check pass, ref-check clean. Floor acceptance tests
+(guest create/claim + atomic collision, password register/auth/change +
+recovery rotation + claims, last-authenticator rollback, assurance
+kind/provenance separation, redaction fail-closed) all green. Merged cleanly
+with the already-landed LLP 0215 budget code in auth_catalog_ops.rs.

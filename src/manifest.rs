@@ -14,19 +14,18 @@ use std::sync::OnceLock;
 pub use crate::contract_types::{
     AgentsManifest, AgentsMode, ApiAskBilling, ApiAskBudgets, ApiAskManifest, ApiAskModelManifest,
     ApiAskPerPrincipalDayBudget, ApiAskPerRequestBudget, ApiAskResultVolumeBudget,
-    ApiAskTokenBudget, ApiBudgetsManifest, ApiDisclosure, ApiFunctionApproval,
-    ApiFunctionExposure, ApiManifest, ApiOAuthBundle, ApiOAuthManifest, AppIdentity, AuthManifest,
-    AuthMode, AuthRequirement,
-    BoundedParentVisibility, BoundedProjectionField, DependencySummary, EffectCeiling,
-    EffectCeilingRead, EffectCeilingWrite, FieldManifest, FieldType, FunctionArgsContract,
-    FunctionKind, FunctionResultContract, IbexModule, IndexManifest, InvitedBy, JoinEquality,
-    JoinKind, PermissionScopeExpr, ProjectionLeaf, ProjectionOutputKey, ProjectionSource,
-    ProjectionVisibility, ResultObjectFieldContract, ResultRowsBound, ResultValueContract,
-    STORED_STRUCTURED_CONTRACT_VERSION_V1, STORED_STRUCTURED_ENCODING_V1, SchemaRefAuthority,
-    SequenceDeclaration, SequenceExistingOwnerAccess, SequenceScopeAccess, SourceSpan,
-    StandardPatternIdentity, StandardPatternMembershipIdentity, StoredStructuredContractV1,
-    WriteActivityProvenanceFields, WriteActivityRelation, WriteWithActivityEffectFormula,
-    WriteWithActivityMode, WriteWithActivitySourceOperation,
+    ApiAskTokenBudget, ApiBudgetsManifest, ApiDisclosure, ApiFunctionApproval, ApiFunctionExposure,
+    ApiManifest, ApiOAuthBundle, ApiOAuthManifest, AppIdentity, AuthManifest, AuthMode,
+    AuthRequirement, BoundedParentVisibility, BoundedProjectionField, DependencySummary,
+    EffectCeiling, EffectCeilingRead, EffectCeilingWrite, FieldManifest, FieldType,
+    FunctionArgsContract, FunctionKind, FunctionResultContract, IbexModule, IndexManifest,
+    InvitedBy, JoinEquality, JoinKind, PermissionScopeExpr, ProjectionLeaf, ProjectionOutputKey,
+    ProjectionSource, ProjectionVisibility, ResultObjectFieldContract, ResultRowsBound,
+    ResultValueContract, STORED_STRUCTURED_CONTRACT_VERSION_V1, STORED_STRUCTURED_ENCODING_V1,
+    SchemaRefAuthority, SequenceDeclaration, SequenceExistingOwnerAccess, SequenceScopeAccess,
+    SourceSpan, StandardPatternIdentity, StandardPatternMembershipIdentity,
+    StoredStructuredContractV1, WriteActivityProvenanceFields, WriteActivityRelation,
+    WriteWithActivityEffectFormula, WriteWithActivityMode, WriteWithActivitySourceOperation,
 };
 pub use crate::search::types::{
     FullTextSearchFactsV1, SearchClauseV1, SearchCursorLimitsV1, SearchCursorV1,
@@ -40,6 +39,36 @@ pub use crate::vector::types::{
     VectorIndexManifestV1, VectorItemV1, VectorMaintenanceLimitsV1, VectorMetricV1, VectorPageV1,
     VectorQueryPlanV1, VectorRequestV1, VectorSearchFactsV1, VectorTieBreakV1, VectorVisibilityV1,
 };
+
+/// Resolve a stable membership declaration id to its table and declaration.
+///
+/// This shape-only lookup lives with the declaration types so storage-owned
+/// search evaluation does not depend upward on the realtime rule engine.
+pub(crate) fn find_membership_declaration<'a>(
+    schema: &'a SchemaManifest,
+    declaration_id: &str,
+) -> Option<(&'a TableManifest, &'a MembershipManifest)> {
+    schema.tables.iter().find_map(|table| {
+        table
+            .membership
+            .as_ref()
+            .filter(|membership| membership.effective_id(&table.name) == declaration_id)
+            .map(|membership| (table, membership))
+    })
+}
+
+/// The satisfying role set for a membership declaration.
+///
+/// @ref LLP 0056#rule-helpers — `memberOf` excludes `pendingRoles`.
+pub(crate) fn effective_membership_roles(
+    membership: &MembershipManifest,
+    requested: Option<&[String]>,
+) -> Vec<String> {
+    match requested {
+        Some(roles) => roles.to_vec(),
+        None => membership.roles.clone(),
+    }
+}
 
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
 /// The paired schema/function artifact version reserved for session authority.
@@ -941,10 +970,10 @@ impl SchemaManifest {
             && !self
                 .required_capabilities
                 .iter()
-                .any(|capability| capability == crate::vector::VECTOR_CAPABILITY)
+                .any(|capability| capability == crate::vector::types::VECTOR_CAPABILITY)
         {
             return Err(unsupported_capability_error(
-                crate::vector::VECTOR_CAPABILITY,
+                crate::vector::types::VECTOR_CAPABILITY,
                 "vector fields and indexes require vector_search_v1",
             ));
         }
@@ -1894,7 +1923,7 @@ impl FunctionManifest {
                     }
                 }
                 FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(_)) => {
-                    &[crate::vector::VECTOR_CAPABILITY]
+                    &[crate::vector::types::VECTOR_CAPABILITY]
                 }
                 // The declared job-status query requires the experimental
                 // jobs registry id (LLP 0070 is Draft, so the id can never be
@@ -2803,8 +2832,8 @@ fn validate_value_contract_node(
         // closed node in both lanes. They do not widen the ordinary array
         // profile's 1,024-item ceiling.
         ResultValueContract::Vector { dimensions } => {
-            if !(crate::vector::VECTOR_PROFILE_DIMENSIONS_MIN
-                ..=crate::vector::VECTOR_PROFILE_DIMENSIONS_MAX)
+            if !(crate::vector::types::VECTOR_PROFILE_DIMENSIONS_MIN
+                ..=crate::vector::types::VECTOR_PROFILE_DIMENSIONS_MAX)
                 .contains(dimensions)
             {
                 return Err(match lane {
@@ -4556,12 +4585,12 @@ pub fn validate_vector_index_manifest(
         || index.name.trim().is_empty()
         || index.semantic_version.trim().is_empty()
         || index.vector_field.trim().is_empty()
-        || index.distance_profile != crate::vector::VECTOR_DISTANCE_PROFILE_ID
-        || index.ordering_profile != crate::vector::VECTOR_ORDERING_PROFILE_ID
-        || !(crate::vector::VECTOR_PROFILE_DIMENSIONS_MIN
-            ..=crate::vector::VECTOR_PROFILE_DIMENSIONS_MAX)
+        || index.distance_profile != crate::vector::types::VECTOR_DISTANCE_PROFILE_ID
+        || index.ordering_profile != crate::vector::types::VECTOR_ORDERING_PROFILE_ID
+        || !(crate::vector::types::VECTOR_PROFILE_DIMENSIONS_MIN
+            ..=crate::vector::types::VECTOR_PROFILE_DIMENSIONS_MAX)
             .contains(&index.dimensions)
-        || !(1..=crate::vector::VECTOR_MAX_CORPUS)
+        || !(1..=crate::vector::types::VECTOR_MAX_CORPUS)
             .contains(&index.max_indexed_vectors_per_partition)
     {
         return Err(vector_manifest_invalid(format!(
@@ -4595,7 +4624,8 @@ pub fn validate_vector_index_manifest(
     let product = u64::from(index.dimensions)
         .checked_mul(u64::from(index.max_indexed_vectors_per_partition))
         .ok_or_else(|| vector_manifest_invalid("vector scalar-pair product overflow"))?;
-    if product > crate::vector::VECTOR_MAX_SCALAR_PAIRS || index.max_scalar_pairs != product {
+    if product > crate::vector::types::VECTOR_MAX_SCALAR_PAIRS || index.max_scalar_pairs != product
+    {
         return Err(vector_manifest_invalid(format!(
             "vector index {} maxScalarPairs must equal dimensions × maxIndexedVectorsPerPartition and remain <= 2^26",
             index.name
@@ -4612,7 +4642,7 @@ pub fn validate_vector_index_manifest(
         fields.iter().all(|field| !field.trim().is_empty())
             && fields.iter().collect::<BTreeSet<_>>().len() == fields.len()
     };
-    if index.equality_filters.len() > crate::vector::VECTOR_MAX_FILTERS
+    if index.equality_filters.len() > crate::vector::types::VECTOR_MAX_FILTERS
         || !unique_nonempty(&index.equality_filters)
         || !unique_nonempty(&index.stored_fields)
     {
@@ -4721,9 +4751,9 @@ pub fn validate_vector_index_manifest(
 pub fn validate_vector_query_plan_shape(plan: &VectorQueryPlanV1) -> SnapbackResult<()> {
     if plan.table.trim().is_empty()
         || plan.index.trim().is_empty()
-        || plan.distance_profile != crate::vector::VECTOR_DISTANCE_PROFILE_ID
-        || plan.result_projection != crate::vector::VECTOR_RESULT_PROJECTION
-        || plan.required_capability != crate::vector::VECTOR_CAPABILITY
+        || plan.distance_profile != crate::vector::types::VECTOR_DISTANCE_PROFILE_ID
+        || plan.result_projection != crate::vector::types::VECTOR_RESULT_PROJECTION
+        || plan.required_capability != crate::vector::types::VECTOR_CAPABILITY
     {
         return Err(SnapbackError::error(
             "SNAPBACK_VECTOR_QUERY_PLAN_INVALID",
@@ -5163,7 +5193,7 @@ pub(crate) fn expected_vector_result_contract(
         },
         rows: Some(ResultRowsBound {
             min_items: 0,
-            max_items: crate::vector::VECTOR_MAX_K as usize,
+            max_items: crate::vector::types::VECTOR_MAX_K as usize,
         }),
     })
 }
@@ -5191,7 +5221,7 @@ pub(crate) fn expected_vector_args_contract(index: &VectorIndexManifestV1) -> Fu
             false,
             ResultValueContract::Integer {
                 min: 1,
-                max: crate::vector::VECTOR_MAX_K.into(),
+                max: crate::vector::types::VECTOR_MAX_K.into(),
             },
         ),
     ];
@@ -5214,7 +5244,7 @@ pub(crate) fn expected_vector_args_contract(index: &VectorIndexManifestV1) -> Fu
             "filters",
             false,
             ResultValueContract::Array {
-                max_items: crate::vector::VECTOR_MAX_FILTERS,
+                max_items: crate::vector::types::VECTOR_MAX_FILTERS,
                 element: Box::new(ResultValueContract::Object {
                     allow_extra: false,
                     fields: vec![
@@ -10469,13 +10499,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:042e00996b3527adf40fa79fa1bc38b812d200ffb50c52e3aa82b4699bbbd511";
+    "sha256:42170ee06e3b68e5efe3b10061fb9c16c7933c7d37b7662fbd776786ced102d0";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:0c602570dcea590b0a7c41ac7edb63efeaf4a73ea7d65874b40c9a9643db64c4";
+    "sha256:141e9bfdc9081ec24ed38a03369f012627dae9f7a8e174c4fe50aed818125fdc";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -10875,7 +10905,7 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:c600cfdc50ea6ddbe850ecb7ecc233a6fd5815b672f8b27b31a33cc118d01b03"
+                    "sha256:7f70ef12399edded826baeca8a8373108b12f3cf37c620816a35bf72784aa143"
                         .to_owned(),
                 ),
                 (
@@ -10900,7 +10930,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/live_protocol.rs".to_owned(),
-                    "sha256:0157ad0e62bb723f31a67a45fbcd82ad7cc6f63fa9fad9c41edd661d4d31ed1d"
+                    "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090"
                         .to_owned(),
                 ),
                 (
@@ -10910,17 +10940,17 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:36a4f0dde94a823217853dfe3d379fc5198176b68dcf7d3e773df97292a3e0c5"
+                    "sha256:041d6e53fb8186df1f6948fa0c1a9c046735a4c2657984eabd0c923f516f03e1"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:7cdee608db0a3a664bc6c29b6590a3f5eb5e46aa8b0d22a9f99fdf643d35a707"
+                    "sha256:66fb4820f41f03e47c19f3edcc2c0797f5f0aaf951f8d3460ae808e0b570a1b1"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth.rs".to_owned(),
-                    "sha256:d3082eae43a8ce5cefeaddac9627c440b83630aaf761c2208ece86888e5061fa"
+                    "sha256:9d93d22347409fee1d10725972c0180ba1c8f355f97e6e429ac1463c42a8381f"
                         .to_owned(),
                 ),
                 (
@@ -10930,7 +10960,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_agents.rs".to_owned(),
-                    "sha256:25902439a8da31fc312a3f5c113933fe0f958b4cda4eaa850f9b1656d6f3f8ae"
+                    "sha256:a1a154f89754c187ff936a529c48edc0a72992b8b539a715f1e47023afad763c"
                         .to_owned(),
                 ),
                 (
@@ -10950,12 +10980,12 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:41299df2e964e6d642acac54dd931527b434d90d5cb8f1f1edb0ffa9c6efbc9b"
+                    "sha256:5a1761b3868fbee7d011586644a05471c73e1bc89586d743afdd83c5422e1a02"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth_rescue.rs".to_owned(),
-                    "sha256:cdb1015e4d24eff160b5f227bfcd58db9ee5a4b0017d3ac1fc2b077bc5496ebd"
+                    "sha256:9b346a5ba93a90fc328ea25ddb2e6f1fe3b0607ba601e9faa9889e3315f85b8d"
                         .to_owned(),
                 ),
                 (
@@ -11020,7 +11050,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:279345b0542d7c4b86427a6d1bd13141205fa2c1ca1aa33febaa11e2af7b846f"
+                    "sha256:d08922f0e773dc0634f31ab3dc19bb6215939b53913943b25ddf594d4c94d00d"
                         .to_owned(),
                 ),
                 (
@@ -11032,7 +11062,7 @@ fn local_relation_activity_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:675584c88750ae85133e00a3037f4ec2bf7598002fa732e68fc79015c1975deb"
+                "sha256:ff7ec6414c2dad5ded317ddcd17bf097fba16301b36f2d4c9fa55c1e101dd669"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -11103,7 +11133,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/live_protocol.rs".to_owned(),
-                    "sha256:0157ad0e62bb723f31a67a45fbcd82ad7cc6f63fa9fad9c41edd661d4d31ed1d"
+                    "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090"
                         .to_owned(),
                 ),
                 (
@@ -11113,22 +11143,22 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:36a4f0dde94a823217853dfe3d379fc5198176b68dcf7d3e773df97292a3e0c5"
+                    "sha256:041d6e53fb8186df1f6948fa0c1a9c046735a4c2657984eabd0c923f516f03e1"
                         .to_owned(),
                 ),
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:6b0dada541b97203468164090421372c42f5a80f529750104a580bf30a0ef530"
+                    "sha256:863c613cc043ccf4e67a60b90695e4b9fe9499d3e6bcc4dcd45174ce54686e53"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:7cdee608db0a3a664bc6c29b6590a3f5eb5e46aa8b0d22a9f99fdf643d35a707"
+                    "sha256:66fb4820f41f03e47c19f3edcc2c0797f5f0aaf951f8d3460ae808e0b570a1b1"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth.rs".to_owned(),
-                    "sha256:d3082eae43a8ce5cefeaddac9627c440b83630aaf761c2208ece86888e5061fa"
+                    "sha256:9d93d22347409fee1d10725972c0180ba1c8f355f97e6e429ac1463c42a8381f"
                         .to_owned(),
                 ),
                 (
@@ -11138,7 +11168,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_agents.rs".to_owned(),
-                    "sha256:25902439a8da31fc312a3f5c113933fe0f958b4cda4eaa850f9b1656d6f3f8ae"
+                    "sha256:a1a154f89754c187ff936a529c48edc0a72992b8b539a715f1e47023afad763c"
                         .to_owned(),
                 ),
                 (
@@ -11158,12 +11188,12 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:41299df2e964e6d642acac54dd931527b434d90d5cb8f1f1edb0ffa9c6efbc9b"
+                    "sha256:5a1761b3868fbee7d011586644a05471c73e1bc89586d743afdd83c5422e1a02"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth_rescue.rs".to_owned(),
-                    "sha256:cdb1015e4d24eff160b5f227bfcd58db9ee5a4b0017d3ac1fc2b077bc5496ebd"
+                    "sha256:9b346a5ba93a90fc328ea25ddb2e6f1fe3b0607ba601e9faa9889e3315f85b8d"
                         .to_owned(),
                 ),
                 (
@@ -11228,7 +11258,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:279345b0542d7c4b86427a6d1bd13141205fa2c1ca1aa33febaa11e2af7b846f"
+                    "sha256:d08922f0e773dc0634f31ab3dc19bb6215939b53913943b25ddf594d4c94d00d"
                         .to_owned(),
                 ),
                 (
@@ -11240,7 +11270,7 @@ fn local_sequence_allocation_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:675584c88750ae85133e00a3037f4ec2bf7598002fa732e68fc79015c1975deb"
+                "sha256:ff7ec6414c2dad5ded317ddcd17bf097fba16301b36f2d4c9fa55c1e101dd669"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -11372,7 +11402,7 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:c600cfdc50ea6ddbe850ecb7ecc233a6fd5815b672f8b27b31a33cc118d01b03"
+                    "sha256:7f70ef12399edded826baeca8a8373108b12f3cf37c620816a35bf72784aa143"
                         .to_owned(),
                 ),
                 (
@@ -11397,7 +11427,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/live_protocol.rs".to_owned(),
-                    "sha256:0157ad0e62bb723f31a67a45fbcd82ad7cc6f63fa9fad9c41edd661d4d31ed1d"
+                    "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090"
                         .to_owned(),
                 ),
                 (
@@ -11407,17 +11437,17 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:36a4f0dde94a823217853dfe3d379fc5198176b68dcf7d3e773df97292a3e0c5"
+                    "sha256:041d6e53fb8186df1f6948fa0c1a9c046735a4c2657984eabd0c923f516f03e1"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:7cdee608db0a3a664bc6c29b6590a3f5eb5e46aa8b0d22a9f99fdf643d35a707"
+                    "sha256:66fb4820f41f03e47c19f3edcc2c0797f5f0aaf951f8d3460ae808e0b570a1b1"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth.rs".to_owned(),
-                    "sha256:d3082eae43a8ce5cefeaddac9627c440b83630aaf761c2208ece86888e5061fa"
+                    "sha256:9d93d22347409fee1d10725972c0180ba1c8f355f97e6e429ac1463c42a8381f"
                         .to_owned(),
                 ),
                 (
@@ -11427,7 +11457,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_agents.rs".to_owned(),
-                    "sha256:25902439a8da31fc312a3f5c113933fe0f958b4cda4eaa850f9b1656d6f3f8ae"
+                    "sha256:a1a154f89754c187ff936a529c48edc0a72992b8b539a715f1e47023afad763c"
                         .to_owned(),
                 ),
                 (
@@ -11447,12 +11477,12 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:41299df2e964e6d642acac54dd931527b434d90d5cb8f1f1edb0ffa9c6efbc9b"
+                    "sha256:5a1761b3868fbee7d011586644a05471c73e1bc89586d743afdd83c5422e1a02"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth_rescue.rs".to_owned(),
-                    "sha256:cdb1015e4d24eff160b5f227bfcd58db9ee5a4b0017d3ac1fc2b077bc5496ebd"
+                    "sha256:9b346a5ba93a90fc328ea25ddb2e6f1fe3b0607ba601e9faa9889e3315f85b8d"
                         .to_owned(),
                 ),
                 (
@@ -11517,7 +11547,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:279345b0542d7c4b86427a6d1bd13141205fa2c1ca1aa33febaa11e2af7b846f"
+                    "sha256:d08922f0e773dc0634f31ab3dc19bb6215939b53913943b25ddf594d4c94d00d"
                         .to_owned(),
                 ),
                 (
@@ -11529,7 +11559,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:8dd19d8dda3050babf0a81af1c420459089e05e8b8980b53a2da13eeefd68bc4"
+                "sha256:3d4f2e34cc5d33108e551f84c2529f3d7894f1afdc01e941f8b6838b521eb3d7"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -13081,10 +13111,7 @@ pub enum ResourceLimitStatus {
 const LLP_0047_UNTRUSTED_CODE_LIMIT_ROWS: [(&str, &[&str]); 8] = [
     ("query wall-clock timeout", &["wall_clock_timeout"]),
     ("mutation wall-clock timeout", &["wall_clock_timeout"]),
-    (
-        "action wall-clock timeout",
-        &["action_wall_clock_timeout"],
-    ),
+    ("action wall-clock timeout", &["action_wall_clock_timeout"]),
     ("CPU/instruction budget where available", &["cpu_budget"]),
     ("maximum response size", &["maximum_result_size"]),
     (
@@ -13261,8 +13288,7 @@ mod untrusted_code_profile_tests {
                 Err(error) => error,
             };
             assert_eq!(
-                error.diagnostic.code,
-                "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED",
+                error.diagnostic.code, "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED",
                 "{name}"
             );
         }
@@ -13963,7 +13989,7 @@ impl CapabilityManifest {
             .contains(&TargetCapabilityId::VectorSearchV1)
         {
             self.capability_gaps
-                .retain(|gap| gap != crate::vector::VECTOR_CAPABILITY);
+                .retain(|gap| gap != crate::vector::types::VECTOR_CAPABILITY);
         } else {
             // A derived target constructor can start from the local shape,
             // but it may not inherit target authority merely by retaining a
@@ -13972,10 +13998,10 @@ impl CapabilityManifest {
             if !self
                 .capability_gaps
                 .iter()
-                .any(|gap| gap == crate::vector::VECTOR_CAPABILITY)
+                .any(|gap| gap == crate::vector::types::VECTOR_CAPABILITY)
             {
                 self.capability_gaps
-                    .push(crate::vector::VECTOR_CAPABILITY.to_owned());
+                    .push(crate::vector::types::VECTOR_CAPABILITY.to_owned());
             }
         }
         // Re-establish the closed pair at its original position before
@@ -14101,7 +14127,11 @@ mod approval_manifest_tests {
         }
     }
 
-    fn function(name: &str, kind: FunctionKind, exposure: ApiFunctionExposure) -> FunctionDefinition {
+    fn function(
+        name: &str,
+        kind: FunctionKind,
+        exposure: ApiFunctionExposure,
+    ) -> FunctionDefinition {
         let mut function = FunctionDefinition::new(
             name,
             kind,
@@ -14134,7 +14164,10 @@ mod approval_manifest_tests {
                 ..FunctionManifest::default()
             })
             .unwrap_err();
-        assert_eq!(error.diagnostic.code, "SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE"
+        );
 
         let query = exposure(ApiFunctionApproval::External, true);
         let error = schema("read", query.clone())
@@ -14754,8 +14787,8 @@ mod membership_manifest_grammar_tests {
         let oversized_array = result_contract_function(FunctionResultContract::Value {
             value: ResultValueContract::Array {
                 element: Box::new(ResultValueContract::FiniteReal {
-                    min: -crate::vector::VECTOR_COMPONENT_ABS_MAX,
-                    max: crate::vector::VECTOR_COMPONENT_ABS_MAX,
+                    min: -crate::vector::types::VECTOR_COMPONENT_ABS_MAX,
+                    max: crate::vector::types::VECTOR_COMPONENT_ABS_MAX,
                 }),
                 max_items: RESULT_CONTRACT_MAX_ARRAY_ITEMS + 1,
             },
@@ -14844,8 +14877,8 @@ mod membership_manifest_grammar_tests {
             vector_field: "embedding".to_owned(),
             dimensions: 3,
             metric: VectorMetricV1::L2sq,
-            distance_profile: crate::vector::VECTOR_DISTANCE_PROFILE_ID.to_owned(),
-            ordering_profile: crate::vector::VECTOR_ORDERING_PROFILE_ID.to_owned(),
+            distance_profile: crate::vector::types::VECTOR_DISTANCE_PROFILE_ID.to_owned(),
+            ordering_profile: crate::vector::types::VECTOR_ORDERING_PROFILE_ID.to_owned(),
             field_classifications: BTreeMap::from([
                 ("category".to_owned(), VectorFieldClassV1::Public),
                 ("embedding".to_owned(), VectorFieldClassV1::Public),
@@ -14854,7 +14887,7 @@ mod membership_manifest_grammar_tests {
             equality_filters: vec!["category".to_owned()],
             stored_fields: vec!["title".to_owned()],
             visibility: VectorVisibilityV1::PublicRead,
-            tie_break: crate::vector::VectorTieBreakV1::IdAsc,
+            tie_break: crate::vector::types::VectorTieBreakV1::IdAsc,
             max_indexed_vectors_per_partition: 128,
             max_scalar_pairs: 384,
             maintenance_limits: VectorMaintenanceLimitsV1::default(),

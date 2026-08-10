@@ -6,7 +6,7 @@ use crate::search::ast::{
 };
 use crate::search::highlight::{SearchOccurrence, highlights};
 use crate::search::scorer::{atom_frequency, atom_score};
-use crate::search::types::*;
+pub use crate::search::types::*;
 use crate::storage::{ChangeOp, ChangedRow};
 use rusqlite::types::Value as SqlValue;
 use rusqlite::{Connection, OptionalExtension, Transaction, params, params_from_iter};
@@ -246,7 +246,7 @@ fn manifest_digest(index: &SearchIndexManifestV1) -> SnapbackResult<String> {
             "search index manifest does not serialize",
         )
     })?;
-    crate::rqs::sha256_identity(&value).map_err(|_| {
+    crate::rqs_contract::sha256_identity(&value).map_err(|_| {
         diagnostic(
             "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
             "search index manifest is not canonicalizable",
@@ -331,7 +331,7 @@ fn token_values(tokens: &[SearchToken]) -> Vec<Value> {
 }
 
 fn content_digest(value: &Value) -> SnapbackResult<String> {
-    crate::rqs::sha256_identity(value).map_err(|_| {
+    crate::rqs_contract::sha256_identity(value).map_err(|_| {
         diagnostic(
             "SNAPBACK_SEARCH_MAINTENANCE_FAILED",
             "search source content is not canonically digestible",
@@ -886,7 +886,7 @@ fn validate_index_declaration(
             {
                 return Err(invalid());
             }
-            let (_, membership) = crate::membership_rules::find_declaration(schema, declaration)
+            let (_, membership) = crate::manifest::find_membership_declaration(schema, declaration)
                 .ok_or_else(invalid)?;
             if membership.scope != crate::manifest::MembershipScope::Resource {
                 return Err(invalid());
@@ -1925,7 +1925,7 @@ pub fn query_search_on(
                 .as_deref()
                 .expect("resourceArg consistency checked above");
             let (membership_table, membership) =
-                crate::membership_rules::find_declaration(schema, declaration).ok_or_else(
+                crate::manifest::find_membership_declaration(schema, declaration).ok_or_else(
                     || {
                         diagnostic(
                             "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
@@ -1968,7 +1968,7 @@ pub fn query_search_on(
                 .query_row(&sql, params![subject, resource], |row| row.get(0))
                 .optional()?;
             let admitted_roles =
-                crate::membership_rules::effective_roles(membership, roles.as_deref());
+                crate::manifest::effective_membership_roles(membership, roles.as_deref());
             seat_admitted = role
                 .as_ref()
                 .is_some_and(|role| admitted_roles.iter().any(|allowed| allowed == role));

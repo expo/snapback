@@ -11,9 +11,8 @@ use crate::vector::diagnostics::{
     index_corrupt, maintenance_failed, maintenance_limit, value_invalid,
 };
 use crate::vector::profile::admit_vector_components;
+pub use crate::vector::types::{VECTOR_MAINTENANCE_BYTES_MAX, VECTOR_MAINTENANCE_EFFECTS_MAX};
 
-pub const VECTOR_MAINTENANCE_EFFECTS_MAX: u64 = 1_024;
-pub const VECTOR_MAINTENANCE_BYTES_MAX: u64 = 4 * 1024 * 1024;
 const NEGATIVE_ZERO_BITS: u64 = 1_u64 << 63;
 
 /// Admit and encode one vector as exactly `8 * dimensions` bytes. Each
@@ -66,7 +65,7 @@ pub fn decode_vector_binary64_le(bytes: &[u8], dimensions: u32) -> SnapbackResul
 pub fn vector_content_digest(values: &[f64], dimensions: u32) -> SnapbackResult<String> {
     let admitted = admit_vector_components(values, dimensions).map_err(|_| value_invalid())?;
     let value = serde_json::to_value(admitted).map_err(|_| maintenance_failed())?;
-    crate::rqs::sha256_identity(&value).map_err(|_| maintenance_failed())
+    crate::rqs_contract::sha256_identity(&value).map_err(|_| maintenance_failed())
 }
 
 /// The exact identity of one idempotent vector-derived-state update.
@@ -260,8 +259,14 @@ mod tests {
             "sha256:28eee5c1867e8dc30eb5b17b8daa0fe3feaab6c04b0f37f4ba1757df83d34514"
         );
         let admitted = serde_json::to_value([0.0, 1.5, -2.25]).unwrap();
-        assert_eq!(crate::rqs::jcs(&admitted).unwrap(), "[0,1.5,-2.25]");
-        assert_eq!(crate::rqs::sha256_identity(&admitted).unwrap(), positive);
+        assert_eq!(
+            crate::rqs_contract::jcs(&admitted).unwrap(),
+            "[0,1.5,-2.25]"
+        );
+        assert_eq!(
+            crate::rqs_contract::sha256_identity(&admitted).unwrap(),
+            positive
+        );
         let error = vector_content_digest(&[f64::NAN], 1).expect_err("NaN refuses");
         assert_eq!(error.diagnostic.code, code::VALUE_INVALID);
     }

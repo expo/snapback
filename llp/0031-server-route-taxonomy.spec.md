@@ -5,7 +5,10 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-10 (LLP 0204 S5 Landing C registers the session-only
+**Revised:** 2026-08-10 (LLP 0204 commissioned the granted-operation
+capability-link mint/serve/invoke/revoke operation classes and response
+sensitivity for reads and writes; design only, with no implementation or
+capability claim — see the dated amendment.) 2026-08-10 (LLP 0204 S5 Landing C registers the session-only
 pending-effect inbox and approve/deny routes; bare, `/api/v1`, MCP, and
 capability-link mutating calls converge on one typed 202 approval result.)
 2026-08-09 (LLP 0204 S5 Landing B registers the user-owned durable
@@ -66,7 +69,7 @@ amendment). 2026-07-31 (LLP 0044 companion, tickets L1-04/L1-05: registered
 the asset upload-session route family — see the dated amendment — with the
 `AssetTransfer` authority-only invocation source and the same-path
 multi-method router merge). 2026-07-25 (hosted-arm root system-route migration: the Cloudflare gateway/coordinator system operations moved under the reserved `/_snapback/*` namespace — see the dated amendment; LLP 0093 former OQ6, executed by LLP 0094 §0A.3). 2026-07-25 (§Server-binary identity: resolved the kit-side self-confirmation defect — `startServer` no longer injects checkout-derived `SNAPBACK_BUILD_GIT_COMMIT`/`SNAPBACK_BUILD_GIT_DIRTY` into spawned children, so the build.rs stamp is an independent probe again; strict equality is replaced by an honest verdict classification (`verified`/`unpinned`/`env-stamped`/`unverifiable`/`stamp-mismatch`) carried on the server handle; see the resolved-defect paragraph and issues/closed/20260724-kit-identity-stamp-env-injection-tautology.md). 2026-07-24 (§Server-binary identity: recorded the kit-side defect where the default `cargo run` launch injects checkout-derived `SNAPBACK_BUILD_GIT_COMMIT`/`SNAPBACK_BUILD_GIT_DIRTY` into the child, making the provenance comparison self-confirming on that path; fix tracked by issues/20260724-kit-identity-stamp-env-injection-tautology.md). 2026-07-24 (LLP 0090 rollout step 2: `POST /app/bundle` and the pending-registration owner are implemented on the local arm and the route matrix row landed — see the amendment's implementation note). 2026-07-24 (LLP 0090 cluster-0F amendment: added the dated LLP 0090 resumable-snapshot-lanes section — a commissioned `DeclaredPublicApplicationData` response-sensitivity class for the Channel A inlined-HTML lane and read-mode public bundles, with server-side re-check of the codegen-compiled `publicInline` facts, body-logging exclusion with identity/refusal-code loggability, v1 `no-store`, and the bounded anonymous rate/budget posture; plus the bounded pending-registration owner that makes register mode buildable — atomic grant mint, atomic handoff on socket attach, attach-grace reaping, idempotency replay-validity scoped by LLP 0077's exact wire identities (RFC 7638 JWK thumbprint + issuance `sender_replay_epoch`), register mode refused to read mode for anonymous callers, and an acceptance obligation that socketless-HTTP-cannot-arm-demand still holds outside that one closed operation; enters the enforced registry with 0090 clusters 0D/0E). 2026-07-17 (clarified that kit connection labels and granted wire ids coincide only when an initial suggestion is adopted; collision or mint-only containment makes them diverge, and connection-owned entry keys use the granted id). 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-25102: extended the public system-static lane beyond console assets to the build-embedded `/_snapback/guide` projections; the three read-only routes carry `PublicProjection`, no instance authority, and the same registry enforcement). 2026-07-14 (auth-program route reconciliation: extend the normative matrix through the bootstrap handshake, provider/session endpoints, authorized-lease query, and explicit invalidation ACK/manual-retry routes now installed by items 3–8). 2026-07-13 (ENG-24596 final audit: registered the console-credential and secret-read-mint routes, the `SecretReadMintProof` effect, and rescue's dev/test-only profile); 2026-07-13 (ENG-24596: registered provider challenge/family-alarm credential cases, the public no-store response class, and the installed provider/mailbox/auth host-operation rows); 2026-07-13 (ENG-24594: made the route registry the enforceable router source; added independent path, credential-resolution, invocation-authority, legacy-body, effect, response-sensitivity, and session-overlay axes; re-scoped `AppAuth` to dev-mode client assertion; and pinned the complete existing-route × auth-mode matrix and metadata-driven acceptance sweep); 2026-07-13 (final audit hardening: the local durable-live registry now enforces the hosted proof's 2,048-global/64-per-connection ceilings before initial query execution, with net-zero supersession and typed 429 diagnostics); 2026-07-12 (ENG-24560/ENG-24571: the typed public-inspect projection now removes per-room ephemeral identities/scopes and client-mutation retention internals, exposing aggregate ephemeral health only); 2026-07-12 (ENG-24566: local connection grants are fixed-cap, prefer unused eviction, refuse while all used leases are current, and retire idle used grants only with stale-socket termination plus permanent minted-id fallback); 2026-07-12 (ENG-24347/ENG-24354/ENG-24358 review follow-up: hosted subscription rows, canonical args, and accepted sockets now have hard advertised ceilings, including the legacy proof socket; persisted over-limit state fails recoverably through health/reset; ENG-24347/ENG-24352/ENG-24354/ENG-24358: optional request bodies fail closed, WebSocket query-token transport is retired, hosted subscriptions and frames are bound to the current socket session so an obsolete socket cannot act for its replacement, and hosted durable connection grants are bounded and reaped; earlier: 2026-07-01 status → Active: LLP 0032 S1 implemented the full migration and the declared route registry with enforcement tests, verified against a running server; earlier same day status → Accepted, ratified in the LLP 0032 R1 batch: the five classifications are settled, LLP 0032 S0 landed the interim gate; author self-review pass: corrected the invariant's auth framing — app routes carry app-supplied `ctx.auth`, not server-enforced auth, and several are public; noted axum's `Router` is not route-introspectable so the declared registry is required for enforcement; aligned the new gated writes with the LLP 0024 host-ops projection; made explicit that the reserved-prefix proxy rule is safe only because the enforcement test holds. Not an independent review — this session authored the draft. GPT-5 review clarified that `/_snapback/admin*` is a static console shell/assets lane, not itself an `authorize()`-gated API; required the route registry to record auth policy as well as path class; and made WebSocket-carried operations part of the taxonomy so `/live/*` cannot smuggle a system operation. A further author self-revision then lifted that WebSocket insight into the normative invariant — the classified unit is the operation, not just the URL path — and clarified that the registry's `app-auth` policy means handler-enforced `ctx.auth`, not transport authentication. Still not an independent review; the GPT-5 pass above is 0031's one independent review so far. A subsequent Claude session then settled the five open-question classifications with the author and wrote them into the spec below, driven by three code-verification sub-agents and two adversarial Claude review passes over the decisions. That work corrected decision 4 — `/ephemeral/collections` (register) is an ungated definition-overwrite with no caller and is now classed system, split from the validate-only `/ephemeral/collections/ensure`, which stays app-data — dropped a category error in the delete rationale, folded seed into `app.reset` per LLP 0024, and added a field-level inspect test the route registry cannot substitute for. This remains a same-family Claude pass, not the independent review 0031 still owes: the GPT-5 review above predates these decisions, so a fresh cross-family pass over the revised spec is the outstanding review debt. 2026-07-04 (ENG-22798): added §Server-binary identity on /health — the ungated `/health` now carries a build-identity block (crate version + git commit/dirty + a per-process startup nonce) so an externally started, unprovisioned or schema-only server is reuse-verifiable before any app bundle loads; the reuse-provenance verdict falls back to it when bundle identity is unavailable. Still a same-family Claude pass; the cross-family review debt above stands. 2026-07-07 (ENG-23441): D3 tightened — the public `functions` manifest is now itself a typed projection (`PublicFunctionManifest`) that drops executable handler bodies (`IbexModule.source`, `HandlerPlan` step bodies) and `sourceSpan`; full handler source lives only on the gated twin, and the field-level trim test gains a whole-payload source-sentinel assertion. Same-family Claude pass; the cross-family review debt stands. 2026-07-07 (ENG-23365): §Server-binary identity — the build.rs stamp now tracks the binary's real inputs (src/, Cargo.toml, Cargo.lock, refs/heads, packed-refs) so incremental rebuilds and ref-only moves re-stamp instead of replaying a stale commit/dirty pair. 2026-07-07 (ENG-23419): §Server-binary identity — the dirty probe now maps `git status --porcelain` success-with-empty-output to `gitDirty: false` instead of conflating it with command failure, so a clean checkout can actually earn binary-provenance reuse. 2026-07-07 (ENG-23442): added §Connection capability grants and the `connection-auth` registry policy — connection ids are no longer caller-chosen bearerless capabilities; `POST /connection/open` mints a per-connection token (idempotent re-open under the current token; suggested ids adopted only in non-prod), and `/live/*`, `/outbox/{id}`, and the ephemeral publish/subscribe/delete routes require it, with `/outbox/{id}` reclassified from Public. Same-family Claude pass; review debt stands.)
-**Related:** LLP 0000, LLP 0003, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0023, LLP 0024, LLP 0025, LLP 0030, LLP 0039, LLP 0051, LLP 0053, LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0061, LLP 0071, LLP 0077, LLP 0090, LLP 0093, LLP 0094, LLP 0143, LLP 0150, LLP 0154, LLP 0204
+**Related:** LLP 0000, LLP 0003, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0023, LLP 0024, LLP 0025, LLP 0030, LLP 0039, LLP 0051, LLP 0053, LLP 0055, LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0061, LLP 0071, LLP 0077, LLP 0090, LLP 0093, LLP 0094, LLP 0143, LLP 0150, LLP 0154, LLP 0204
 
 ENG-24594's implementation hardening makes the sessions overlay executable
 through the real router and socket dispatcher in embedded acceptance state,
@@ -1816,6 +1819,145 @@ not a dry run: v1 contains only the canonical args digest and declared write
 set. The exact manifest-activated `_snapback_pending_effects` ledger bounds
 arguments, previews, authority snapshots, and journal facts; lazy reads and
 decisions durably settle expiry without adding a scheduler.
+
+## Dated amendment: LLP 0204 granted capability links (2026-08-10)
+
+**Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md), D9.4,
+the OQ9 ruling, and the 2026-08-10 author sitting's full granted-operation
+extension; authority construction is owned by LLP 0055's
+[matching amendment](./0055-agent-principals-and-scoped-grants.rfc.md#dated-amendment-llp-0204-granted-capability-links-2026-08-10)
+and LLP 0058's
+[sealed-variant amendment](./0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md#dated-amendment-llp-0204-granted-capability-links-2026-08-10).
+
+**Status:** commissioned design only. These are additions to the route and
+response registries, not implemented rows or a target capability claim. The
+external-anonymous capability-link operations in the
+[2026-08-08 amendment](#capability-link-mint-and-serve-family) remain distinct
+and are already implemented by S5 Landing A.
+
+### Granted-link operation classes on the existing paths
+
+Granted links reuse the existing URL family but add closed semantic operation
+classes. The request is classified before a function handler or link effect
+runs; a body discriminator never causes the anonymous branch to inherit a
+grant resolver.
+
+| Route / operation | Effective policy | Response sensitivity |
+| --- | --- | --- |
+| `POST /capability-links` — `GrantedCapabilityLinkMint` | AppData mint; sessions-only `RequiredSessionOrScopedToken`. A direct session supplies its server-resolved effective user; a scoped token must resolve a delegated `ServicePrincipal` whose grant carries both the exact function call scope and exact `capabilityLinkMint` scope. The shared mint gate runs before creating a link grant or secret | `CredentialSecret`; the one-time URL is `private, no-store`, is never echoed again, and is excluded from every log/receipt/diagnostic projection |
+| `GET /capability-links/{token}` — `GrantedCapabilityLinkLanding` | AppData/Public path with the exact `CapabilityLinkBearer` request-secret resolver and `InvocationAuthority::None`; link lookup may produce a bounded inert form/description but cannot resolve `CapabilityLinkPossessor` | `PublicNoStore`; no application result, authority fact, pinned argument value, effective-principal fact, or token echo |
+| `POST /capability-links/{token}/invoke` — `GrantedCapabilityLinkInvoke` | AppData/Public path with the exact `CapabilityLinkBearer` request-secret resolver; after link, link-grant, parent-lineage, target, admission, expiry/use, and local/trusted-local checks, resolves only LLP 0058's `CapabilityLinkPossessor` and prepares the one bound function | `GrantedCapabilityLinkApplicationData`, defined below; always `private, no-store` |
+| `DELETE /capability-links/{id}` — `GrantedCapabilityLinkRevoke` | AppData mint-management; sessions-only `RequiredSessionOrScopedToken`. The resolved authority must match the stored exact minter authority reference; a service minter matches by live parent grant/actor/effective lineage rather than by one mint-time token | `PublicNoStore`; successful instant revocation returns no body |
+
+`RequiredSessionOrScopedToken`, `CapabilityLinkBearer`, and the four invocation
+sources above are closed registry values. The link URL is never accepted in
+`Authorization`, and a session/scoped token is never accepted as the invoke
+path secret. Presented-but-wrong credentials fail class dispatch before link
+or application lookup; there is no anonymous fall-through.
+
+The grant-bearing mint and invoke branches are **sessions-mode app-data
+operations**. They do not add a host-operation alias, `/api/v1` twin, MCP tool,
+connection-open carrier, retained-read lane, or WebSocket operation. The GET
+landing is the only credential-free presentation operation and never becomes a
+function invocation source.
+
+### `GrantedCapabilityLinkApplicationData` response sensitivity
+
+`ResponseSensitivity` gains the closed class
+**`GrantedCapabilityLinkApplicationData`** for arbitrary app-derived bytes
+authorized under a `CapabilityLinkPossessor` effective principal. It is not an
+expansion of `ExternalAnonymousApplicationData`: the result may contain data
+that is not anonymously callable or readable, and the bearer URL is the sole
+request carrier for the narrowed delegated grant.
+
+Selection requires all of these facts to be rechecked server-side immediately
+before the handler runs:
+
+1. the operation is exactly `GrantedCapabilityLinkInvoke`;
+2. LLP 0058 resolved `CapabilityLinkPossessor`, not `Anonymous`, a minter
+   session, or a credentialed agent;
+3. the link grant, parent authority/grant lineage, effective principal,
+   exposure declaration, exact function kind/basis, argument template, expiry,
+   use bound, integration admission where applicable, and target plane are all
+   current;
+4. the link grant covers the exact read or write and remains a subset of the
+   minter authority; and
+5. ordinary network/link budgets and the per-use journal reservation admit the
+   request atomically.
+
+Responses are always `Cache-Control: private, no-store` and
+`Referrer-Policy: no-referrer`. Application values, arguments, pinned template
+values, effective-principal identifiers, minter lineage, grant ids, journal
+facts, and bearer material are excluded from body capture, access-log payloads,
+diagnostics, analytics, traces, and receipts. The normalized route template,
+redacted link id, operation class, function class, status/refusal code, byte
+count, duration, and use ordinal are loggable. A response may carry the
+server-derived attribution block only on the caller-authorized response; it is
+not retained in a less-authorized operator projection by default.
+
+### Secret-URL and preview-crawler discipline
+
+The granted branch inherits the LLP 0150
+[closed secret-URL discipline](./0150-agent-token-acquisition.rfc.md#secret-url-discipline)
+and strengthens its registry consequences here:
+
+- the request target is normalized to the registered `{token}` template before
+  access logging, tracing, diagnostics, error rendering, metrics labels, or
+  proxy forwarding can retain it; raw-target logging is incompatible with this
+  route;
+- mint returns the secret once; storage retains only a domain-separated hash,
+  and no redirect, HTML, receipt, form action, third-party subresource, or
+  referrer can reproduce it;
+- **GET makes no state change**: it does not invoke a read or write, consume or
+  reserve a use, create a pending effect, append a per-use journal row, advance
+  `last_used_at`, or render an auto-submitting form. A preview crawler can at
+  most receive the inert no-store landing;
+- actual use requires the explicit POST invoke operation. A query result or
+  finite live-query snapshot is fetched only by that POST, never during GET;
+- expiry defaults to 7 days and has a hard platform maximum of 30 days, the
+  already-shipped S5 Landing A bounds. App source cannot raise either value;
+- direct revocation and a parent-lineage ending are checked at the invocation
+  gate. Use racing either transition settles to one exact result; and
+- every POST attempt that reaches link resolution reserves a monotonic use
+  ordinal and appends a bounded durable journal transition with redacted link,
+  child/parent grant lineage, function, argument-template digest, admission
+  decision, and coded outcome. The token and application values never enter the
+  journal. The final outcome settles that ordinal rather than appending an
+  unrelated second use.
+
+Infrastructure outside the process — ingress proxies, CDN request logs, error
+collectors, and referrer policy — is part of qualification. An implementing
+target cannot claim the route while any layer records raw request targets.
+
+### Reads, writes, approval, and hosted refusal
+
+`GrantedCapabilityLinkInvoke` admits reads and writes. Queries and finite
+live-query snapshots may execute directly after the shared gate. A mutation or
+action must be **approval-gated on every use or single-use**. The approval path
+returns the existing typed `202` pending-effect response and later reconstructs
+the same link-possessor authority; the approving minter is recorded separately
+and never becomes the executing caller. The single-use path consumes the use
+and admits execution atomically. Preview-crawler GET, a failed POST, and an
+approval-page view can never consume or execute a write.
+
+Every granted-link operation that would resolve or exercise service-principal
+authority is local/trusted-local only. Hosted mint through a scoped token,
+invoke (reads included), and approval execution refuse under LLP 0055's
+wholesale hosted plane boundary before handler evaluation. Existing hosted
+support for the external-anonymous link branch cannot select these operation
+classes or response sensitivity.
+
+### Registry acceptance obligations
+
+The implementing landing must add all four operation classes to route/source
+parity, credential-class substitution, request-secret/body-buffering,
+response-control, method/preflight, schema-export, status-family, and hosted
+matrix tests. Fixtures must prove inert GET under crawler-like requests; no raw
+token in process/proxy logs or referrers; exact 7-day/30-day bounds; wrong-class
+and anonymous-branch non-fallthrough; private-result exclusion from logs;
+per-use journal settlement; parent revocation and owner re-credential death;
+grant-preserving rotation; single-use/approval retry races; and handler-sentinel
+absence for every hosted call.
 
 ## Status
 

@@ -468,7 +468,7 @@ fn validate_node(
                     return Err(mismatch());
                 };
                 if !component.is_finite()
-                    || component.abs() > crate::vector::VECTOR_COMPONENT_ABS_MAX
+                    || component.abs() > crate::vector::types::VECTOR_COMPONENT_ABS_MAX
                 {
                     return Err(mismatch());
                 }
@@ -837,7 +837,7 @@ mod tests {
         for rejected in [
             json!({ "vector": [0.0, 1.0] }),
             json!({ "vector": [0.0, 1.0, 2.0, 3.0] }),
-            json!({ "vector": [0.0, 1.0, crate::vector::VECTOR_COMPONENT_ABS_MAX * 2.0] }),
+            json!({ "vector": [0.0, 1.0, crate::vector::types::VECTOR_COMPONENT_ABS_MAX * 2.0] }),
         ] {
             let error = validate_function_args(&function, &rejected)
                 .expect_err("D-1, D+1, and out-of-domain components refuse");

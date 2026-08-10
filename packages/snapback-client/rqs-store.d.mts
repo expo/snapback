@@ -154,6 +154,9 @@ export interface RqsMaterializationTransactionView {
 export interface RqsResumeStore {
   isWriter(): boolean;
   whenLockSettled(): Promise<void>;
+  /** Optional role-transition notification. File carriers without a native
+   * watch primitive are polled only while pending work awaits writer custody. */
+  subscribeWriterLock?(listener: (writer: boolean) => void): () => void;
   outboxEmpty(): Promise<boolean>;
   outboxRecords(): Promise<readonly Readonly<Record<string, unknown>>[]>;
   outboxMarkStranded(

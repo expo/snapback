@@ -58,7 +58,7 @@ mod checkpoints;
 #[path = "storage/auth.rs"]
 pub(crate) mod auth;
 mod connections;
-mod jobs;
+pub(crate) mod jobs;
 mod membership_plans;
 mod membership_reads;
 pub mod migration_executor;
@@ -131,6 +131,12 @@ mod write_authority;
 #[allow(dead_code)]
 #[path = "storage/auth_agents.rs"]
 pub(crate) mod auth_agents;
+
+// @ref LLP 0214#8-complete-floor-transition-set — guest, local-password, and
+// recovery-code transitions use the protected v3 catalog lane.
+#[allow(dead_code)]
+#[path = "storage/auth_identity.rs"]
+pub(crate) mod auth_identity;
 
 // @ref LLP 0055#credentials-and-tokens — credential rotation, time-only family
 //   tombstones, revoke-self, and scoped-token mint/validation live below the
@@ -756,7 +762,7 @@ pub struct MutationCommit {
     /// decision 7): bounded per-enqueue facts for the mutation receipt.
     /// Empty for every mutation that enqueued nothing.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub job_enqueues: Vec<crate::jobs::JobEnqueueFact>,
+    pub job_enqueues: Vec<jobs::JobEnqueueFact>,
     /// Job-state ChangedRows for live fan-out only. Deliberately separate
     /// from `changes`: job rows are receipts-family state, not application
     /// rows, so they never enter OCC validation, projections, search
@@ -858,10 +864,10 @@ pub(crate) struct BufferedCommitPayload {
     pub ctx_ledger: CtxAnswerLedger,
     /// Buffered `ctx.jobs.enqueue` intents, inserted inside the same SQLite
     /// transaction as the writes above (LLP 0070 §Job identity and enqueue).
-    pub job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
+    pub job_enqueues: Vec<jobs::BufferedJobEnqueue>,
     /// Producer provenance stamped on every inserted job row (0127 decision
     /// 7). `None` is only legal when `job_enqueues` is empty.
-    pub job_producer: Option<crate::jobs::JobProducer>,
+    pub job_producer: Option<jobs::JobProducer>,
     /// Transaction-scoped `ctx.assets.attach` admissions (LLP 0044); never
     /// serialized, never persisted, consumed by the commit hook.
     pub asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
@@ -874,8 +880,8 @@ struct BufferedEffects {
     membership_plans: Vec<AuthorizedMembershipPlan>,
     read_dependencies: Vec<CapturedReadDependency>,
     result: Value,
-    job_enqueues: Vec<crate::jobs::BufferedJobEnqueue>,
-    job_producer: Option<crate::jobs::JobProducer>,
+    job_enqueues: Vec<jobs::BufferedJobEnqueue>,
+    job_producer: Option<jobs::JobProducer>,
     asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
     asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
 }
@@ -4434,16 +4440,11 @@ impl LocalDatabase {
             let producer = job_producer
                 .as_ref()
                 .expect("checked above: enqueues carry a producer");
-            let status_rows = crate::jobs::insert_enqueued_jobs_in_tx(
-                &tx,
-                producer,
-                version,
-                &job_enqueues,
-                now_ms,
-            )?;
+            let status_rows =
+                jobs::insert_enqueued_jobs_in_tx(&tx, producer, version, &job_enqueues, now_ms)?;
             let facts = status_rows
                 .iter()
-                .map(|row| crate::jobs::JobEnqueueFact {
+                .map(|row| jobs::JobEnqueueFact {
                     job_id: row.job_id.clone(),
                     action: row.action.clone(),
                     available_at_ms: row.available_at_ms,
@@ -4452,7 +4453,7 @@ impl LocalDatabase {
             let job_changes = status_rows
                 .iter()
                 .map(|row| ChangedRow {
-                    table: crate::jobs::JOBS_STATUS_TABLE.to_owned(),
+                    table: jobs::JOBS_STATUS_TABLE.to_owned(),
                     id: row.job_id.clone(),
                     op: ChangeOp::Insert,
                     row: Some(row.to_row_value()),
@@ -4726,7 +4727,7 @@ impl LocalDatabase {
         // append-only attempt tables live in the same SQLite database as
         // application data so `ctx.jobs.enqueue` inserts inside the mutation's
         // own transaction.
-        crate::jobs::create_jobs_infra(&self.conn)?;
+        jobs::create_jobs_infra(&self.conn)?;
         // Keep corruption preflights O(number of corrupt rows), which is zero
         // for every healthy database. MIN/MAX alone cannot detect an invalid
         // non-high-water predecessor, and scanning a table's entire journal on
@@ -6472,8 +6473,8 @@ impl DbRead<'_> {
         queue: &str,
         action: &str,
         idempotency_key: &str,
-    ) -> SnapbackResult<Option<crate::jobs::ExistingIdempotentJob>> {
-        crate::jobs::find_job_by_scoped_idempotency(self.conn(), queue, action, idempotency_key)
+    ) -> SnapbackResult<Option<jobs::ExistingIdempotentJob>> {
+        jobs::find_job_by_scoped_idempotency(self.conn(), queue, action, idempotency_key)
     }
 
     /// The declared job-status query's read (LLP 0121 option 3): the
@@ -6481,8 +6482,8 @@ impl DbRead<'_> {
     pub(crate) fn job_status_row(
         &self,
         job_id: &str,
-    ) -> SnapbackResult<Option<crate::jobs::JobStatusRow>> {
-        crate::jobs::job_status_row(self.conn(), job_id)
+    ) -> SnapbackResult<Option<jobs::JobStatusRow>> {
+        jobs::job_status_row(self.conn(), job_id)
     }
 }
 
@@ -11329,11 +11330,9 @@ impl MembershipWriter {
         match resolved {
             Resolved::Session { user_id, .. }
             | Resolved::RevalidatedPrincipal { user_id, .. }
-            | Resolved::DevImpersonation { user_id, .. } => {
-                Self::User {
-                    effective_principal: user_id.clone(),
-                }
-            }
+            | Resolved::DevImpersonation { user_id, .. } => Self::User {
+                effective_principal: user_id.clone(),
+            },
             Resolved::ServicePrincipal {
                 actor_user_id,
                 effective_user_id,
@@ -15725,9 +15724,9 @@ fn new_id_source() -> impl FnMut() -> String {
 /// the pseudo-table row the declared job-status query captured a dependency
 /// on. `changed_fields` names the mutable lifecycle fields so predicate
 /// membership checks on immutable identity fields can skip.
-pub(crate) fn job_status_changed_row(row: &crate::jobs::JobStatusRow) -> ChangedRow {
+pub(crate) fn job_status_changed_row(row: &jobs::JobStatusRow) -> ChangedRow {
     ChangedRow {
-        table: crate::jobs::JOBS_STATUS_TABLE.to_owned(),
+        table: jobs::JOBS_STATUS_TABLE.to_owned(),
         id: row.job_id.clone(),
         op: ChangeOp::Update,
         row: Some(row.to_row_value()),

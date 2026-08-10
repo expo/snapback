@@ -399,11 +399,24 @@ carries the union. **Ruling: primary path (in-place return-type
 migration) selected; the churn is absorbable; the new-hook fallback is
 not triggered.**
 
-**Phase status.** P1 headless union: implemented (this landing). P2
-drain controller, P3 React contract, P4 propagation + diagnostic, P5
-docs: see the dated notes below as they land. P6 deprecation closure is
-window-gated: it runs after the deprecation window of the release
-carrying the union, tracked by a filesystem ticket at the P5 landing.
+**Phase status.** P1 headless union: implemented (landed 2026-08-10,
+9f62b14e2). P2 drain controller: implemented (this landing) —
+`startOutboxDrain()` with a per-store deduplicated controller,
+level-triggered wakeups (outbox transitions, `online`, writer-lock
+notification via a new store `subscribeWriterLock` seam with bounded
+pending-work-only polling on carriers without one, auth-terminal/custody
+transitions, cold-start scan), barrier establishment that first asks
+mounted live-query lifecycles (each subscription self-registers a
+resubscribe barrier provider), then resyncs the durable store's retained
+registrations itself, then falls back to the connection-readiness
+handshake for the empty set; capped jittered backoff; observable pause
+reasons in `outboxStatus()` (`drainPhase`/`lastAttemptAtMs`/
+`nextRetryAtMs`/`blockedReason`); public `replayQueuedMutations()`
+redirects through a running controller. P3 React contract, P4
+propagation + diagnostic, P5 docs: see the dated notes below as they
+land. P6 deprecation closure is window-gated: it runs after the
+deprecation window of the release carrying the union, tracked by a
+filesystem ticket at the P5 landing.
 
 ## Open questions
 

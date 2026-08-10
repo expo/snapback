@@ -11,11 +11,11 @@ use axum::http::HeaderMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::auth::lease::{AuthorizedLeaseConfig, AuthorizedLeaseFacts};
 pub use crate::auth::mode::{
     AppDataAvailability as AppDataAvailabilityWire, AuthModeStatus as AuthModeStateWire,
     AuthProgramReadiness, DeploymentIdentity,
 };
+use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{AuthMode, AuthorityDescriptor};
 
 pub const AUTH_CLIENT_PROTOCOL_HEADER: &str = "x-snapback-auth-client-protocol";
@@ -27,6 +27,89 @@ pub const AUTH_INVALIDATION_PROTOCOL_SUBPROTOCOL_PREFIX: &str = "snapback.auth-i
 pub const AUTHORITY_DESCRIPTOR_PROTOCOL_SUBPROTOCOL_PREFIX: &str = "snapback.authority-descriptor.";
 pub const AUTHORIZED_LEASE_PROTOCOL_SUBPROTOCOL_PREFIX: &str = "snapback.authorized-lease.";
 pub const AUTH_PROTOCOL_V1: u64 = 1;
+
+pub const AUTHORIZED_LEASE_PROTOCOL_VERSION: u32 = 1;
+pub const AUTHORIZED_LEASE_DEFAULT_MS: u64 = 86_400_000;
+pub const AUTHORIZED_LEASE_HARD_MAX_MS: u64 = 86_400_000;
+
+pub(crate) fn lease_error(code: &'static str, message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error(code, "auth", message.into())
+}
+
+/// Validated per-app lease duration.  A larger value is a startup/config
+/// error; it is never silently clamped into a misleading capability fact.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AuthorizedLeaseConfig {
+    configured_ms: u64,
+}
+
+impl AuthorizedLeaseConfig {
+    pub fn new(configured_ms: u64) -> SnapbackResult<Self> {
+        if configured_ms == 0 || configured_ms > AUTHORIZED_LEASE_HARD_MAX_MS {
+            return Err(lease_error(
+                "SNAPBACK_AUTHORIZED_LEASE_CONFIG_INVALID",
+                format!(
+                    "authorized lease duration must be between 1 and {AUTHORIZED_LEASE_HARD_MAX_MS} milliseconds",
+                ),
+            ));
+        }
+        Ok(Self { configured_ms })
+    }
+
+    pub const fn configured_ms(self) -> u64 {
+        self.configured_ms
+    }
+}
+
+impl Default for AuthorizedLeaseConfig {
+    fn default() -> Self {
+        Self {
+            configured_ms: AUTHORIZED_LEASE_DEFAULT_MS,
+        }
+    }
+}
+
+/// Capability/runtime facts projected by the bootstrap handshake.
+///
+/// Every member except `configuredMs` is a v1 protocol constant pinned by
+/// LLP 0053's capability report; the schema publishes them as `const` so a
+/// target advertising different lease semantics fails conformance instead of
+/// passing a shape check the executable kit validator would reject.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorizedLeaseFacts {
+    #[schemars(extend("const" = 1))]
+    pub protocol_version: u32,
+    #[schemars(extend("const" = 86400000))]
+    pub default_ms: u64,
+    #[schemars(extend("const" = 86400000))]
+    pub hard_max_ms: u64,
+    #[schemars(range(min = 1, max = AUTHORIZED_LEASE_HARD_MAX_MS))]
+    pub configured_ms: u64,
+    #[schemars(extend("const" = ["session", "provider"]))]
+    pub clamps: Vec<String>,
+    #[schemars(extend("const" = "full-revalidation"))]
+    pub renewal: String,
+    #[schemars(extend("const" = "server-absolute+client-request-elapsed"))]
+    pub time_basis: String,
+    #[schemars(extend("const" = "delete-before-read"))]
+    pub clock_rollback: String,
+}
+
+impl From<AuthorizedLeaseConfig> for AuthorizedLeaseFacts {
+    fn from(config: AuthorizedLeaseConfig) -> Self {
+        Self {
+            protocol_version: AUTHORIZED_LEASE_PROTOCOL_VERSION,
+            default_ms: AUTHORIZED_LEASE_DEFAULT_MS,
+            hard_max_ms: AUTHORIZED_LEASE_HARD_MAX_MS,
+            configured_ms: config.configured_ms,
+            clamps: vec!["session".to_owned(), "provider".to_owned()],
+            renewal: "full-revalidation".to_owned(),
+            time_basis: "server-absolute+client-request-elapsed".to_owned(),
+            clock_rollback: "delete-before-read".to_owned(),
+        }
+    }
+}
 
 /// Parsed offers preserve an unknown integer for gate diagnostics while the
 /// public echo exposes only exact versions this binary understands.

@@ -1,5 +1,7 @@
 # Test-suite hardening: absolute-latency ceilings, vacuous-pass windows, duplicated spawn harness
 
+**Status:** Resolved 2026-08-10 (spawn-harness extraction split to a focused follow-up after the tractability audit)
+
 **Opened:** 2026-08-08 · **Severity:** P2 (CI flake sources + coverage that can silently pass) · **Area:** tests
 
 Grouped test-quality findings. None is a product defect; all reduce the suite's
@@ -84,3 +86,37 @@ These four failures currently make `scripts/verify-local-proof --complete
 
 ## Progress (2026-08-08 review-fixes)
 Three complete-proof reds fixed on main (Lane I): cloudflare RQS sentinel 39->42, tests/drift_prone_gates_v0.mjs count now derived from the registry (not hardcoded 9/14), and snapback-vite package.test.mjs cleanup ENOTEMPTY now uses bounded rmSync retries. Still open: the broader flake-hardening (absolute-latency ceilings, vacuous-pass windows, shared spawn/child-guard harness) and the drift_prone_gates full-fixture red (its disposable baseline carries pre-existing guide/symbol-registry drift needing guide-publication judgment).
+
+## Resolution (2026-08-10)
+
+- Contention and spawn assertions now synchronize on actual writer acquisition,
+  publish progress, process exit, and renewal observation; host-speed ceilings
+  and fixed post-event grace sleeps no longer decide correctness.
+- The abandoned-action absence proof now waits for the native worker/runtime
+  teardown witness already carried by the process worker count, so it cannot
+  inspect storage while a late write remains possible.
+- Workerd, RAM-disk, and Ibex-bootstrap capability paths emit structured
+  `snapback.test-capability-receipt.v1` receipts. The complete Rust proof sets
+  `SNAPBACK_EXPECT_WORKERD=1`, and the twin gate executes and receipts one real
+  workerd invocation.
+- The workerd hostile-diagnostic case selects development projection through a
+  thread-local override instead of depending on process environment.
+- The drift-runner integration fixture now uses a fixture-local frozen Guide
+  page-digest checker. This keeps revision/baseline/refusal/backstop testing
+  independent of unrelated dependency-mirror API-reference drift; the real
+  Guide/symbol registry retains its own checks. Nested revision isolation runs
+  from the fixture's disposable Git repository, so a managed source worktree
+  need not expose writable common Git metadata. The full six-case fixture
+  passes.
+- Descriptor-bound SQLite backup initialization now has one bounded retry. An
+  initialization failure closes the destination connection, truncates the same
+  pinned staging inode back to pristine state, and reopens it; copy/step
+  failures are not retried. The auth backup regression forces that reset path.
+- The seven-way child harness was audited and was not a safe mechanical
+  extraction in this slice: the cases differ across sync/Tokio ownership,
+  memory/file databases, stdout/stderr custody, graceful CLI stop versus kill,
+  and ready-descriptor types. The narrower convergence work is retained in
+  `issues/20260810-integration-server-harness-convergence.md`.
+
+Affected counts and the allowed rehearsal fork-custody reds are recorded in
+`SLICE-G2-NOTES.md`.

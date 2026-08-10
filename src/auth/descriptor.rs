@@ -1,86 +1,18 @@
 //! Server-issued authority descriptor for queued mutation consistency.
 //!
 //! The descriptor is deliberately opaque and is never credential material.
-//! Credential resolution has already produced [`PreparedAuthority`] before
-//! this module compares a queued request with the current authority.
+//! Credential resolution has already produced a prepared authority before
+//! anything compares a queued request with the current authority; the
+//! authority-consuming constructors live with the invocation gate
+//! (`auth::invocation::descriptor_for_authority`), while this leaf keeps the
+//! pure derivation and validation shapes.
 
-use crate::auth::invocation::{PreparedAuthority, ResolvedAppAuthority};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION, AuthorityDescriptor};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 pub const AUTHORITY_DESCRIPTOR_VERSION: u32 = 1;
-
-/// Build the one descriptor the server is willing to accept for a prepared
-/// invocation. Sessions use the durable per-session opaque id; dev and
-/// anonymous authority use the durable authorization-stream incarnation so an
-/// ordinary restart does not strand queued work.
-///
-/// @ref LLP 0039#replay-parity-and-the-authority-instance-id — session ids are
-///   stable across refresh; dev authority is keyed to the durable incarnation.
-pub fn descriptor_for_authority(
-    authority: &PreparedAuthority,
-    authorization_stream_incarnation: &str,
-) -> SnapbackResult<AuthorityDescriptor> {
-    descriptor_for_resolved_authority(authority.resolved(), authorization_stream_incarnation)
-}
-
-/// Construct the same descriptor for discovery paths that have already
-/// resolved a credential but intentionally do not hold an admission lease
-/// (notably the diagnostic handshake while ordinary admission is closed).
-pub fn descriptor_for_resolved_authority(
-    authority: &ResolvedAppAuthority,
-    authorization_stream_incarnation: &str,
-) -> SnapbackResult<AuthorityDescriptor> {
-    canonical_uuid_v7(authorization_stream_incarnation).map_err(|()| {
-        SnapbackError::error(
-            "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT",
-            "auth",
-            "authorization-stream incarnation is not a canonical UUIDv7",
-        )
-    })?;
-    let (authority_instance_id, session_generation) = match authority {
-        ResolvedAppAuthority::Session {
-            authority_instance_id,
-            generation,
-            ..
-        } => (authority_instance_id.clone(), *generation),
-        ResolvedAppAuthority::RevalidatedPrincipal {
-            authority_instance_id,
-            ..
-        } => (authority_instance_id.clone(), 0),
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id,
-            credential_id,
-            credential_generation,
-            grant_id,
-            ..
-        } => (
-            service_authority_instance_id(
-                actor_user_id,
-                credential_id,
-                *credential_generation,
-                grant_id,
-            ),
-            0,
-        ),
-        ResolvedAppAuthority::Anonymous
-        | ResolvedAppAuthority::DevImpersonation { .. }
-        | ResolvedAppAuthority::AdminBypass { .. }
-        | ResolvedAppAuthority::System => (authorization_stream_incarnation.to_owned(), 0),
-    };
-    validate_descriptor_values(
-        AUTHORITY_DESCRIPTOR_VERSION,
-        &authority_instance_id,
-        session_generation,
-    )?;
-    Ok(AuthorityDescriptor {
-        descriptor_version: AUTHORITY_DESCRIPTOR_VERSION,
-        authority_instance_id,
-        session_generation,
-    })
-}
 
 /// Derive one opaque, stable descriptor from the durable service-principal
 /// axis. The token id is deliberately absent: queued work survives routine
@@ -89,7 +21,7 @@ pub fn descriptor_for_resolved_authority(
 ///
 /// The UUIDv7 layout is retained for wire-schema compatibility. Its bits are
 /// an opaque SHA-256 digest, not a timestamp-bearing identifier.
-fn service_authority_instance_id(
+pub(crate) fn service_authority_instance_id(
     actor_user_id: &str,
     credential_id: &str,
     credential_generation: u64,
@@ -147,7 +79,7 @@ pub fn require_current_descriptor(
     Ok(())
 }
 
-fn validate_descriptor_values(
+pub(crate) fn validate_descriptor_values(
     version: u32,
     authority_instance_id: &str,
     session_generation: u64,
@@ -167,7 +99,7 @@ fn validate_descriptor_values(
     Ok(())
 }
 
-fn canonical_uuid_v7(value: &str) -> Result<(), ()> {
+pub(crate) fn canonical_uuid_v7(value: &str) -> Result<(), ()> {
     let parsed = Uuid::parse_str(value).map_err(|_| ())?;
     if parsed.get_version_num() != 7 || parsed.to_string() != value {
         return Err(());
@@ -191,103 +123,9 @@ fn stale_descriptor(reason: &'static str) -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::admin::ServerProfile;
-    use crate::auth::invocation::{InvocationGate, InvocationSource, WireAuthorityFields};
-    use crate::manifest::AuthMode;
 
     const INCARNATION: &str = "018f0d90-7b21-7a22-8c33-445566778899";
     const SESSION_AUTHORITY: &str = "018f0d90-7b24-7a22-8c33-445566778899";
-
-    fn prepared(resolved: ResolvedAppAuthority, mode: AuthMode) -> PreparedAuthority {
-        InvocationGate::prepare_authority(
-            InvocationSource::HttpMutation,
-            mode,
-            ServerProfile::Dev,
-            1,
-            1,
-            &WireAuthorityFields::default(),
-            resolved,
-        )
-        .unwrap()
-    }
-
-    fn service(token_id: &str, generation: u64, grant_id: &str) -> ResolvedAppAuthority {
-        ResolvedAppAuthority::ServicePrincipal {
-            actor_user_id: "agent-a".to_owned(),
-            credential_id: "credential-a".to_owned(),
-            credential_generation: generation,
-            grant_id: grant_id.to_owned(),
-            token_id: token_id.to_owned(),
-            effective_user_id: Some("user-a".to_owned()),
-            scopes: Vec::new(),
-            token_expires_at_ms: 10_000,
-            integration_status: None,
-        }
-    }
-
-    #[test]
-    fn session_descriptor_uses_opaque_session_instance_and_generation() {
-        let authority = prepared(
-            ResolvedAppAuthority::Session {
-                user_id: "018f0d90-7b23-7a22-8c33-445566778899".to_owned(),
-                session_id: "018f0d90-7b22-7a22-8c33-445566778899".to_owned(),
-                provider: "email-code".to_owned(),
-                generation: 7,
-                authority_instance_id: SESSION_AUTHORITY.to_owned(),
-                session_not_after_ms: 10_000,
-                provider_not_after_ms: None,
-                rehearsal_provenance: None,
-            },
-            AuthMode::Sessions,
-        );
-        let descriptor = descriptor_for_authority(&authority, INCARNATION).unwrap();
-        assert_eq!(descriptor.descriptor_version, 1);
-        assert_eq!(descriptor.authority_instance_id, SESSION_AUTHORITY);
-        assert_eq!(descriptor.session_generation, 7);
-    }
-
-    #[test]
-    fn dev_descriptor_is_incarnation_stable_and_closed() {
-        let authority = prepared(
-            ResolvedAppAuthority::DevImpersonation {
-                user_id: "dev-user".to_owned(),
-                roles: Vec::new(),
-                local_dev_only: true,
-            },
-            AuthMode::Dev,
-        );
-        let descriptor = descriptor_for_authority(&authority, INCARNATION).unwrap();
-        assert_eq!(descriptor.authority_instance_id, INCARNATION);
-        assert_eq!(descriptor.session_generation, 0);
-    }
-
-    #[test]
-    fn service_descriptor_survives_token_churn_but_not_durable_axis_changes() {
-        let first =
-            descriptor_for_resolved_authority(&service("token-a", 3, "grant-a"), INCARNATION)
-                .unwrap();
-        let replacement_token =
-            descriptor_for_resolved_authority(&service("token-b", 3, "grant-a"), INCARNATION)
-                .unwrap();
-        let rotated =
-            descriptor_for_resolved_authority(&service("token-c", 4, "grant-a"), INCARNATION)
-                .unwrap();
-        let replaced_grant =
-            descriptor_for_resolved_authority(&service("token-d", 3, "grant-b"), INCARNATION)
-                .unwrap();
-
-        assert_eq!(first, replacement_token);
-        assert_ne!(first.authority_instance_id, rotated.authority_instance_id);
-        assert_ne!(
-            first.authority_instance_id,
-            replaced_grant.authority_instance_id
-        );
-        assert!(crate::ids::looks_like(
-            crate::ids::Kind::AuthorityInstance,
-            &first.authority_instance_id
-        ));
-        assert_eq!(first.session_generation, 0);
-    }
 
     #[test]
     fn service_descriptor_has_a_cross_language_fixed_vector() {

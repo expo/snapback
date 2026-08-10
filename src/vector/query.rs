@@ -105,7 +105,7 @@ pub fn vector_posting_content_digest(
 ) -> SnapbackResult<String> {
     let dimensions = u32::try_from(vector.len()).map_err(|_| index_corrupt())?;
     let vector = admit_vector_components(vector, dimensions).map_err(|_| index_corrupt())?;
-    crate::rqs::sha256_identity(&json!({
+    crate::rqs_contract::sha256_identity(&json!({
         "rowId": row_id,
         "sourceVersion": source_version,
         "partition": partition,

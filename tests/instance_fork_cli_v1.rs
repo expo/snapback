@@ -122,16 +122,38 @@ fn health(server_url: &str) -> Value {
         .expect("fork health JSON")
 }
 
-fn wait_until_unhealthy(server_url: &str) {
+fn process_is_running(pid: u64) -> bool {
+    Command::new("kill")
+        .args(["-0", &pid.to_string()])
+        .status()
+        .expect("probe process")
+        .success()
+}
+
+fn wait_for_pid_exit(pid: u64, label: &str) {
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    while process_is_running(pid) {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "{label} process {pid} remained live after its server stopped"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+fn wait_until_unhealthy(server_url: &str, ready_file: &Path) {
     for _ in 0..60 {
         if ureq::get(&format!("{}/health", server_url.trim_end_matches('/')))
             .timeout(Duration::from_millis(250))
             .call()
             .is_err()
         {
-            // Give the detached process time to complete its post-server
-            // cleanup and become provably gone to the next lifecycle sweep.
-            std::thread::sleep(Duration::from_millis(500));
+            let descriptor: Value = serde_json::from_slice(
+                &std::fs::read(ready_file).expect("expired fork ready descriptor"),
+            )
+            .expect("expired fork ready JSON");
+            let pid = descriptor["pid"].as_u64().expect("expired fork pid");
+            wait_for_pid_exit(pid, "expired fork");
             return;
         }
         std::thread::sleep(Duration::from_millis(100));
@@ -495,7 +517,7 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
     let expiring_ready = data_path(&expiring, "readyFile");
     let expiring_log = data_path(&expiring, "runtimeLog");
     let expiring_database = data_path(&expiring, "database");
-    wait_until_unhealthy(expiring_url);
+    wait_until_unhealthy(expiring_url, &expiring_ready);
     assert!(
         expiring_ready.is_file(),
         "expiry shutdown retains the descriptor so reap can prove the old PID is gone"
@@ -2120,25 +2142,15 @@ fn dead_server_and_missing_ready_file_settle_deterministically() {
     let descriptor: Value =
         serde_json::from_slice(&std::fs::read(&killed_ready).expect("ready file"))
             .expect("ready JSON");
-    let pid = descriptor["pid"].as_u64().expect("fork pid").to_string();
+    let pid = descriptor["pid"].as_u64().expect("fork pid");
     assert!(
         Command::new("kill")
-            .args(["-9", &pid])
+            .args(["-9", &pid.to_string()])
             .status()
             .expect("send SIGKILL")
             .success()
     );
-    for _ in 0..100 {
-        if !Command::new("kill")
-            .args(["-0", &pid])
-            .status()
-            .expect("probe pid")
-            .success()
-        {
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    }
+    wait_for_pid_exit(pid, "SIGKILLed fork");
 
     let mut inspect = snapback();
     inspect.args([
@@ -2331,15 +2343,20 @@ fn executable_fork_renew_extends_a_live_fork_within_the_maximum() {
     );
 
     // The live server outlives its boot-time expiry because renewal moved
-    // the database lineage, which the expiry watchdog re-reads.
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("wall clock")
-        .as_millis() as u64;
-    if original_expiry.saturating_add(1_500) > now {
-        std::thread::sleep(Duration::from_millis(
-            original_expiry.saturating_add(1_500) - now,
-        ));
+    // the database lineage, which the expiry watchdog re-reads. Wait for the
+    // watchdog's causal receipt instead of guessing at its scheduler margin.
+    let runtime_log = data_path(&created, "runtimeLog");
+    let observation_deadline = std::time::Instant::now() + Duration::from_secs(15);
+    loop {
+        let output = std::fs::read_to_string(&runtime_log).unwrap_or_default();
+        if output.contains("SNAPBACK_FORK_SERVER_RENEWAL_OBSERVED") {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < observation_deadline,
+            "fork server never reported observing the renewed expiry; log:\n{output}"
+        );
+        std::thread::sleep(Duration::from_millis(25));
     }
     assert_eq!(
         health(&server_url)["ok"],
@@ -2389,25 +2406,15 @@ fn executable_fork_recover_completes_interrupted_renewal_on_an_armed_fork() {
     let ready = data_path(&created, "readyFile");
     let descriptor: Value = serde_json::from_slice(&std::fs::read(&ready).expect("ready file"))
         .expect("ready descriptor");
-    let pid = descriptor["pid"].as_u64().expect("fork pid").to_string();
+    let pid = descriptor["pid"].as_u64().expect("fork pid");
     assert!(
         Command::new("kill")
-            .args(["-9", &pid])
+            .args(["-9", &pid.to_string()])
             .status()
             .expect("stop armed fork before crash-cut renewal")
             .success()
     );
-    for _ in 0..100 {
-        if !Command::new("kill")
-            .args(["-0", &pid])
-            .status()
-            .expect("probe stopped armed fork")
-            .success()
-        {
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
+    wait_for_pid_exit(pid, "crash-cut fork");
 
     let expected = snapback::instance_fork::load_expected_app(&app_root)
         .expect("load armed fork app identity");

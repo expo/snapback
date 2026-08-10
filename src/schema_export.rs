@@ -25,10 +25,10 @@ use crate::auth::handshake::AuthSessionResponse;
 use crate::auth::lease::AuthorizedLease;
 use crate::auth::logical_transfer::{AuthLogicalExportV1, AuthLogicalImportOutcomeV1};
 use crate::auth::rehearsal::{
-    AuthRehearsalGrantV1, AuthRehearsalLogicalExportArtifactV1,
-    AuthRehearsalReachabilityV1, AuthRehearsalStoreMarkersV1, AuthRehearsalWindowV1,
-    RehearsalExerciseRequestV1, RehearsalMintRequestV1, RehearsalMintResultV1,
-    RehearsalRevokeRequestV1, RehearsalStatusRequestV1,
+    AuthRehearsalGrantV1, AuthRehearsalLogicalExportArtifactV1, AuthRehearsalReachabilityV1,
+    AuthRehearsalStoreMarkersV1, AuthRehearsalWindowV1, RehearsalExerciseRequestV1,
+    RehearsalMintRequestV1, RehearsalMintResultV1, RehearsalRevokeRequestV1,
+    RehearsalStatusRequestV1,
 };
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
@@ -68,7 +68,7 @@ use crate::fork_promotion::{
     PromotionAdmissionTicketV1, PromotionReceiptV1, PromotionRequestV1, RebaseReplayReceiptV1,
 };
 use crate::handler_wire::{HandlerHostCallRequest, HandlerInvokeRequest, HandlerInvokeResponse};
-use crate::host_ops::{
+use crate::host_ops_contract::{
     DryRunReport, HostOpsResult, HostReadyDescriptor, ManagedBranchCreateHostInputV1,
     ManagedBranchExecuteHostInputV1, ManagedBranchIdHostInputV1, ManagedBranchListHostInputV1,
 };

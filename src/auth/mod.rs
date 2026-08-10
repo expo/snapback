@@ -11,6 +11,7 @@ pub mod deployment;
 pub mod descriptor;
 pub mod effective_source;
 pub mod handshake;
+pub(crate) mod identity_core;
 #[allow(dead_code)] // Composed by the hosted-edge adapter startup lane (LLP 0098).
 pub mod hosted_edge;
 pub mod invalidation;

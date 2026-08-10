@@ -171,7 +171,7 @@ pub fn create_infra(conn: &Connection) -> SnapbackResult<()> {
 pub(crate) fn manifest_digest(index: &VectorIndexManifestV1) -> SnapbackResult<String> {
     let value = serde_json::to_value(index)
         .map_err(|_| maintenance_error("vector index manifest does not serialize"))?;
-    crate::rqs::sha256_identity(&value)
+    crate::rqs_contract::sha256_identity(&value)
         .map_err(|_| maintenance_error("vector index manifest is not canonicalizable"))
 }
 
@@ -641,7 +641,7 @@ pub(crate) fn canonical_posting(
 }
 
 fn tombstone_digest(row_id: &str, source_version: u64) -> SnapbackResult<String> {
-    crate::rqs::sha256_identity(&json!({
+    crate::rqs_contract::sha256_identity(&json!({
         "rowId": row_id,
         "sourceVersion": source_version,
         "tombstone": true,

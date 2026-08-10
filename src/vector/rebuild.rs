@@ -75,7 +75,7 @@ pub struct VectorRebuildPlanV1 {
 fn digest_body(body: &VectorRebuildPlanBodyV1) -> SnapbackResult<String> {
     let value = serde_json::to_value(body)
         .map_err(|_| plan_invalid("vector rebuild plan does not serialize"))?;
-    let canonical = crate::rqs::jcs(&value)
+    let canonical = crate::rqs_contract::jcs(&value)
         .map_err(|_| plan_invalid("vector rebuild plan is not canonicalizable"))?;
     let mut digest = Sha256::new();
     digest.update(VECTOR_REBUILD_PLAN_DOMAIN.as_bytes());

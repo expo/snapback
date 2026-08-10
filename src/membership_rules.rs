@@ -38,22 +38,9 @@ use crate::manifest::{
 use crate::storage::{CapturedReadDependency, CapturedReadKind, DbRead};
 use serde_json::{Value, json};
 
-/// Resolve a stable declaration id to its `(table, membership)` pair. There is
-/// **no** global resolver — two declarations can target the same resource type,
-/// and that ambiguity is an authorization bug factory, so every helper names
-/// exactly one declaration (LLP 0056 §Rule helpers).
-pub(crate) fn find_declaration<'a>(
-    schema: &'a SchemaManifest,
-    declaration_id: &str,
-) -> Option<(&'a TableManifest, &'a MembershipManifest)> {
-    schema.tables.iter().find_map(|table| {
-        table
-            .membership
-            .as_ref()
-            .filter(|membership| membership.effective_id(&table.name) == declaration_id)
-            .map(|membership| (table, membership))
-    })
-}
+pub(crate) use crate::manifest::{
+    effective_membership_roles as effective_roles, find_membership_declaration as find_declaration,
+};
 
 /// Validate dev-only `--as-role` inputs against app-global declarations. A
 /// bare role is usable only when exactly one app-scoped declaration owns that
@@ -122,25 +109,6 @@ pub(crate) fn impersonated_global_role_satisfies(
             presented == required || presented == &format!("{declaration}:{required}")
         })
     })
-}
-
-/// The satisfying role set. `memberOf` (`requested == None`) is every
-/// **non-pending** role of the declaration — an invited-but-not-accepted
-/// principal is not a member, so `pendingRoles` are excluded. `hasRole`
-/// (`requested == Some`) is exactly the named roles (which may name pending
-/// roles explicitly).
-///
-/// @ref LLP 0056#rule-helpers — `memberOf` excludes `pendingRoles`.
-pub(crate) fn effective_roles(
-    membership: &MembershipManifest,
-    requested: Option<&[String]>,
-) -> Vec<String> {
-    match requested {
-        Some(roles) => roles.to_vec(),
-        // `roles` is the closed non-pending vocabulary; `pendingRoles` is a
-        // separate field and is deliberately not included here.
-        None => membership.roles.clone(),
-    }
 }
 
 /// How a membership probe binds its `resource` axis, and therefore how finely

@@ -982,6 +982,48 @@ export interface StrandedMutationDiscardOutcome {
   readonly clientMutationIds: readonly string[];
 }
 
+export type OutboxDrainPhase =
+  | 'idle'
+  | 'waiting-barrier'
+  | 'replaying'
+  | 'backoff'
+  | 'paused';
+
+export interface OutboxDrainControllerStatus {
+  readonly running: boolean;
+  readonly automatic: boolean;
+  readonly drainPhase: OutboxDrainPhase;
+  readonly lastAttemptAtMs: number | null;
+  readonly nextRetryAtMs: number | null;
+  readonly blockedReason: string | null;
+}
+
+export interface OutboxDrainController {
+  /** Request one safety-gated cycle and join its single-flight outcome. */
+  drainNow(): Promise<OutboxReplayOutcome>;
+  /** Remove timers/listeners and release this store's controller slot. */
+  stop(): void;
+  /** Cheap process-local drain state; durable counts remain on outboxStatus. */
+  status(): OutboxDrainControllerStatus;
+}
+
+export interface OutboxDrainOptions {
+  /** False keeps the safety controller but schedules cycles only via drainNow. */
+  readonly automatic?: boolean;
+  /** Host/test scheduler injection; retry bounds remain implementation-owned. */
+  readonly timer?: Readonly<{
+    setTimeout?(callback: () => void, delayMs: number): unknown;
+    clearTimeout?(handle: unknown): void;
+    now?(): number;
+    random?(): number;
+  }>;
+  /** Browser-like source for the restored-connectivity `online` event. */
+  readonly eventTarget?: Readonly<{
+    addEventListener(type: 'online', listener: () => void): void;
+    removeEventListener(type: 'online', listener: () => void): void;
+  }> | null;
+}
+
 /** Live outbox facts (pure projection of the durable store's records plus
  * the single-flight drain flag). `supported: false` means this client
  * resolved no outbox-capable store. */
@@ -998,8 +1040,9 @@ export interface OutboxStatus {
   readonly resultGone: number;
   readonly replaying: boolean;
   readonly oldestPendingAtMs: number | null;
-  readonly drainPhase: 'idle' | 'replaying';
-  readonly nextRetryAtMs: null;
+  readonly drainPhase: OutboxDrainPhase;
+  readonly lastAttemptAtMs: number | null;
+  readonly nextRetryAtMs: number | null;
   readonly blockedReason: string | null;
 }
 
@@ -1402,6 +1445,8 @@ export class SnapbackClient {
   ): Promise<MutationDispatchOutcome<Result>>;
   /** The resolved persistence store's implementation/durability facts. */
   readonly rqsStoreInfo: RqsStoreInfo;
+  /** Start or join the one safety-gated drain controller for this store. */
+  startOutboxDrain(options?: OutboxDrainOptions): OutboxDrainController;
   /** Drain the durable outbox in sequence order (single-flight). */
   replayQueuedMutations(): Promise<OutboxReplayOutcome>;
   /** Explicit sidecar-only handoff of one caller-owned durable store across a

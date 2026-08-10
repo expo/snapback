@@ -47,12 +47,23 @@ export function createMemoryRqsResumeStore({
   let resolveOwnership;
   const ownership = new Promise((resolve) => { resolveOwnership = resolve; });
   let closed = false;
+  const writerLockListeners = new Set();
+  const notifyWriterLock = (writer) => {
+    for (const listener of [...writerLockListeners]) {
+      try { listener(writer); } catch { /* observation cannot own the lock */ }
+    }
+  };
 
   if (state.writer === null) {
     state.writer = instance;
     resolveOwnership();
   } else {
-    state.waiters.push({ instance, resolve: resolveOwnership, closed: () => closed });
+    state.waiters.push({
+      instance,
+      resolve: resolveOwnership,
+      closed: () => closed,
+      notify: notifyWriterLock,
+    });
   }
 
   const requireOpen = () => {
@@ -85,6 +96,16 @@ export function createMemoryRqsResumeStore({
 
     whenLockSettled() {
       return ownership;
+    },
+
+    // @ref LLP 0218#43-the-platform-owned-drain — lock takeover is a level
+    //   wake for pending durable work; listeners observe role changes only.
+    subscribeWriterLock(listener) {
+      if (typeof listener !== 'function') {
+        throw new TypeError('subscribeWriterLock requires a listener function');
+      }
+      writerLockListeners.add(listener);
+      return () => writerLockListeners.delete(listener);
     },
 
     /// Degradation-mode capability fact (DK-9: capability reports name the
@@ -495,19 +516,25 @@ export function createMemoryRqsResumeStore({
     async close() {
       if (closed) return;
       closed = true;
-      if (state.writer !== instance) return;
+      if (state.writer !== instance) {
+        writerLockListeners.clear();
+        return;
+      }
       // Match the asynchronous handoff cut of Web Locks/file locks so work
       // already queued by the closing owner settles before a successor can
       // publish through the shared volatile domain.
       await new Promise((resolve) => setTimeout(resolve, 0));
       state.writer = null;
+      notifyWriterLock(false);
       while (state.waiters.length > 0) {
         const next = state.waiters.shift();
         if (next.closed()) continue;
         state.writer = next.instance;
         next.resolve();
+        next.notify?.(true);
         break;
       }
+      writerLockListeners.clear();
     },
   };
 }

@@ -2,27 +2,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub use crate::vector::types::{
+    VECTOR_COMPONENT_ABS_MAX, VECTOR_DISTANCE_PROFILE_DIGEST, VECTOR_DISTANCE_PROFILE_ID,
+    VECTOR_ORDERING_PROFILE_ID, VECTOR_PROFILE_DIMENSIONS_MAX, VECTOR_PROFILE_DIMENSIONS_MIN,
+    VectorMetricV1,
+};
+
 pub const VECTOR_DISTANCE_PROFILE_FILE: &str = "vector.distance-profile-v1.json";
-pub const VECTOR_DISTANCE_PROFILE_ID: &str = "snapback-vector-distance-v1";
-pub const VECTOR_ORDERING_PROFILE_ID: &str = "nearest-first-row-id.v1";
-pub const VECTOR_PROFILE_DIMENSIONS_MIN: u32 = 1;
-pub const VECTOR_PROFILE_DIMENSIONS_MAX: u32 = 4_096;
-/// `2^100`, encoded directly so admission does not depend on `pow` behavior.
-pub const VECTOR_COMPONENT_ABS_MAX: f64 = f64::from_bits(0x4630_0000_0000_0000);
-
-// Filled after the independently derived profile payload is generated once.
-// `vector_distance_profile_artifact()` refuses drift from this pin.
-pub const VECTOR_DISTANCE_PROFILE_DIGEST: &str =
-    "sha256:9ce9feab0c6dcb2d009e212d34484051c8594b8ef0e9066d392c0449a8001e1b";
-
-#[derive(
-    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, JsonSchema,
-)]
-#[serde(rename_all = "lowercase")]
-pub enum VectorMetricV1 {
-    L2sq,
-    Dot,
-}
 
 #[derive(
     Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, JsonSchema,
@@ -520,7 +506,7 @@ pub fn vector_distance_profile() -> VectorDistanceProfileV1 {
 pub fn vector_distance_profile_artifact() -> Value {
     let profile = vector_distance_profile();
     let profile_value = serde_json::to_value(&profile).expect("vector profile serializes");
-    let computed = crate::rqs::sha256_identity(&profile_value)
+    let computed = crate::rqs_contract::sha256_identity(&profile_value)
         .expect("integer/string-only vector profile is canonical JSON");
     assert_eq!(
         computed, VECTOR_DISTANCE_PROFILE_DIGEST,

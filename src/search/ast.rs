@@ -9,7 +9,7 @@ fn invalid(message: impl Into<String>) -> SnapbackError {
 }
 
 fn atom_key(atom: &SearchMatchAtomV1) -> SnapbackResult<String> {
-    crate::rqs::sha256_identity(
+    crate::rqs_contract::sha256_identity(
         &serde_json::to_value(atom).map_err(|_| invalid("query atom does not serialize"))?,
     )
     .map_err(|_| invalid("query atom is not canonicalizable"))
@@ -17,7 +17,7 @@ fn atom_key(atom: &SearchMatchAtomV1) -> SnapbackResult<String> {
 
 pub fn canonical_atom_bytes(atom: &SearchMatchAtomV1) -> SnapbackResult<String> {
     let value = serde_json::to_value(atom).map_err(|_| invalid("query atom does not serialize"))?;
-    crate::rqs::jcs(&value).map_err(|_| invalid("query atom is not canonicalizable"))
+    crate::rqs_contract::jcs(&value).map_err(|_| invalid("query atom is not canonicalizable"))
 }
 
 fn sort_and_dedupe<T>(pairs: &mut Vec<(String, T)>) {
@@ -182,7 +182,7 @@ pub fn canonicalize_query(
             }
             SearchClauseV1::Not(atom) => excluded.push((atom_key(&atom)?, atom)),
             SearchClauseV1::Filter(filter) => {
-                let key = crate::rqs::sha256_identity(
+                let key = crate::rqs_contract::sha256_identity(
                     &serde_json::to_value(&filter)
                         .map_err(|_| invalid("filter does not serialize"))?,
                 )
@@ -233,7 +233,7 @@ pub fn canonicalize_query(
 
 pub fn query_core_hash(query: &SearchQueryAstV1) -> SnapbackResult<String> {
     let value = serde_json::to_value(query).map_err(|_| invalid("query does not serialize"))?;
-    crate::rqs::sha256_identity(&Value::Array(vec![
+    crate::rqs_contract::sha256_identity(&Value::Array(vec![
         Value::String("snapback:search-query-core:v1".to_owned()),
         value,
     ]))

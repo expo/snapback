@@ -1,5 +1,38 @@
-import { defineEphemeral, defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
+import {
+  AUTH_DEFAULT_UNCLAIMED_GUEST_RETENTION_MS,
+  defineAuth,
+  defineEphemeral,
+  defineSchema,
+  defineTable,
+  v,
+} from '@expo/snapback-codegen/define';
 import { typing } from './surface-model.mjs';
+
+// @ref LLP 0214#11-guest-first-template-posture — this starter explicitly
+// opts into guest identity; guest auth is not a platform-wide default.
+const authProgram = defineAuth({
+  version: 1,
+  mechanisms: {
+    guest: { kind: 'guest' },
+    emailCode: {
+      kind: 'email-code',
+      identityKind: 'email',
+      provider: 'emailCode',
+      canonicalization: 'email-v1',
+      delivery: 'email',
+    },
+  },
+  assuranceRequirements: {},
+  guestPolicy: {
+    enabled: true,
+    claiming: ['emailCode'],
+    reaping: {
+      afterMs: AUTH_DEFAULT_UNCLAIMED_GUEST_RETENTION_MS,
+      cleanup: { kind: 'declarative', default: 'tombstone', tables: {} },
+    },
+  },
+  secretReferences: {},
+});
 
 export default defineSchema(
   {
@@ -57,6 +90,7 @@ export default defineSchema(
     // with zero edits. App-side uploads require sessions custody and cannot
     // work in dev mode.
     auth: { mode: 'sessions' },
+    authProgram,
     ephemeral: defineEphemeral({ typing }),
   },
 );

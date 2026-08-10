@@ -8,11 +8,53 @@
 //!   canonical downward dependency for Rust owners and generated artifacts.
 
 use serde::{Deserialize, Deserializer, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 
 fn is_false(value: &bool) -> bool {
     !*value
+}
+
+/// The closed audience reference carried by push requests and deferred jobs.
+///
+/// @ref LLP 0143#d2-the-send-lane — deferred sends bind the exact audience
+///   arguments into the captured producer-principal grant.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PushAudienceReferenceV1 {
+    pub audience: String,
+    #[serde(default)]
+    pub args: Map<String, Value>,
+}
+
+/// A mutation-captured authority grant for one exact deferred push send.
+///
+/// Kept in the shared contract leaf so the storage-owned durable-job row can
+/// carry the closed grant shape without depending upward on push execution.
+///
+/// @ref LLP 0143#d2-the-send-lane — the later system action can consume this
+///   grant only for the same audience arguments and dedupe key.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct PushDeferredGrantV1 {
+    pub(crate) producer_principal: String,
+    pub(crate) to: PushAudienceReferenceV1,
+    pub(crate) dedupe_key: String,
+}
+
+/// Stable identity of an ephemeral branch within one logical app.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct BranchId(pub String);
+
+/// Closed outbound-effect posture for a managed in-app branch.
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum ForkEgressPolicyV1 {
+    #[default]
+    DenyAll,
+    CaptureOnly,
 }
 
 /// The authority mode declared by a schema artifact. The enum is deliberately
@@ -956,4 +998,108 @@ pub enum FunctionKind {
 pub struct IbexModule {
     pub source: String,
     pub export: String,
+}
+
+// --- Completeness-proof wire shapes (LLP 0157 D2/D3 vocabulary) ---
+//
+// Pure page/proof identity records shared by the sync live protocol, the
+// activation manifest, and the transport response types. Derivation,
+// validation, and Ed25519 issuance live in `crate::completeness`
+// (generation-activation-coordinator); only the shapes live on this leaf.
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum CursorEndV1 {
+    First,
+    Cursor {
+        #[serde(rename = "profileId")]
+        profile_id: String,
+        digest: String,
+    },
+    Terminal,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum PageIdentityV1 {
+    SealedTerminal {
+        input: CursorEndV1,
+        output: CursorEndV1,
+    },
+    Visible {
+        input: CursorEndV1,
+        #[serde(rename = "boundaryVectorDigest")]
+        boundary_vector_digest: String,
+        output: CursorEndV1,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProofVersionV1 {
+    pub stream: String,
+    pub commit: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProofNodeIdentityV1 {
+    pub position: u64,
+    pub class_id: String,
+    pub class_version: u64,
+    pub node_plan_hash: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UnsignedCompletenessProofV1 {
+    pub format: String,
+    pub materialization_key: String,
+    pub query_instance_id: u64,
+    pub activation_hash: String,
+    pub plan_hash: String,
+    pub version: ProofVersionV1,
+    pub authorization_witness_digest: String,
+    pub page: PageIdentityV1,
+    pub nodes: Vec<ProofNodeIdentityV1>,
+    pub batch_identity: String,
+    pub result_digest: String,
+    pub proof_key_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CompletenessProofV1 {
+    pub format: String,
+    pub materialization_key: String,
+    pub query_instance_id: u64,
+    pub activation_hash: String,
+    pub plan_hash: String,
+    pub version: ProofVersionV1,
+    pub authorization_witness_digest: String,
+    pub page: PageIdentityV1,
+    pub nodes: Vec<ProofNodeIdentityV1>,
+    pub batch_identity: String,
+    pub result_digest: String,
+    pub proof_key_id: String,
+    pub signature: String,
+}
+
+impl From<CompletenessProofV1> for UnsignedCompletenessProofV1 {
+    fn from(proof: CompletenessProofV1) -> Self {
+        Self {
+            format: proof.format,
+            materialization_key: proof.materialization_key,
+            query_instance_id: proof.query_instance_id,
+            activation_hash: proof.activation_hash,
+            plan_hash: proof.plan_hash,
+            version: proof.version,
+            authorization_witness_digest: proof.authorization_witness_digest,
+            page: proof.page,
+            nodes: proof.nodes,
+            batch_identity: proof.batch_identity,
+            result_digest: proof.result_digest,
+            proof_key_id: proof.proof_key_id,
+        }
+    }
 }

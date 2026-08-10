@@ -9,6 +9,19 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use std::hint::black_box;
 
+/// File-backed twin of the shared finite Ibex bench fixture. Constructing it
+/// here (from `crate::bench_fixture`) keeps the proof on the exact fixture the
+/// main harness measures without this background-owned module reaching up
+/// into the transport-owned `crate::bench` harness.
+fn configured_file(
+    path: impl AsRef<std::path::Path>,
+) -> crate::diagnostic::SnapbackResult<crate::local::LocalSnapback> {
+    let mut snapback = crate::local::LocalSnapback::open(path)?;
+    snapback.apply_schema(crate::bench_fixture::schema())?;
+    snapback.load_functions(crate::bench_fixture::functions());
+    Ok(snapback)
+}
+
 const BENCHMARK_BASELINE_FILE: &str =
     "tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json";
 const BENCHMARK_METHOD: &str = "snapback.telemetry-phase1.method.v3:http-alternation+default-event-worker+buffer-burst+c8-file-cap+direct-transaction-sequenced-flush+wal-checkpoint+retention-sweep+hourly-daily-rollup-scan+file-backed-ibex-on-off-midpoint-worker";
@@ -443,8 +456,8 @@ fn measure_http_amplification(
 
     let enabled_temp = BenchmarkTempDir::new("http-on")?;
     let disabled_temp = BenchmarkTempDir::new("http-off")?;
-    let enabled = crate::bench::configured_file(enabled_temp.path.join("app.sqlite3"))?;
-    let mut disabled = crate::bench::configured_file(disabled_temp.path.join("app.sqlite3"))?;
+    let enabled = configured_file(enabled_temp.path.join("app.sqlite3"))?;
+    let mut disabled = configured_file(disabled_temp.path.join("app.sqlite3"))?;
     disabled.set_telemetry_config(TelemetryConfig {
         max_days: 0,
         ..TelemetryConfig::default()
@@ -459,7 +472,7 @@ fn measure_http_amplification(
     let enabled_router = crate::server::router(enabled);
     let disabled_router = crate::server::router(disabled);
     let body = serde_json::to_vec(&crate::manifest::FunctionCallRequest {
-        input: crate::bench::args(json!({})),
+        input: crate::bench_fixture::args(json!({})),
         stream_connection_id: None,
         expected_generation: None,
     })
@@ -534,15 +547,15 @@ fn measure_http_amplification(
 fn measure_app_latency(config: &Phase1BenchmarkConfig) -> SnapbackResult<AppLatencyReport> {
     let enabled_temp = BenchmarkTempDir::new("app-on")?;
     let disabled_temp = BenchmarkTempDir::new("app-off")?;
-    let enabled = crate::bench::configured_file(enabled_temp.path.join("app.sqlite3"))?;
-    let mut disabled = crate::bench::configured_file(disabled_temp.path.join("app.sqlite3"))?;
+    let enabled = configured_file(enabled_temp.path.join("app.sqlite3"))?;
+    let mut disabled = configured_file(disabled_temp.path.join("app.sqlite3"))?;
     disabled.set_telemetry_config(TelemetryConfig {
         max_days: 0,
         ..TelemetryConfig::default()
     })?;
     for _ in 0..8 {
-        enabled.invoke_query("noop", crate::bench::args(json!({})))?;
-        disabled.invoke_query("noop", crate::bench::args(json!({})))?;
+        enabled.invoke_query("noop", crate::bench_fixture::args(json!({})))?;
+        disabled.invoke_query("noop", crate::bench_fixture::args(json!({})))?;
     }
     let enabled_telemetry = enabled.telemetry();
     let disabled_telemetry = disabled.telemetry();
@@ -609,7 +622,7 @@ fn time_query(
     samples: &mut Vec<f64>,
 ) -> SnapbackResult<()> {
     let started = Instant::now();
-    black_box(snapback.invoke_query("noop", crate::bench::args(json!({})))?);
+    black_box(snapback.invoke_query("noop", crate::bench_fixture::args(json!({})))?);
     samples.push(started.elapsed().as_secs_f64() * 1_000.0);
     Ok(())
 }

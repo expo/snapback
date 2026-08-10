@@ -13,7 +13,9 @@ use crate::auth::lifecycle::{RESTORE_DECLARATION_FILE, RestoreDeclaration};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::instance_lock::{FileIdentity, TargetInstanceReservation};
 use crate::storage::LocalDatabase;
-use crate::storage::auth::{AUTH_CATALOG_VERSION, AUTH_CATALOG_VERSION_V1, AuthCatalogState};
+use crate::storage::auth::{
+    AUTH_CATALOG_VERSION, AUTH_CATALOG_VERSION_V1, AUTH_CATALOG_VERSION_V2, AuthCatalogState,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
@@ -27,7 +29,8 @@ use zeroize::Zeroize as _;
 pub(crate) const BACKUP_DATABASE_FILE: &str = "database.sqlite3";
 pub(crate) const BACKUP_KEYRING_FILE: &str = "auth-keyring.json";
 pub(crate) const BACKUP_MANIFEST_FILE: &str = "backup.json";
-const BACKUP_FORMAT_VERSION: u32 = 1;
+const BACKUP_FORMAT_VERSION_V1: u32 = 1;
+const BACKUP_FORMAT_VERSION: u32 = 2;
 const BACKUP_MANIFEST_MAXIMUM_BYTES: usize = 64 * 1024;
 const TEMP_CANDIDATE_ATTEMPTS: usize = 3;
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
@@ -52,9 +55,14 @@ pub(crate) struct AuthBackupOutcome {
     pub(crate) publication_state: BackupPublicationState,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(crate) enum AuthBackupCatalogState {
+    ReadyV3,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct AuthBackupManifest {
+struct AuthBackupManifestV1 {
     format_version: u32,
     created_at_ms: u64,
     catalog_version: u32,
@@ -63,17 +71,108 @@ pub(crate) struct AuthBackupManifest {
     source_database_basename: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AuthBackupManifestV2 {
+    format_version: u32,
+    created_at_ms: u64,
+    catalog_state: AuthBackupCatalogState,
+    catalog_version: u32,
+    catalog_tables: Vec<String>,
+    database_sha256: String,
+    keyring_sha256: String,
+    source_database_basename: String,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum AuthBackupManifestWire {
+    Format1(AuthBackupManifestV1),
+    Format2(AuthBackupManifestV2),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum AuthBackupManifestData {
+    Format1(AuthBackupManifestV1),
+    Format2(AuthBackupManifestV2),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct AuthBackupManifest(AuthBackupManifestData);
+
 impl AuthBackupManifest {
+    fn new(
+        catalog: AuthCatalogState,
+        created_at_ms: u64,
+        database_sha256: String,
+        keyring_sha256: String,
+        source_database_basename: String,
+    ) -> Self {
+        Self(match catalog {
+            AuthCatalogState::ReadyV1 | AuthCatalogState::ReadyV2 => {
+                AuthBackupManifestData::Format1(AuthBackupManifestV1 {
+                    format_version: BACKUP_FORMAT_VERSION_V1,
+                    created_at_ms,
+                    catalog_version: match catalog {
+                        AuthCatalogState::ReadyV1 => AUTH_CATALOG_VERSION_V1,
+                        AuthCatalogState::ReadyV2 => AUTH_CATALOG_VERSION_V2,
+                        _ => unreachable!("predecessor catalog matched above"),
+                    }
+                    .parse()
+                    .expect("catalog versions are numeric constants"),
+                    database_sha256,
+                    keyring_sha256,
+                    source_database_basename,
+                })
+            }
+            AuthCatalogState::ReadyV3 => AuthBackupManifestData::Format2(AuthBackupManifestV2 {
+                format_version: BACKUP_FORMAT_VERSION,
+                created_at_ms,
+                catalog_state: AuthBackupCatalogState::ReadyV3,
+                catalog_version: AUTH_CATALOG_VERSION
+                    .parse()
+                    .expect("catalog versions are numeric constants"),
+                catalog_tables: crate::storage::auth::auth_catalog_table_names(catalog)
+                    .expect("ready catalog has a table inventory")
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+                database_sha256,
+                keyring_sha256,
+                source_database_basename,
+            }),
+            AuthCatalogState::Uninitialized => unreachable!("backup requires a ready catalog"),
+        })
+    }
+
     fn validate(&self) -> SnapbackResult<()> {
-        if self.format_version != BACKUP_FORMAT_VERSION
-            || !matches!(self.catalog_version, 1 | 2)
-            || self.created_at_ms > MAX_SAFE_INTEGER
-            || !canonical_sha256(&self.database_sha256)
-            || !canonical_sha256(&self.keyring_sha256)
-            || !portable_basename(&self.source_database_basename)
-        {
+        let common_valid = self.created_at_ms() <= MAX_SAFE_INTEGER
+            && canonical_sha256(self.database_sha256())
+            && canonical_sha256(self.keyring_sha256())
+            && portable_basename(self.source_database_basename());
+        let format_valid = match &self.0 {
+            AuthBackupManifestData::Format1(manifest) => {
+                manifest.format_version == BACKUP_FORMAT_VERSION_V1
+                    && matches!(manifest.catalog_version, 1 | 2)
+            }
+            AuthBackupManifestData::Format2(manifest) => {
+                let expected =
+                    crate::storage::auth::auth_catalog_table_names(AuthCatalogState::ReadyV3)
+                        .expect("ready catalog has a table inventory");
+                manifest.format_version == BACKUP_FORMAT_VERSION
+                    && manifest.catalog_state == AuthBackupCatalogState::ReadyV3
+                    && manifest.catalog_version == 3
+                    && manifest.catalog_tables.len() == expected.len()
+                    && manifest
+                        .catalog_tables
+                        .iter()
+                        .zip(expected)
+                        .all(|(actual, expected)| actual == expected)
+            }
+        };
+        if !common_valid || !format_valid {
             return Err(backup_invalid(
-                "backup manifest is not a valid closed format-1 object",
+                "backup manifest is not a valid closed supported object",
             ));
         }
         Ok(())
@@ -81,14 +180,79 @@ impl AuthBackupManifest {
 
     fn to_bytes(&self) -> SnapbackResult<Vec<u8>> {
         self.validate()?;
-        serde_json::to_vec(self).map_err(|_| backup_invalid("backup manifest could not be encoded"))
+        match &self.0 {
+            AuthBackupManifestData::Format1(manifest) => serde_json::to_vec(manifest),
+            AuthBackupManifestData::Format2(manifest) => serde_json::to_vec(manifest),
+        }
+        .map_err(|_| backup_invalid("backup manifest could not be encoded"))
     }
 
     fn parse(bytes: &[u8]) -> SnapbackResult<Self> {
-        let manifest: Self = serde_json::from_slice(bytes)
-            .map_err(|_| backup_invalid("backup manifest is not a closed format-1 object"))?;
+        let data = match serde_json::from_slice(bytes)
+            .map_err(|_| backup_invalid("backup manifest is not a closed supported object"))?
+        {
+            AuthBackupManifestWire::Format1(manifest) => AuthBackupManifestData::Format1(manifest),
+            AuthBackupManifestWire::Format2(manifest) => AuthBackupManifestData::Format2(manifest),
+        };
+        let manifest = Self(data);
         manifest.validate()?;
         Ok(manifest)
+    }
+
+    fn format_version(&self) -> u32 {
+        match &self.0 {
+            AuthBackupManifestData::Format1(manifest) => manifest.format_version,
+            AuthBackupManifestData::Format2(manifest) => manifest.format_version,
+        }
+    }
+
+    fn created_at_ms(&self) -> u64 {
+        match &self.0 {
+            AuthBackupManifestData::Format1(manifest) => manifest.created_at_ms,
+            AuthBackupManifestData::Format2(manifest) => manifest.created_at_ms,
+        }
+    }
+
+    fn catalog_state(&self) -> Option<AuthBackupCatalogState> {
+        match &self.0 {
+            AuthBackupManifestData::Format1(_) => None,
+            AuthBackupManifestData::Format2(manifest) => Some(manifest.catalog_state),
+        }
+    }
+
+    fn catalog_version(&self) -> u32 {
+        match &self.0 {
+            AuthBackupManifestData::Format1(manifest) => manifest.catalog_version,
+            AuthBackupManifestData::Format2(manifest) => manifest.catalog_version,
+        }
+    }
+
+    fn catalog_tables(&self) -> Option<&[String]> {
+        match &self.0 {
+            AuthBackupManifestData::Format1(_) => None,
+            AuthBackupManifestData::Format2(manifest) => Some(&manifest.catalog_tables),
+        }
+    }
+
+    fn database_sha256(&self) -> &str {
+        match &self.0 {
+            AuthBackupManifestData::Format1(manifest) => &manifest.database_sha256,
+            AuthBackupManifestData::Format2(manifest) => &manifest.database_sha256,
+        }
+    }
+
+    fn keyring_sha256(&self) -> &str {
+        match &self.0 {
+            AuthBackupManifestData::Format1(manifest) => &manifest.keyring_sha256,
+            AuthBackupManifestData::Format2(manifest) => &manifest.keyring_sha256,
+        }
+    }
+
+    fn source_database_basename(&self) -> &str {
+        match &self.0 {
+            AuthBackupManifestData::Format1(manifest) => &manifest.source_database_basename,
+            AuthBackupManifestData::Format2(manifest) => &manifest.source_database_basename,
+        }
     }
 }
 
@@ -177,20 +341,13 @@ fn create_backup_inner(
     // manifest can never attest bytes reached through a replaceable path.
     let database_sha256 = sha256_file(&mut database_image)?;
     let keyring_sha256 = sha256_bytes(keyring_bytes.expose_secret());
-    let manifest = AuthBackupManifest {
-        format_version: BACKUP_FORMAT_VERSION,
+    let manifest = AuthBackupManifest::new(
+        catalog,
         created_at_ms,
-        catalog_version: match catalog {
-            AuthCatalogState::ReadyV1 => AUTH_CATALOG_VERSION_V1,
-            AuthCatalogState::ReadyV2 => AUTH_CATALOG_VERSION,
-            AuthCatalogState::Uninitialized => unreachable!("readiness checked above"),
-        }
-        .parse()
-        .expect("catalog versions are numeric constants"),
         database_sha256,
         keyring_sha256,
         source_database_basename,
-    };
+    );
     temporary
         .write_child(OsStr::new(BACKUP_MANIFEST_FILE), &manifest.to_bytes()?)
         .map_err(|_| backup_invalid("backup manifest could not be written"))?;
@@ -245,7 +402,7 @@ pub(crate) fn restore_backup(
     let mut source_database =
         crate::secure_file::open_strict_owner_only(&backup_directory.join(BACKUP_DATABASE_FILE))
             .map_err(|_| backup_invalid("backup database is missing or unreadable"))?;
-    if sha256_file(&mut source_database)? != manifest.database_sha256 {
+    if sha256_file(&mut source_database)? != manifest.database_sha256() {
         return Err(backup_invalid(
             "backup database hash does not match manifest",
         ));
@@ -257,7 +414,7 @@ pub(crate) fn restore_backup(
     let keyring_bytes = source_keyring
         .validated_file_bytes()
         .map_err(|_| backup_invalid("backup keyring is missing or invalid"))?;
-    if sha256_bytes(keyring_bytes.expose_secret()) != manifest.keyring_sha256 {
+    if sha256_bytes(keyring_bytes.expose_secret()) != manifest.keyring_sha256() {
         return Err(backup_invalid(
             "backup keyring hash does not match manifest",
         ));
@@ -277,7 +434,7 @@ pub(crate) fn restore_backup(
         .copy_child(&mut source_database, database_basename)
         .map_err(|_| backup_invalid("restored database could not be staged"))?;
     temporary.verify_child_path(database_basename)?;
-    if sha256_file(&mut staged_database)? != manifest.database_sha256 {
+    if sha256_file(&mut staged_database)? != manifest.database_sha256() {
         return Err(backup_invalid(
             "staged database hash does not match the validated backup",
         ));
@@ -296,9 +453,10 @@ pub(crate) fn restore_backup(
     let restored_catalog_version = match restored_catalog {
         AuthCatalogState::ReadyV1 => 1,
         AuthCatalogState::ReadyV2 => 2,
+        AuthCatalogState::ReadyV3 => 3,
         AuthCatalogState::Uninitialized => unreachable!("readiness checked above"),
     };
-    if restored_catalog_version != manifest.catalog_version {
+    if restored_catalog_version != manifest.catalog_version() {
         return Err(backup_invalid(
             "restored auth catalog version does not match the backup manifest",
         ));
@@ -1735,7 +1893,10 @@ mod tests {
 
         let backup_directory = directory.path().join("frozen-v1-backup");
         let outcome = create_backup(&source, &keyring, &backup_directory, 7, &random).unwrap();
-        assert_eq!(outcome.manifest.catalog_version, 1);
+        assert_eq!(outcome.manifest.format_version(), 1);
+        assert_eq!(outcome.manifest.catalog_version(), 1);
+        assert_eq!(outcome.manifest.catalog_state(), None);
+        assert_eq!(outcome.manifest.catalog_tables(), None);
         assert_eq!(outcome.publication_state, BackupPublicationState::Published);
 
         let restored_path = directory
@@ -1759,9 +1920,25 @@ mod tests {
 
     #[test]
     fn backup_and_restore_publish_exact_owner_only_consistent_units() {
+        use crate::auth::identity_core::PasswordSecret;
         use std::os::unix::fs::PermissionsExt as _;
 
-        let fixture = Fixture::new();
+        let mut fixture = Fixture::new();
+        let database = &mut fixture.database;
+        fixture
+            .keyring
+            .with_active_key(20, &fixture.random, |key_id, key| {
+                database.identity_password_register(
+                    "backup-person",
+                    &PasswordSecret::new("strong-backup-password-1".to_owned()),
+                    20,
+                    &fixture.random,
+                    key_id.as_str(),
+                    key.expose_secret(),
+                )
+            })
+            .unwrap()
+            .unwrap();
         let backup_directory = fixture.parent().join("backup");
         let outcome = create_backup(
             &fixture.database,
@@ -1772,7 +1949,37 @@ mod tests {
         )
         .unwrap();
         assert_eq!(outcome.publication_state, BackupPublicationState::Published);
-        assert_eq!(outcome.manifest.created_at_ms, 123);
+        assert_eq!(outcome.manifest.format_version(), 2);
+        assert_eq!(outcome.manifest.created_at_ms(), 123);
+        assert_eq!(outcome.manifest.catalog_version(), 3);
+        assert_eq!(
+            outcome.manifest.catalog_state(),
+            Some(AuthBackupCatalogState::ReadyV3)
+        );
+        assert_eq!(
+            outcome.manifest.catalog_tables().unwrap(),
+            [
+                "_auth_users",
+                "_auth_identities",
+                "_auth_credentials",
+                "_auth_password_credentials",
+                "_auth_passkey_credentials",
+                "_auth_recovery_code_sets",
+                "_auth_recovery_codes",
+                "_auth_sessions",
+                "_auth_session_tokens",
+                "_auth_verification_codes",
+                "_auth_assurances",
+                "_auth_provisioning_receipts",
+                "_auth_security_events",
+                "_auth_agent_credentials",
+                "_auth_grants",
+                "_auth_grant_tokens",
+                "_auth_agent_invitations",
+                "_auth_pairing_requests",
+                "_auth_scope_bases",
+            ]
+        );
         require_exact_members(
             &backup_directory,
             &[
@@ -1841,12 +2048,28 @@ mod tests {
         let restored = LocalDatabase::open(&target_database).unwrap();
         assert_eq!(
             restored.inspect_auth_catalog().unwrap(),
-            AuthCatalogState::ReadyV2
+            AuthCatalogState::ReadyV3
         );
         assert_eq!(restored.auth_retained_key_ids().unwrap().len(), 1);
         let restored_keyring = AuthKeyringStore::file_for_database(&target_database);
         let key_id = AuthKeyId::parse(&restored.auth_retained_key_ids().unwrap()[0]).unwrap();
         restored_keyring.with_key(&key_id, |_| ()).unwrap();
+        drop(restored);
+        let restored_rows = rusqlite::Connection::open(&target_database).unwrap();
+        for table in [
+            "_auth_credentials",
+            "_auth_recovery_code_sets",
+            "_auth_recovery_codes",
+            "_auth_assurances",
+            "_auth_security_events",
+        ] {
+            let count: u64 = restored_rows
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert!(count > 0, "v3 backup omitted state from {table}");
+        }
     }
 
     #[test]
@@ -2117,10 +2340,10 @@ mod tests {
             ],
         )
         .unwrap();
-        assert_eq!(sha256_path(&target).unwrap(), manifest.database_sha256);
+        assert_eq!(sha256_path(&target).unwrap(), manifest.database_sha256());
         assert_eq!(
             sha256_path(&AuthKeyringStore::keyring_path(&target)).unwrap(),
-            manifest.keyring_sha256
+            manifest.keyring_sha256()
         );
         let declaration = crate::secure_file::read_strict_owner_only(
             &target_instance.join(RESTORE_DECLARATION_FILE),
@@ -2580,6 +2803,15 @@ mod tests {
         assert!(!target.parent().unwrap().exists());
 
         std::fs::write(&manifest_path, manifest.to_bytes().unwrap()).unwrap();
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
+        value["catalogTables"].as_array_mut().unwrap().pop();
+        std::fs::write(&manifest_path, serde_json::to_vec(&value).unwrap()).unwrap();
+        let error = restore_backup(&backup_directory, &target, &fixture.random).unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+        assert!(!target.parent().unwrap().exists());
+
+        std::fs::write(&manifest_path, manifest.to_bytes().unwrap()).unwrap();
         use std::io::Write as _;
         std::fs::OpenOptions::new()
             .append(true)
@@ -2594,6 +2826,43 @@ mod tests {
         std::fs::create_dir(target.parent().unwrap()).unwrap();
         let error = restore_backup(&backup_directory, &target, &fixture.random).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+    }
+
+    #[test]
+    fn v3_recovery_key_references_are_part_of_the_backup_unit() {
+        use crate::auth::identity_core::PasswordSecret;
+
+        let mut fixture = Fixture::new();
+        let missing_key_id = "sbak_AAAAAAAAAAAAAAAAAAAAAA";
+        fixture
+            .database
+            .identity_password_register(
+                "missing-recovery-key",
+                &PasswordSecret::new("strong-missing-recovery-key-1".to_owned()),
+                20,
+                &fixture.random,
+                missing_key_id,
+                &[7_u8; 32],
+            )
+            .unwrap();
+
+        assert!(
+            fixture
+                .database
+                .auth_key_is_referenced(missing_key_id)
+                .unwrap()
+        );
+        let output = fixture.parent().join("missing-recovery-key");
+        let error = create_backup(
+            &fixture.database,
+            &fixture.keyring,
+            &output,
+            0,
+            &fixture.random,
+        )
+        .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
+        assert!(!output.exists());
     }
 
     #[test]

@@ -84,6 +84,10 @@ pub(crate) async fn wait_for_derived_fork_expiry(
             }
             match renewed_to {
                 Some(new_expiry) => {
+                    eprintln!(
+                        "SNAPBACK_FORK_SERVER_RENEWAL_OBSERVED: expiry watchdog refreshed \
+                         {expires_at_ms} -> {new_expiry}"
+                    );
                     expires_at_ms = new_expiry;
                     continue;
                 }
