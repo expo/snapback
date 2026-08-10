@@ -206,7 +206,6 @@ export const PACKAGE_TEST_INVENTORIES = [
       'offline.test.mjs',
       'optimistic-create.test.mjs',
       'optimistic.test.mjs',
-      'optimistic-create.test.mjs',
       'package.test.mjs',
       'presence.test.mjs',
       'subscribe-retry.test.mjs',
