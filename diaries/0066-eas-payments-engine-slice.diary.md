@@ -206,3 +206,265 @@ claiming it was benign.
   optional fields from a handler.
 - `issues/20260806-hermes-prebuilt-bundle-rejected-by-static-stub-gate.md` —
   the bootstrap gate above.
+
+## 2026-08-10 — backfill for slices 2–6
+
+### Provenance of this entry
+
+**This is a backfill, and its evidentiary basis is narrower than the entry
+above.** Slices 2–5 were built and committed on 2026-08-06; slice 6 was written
+then and committed on 2026-08-10. No diary landed with any of them, which is a
+process miss against CLAUDE.md's "land the diary update with the demo change
+that produced the observations" — the observations below are reconstructed from
+the committed record (diffs, check names, `demo.snapback.json`, the in-code gap
+notes), not written down while the friction was happening. Where a slice's
+build experience is not recoverable from that record, this entry says nothing
+rather than inventing it.
+
+What *was* directly observed this session: one cumulative **41/41** run of
+`demos/eas-payments/tests/acceptance/headless.mjs` at the slice-6 commit
+`17dab8ad3`. The suite is cumulative, so that single run exercises slices 1–6.
+**No slice was re-run in isolation, and no per-slice count below was
+re-observed** — the counts come from `expectedChecks` as recorded at each
+commit.
+
+| Slice | Commit | `expectedChecks` | Δ |
+| --- | --- | --- | --- |
+| 1 | `cf5b3e167` | 15 | — |
+| 2 | `3331f7d0d` | 19 | +4 |
+| 3 | `a4a97062f` | 25 | +6 |
+| 4 | `eaba52736` | 31 | +6 |
+| 5 | `ea82740f2` | 36 | +5 |
+| 6 | `17dab8ad3` | 41 | +5 |
+
+(The 15 → 19 step is worth naming because it is easy to miss: slice 2's count
+is 19, not 25. 25 is slice 3.)
+
+### Slice 2 — the store becomes a real outbound fetch
+
+Slice 1 stubbed the store. Slice 2 replaced the stub with
+`tests/acceptance/fake-store.mjs`, a real HTTP fixture, and pointed
+`validateReceipt` at it through `ctx.fetch`. The distinction the code is
+careful about — and it is the right one — is that the *call* is real while the
+*counterparty* is fake. It is not a simulated fetch against Apple; it is a
+genuine outbound request to something that is not Apple.
+
+The load-bearing design point survives in the check names: **the store, not the
+caller, decides the environment.** A client that says `sandbox` does not get to
+say so — the fixture's answer wins, and `recordPurchase` rejects an environment
+it does not recognize. For a payments path this is the whole ballgame, and
+declared `uses: ['storeValidation']` plus `writes:` made the egress path's
+blast radius visible in the definition.
+
+Friction recoverable from the record: two checks exist only to prove the
+credential boundary (`a bad store credential fails the action and writes
+nothing`, then `the restored credential works again`). The second one is there
+because the first leaves global config mutated — a credential test has to put
+the world back, and nothing in the surface does that for you.
+
+### Slice 3 — reconcile by re-fetching, not by trusting the payload
+
+`applyStoreState` is the slice that makes the architecture's central claim
+mechanical: a notification is a *trigger*, not a source of truth. The action
+re-fetches authoritative state and only then commits. `applyStoreState
+re-fetches instead of trusting its trigger` asserts the fetch actually happens
+(details record `calls: 1`), which is the only way to keep that claim from
+decaying into a comment.
+
+The schema change is the interesting part. `productEntitlements` gained a
+reverse index, `by_entitlement`, with the comment explaining exactly why:
+*given an entitlement, which products can currently justify it.* That is what
+makes `a second product for the same entitlement keeps it alive` correct —
+`pro_monthly` expiring must not revoke `pro` if `pro_annual` still justifies
+it. Derivation is only sound if you can enumerate the justifications, and that
+needs the index in the non-obvious direction. This is the slice where
+"entitlements are derived from transactions" stopped being a slogan.
+
+Two negative checks landed here and both are the kind that catch real bugs:
+`applyStoreState twice over the same state is a no-op`, and `a reconcile leaves
+another user's unrelated entitlement alone`.
+
+### Slice 4 — a feed that deliberately carries no state
+
+`entitlementChanges` is three columns — `userId`, `seq`, `changedAt` — and the
+schema comment is emphatic that carrying entitlement state would be a mistake:
+the poller learns only that *something moved*, then re-reads our authoritative
+answer. `pollChanges carries no entitlement state` is asserted, not assumed.
+
+That design buys real properties. A ping may be delayed, duplicated, or
+delivered out of order and remain harmless, because it is not the answer — it
+is a prompt to go ask. Slice 5 leaned on this directly.
+
+**The friction here is the one honest scar in the backend, and it is recorded
+in the code rather than smoothed over.** `readMaxChangeSeq` mints `seq` as
+read-max-plus-one inside the mutation, and carries a `PROTOTYPE CONCURRENCY
+GAP` note: two mutations committing concurrently can read the same max and mint
+the same `seq`, which would let a poller miss one. The comment also explains
+why it was not hand-rolled further — `ctx.sequence.allocate` exists but permits
+one allocation per mutation, and the expiry sweep appends a row per user in a
+single commit. So the paved primitive does not fit the shape the design needs,
+and the gap is declared in `demo.snapback.json`
+(`atomic_sequence_allocation_for_multi_row_commits`) instead of being papered
+over. A second reason the buffered-write semantics matter: the helper's comment
+notes a mutation's writes are buffered, so re-reading the max mid-handler will
+not observe rows the same handler just inserted. That is a genuine surprise
+about the write model and worth knowing before you design anything
+sequence-shaped.
+
+### Slice 5 — durable retry, and the gap that cannot be worked around
+
+Slice 4's `deliveries` table was an explicit stub ("records that a delivery
+*would* have been attempted"). Slice 5 replaced it with a real POST to
+`tests/acceptance/fake-developer.mjs`, plus `webhookEndpoints` registered at
+runtime rather than seeded — correct, since a real endpoint is per-deployment
+config, not catalog data.
+
+The ledger design is the good decision: **one row per *attempt*, not per
+change**, so the retry ladder is inspectable after the fact instead of living
+only inside the job's private state. That is what lets `a failing endpoint is
+retried until it succeeds` (3 attempts) and `a permanently failing endpoint
+stops after maxAttempts` (5 attempts) be assertions about observable history
+rather than about timing.
+
+The strongest check in the slice is `a change enqueues a delivery
+transactionally with the feed row` — the enqueue and the append land in the
+same commit, so a rolled-back reconcile provably schedules nothing. Its mirror,
+`a no-op reconcile schedules no delivery`, closes the other direction. Getting
+transactional job-enqueue for free from the mutation boundary is a genuine
+Snapback advantage; on a queue-plus-database stack this is the exact seam where
+you write an outbox by hand.
+
+**And then the wall.** `notifyDeveloper` authenticates with a shared-secret
+bearer, which proves the sender but does not bind the body. A real webhook
+wants an HMAC over the payload, and the handler surface has no digest primitive
+to build one with — the `ctx` surface is db/jobs/runtime/fetch/sequence/push,
+with no crypto anywhere. This is not a shortcut that could have been avoided
+with more effort; it is an engine capability that does not exist. It is
+recorded as a `SIGNING GAP` note in `functions.mjs`, in the README, and as both
+`webhook_body_signing` in `capabilityGaps` and a `notClaiming` line. LLP 0069
+specifies the *inbound* direction (verifying provider webhooks); the outbound
+mirror is unfiled. Two other gaps were declared honestly rather than fixed:
+SSRF fencing on endpoint registration checks only the URL scheme, and the
+reconcile path's `PROTOTYPE AUTHORITY GAP` — `reconcileTransaction` takes
+`userId` as an argument because a store notification carries no session, and
+the auth vocabulary (`public | optional-user | authenticated`) has no
+system-only level to fence it with.
+
+### Slice 6 — consumables, and proving a silence
+
+Slice 6 is the one slice this session actually verified from a
+written-but-unrun state, and it is the cheapest of the six: one new product
+with **no `productEntitlements` row**, one new query, five checks. The whole
+design is an absence — because `coins_100` maps to no entitlement,
+`deriveGrant` finds nothing to justify, so the purchase writes a `transactions`
+row and stops.
+
+What makes it a good slice is that it proves *silence*, which is harder than
+proving an effect. Three checks assert nothing happened: entitlements unchanged
+(and deliberately tested on the user who already holds `pro` **and** `plus`, so
+"granted nothing" is a claim about an unchanged non-empty set, not a vacuous
+one); nothing appended to the change feed; and — this is the neat part —
+because the outbound ping is enqueued *inside* `appendChange`, an empty feed
+page is also the proof that no delivery was scheduled. One append site means
+one thing to check.
+
+The fourth check is the guard that keeps the other three meaningful: `a
+subscription still ticks the feed after the consumable path`. Silence is only
+evidence if the feed still speaks when an entitlement really moves. That check
+existing is the difference between a proof and a suppressed feed.
+
+`consumables are repeatable` is the subtle one. Re-purchase is normal for a
+consumable, so the dedupe that protects a *re-delivered* subscription must not
+collapse two genuine coin packs into one. It works because dedupe is keyed on
+the store's identity (`storeTxnId`), not on the product — so a distinct receipt
+is a distinct row, while a replayed receipt is still deduped. The check asserts
+both halves.
+
+The deliberate non-decision: **an audit, not a wallet.** `listPurchases` is a
+user-scoped projected read of store facts only, with nothing derived in it. No
+balance is held. The reasoning in the code is that holding the number would
+make us the authority on a value no store could reconcile us against — which is
+the same instinct as the feed carrying no state. Worth recording that the demo
+also notes an inert fixture artifact rather than hiding it: the fake store
+stamps every receipt with `expiresAt = now + 30d`, so these consumable rows
+carry an expiry a real coin pack would not have. It is harmless because nothing
+derives a grant from them, and saying so is better than a reader discovering
+it.
+
+### Three toolchain findings from verifying slice 6
+
+All three cost real time this session and none is in the guide.
+
+**1. `demo.snapback.json`'s bytes feed `inputsHash`.** Codegen walks up from
+the backend directory to the nearest `demo.snapback.json`
+(`nearestDemoManifest`) and its *source bytes* participate in artifact
+identity. A purely cosmetic edit to the manifest — re-encoding seven literal
+em-dash characters as their `\u2014` JSON escapes, semantically identical,
+`JSON.parse` output unchanged — moved `inputsHash` from `be8386b29ca2…` to
+`9b231209a7a6…` and rewrote 21 lines of `artifacts.json`, while `bundleHash`,
+`schemaHash`, `functions`, table count, and operation count all stayed
+identical. Only the identity moved. I made exactly this edit, and it briefly
+produced a commit pairing a normalized manifest with artifacts generated from
+the un-normalized one — a real stale-artifact mismatch created by a change that
+looked like whitespace. Lesson: any manifest edit, however cosmetic, is a
+codegen input. Regenerate after touching it, or don't touch it.
+
+**2. `SNAPBACK_OUTBOUND_ACTIONS=1` must be set for codegen *and* the suite.**
+The flag does not appear anywhere in `artifacts.json`, so there is nothing to
+grep for, but it changes `inputsHash` (`be8386b29ca2…` with, `58c3063b1124…`
+without). Run codegen without it and the artifacts silently stop matching the
+ones the suite loads. The failure is not a clear "flag missing" error.
+
+**3. Advancing HEAD invalidates the prebuilt binary.** Committing slice 6 moved
+the checkout to `17dab8ad3` while `target/debug/snapback` was still stamped
+`ea82740f2`, so the harness refused it as `stamp-mismatch` and fell back to the
+`cargo run` rung — which then failed with `spawn cargo ENOENT` because `cargo`
+was not on this shell's PATH, producing a `0/0` run caught by the vacuous-pass
+guard (ENG-22486). The diagnostics were excellent: a stable
+`SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED` code, a full recovery block naming
+both a repair command and a `SNAPBACK_SERVER_BINARY` override. Worth recording
+that the honest fix was *not* the override: slice 6 changed no Rust, Cargo
+manifest, `build.rs`, or vendored file (verified by diffing
+`ea82740f2..17dab8ad3` over those paths), so the engine was provably identical
+— but putting `cargo` on PATH and letting the ladder rebuild gives a green run
+whose binary stamp matches the commit, which is better evidence than an
+override plus an argument. The gate firing on a JS-only commit is correct
+behavior, not a false positive; it cannot know the diff was JS-only.
+
+### Result
+
+**41/41 green**, observed once this session at `17dab8ad3` via the `cargo run`
+rung with no binary override:
+
+```
+PASS eas-payments / headless — 41/41
+```
+
+`./ref-check` clean at the same commit (189 LLP docs, 3579 refs in 8655 files,
+0 errors, 0 unchecked). Codegen reproduces the committed `artifacts.json`
+byte-identically with `SNAPBACK_OUTBOUND_ACTIONS=1`, verified stable across
+three consecutive runs.
+
+No new `@ref` was added for slice 6. `listPurchases` is a plain projected query
+already covered by the file-level `@ref LLP 0108#source-authoring`, no other
+demo annotates `authScopeField`, and CLAUDE.md warns against annotating
+mechanically.
+
+### What slices 2–6 did not close
+
+Unchanged from slice 5 and still declared in `demo.snapback.json`: real store
+adapters, sessions auth, per-project isolation, offerings/merchandising,
+metering, SSRF fencing, atomic sequence allocation, and webhook body signing.
+Three of these are engine gaps an app cannot work around — system-only function
+authority, an outbound digest/HMAC primitive, and multi-app isolation — and the
+first two are, as far as the corpus shows, unfiled rather than merely unbuilt.
+Unfiled is the more actionable problem.
+
+### Guide gap worth filing
+
+The two `inputsHash` findings above have no page. Nothing in `guide/` says that
+`demo.snapback.json` is a codegen input, or that `SNAPBACK_OUTBOUND_ACTIONS`
+participates in artifact identity while being invisible in the artifact. Both
+produce silent mismatches rather than errors. This session was scoped to
+`demos/eas-payments/` plus this diary, so no ticket was filed under `issues/`;
+per CLAUDE.md and LLP 0061 §5 one should be, with `guide-gap` in the title.
