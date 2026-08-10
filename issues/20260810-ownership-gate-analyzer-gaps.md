@@ -70,3 +70,16 @@ routing (free lane, wanted before other queue items). Scope: items 1-4
 against scripts/check-module-ownership.mjs per LLP 0225 §5, incl.
 baseline/worklist re-derivation with attribution after the extractor
 upgrade.
+
+## Arbitration — 2026-08-10 (author-sitting session)
+
+Double-claim resolved, first-claim-wins: **the clique-defects ship session
+(llp-ship run `owngate-20260810`, branch `llp-ship/owngate-20260810/impl`)
+owns items 1-4.** The LLP 0198 benchmark-program session stands down from
+implementation — its complementary, non-colliding role if wanted:
+adversarially verify the winner's landed slice against this ticket's four
+items and LLP 0225 §5's set-based protocol (adversarial fixtures per
+extraction form, laundering/masking cases, unassigned-freeze probe), as a
+review after landing, touching no implementation files. Neither session
+re-derives the baseline concurrently: the re-derivation belongs to the
+winning branch alone.
