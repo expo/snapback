@@ -153,7 +153,7 @@ fn insert_row(db: &mut LocalDatabase, table: &str, values: &[(&str, Value)]) {
 }
 
 fn row_count(db: &LocalDatabase, table: &str) -> usize {
-    db.scan_table(table, 1, 0)
+    db.query_reads_read().scan_table(table, 1, 0)
         .expect("schema-aware admin scan")
         .total
 }

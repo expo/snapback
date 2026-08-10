@@ -1704,7 +1704,7 @@ fn reset_clears_removed_physical_tables_before_they_can_be_readded() {
         .expect("reset clears current and removed physical user tables");
     db.schema_seed().apply_schema(todo_schema()).expect("re-add table schema");
     assert_eq!(
-        db.scan_table("todos", 10, 0)
+        db.query_reads_read().scan_table("todos", 10, 0)
             .expect("scan re-added table")
             .total,
         0,
@@ -4332,14 +4332,14 @@ fn query_filter_bind_budget_counts_every_filter_operand() {
         indexed_by: None,
     };
 
-    db.query(
+    db.query_reads_read().query(
         &plan(ValueExpr::Literal(json!(vec!["x"; 499]))),
         &input(json!({}), "u"),
     )
     .expect("499 In values plus one equality stay within the 500-bind cap");
 
     let static_error = db
-        .query(
+        .query_reads_read().query(
             &plan(ValueExpr::Literal(json!(vec!["x"; 500]))),
             &input(json!({}), "u"),
         )
@@ -4350,7 +4350,7 @@ fn query_filter_bind_budget_counts_every_filter_operand() {
     );
 
     let dynamic_error = db
-        .query(
+        .query_reads_read().query(
             &plan(ValueExpr::Arg("values".to_owned())),
             &input(json!({ "values": vec!["x"; 500] }), "u"),
         )
@@ -4397,7 +4397,7 @@ fn query_filter_values_match_declared_and_system_field_types() {
         ("_version", FilterOp::Eq, json!(1.0)),
         ("_createdAt", FilterOp::Eq, json!(9_007_199_254_740_991_i64)),
     ] {
-        db.query(&plan(field, op, value), &input(json!({}), "u"))
+        db.query_reads_read().query(&plan(field, op, value), &input(json!({}), "u"))
             .unwrap_or_else(|error| panic!("valid {field} filter failed: {error:?}"));
     }
 
@@ -4413,7 +4413,7 @@ fn query_filter_values_match_declared_and_system_field_types() {
         ("title", FilterOp::In, json!(["todo", 1])),
     ] {
         let error = db
-            .query(&plan(field, op, value), &input(json!({}), "u"))
+            .query_reads_read().query(&plan(field, op, value), &input(json!({}), "u"))
             .unwrap_err();
         assert_eq!(
             error.diagnostic.code, "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
@@ -4481,7 +4481,7 @@ fn query_without_take_uses_the_portable_default_result_cap() {
     })
     .expect("seed over-cap table");
     let output = db
-        .query(
+        .query_reads_read().query(
             &QueryPlan {
                 table: "todos".to_owned(),
                 filters: Vec::new(),
@@ -5512,7 +5512,7 @@ fn required_field_tightening_rebuilds_empty_and_populated_nonnull_tables() {
         assert!(physical_column_not_null(&path, "todos", "rank"));
         if populated {
             assert_eq!(
-                db.get("todos", "nonnull").unwrap().unwrap()["rank"],
+                db.query_reads_read().get("todos", "nonnull").unwrap().unwrap()["rank"],
                 json!(7),
                 "atomic rebuild preserves row values"
             );
@@ -5549,7 +5549,7 @@ fn required_field_tightening_with_nulls_rolls_back_manifest_and_rows() {
     assert!(db.schema().tables[0].field("rank").expect("rank").optional);
     assert!(!physical_column_not_null(&path, "todos", "rank"));
     assert_eq!(
-        db.get("todos", "null-rank").unwrap().unwrap()["title"],
+        db.query_reads_read().get("todos", "null-rank").unwrap().unwrap()["title"],
         json!("preserved")
     );
 }
@@ -5628,7 +5628,7 @@ fn required_field_removal_or_optionalization_preserves_prior_schema_and_data() {
             .optional
     );
     assert!(physical_column_not_null(&path, "todos", "rank"));
-    assert_eq!(db.get("todos", "preserved").unwrap().unwrap()["rank"], 7);
+    assert_eq!(db.query_reads_read().get("todos", "preserved").unwrap().unwrap()["rank"], 7);
     insert_schema_test_row(
         &mut db,
         "after-rejection",
@@ -5677,7 +5677,7 @@ fn schema_reapply_repairs_legacy_required_but_nullable_column() {
         .expect("reapply repairs the physical invariant");
     assert!(physical_column_not_null(&path, "todos", "rank"));
     assert_eq!(
-        reopened.get("todos", "legacy").unwrap().unwrap()["rank"],
+        reopened.query_reads_read().get("todos", "legacy").unwrap().unwrap()["rank"],
         json!(9)
     );
 }
@@ -5736,7 +5736,7 @@ fn new_required_field_is_allowed_only_on_an_empty_table() {
             .is_none()
     );
     assert_eq!(
-        populated.get("todos", "existing").unwrap().unwrap()["title"],
+        populated.query_reads_read().get("todos", "existing").unwrap().unwrap()["title"],
         json!("existing")
     );
 }

@@ -1757,7 +1757,7 @@
 
         // The persisted record survives and its bytes are retrievable by
         // digest — the serving path's only input.
-        let state = snapback.db.load_api_envelope_state().unwrap().unwrap();
+        let state = snapback.db.api_envelope_read().load_api_envelope_state().unwrap().unwrap();
         let first = state
             .current
             .expect("first activation recorded an envelope");
@@ -1785,7 +1785,7 @@
             )
             .unwrap();
         snapback.commit_auth_provision(prepared_b, "test").unwrap();
-        let rotated = snapback.db.load_api_envelope_state().unwrap().unwrap();
+        let rotated = snapback.db.api_envelope_read().load_api_envelope_state().unwrap().unwrap();
         let second = rotated.current.expect("redeploy recorded an envelope");
         assert_ne!(second.digest, first.digest);
         assert_eq!(rotated.previous.as_deref(), Some(first.digest.as_str()));
@@ -1823,7 +1823,7 @@
             .expect_err("a failing composition refuses activation");
         assert_eq!(error.diagnostic.code, "SNAPBACK_APP_API_COMPOSITION_FAILED");
         assert!(
-            snapback.db.load_api_envelope_state().unwrap().is_none(),
+            snapback.db.api_envelope_read().load_api_envelope_state().unwrap().is_none(),
             "a refused activation records no envelope state"
         );
     }
@@ -1839,7 +1839,7 @@
             .unwrap();
         let (outcome, _) = snapback.commit_auth_provision(prepared, "test").unwrap();
         assert_eq!(outcome.api_envelope.as_deref(), Some("absent"));
-        let state = snapback.db.load_api_envelope_state().unwrap().unwrap();
+        let state = snapback.db.api_envelope_read().load_api_envelope_state().unwrap().unwrap();
         assert!(state.current.is_none());
     }
 
@@ -5284,7 +5284,7 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_SEED_ASSET_FIXTURE_UNRESOLVED"
         );
         assert_eq!(
-            snapback.db.scan_table("posts", 10, 0).expect("scan").total,
+            snapback.db.query_reads_read().scan_table("posts", 10, 0).expect("scan").total,
             0,
             "refusal is whole: zero rows"
         );
@@ -5319,7 +5319,7 @@ globalThis.__snapbackHandlers = {
                 asset_fixtures: Some(fixtures),
             })
             .expect("fixture-bearing seed installs");
-        let scan = snapback.db.scan_table("posts", 10, 0).expect("scan");
+        let scan = snapback.db.query_reads_read().scan_table("posts", 10, 0).expect("scan");
         assert_eq!(scan.total, 1);
         assert_eq!(scan.rows[0]["photo"], serde_json::json!(asset_id));
         let edges = snapback
@@ -8332,7 +8332,7 @@ globalThis.__snapbackHandlers = {
                 .expect("seed author");
             let row = snapback
                 .db
-                .query(
+                .query_reads_read().query(
                     &QueryPlan {
                         table: "authors".to_owned(),
                         filters: Vec::new(),
@@ -8382,7 +8382,7 @@ globalThis.__snapbackHandlers = {
                 .expect("seed author");
             let row = snapback
                 .db
-                .query(
+                .query_reads_read().query(
                     &QueryPlan {
                         table: "authors".to_owned(),
                         filters: Vec::new(),
@@ -8438,7 +8438,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             snapback
                 .db
-                .get("authors", row["_id"].as_str().expect("id"))
+                .query_reads_read().get("authors", row["_id"].as_str().expect("id"))
                 .expect("read back")
                 .expect("row survives")["name"],
             json!("Interim"),
@@ -8464,7 +8464,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             snapback
                 .db
-                .get("authors", row["_id"].as_str().expect("id"))
+                .query_reads_read().get("authors", row["_id"].as_str().expect("id"))
                 .expect("read back")
                 .expect("row survives")["name"],
             json!("Ada Lovelace"),
@@ -8487,7 +8487,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             snapback
                 .db
-                .get("authors", row["_id"].as_str().expect("id"))
+                .query_reads_read().get("authors", row["_id"].as_str().expect("id"))
                 .expect("read back")
                 .expect("row survives")["name"],
             json!("Ada Lovelace"),
@@ -8528,7 +8528,7 @@ globalThis.__snapbackHandlers = {
         let read_author = |snapback: &LocalSnapback| {
             snapback
                 .db
-                .query(
+                .query_reads_read().query(
                     &QueryPlan {
                         table: "authors".to_owned(),
                         filters: Vec::new(),
@@ -15044,7 +15044,7 @@ globalThis.__snapbackHandlers = {
         // `shared` already exists under parent-a and parent-b. The scoped
         // unique key admits the cross-owner pair, but another parent-a value
         // is a typed conflict and leaves no row.
-        let before = left.db.scan_table("children", 32, 0).unwrap().total;
+        let before = left.db.query_reads_read().scan_table("children", 32, 0).unwrap().total;
         let error = left
             .invoke_mutation(
                 "addChild",
@@ -15061,7 +15061,7 @@ globalThis.__snapbackHandlers = {
             error.diagnostic.code,
             "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
         );
-        assert_eq!(left.db.scan_table("children", 32, 0).unwrap().total, before);
+        assert_eq!(left.db.query_reads_read().scan_table("children", 32, 0).unwrap().total, before);
     }
 
     // @ref LLP 0110#sbbc1-cursor-protocol-and-restart-precedence — the local
@@ -15772,7 +15772,7 @@ globalThis.__snapbackHandlers = {
         let summaries = |snapback: &LocalSnapback| -> Vec<Value> {
             snapback
                 .db
-                .query(
+                .query_reads_read().query(
                     &QueryPlan {
                         table: "bookSummaries".to_owned(),
                         filters: Vec::new(),
@@ -15823,7 +15823,7 @@ globalThis.__snapbackHandlers = {
         );
         let author_id = snapback
             .db
-            .query(
+            .query_reads_read().query(
                 &QueryPlan {
                     table: "authors".to_owned(),
                     filters: Vec::new(),
@@ -15876,7 +15876,7 @@ globalThis.__snapbackHandlers = {
         let book_id = |snapback: &LocalSnapback, slug: &str| {
             snapback
                 .db
-                .query(
+                .query_reads_read().query(
                     &QueryPlan {
                         table: "books".to_owned(),
                         filters: vec![FilterExpr {
@@ -15957,7 +15957,7 @@ globalThis.__snapbackHandlers = {
     fn book_id_missing(snapback: &LocalSnapback, slug: &str) -> bool {
         snapback
             .db
-            .query(
+            .query_reads_read().query(
                 &QueryPlan {
                     table: "books".to_owned(),
                     filters: vec![FilterExpr {
@@ -16025,7 +16025,7 @@ globalThis.__snapbackHandlers = {
         );
         let summaries = snapback
             .db
-            .query(
+            .query_reads_read().query(
                 &QueryPlan {
                     table: "bookSummaries".to_owned(),
                     filters: Vec::new(),
@@ -16085,7 +16085,7 @@ globalThis.__snapbackHandlers = {
         assert_ne!(revised_receipt.content_digest, receipt.content_digest);
         let summaries = snapback
             .db
-            .query(
+            .query_reads_read().query(
                 &QueryPlan {
                     table: "bookSummaries".to_owned(),
                     filters: Vec::new(),
@@ -16221,7 +16221,7 @@ globalThis.__snapbackHandlers = {
 
         let beta_id = snapback
             .db
-            .query(
+            .query_reads_read().query(
                 &QueryPlan {
                     table: "books".to_owned(),
                     filters: vec![FilterExpr {
@@ -16293,7 +16293,7 @@ globalThis.__snapbackHandlers = {
         );
         let rows = snapback
             .db
-            .query(
+            .query_reads_read().query(
                 &QueryPlan {
                     table: "bookSummaries".to_owned(),
                     filters: Vec::new(),
@@ -16394,7 +16394,7 @@ globalThis.__snapbackHandlers = {
         );
         let rows = reopened
             .db
-            .query(
+            .query_reads_read().query(
                 &QueryPlan {
                     table: "bookSummaries".to_owned(),
                     filters: Vec::new(),
@@ -17128,7 +17128,7 @@ globalThis.__snapbackHandlers = {
             .expect("commit membership grant");
         snapback
             .db
-            .scan_table("room_members", 100, 0)
+            .query_reads_read().scan_table("room_members", 100, 0)
             .expect("scan membership ids")
             .rows
             .into_iter()
@@ -19557,7 +19557,7 @@ globalThis.__snapbackHandlers = {
             .as_str()
             .expect("id claim is a string");
         assert_eq!(
-            snapback.db.scan_table("items", 10, 0).unwrap().rows[0]["_id"],
+            snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().rows[0]["_id"],
             accepted_id,
             "lane Q durably writes the captured id"
         );
@@ -19800,7 +19800,7 @@ globalThis.__snapbackHandlers = {
         assert_ne!(authoritative.ids[1], LOCAL_TOKEN);
         assert_ne!(authoritative.now, 7);
 
-        let local_row = &snapback.db.scan_table("items", 10, 0).unwrap().rows[0];
+        let local_row = &snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().rows[0];
         assert_eq!(local_row["_id"], authoritative.ids[0]);
         assert_eq!(local_row["token"], authoritative.ids[1]);
         assert_eq!(local_row["capturedAt"], authoritative.now);
@@ -19849,7 +19849,7 @@ globalThis.__snapbackHandlers = {
             serde_json::to_value(duplicate_receipt).unwrap()["idMap"],
             local_receipt["idMap"]
         );
-        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
 
         let queued_input = captured_lane_input(9, [QUEUED_ROW, QUEUED_TOKEN]);
         let mut relabeled = synthetic_lane_l_settlement(9, [QUEUED_ROW, QUEUED_TOKEN]);
@@ -19866,7 +19866,7 @@ globalThis.__snapbackHandlers = {
         let queued_ledger = queued_output.ctx_ledger.expect("accepted answer ledger");
         assert_eq!(queued_ledger.now, 9);
         assert_eq!(queued_ledger.ids, [QUEUED_ROW, QUEUED_TOKEN]);
-        let queued_rows = snapback.db.scan_table("items", 10, 0).unwrap().rows;
+        let queued_rows = snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().rows;
         let queued_row = queued_rows
             .iter()
             .find(|row| row["_id"] == QUEUED_ROW)
@@ -20039,7 +20039,7 @@ globalThis.__snapbackHandlers = {
         let authoritative = within_output.ctx_ledger.as_ref().unwrap();
         let row = snapback
             .db
-            .scan_table("items", 10, 0)
+            .query_reads_read().scan_table("items", 10, 0)
             .unwrap()
             .rows
             .into_iter()
@@ -20076,7 +20076,7 @@ globalThis.__snapbackHandlers = {
             serde_json::to_value(duplicate_receipt).unwrap()["claimLedger"],
             within_receipt["claimLedger"]
         );
-        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
 
         let mut stale = synthetic_lane_l_settlement(1, [STALE_ROW, STALE_TOKEN]);
         stale.bounded_skew = Some(BoundedSkewDeclaration {
@@ -20095,7 +20095,7 @@ globalThis.__snapbackHandlers = {
         let stale_authoritative = stale_output.ctx_ledger.as_ref().unwrap();
         let stale_row = snapback
             .db
-            .scan_table("items", 10, 0)
+            .query_reads_read().scan_table("items", 10, 0)
             .unwrap()
             .rows
             .into_iter()
@@ -20137,7 +20137,7 @@ globalThis.__snapbackHandlers = {
         );
         let pinned_row = snapback
             .db
-            .scan_table("items", 10, 0)
+            .query_reads_read().scan_table("items", 10, 0)
             .unwrap()
             .rows
             .into_iter()
@@ -20220,9 +20220,9 @@ globalThis.__snapbackHandlers = {
             first_receipt["rollbackReason"],
             "SNAPBACK_AUTH_RESERVATION_STALE"
         );
-        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 0);
+        assert_eq!(snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 0);
         assert_eq!(
-            snapback.db.scan_table("permissions", 10, 0).unwrap().total,
+            snapback.db.query_reads_read().scan_table("permissions", 10, 0).unwrap().total,
             0
         );
         assert_eq!(snapback.durable_version().unwrap(), 0);
@@ -20241,9 +20241,9 @@ globalThis.__snapbackHandlers = {
             retry_ledger.ids, first_attempt_ledger.ids,
             "the abandoned attempt's derived ids never survive into retry"
         );
-        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
         assert_eq!(
-            snapback.db.scan_table("permissions", 10, 0).unwrap().total,
+            snapback.db.query_reads_read().scan_table("permissions", 10, 0).unwrap().total,
             0
         );
         assert_eq!(snapback.durable_version().unwrap(), 1);
@@ -20293,7 +20293,7 @@ globalThis.__snapbackHandlers = {
         .expect("first identity stages")
         .0
         .expect("first identity settles");
-        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
 
         let diagnostics = snapback.load_functions(FunctionManifest::default());
         assert!(
@@ -20313,7 +20313,7 @@ globalThis.__snapbackHandlers = {
         .expect("exact retry republishes the settlement");
         assert_eq!(duplicate.result, first.result);
         assert_eq!(duplicate.version, first.version);
-        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
 
         let mut variants = Vec::new();
         let mut changed = baseline.clone();
@@ -20383,7 +20383,7 @@ globalThis.__snapbackHandlers = {
             );
         }
         assert_eq!(
-            snapback.db.scan_table("items", 10, 0).unwrap().total,
+            snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total,
             1,
             "no collision or retry may execute a second mutation"
         );
@@ -20713,7 +20713,7 @@ globalThis.__snapbackHandlers = {
                 "SNAPBACK_AUTH_STALE_RESULT"
             );
             assert_eq!(snapback.durable_version().unwrap(), 0);
-            assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 0);
+            assert_eq!(snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 0);
         }
 
         snapback
@@ -20753,7 +20753,7 @@ globalThis.__snapbackHandlers = {
             .0
             .expect("stale carrier did not consume the existing settlement");
         assert_eq!(
-            snapback.db.scan_table("items", 10, 0).unwrap().total,
+            snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total,
             1,
             "duplicate settlement must remain after a stale piggyback carrier"
         );
@@ -20775,7 +20775,7 @@ globalThis.__snapbackHandlers = {
             "authority_instance_mismatch"
         );
         assert_eq!(snapback.durable_version().unwrap(), 1);
-        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
     }
 
     #[test]
@@ -20794,7 +20794,7 @@ globalThis.__snapbackHandlers = {
             )
             .0
             .expect("first delivery settles");
-        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
 
         let diagnostics = snapback.load_functions(FunctionManifest::default());
         assert!(
@@ -20818,7 +20818,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(recovered.result, settled.result);
         assert_eq!(recovered.version, settled.version);
         assert_eq!(
-            snapback.db.scan_table("items", 10, 0).unwrap().total,
+            snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total,
             1,
             "settlement recovery never dispatches removed code"
         );
@@ -20915,7 +20915,7 @@ globalThis.__snapbackHandlers = {
             .0
             .expect("another token reads the durable settlement");
         assert_eq!(duplicate.result, first_result.result);
-        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
         assert_eq!(
             snapback
                 .acknowledge_client_mutations_with_authority(
@@ -20960,7 +20960,7 @@ globalThis.__snapbackHandlers = {
                 .expect_err("durable authority drift is stale");
             assert_eq!(result.diagnostic.code, expected_code);
         }
-        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
     }
 
     fn live_limit_snapback() -> LocalSnapback {
@@ -21581,7 +21581,7 @@ globalThis.__snapbackHandlers = {
             .expect("insert book");
         let book_id = snapback
             .db
-            .query(
+            .query_reads_read().query(
                 &QueryPlan {
                     table: "books".to_owned(),
                     filters: Vec::new(),
@@ -23888,7 +23888,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             cancelled_snapback
                 .db
-                .scan_table("items", 10, 0)
+                .query_reads_read().scan_table("items", 10, 0)
                 .expect("cancelled scan")
                 .total,
             0
@@ -24046,7 +24046,7 @@ globalThis.__snapbackHandlers = {
             _ => panic!("expected mutation receipt"),
         }
         assert_eq!(snapback.durable_version().unwrap(), 1);
-        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(snapback.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
         assert_eq!(snapback.permission_epoch("permission:test"), 1);
         assert!(
             snapback.receipts_snapshot(None)["global"]
@@ -24083,7 +24083,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             cancelled_snapback
                 .db
-                .scan_table("items", 10, 0)
+                .query_reads_read().scan_table("items", 10, 0)
                 .expect("cancelled scan")
                 .total,
             0
@@ -24137,7 +24137,7 @@ globalThis.__snapbackHandlers = {
         let committed_version = snapback.durable_version().unwrap();
         let committed_rows = snapback
             .db
-            .scan_table("items", 10, 0)
+            .query_reads_read().scan_table("items", 10, 0)
             .expect("scan committed row")
             .total;
 
@@ -24149,7 +24149,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             snapback
                 .db
-                .scan_table("items", 10, 0)
+                .query_reads_read().scan_table("items", 10, 0)
                 .expect("scan preserved rows")
                 .total,
             committed_rows
@@ -24179,7 +24179,7 @@ globalThis.__snapbackHandlers = {
             .expect_err("guarded HostPlan refuses before SQLite");
         assert_eq!(error.diagnostic.code, "SNAPBACK_PERMISSION_EPOCH_EXHAUSTED");
         assert_eq!(host.durable_version().unwrap(), 0);
-        assert_eq!(host.db.scan_table("items", 10, 0).unwrap().total, 0);
+        assert_eq!(host.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 0);
 
         let mut buffered = permission_epoch_guarded_snapback();
         buffered.permission_epochs.insert(
@@ -24203,7 +24203,7 @@ globalThis.__snapbackHandlers = {
             .expect_err("detached buffered commit refuses before SQLite");
         assert_eq!(error.diagnostic.code, "SNAPBACK_PERMISSION_EPOCH_EXHAUSTED");
         assert_eq!(buffered.durable_version().unwrap(), 0);
-        assert_eq!(buffered.db.scan_table("items", 10, 0).unwrap().total, 0);
+        assert_eq!(buffered.db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 0);
     }
 
     #[test]
@@ -28638,7 +28638,7 @@ globalThis.__snapbackHandlers = {
             .managed_in_app_branch_path(&branch_id, 1_009)
             .expect("resolve server-custodied branch path");
         let branch = LocalSnapback::open(branch_path).expect("open branch for assertions");
-        let rows = branch.db.scan_table("records", 10, 0).unwrap();
+        let rows = branch.db.query_reads_read().scan_table("records", 10, 0).unwrap();
         let owned = rows
             .rows
             .iter()
@@ -28654,7 +28654,7 @@ globalThis.__snapbackHandlers = {
                 .len(),
             2
         );
-        assert_eq!(snapback.db.scan_table("records", 10, 0).unwrap().total, 1);
+        assert_eq!(snapback.db.query_reads_read().scan_table("records", 10, 0).unwrap().total, 1);
     }
 
     #[test]

@@ -561,3 +561,83 @@ pub(crate) fn migration_keyset_scan_batch_on(
         sealed_digests,
     })
 }
+
+impl LocalDatabase {
+    /// One ceiling-bounded batch of the privileged migration scan against a
+    /// pinned read snapshot (LLP 0081 §3). The Wave-2 executor instead calls
+    /// [`migration_keyset_scan_batch_on`] inside its own batch transaction.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) fn migration_keyset_scan_batch(
+        &self,
+        request: &MigrationKeysetScanRequestV1,
+        checkpoint: Option<&MigrationKeysetScanCheckpointV1>,
+    ) -> SnapbackResult<MigrationKeysetScanBatch> {
+        self.query_reads_read().with_pinned_read_view(|db| match db {
+            DbRead::Pinned { conn, schema } => {
+                migration_keyset_scan_batch_on(conn, schema, request, checkpoint)
+            }
+            DbRead::Live(db) => {
+                migration_keyset_scan_batch_on(&db.conn, &db.schema, request, checkpoint)
+            }
+        })
+    }
+
+    /// Snapshot-pinned preview facts for LLP 0081's separately digested
+    /// observation. Each current v1 plan step declares at most one read table;
+    /// its row summary inspects no more than `max_affected_rows + 1` rows. The
+    /// extra row is the bounded signal that the reviewed ceiling is already
+    /// exceeded, without turning preview into an unbounded application scan.
+    ///
+    /// @ref LLP 0081#2-canonical-plan-and-approval — preview observations
+    /// carry the target head and bounded aggregate preconditions from one
+    /// snapshot, but never add authority to the sealed plan.
+    pub(crate) fn migration_preview_observation_facts(
+        &self,
+        steps: &[crate::migration::MigrationStepRecord],
+        max_affected_rows: u64,
+    ) -> SnapbackResult<(u64, BTreeMap<String, u64>)> {
+        self.query_reads_read().with_pinned_read_view(|view| {
+            let head = view.current_version()?;
+            let limit = max_affected_rows
+                .saturating_add(1)
+                .min(i64::MAX as u64) as i64;
+            let mut table_rows = BTreeMap::<String, u64>::new();
+            let mut precondition_rows = BTreeMap::new();
+            for record in steps {
+                let [table] = record.reads.as_slice() else {
+                    // The v1 planner currently emits zero or one read table.
+                    // A later multi-source step needs a versioned observation
+                    // shape instead of collapsing several counts into one.
+                    continue;
+                };
+                let rows = match table_rows.get(table) {
+                    Some(rows) => *rows,
+                    None => {
+                        let _ = schema_table(view.schema(), table)?;
+                        let quoted = quote_ident(table)?;
+                        let observed: i64 = view.conn().query_row(
+                            &format!(
+                                "SELECT COUNT(*) FROM (SELECT 1 FROM {quoted} LIMIT ?1)"
+                            ),
+                            params![limit],
+                            |row| row.get(0),
+                        )?;
+                        let rows = u64::try_from(observed).map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
+                                "storage",
+                                format!(
+                                    "preview row summary for {table} was outside the non-negative integer domain"
+                                ),
+                            )
+                        })?;
+                        table_rows.insert(table.clone(), rows);
+                        rows
+                    }
+                };
+                precondition_rows.insert(record.id.clone(), rows);
+            }
+            Ok((head, precondition_rows))
+        })
+    }
+}

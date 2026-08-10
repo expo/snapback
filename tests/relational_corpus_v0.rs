@@ -102,7 +102,7 @@ fn storage_lane(
         tables: tables.clone(),
     })
     .expect("seed corpus rows");
-    db.query_relational(plan, input, None)
+    db.query_reads_read().query_relational(plan, input, None)
         .map(|(output, _)| output.rows)
         .map_err(|error| error.diagnostic.code)
 }
@@ -460,7 +460,7 @@ fn large_sparse_and_duplicate_key_fixtures_stay_correct_and_stable() {
     // Sparse window: exactly the caller's first five roots, no other-owner
     // row in a slot even though 2,990 of 3,000 roots are invisible.
     let (window, continuation) = db
-        .query_relational(&owner_plan, &input, None)
+        .query_reads_read().query_relational(&owner_plan, &input, None)
         .expect("sparse window");
     let titles: Vec<&str> = window
         .rows
@@ -476,10 +476,10 @@ fn large_sparse_and_duplicate_key_fixtures_stay_correct_and_stable() {
     // Duplicate order keys: two evaluations are byte-identical, and the
     // window advances purely on the `_id` tie-break.
     let (first, _) = db
-        .query_relational(&duplicate_plan, &input, None)
+        .query_reads_read().query_relational(&duplicate_plan, &input, None)
         .expect("duplicate window");
     let (second, _) = db
-        .query_relational(&duplicate_plan, &input, None)
+        .query_reads_read().query_relational(&duplicate_plan, &input, None)
         .expect("duplicate window again");
     let order = field_order(&duplicate_plan);
     assert_eq!(

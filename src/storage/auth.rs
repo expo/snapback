@@ -3848,7 +3848,7 @@ mod tests {
 
         let db = LocalDatabase::memory().expect("memory database");
         let error = db
-            .get("_aUtH_users", "anything")
+            .query_reads_read().get("_aUtH_users", "anything")
             .expect_err("runtime resolver must reject protected table");
         assert_eq!(error.diagnostic.code, "SNAPBACK_INVALID_IDENTIFIER");
     }

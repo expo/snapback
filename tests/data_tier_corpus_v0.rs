@@ -97,7 +97,7 @@ fn scan_all_rows(db: &LocalDatabase, table: &str) -> Vec<Value> {
         membership_filters: Vec::new(),
         indexed_by: None,
     };
-    db.query(&plan, &HandlerInput::default())
+    db.query_reads_read().query(&plan, &HandlerInput::default())
         .expect("table scan")
         .rows
 }

@@ -790,9 +790,9 @@ fn measure_current_reads(
         indexed_by: None,
     };
     for _ in 0..4 {
-        database.get("todos", "bench-read-0256")?;
-        database.scan_table("todos", 50, 200)?;
-        database.query(&plan, &HandlerInput::default())?;
+        database.query_reads_read().get("todos", "bench-read-0256")?;
+        database.query_reads_read().scan_table("todos", 50, 200)?;
+        database.query_reads_read().query(&plan, &HandlerInput::default())?;
     }
 
     let mut point = Vec::with_capacity(config.iterations);
@@ -800,15 +800,15 @@ fn measure_current_reads(
     let mut query_plan = Vec::with_capacity(config.iterations);
     for _ in 0..config.iterations {
         let started = Instant::now();
-        database.get("todos", "bench-read-0256")?;
+        database.query_reads_read().get("todos", "bench-read-0256")?;
         point.push(started.elapsed().as_secs_f64() * 1_000_000.0);
 
         let started = Instant::now();
-        database.scan_table("todos", 50, 200)?;
+        database.query_reads_read().scan_table("todos", 50, 200)?;
         range.push(started.elapsed().as_secs_f64() * 1_000_000.0);
 
         let started = Instant::now();
-        database.query(&plan, &HandlerInput::default())?;
+        database.query_reads_read().query(&plan, &HandlerInput::default())?;
         query_plan.push(started.elapsed().as_secs_f64() * 1_000_000.0);
     }
     point.sort_by(|left, right| left.total_cmp(right));

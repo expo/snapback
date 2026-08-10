@@ -2455,7 +2455,7 @@ mod tests {
         input: &HandlerInput,
         owner_subject: Option<&str>,
     ) -> SnapbackResult<QueryOutput> {
-        db.with_pinned_read_view(|view| run_view(&view, input, owner_subject))
+        db.query_reads_read().with_pinned_read_view(|view| run_view(&view, input, owner_subject))
     }
 
     fn run_view(
@@ -3189,7 +3189,7 @@ mod tests {
     fn membership_visibility_without_resource_arg_is_refused() {
         let db = seeded(membership_visibility(None));
         let error = db
-            .with_pinned_read_view(|view| {
+            .query_reads_read().with_pinned_read_view(|view| {
                 run_view_with_resource_arg(
                     &view,
                     &membership_request("room-a", None, 10),
@@ -3211,7 +3211,7 @@ mod tests {
         let (switched_tx, switched_rx) = std::sync::mpsc::channel();
         let old_page = std::thread::scope(|scope| {
             let handle = scope.spawn(move || {
-                reader.with_pinned_read_view(|view| {
+                reader.query_reads_read().with_pinned_read_view(|view| {
                     view.current_version()?;
                     pinned_tx.send(()).expect("announce pinned snapshot");
                     switched_rx.recv().expect("await generation switch");

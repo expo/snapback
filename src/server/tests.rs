@@ -2884,7 +2884,7 @@ async fn protected_room_server_fast_paths_progress_during_affected_commit() {
     let remaining = with_snapback(&state.snapback, |snapback| {
         snapback
             .auth_database_mut()
-            .scan_table("roomMembers", 10, 0)
+            .query_reads_read().scan_table("roomMembers", 10, 0)
             .map(|scan| scan.total)
     })
     .await
@@ -21184,7 +21184,7 @@ async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
     assert_eq!(
         snapback
             .auth_database_mut()
-            .scan_table("items", 10, 0)
+            .query_reads_read().scan_table("items", 10, 0)
             .expect("scan carrier rows")
             .total,
         1,

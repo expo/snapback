@@ -5995,7 +5995,7 @@ globalThis.__snapbackHandlers = {
                 .is_none()
         );
         let activities = db
-            .scan_table("sequence_activity", 10, 0)
+            .query_reads_read().scan_table("sequence_activity", 10, 0)
             .expect("activity rows");
         assert_eq!(activities.total, 1);
         assert_eq!(activities.rows[0]["title"], "t2-committed-activity");
@@ -6026,7 +6026,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(throw_error.diagnostic.details["message"], "tentative:1");
         assert_eq!(
             throw_db
-                .scan_table("sequence_activity", 10, 0)
+                .query_reads_read().scan_table("sequence_activity", 10, 0)
                 .unwrap()
                 .total,
             0
@@ -6168,7 +6168,7 @@ globalThis.__snapbackHandlers = {
         let verify = ready_file_db(&path);
         assert_eq!(
             verify
-                .scan_table("sequence_activity", SENDERS, 0)
+                .query_reads_read().scan_table("sequence_activity", SENDERS, 0)
                 .unwrap()
                 .total,
             SENDERS
@@ -6228,7 +6228,7 @@ globalThis.__snapbackHandlers = {
         )
         .expect("sanctioned bridge commit");
         let rows = db
-            .scan_table("app_members", 10, 0)
+            .query_reads_read().scan_table("app_members", 10, 0)
             .expect("membership rows");
         assert_eq!(rows.total, 1);
         let id = rows.rows[0]["_id"].as_str().expect("member id");
@@ -6302,7 +6302,7 @@ globalThis.__snapbackHandlers = {
         )
         .expect("membership dry run");
         assert_eq!(
-            db.scan_table("app_members", 10, 0)
+            db.query_reads_read().scan_table("app_members", 10, 0)
                 .expect("post-dry-run scan")
                 .total,
             0
@@ -6486,12 +6486,12 @@ globalThis.__snapbackHandlers = {
         .expect("atomic resource and bootstrap-holder commit");
 
         let event = db
-            .get("events", &event_id)
+            .query_reads_read().get("events", &event_id)
             .expect("event read")
             .expect("created event");
         assert_eq!(event["title"], "Launch");
         let members = db
-            .scan_table("event_members", 10, 0)
+            .query_reads_read().scan_table("event_members", 10, 0)
             .expect("membership scan");
         assert_eq!(members.total, 1);
         assert_eq!(members.rows[0]["eventId"], event_id);

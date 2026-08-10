@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v1",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 207,
-  "edgeCount": 1222,
+  "moduleCount": 209,
+  "edgeCount": 1224,
   "edges": [
     {
       "from": "src/admin_agent_destroy.rs",
@@ -6475,6 +6475,12 @@
     {
       "from": "src/storage/migration_scan.rs",
       "fromOwner": "storage-migration-kernel",
+      "to": "src/migration.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/migration_scan.rs",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/rqs.rs",
       "toOwner": "sync-realtime-engine"
     },
@@ -6549,6 +6555,12 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/storage/auth.rs",
       "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/query_reads.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/manifest.rs",
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/schema_seed.rs",

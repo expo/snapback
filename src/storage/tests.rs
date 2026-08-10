@@ -120,7 +120,7 @@ mod vector_storage_carrier_tests {
         assert_eq!(stored.len(), 24);
         assert_eq!(&stored[..8], &[0; 8], "negative zero canonicalizes");
         let row = db
-            .get("embeddings", "embedding_1")
+            .query_reads_read().get("embeddings", "embedding_1")
             .expect("row reload")
             .expect("stored row");
         assert_eq!(row["embedding"], json!([0.0, 2.0, 3.0]));
@@ -255,7 +255,7 @@ mod stored_enum_tests {
         )
         .expect("admitted enum insert");
         assert_eq!(
-            db.get("items", "item_ok").unwrap().unwrap()["role"],
+            db.query_reads_read().get("items", "item_ok").unwrap().unwrap()["role"],
             "admin"
         );
 
@@ -281,7 +281,7 @@ mod stored_enum_tests {
             outside.diagnostic.details["admitted"],
             json!(["admin", "member"])
         );
-        assert!(db.get("items", "item_outside").unwrap().is_none());
+        assert!(db.query_reads_read().get("items", "item_outside").unwrap().is_none());
 
         let required_null = insert(
             &mut db,
@@ -293,7 +293,7 @@ mod stored_enum_tests {
             required_null.diagnostic.code,
             "SNAPBACK_FIELD_TYPE_MISMATCH"
         );
-        assert!(db.get("items", "item_required_null").unwrap().is_none());
+        assert!(db.query_reads_read().get("items", "item_required_null").unwrap().is_none());
         insert(
             &mut db,
             "item_optional_null",
@@ -304,7 +304,7 @@ mod stored_enum_tests {
         )
         .expect("null optional enum commits");
         assert_eq!(
-            db.get("items", "item_optional_null").unwrap().unwrap()["visibility"],
+            db.query_reads_read().get("items", "item_optional_null").unwrap().unwrap()["visibility"],
             Value::Null
         );
 
@@ -336,7 +336,7 @@ mod stored_enum_tests {
             "SNAPBACK_FIELD_ENUM_VALUE_INVALID"
         );
         assert_eq!(
-            db.get("items", "item_ok").unwrap().unwrap()["role"],
+            db.query_reads_read().get("items", "item_ok").unwrap().unwrap()["role"],
             "member"
         );
     }
@@ -440,7 +440,7 @@ mod stored_enum_tests {
         )]))
         .expect("enum subset widening is declaration-only");
         assert_eq!(
-            db.get("items", "open_item").unwrap().unwrap()["state"],
+            db.query_reads_read().get("items", "open_item").unwrap().unwrap()["state"],
             "open"
         );
     }
@@ -617,7 +617,7 @@ mod stored_enum_tests {
             FieldType::String
         );
         assert_eq!(
-            db.get("items", "open_item").unwrap().unwrap()["state"],
+            db.query_reads_read().get("items", "open_item").unwrap().unwrap()["state"],
             "open"
         );
     }
@@ -1403,7 +1403,7 @@ mod guarded_commit_tests {
         .expect_err("post-maximum allocation refuses");
         assert_eq!(failure.diagnostic.code, "SNAPBACK_SEQUENCE_EXHAUSTED");
         assert_eq!(
-            db.get("items", "scope").unwrap().unwrap()["title"],
+            db.query_reads_read().get("items", "scope").unwrap().unwrap()["title"],
             json!("original"),
             "exhaustion rolls back source writes"
         );
@@ -1475,7 +1475,7 @@ mod guarded_commit_tests {
             "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
         );
         assert_eq!(
-            db.get("items", "scope").unwrap().unwrap()["title"],
+            db.query_reads_read().get("items", "scope").unwrap().unwrap()["title"],
             json!("original"),
             "application writes roll back with the invalid replay fact"
         );
@@ -1539,7 +1539,7 @@ mod guarded_commit_tests {
             "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
         );
         assert_eq!(
-            db.get("items", "bad/id").unwrap().unwrap()["title"],
+            db.query_reads_read().get("items", "bad/id").unwrap().unwrap()["title"],
             json!("original")
         );
         assert_eq!(
@@ -1576,7 +1576,7 @@ mod guarded_commit_tests {
             "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
         );
         assert!(
-            db.get("items", "bad/id").unwrap().is_none(),
+            db.query_reads_read().get("items", "bad/id").unwrap().is_none(),
             "seed rollback leaves no invalid application row"
         );
         assert!(
@@ -1652,7 +1652,7 @@ mod guarded_commit_tests {
             "oversized patch commits no version"
         );
         assert_eq!(
-            db.get("items", "ordered").unwrap().unwrap()["title"],
+            db.query_reads_read().get("items", "ordered").unwrap().unwrap()["title"],
             "éééé"
         );
 
@@ -1672,7 +1672,7 @@ mod guarded_commit_tests {
             oversized_insert.diagnostic.code,
             "SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED"
         );
-        assert!(db.get("items", "too-long").unwrap().is_none());
+        assert!(db.query_reads_read().get("items", "too-long").unwrap().is_none());
     }
 
     fn relation_schema() -> SchemaManifest {
@@ -1987,8 +1987,8 @@ mod guarded_commit_tests {
             None,
             "dry-run burns no value"
         );
-        assert_eq!(db.scan_table("children", 10, 0).unwrap().total, 0);
-        assert_eq!(db.scan_table("activity", 10, 0).unwrap().total, 0);
+        assert_eq!(db.query_reads_read().scan_table("children", 10, 0).unwrap().total, 0);
+        assert_eq!(db.query_reads_read().scan_table("activity", 10, 0).unwrap().total, 0);
 
         let identity = ClientMutationIdentity::new("cm_generated_sequence", "addJob", &input);
         let fresh = db
@@ -2173,8 +2173,8 @@ mod guarded_commit_tests {
             .unwrap()
             .expect("active parent");
         assert_eq!(sequence_next(&verify, &incarnation), Some(2));
-        assert_eq!(verify.scan_table("children", 10, 0).unwrap().total, 1);
-        assert_eq!(verify.scan_table("activity", 10, 0).unwrap().total, 1);
+        assert_eq!(verify.query_reads_read().scan_table("children", 10, 0).unwrap().total, 1);
+        assert_eq!(verify.query_reads_read().scan_table("activity", 10, 0).unwrap().total, 1);
     }
 
     // @ref LLP 0135#51-sequence-allocation — the contributor local target's
@@ -2338,8 +2338,8 @@ mod guarded_commit_tests {
             sequence_next(&db, &predecessor),
             Some(i64::try_from(SEQUENCE_MAX_SAFE_INTEGER + 1).unwrap()),
         );
-        let children_before = db.scan_table("children", 10, 0).unwrap().total;
-        let activity_before = db.scan_table("activity", 10, 0).unwrap().total;
+        let children_before = db.query_reads_read().scan_table("children", 10, 0).unwrap().total;
+        let activity_before = db.query_reads_read().scan_table("activity", 10, 0).unwrap().total;
         let head_before = db.current_version().unwrap();
         let mut refusal_bytes = Vec::new();
         for attempt in 0..2 {
@@ -2362,11 +2362,11 @@ mod guarded_commit_tests {
         assert_eq!(refusal_bytes[0], refusal_bytes[1]);
         assert_eq!(db.current_version().unwrap(), head_before);
         assert_eq!(
-            db.scan_table("children", 10, 0).unwrap().total,
+            db.query_reads_read().scan_table("children", 10, 0).unwrap().total,
             children_before
         );
         assert_eq!(
-            db.scan_table("activity", 10, 0).unwrap().total,
+            db.query_reads_read().scan_table("activity", 10, 0).unwrap().total,
             activity_before
         );
         assert_eq!(
@@ -2460,7 +2460,7 @@ mod guarded_commit_tests {
             predecessor_incarnation,
         );
 
-        let rows = db.scan_table("children", 10, 0).expect("physical children");
+        let rows = db.query_reads_read().scan_table("children", 10, 0).expect("physical children");
         assert_eq!(rows.total, 2, "orphaned predecessor child stays physical");
         let incarnations = rows
             .rows
@@ -3738,7 +3738,7 @@ mod guarded_commit_tests {
         assert_eq!(committed.output.changed_count, 1);
         let row_id = &committed.changes.first().expect("inserted changed row").id;
         let row = db
-            .get("items", row_id)
+            .query_reads_read().get("items", row_id)
             .expect("read committed item")
             .expect("committed item exists");
         assert_eq!(row["rank"], Value::Null);
@@ -4254,7 +4254,7 @@ mod guarded_commit_tests {
             error.diagnostic.code,
             "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
         );
-        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
     }
 
     #[test]
@@ -4651,7 +4651,7 @@ mod guarded_commit_tests {
         // omitted; b3 has a null join key; b4 is another owner's root and
         // never occupies a window slot. Short page, no refill.
         let (inner, inner_continuation) = db
-            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
+            .query_reads_read().query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
             .expect("inner relational query");
         assert!(
             inner_continuation.is_none(),
@@ -4669,7 +4669,7 @@ mod guarded_commit_tests {
         // Left: every visible root emits; missing/invisible/null-key joined
         // leaves are null — indistinguishable from one another.
         let (left, _) = db
-            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
+            .query_reads_read().query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
             .expect("left relational query");
         let titles: Vec<(&str, bool)> = left
             .rows
@@ -4686,7 +4686,7 @@ mod guarded_commit_tests {
         // take=2 the window is [alpha, beta]; beta's author is invisible so
         // inner emits one row, and gamma is never consumed to refill.
         let (windowed, windowed_continuation) = db
-            .query_relational(&relational_plan(JoinKind::Inner, 2), &input, None)
+            .query_reads_read().query_relational(&relational_plan(JoinKind::Inner, 2), &input, None)
             .expect("windowed inner query");
         assert_eq!(windowed.rows.len(), 1);
         assert_eq!(windowed.rows[0]["title"], json!("alpha"));
@@ -4710,7 +4710,7 @@ mod guarded_commit_tests {
 
         // take: 0 is an empty page that consumes nothing.
         let (empty, empty_continuation) = db
-            .query_relational(&relational_plan(JoinKind::Inner, 0), &input, None)
+            .query_reads_read().query_relational(&relational_plan(JoinKind::Inner, 0), &input, None)
             .expect("take zero");
         assert!(empty.rows.is_empty());
         assert!(empty_continuation.is_none());
@@ -4753,7 +4753,7 @@ mod guarded_commit_tests {
             })
             .expect("seed duplicate authors");
         let error = corrupted
-            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
+            .query_reads_read().query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
             .expect_err("duplicate unique key must refuse");
         assert_eq!(
             error.diagnostic.code,
@@ -4764,13 +4764,13 @@ mod guarded_commit_tests {
         let mut no_pairs = relational_plan(JoinKind::Inner, 10);
         no_pairs.join_on.clear();
         let error = db
-            .query_relational(&no_pairs, &input, None)
+            .query_reads_read().query_relational(&no_pairs, &input, None)
             .expect_err("zero join pairs");
         assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_PLAN_INVALID");
         let mut too_big = relational_plan(JoinKind::Inner, 10);
         too_big.take = 1025;
         let error = db
-            .query_relational(&too_big, &input, None)
+            .query_reads_read().query_relational(&too_big, &input, None)
             .expect_err("take over 1024");
         assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_PLAN_INVALID");
     }
@@ -4789,7 +4789,7 @@ mod guarded_commit_tests {
         // Visible roots for user-a in title order: alpha(b1), beta(b2,
         // author invisible), gamma(b3, null join key).
         let (page1, cursor1) = db
-            .query_relational(&plan, &input, None)
+            .query_reads_read().query_relational(&plan, &input, None)
             .expect("first page");
         assert_eq!(page1.rows.len(), 1);
         assert_eq!(page1.rows[0]["title"], json!("alpha"));
@@ -4800,7 +4800,7 @@ mod guarded_commit_tests {
         // Window [beta]: consumed one root, emitted zero rows (invisible
         // author), still progresses.
         let (page2, cursor2) = db
-            .query_relational(&plan, &input, Some(&cursor1))
+            .query_reads_read().query_relational(&plan, &input, Some(&cursor1))
             .expect("second page");
         assert!(page2.rows.is_empty(), "all-omitted window emits no rows");
         let cursor2 = cursor2.expect("all-omitted window still progresses");
@@ -4808,7 +4808,7 @@ mod guarded_commit_tests {
 
         // Window [gamma]: null join key, same shape.
         let (page3, cursor3) = db
-            .query_relational(&plan, &input, Some(&cursor2))
+            .query_reads_read().query_relational(&plan, &input, Some(&cursor2))
             .expect("third page");
         assert!(page3.rows.is_empty());
         let cursor3 = cursor3.expect("full window continues");
@@ -4817,7 +4817,7 @@ mod guarded_commit_tests {
         // Past the last root: consumes nothing, terminal — end-of-stream
         // is an empty page with no continuation, exactly as pinned.
         let (page4, cursor4) = db
-            .query_relational(&plan, &input, Some(&cursor3))
+            .query_reads_read().query_relational(&plan, &input, Some(&cursor3))
             .expect("terminal page");
         assert!(page4.rows.is_empty());
         assert!(cursor4.is_none(), "a short window is terminal");
@@ -4825,7 +4825,7 @@ mod guarded_commit_tests {
         // No skip, no duplicate: the union of consumed roots across pages
         // is exactly the unpaged window.
         let (all, _) = db
-            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
+            .query_reads_read().query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
             .expect("unpaged window");
         assert_eq!(all.rows.len(), 3);
     }
@@ -4844,7 +4844,7 @@ mod guarded_commit_tests {
             .map(|s| (*s).to_owned())
             .collect();
         let (inner, _) = db
-            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
+            .query_reads_read().query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
             .expect("inner query");
         assert_eq!(
             crate::rqs::relational_result_encoding_v1(&field_order, &inner.rows)
@@ -4852,7 +4852,7 @@ mod guarded_commit_tests {
             r#"[{"title":"alpha","authorName":"Ada","shelf":"fiction"}]"#,
         );
         let (left, _) = db
-            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
+            .query_reads_read().query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
             .expect("left query");
         assert_eq!(
             crate::rqs::relational_result_encoding_v1(&field_order, &left.rows)
@@ -4907,7 +4907,7 @@ mod guarded_commit_tests {
         let input = relational_input("user-a");
         let _ = take_keyset_scan_stats();
         let (page, continuation) = db
-            .query_relational(&relational_plan(JoinKind::Left, 5), &input, None)
+            .query_reads_read().query_relational(&relational_plan(JoinKind::Left, 5), &input, None)
             .expect("sparse window");
         assert_eq!(page.rows.len(), 5);
         assert!(continuation.is_some(), "full window continues");
@@ -4971,7 +4971,7 @@ mod guarded_commit_tests {
             book("b4", "delta"),
         ]);
         let (page1, cursor) = before
-            .query_relational(&plan, &input, None)
+            .query_reads_read().query_relational(&plan, &input, None)
             .expect("first page");
         assert_eq!(
             page1
@@ -4993,7 +4993,7 @@ mod guarded_commit_tests {
             book("b4", "delta"),
         ]);
         let (page2, _) = after
-            .query_relational(&plan, &input, Some(&cursor))
+            .query_reads_read().query_relational(&plan, &input, Some(&cursor))
             .expect("second page");
         assert_eq!(
             page2
@@ -5057,7 +5057,7 @@ mod guarded_commit_tests {
             entries: vec![("authorSlug".to_owned(), value)],
             id: id.to_owned(),
         };
-        db.with_pinned_read_view(|view| {
+        db.query_reads_read().with_pinned_read_view(|view| {
             // Total order: b1(ada), b4(ada), b2(grace), b3(null).
             let full = view.query_keyset(&plan, &input, None)?;
             assert_eq!(ids(&full), vec!["b1", "b4", "b2", "b3"]);
@@ -5178,7 +5178,7 @@ mod guarded_commit_tests {
             .execute_mutation_guarded(&plan, &input, || Ok(()), || Ok(()))
             .expect_err("commit-time guard must see the concurrent transfer");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ROW_NOT_FOUND");
-        let row = db.scan_table("items", 10, 0).unwrap();
+        let row = db.query_reads_read().scan_table("items", 10, 0).unwrap();
         assert_eq!(
             row.rows[0]["title"],
             json!("user-b"),
@@ -5202,7 +5202,7 @@ mod guarded_commit_tests {
         )
         .expect("owner update before the transfer succeeds");
         transfer_to(&mut db, "user-b");
-        let rows = db.scan_table("items", 10, 0).unwrap();
+        let rows = db.query_reads_read().scan_table("items", 10, 0).unwrap();
         assert_eq!(rows.rows[0]["rank"], json!(5), "committed update survives");
         assert_eq!(
             rows.rows[0]["title"],
@@ -5280,7 +5280,7 @@ mod guarded_commit_tests {
         })
         .expect("seed duplicate order keys");
         let result = db
-            .query(
+            .query_reads_read().query(
                 &QueryPlan {
                     table: "items".to_owned(),
                     filters: Vec::new(),
@@ -5383,7 +5383,7 @@ mod guarded_commit_tests {
         };
         assert!(
             query_db
-                .query(&actor_aware_query, &delegated)
+                .query_reads_read().query(&actor_aware_query, &delegated)
                 .expect("run intersected delegated query")
                 .rows
                 .is_empty(),
@@ -5391,7 +5391,7 @@ mod guarded_commit_tests {
         );
         assert_eq!(
             query_db
-                .query(&actor_aware_query, &direct)
+                .query_reads_read().query(&actor_aware_query, &direct)
                 .expect("run direct query")
                 .rows
                 .len(),
@@ -5411,7 +5411,7 @@ mod guarded_commit_tests {
             ..actor_aware_query.clone()
         };
         let intersected = query_db
-            .query(&disjunctive_query, &delegated)
+            .query_reads_read().query(&disjunctive_query, &delegated)
             .expect("intersect a disjunctive delegated row rule")
             .rows;
         assert_eq!(
@@ -5450,7 +5450,7 @@ mod guarded_commit_tests {
         };
         assert!(
             query_db
-                .query(&actor_only_query, &delegated)
+                .query_reads_read().query(&actor_only_query, &delegated)
                 .expect("a missing direct actor fails closed instead of widening")
                 .rows
                 .is_empty()
@@ -5582,13 +5582,13 @@ mod guarded_commit_tests {
                 "get" => (
                     None,
                     reader
-                        .get("items", "item")
+                        .query_reads_read().get("items", "item")
                         .expect("point read")
                         .expect("baseline row"),
                 ),
                 "query" => {
                     let output = reader
-                        .query(
+                        .query_reads_read().query(
                             &QueryPlan {
                                 table: "items".to_owned(),
                                 filters: Vec::new(),
@@ -5603,7 +5603,7 @@ mod guarded_commit_tests {
                     (Some(output.version), output.rows[0].clone())
                 }
                 "scan" => {
-                    let output = reader.scan_table("items", 10, 0).expect("scan read");
+                    let output = reader.query_reads_read().scan_table("items", 10, 0).expect("scan read");
                     (None, output.rows[0].clone())
                 }
                 _ => unreachable!(),
@@ -5679,7 +5679,7 @@ mod guarded_commit_tests {
 
         let reader = LocalDatabase::open(&path).expect("open committed database");
         assert_eq!(reader.current_version().unwrap(), 2);
-        let rows = reader.scan_table("items", 10, 0).expect("scan commits");
+        let rows = reader.query_reads_read().scan_table("items", 10, 0).expect("scan commits");
         assert_eq!(rows.total, 4);
         assert_eq!(
             rows.rows
@@ -5718,7 +5718,7 @@ mod guarded_commit_tests {
             .expect("opener thread joins")
             .expect("a valid sibling commit is not storage corruption");
         assert_eq!(reopened.current_version().unwrap(), sibling.version);
-        let rows = reopened.scan_table("items", 10, 0).unwrap();
+        let rows = reopened.query_reads_read().scan_table("items", 10, 0).unwrap();
         assert_eq!(rows.total, 2);
         assert_eq!(
             rows.rows
@@ -5888,7 +5888,7 @@ mod guarded_commit_tests {
             indexed_by: None,
         };
         let input = HandlerInput::default();
-        let output = db.query(&query, &input).expect("capture cold-table query");
+        let output = db.query_reads_read().query(&query, &input).expect("capture cold-table query");
         assert_eq!(output.version, 1);
         let dependency = crate::live_matcher::query_dependencies_from_plan(
             &query,
@@ -6039,7 +6039,7 @@ mod guarded_commit_tests {
             .expect_err("buffered writer must defer inside its SQLite writer transaction");
         assert_eq!(buffered.diagnostic.code, "SNAPBACK_PROMOTION_HEAD_RESERVED");
         assert_eq!(
-            db.scan_table("items", 10, 0)
+            db.query_reads_read().scan_table("items", 10, 0)
                 .expect("no partial writes")
                 .total,
             0
@@ -6186,7 +6186,7 @@ mod guarded_commit_tests {
             .expect("covered buffered commit");
         assert_eq!(buffered.changes.len(), 1);
         let buffered_row = db
-            .get("items", "buffered")
+            .query_reads_read().get("items", "buffered")
             .expect("read buffered postimage")
             .expect("buffered row exists");
         let journal_row: String = db
@@ -6503,7 +6503,7 @@ mod guarded_commit_tests {
 
     fn assert_operation_commit_absent(db: &LocalDatabase) {
         assert_eq!(db.current_version().expect("version after crash cut"), 0);
-        assert_eq!(db.scan_table("items", 10, 0).expect("app rows").total, 0);
+        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).expect("app rows").total, 0);
         for table in [
             "_snapback_changes",
             "_snapback_client_mutations",
@@ -6675,7 +6675,7 @@ mod guarded_commit_tests {
         assert_eq!(recovered, expected);
         assert_eq!(
             reopened
-                .scan_table("items", 10, 0)
+                .query_reads_read().scan_table("items", 10, 0)
                 .expect("unchanged app rows")
                 .total,
             1,
@@ -6732,7 +6732,7 @@ mod guarded_commit_tests {
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
         assert_eq!(
-            db.scan_table("items", 10, 0)
+            db.query_reads_read().scan_table("items", 10, 0)
                 .expect("one retained write")
                 .total,
             1
@@ -6828,7 +6828,7 @@ mod guarded_commit_tests {
             assert_eq!(horizon.diagnostic.details["terminal"], false);
         }
         assert_eq!(
-            db.scan_table("items", 10, 0)
+            db.query_reads_read().scan_table("items", 10, 0)
                 .expect("no below-floor write")
                 .total,
             1
@@ -7182,7 +7182,7 @@ mod guarded_commit_tests {
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
         assert_eq!(
-            db.scan_table("items", 10, 0)
+            db.query_reads_read().scan_table("items", 10, 0)
                 .expect("only one host plan ran")
                 .total,
             2
@@ -7273,7 +7273,7 @@ mod guarded_commit_tests {
             "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID"
         );
         assert_eq!(
-            db.scan_table("items", 10, 0)
+            db.query_reads_read().scan_table("items", 10, 0)
                 .expect("no delayed host write")
                 .total,
             2
@@ -8037,7 +8037,7 @@ mod guarded_commit_tests {
 
     fn assert_empty(db: &LocalDatabase) {
         assert_eq!(db.current_version().expect("version"), 0);
-        assert_eq!(db.scan_table("items", 10, 0).expect("scan").total, 0);
+        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).expect("scan").total, 0);
     }
 
     struct TestRetentionLimits(Option<ClientMutationRetentionLimits>);
@@ -8210,7 +8210,7 @@ mod guarded_commit_tests {
     ) {
         assert_eq!(db.current_version().unwrap(), PORTABLE_STORAGE_VERSION_MAX);
         assert_eq!(&db.authorization_version().unwrap(), authorization);
-        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 0);
+        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 0);
         let actual_change_rows: i64 = db
             .conn
             .query_row("SELECT COUNT(*) FROM _snapback_changes", [], |row| {
@@ -8309,7 +8309,7 @@ mod guarded_commit_tests {
             .schema_seed().seed_with_authorization(seed_data("past", "must-not-land"))
             .expect_err("the portable final version has no successor");
         assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
-        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 1);
         assert_eq!(db.authorization_version().unwrap(), authorization);
         assert_eq!(
             db.conn
@@ -8824,7 +8824,7 @@ mod guarded_commit_tests {
     #[test]
     fn corrupt_portable_field_representations_fail_every_current_read_lane() {
         let healthy = typed_decode_database()
-            .get("typed_items", "typed-row")
+            .query_reads_read().get("typed_items", "typed-row")
             .expect("healthy point read")
             .expect("healthy row");
         assert_eq!(healthy["label"], "ok");
@@ -8879,9 +8879,9 @@ mod guarded_commit_tests {
                 .execute(&sql, [])
                 .unwrap_or_else(|error| panic!("inject {field} corruption: {error}"));
 
-            assert_storage_field_corrupt(db.get("typed_items", "typed-row"), field, "point");
-            assert_storage_field_corrupt(db.scan_table("typed_items", 10, 0), field, "scan");
-            assert_storage_field_corrupt(db.query(&plan, &HandlerInput::default()), field, "query");
+            assert_storage_field_corrupt(db.query_reads_read().get("typed_items", "typed-row"), field, "point");
+            assert_storage_field_corrupt(db.query_reads_read().scan_table("typed_items", 10, 0), field, "scan");
+            assert_storage_field_corrupt(db.query_reads_read().query(&plan, &HandlerInput::default()), field, "query");
         }
     }
 
@@ -8903,7 +8903,7 @@ mod guarded_commit_tests {
         let reopened = LocalDatabase::open(&path)
             .expect("bounded open policy does not scan every declared field");
         assert_storage_field_corrupt(
-            reopened.get("typed_items", "typed-row"),
+            reopened.query_reads_read().get("typed_items", "typed-row"),
             "flag",
             "reopened point read",
         );
@@ -8935,7 +8935,7 @@ mod guarded_commit_tests {
                 .expect("corrupt managed row version");
 
             let get_error = db
-                .get("items", "corrupt-row")
+                .query_reads_read().get("items", "corrupt-row")
                 .expect_err("point reads must reject a corrupt managed row version");
             assert_eq!(
                 get_error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -8943,7 +8943,7 @@ mod guarded_commit_tests {
             );
 
             let scan_error = db
-                .scan_table("items", 10, 0)
+                .query_reads_read().scan_table("items", 10, 0)
                 .expect_err("admin scans must reject a corrupt managed row version");
             assert_eq!(
                 scan_error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -9360,7 +9360,7 @@ mod guarded_commit_tests {
         ];
         for (selection, plan) in ["filter", "order"].into_iter().zip(plans) {
             let error = db
-                .query(&plan, &HandlerInput::default())
+                .query_reads_read().query(&plan, &HandlerInput::default())
                 .expect_err("a corrupt row version must not influence SQL selection");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -9425,7 +9425,7 @@ mod guarded_commit_tests {
             indexed_by: None,
         };
         let input = HandlerInput::default();
-        let output = db.query(&query, &input).expect("capture empty query");
+        let output = db.query_reads_read().query(&query, &input).expect("capture empty query");
         let dependency = crate::live_matcher::query_dependencies_from_plan(
             &query,
             &input,
@@ -9463,7 +9463,7 @@ mod guarded_commit_tests {
             .expect_err("a corrupt hidden predecessor must not validate stale reads");
         assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
         assert_eq!(db.current_version().unwrap(), before);
-        assert!(db.get("items", "must-not-commit").unwrap().is_none());
+        assert!(db.query_reads_read().get("items", "must-not-commit").unwrap().is_none());
     }
 
     #[test]
@@ -9510,7 +9510,7 @@ mod guarded_commit_tests {
                 indexed_by: None,
             };
             let input = HandlerInput::default();
-            let output = db.query(&query, &input).expect("capture empty query");
+            let output = db.query_reads_read().query(&query, &input).expect("capture empty query");
             let dependency = crate::live_matcher::query_dependencies_from_plan(
                 &query,
                 &input,
@@ -9963,7 +9963,7 @@ mod guarded_commit_tests {
             .expect("host-plan dry run");
         assert_eq!(dry_run.commit.authorization, None);
         assert_eq!(db.authorization_version().unwrap(), baseline);
-        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 0);
+        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 0);
 
         let commit = db
             .execute_mutation(&insert_plan(), &HandlerInput::default())
@@ -10195,7 +10195,7 @@ mod guarded_commit_tests {
             error.diagnostic.code,
             "SNAPBACK_AUTHORIZATION_EPOCH_EXHAUSTED"
         );
-        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 0);
+        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 0);
         assert_eq!(
             db.authorization_version().unwrap().epoch,
             MAX_AUTHORIZATION_EPOCH
@@ -10229,7 +10229,7 @@ mod guarded_commit_tests {
         db.schema_seed().reset_and_seed(Some(duplicate_seed))
             .expect_err("duplicate insert must roll back the reset transaction");
         let scan = db
-            .scan_table("items", 10, 0)
+            .query_reads_read().scan_table("items", 10, 0)
             .expect("scan after insert failure");
         assert_eq!(scan.total, 1);
         assert_eq!(scan.rows[0]["_id"], "old");
@@ -10252,7 +10252,7 @@ mod guarded_commit_tests {
         db.schema_seed().reset_and_seed(Some(seed_data("new", "new data")))
             .expect_err("precommit injection must roll back the reset transaction");
         let scan = db
-            .scan_table("items", 10, 0)
+            .query_reads_read().scan_table("items", 10, 0)
             .expect("scan after commit-boundary failure");
         assert_eq!(scan.total, 1);
         assert_eq!(scan.rows[0]["_id"], "old");
@@ -10548,7 +10548,7 @@ mod guarded_commit_tests {
         }
         let retained = db.settlement_read().client_mutation_retention_info().unwrap();
         assert_eq!(retained.records, 2);
-        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 4);
+        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 4);
         assert_eq!(db.current_version().unwrap(), 2);
 
         let refused = ClientMutationIdentity::new("cm_record_limit_3", "hostPlan", &input);
@@ -10568,7 +10568,7 @@ mod guarded_commit_tests {
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
         assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap(), retained);
-        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 4);
+        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 4);
         assert_eq!(db.current_version().unwrap(), 2);
         assert!(db.settlement_read().client_mutation_result(&first).unwrap().is_some());
         assert_eq!(db.settlement_read().client_mutation_result(&refused).unwrap(), None);
@@ -10608,7 +10608,7 @@ mod guarded_commit_tests {
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
         assert_eq!(db.settlement_read().client_mutation_retention_info().unwrap(), retained);
-        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 2);
+        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 2);
         assert_eq!(db.current_version().unwrap(), 1);
         assert!(db.settlement_read().client_mutation_result(&first).unwrap().is_some());
         assert_eq!(db.settlement_read().client_mutation_result(&refused).unwrap(), None);
@@ -10662,7 +10662,7 @@ mod guarded_commit_tests {
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
         assert_eq!(error.diagnostic.details["scope"], "auth");
-        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 4);
+        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 4);
 
         let other = ClientMutationIdentity::new("cm_auth_b_1", "hostPlan", &input_b);
         db.execute_mutation_plan_with_lifecycle(
@@ -10733,7 +10733,7 @@ mod guarded_commit_tests {
             Err(error) => error,
         };
         assert_eq!(error.diagnostic.details["scope"], "auth");
-        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 2);
+        assert_eq!(db.query_reads_read().scan_table("items", 10, 0).unwrap().total, 2);
 
         let other = ClientMutationIdentity::new("cm_auth_bytes_b_1", "hostPlan", &input_b);
         db.execute_mutation_plan_with_lifecycle(
@@ -11374,7 +11374,7 @@ mod guarded_commit_tests {
         .expect("seed ordering fixture");
 
         let ids = |direction, limit| {
-            db.query(
+            db.query_reads_read().query(
                 &QueryPlan {
                     table: "items".to_owned(),
                     filters: Vec::new(),
@@ -11413,7 +11413,7 @@ mod guarded_commit_tests {
     fn json_order_fields_fail_closed_before_sql_or_overlay_execution() {
         let db = database();
         let error = db
-            .query(
+            .query_reads_read().query(
                 &QueryPlan {
                     table: "items".to_owned(),
                     filters: Vec::new(),
@@ -12175,9 +12175,9 @@ mod membership_write_tests {
             error.diagnostic.code,
             "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING"
         );
-        assert!(db.get("events", event_id).expect("resource read").is_some());
+        assert!(db.query_reads_read().get("events", event_id).expect("resource read").is_some());
         assert_eq!(
-            db.scan_table("event_members", 10, 0)
+            db.query_reads_read().scan_table("event_members", 10, 0)
                 .expect("membership scan")
                 .total,
             0
@@ -13546,7 +13546,7 @@ mod membership_write_tests {
         )
         .expect("seed preexisting row");
         let legacy_id = db
-            .query(
+            .query_reads_read().query(
                 &QueryPlan {
                     table: "app_roles".to_owned(),
                     filters: Vec::new(),
@@ -14954,7 +14954,7 @@ mod membership_write_tests {
         assert!(!event_ids.iter().any(|event| event == &event_two));
 
         let error = db
-            .query(&plan, &input)
+            .query_reads_read().query(&plan, &input)
             .expect_err("generic roster primary reads are private by default");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_READ_PRIVATE");
     }
@@ -14987,7 +14987,7 @@ mod membership_write_tests {
                 },
                 ..HandlerInput::default()
             };
-            let healthy = db.query(&plan, &input).expect("healthy membership query");
+            let healthy = db.query_reads_read().query(&plan, &input).expect("healthy membership query");
             assert_eq!(healthy.rows.len(), 1);
             assert_eq!(healthy.rows[0]["_id"], event_id);
 
@@ -14998,7 +14998,7 @@ mod membership_write_tests {
                 )
                 .unwrap();
             let error = db
-                .query(&plan, &input)
+                .query_reads_read().query(&plan, &input)
                 .expect_err("corrupt membership row must not influence EXISTS");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -15184,7 +15184,7 @@ mod membership_write_tests {
             .finish_stream_reset(carrier, attempt)
             .expect_err("precommit fault rolls back");
 
-        let scan = db.scan_table("todos", 10, 0).expect("predecessor rows");
+        let scan = db.query_reads_read().scan_table("todos", 10, 0).expect("predecessor rows");
         assert_eq!(scan.total, 1);
         assert_eq!(scan.rows[0]["_id"], "old");
         assert!(

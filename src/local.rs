@@ -5273,7 +5273,7 @@ impl LocalSnapback {
         let Some(deployment) = snapshot.state.active_deployment.clone() else {
             return Ok(None);
         };
-        let state = self.db.load_api_envelope_state()?;
+        let state = self.db.api_envelope_read().load_api_envelope_state()?;
         let envelope = match state.and_then(|state| state.current) {
             Some(current) if current.inputs_hash == deployment.inputs_hash => {
                 crate::api_envelope::AppApiDiscoveryEnvelopeV1::Current {
@@ -5312,7 +5312,7 @@ impl LocalSnapback {
     /// The canonical bytes for a retained envelope digest (LLP 0062 §5's
     /// current-plus-previous retention window).
     pub fn app_api_envelope_bytes(&self, digest: &str) -> SnapbackResult<Option<String>> {
-        self.db.load_api_envelope_bytes(digest)
+        self.db.api_envelope_read().load_api_envelope_bytes(digest)
     }
 
     /// Resolve and verify the current envelope under one local-state cut so
@@ -5639,7 +5639,7 @@ impl LocalSnapback {
         // envelope record is not, which the verify-on-read rule tolerates,
         // but the caller deserves the honest classification.
         self.db
-            .record_api_envelope(
+            .api_envelope().record_api_envelope(
                 &activation_inputs_hash,
                 composed_envelope
                     .as_ref()
@@ -5786,7 +5786,7 @@ impl LocalSnapback {
             Some(seed) => {
                 let mut all_empty = true;
                 for table in seed.tables.keys() {
-                    let scan = self.db.scan_table(table, 1, 0)?;
+                    let scan = self.db.query_reads_read().scan_table(table, 1, 0)?;
                     if !scan.rows.is_empty() {
                         all_empty = false;
                         break;
@@ -5932,6 +5932,7 @@ impl LocalSnapback {
         }
         let before = self
             .db
+            .query_reads_read()
             .get(&input.table, &input.row_id)
             .map_err(crate::data_patch::map_storage_error)?
             .ok_or_else(crate::data_patch::row_not_found)?;
@@ -7583,7 +7584,7 @@ impl LocalSnapback {
             args: request.args.clone(),
             ..Default::default()
         });
-        let run = self.db.with_pinned_read_view(|db| {
+        let run = self.db.query_reads_read().with_pinned_read_view(|db| {
             crate::runtime::run_ibex_asset_authorizer_prepared(
                 &module,
                 input.clone(),
@@ -9264,7 +9265,7 @@ impl LocalSnapback {
                         args: attempt.admission.args.clone(),
                         ..Default::default()
                     });
-                    let rerun = self.db.with_pinned_read_view(|db| {
+                    let rerun = self.db.query_reads_read().with_pinned_read_view(|db| {
                         crate::runtime::run_ibex_asset_authorizer_prepared(
                             &module,
                             input.clone(),
@@ -13432,7 +13433,7 @@ impl LocalSnapback {
         let target_profile = self.db.schema().target_profile.clone();
         let mut invocations = self
             .db
-            .with_pinned_read_view(|view| {
+            .query_reads_read().with_pinned_read_view(|view| {
                 prepared_children
                     .iter()
                     .map(|(_, name, function, _, _, prepared, input, _)| {
@@ -16002,7 +16003,7 @@ impl LocalSnapback {
         limit: usize,
         offset: usize,
     ) -> SnapbackResult<TableScan> {
-        self.db.scan_table(table, limit, offset)
+        self.db.query_reads_read().scan_table(table, limit, offset)
     }
 
     /// Run a generated query or mutation through the *same* invocation path as
@@ -28015,7 +28016,7 @@ fn execute_query_invocation(
     if let DbRead::Live(live) = db {
         let owned_capture = VectorQuarantineCapture::default();
         let capture = vector_quarantine.unwrap_or(&owned_capture);
-        let result = live.with_pinned_read_view(|db| {
+        let result = live.query_reads_read().with_pinned_read_view(|db| {
             execute_query_invocation(
                 function,
                 name,

@@ -175,7 +175,8 @@ fn seed_existing(db: &mut LocalDatabase, corpus: &Corpus) {
     })
     .expect("valid corpus row seeds");
     assert!(
-        db.get(&corpus.schema.table, "structural-validation-existing")
+        db.query_reads_read()
+            .get(&corpus.schema.table, "structural-validation-existing")
             .expect("read explicit seed id")
             .is_some(),
         "a valid declarative seed _id remains the stored identity"
@@ -443,7 +444,7 @@ fn local_declared_field_types_consume_the_shared_boundary_corpus() {
                 .as_str()
                 .expect("insert returns bound id");
             let stored = db
-                .get("typeRecords", id)
+                .query_reads_read().get("typeRecords", id)
                 .expect("read type-case row")
                 .expect("type-case row exists");
             assert_eq!(stored["value"], case.value, "{} changed value", case.name);
@@ -476,7 +477,7 @@ fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
     })
     .expect("prototype-named declared field seeds as ordinary data");
     let stored = db
-        .get("edgeRecords", "edge-existing")
+        .query_reads_read().get("edgeRecords", "edge-existing")
         .expect("read edge row")
         .expect("edge row exists");
     assert_eq!(stored["__proto__"], json!({ "polluted": true }));

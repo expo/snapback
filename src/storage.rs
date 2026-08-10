@@ -34,6 +34,7 @@ use uuid::Uuid;
 pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 pub(crate) const META_FUNCTION_GENERATION: &str = "function_generation";
 
+mod api_envelope_state;
 mod asset_attempts;
 mod asset_maintenance;
 mod asset_reads;
@@ -58,11 +59,15 @@ pub mod migration_executor;
 mod migration_scan;
 mod projection_rebuild;
 mod push_registry;
+mod query_reads;
 mod schema_seed;
 mod schema_transition;
 mod settlement;
 mod versions;
 
+pub use api_envelope_state::{
+    ApiEnvelopeCurrentRecord, ApiEnvelopeKernel, ApiEnvelopeReadKernel, ApiEnvelopeStateRecord,
+};
 pub use asset_attempts::{AssetAttemptsKernel, AssetPreparedVariant, AssetPublishOutcome};
 pub use asset_maintenance::AssetMaintenanceKernel;
 pub use asset_reads::{AssetDelivery, AssetDeliveryOutcome, AssetReadsKernel};
@@ -89,6 +94,7 @@ pub use projection_rebuild::ProjectionRebuildReceipt;
 pub(crate) use projection_rebuild::PendingProjectionPublication;
 use projection_rebuild::{ProjectionEffectCeiling, maintain_projections_in_tx};
 pub use push_registry::PushRegistryKernel;
+pub use query_reads::{QueryReadsKernel, QueryReadsReadKernel};
 pub use schema_seed::SchemaSeedKernel;
 #[cfg(test)]
 pub(crate) use schema_transition::publish_schema_transition_for_test;
@@ -286,26 +292,9 @@ pub(crate) fn inject_reset_commit_failure_for_test() {
 
 const META_SCHEMA_MANIFEST: &str = "schema_manifest";
 const META_CRON_STATE: &str = "cron_state";
-const META_API_ENVELOPE_STATE: &str = "api_envelope.state";
-const META_API_ENVELOPE_BYTES_PREFIX: &str = "api_envelope.bytes.";
 
 pub(crate) fn local_target_app_effective_uncovered_lanes_v1() -> Vec<String> {
     write_authority::local_target_app_effective_uncovered_lanes_v1()
-}
-
-/// The persisted api-envelope disposition (LLP 0062 §5, server-composed).
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct ApiEnvelopeStateRecord {
-    pub current: Option<ApiEnvelopeCurrentRecord>,
-    pub previous: Option<String>,
-}
-
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct ApiEnvelopeCurrentRecord {
-    pub digest: String,
-    pub inputs_hash: String,
 }
 // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3 monotonic replay floor:
 // the highest change version
@@ -1570,6 +1559,14 @@ fn inspect_storage_for_open(conn: &Connection) -> SnapbackResult<()> {
 }
 
 impl LocalDatabase {
+    pub fn api_envelope(&mut self) -> ApiEnvelopeKernel<'_> {
+        ApiEnvelopeKernel::new(self)
+    }
+
+    pub fn api_envelope_read(&self) -> ApiEnvelopeReadKernel<'_> {
+        ApiEnvelopeReadKernel::new(self)
+    }
+
     pub fn asset_attempts(&mut self) -> AssetAttemptsKernel<'_> {
         AssetAttemptsKernel::new(self)
     }
@@ -1644,6 +1641,14 @@ impl LocalDatabase {
 
     pub fn push_registry(&mut self) -> PushRegistryKernel<'_> {
         PushRegistryKernel::new(self)
+    }
+
+    pub fn query_reads(&mut self) -> QueryReadsKernel<'_> {
+        QueryReadsKernel::new(self)
+    }
+
+    pub fn query_reads_read(&self) -> QueryReadsReadKernel<'_> {
+        QueryReadsReadKernel::new(self)
     }
 
     pub fn schema_seed(&mut self) -> SchemaSeedKernel<'_> {
@@ -2263,208 +2268,6 @@ impl LocalDatabase {
         Ok(())
     }
 
-    /// Load the served api-envelope state (LLP 0062 §5, server-composed).
-    /// `current` binds the digest to the inputsHash it was composed for, so a
-    /// crash between activation and this record self-heals on read: a record
-    /// whose inputsHash disagrees with the active generation serves the typed
-    /// absent marker instead of a stale envelope.
-    pub fn load_api_envelope_state(&self) -> SnapbackResult<Option<ApiEnvelopeStateRecord>> {
-        let value: Option<String> = self
-            .conn
-            .query_row(
-                "SELECT value FROM _snapback_meta WHERE key = ?1",
-                params![META_API_ENVELOPE_STATE],
-                |row| row.get(0),
-            )
-            .optional()?;
-        value
-            .map(|value| {
-                serde_json::from_str(&value).map_err(|error| {
-                    SnapbackError::error(
-                        "SNAPBACK_APP_API_STATE_PARSE_FAILED",
-                        "app-api",
-                        "stored api-envelope state could not be parsed",
-                    )
-                    .with_detail("error", error.to_string())
-                })
-            })
-            .transpose()
-    }
-
-    /// Record the activation's envelope disposition, rotating the previous
-    /// generation's envelope into the one-deep retention window LLP 0062 §5
-    /// pins (the deploy race window), and dropping anything older.
-    pub fn record_api_envelope(
-        &mut self,
-        inputs_hash: &str,
-        composed: Option<(&str, &str)>, // (digest, canonical bytes)
-    ) -> SnapbackResult<()> {
-        let prior = self.load_api_envelope_state()?;
-        let mut retained: Vec<String> = Vec::new();
-        let previous = prior
-            .as_ref()
-            .and_then(|state| state.current.as_ref().map(|current| current.digest.clone()));
-        let current = composed.map(|(digest, _)| ApiEnvelopeCurrentRecord {
-            digest: digest.to_string(),
-            inputs_hash: inputs_hash.to_string(),
-        });
-        if let Some(current) = &current {
-            retained.push(current.digest.clone());
-        }
-        // A redeploy of the identical envelope keeps one copy and no rotation.
-        let previous = previous.filter(|digest| {
-            current
-                .as_ref()
-                .is_none_or(|current| current.digest != *digest)
-        });
-        if let Some(previous) = &previous {
-            retained.push(previous.clone());
-        }
-        let state = ApiEnvelopeStateRecord { current, previous };
-        let state_json = serde_json::to_string(&state).map_err(|error| {
-            SnapbackError::error(
-                "SNAPBACK_APP_API_STATE_PARSE_FAILED",
-                "app-api",
-                "api-envelope state could not be serialized",
-            )
-            .with_detail("error", error.to_string())
-        })?;
-        let transaction = self.conn.transaction()?;
-        transaction.execute(
-            "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params![META_API_ENVELOPE_STATE, state_json],
-        )?;
-        if let Some((digest, canonical)) = composed {
-            transaction.execute(
-                "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
-                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                params![
-                    format!("{META_API_ENVELOPE_BYTES_PREFIX}{digest}"),
-                    canonical
-                ],
-            )?;
-        }
-        // Evict every stored envelope outside the retention window.
-        let mut evict =
-            transaction.prepare("SELECT key FROM _snapback_meta WHERE key LIKE ?1 ESCAPE '\\'")?;
-        let stored: Vec<String> = evict
-            .query_map(
-                params![format!(
-                    "{}%",
-                    META_API_ENVELOPE_BYTES_PREFIX.replace('_', "\\_")
-                )],
-                |row| row.get::<_, String>(0),
-            )?
-            .collect::<Result<_, _>>()?;
-        drop(evict);
-        for key in stored {
-            let digest = key
-                .strip_prefix(META_API_ENVELOPE_BYTES_PREFIX)
-                .unwrap_or_default();
-            if !retained.iter().any(|kept| kept == digest) {
-                transaction.execute("DELETE FROM _snapback_meta WHERE key = ?1", params![key])?;
-            }
-        }
-        transaction.commit()?;
-        Ok(())
-    }
-
-    /// The canonical bytes for a retained envelope digest, if still within
-    /// the retention window.
-    pub fn load_api_envelope_bytes(&self, digest: &str) -> SnapbackResult<Option<String>> {
-        Ok(self
-            .conn
-            .query_row(
-                "SELECT value FROM _snapback_meta WHERE key = ?1",
-                params![format!("{META_API_ENVELOPE_BYTES_PREFIX}{digest}")],
-                |row| row.get(0),
-            )
-            .optional()?)
-    }
-
-    pub fn query(&self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
-        query_on(&self.conn, &self.schema, plan, input)
-    }
-
-    /// One ceiling-bounded batch of the privileged migration scan against a
-    /// pinned read snapshot (LLP 0081 §3). The Wave-2 executor instead calls
-    /// [`migration_keyset_scan_batch_on`] inside its own batch transaction.
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn migration_keyset_scan_batch(
-        &self,
-        request: &MigrationKeysetScanRequestV1,
-        checkpoint: Option<&MigrationKeysetScanCheckpointV1>,
-    ) -> SnapbackResult<MigrationKeysetScanBatch> {
-        self.with_pinned_read_view(|db| match db {
-            DbRead::Pinned { conn, schema } => {
-                migration_keyset_scan_batch_on(conn, schema, request, checkpoint)
-            }
-            DbRead::Live(db) => {
-                migration_keyset_scan_batch_on(&db.conn, &db.schema, request, checkpoint)
-            }
-        })
-    }
-
-    /// Snapshot-pinned preview facts for LLP 0081's separately digested
-    /// observation. Each current v1 plan step declares at most one read table;
-    /// its row summary inspects no more than `max_affected_rows + 1` rows. The
-    /// extra row is the bounded signal that the reviewed ceiling is already
-    /// exceeded, without turning preview into an unbounded application scan.
-    ///
-    /// @ref LLP 0081#2-canonical-plan-and-approval — preview observations
-    /// carry the target head and bounded aggregate preconditions from one
-    /// snapshot, but never add authority to the sealed plan.
-    pub(crate) fn migration_preview_observation_facts(
-        &self,
-        steps: &[crate::migration::MigrationStepRecord],
-        max_affected_rows: u64,
-    ) -> SnapbackResult<(u64, BTreeMap<String, u64>)> {
-        self.with_pinned_read_view(|view| {
-            let head = view.current_version()?;
-            let limit = max_affected_rows
-                .saturating_add(1)
-                .min(i64::MAX as u64) as i64;
-            let mut table_rows = BTreeMap::<String, u64>::new();
-            let mut precondition_rows = BTreeMap::new();
-            for record in steps {
-                let [table] = record.reads.as_slice() else {
-                    // The v1 planner currently emits zero or one read table.
-                    // A later multi-source step needs a versioned observation
-                    // shape instead of collapsing several counts into one.
-                    continue;
-                };
-                let rows = match table_rows.get(table) {
-                    Some(rows) => *rows,
-                    None => {
-                        let _ = schema_table(view.schema(), table)?;
-                        let quoted = quote_ident(table)?;
-                        let observed: i64 = view.conn().query_row(
-                            &format!(
-                                "SELECT COUNT(*) FROM (SELECT 1 FROM {quoted} LIMIT ?1)"
-                            ),
-                            params![limit],
-                            |row| row.get(0),
-                        )?;
-                        let rows = u64::try_from(observed).map_err(|_| {
-                            SnapbackError::error(
-                                "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
-                                "storage",
-                                format!(
-                                    "preview row summary for {table} was outside the non-negative integer domain"
-                                ),
-                            )
-                        })?;
-                        table_rows.insert(table.clone(), rows);
-                        rows
-                    }
-                };
-                precondition_rows.insert(record.id.clone(), rows);
-            }
-            Ok((head, precondition_rows))
-        })
-    }
-
     /// Resume an interrupted migration-cleanup tail at reopen (LLP 0081
     /// §4: a crash after release reopens only the successor and resumes
     /// cleanup). Inventory-driven — no artifact required.
@@ -2854,23 +2657,6 @@ impl LocalDatabase {
             .map_err(SnapbackError::from)
     }
 
-    /// Execute a closed relational plan under `root-window-v1`.
-    ///
-    /// @ref LLP 0080#2-portable-evaluation-semantics — the normative
-    ///   pipeline: visible root filter → root order → take N roots → join +
-    ///   joined visibility → projection. Both source predicates execute
-    ///   inside one pinned read snapshot; `take` bounds consumed authorized
-    ///   roots; `inner` omits an unmatched or invisible joined row without
-    ///   refilling the page; `left` emits null joined leaves.
-    pub fn query_relational(
-        &self,
-        plan: &crate::manifest::RelationalQueryPlan,
-        input: &HandlerInput,
-        cursor: Option<&KeysetAfter>,
-    ) -> SnapbackResult<(QueryOutput, Option<KeysetAfter>)> {
-        self.with_pinned_read_view(|db| query_relational_on(&db, plan, input, cursor))
-    }
-
     /// Admit one approved exact-vector generation rebuild against the active
     /// schema. The executor owns its fixed snapshot and journal-floor lease;
     /// application mutations remain on their ordinary transaction path.
@@ -2951,25 +2737,6 @@ impl LocalDatabase {
             .map_err(SnapbackError::from)
     }
 
-    /// Run one complete query invocation against a snapshot-bound view of this
-    /// database. The file-backed read lane already supplies a transaction; this
-    /// gives direct-library, live-subscription, and in-memory fallback queries
-    /// the same rows/dependency-cursor boundary on the serialized connection.
-    ///
-    /// @ref LLP 0003#execution-and-write-semantics — every query-handler read
-    /// and its reported/dependency versions come from one snapshot.
-    pub(crate) fn with_pinned_read_view<T>(
-        &self,
-        read: impl FnOnce(DbRead<'_>) -> SnapbackResult<T>,
-    ) -> SnapbackResult<T> {
-        with_pinned_read_snapshot(&self.conn, |conn| {
-            read(DbRead::Pinned {
-                conn,
-                schema: &self.schema,
-            })
-        })
-    }
-
     /// Quarantine only the generation named by a failed pinned vector read.
     /// Callers invoke this after `with_pinned_read_view` returns, never while
     /// the read transaction that detected corruption is still open.
@@ -3003,84 +2770,8 @@ impl LocalDatabase {
         )
     }
 
-    pub(crate) fn query_with_storage_limit(
-        &self,
-        plan: &QueryPlan,
-        input: &HandlerInput,
-        storage_limit: usize,
-    ) -> SnapbackResult<QueryOutput> {
-        query_on_with_storage_limit(&self.conn, &self.schema, plan, input, storage_limit)
-    }
-
-    pub fn get(&self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
-        get_on(&self.conn, &self.schema, table, id)
-    }
-
     pub fn generate_id(&self) -> String {
         new_id()
-    }
-
-    /// Read a page of a table for the admin data explorer.
-    ///
-    /// Schema-aware and read-only: the table must be a known schema table, rows
-    /// decode through the same field-type rules as `query`, and ordering is a
-    /// stable `(_createdAt, _id)` so paging is deterministic. This is the paved
-    /// read path; it is not raw SQL.
-    ///
-    /// @ref LLP 0017#durable-data-exploration-and-edits — read-only exploration
-    /// through schema-aware storage with system fields shown.
-    pub fn scan_table(
-        &self,
-        table: &str,
-        limit: usize,
-        offset: usize,
-    ) -> SnapbackResult<TableScan> {
-        let table_manifest = schema_table(&self.schema, table)?;
-        with_pinned_read_snapshot(&self.conn, |conn| {
-            let snapshot_version = current_version_on(conn)?;
-            let quoted = quote_ident(table)?;
-
-            let total: i64 =
-                conn.query_row(&format!("SELECT COUNT(*) FROM {quoted}"), [], |row| {
-                    row.get(0)
-                })?;
-
-            let sql = format!(
-                "SELECT * FROM {quoted} ORDER BY \"_createdAt\" ASC, \"_id\" ASC LIMIT ?1 OFFSET ?2"
-            );
-            // @ref LLP 0162#measurement-gate — ordinary current-range reads
-            // preserve the pinned pre-profile per-call preparation boundary.
-            let mut statement = conn.prepare(&sql)?;
-            let columns = statement
-                .column_names()
-                .into_iter()
-                .map(ToOwned::to_owned)
-                .collect::<Vec<_>>();
-            let mut sql_rows = statement.query(params![limit as i64, offset as i64])?;
-            let mut rows = Vec::new();
-            while let Some(row) = sql_rows.next()? {
-                let document = row_to_document(row, table_manifest, &columns)?;
-                validate_document_version_at_most(&document, snapshot_version, table)?;
-                rows.push(document);
-            }
-
-            let mut display_columns = vec!["_id".to_owned()];
-            display_columns.extend(table_manifest.fields.iter().map(|field| field.name.clone()));
-            display_columns.extend([
-                "_version".to_owned(),
-                "_createdAt".to_owned(),
-                "_updatedAt".to_owned(),
-            ]);
-
-            Ok(TableScan {
-                table: table.to_owned(),
-                columns: display_columns,
-                rows,
-                total: total as usize,
-                limit,
-                offset,
-            })
-        })
     }
 
     pub fn execute_mutation(
@@ -6889,7 +6580,11 @@ impl DbRead<'_> {
     pub fn query(&self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
         match self {
             DbRead::Pinned { conn, schema } => query_on(conn, schema, plan, input),
-            _ => self.live().expect("live db").query(plan, input),
+            _ => self
+                .live()
+                .expect("live db")
+                .query_reads_read()
+                .query(plan, input),
         }
     }
 
@@ -7024,6 +6719,7 @@ impl DbRead<'_> {
             _ => self
                 .live()
                 .expect("live db")
+                .query_reads_read()
                 .query_with_storage_limit(plan, input, storage_limit),
         }
     }
@@ -7031,7 +6727,11 @@ impl DbRead<'_> {
     pub fn get(&self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
         match self {
             DbRead::Pinned { conn, schema } => get_on(conn, schema, table, id),
-            _ => self.live().expect("live db").get(table, id),
+            _ => self
+                .live()
+                .expect("live db")
+                .query_reads_read()
+                .get(table, id),
         }
     }
 
