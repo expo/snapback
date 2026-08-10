@@ -60,3 +60,16 @@ or write a governed rollover with module-own byte evidence — keeping historica
 receipts immutable. Note: Lane D/F landed React/client changes via bypass while
 client-bundle-metrology was already baseline-red, so this ratchet should be
 re-measured and re-baselined once the sweep's client changes have settled.
+
+## Resolution — 2026-08-10 (overtaken)
+
+Overtaken by today's metrology work: Charlie's 2026-08-10 standing policy
+(LLP 0145 §Phase A dated amendment, 6a025aabe) replaced per-instance
+attribution rulings; the flagged +99 B/+1 B growth was absorbed into the
+subsequent governed rollovers (search-prewitness-refusal,
+rqs-store-competing-writer, lease-custody-and-remediation,
+live-wire-replay-seam — each with attribution, byte deltas, and behavior
+train). `client-bundle-metrology.mjs --check` is green on current main
+under the pinned Node 24.18.0 (58 profiles, no frozen ceiling regressions;
+verified at 0eac1d309). Nothing left to attribute or trim under the old
+posture. Closing.
