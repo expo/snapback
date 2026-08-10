@@ -638,6 +638,17 @@ assert.equal(appStateListeners.size, 0);
       searchClient.search('searchIncidents', { query: queryAst }),
       (error) => error.code === 'SNAPBACK_SEARCH_REFERENCE_INVALID',
     );
+    const {
+      searchRequestContractHash: omittedSearchRequestContractHash,
+      ...preWitnessSearchRef
+    } = searchRef;
+    assert.equal(omittedSearchRequestContractHash, SEARCH_REQUEST_ARGS_CONTRACT_HASH);
+    await assert.rejects(
+      searchClient.search(preWitnessSearchRef, { query: queryAst }),
+      (error) => error.code === 'SNAPBACK_SEARCH_REFERENCE_INVALID'
+        && /predates the request witness/u.test(error.message)
+        && /regenerate the app references/u.test(error.message),
+    );
     await assert.rejects(
       searchClient.search({
         ...searchRef,

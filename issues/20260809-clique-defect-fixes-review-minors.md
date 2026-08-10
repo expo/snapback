@@ -33,3 +33,18 @@
    (plural) still keys on `entries` identity — same shape as the fixed
    inline-args hazard, pre-existing and outside the fixed tickets' scope;
    assess whether group entries need the content-key treatment.
+
+## Dated note — 2026-08-10 (5 of 6 landed)
+
+Landed: LLP 0208 ticket links corrected; pre-witness search references now
+refuse with the explicit "regenerate the app references" hint (package
+regression proves refusal before I/O); the `userId` resourceArg/auth-slot
+collision documented in LLP 0131 + the text-search page; the React
+queue-wedged warning no longer falsely names a specific mutation as the
+blocking head (regression added); the React page clarifies that every
+rejected attempt (incl. SNAPBACK_REACT_MUTATION_QUEUED) removes its built-in
+optimistic layer. Remaining in this ticket: the
+expectedArgsContractHash/carriedArgsContractHash compat-alias rename (ticket's
+own "after one release" caveat — do at/after the next release cut), plus the
+noted follow-up that `useSnapbackQueries` still memoizes on `entries` object
+identity rather than a content key.

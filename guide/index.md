@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed: 2026-08-10
+reviewed-commit: HEAD
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -280,6 +280,9 @@ you never build around a feature because you didn't know it existed.
 - [Back up, copy, and move a store](./operating/backup-and-copy.md) — a store
   is not one file: the declared durable-state set, the WAL-consistent
   `snapback store export` copy verb, and how copy, restore, and fork differ.
+- [Continuously replicate a local SQLite store](./operating/replication.md) —
+  configure the experimental self-hosted LTX lane, read the restorable
+  frontier, checkpoint, restore under quarantine, and run the G2 drill.
 - [Secrets and deployment config](./operating/secrets-and-config.md) —
   declare, set, verify, grant, and consume write-only values.
 - [Host operations](./operating/host-ops.md) — the complete CLI/HTTP

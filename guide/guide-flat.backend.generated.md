@@ -4649,13 +4649,13 @@ id: backend.text-search
 order: 27
 audience: agent-first
 capabilities: [backend.text-search]
-authorities: [llp/0073-portable-full-text-search.rfc.md, src/search/types.rs, src/search/sqlite.rs, packages/snapback-codegen/define.mjs, packages/snapback-client/search.mjs]
+authorities: [llp/0073-portable-full-text-search.rfc.md, llp/0131-structured-argument-contracts.spec.md, src/search/types.rs, src/search/sqlite.rs, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs, packages/snapback-client/search.mjs]
 examples: [demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed: 2026-08-10
+reviewed-commit: HEAD
 ---
 
 # Portable indexed text search
@@ -4781,6 +4781,14 @@ requires that resource key. The reference binds the shared search-request
 grammar separately from the complete operation arguments, so the typed
 wrapper accepts same-generation plain and resource-scoped references while
 the ordinary closed argument validator still checks the resource value.
+
+`resourceArg` also owns the same-named option slot. In particular, a generated
+resource argument named `userId` becomes application data; it cannot
+simultaneously carry dev-mode per-call auth through `options.userId`, and the
+client deliberately omits that auth assertion. Use session/coordinator-owned
+authority for that invocation, or rename the resource argument and regenerate
+the references. Do not rely on one option value to mean both resource identity
+and caller identity.
 
 ```ts source=demos/signal-desk/src/backends/snapback.ts
   async searchIncidents(term: string) {

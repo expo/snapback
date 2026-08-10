@@ -4,13 +4,13 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.browser-session-custody, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/browser-auth, demos/card-game, demos/party-wall]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed: 2026-08-10
+reviewed-commit: HEAD
 ---
 
 # Sessions and principals
@@ -122,6 +122,31 @@ app whose identity front door lives in trusted server code, use the sanctioned
 gated non-production session-mint host operation and the first-party client
 adopts the resulting bearer with exact protocol offers. Neither path is a
 hosted-production auth claim.
+
+### Mint a local session from a trusted server
+
+The paved local operation is
+`snapback session mint --email <address> --ready-file <path>`. A trusted broker
+that cannot invoke the CLI may call the same host operation over HTTP. It
+requires an already-settled sessions app, a non-production server profile,
+`AdminWrite`, and the impersonation capability:
+
+```sh
+curl --fail-with-body \
+  -H 'content-type: application/json' \
+  -H "x-snapback-admin-token: $SNAPBACK_ADMIN_TOKEN" \
+  -H "x-snapback-impersonation-capability: $SNAPBACK_IMPERSONATION_CAPABILITY" \
+  --data '{"operation":"auth.mintSession","requestId":"broker-login-01","args":{"email":"person@example.test"}}' \
+  "$SNAPBACK_ORIGIN/_snapback/api/host-ops"
+```
+
+The response is the ordinary host-ops envelope. Its
+`hostOpsResult.data` contains `token`, `tokenType`, `session`,
+`refreshAfter`, and `authorityDescriptor`; adopt the bearer through the
+first-party external-session custody path instead of inventing another auth
+carrier. Keep both header values and the returned token in trusted server
+custody. Never run this request in browser/native application code, bake its
+secrets into a bundle, or treat the non-production gate as hosted identity.
 
 Two more session routes are shipped and deliberately narrow.
 `POST /auth/step-up/request` mints a five-minute, operation-bound

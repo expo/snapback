@@ -9,13 +9,13 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.browser-session-custody, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/browser-auth, demos/card-game, demos/party-wall]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed: 2026-08-10
+reviewed-commit: HEAD
 ---
 
 # Sessions and principals
@@ -127,6 +127,31 @@ app whose identity front door lives in trusted server code, use the sanctioned
 gated non-production session-mint host operation and the first-party client
 adopts the resulting bearer with exact protocol offers. Neither path is a
 hosted-production auth claim.
+
+### Mint a local session from a trusted server
+
+The paved local operation is
+`snapback session mint --email <address> --ready-file <path>`. A trusted broker
+that cannot invoke the CLI may call the same host operation over HTTP. It
+requires an already-settled sessions app, a non-production server profile,
+`AdminWrite`, and the impersonation capability:
+
+```sh
+curl --fail-with-body \
+  -H 'content-type: application/json' \
+  -H "x-snapback-admin-token: $SNAPBACK_ADMIN_TOKEN" \
+  -H "x-snapback-impersonation-capability: $SNAPBACK_IMPERSONATION_CAPABILITY" \
+  --data '{"operation":"auth.mintSession","requestId":"broker-login-01","args":{"email":"person@example.test"}}' \
+  "$SNAPBACK_ORIGIN/_snapback/api/host-ops"
+```
+
+The response is the ordinary host-ops envelope. Its
+`hostOpsResult.data` contains `token`, `tokenType`, `session`,
+`refreshAfter`, and `authorityDescriptor`; adopt the bearer through the
+first-party external-session custody path instead of inventing another auth
+carrier. Keep both header values and the returned token in trusted server
+custody. Never run this request in browser/native application code, bake its
+secrets into a bundle, or treat the non-production gate as hosted identity.
 
 Two more session routes are shipped and deliberately narrow.
 `POST /auth/step-up/request` mints a five-minute, operation-bound
@@ -1717,13 +1742,13 @@ id: auth.targets
 order: 7
 audience: agent-first
 capabilities: [auth.target-honesty, auth.sender-constrained-browser]
-authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0077-sender-constrained-browser-auth.spec.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, packages/snapback-client/hosted-browser.mjs, README.md]
+authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0077-sender-constrained-browser-auth.spec.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, src/admin.rs, packages/snapback-client/hosted-browser.mjs, README.md]
 examples: [packages/snapback-client/hosted-browser.test.mjs, packages/snapback-client/sender-transport.test.mjs, tests/sender_proof_cross_language.rs]
 status: current
 targets: [all]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-10
+reviewed-commit: HEAD
 ---
 
 # Targets — what each one claims
@@ -1749,6 +1774,21 @@ TLS, no trusted effective-source derivation, no shared authentication
 throttle, no multi-replica invalidation, and no sender-constrained browser
 credential. Hosted auth is honestly **disabled** on the local bearer
 target rather than half-claimed.
+
+### A public tunnel does not make the loopback server production-ready
+
+Profile derivation sees the server's actual bind address, not the URL that a
+reverse proxy advertises. A server listening on `127.0.0.1` remains in the
+development profile when ngrok, Cloudflare Tunnel, Tailscale Funnel, SSH, or
+another proxy exposes it publicly. The tunnel does not add trusted effective
+source derivation, TLS ownership, shared throttling, or hosted credential
+custody, and Snapback cannot infer those properties from forwarded headers.
+
+Setting `SNAPBACK_PROFILE=prod` is not a repair. The explicit production
+profile fails closed when the hosted prerequisites are absent and may refuse
+the local-only provisioning and impersonation operations the app needs. Treat
+a tunnelled loopback server as an unsupported public exposure: use it only in
+a controlled development context, never as a production deployment recipe.
 
 ## Cloudflare — the hosted proof, as far as it is real
 

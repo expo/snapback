@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: 772c006495
+reviewed: 2026-08-10
+reviewed-commit: HEAD
 ---
 
 # The React client
@@ -357,11 +357,14 @@ const toggleTask = useSnapbackMutation(api.toggleTask, {
 The optimistic layer is installed only over the provider's already-current
 authoritative query store and is validated against the generated result
 contract before network work. Overlapping attempts rebase in invocation order.
-Server rejection removes only its own layer and recomputes over the newest
-authoritative base. An HTTP response validates and settles the mutation
-promise, but is not itself live-query authority; `isAuthoritative`, when
-present, retires that layer only after a matching validated live delivery.
-There are at most 256 pending optimistic layers per store.
+Any rejected mutation call removes that attempt's built-in optimistic layer
+and recomputes over the newest authoritative base. That includes the
+`SNAPBACK_REACT_MUTATION_QUEUED` rejection: durable custody remains pending,
+but the built-in layer is not retained. An HTTP response validates and settles
+the mutation promise, but is not itself live-query authority;
+`isAuthoritative`, when present, retires that layer only after a matching
+validated live delivery. There are at most 256 pending optimistic layers per
+store.
 
 `update` is a **replayable projection**, not an action: it is recomputed over
 every newer authoritative base, so capture the intended outcome outside the

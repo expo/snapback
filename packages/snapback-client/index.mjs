@@ -328,6 +328,23 @@ function assertSearchFunctionReferenceV1(ref) {
     'argsContractHash',
     'resultContractHash',
   ];
+  const otherwiseGeneratedQuery = ref !== null
+    && typeof ref === 'object'
+    && !Array.isArray(ref)
+    && ref.artifactKind === 'functionReference'
+    && ref.kind === 'Query'
+    && requiredStrings.every((key) => typeof ref[key] === 'string' && ref[key].length > 0);
+  if (
+    otherwiseGeneratedQuery
+    && (
+      typeof ref.searchRequestContractHash !== 'string'
+      || ref.searchRequestContractHash.length === 0
+    )
+  ) {
+    throw searchReferenceInvalid(
+      'Snapback search reference predates the request witness; regenerate the app references',
+    );
+  }
   if (
     ref === null
     || typeof ref !== 'object'

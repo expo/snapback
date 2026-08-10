@@ -1032,10 +1032,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       }
       if (terminal || status?.supported !== true || status.pending === 0) return;
       console.warn(
-        `SNAPBACK_REACT_MUTATION_QUEUE_WEDGED: the durable queue head blocking mutation `
-        + `"${mutationReference.name}" (${outcome.clientMutationId}, sequence ${outcome.sequence}) `
-        + `has not advanced for ${queuedMutationWedgeWarningMs}ms; later mutations remain queued `
-        + 'behind it. Inspect useSnapbackOutbox() and the original connectivity refusal.',
+        `SNAPBACK_REACT_MUTATION_QUEUE_WEDGED: the durable queue still has pending work `
+        + `${queuedMutationWedgeWarningMs}ms after mutation "${mutationReference.name}" `
+        + `(${outcome.clientMutationId}, sequence ${outcome.sequence}) was queued; the bounded `
+        + 'diagnostic history does not prove whether that specific mutation remains pending. '
+        + 'Inspect useSnapbackOutbox() and the original connectivity refusal.',
       );
     }, queuedMutationWedgeWarningMs);
     timer?.unref?.();

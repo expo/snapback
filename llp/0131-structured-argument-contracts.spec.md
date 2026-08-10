@@ -5,7 +5,10 @@
 **Systems:** Authoring, Code generation, Runtime, Application data API, Search, Client integration, Contract, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-09 (typed-search selector correction: generated search
+**Revised:** 2026-08-10 (recorded the fail-closed option-collision boundary:
+a search `resourceArg` owns its namesake client option, so `userId` cannot also
+carry dev-mode per-call authority; use session custody or rename and regenerate).
+2026-08-09 (typed-search selector correction: generated search
 references now carry the unchanged SearchRequestV1 witness separately from
 the complete operation args witness, so membership `resourceArg` additions do
 not look like client/codegen generation skew; the qualified publication gate
@@ -1302,6 +1305,16 @@ marker and does not weaken complete-argument validation; the subsequent
 ordinary `query()` path validates the full generated `argumentSchema` and
 sends the full `argsContractHash`/generation as before. The lockstep-release
 rule from cascade item 2 remains unchanged.
+
+The flat options object has one fail-closed collision boundary. A generated
+`searchResourceArg` owns the option with that name. When that name is `userId`,
+the value is application resource data and `client.search()` must not also
+interpret it as dev-mode per-call authority; the ordinary query receives no
+caller `userId`. Applications needing both use session/coordinator-owned
+authority, or rename the resource argument and regenerate. One scalar must
+never be ambiguously treated as both resource identity and invocation
+authority. The same reserved-slot rule applies to `readSet` and
+`authorityCapture`.
 
 Acceptance is one real-codegen composition test that generates both a plain
 and membership `resourceArg` search reference, runs each through the shipped

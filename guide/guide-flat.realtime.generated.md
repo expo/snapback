@@ -263,8 +263,8 @@ examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed: 2026-08-10
+reviewed-commit: HEAD
 ---
 
 # Ephemeral realtime state
@@ -476,6 +476,18 @@ The client prunes by the server-stamped expiry deadline. Server expiry,
 explicit delete, and disconnect normally emit remove deltas, but TTL is the
 backstop when that remove is lost.
 
+### Do not use two tabs as a two-device presence test
+
+Two tabs in the same browser profile share the client store's leader-owned
+live connection. Connection-keyed presence can therefore identify both tabs
+with the same granted `selfKey`; filtering each tab's own row may make the
+other tab disappear as “self.” This is the expected shared-leader result, not
+evidence that multi-device or multi-user presence is broken.
+
+Use isolated browser profiles/contexts, separate browser instances, or real
+devices when a proof needs two independent connection identities. Per-tab
+connection identity inside one shared profile is not a shipped capability.
+
 ## Treat epochs and versions as one-room coordinates
 
 `entryVersion` is a monotonic room-local high-water coordinate, meaningful
@@ -575,6 +587,9 @@ so repeat an apply when `bounds.truncated` is true or `complete` is false.
   process-local.
 - **Do not derive self from a readable connection label.** The granted id on
   the overlay is the connection-owned lease key.
+- **Do not infer independent presence identities from same-profile tabs.**
+  The shared leader connection can make both tabs the same connection-owned
+  self; use isolated browser contexts for a two-device proof.
 
 ---
 

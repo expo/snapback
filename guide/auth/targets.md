@@ -4,13 +4,13 @@ id: auth.targets
 order: 7
 audience: agent-first
 capabilities: [auth.target-honesty, auth.sender-constrained-browser]
-authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0077-sender-constrained-browser-auth.spec.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, packages/snapback-client/hosted-browser.mjs, README.md]
+authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0077-sender-constrained-browser-auth.spec.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, src/admin.rs, packages/snapback-client/hosted-browser.mjs, README.md]
 examples: [packages/snapback-client/hosted-browser.test.mjs, packages/snapback-client/sender-transport.test.mjs, tests/sender_proof_cross_language.rs]
 status: current
 targets: [all]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-10
+reviewed-commit: HEAD
 ---
 
 # Targets — what each one claims
@@ -36,6 +36,21 @@ TLS, no trusted effective-source derivation, no shared authentication
 throttle, no multi-replica invalidation, and no sender-constrained browser
 credential. Hosted auth is honestly **disabled** on the local bearer
 target rather than half-claimed.
+
+### A public tunnel does not make the loopback server production-ready
+
+Profile derivation sees the server's actual bind address, not the URL that a
+reverse proxy advertises. A server listening on `127.0.0.1` remains in the
+development profile when ngrok, Cloudflare Tunnel, Tailscale Funnel, SSH, or
+another proxy exposes it publicly. The tunnel does not add trusted effective
+source derivation, TLS ownership, shared throttling, or hosted credential
+custody, and Snapback cannot infer those properties from forwarded headers.
+
+Setting `SNAPBACK_PROFILE=prod` is not a repair. The explicit production
+profile fails closed when the hosted prerequisites are absent and may refuse
+the local-only provisioning and impersonation operations the app needs. Treat
+a tunnelled loopback server as an unsupported public exposure: use it only in
+a controlled development context, never as a production deployment recipe.
 
 ## Cloudflare — the hosted proof, as far as it is real
 

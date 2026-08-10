@@ -1445,6 +1445,56 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-react/package.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.search-prewitness-refusal.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'search-prewitness-refusal.2026-08-10.v1',
+    profileIds: Object.freeze([
+      'external-react-application',
+      'react-external',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.asset-url-hook.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'react-external',
+        ]),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0131#amendment-2026-08-09-typed-search-selector-witness-for-resource-scoped-references',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-10',
+      landing: '9da5f79e1defaa234d97ae213ecd7c204819fb33',
+      fix: 'The landed clique-review fix-forward explicitly refuses generated '
+        + 'search references that predate searchRequestContractHash before I/O '
+        + 'with a regeneration hint, and rewords the React durable-queue wedge '
+        + 'warning so bounded diagnostic history does not falsely identify a '
+        + 'specific blocking mutation. Both changes are regression-tested.',
+      ticket: 'issues/20260809-clique-defect-fixes-review-minors.md',
+      standingPolicy: 'LLP 0145 Phase A, 2026-08-10 author ruling: attributed '
+        + 'growth from a landed, receipted fix takes an automatic blessed rollover.',
+      byteDeltas: 'external-react-application min 104633->104691 (+58), gzip '
+        + '32305->32328 (+23), brotli 28170->28200 (+30); react-external min '
+        + '104458->104516 (+58), gzip 32252->32275 (+23), brotli '
+        + '28086->28138 (+52).',
+      summary: 'Advance exactly the two React closures for the landed search '
+        + 'pre-witness refusal and truthful queue-wedge diagnostic; every other '
+        + 'active ceiling and the asset-url-hook predecessor remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'external-react-application',
+      'react-external',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {

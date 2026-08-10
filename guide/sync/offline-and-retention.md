@@ -4,13 +4,13 @@ id: sync.offline-and-retention
 order: 1
 audience: agent-first
 capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.offline-js-arm-sessions, sync.local-persistent-store]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/assets.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, packages/snapback-expo/supervised-environment.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
 examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, demos/browser-local-first, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-client/rqs-resume.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-08
-reviewed-commit: 98257903f5b726e1e19fe9ac3132ea3ed83ecd78
+reviewed: 2026-08-10
+reviewed-commit: HEAD
 ---
 
 # Offline retention and mutation replay
@@ -94,6 +94,39 @@ IndexedDB store in browsers, a durable file store on node, and an in-memory
 fallback elsewhere, reporting the resolved implementation and durability on
 `client.rqsStoreInfo` (pass `rqsStore: null` or set
 `SNAPBACK_CLIENT_RQS_STORE=off` to opt out).
+
+### Branch on a persisted binding receipt at offline cold boot
+
+`prepareReactBinding` may return a ready binding with
+`source: 'persisted-receipt'` when transport-provenance connectivity failure
+prevents fresh negotiation and the generated manifest is byte-identical to
+the stored receipt. That is a successful offline cold-boot branch, not a
+binding failure. Render the retained/offline presentation and let the client
+renegotiate when connectivity returns:
+
+```ts fragment reason="Application-specific boot UI around the shipped persisted-receipt discriminator."
+const binding = await client.prepareReactBinding({ generatedManifest });
+if (binding.source === 'persisted-receipt') {
+  showOfflineBanner();
+}
+```
+
+The fallback does not accept a changed manifest, an HTTP refusal, or an
+unproven generic error. Do not catch `SNAPBACK_APP_BINDING_UNAVAILABLE` and
+manufacture this state yourself.
+
+### Retained asset references do not retain image bytes
+
+Retained rows persist asset references and text, but the first-party asset
+client does not persist rendition bytes. Its issued-URL cache is in memory;
+after process death or a cold offline launch, an `<Image>` backed only by that
+URL may be unavailable even while the row renders as `retained`.
+
+Design an explicit offline placeholder and retry when the network returns. If
+product policy permits, an app may own a bounded on-device byte cache, but the
+app must also own its expiry, quota, logout wipe, and revocation behavior.
+Snapback currently provides no privacy- or revocation-aware offline image-byte
+cache, so do not describe that workaround as platform retention.
 
 Two mechanics make an offline **proof** trial-and-error if you do not know
 them, so know them before you kill a client or export a bundle:
@@ -235,8 +268,11 @@ generated result-only resolved type, so the same durable outcome rejects with
 `SnapbackQueuedMutationError` and code
 `SNAPBACK_REACT_MUTATION_QUEUED`. That class is a pending-settlement signal,
 not a server refusal: it has `queued === true`, names the mutation identity and
-sequence, and has no `appCode`. Keep the user's pending presentation. Roll it
-back only for a server refusal whose diagnostic carries a declared `appCode`:
+sequence, and has no `appCode`. Any rejected mutation call, including this
+one, removes that attempt's built-in optimistic layer; the application's
+pending presentation is separate and must remain visible. Roll that app-owned
+presentation back only for a server refusal whose diagnostic carries a
+declared `appCode`:
 
 ```ts fragment reason="pending presentation and refusal copy are application-specific"
 try {
@@ -258,11 +294,14 @@ try {
 ```
 
 In development, the React arm logs the queued mutation immediately. If the
-queue head still blocks it after 30 seconds, it logs
-`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED`; later mutations remain ordered behind
-that head. These warnings do not add an automatic drain or an oldest-pending
-hook. Those remain the LLP 0208 G1 follow-on; today, inspect and explicitly
-drain through `useSnapbackOutbox()`.
+durable queue still has pending work after 30 seconds and the bounded
+diagnostic history has not proven that mutation's progress, it logs
+`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED`. The warning deliberately does not
+claim that the named mutation is still present or is the blocking head: the
+bounded history may have evicted its settlement. These warnings do not add an
+automatic drain or an oldest-pending hook. Those remain the LLP 0208 G1
+follow-on; today, inspect and explicitly drain through
+`useSnapbackOutbox()`.
 
 <!-- since: 0.1.15 -->
 

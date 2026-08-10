@@ -13,3 +13,13 @@ Two small B9 losses from the Clique pilot's Snapback lane vs Convex's
    (binding.source:'persisted-receipt' — undocumented). Both belong in
    the guide per LLP 0193's errors-as-docs bar (the error/behavior is
    the retrieval key). Evidence: p2-pilot snapback-lane run-log.md.
+
+## Dated note — 2026-08-10 (mint-docs half landed)
+
+`guide/auth/sessions-and-principals.md` now documents `snapback session mint`
+and the exact `POST /_snapback/api/host-ops` `auth.mintSession` request
+(authority headers, body, envelope, settled-sessions boundary, custody);
+the offline page documents the `binding.source === 'persisted-receipt'`
+cold-boot branch and tells apps to render offline presentation rather than
+reject it. The scaffold/dev-start env auto-write half remains open (in
+flight on a parallel lane).

@@ -71,3 +71,12 @@ exposure exists whether or not the dev edge is ever built.
 
 Direction 3 is the only one that does not depend on operator diligence, and is
 correspondingly the largest change. Direction 1 should land regardless.
+
+## Dated note — 2026-08-10 (direction 1 landed)
+
+`guide/auth/targets.md` now states: a tunnelled loopback server
+(ngrok/Cloudflare Tunnel/Tailscale Funnel/SSH) stays bind-derived
+development; public exposure this way is unsupported; `SNAPBACK_PROFILE=prod`
+is not a repair and may fail closed. Verified against `src/admin.rs` and
+LLP 0060 D1. Directions 2 (explicit exposure declaration) and 3 (narrowing
+loopback default authority) remain open — this ticket stays open for them.

@@ -97,12 +97,12 @@ gap, this Plan escalates or annotates it instead of forking a duplicate.
 Four defect-grade findings proceed as standalone tickets, fix-forward
 per LLP 0189, independent of this Plan's review state:
 
-- `issues/20260809-typed-search-reference-hash-skew.md` — the typed
+- `issues/closed/20260809-typed-search-reference-hash-skew.md` — the typed
   `client.search()` wrapper refuses same-release generated
   resource-scoped references in 0.1.15 (`client.query()` executes the
   identical search); includes the qualification-gate ask so the skew
   class cannot re-escape.
-- `issues/20260809-queued-mutation-settlement-truthfulness.md` — the
+- `issues/closed/20260809-queued-mutation-settlement-truthfulness.md` — the
   outbox's untruthful call-site contract, both facets: a durably-queued
   offline mutation's settlement *rejects*
   (`SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED`) though the intent
@@ -110,7 +110,7 @@ per LLP 0189, independent of this Plan's review state:
   `{queued:true}` indistinguishably from a commit, silently wedging
   everything behind it. Independently hit by both mutually-blind pilot
   sessions. G1 below carries the design remainder.
-- `issues/20260809-handler-runtime-errors-generic.md` — runtime handler
+- `issues/closed/20260809-handler-runtime-errors-generic.md` — runtime handler
   failures reduce to bare `SNAPBACK_HANDLER_FAILED` (e.g.
   `ctx.runtime.newId()` typo), the one 30-grade class beside the
   90-grade refusal surface; routed to LLP 0193's no-refusal failure

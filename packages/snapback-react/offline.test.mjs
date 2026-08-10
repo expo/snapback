@@ -443,8 +443,9 @@ function createOfflineFakeClient({ outbox = null } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// 6. A queued hook dispatch is loud in development, and a queue head that
-//    remains pending past the threshold warns again with the mutation name.
+// 6. A queued hook dispatch is loud in development. A later pending-count
+//    warning is honest when bounded diagnostics cannot prove that the named
+//    mutation itself is still pending or blocking the queue.
 // ---------------------------------------------------------------------------
 {
   const priorNodeEnv = process.env.NODE_ENV;
@@ -456,7 +457,7 @@ function createOfflineFakeClient({ outbox = null } = {}) {
   try {
     const outbox = {
       supported: true,
-      records: [{ id: 'queued-record-1', status: 'pending' }],
+      records: [{ id: 'different-pending-record', status: 'pending' }],
     };
     const fake = createOfflineFakeClient({ outbox });
     fake.mutate = async () => ({
@@ -479,10 +480,13 @@ function createOfflineFakeClient({ outbox = null } = {}) {
     assert.match(warnings[0], /mutation "record"/);
 
     await new Promise((resolve) => setTimeout(resolve, 20));
-    assert.equal(warnings.length, 2, 'the still-pending head warns after the threshold');
+    assert.equal(warnings.length, 2, 'remaining durable work warns after the threshold');
     assert.match(warnings[1], /SNAPBACK_REACT_MUTATION_QUEUE_WEDGED/);
     assert.match(warnings[1], /mutation "record"/);
     assert.match(warnings[1], /queued-record-1/);
+    assert.match(warnings[1], /does not prove whether that specific mutation remains pending/);
+    assert.doesNotMatch(warnings[1], /queue head blocking mutation/);
+    assert.doesNotMatch(warnings[1], /later mutations remain queued behind it/);
   } finally {
     if (provider !== null) await provider.dispose();
     console.warn = originalWarn;
