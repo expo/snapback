@@ -170,6 +170,10 @@ struct AgentSafePublicationReceiptV1 {
     capability_id: String,
     qualified_source_commit: String,
     implementation_digest_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    implementation_scope: Option<AgentSafeImplementationScopeV1>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    selection_policy_sha256: Option<String>,
     implementation_tree_sha256: String,
     candidate_facts_sha256: String,
     qualified_target_profile_id: String,
@@ -177,6 +181,120 @@ struct AgentSafePublicationReceiptV1 {
     negative_build_distributions: Vec<String>,
     qualified_components: Vec<String>,
     evidence: Vec<AgentSafeEvidenceBindingV1>,
+}
+
+// @ref LLP 0189#decision — D-4 makes this exact roots/files classification
+// part of the named-author-accepted derived-fork claim record.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct AgentSafeImplementationScopeV1 {
+    schema_version: AgentSafeImplementationScopeSchemaV1,
+    roots: Vec<AgentSafeImplementationRootV1>,
+    files: Vec<AgentSafeImplementationFileV1>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+enum AgentSafeImplementationScopeSchemaV1 {
+    #[serde(rename = "snapback.agent-safe-implementation-scope.v1")]
+    V1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+enum AgentSafeImplementationRootV1 {
+    #[serde(rename = "src")]
+    Src,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+enum AgentSafeImplementationFileV1 {
+    #[serde(rename = ".gitmodules")]
+    Gitmodules,
+    #[serde(rename = "Cargo.lock")]
+    CargoLock,
+    #[serde(rename = "Cargo.toml")]
+    CargoToml,
+    #[serde(rename = "build.rs")]
+    BuildRs,
+    #[serde(rename = "scripts/check-agent-safe-publication.mjs")]
+    PublicationChecker,
+    #[serde(rename = "scripts/generated-artifact-policy.mjs")]
+    GeneratedArtifactPolicy,
+    #[serde(rename = "vendor/ibex")]
+    VendorIbex,
+}
+
+#[cfg(test)]
+fn derived_fork_implementation_scope() -> AgentSafeImplementationScopeV1 {
+    AgentSafeImplementationScopeV1 {
+        schema_version: AgentSafeImplementationScopeSchemaV1::V1,
+        roots: vec![AgentSafeImplementationRootV1::Src],
+        files: vec![
+            AgentSafeImplementationFileV1::Gitmodules,
+            AgentSafeImplementationFileV1::CargoLock,
+            AgentSafeImplementationFileV1::CargoToml,
+            AgentSafeImplementationFileV1::BuildRs,
+            AgentSafeImplementationFileV1::PublicationChecker,
+            AgentSafeImplementationFileV1::GeneratedArtifactPolicy,
+            AgentSafeImplementationFileV1::VendorIbex,
+        ],
+    }
+}
+
+#[cfg(test)]
+fn derived_fork_v3_evidence_path_matches(index: usize, path: &str) -> bool {
+    fn is_dated_path(path: &str, prefix: &str, suffix: &str) -> bool {
+        path.strip_prefix(prefix)
+            .and_then(|value| value.strip_suffix(suffix))
+            .is_some_and(|date| {
+                let has_iso_shape = date.len() == 10
+                    && date.as_bytes()[4] == b'-'
+                    && date.as_bytes()[7] == b'-'
+                    && date
+                        .bytes()
+                        .enumerate()
+                        .all(|(index, byte)| matches!(index, 4 | 7) || byte.is_ascii_digit());
+                if !has_iso_shape {
+                    return false;
+                }
+                let year = date[0..4].parse::<u16>().unwrap();
+                let month = date[5..7].parse::<u8>().unwrap();
+                let day = date[8..10].parse::<u8>().unwrap();
+                let leap_year = year.is_multiple_of(4)
+                    && (!year.is_multiple_of(100) || year.is_multiple_of(400));
+                let days_in_month = match month {
+                    1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+                    4 | 6 | 9 | 11 => 30,
+                    2 if leap_year => 29,
+                    2 => 28,
+                    _ => return false,
+                };
+                (1..=days_in_month).contains(&day)
+            })
+    }
+
+    match index {
+        0 => is_dated_path(
+            path,
+            "tests/acceptance/instance-fork-lifecycle-bench.",
+            ".macos-aarch64.v1.json",
+        ),
+        1 => is_dated_path(
+            path,
+            "tests/acceptance/instance-fork-lifecycle-bench.",
+            ".linux-x86_64.v1.json",
+        ),
+        2 => is_dated_path(
+            path,
+            "tests/acceptance/instance-fork-lifecycle-bench.",
+            ".v1.json",
+        ),
+        12 => is_dated_path(
+            path,
+            "tests/acceptance/fixtures/instance-forks/author-acceptance.",
+            ".v3.json",
+        ),
+        _ => path == DERIVED_FORK_EVIDENCE_LOCATORS[index].1,
+    }
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -436,6 +554,8 @@ mod tests {
             implementation_digest_version: Some(
                 "snapback:agent-safe-implementation-tree:v2".to_owned(),
             ),
+            implementation_scope: None,
+            selection_policy_sha256: None,
             implementation_tree_sha256: tree.clone(),
             candidate_facts_sha256: candidate_sha256.clone(),
             qualified_target_profile_id: TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
@@ -516,28 +636,51 @@ mod tests {
                 false
             }
             "snapback.local-agent-safe-publication.v2" => {
-                assert_eq!(
+                assert!(matches!(
                     carrier.implementation_digest_version.as_deref(),
-                    Some("snapback:agent-safe-implementation-tree:v2")
-                );
+                    Some(
+                        "snapback:agent-safe-implementation-tree:v2"
+                            | "snapback:agent-safe-implementation-tree:v3"
+                    )
+                ));
                 true
             }
             other => panic!("unsupported derived carrier schema {other}"),
         };
-        let receipt_uses_current_schema = match receipt.schema_version.as_str() {
-            "snapback.agent-safe-publication-receipt.v1" => {
-                assert_eq!(receipt.implementation_digest_version, None);
-                false
-            }
-            "snapback.agent-safe-publication-receipt.v2" => {
-                assert_eq!(
-                    receipt.implementation_digest_version.as_deref(),
-                    Some("snapback:agent-safe-implementation-tree:v2")
-                );
-                true
-            }
-            other => panic!("unsupported derived receipt schema {other}"),
-        };
+        let (receipt_uses_current_schema, receipt_uses_scoped_evidence) =
+            match receipt.schema_version.as_str() {
+                "snapback.agent-safe-publication-receipt.v1" => {
+                    assert_eq!(receipt.implementation_digest_version, None);
+                    assert_eq!(receipt.implementation_scope, None);
+                    assert_eq!(receipt.selection_policy_sha256, None);
+                    (false, false)
+                }
+                "snapback.agent-safe-publication-receipt.v2" => {
+                    assert_eq!(
+                        receipt.implementation_digest_version.as_deref(),
+                        Some("snapback:agent-safe-implementation-tree:v2")
+                    );
+                    assert_eq!(receipt.implementation_scope, None);
+                    assert_eq!(receipt.selection_policy_sha256, None);
+                    (true, false)
+                }
+                "snapback.agent-safe-publication-receipt.v3" => {
+                    assert_eq!(
+                        receipt.implementation_digest_version.as_deref(),
+                        Some("snapback:agent-safe-implementation-tree:v3")
+                    );
+                    assert_eq!(
+                        receipt.implementation_scope.as_ref(),
+                        Some(&derived_fork_implementation_scope())
+                    );
+                    assert!(receipt
+                        .selection_policy_sha256
+                        .as_deref()
+                        .is_some_and(is_nonzero_sha256));
+                    (true, true)
+                }
+                other => panic!("unsupported derived receipt schema {other}"),
+            };
         assert_eq!(
             carrier.implementation_digest_version,
             receipt.implementation_digest_version
@@ -596,9 +739,18 @@ mod tests {
             DERIVED_FORK_COMPONENTS.map(str::to_owned)
         );
         assert_eq!(receipt.evidence.len(), DERIVED_FORK_EVIDENCE_LOCATORS.len());
-        for (binding, (kind, path)) in receipt.evidence.iter().zip(DERIVED_FORK_EVIDENCE_LOCATORS) {
+        for (index, (binding, (kind, path))) in receipt
+            .evidence
+            .iter()
+            .zip(DERIVED_FORK_EVIDENCE_LOCATORS)
+            .enumerate()
+        {
             assert_eq!(binding.kind, kind);
-            assert_eq!(binding.path, path);
+            if receipt_uses_scoped_evidence {
+                assert!(derived_fork_v3_evidence_path_matches(index, &binding.path));
+            } else {
+                assert_eq!(binding.path, path);
+            }
             assert!(is_sha256(&binding.sha256));
             if anchor.state == PublicationStateV1::Published {
                 assert!(is_nonzero_sha256(&binding.sha256));
