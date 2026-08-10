@@ -71,6 +71,7 @@ export SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY="$artifact_root/linux/snapback"
 export SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY="$artifact_root/linux/libhermesvm.so"
 export SNAPBACK_RUNTIME_LINUX_X64_HERMES_HEADER="$artifact_root/linux/hermes.h.artifact"
 export SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION="$artifact_root/linux/build-attestation.json"
+export SNAPBACK_RUNTIME_LINUX_X64_BUNDLED_LIBS_DIR="$artifact_root/linux/bundled-libs"
 export SNAPBACK_RUNTIME_LINUX_X64_SOURCE_REVISION="$source_revision"
 
 node scripts/snapback-publish.mjs \

@@ -6,7 +6,9 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -24,6 +26,12 @@ import {
   readLinuxRuntimeBuildIdentity,
   validateLinuxRuntimeArtifactAttestation,
 } from './artifact-attestation.mjs';
+import {
+  assertLinuxPackagePortability,
+  LINUX_PORTABLE_HOST_SONAMES,
+  readElfDynamicInfo,
+  verifyLinuxPackagePortability,
+} from './elf-portability.mjs';
 import {
   RUNTIME_PACKAGE_QUALIFICATION_FAILED_CODE,
   produceRuntimePackageSeal,
@@ -43,6 +51,164 @@ const ignoreRules = readFileSync(new URL('./.gitignore', import.meta.url), 'utf8
   .split(/\r?\n/u)
   .filter(Boolean);
 assert.deepEqual(ignoreRules, ['/bin/', '/lib/', '/include/', '/runtime-readiness.json']);
+assert.equal(Object.isFrozen(LINUX_PORTABLE_HOST_SONAMES), true);
+assert.deepEqual([...LINUX_PORTABLE_HOST_SONAMES], [
+  'ld-linux-x86-64.so.2',
+  'libc.so.6',
+  'libm.so.6',
+  'libpthread.so.0',
+  'libdl.so.2',
+  'librt.so.1',
+  'libresolv.so.2',
+  'libutil.so.1',
+  'libgcc_s.so.1',
+  'libstdc++.so.6',
+]);
+
+function syntheticElf64({
+  machine = 62,
+  needed = [],
+  soname = null,
+  rpath = null,
+  runpath = null,
+} = {}) {
+  const stringChunks = [Buffer.from([0])];
+  const stringOffsets = new Map();
+  let stringBytes = 1;
+  const addString = (value) => {
+    if (stringOffsets.has(value)) return stringOffsets.get(value);
+    const offset = stringBytes;
+    const bytes = Buffer.from(`${value}\0`);
+    stringChunks.push(bytes);
+    stringOffsets.set(value, offset);
+    stringBytes += bytes.byteLength;
+    return offset;
+  };
+  const tags = needed.map((value) => [1n, addString(value)]);
+  if (soname !== null) tags.push([14n, addString(soname)]);
+  if (rpath !== null) tags.push([15n, addString(rpath)]);
+  if (runpath !== null) tags.push([29n, addString(runpath)]);
+  tags.push([0n, 0]);
+
+  const sectionTableOffset = 64;
+  const dynamicOffset = sectionTableOffset + (2 * 64);
+  const dynamicBytes = tags.length * 16;
+  const stringTableOffset = dynamicOffset + dynamicBytes;
+  const stringTable = Buffer.concat(stringChunks);
+  const bytes = Buffer.alloc(stringTableOffset + stringTable.byteLength);
+  bytes.set([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1], 0);
+  bytes.writeUInt16LE(3, 16);
+  bytes.writeUInt16LE(machine, 18);
+  bytes.writeUInt32LE(1, 20);
+  bytes.writeBigUInt64LE(BigInt(sectionTableOffset), 40);
+  bytes.writeUInt16LE(64, 52);
+  bytes.writeUInt16LE(64, 58);
+  bytes.writeUInt16LE(2, 60);
+  bytes.writeUInt16LE(1, 62);
+
+  bytes.writeUInt32LE(6, sectionTableOffset + 4);
+  bytes.writeBigUInt64LE(BigInt(dynamicOffset), sectionTableOffset + 24);
+  bytes.writeBigUInt64LE(BigInt(dynamicBytes), sectionTableOffset + 32);
+  bytes.writeUInt32LE(1, sectionTableOffset + 40);
+  bytes.writeBigUInt64LE(8n, sectionTableOffset + 48);
+  bytes.writeBigUInt64LE(16n, sectionTableOffset + 56);
+
+  const stringSectionOffset = sectionTableOffset + 64;
+  bytes.writeUInt32LE(3, stringSectionOffset + 4);
+  bytes.writeBigUInt64LE(BigInt(stringTableOffset), stringSectionOffset + 24);
+  bytes.writeBigUInt64LE(BigInt(stringTable.byteLength), stringSectionOffset + 32);
+  bytes.writeBigUInt64LE(1n, stringSectionOffset + 48);
+
+  for (const [index, [tag, value]] of tags.entries()) {
+    bytes.writeBigInt64LE(tag, dynamicOffset + (index * 16));
+    bytes.writeBigUInt64LE(BigInt(value), dynamicOffset + (index * 16) + 8);
+  }
+  stringTable.copy(bytes, stringTableOffset);
+  return bytes;
+}
+
+const elfRoot = mkdtempSync(join(tmpdir(), 'snapback-linux-elf-portability-'));
+try {
+  const binaryPath = join(elfRoot, 'bin', 'snapback');
+  const libDirectory = join(elfRoot, 'lib');
+  const bundledIcu = join(libDirectory, 'libicuuc.so.78');
+  mkdirSync(join(elfRoot, 'bin'), { recursive: true });
+  mkdirSync(libDirectory, { recursive: true });
+
+  writeFileSync(binaryPath, syntheticElf64({
+    needed: ['libc.so.6', 'libm.so.6'],
+    rpath: '$ORIGIN/../lib',
+  }));
+  assert.deepEqual(readElfDynamicInfo(binaryPath), {
+    machine: 62,
+    needed: ['libc.so.6', 'libm.so.6'],
+    soname: null,
+    rpath: ['$ORIGIN/../lib'],
+    runpath: [],
+  });
+  assert.deepEqual(
+    verifyLinuxPackagePortability({ binaryPath, libDirectory }),
+    { ok: true, violations: [] },
+  );
+
+  writeFileSync(binaryPath, syntheticElf64({
+    needed: ['libicuuc.so.78'],
+    rpath: '$ORIGIN/../lib',
+  }));
+  assert(
+    verifyLinuxPackagePortability({ binaryPath, libDirectory }).violations
+      .some((violation) => violation.includes('libicuuc.so.78')),
+  );
+  writeFileSync(bundledIcu, 'bundled ICU fixture');
+  assert.deepEqual(
+    verifyLinuxPackagePortability({ binaryPath, libDirectory }),
+    { ok: true, violations: [] },
+  );
+  rmSync(bundledIcu);
+
+  writeFileSync(binaryPath, syntheticElf64({
+    needed: ['libc.so.6'],
+    runpath: '$ORIGIN/../lib',
+  }));
+  assert(
+    verifyLinuxPackagePortability({ binaryPath, libDirectory }).violations
+      .some((violation) => violation.includes('DT_RUNPATH')),
+  );
+
+  writeFileSync(binaryPath, syntheticElf64({ needed: ['libc.so.6'] }));
+  assert(
+    verifyLinuxPackagePortability({ binaryPath, libDirectory }).violations
+      .some((violation) => violation.includes('missing DT_RPATH')),
+  );
+
+  writeFileSync(binaryPath, syntheticElf64({
+    needed: ['libicuuc.so.78'],
+    rpath: '$ORIGIN/../lib',
+  }));
+  writeFileSync(bundledIcu, syntheticElf64({
+    needed: ['libc.so.6'],
+    runpath: '$ORIGIN',
+  }));
+  assert(
+    verifyLinuxPackagePortability({ binaryPath, libDirectory }).violations
+      .some((violation) => violation.includes('bundled ELF carrying DT_RUNPATH')),
+  );
+  rmSync(bundledIcu);
+
+  writeFileSync(binaryPath, syntheticElf64({
+    machine: 183,
+    needed: ['libc.so.6'],
+    rpath: '$ORIGIN/../lib',
+  }));
+  const wrongMachine = verifyLinuxPackagePortability({ binaryPath, libDirectory });
+  assert(wrongMachine.violations.some((violation) => violation.includes('e_machine 183')));
+  assert.throws(
+    () => assertLinuxPackagePortability({ binaryPath, libDirectory }),
+    (error) => error.code === 'SNAPBACK_RUNTIME_LINUX_PORTABILITY_VIOLATION',
+  );
+} finally {
+  rmSync(elfRoot, { recursive: true, force: true });
+}
 
 const receiptRoot = mkdtempSync(join(tmpdir(), 'snapback-linux-package-receipt-'));
 try {
@@ -153,7 +319,13 @@ try {
   const attestedHermesHeader = join(attestationRoot, 'hermes.h');
   const attestationPath = join(attestationRoot, 'build-attestation.json');
   const cliAttestationPath = join(attestationRoot, 'cli-build-attestation.json');
+  const cliBundledAttestationPath = join(
+    attestationRoot,
+    'cli-bundled-build-attestation.json',
+  );
   const identityPath = join(attestationRoot, 'build-identity.json');
+  const bundledLibsDirectory = join(attestationRoot, 'bundled-libs');
+  const bundledIcu = join(bundledLibsDirectory, 'libicuuc.so.78');
   const attestedBinarySource = `#!/usr/bin/env node
 if (process.argv[2] !== 'runtime-qualify') process.exit(2);
 console.log(JSON.stringify({
@@ -168,6 +340,8 @@ console.log(JSON.stringify({
   chmodSync(attestedBinary, 0o755);
   writeFileSync(attestedHermes, 'linux-hermes-bytes');
   writeFileSync(attestedHermesHeader, 'linux-hermes-header-bytes');
+  mkdirSync(bundledLibsDirectory, { recursive: true });
+  writeFileSync(bundledIcu, 'linux-icu-bytes');
   const buildIdentity = {
     schemaVersion: 'snapback.binary-identity.v1',
     binary: {
@@ -199,7 +373,10 @@ console.log(JSON.stringify({
       },
     },
     sourceRevision,
+    bundledLibraries: [],
   });
+  assert.equal(attestation.schemaVersion, 'snapback.runtime-artifact-attestation.v3');
+  assert.deepEqual(attestation.bundledLibrariesSha256, {});
   writeFileSync(attestationPath, `${JSON.stringify(attestation)}\n`);
   assert.deepEqual(
     validateLinuxRuntimeArtifactAttestation({
@@ -211,6 +388,54 @@ console.log(JSON.stringify({
     }),
     attestation,
   );
+  const bundledAttestation = createLinuxRuntimeArtifactAttestation({
+    binaryPath: attestedBinary,
+    hermesPath: attestedHermes,
+    hermesHeaderPath: attestedHermesHeader,
+    buildIdentity,
+    qualificationVerdict: attestation.qualificationVerdict,
+    sourceRevision,
+    bundledLibraries: [{ soname: 'libicuuc.so.78', path: bundledIcu }],
+  });
+  assert.match(
+    bundledAttestation.bundledLibrariesSha256['libicuuc.so.78'],
+    /^[0-9a-f]{64}$/u,
+  );
+  assert.deepEqual(
+    validateLinuxRuntimeArtifactAttestation({
+      attestation: bundledAttestation,
+      binaryPath: attestedBinary,
+      hermesPath: attestedHermes,
+      hermesHeaderPath: attestedHermesHeader,
+      sourceRevision,
+      bundledLibsDirectory,
+    }),
+    bundledAttestation,
+  );
+  assert.throws(
+    () => validateLinuxRuntimeArtifactAttestation({
+      attestation: bundledAttestation,
+      binaryPath: attestedBinary,
+      hermesPath: attestedHermes,
+      hermesHeaderPath: attestedHermesHeader,
+      sourceRevision,
+      bundledLibsDirectory: null,
+    }),
+    /requires a bundled libraries directory/u,
+  );
+  writeFileSync(bundledIcu, 'tampered-linux-icu-bytes');
+  assert.throws(
+    () => validateLinuxRuntimeArtifactAttestation({
+      attestation: bundledAttestation,
+      binaryPath: attestedBinary,
+      hermesPath: attestedHermes,
+      hermesHeaderPath: attestedHermesHeader,
+      sourceRevision,
+      bundledLibsDirectory,
+    }),
+    /attestation digest drifted/u,
+  );
+  writeFileSync(bundledIcu, 'linux-icu-bytes');
   const attestationCli = fileURLToPath(
     new URL('../../scripts/snapback-create-runtime-artifact-attestation.mjs', import.meta.url),
   );
@@ -227,6 +452,25 @@ console.log(JSON.stringify({
   assert.deepEqual(
     readLinuxRuntimeArtifactAttestation(cliAttestationPath),
     attestation,
+  );
+  const createdWithBundledLibraries = spawnSync(process.execPath, [
+    attestationCli,
+    '--binary', attestedBinary,
+    '--hermes', attestedHermes,
+    '--hermes-header', attestedHermesHeader,
+    '--identity', identityPath,
+    '--source-revision', sourceRevision,
+    '--bundled-libs-dir', bundledLibsDirectory,
+    '--out', cliBundledAttestationPath,
+  ], { encoding: 'utf8' });
+  assert.equal(
+    createdWithBundledLibraries.status,
+    0,
+    createdWithBundledLibraries.stderr,
+  );
+  assert.deepEqual(
+    readLinuxRuntimeArtifactAttestation(cliBundledAttestationPath),
+    bundledAttestation,
   );
   writeFileSync(attestedBinary, 'tampered-linux-runtime-bytes');
   assert.throws(
@@ -247,6 +491,7 @@ console.log(JSON.stringify({
       buildIdentity,
       qualificationVerdict: attestation.qualificationVerdict,
       sourceRevision: 'b'.repeat(40),
+      bundledLibraries: [],
     }),
     /source revision drifted/u,
   );
@@ -331,6 +576,26 @@ process.exit(ok ? 0 : 1);
     architecture: 'x64',
   }).reason, 'binary-drift');
 
+  writeFileSync(sealedBinary, binarySource);
+  chmodSync(sealedBinary, 0o755);
+  const extraBundledLibrary = join(sealRoot, 'lib', 'libicuuc.so.78');
+  writeFileSync(extraBundledLibrary, 'extra bundled library bytes');
+  assert.equal(verifyRuntimePackageSeal({
+    root: sealRoot,
+    binaryPath: sealedBinary,
+    packageName: PACKAGE_NAME,
+    platform: 'linux',
+    architecture: 'x64',
+  }).reason, 'framework-drift');
+  rmSync(extraBundledLibrary);
+  assert.equal(verifyRuntimePackageSeal({
+    root: sealRoot,
+    binaryPath: sealedBinary,
+    packageName: PACKAGE_NAME,
+    platform: 'linux',
+    architecture: 'x64',
+  }).ok, true);
+
   rmSync(join(sealRoot, 'runtime-readiness.json'), { force: true });
   assert.throws(
     () => produceRuntimePackageSeal({
@@ -375,6 +640,10 @@ if (existsSync(binary) || existsSync(hermes)) {
   assert.equal(identity.status, 0, identity.stderr);
   assertPublicPackageBuildIdentity(JSON.parse(identity.stdout));
   const packageRoot = fileURLToPath(new URL('.', import.meta.url));
+  assertLinuxPackagePortability({
+    binaryPath: binary,
+    libDirectory: join(packageRoot, 'lib'),
+  });
   const seal = verifyRuntimePackageSeal({
     root: packageRoot,
     binaryPath: binary,
@@ -383,6 +652,14 @@ if (existsSync(binary) || existsSync(hermes)) {
     architecture: 'x64',
   });
   assert.equal(seal.ok, true, JSON.stringify(seal.diagnostic));
+  const sealedArtifactPaths = new Set(
+    seal.receipt.artifacts.map((artifact) => artifact.path),
+  );
+  for (const name of readdirSync(join(packageRoot, 'lib')).sort()) {
+    if (statSync(join(packageRoot, 'lib', name)).isFile()) {
+      assert(sealedArtifactPaths.has(`lib/${name}`));
+    }
+  }
   assert.equal(resolveRuntimeBinary().binary, binary);
 }
-console.log('package.test.mjs: Linux x64 seal verdict + framework-drift + binary-drift + qualification refusal pass');
+console.log('package.test.mjs: Linux x64 ELF portability + attestation v3 + complete lib seal pass');

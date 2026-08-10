@@ -60,10 +60,16 @@ jobs:
           SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback
           node packages/snapback-runtime-linux-x64/prepare-runtime.mjs
           test -f packages/snapback-runtime-linux-x64/lib/libhermesvm.so
+          node packages/snapback-runtime-linux-x64/elf-portability.mjs \
+            --binary packages/snapback-runtime-linux-x64/bin/snapback \
+            --lib packages/snapback-runtime-linux-x64/lib
           test -z "$(git status --porcelain --untracked-files=all)"
 
           artifact_root="$HOME/snapback-staging/linux"
-          mkdir -p "$artifact_root"
+          mkdir -p "$artifact_root" "$artifact_root/bundled-libs"
+          find packages/snapback-runtime-linux-x64/lib \
+            -maxdepth 1 -type f ! -name libhermesvm.so \
+            -exec cp {} "$artifact_root/bundled-libs/" \;
           source_revision="$(git rev-parse HEAD)"
           packages/snapback-runtime-linux-x64/bin/snapback build-identity \
             > "$HOME/snapback-linux-build-identity.json"
@@ -73,6 +79,7 @@ jobs:
             --hermes-header packages/snapback-runtime-linux-x64/include/hermes/hermes.h.artifact \
             --identity "$HOME/snapback-linux-build-identity.json" \
             --source-revision "$source_revision" \
+            --bundled-libs-dir "$artifact_root/bundled-libs" \
             --out "$artifact_root/build-attestation.json"
           cp packages/snapback-runtime-linux-x64/bin/snapback "$artifact_root/snapback"
           cp packages/snapback-runtime-linux-x64/lib/libhermesvm.so \

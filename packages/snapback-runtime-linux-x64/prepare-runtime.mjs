@@ -26,6 +26,10 @@ import {
   readLinuxRuntimeArtifactAttestation,
   validateLinuxRuntimeArtifactAttestation,
 } from './artifact-attestation.mjs';
+import {
+  assertLinuxPackagePortability,
+  bundleLinuxRuntimeSharedLibraries,
+} from './elf-portability.mjs';
 import { produceRuntimePackageSeal } from '../snapback-cli/runtime-readiness.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
@@ -38,6 +42,8 @@ const explicitAttestation =
   process.env.SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION;
 const explicitRevision =
   process.env.SNAPBACK_RUNTIME_LINUX_X64_SOURCE_REVISION;
+const explicitBundledLibsDir =
+  process.env.SNAPBACK_RUNTIME_LINUX_X64_BUNDLED_LIBS_DIR;
 const sourceBinary = resolve(
   explicitBinary ?? join(repositoryRoot, 'target', 'release', 'snapback'),
 );
@@ -120,6 +126,7 @@ if (elfMachine(sourceBinary) !== 62 || elfMachine(sourceHermes) !== 62) {
 const sourceTestStaging = process.argv.includes('--source-test-staging');
 let identity;
 let transportedQualification = null;
+let artifactAttestation = null;
 try {
   if (crossHost) {
     const attestation = readLinuxRuntimeArtifactAttestation(
@@ -131,7 +138,11 @@ try {
       hermesPath: sourceHermes,
       hermesHeaderPath: sourceHermesHeader,
       sourceRevision: explicitRevision,
+      bundledLibsDirectory: explicitBundledLibsDir
+        ? resolve(explicitBundledLibsDir)
+        : null,
     });
+    artifactAttestation = attestation;
     identity = attestation.buildIdentity;
     transportedQualification = {
       ok: true,
@@ -188,6 +199,38 @@ cpSync(sourceHermes, join(libDirectory, 'libhermesvm.so'));
 chmodSync(join(libDirectory, 'libhermesvm.so'), 0o755);
 cpSync(sourceHermesHeader, join(includeDirectory, 'hermes', 'hermes.h.artifact'));
 try {
+  if (crossHost) {
+    for (const soname of Object.keys(
+      artifactAttestation.bundledLibrariesSha256,
+    ).sort()) {
+      const destination = join(libDirectory, soname);
+      cpSync(join(resolve(explicitBundledLibsDir), soname), destination);
+      chmodSync(destination, 0o755);
+    }
+  } else {
+    bundleLinuxRuntimeSharedLibraries({
+      binaryPath: join(binDirectory, 'snapback'),
+      libDirectory,
+    });
+  }
+} catch (error) {
+  fail(
+    error?.code ?? 'SNAPBACK_RUNTIME_LINUX_BUNDLE_RESOLUTION_FAILED',
+    error?.message ?? 'Linux runtime shared libraries could not be bundled',
+  );
+}
+try {
+  assertLinuxPackagePortability({
+    binaryPath: join(binDirectory, 'snapback'),
+    libDirectory,
+  });
+} catch (error) {
+  fail(
+    error?.code ?? 'SNAPBACK_RUNTIME_LINUX_PORTABILITY_VIOLATION',
+    error?.message ?? 'Linux runtime package portability could not be verified',
+  );
+}
+try {
   const receiptInstall = installPackagedStoreQualificationReceipt({
     sourceBinary,
     binDirectory,
@@ -208,7 +251,7 @@ try {
 }
 try {
   // @ref LLP 0123#package-seal-landing-2026-08-06 — native production
-  // qualifies this final RUNPATH layout; cross-host assembly reuses only the
+  // qualifies this final RPATH layout; cross-host assembly reuses only the
   // byte-bound verdict produced on the native Linux builder.
   produceRuntimePackageSeal({
     root: packageRoot,

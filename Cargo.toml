@@ -70,6 +70,12 @@ zeroize = "1.8"
 [build-dependencies]
 sha2 = "0.10"
 
+# @ref LLP 0041#runtime-distribution — the published Linux runtime must not
+# depend on the builder's shared libcurl (absent on stock consumer hosts).
+# sfe-static-network links ibex's pinned static curl + vendored static OpenSSL.
+[target.'cfg(target_os = "linux")'.dependencies]
+ibex-runtime = { path = "vendor/ibex", features = ["sfe-static-network"] }
+
 # The production release links as one full optimization graph. Beyond
 # throughput, this keeps infrequently used storage/proof code from fragmenting
 # or duplicating the hot executable pages retained by an otherwise-idle local

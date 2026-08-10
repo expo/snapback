@@ -93,7 +93,11 @@ stable per-boundary codes. Its first real run found and fixed the macOS
 fencing. The packed external proof now requires the full vertical result;
 public npm and independent-machine gates remain open.)
 
-**Revised:** 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-07-30 (Diary 0039 external-adoption evidence: the rerun
+**Revised:** 2026-08-08 (the Linux runtime is self-contained against an
+explicit host-soname baseline; see §Linux runtime self-containment —
+2026-08-08). 2026-08-07 (LLP 0189 alignment sweep:
+verification-cadence/claim-gating clauses re-scoped or annotated to the LLP
+0189 D-3/D-6 defaults). 2026-07-30 (Diary 0039 external-adoption evidence: the rerun
 ran on sibling-checkout imports three days after `0.1.0` went public; the
 `demos/_kit` helpers every arm imports, and the admin client Dispatch's
 acceptance imports, sit outside the nine-package closure — see the new
@@ -1286,6 +1290,49 @@ distinct-prior-root preflight refusal stands unmodified as designed. The
 degenerate case can recur only for a future brand-new package name added
 to the closure; if and when that happens, the bootstrap path gets designed
 then, against that publication's facts, rather than speculatively now.
+
+## Linux runtime self-containment — 2026-08-08
+
+The published `@expo/snapback-runtime-linux-x64@0.1.14` refused to launch on
+a stock consumer host because the package required `libicuuc.so.78`, which
+was available on its EAS builder but absent from the consumer. The ICU linkage
+was on `lib/libhermesvm.so`, not `bin/snapback`; the executable separately
+carried a dynamic `libcurl.so.4` dependency that is also not a baseline host
+guarantee.
+
+The Linux package now bundles every non-baseline shared-library dependency
+discovered on the native builder into its `lib/` directory, closing the
+dependency graph transitively (including `libicuuc` → `libicudata`). The final
+executable uses legacy `DT_RPATH` by linking with `--disable-new-dtags` and
+`$ORIGIN/../lib`. This distinction is load-bearing: the glibc loader applies
+the executable's `DT_RPATH` while resolving a shared library's own
+dependencies, whereas `DT_RUNPATH` does not provide that transitive search.
+The Ibex `sfe-static-network` feature supplies its pinned static curl and
+vendored static OpenSSL, removing the ambient `libcurl.so.4` dependency.
+
+The only shared-library sonames the runtime may require from the host are:
+`ld-linux-x86-64.so.2`, `libc.so.6`, `libm.so.6`, `libpthread.so.0`,
+`libdl.so.2`, `librt.so.1`, `libresolv.so.2`, `libutil.so.1`,
+`libgcc_s.so.1`, and `libstdc++.so.6`. Every other `DT_NEEDED` entry must name
+an exact regular file shipped in the package's `lib/` directory.
+
+The pure-JavaScript ELF64 gate fails closed in package preparation, the native
+`scripts/build-linux-runtime-release` lane, the EAS qualified-staging build,
+and `packages/snapback-runtime-linux-x64/package.test.mjs`. It also requires
+the executable's transitive `DT_RPATH`, refuses `DT_RUNPATH` on the executable
+or a bundled library, and admits only x86-64 ELF members.
+
+The cross-host artifact attestation advances to
+`snapback.runtime-artifact-attestation.v3`; its
+`bundledLibrariesSha256` map binds each transported soname to its native
+builder digest. The package seal enumerates every regular file under `lib/`,
+so adding, removing, or changing a bundled dependency produces
+`framework-drift` at consumption.
+
+Residual exposure remains explicit: this gate constrains sonames, not glibc
+or GLIBCXX symbol-version baselines. The builder's glibc therefore remains the
+minimum compatible host floor until a separate symbol-version gate or older
+builder baseline is adopted.
 
 ## Status
 

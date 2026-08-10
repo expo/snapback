@@ -6,12 +6,14 @@ import {
   openSync,
   readSync,
 } from 'node:fs';
+import { join } from 'node:path';
 
 import { assertPublicPackageBuildIdentity } from '../../scripts/runtime-package-authority.mjs';
 
 const ATTESTATION_KEYS = [
   'binarySha256',
   'buildIdentity',
+  'bundledLibrariesSha256',
   'hermesHeaderSha256',
   'hermesSha256',
   'platform',
@@ -34,6 +36,7 @@ const BINARY_IDENTITY_KEYS = [
 const MAX_ATTESTATION_BYTES = 64 * 1024;
 const MAX_ARTIFACT_BYTES = 512 * 1024 * 1024;
 const HASH_CHUNK_BYTES = 1024 * 1024;
+const SONAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/u;
 
 function exactKeys(value, keys, label) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -181,16 +184,42 @@ export function createLinuxRuntimeArtifactAttestation({
   buildIdentity,
   qualificationVerdict,
   sourceRevision,
+  bundledLibraries = [],
 }) {
   validateBuildIdentity(buildIdentity, sourceRevision);
   validateQualificationVerdict(qualificationVerdict, buildIdentity, sourceRevision);
+  if (!Array.isArray(bundledLibraries)) {
+    throw new TypeError('Linux runtime bundled libraries must be an array');
+  }
+  const bundledLibrariesSha256 = {};
+  for (const entry of [...bundledLibraries].sort((left, right) => (
+    String(left?.soname).localeCompare(String(right?.soname))
+  ))) {
+    if (
+      entry === null
+      || typeof entry !== 'object'
+      || Array.isArray(entry)
+      || Object.keys(entry).sort().join(',') !== 'path,soname'
+      || !SONAME_PATTERN.test(entry.soname ?? '')
+    ) {
+      throw new TypeError('Linux runtime bundled library entries must carry a valid soname and path');
+    }
+    if (Object.hasOwn(bundledLibrariesSha256, entry.soname)) {
+      throw new TypeError(`Linux runtime bundled library soname is duplicated: ${entry.soname}`);
+    }
+    bundledLibrariesSha256[entry.soname] = sha256RegularFile(
+      entry.path,
+      `Linux bundled library ${entry.soname}`,
+    );
+  }
   return {
-    schemaVersion: 'snapback.runtime-artifact-attestation.v2',
+    schemaVersion: 'snapback.runtime-artifact-attestation.v3',
     platform: 'linux-x64',
     sourceRevision,
     binarySha256: sha256RegularFile(binaryPath, 'Linux runtime binary'),
     hermesSha256: sha256RegularFile(hermesPath, 'Linux Hermes library'),
     hermesHeaderSha256: sha256RegularFile(hermesHeaderPath, 'Linux Hermes header'),
+    bundledLibrariesSha256,
     buildIdentity: structuredClone(buildIdentity),
     qualificationVerdict: structuredClone(qualificationVerdict),
   };
@@ -202,10 +231,11 @@ export function validateLinuxRuntimeArtifactAttestation({
   hermesPath,
   hermesHeaderPath,
   sourceRevision,
+  bundledLibsDirectory = null,
 }) {
   exactKeys(attestation, ATTESTATION_KEYS, 'Linux runtime artifact attestation');
   if (
-    attestation.schemaVersion !== 'snapback.runtime-artifact-attestation.v2'
+    attestation.schemaVersion !== 'snapback.runtime-artifact-attestation.v3'
     || attestation.platform !== 'linux-x64'
     || attestation.sourceRevision !== sourceRevision
     || !/^[0-9a-f]{64}$/u.test(attestation.binarySha256 ?? '')
@@ -213,6 +243,20 @@ export function validateLinuxRuntimeArtifactAttestation({
     || !/^[0-9a-f]{64}$/u.test(attestation.hermesHeaderSha256 ?? '')
   ) {
     throw new TypeError('Linux runtime artifact attestation identity drifted');
+  }
+  if (
+    attestation.bundledLibrariesSha256 === null
+    || typeof attestation.bundledLibrariesSha256 !== 'object'
+    || Array.isArray(attestation.bundledLibrariesSha256)
+    || ![Object.prototype, null].includes(
+      Object.getPrototypeOf(attestation.bundledLibrariesSha256),
+    )
+    || Object.entries(attestation.bundledLibrariesSha256).some(
+      ([soname, digest]) => !SONAME_PATTERN.test(soname)
+        || !/^[0-9a-f]{64}$/u.test(digest),
+    )
+  ) {
+    throw new TypeError('Linux runtime artifact attestation bundled-library shape drifted');
   }
   validateBuildIdentity(attestation.buildIdentity, sourceRevision);
   validateQualificationVerdict(
@@ -229,6 +273,29 @@ export function validateLinuxRuntimeArtifactAttestation({
       !== sha256RegularFile(hermesHeaderPath, 'Linux Hermes header')
   ) {
     throw new TypeError('Linux runtime artifact attestation digest drifted');
+  }
+  const bundledEntries = Object.entries(attestation.bundledLibrariesSha256);
+  if (bundledEntries.length > 0 && typeof bundledLibsDirectory !== 'string') {
+    throw new TypeError(
+      'Linux runtime artifact attestation requires a bundled libraries directory',
+    );
+  }
+  try {
+    if (bundledEntries.some(([soname, digest]) => (
+      digest !== sha256RegularFile(
+        join(bundledLibsDirectory, soname),
+        `Linux bundled library ${soname}`,
+      )
+    ))) {
+      throw new TypeError('Linux runtime artifact attestation digest drifted');
+    }
+  } catch (error) {
+    if (error instanceof TypeError && /attestation digest drifted/u.test(error.message)) {
+      throw error;
+    }
+    throw new TypeError('Linux runtime artifact attestation digest drifted', {
+      cause: error,
+    });
   }
   return attestation;
 }

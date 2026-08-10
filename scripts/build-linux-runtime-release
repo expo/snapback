@@ -11,6 +11,9 @@ import {
   createReadStream,
   existsSync,
   mkdirSync,
+  readdirSync,
+  rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
@@ -239,10 +242,33 @@ export async function main(
     );
   }
 
+  logStep(output, 'verifying Linux ELF portability allowlist');
+  runner(process.execPath, [
+    join(packageRoot, 'elf-portability.mjs'),
+    '--binary', packageBinary,
+    '--lib', join(packageRoot, 'lib'),
+  ], { cwd, env: environment });
+
   assertCleanTree({ phase: 'after package preparation', runner, cwd });
 
   const outputDir = resolve(options.outputDir);
   mkdirSync(outputDir, { recursive: true });
+  const bundledLibsDir = join(outputDir, 'bundled-libs');
+  rmSync(bundledLibsDir, { recursive: true, force: true });
+  mkdirSync(bundledLibsDir, { recursive: true });
+  const bundledLibraries = readdirSync(join(packageRoot, 'lib'))
+    .sort()
+    .filter((soname) => soname !== 'libhermesvm.so')
+    .map((soname) => ({
+      soname,
+      sourcePath: join(packageRoot, 'lib', soname),
+      artifactPath: join(bundledLibsDir, soname),
+    }))
+    .filter(({ sourcePath }) => statSync(sourcePath).isFile());
+  for (const library of bundledLibraries) {
+    copyFileSync(library.sourcePath, library.artifactPath);
+    chmodSync(library.artifactPath, 0o755);
+  }
   const identityPath = join(outputDir, 'snapback-linux-build-identity.json');
   const attestationPath = join(outputDir, 'build-attestation.json');
 
@@ -262,6 +288,7 @@ export async function main(
     '--hermes-header', packageHermesHeader,
     '--identity', identityPath,
     '--source-revision', sourceRevision,
+    '--bundled-libs-dir', bundledLibsDir,
     '--out', attestationPath,
   ], { cwd, env: environment });
 
@@ -279,6 +306,18 @@ export async function main(
   const digests = Object.fromEntries(await Promise.all(
     Object.entries(artifacts).map(async ([name, path]) => [name, await sha256File(path)]),
   ));
+  const bundledLibraryDigests = await Promise.all(
+    bundledLibraries.map(async ({ soname, artifactPath }) => ({
+      soname,
+      path: artifactPath,
+      sha256: await sha256File(artifactPath),
+    })),
+  );
+  const bundledLibrariesSummary = bundledLibraryDigests
+    .map(({ soname, path, sha256 }) => (
+      `bundled library ${soname}: ${path}\n  sha256: ${sha256}`
+    ))
+    .join('\n');
 
   output.stdout.write(`
 SNAPBACK LINUX X64 RUNTIME RELEASE ARTIFACTS
@@ -290,12 +329,13 @@ Hermes header: ${artifacts.hermesHeader}
   sha256: ${digests.hermesHeader}
 build attestation: ${artifacts.buildAttestation}
   sha256: ${digests.buildAttestation}
-source revision: ${sourceRevision}
+${bundledLibrariesSummary}${bundledLibrariesSummary ? '\n' : ''}source revision: ${sourceRevision}
 
 export SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY=${shellQuote(artifacts.sourceBinary)}
 export SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY=${shellQuote(artifacts.hermesLibrary)}
 export SNAPBACK_RUNTIME_LINUX_X64_HERMES_HEADER=${shellQuote(artifacts.hermesHeader)}
 export SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION=${shellQuote(artifacts.buildAttestation)}
+export SNAPBACK_RUNTIME_LINUX_X64_BUNDLED_LIBS_DIR=${shellQuote(bundledLibsDir)}
 export SNAPBACK_RUNTIME_LINUX_X64_SOURCE_REVISION=${shellQuote(sourceRevision)}
 `);
   return 0;

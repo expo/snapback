@@ -35,9 +35,14 @@ fn main() {
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if target_os == "linux" {
         // @ref LLP 0041#runtime-distribution — the Linux platform package
-        // places libhermesvm.so at bin/../lib. Dependency build-script link
-        // args do not propagate to this final binary, so Snapback itself must
-        // carry the loader-relative RUNPATH.
+        // places libhermesvm.so and its bundled non-glibc dependencies (ICU)
+        // at bin/../lib. Dependency build-script link args do not propagate to
+        // this final binary, so Snapback itself must carry the loader-relative
+        // search path. It must be the legacy DT_RPATH tag, not DT_RUNPATH:
+        // only DT_RPATH applies transitively when the loader resolves
+        // libhermesvm.so's own DT_NEEDED entries (bundled libicuuc/libicudata),
+        // with $ORIGIN expanding relative to this executable.
+        println!("cargo:rustc-link-arg=-Wl,--disable-new-dtags");
         println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/../lib");
         return;
     }

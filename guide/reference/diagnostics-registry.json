@@ -2,16 +2,16 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "16c7f90eb73b5905c9cbd1fe120c55cc30b28f9b",
-    "sourceDigest": "sha256:626cc926b1cce07e285bde39e0958bedf1a32154b4bb45087b986552074787d7"
+    "commit": "45a4c6b5debb0e78b198a3fbdf100e7989fa22a4",
+    "sourceDigest": "sha256:767555ee13379be63802ee51a1fa685b5f5406f2ea55226be331a00a20a926b9"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 2928,
-    "sourceFiles": 400,
-    "emittingSites": 9938,
+    "codes": 2931,
+    "sourceFiles": 401,
+    "emittingSites": 9944,
     "httpClassified": 918,
     "guideAnchored": 324
   },
@@ -4496,7 +4496,7 @@
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 198,
+          "line": 241,
           "column": 22
         }
       ],
@@ -25850,12 +25850,12 @@
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 101,
+          "line": 107,
           "column": 6
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 107,
+          "line": 113,
           "column": 6
         }
       ],
@@ -46523,8 +46523,13 @@
           "column": 6
         },
         {
+          "file": "packages/snapback-runtime-linux-x64/elf-portability.mjs",
+          "line": 363,
+          "column": 8
+        },
+        {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 87,
+          "line": 93,
           "column": 6
         }
       ],
@@ -46569,12 +46574,12 @@
         },
         {
           "file": "packages/snapback-cli/runtime-readiness.mjs",
-          "line": 43,
+          "line": 45,
           "column": 48
         },
         {
           "file": "packages/snapback-cli/runtime-readiness.mjs",
-          "line": 440,
+          "line": 454,
           "column": 6
         }
       ],
@@ -46596,7 +46601,7 @@
         },
         {
           "file": "packages/snapback-cli/runtime-readiness.mjs",
-          "line": 534,
+          "line": 548,
           "column": 16
         }
       ],
@@ -57763,7 +57768,7 @@
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 205,
+          "line": 248,
           "column": 21
         }
       ],
@@ -57803,7 +57808,7 @@
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 170,
+          "line": 181,
           "column": 21
         }
       ],
@@ -68502,7 +68507,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 115,
+          "line": 121,
           "column": 6
         }
       ],
@@ -68582,7 +68587,7 @@
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 95,
+          "line": 101,
           "column": 6
         }
       ],
@@ -68688,13 +68693,68 @@
         "/_snapback/guide/operating/diagnostics.md#diagnose-the-vendored-ibex-runtime-first"
       ]
     },
+    "SNAPBACK_RUNTIME_LINUX_BUNDLE_RESOLUTION_FAILED": {
+      "code": "SNAPBACK_RUNTIME_LINUX_BUNDLE_RESOLUTION_FAILED",
+      "subsystem": "runtime",
+      "sites": [
+        {
+          "file": "packages/snapback-runtime-linux-x64/elf-portability.mjs",
+          "line": 36,
+          "column": 4
+        },
+        {
+          "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
+          "line": 218,
+          "column": 21
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_RUNTIME_LINUX_PORTABILITY_VIOLATION": {
+      "code": "SNAPBACK_RUNTIME_LINUX_PORTABILITY_VIOLATION",
+      "subsystem": "runtime",
+      "sites": [
+        {
+          "file": "packages/snapback-runtime-linux-x64/elf-portability.mjs",
+          "line": 34,
+          "column": 27
+        },
+        {
+          "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
+          "line": 229,
+          "column": 21
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
     "SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION": {
       "code": "SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION",
       "subsystem": "runtime",
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 38,
+          "line": 42,
+          "column": 15
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_RUNTIME_LINUX_X64_BUNDLED_LIBS_DIR": {
+      "code": "SNAPBACK_RUNTIME_LINUX_X64_BUNDLED_LIBS_DIR",
+      "subsystem": "runtime",
+      "sites": [
+        {
+          "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
+          "line": 46,
           "column": 15
         }
       ],
@@ -68709,7 +68769,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 36,
+          "line": 40,
           "column": 15
         }
       ],
@@ -68724,7 +68784,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 34,
+          "line": 38,
           "column": 36
         }
       ],
@@ -68739,7 +68799,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 195,
+          "line": 238,
           "column": 8
         }
       ],
@@ -68754,7 +68814,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 33,
+          "line": 37,
           "column": 36
         }
       ],
@@ -68769,7 +68829,7 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 40,
+          "line": 44,
           "column": 15
         }
       ],
@@ -68799,7 +68859,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/runtime-readiness.mjs",
-          "line": 45,
+          "line": 47,
           "column": 4
         },
         {
@@ -68809,7 +68869,7 @@
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 227,
+          "line": 270,
           "column": 21
         }
       ],

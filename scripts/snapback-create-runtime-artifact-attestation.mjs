@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readdirSync, statSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 import {
   createLinuxRuntimeArtifactAttestation,
@@ -25,6 +25,7 @@ for (let index = 0; index < argumentsList.length; index += 2) {
     '--hermes': 'hermes',
     '--hermes-header': 'hermesHeader',
     '--identity': 'identity',
+    '--bundled-libs-dir': 'bundledLibsDirectory',
     '--source-revision': 'sourceRevision',
     '--out': 'out',
   }[argument];
@@ -46,6 +47,15 @@ try {
 }
 let attestation;
 try {
+  const bundledLibraries = options.bundledLibsDirectory
+    ? readdirSync(options.bundledLibsDirectory)
+        .sort()
+        .map((soname) => ({
+          soname,
+          path: join(options.bundledLibsDirectory, soname),
+        }))
+        .filter(({ path }) => statSync(path).isFile())
+    : [];
   const qualification = qualifyRuntimeBinary(options.binary, process.env);
   if (!qualification.ok) {
     const error = new Error(
@@ -61,6 +71,7 @@ try {
     buildIdentity,
     qualificationVerdict: qualification.report,
     sourceRevision: options.sourceRevision,
+    bundledLibraries,
   });
 } catch (error) {
   fail(error.message);

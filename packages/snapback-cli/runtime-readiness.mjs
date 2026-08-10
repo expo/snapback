@@ -29,8 +29,10 @@ import {
   openSync,
   readFileSync,
   readSync,
+  readdirSync,
   realpathSync,
   renameSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
@@ -135,19 +137,31 @@ export function digestRuntimeArtifacts(root, {
 // package seal binds both sides of the Hermes ABI pairing.
 export function packagedRuntimeArtifactCandidates(root, { platform = process.platform } = {}) {
   root = resolve(root);
-  return platform === 'darwin'
-    ? [
-        join(root, 'include/hermes/hermes.h.artifact'),
-        // The Mach-O install name is
-        // `@rpath/hermesvm.framework/Versions/1/hermesvm`. npm omits the
-        // framework's convenience symlinks, so bind the real file dyld opens
-        // rather than a pre-pack alias that does not survive installation.
-        join(root, 'Frameworks/hermesvm.framework/Versions/1/hermesvm'),
-      ]
-    : [
-        join(root, 'include/hermes/hermes.h.artifact'),
-        join(root, 'lib/libhermesvm.so'),
-      ];
+  if (platform === 'darwin') {
+    return [
+      join(root, 'include/hermes/hermes.h.artifact'),
+      // The Mach-O install name is
+      // `@rpath/hermesvm.framework/Versions/1/hermesvm`. npm omits the
+      // framework's convenience symlinks, so bind the real file dyld opens
+      // rather than a pre-pack alias that does not survive installation.
+      join(root, 'Frameworks/hermesvm.framework/Versions/1/hermesvm'),
+    ];
+  }
+  const libDirectory = join(root, 'lib');
+  let libraryFiles = [];
+  try {
+    libraryFiles = readdirSync(libDirectory)
+      .sort()
+      .map((name) => join(libDirectory, name))
+      .filter((path) => statSync(path).isFile());
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  const requiredHermes = join(libDirectory, 'libhermesvm.so');
+  return [
+    join(root, 'include/hermes/hermes.h.artifact'),
+    ...[...new Set([...libraryFiles, requiredHermes])].sort(),
+  ];
 }
 
 export function runtimePackageReceiptPath(root) {

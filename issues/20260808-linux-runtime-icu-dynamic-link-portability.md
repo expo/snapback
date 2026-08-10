@@ -79,3 +79,50 @@ release branch `release/qualified-0.1.14` (pinned candidate + fixes),
 receipts in `~/snapback-qualified-0.1.14/`, candidate ledger committed
 at `tests/acceptance/publication/candidate-0.1.14.json`, promotion
 receipt + post-vector in `/tmp/rel/` on the ceremony host.
+
+## Resolution — 2026-08-08
+
+The successor runtime mechanism bundles every non-baseline shared-library
+dependency from the native Linux builder into the package `lib/`, links the
+executable with transitive `$ORIGIN/../lib` `DT_RPATH` via
+`--disable-new-dtags`, and enables Ibex's `sfe-static-network` feature so curl
+and OpenSSL are static rather than consumer-host requirements. A pure-JavaScript
+ELF64 allowlist gate fails closed during `prepare-runtime.mjs`,
+`scripts/build-linux-runtime-release`, the EAS qualified-staging Linux build,
+and `packages/snapback-runtime-linux-x64/package.test.mjs`; attestation v3 and
+the package seal bind the complete transported `lib/` closure.
+
+### 0.1.15–0.1.17 fast-path era note — 2026-08-10
+
+The fleet's fast-path releases moved `latest` to 0.1.17 while this fix was in
+flight. The published 0.1.17 `lib/libhermesvm.so` links `libicuuc.so.74` /
+`libicui18n.so.74` (that cut's builder carried ICU 74, not 78), so severity
+dropped from "unlaunchable on stock consumer hosts" to "unlaunchable on hosts
+older than the ICU-74 line": Ubuntu 24.04-class hosts now work, but Ubuntu
+22.04 (ICU 70) and Debian 12 (ICU 72) consumers still cannot launch, and
+nothing before this fix pinned the linkage — the next cut would regress to
+whatever ICU its builder happened to carry. The bundling mechanism plus the
+fail-closed soname allowlist gate above closes the class, not the instance.
+
+### Verification — 2026-08-10
+
+Full production path run on `expo-build-1000` at the landed mechanism
+(`scripts/build-linux-runtime-release`): the bundler shipped
+`libicuuc.so.74`, `libicui18n.so.74`, `libicudata.so.74` (transitive), and
+`libz.so.1`; `bin/snapback` carries `(RPATH) $ORIGIN/../lib` with no
+`libcurl.so.4` NEEDED (static curl). In a bare `ubuntu-base-24.04` rootfs
+under proot — zero `libicu*`, zero libcurl, the environment where both
+published 0.1.14 and 0.1.17 cannot load — the packaged binary launches
+(`snapback 0.1.0`, exit 0), with `LD_DEBUG=libs` showing every non-baseline
+resolution served from the package `lib/`. `package.test.mjs` passes against
+the real seal, and the cross-host (darwin) assembly path validated the v3
+attestation and re-sealed the transported closure. The gate refuses the
+actual published 0.1.14 tarball with six violations (negative control).
+
+A bare `ubuntu-base-22.04` rootfs still refuses the binary — but now purely
+on `GLIBC_2.38/2.39` version symbols (every soname resolved); that is the
+builder-glibc floor documented as residual exposure in LLP 0041 and tracked
+in `issues/20260810-linux-runtime-glibc-symbol-version-baseline.md`.
+
+This ticket **REMAINS OPEN** until a successor version ships through the full
+ceremony and its `latest` promotion completes.
