@@ -15,6 +15,7 @@ Status)
 **Revised:** 2026-08-10 (f — round-3 revision under the author's extended
 budget; see Status)
 **Revised:** 2026-08-10 (g — round-4 revision; see Status)
+**Revised:** 2026-08-10 (h — round-5 revision; see Status)
 **Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0011, LLP 0043, LLP 0057,
 LLP 0058, LLP 0081, LLP 0110, LLP 0129, LLP 0133, LLP 0135, LLP 0148,
 LLP 0151, LLP 0158, LLP 0163, LLP 0191,
@@ -59,7 +60,7 @@ its representative authoring surface.
 | **Principal (account identity)** | Snapback mints `usr_…` at account creation | One auth catalog/instance | The id is immutable; its **linked credential set is mutable** (LLP 0151 lifecycle) | `ctx.auth.userId`, `v.principal()` |
 | **Provider identity** | The provider asserts the subject; Snapback mints the `idn_…` link row recording `(provider installation, subject) → principal` — physically keyed `(provider, subject)` unique; OIDC subjects are canonically `(issuer, subject)`, other providers define their subject per LLP 0151 (email-code: the canonical address) | One auth provider installation | The `(provider, subject)` pair is immutable as recorded; the principal link changes only via LLP 0151 lifecycle flows; **profile claims are mutable attributes, never identity** | auth substrate only — never handler-visible in v1 |
 | **Source key** | The application (client-generable; safe for local-first creation) | Declared unique index scope on one table | Two grades, declared: an **identity-grade** source key is immutable and never reused; a mutable unique field is an ordinary lookup key, not an identity (C-3/C-6) | declared unique field + alternate-key lookup (schema lane) |
-| **Serial identity (identity column)** | Server allocates, always — sequence semantics, gaps allowed | One table within one store lineage: **the table counter never restarts** — its high-water mark is durable and survives restart, fork, and restore, so the public value is the bare numeric with no prefix (M-3) | Immutable after allocation; not writable by handlers, ever | `v.serial({ start })` (schema lane) |
+| **Serial identity (identity column)** | Server allocates, always — sequence semantics, gaps allowed | One table within one store lineage, at every instant: **the table counter never restarts** — the high-water is durable and survives restart, fork, and restore (restore carries the snapshot's high-water: rewind semantics, M-3), so the public value is the bare numeric with no prefix | Immutable after allocation; not writable by handlers, ever | `v.serial({ start })` (schema lane) |
 | **Settlement identity** | Server derives a versioned digest: the base preimage `{authFingerprint, authorityInstanceId, clientMutationId, function, inputFingerprint}`, with issuance-bearing operations additionally binding `operationIssuance` **and** `artifactGenerationDigest` (LLP 0163's complete selected-artifact binding) | Caller/auth + instance + operation (+ selected artifact for issuance-bearing ops) — `authFingerprint` is the resolved invocation-auth fingerprint over principal/session/user (session-scoped when a session is present), not the app | Immutable; replay-stable by construction | `ctx.mutation.settlement()` (LLP 0043) |
 | **Stream identity** | Framework mints the opaque `versionStream` (LLP 0043/0053); rotated on fork/restore (LLP 0158) | One instance's durable data stream | Rotates as a unit; values never compared across streams | resume tokens, live-query cursors |
 | **Artifact identity** | Toolchain digests the evaluated code graph (LLP 0009/0010/0024) | One deployment's loaded artifacts | Immutable; a new build is a new identity | artifact digests, readiness receipts |
@@ -177,7 +178,17 @@ Conversions between namespaces are the trust boundaries. The rules:
   (`resetInstall`, `clear`, legacy reset) begins a new lineage** — data and
   counters restart together, so no visible collision can arise; **physical restore**
   continues the restored store's lineage and high-water (the bytes carry
-  them); **logical export/import is refused for serial-bearing stores**
+  them) — with the across-time consequence stated plainly: restoring an
+  earlier snapshot rewinds counter and data together, so uniqueness holds
+  within the store at every instant, but an externally published serial
+  (a permalink) may afterwards be re-minted for a *different* row. Apps
+  that need external references immutable **across restores** use an
+  identity-grade source key or the row id, not the serial — the serial's
+  contract is PostgreSQL sequence-in-backup, no stronger, and the §1 row's
+  "never share" claim is scoped within-lineage-at-any-instant. A booted
+  `snapback store export` copy (LLP 0192) is classified with fork: it
+  begins a **divergent sibling lineage** continuing the snapshot's
+  high-water, never comparable to its source; **logical export/import is refused for serial-bearing stores**
   until an LLP 0007 amendment defines atomic portable carriage of the
   counter's high-water, exhaustion state, and stable table/field identity —
   row reconstruction cannot recover a gap-burning counter's true
@@ -362,8 +373,8 @@ incarnation clause names the interface; today's registry carries
 incarnations only for registered protected-relation parents, so where
 lifetime matters the owning amendments must **extend or activate the
 incarnation carrier for the tables that need it, or refuse the
-capability** — an `_id`-only fallback is prohibited for durable or queued
-references (it re-admits exactly the ABA failure C-3 refuses) and is
+capability** — an `_id`-only fallback is prohibited for **lifetime-sensitive** durable or
+queued references (it re-admits exactly the ABA failure C-3 refuses) and is
 permitted only for explicitly non-lifetime-sensitive interactive
 operations, with that boundary stated normatively in the amendment. No comparative
 claim against any other system is made (LLP 0183's comparator protocol
@@ -371,7 +382,7 @@ governs).
 
 ## Status
 
-Review, 2026-08-10 (g). Becomes Accepted on author sign-off; each owner lane
+Review, 2026-08-10 (h). Becomes Accepted on author sign-off; each owner lane
 lands as a dated amendment to its owning LLP with a pointer added here.
 
 Revision (c), from dual-family round-1 review: the auth row split into
@@ -385,6 +396,14 @@ the table-scope carrier); M-4 pinned to LLP 0135 §1.5's in-transaction
 refusal shape; the schema amendment's mandatory question list added
 (reservation timing, assignment order, replay, contention evidence);
 Related gains 0008/0011/0057/0058/0133/0158.
+
+Revision (h), round-5 revision: the restore-rewind consequence is stated in
+M-3 itself (permalinks may retarget across restores; apps needing
+restore-immutable external references use identity-grade keys or row ids —
+sequence-in-backup, no stronger), the §1 serial row scoped
+within-lineage-at-every-instant, and booted `store export` copies (LLP
+0192) classified as divergent sibling lineages alongside fork; the
+lifetime-sensitive qualifier moved adjacent to the fallback prohibition.
 
 Revision (g), round-4 revision: the `_id`-only fallback is prohibited for
 lifetime-sensitive durable/queued references (extend the incarnation
