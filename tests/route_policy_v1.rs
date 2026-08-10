@@ -31,6 +31,10 @@ use tower::ServiceExt;
 fn materialize_path(path: &str) -> String {
     path.replace("{connection_id}", "policy_probe")
         .replace("{attempt_token}", "policy_probe")
+        .replace(
+            "{token}",
+            "sbl_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        )
         .replace("{table}", "missing_table")
         .replace("{name}", "missing_function")
         .replace("{*path}", "assets/policy-probe.js")
@@ -216,6 +220,10 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/auth/agents/token/release"),
         ("POST", "/auth/agents/revoke-self"),
         ("POST", "/auth/integrations/retire"),
+        ("POST", "/capability-links"),
+        ("GET", "/capability-links/{token}"),
+        ("POST", "/capability-links/{token}/invoke"),
+        ("DELETE", "/capability-links/{id}"),
         ("POST", "/auth/oauth/register"),
         ("GET", "/auth/oauth/authorize"),
         ("POST", "/auth/oauth/authorize"),
@@ -389,7 +397,19 @@ async fn registry_and_router_have_black_box_path_method_parity() {
                 .expect("probe registered path and method");
             let installed = registry
                 .iter()
-                .filter(|sibling| sibling.path == route.path)
+                .filter(|sibling| {
+                    sibling.path == route.path
+                        || matches!(
+                            (sibling.path, route.path),
+                            (
+                                "/capability-links/{token}",
+                                "/capability-links/{id}"
+                            ) | (
+                                "/capability-links/{id}",
+                                "/capability-links/{token}"
+                            )
+                        )
+                })
                 .any(|sibling| sibling.accepts_http_method(method));
             if installed {
                 assert_ne!(
@@ -497,6 +517,65 @@ fn remote_mcp_rows_pin_the_app_data_policy_tuple() {
         );
         assert_eq!(sessions.legacy_body_policy, LegacyBodyPolicy::Rejected);
     }
+}
+
+#[test]
+fn capability_link_rows_pin_the_closed_policy_tuples() {
+    let routes = route_registry();
+    let mint = routes
+        .iter()
+        .find(|route| route.method == "POST" && route.path == "/capability-links")
+        .unwrap();
+    assert_eq!(mint.class, RouteClass::AppData);
+    assert_eq!(mint.path_policy, RoutePolicy::SessionAuth);
+    assert_eq!(
+        mint.credential_resolution,
+        CredentialResolution::RequiredSessionBearer
+    );
+    assert_eq!(mint.invocation_authority, InvocationAuthority::ResolvedCaller);
+    assert_eq!(mint.legacy_body_policy, LegacyBodyPolicy::Rejected);
+    assert_eq!(mint.response_sensitivity, ResponseSensitivity::CredentialSecret);
+
+    let landing = routes
+        .iter()
+        .find(|route| route.method == "GET" && route.path == "/capability-links/{token}")
+        .unwrap();
+    assert_eq!(landing.path_policy, RoutePolicy::Public);
+    assert_eq!(
+        landing.credential_resolution,
+        CredentialResolution::CapabilityLinkBearer
+    );
+    assert_eq!(landing.invocation_authority, InvocationAuthority::None);
+    assert_eq!(landing.response_sensitivity, ResponseSensitivity::PublicNoStore);
+
+    let invoke = routes
+        .iter()
+        .find(|route| {
+            route.method == "POST" && route.path == "/capability-links/{token}/invoke"
+        })
+        .unwrap();
+    assert_eq!(invoke.path_policy, RoutePolicy::Public);
+    assert_eq!(
+        invoke.credential_resolution,
+        CredentialResolution::CapabilityLinkBearer
+    );
+    assert_eq!(invoke.invocation_authority, InvocationAuthority::None);
+    assert_eq!(
+        invoke.response_sensitivity,
+        ResponseSensitivity::ExternalAnonymousApplicationData
+    );
+
+    let revoke = routes
+        .iter()
+        .find(|route| route.method == "DELETE" && route.path == "/capability-links/{id}")
+        .unwrap();
+    assert_eq!(revoke.path_policy, RoutePolicy::SessionAuth);
+    assert_eq!(
+        revoke.credential_resolution,
+        CredentialResolution::RequiredSessionBearer
+    );
+    assert_eq!(revoke.invocation_authority, InvocationAuthority::ResolvedCaller);
+    assert_eq!(revoke.response_sensitivity, ResponseSensitivity::PublicNoStore);
 }
 
 #[test]
@@ -2083,6 +2162,22 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
         ]
     };
     BTreeMap::from([
+        (
+            ("POST", "/capability-links"),
+            SessionBodyProbe {
+                uri: "/capability-links",
+                base: json!({ "function": "missing_function" }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("DELETE", "/capability-links/{id}"),
+            SessionBodyProbe {
+                uri: "/capability-links/cplk_policy_probe",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
         (
             ("GET", "/auth/oauth/authorize"),
             SessionBodyProbe {

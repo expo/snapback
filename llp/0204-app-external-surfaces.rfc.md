@@ -6,7 +6,13 @@
 Hosted platform, Developer experience, Docs
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** 2026-08-09 (S4 Landing C implements read-only `ask` v1 over
+**Revised:** 2026-08-09 (S5 Landing A implements D9.4 capability links for
+the external anonymous set: hashed request-secret storage, pinned/caller arg
+templates, 7-day default and 30-day maximum expiry, inert GET, composed
+network/link admission, atomic uses, principal-validity lineage, exact-minter
+revocation, and value-free `link` attribution. Granted links and the D9.5
+approval ceremony remain commissioned.)
+2026-08-09 (S4 Landing C implements read-only `ask` v1 over
 exposed queries: manifest-declared provider/billing and complete budgets,
 durable conservative reserve/actual-settle accounting, caller-scoped provider
 custody, result-schema repair, HMAC-minimized provenance receipts, private
@@ -789,6 +795,18 @@ approval gate (D9.5, OQ9). "No amendment needed" means no new
 execution-authority model: v1 links still take an LLP 0031
 route/response registration and secret-token handling, and link
 budgets compose with the anonymous network-evidence floor.
+
+**Implementation note — S5 Landing A (2026-08-09).** The anonymous-set v1
+slice above is implemented. Raw `sbl_` tokens are returned only inside the
+mint URL and persisted only as domain-separated hashes; the registered
+`{token}` template is the telemetry/diagnostic identity. The catalog retains
+bounded `use_count`, `last_used_at_ms`, and `last_outcome` facts, while the
+`link` caller-attribution span is the S2-D usage lane; durable full audit rows
+remain deferred to the audit-log program. Link life is tied to the minter
+human principal's validity, not the original session's liveness, while the
+stored session and authority-instance lineage makes revocation exact-minter
+only. Mutations/actions are single-use until D9.5 supplies the approval gate.
+No granted-operation carrier or new execution authority is implemented.
 
 ### D9.5 — Approval-gated effects
 

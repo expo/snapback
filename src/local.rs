@@ -3323,6 +3323,14 @@ impl ManagedHostPlanAction {
     }
 }
 
+fn capability_link_unavailable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_CAPABILITY_LINK_UNAVAILABLE",
+        "capability-links",
+        "the capability link is unavailable",
+    )
+}
+
 impl LocalSnapback {
     pub fn memory() -> SnapbackResult<Self> {
         let snapback = Self::from_database(LocalDatabase::memory()?, None)?;
@@ -6811,6 +6819,64 @@ impl LocalSnapback {
             .with_details(serde_json::json!({ "function": name })));
         }
         Ok(())
+    }
+
+    pub(crate) fn capability_link_mint_function(
+        &self,
+        name: &str,
+    ) -> SnapbackResult<FunctionDefinition> {
+        self.validate_external_api_function(name)?;
+        let function = self.functions.function(name).cloned().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_CAPABILITY_LINK_FUNCTION_INVALID",
+                "capability-links",
+                "capability links require a current application function",
+            )
+        })?;
+        if !matches!(
+            function.effective_auth_requirement(),
+            crate::manifest::AuthRequirement::Public
+                | crate::manifest::AuthRequirement::OptionalUser
+        ) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CAPABILITY_LINK_FUNCTION_NOT_ANONYMOUS",
+                "capability-links",
+                "v1 capability links bind only exposed functions that admit anonymous callers",
+            ));
+        }
+        Ok(function)
+    }
+
+    /// Re-resolve by stable function id and re-check the complete D1 anonymous
+    /// set on every landing/invocation. All post-mint failures deliberately
+    /// collapse to the same non-oracular link refusal.
+    ///
+    /// @ref LLP 0031#externalanonymousapplicationdata-contract — exposure and
+    /// anonymous authorization are facts re-checked before handler dispatch.
+    pub(crate) fn capability_link_use_function(
+        &self,
+        function_id: &str,
+    ) -> SnapbackResult<FunctionDefinition> {
+        let function = self
+            .functions
+            .functions
+            .iter()
+            .find(|function| function.id == function_id)
+            .cloned()
+            .ok_or_else(capability_link_unavailable)?;
+        let exposed = function
+            .api_exposure
+            .as_ref()
+            .is_some_and(|exposure| exposure.expose);
+        let anonymous = matches!(
+            function.effective_auth_requirement(),
+            crate::manifest::AuthRequirement::Public
+                | crate::manifest::AuthRequirement::OptionalUser
+        );
+        if !self.external_api_enabled() || !exposed || !anonymous {
+            return Err(capability_link_unavailable());
+        }
+        Ok(function)
     }
 
     pub(crate) fn api_origins(&self) -> Option<Vec<String>> {

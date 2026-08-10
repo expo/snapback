@@ -99,6 +99,22 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
     //   the SNAPBACK_BUNDLE_* HTTP status mapping (codes authoritative,
     //   statuses advisory).
     match code {
+        // @ref LLP 0031#capability-link-mint-and-serve-family — closed link
+        // request secrets use one non-oracular not-found shape; caller input,
+        // authority, throttle, and catalog failures retain distinct D10
+        // families without ever echoing bearer material.
+        "SNAPBACK_CAPABILITY_LINK_UNAVAILABLE"
+        | "SNAPBACK_CAPABILITY_LINK_FUNCTION_INVALID" => StatusCode::NOT_FOUND,
+        "SNAPBACK_CAPABILITY_LINK_FUNCTION_NOT_ANONYMOUS"
+        | "SNAPBACK_CAPABILITY_LINK_MINTER_INVALID"
+        | "SNAPBACK_CAPABILITY_LINK_MUTATION_APPROVAL_REQUIRED"
+        | "SNAPBACK_CAPABILITY_LINK_CALLER_ARG_DENIED"
+        | "SNAPBACK_CAPABILITY_LINK_REVOKE_DENIED" => StatusCode::FORBIDDEN,
+        "SNAPBACK_CAPABILITY_LINK_INPUT_INVALID"
+        | "SNAPBACK_CAPABILITY_LINK_EXPIRY_INVALID"
+        | "SNAPBACK_CAPABILITY_LINK_ARGS_CONTRACT_REQUIRED" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_CAPABILITY_LINK_LIMIT_EXCEEDED" => StatusCode::TOO_MANY_REQUESTS,
+        "SNAPBACK_CAPABILITY_LINK_CATALOG_CORRUPT" => StatusCode::INTERNAL_SERVER_ERROR,
         crate::network_profile::NETWORK_PROFILE_FORBIDDEN_CODE => StatusCode::FORBIDDEN,
         crate::network_profile::NETWORK_PROFILE_DELAY_CEILING_CODE
         | crate::network_profile::NETWORK_PROFILE_INVALID_CODE => StatusCode::BAD_REQUEST,

@@ -2121,6 +2121,15 @@ fn validate_exact(
     }) {
         super::declared_clients::validate_exact_schema(conn)?;
     }
+    // @ref LLP 0204#d94--shareable-capability-links — recognize only the
+    // exact manifest-owned link companion; the frozen `_auth_*` catalog does
+    // not absorb bearer-link state.
+    if objects.iter().any(|object| {
+        object.kind == "table"
+            && object.name == super::capability_links::CAPABILITY_LINK_TABLE
+    }) {
+        super::capability_links::validate_exact_schema(conn)?;
+    }
     // @ref LLP 0204#d91--streaming-conversations — the
     // function-manifest companion is recognized only in its exact shape.
     if objects.iter().any(|object| {

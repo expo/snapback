@@ -1276,6 +1276,16 @@ fn route_schema_refs(method: &str, path: &str) -> (Option<&'static str>, Option<
         // LLP 0204 D5/D6: these handler-owned v1 DTOs do not yet have a
         // committed standalone artifact schema. Null is honest.
         ("POST", "/api/v1/run" | "/api/v1/ask") => (None, None),
+        // LLP 0204 D9.4: v1 capability-link management, inert landing, and
+        // invocation use closed handler-owned DTOs. No committed standalone
+        // schema artifact exists yet, so both references are honestly null.
+        (
+            "POST" | "GET" | "DELETE",
+            "/capability-links"
+            | "/capability-links/{token}"
+            | "/capability-links/{token}/invoke"
+            | "/capability-links/{id}",
+        ) => (None, None),
         ("GET", "/auth/session") => (None, Some("auth.session.output.schema.json")),
         ("POST", "/auth/request-code") => (
             Some("auth.request-code.input.schema.json"),

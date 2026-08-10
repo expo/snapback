@@ -5,7 +5,10 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-09 (LLP 0204 S4 Landing C registers read-only
+**Revised:** 2026-08-09 (LLP 0204 S5 Landing A implements the anonymous-set
+capability-link mint, inert landing, invoke, and exact-minter revocation rows;
+the granted-operation extension and D9.5 approval gate remain commissioned.)
+2026-08-09 (LLP 0204 S4 Landing C registers read-only
 `/api/v1/ask` and MCP `ask`; Landing B registered `/api/v1/run` with
 bounded/digest validation and the evidenced untrusted-code refusal; earlier S4 Landing A private
 stream transcript and cancel routes, S2 Landing E remote MCP server, and Landing C local OAuth facade;
@@ -1404,6 +1407,17 @@ The v1 capability-link family is:
 | `POST /capability-links` | AppData mint; `SessionAuth` with an exact `RequiredSessionBearer` establishes the minter, and the function scope gate runs before creation | `CredentialSecret`; the returned URL/token is no-store and never logged |
 | `GET /capability-links/{token}` | AppData/Public path with a `CapabilityLinkBearer` request-secret resolver, `InvocationAuthority::None`, and no effect | `PublicNoStore` inert landing projection; it never invokes the function, consumes a use, or echoes the token |
 | `POST /capability-links/{token}/invoke` | AppData/Public path with `CapabilityLinkBearer`; resolves anonymous function authority only after link/minter-lineage/admission checks | `ExternalAnonymousApplicationData` below; always no-store |
+| `DELETE /capability-links/{id}` | AppData mint-management; `SessionAuth` with exact `RequiredSessionBearer`; only the minting session and authority instance may revoke | `PublicNoStore`; successful instant revocation returns no body |
+
+**Implementation status (S5 Landing A, 2026-08-09):** these rows are
+implemented for LLP 0204's external anonymous set. The stored minter session
+and authority instance bind the exact revocation act; use-time lineage follows
+the continued validity of the human minter principal rather than the liveness
+of that original session. Bounded `use_count` plus last-use/outcome facts and
+the `link` telemetry attribution lane are the v1 per-use journal; full audit
+rows remain owned by the audit-log program. Extending the bearer to granted
+operations and the D9.5 pending-approval ceremony remain commissioned future
+amendments and confer no authority today.
 
 The path placeholder is credential material, not a loggable identifier. Router
 normalization must replace it with the registered template before access-log,

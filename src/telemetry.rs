@@ -278,6 +278,13 @@ impl CallerAttributionV1 {
         }
     }
 
+    pub(crate) fn link(caller_key: String) -> Self {
+        Self {
+            lane: "link",
+            caller_key,
+        }
+    }
+
     pub(crate) fn first_party() -> Self {
         Self {
             lane: "first-party",
@@ -4745,7 +4752,7 @@ fn caller_attribution_from_details(details: Option<&str>) -> Option<(String, Str
     let valid = match lane {
         "anonymous" => key == "anonymous",
         "first-party" => key.is_empty(),
-        "declared" | "integration" => !key.is_empty() && key.len() <= 512,
+        "declared" | "integration" | "link" => !key.is_empty() && key.len() <= 512,
         _ => false,
     };
     valid.then(|| (lane.to_owned(), key.to_owned()))
@@ -6147,6 +6154,7 @@ mod tests {
                 ("declared", declared_key, 2),
                 ("first-party", "", 1),
                 ("integration", "int_test", 1),
+                ("link", "cplk_test", 1),
             ]
         );
 

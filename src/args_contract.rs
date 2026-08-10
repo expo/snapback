@@ -234,6 +234,106 @@ pub(crate) fn validate_stored_structured_value(
     }
 }
 
+/// Validate a capability-link argument template without inventing placeholder
+/// values for fields the possessor will supply later. Pinned values are
+/// checked at their exact declared nodes, every caller-supplied name must be a
+/// declared root field, and every required field must be covered by one side.
+/// The complete merged object still re-enters [`validate_function_args`] at
+/// invocation time.
+///
+/// @ref LLP 0204#d94--shareable-capability-links — pinned and caller-supplied
+/// arguments are one schema-validated template; pinned values win on merge.
+pub(crate) fn validate_function_args_template(
+    function: &FunctionDefinition,
+    pinned_args: &Value,
+    caller_args: &BTreeSet<String>,
+) -> SnapbackResult<()> {
+    let Some(contract) = &function.args_contract else {
+        if caller_args.is_empty() {
+            return validate_function_args(function, pinned_args);
+        }
+        return Err(SnapbackError::error(
+            "SNAPBACK_CAPABILITY_LINK_ARGS_CONTRACT_REQUIRED",
+            "capability-links",
+            "callerArgs requires the function to publish an argsContract",
+        ));
+    };
+    if serde_json::to_vec(pinned_args)
+        .map_or(true, |bytes| bytes.len() > MAX_FUNCTION_ARGS_BYTES)
+    {
+        return Err(violation(
+            function,
+            ArgsViolation {
+                pointer: String::new(),
+                expected: "object",
+                actual: "oversized",
+                failed_variants: None,
+                unknown_field: None,
+            },
+        ));
+    }
+    let empty = serde_json::Map::new();
+    let pinned = match pinned_args {
+        Value::Null => &empty,
+        Value::Object(object) => object,
+        other => {
+            return Err(violation(
+                function,
+                ArgsViolation::at(&[], "object", json_kind(other)),
+            ));
+        }
+    };
+    let declared = contract
+        .fields
+        .iter()
+        .map(|field| field.name.as_str())
+        .collect::<BTreeSet<_>>();
+    if let Some(name) = caller_args
+        .iter()
+        .find(|name| !declared.contains(name.as_str()))
+    {
+        return Err(violation(
+            function,
+            ArgsViolation::at(
+                &[PointerSegment::UnknownKey(name.clone())],
+                "declared argument",
+                "undeclared",
+            )
+            .with_unknown_field(name, &contract.fields),
+        ));
+    }
+    if let Some(name) = pinned.keys().find(|name| !declared.contains(name.as_str())) {
+        return Err(violation(
+            function,
+            ArgsViolation::at(
+                &[PointerSegment::UnknownKey(name.clone())],
+                "declared argument",
+                "undeclared",
+            )
+            .with_unknown_field(name, &contract.fields),
+        ));
+    }
+    let mut budget = 0_usize;
+    for field in &contract.fields {
+        let path = vec![PointerSegment::Declared(field.name.clone())];
+        match pinned.get(&field.name) {
+            Some(value) => validate_node(value, &field.value, &path, 0, &mut budget)
+                .map_err(|failure| match failure {
+                    ArgsFailure::Shape(shape) => violation(function, shape),
+                    ArgsFailure::Delegated(error) => *error,
+                })?,
+            None if field.required && !caller_args.contains(&field.name) => {
+                return Err(violation(
+                    function,
+                    ArgsViolation::at(&path, node_kind(&field.value), "missing"),
+                ));
+            }
+            None => {}
+        }
+    }
+    Ok(())
+}
+
 fn validate_args_root(args: &Value, contract: &FunctionArgsContract) -> Result<(), ArgsFailure> {
     // An absent-args invocation arrives as JSON null (`HandlerInput::default`);
     // it is the empty args object. Everything else must be one closed object
@@ -679,6 +779,47 @@ mod tests {
             }),
         )
         .expect("valid nested vector");
+    }
+
+    #[test]
+    fn capability_link_template_splits_required_fields_and_validates_pins() {
+        let function = function(split_vector_contract());
+        validate_function_args_template(
+            &function,
+            &json!({ "note": "pinned" }),
+            &BTreeSet::from(["splits".to_owned(), "note".to_owned()]),
+        )
+        .expect("caller subset covers the required unpinned field");
+        let missing = validate_function_args_template(
+            &function,
+            &json!({ "note": "pinned" }),
+            &BTreeSet::new(),
+        )
+        .expect_err("required field must be pinned or caller-supplied");
+        assert_eq!(missing.diagnostic.details["path"], "/splits");
+        let invalid_pin = validate_function_args_template(
+            &function,
+            &json!({ "note": 42 }),
+            &BTreeSet::from(["splits".to_owned()]),
+        )
+        .expect_err("pinned values enter their declared node validator");
+        assert_eq!(invalid_pin.diagnostic.details["path"], "/note");
+    }
+
+    #[test]
+    fn capability_link_caller_subset_requires_a_published_contract() {
+        let mut legacy = function(split_vector_contract());
+        legacy.args_contract = None;
+        let error = validate_function_args_template(
+            &legacy,
+            &json!({}),
+            &BTreeSet::from(["splits".to_owned()]),
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CAPABILITY_LINK_ARGS_CONTRACT_REQUIRED"
+        );
     }
 
     #[test]

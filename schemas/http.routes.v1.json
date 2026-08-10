@@ -1213,6 +1213,42 @@
     },
     {
       "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/capability-links",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "DELETE",
+      "outputSchema": null,
+      "path": "/capability-links/{id}",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "CapabilityLinkBearer",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/capability-links/{token}",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "CapabilityLinkBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/capability-links/{token}/invoke",
+      "path_policy": "Public"
+    },
+    {
+      "class": "AppData",
       "credential_resolution": "LegacyBodyAuth",
       "inputSchema": {
         "$ref": "client-mutation.ack.input.schema.json"

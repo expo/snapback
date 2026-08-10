@@ -165,6 +165,11 @@ pub(crate) mod auth_integrations;
 #[path = "storage/declared_clients.rs"]
 pub(crate) mod declared_clients;
 
+// @ref LLP 0204#d94--shareable-capability-links — bearer hashes and bounded
+// use facts live in a manifest-activated exact companion, never app tables.
+#[path = "storage/capability_links.rs"]
+pub(crate) mod capability_links;
+
 #[path = "storage/ask_spend.rs"]
 pub(crate) mod ask_spend;
 

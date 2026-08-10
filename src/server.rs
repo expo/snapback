@@ -3773,10 +3773,12 @@ enum ExternalApiThrottleSource {
     DeclaredCreation([u8; 32]),
     Declared([u8; 32]),
     Integration(String),
+    Link(String),
     OverflowNetworkFloor,
     OverflowDeclaredCreation,
     OverflowDeclared,
     OverflowIntegration,
+    OverflowLink,
 }
 
 impl ExternalApiThrottleSource {
@@ -3795,6 +3797,9 @@ impl ExternalApiThrottleSource {
             }
             Self::Integration(_) | Self::OverflowIntegration => {
                 (Self::OverflowIntegration, EXTERNAL_API_INTEGRATION_LIMIT)
+            }
+            Self::Link(_) | Self::OverflowLink => {
+                (Self::OverflowLink, EXTERNAL_API_CAPABILITY_LINK_LIMIT)
             }
         }
     }
@@ -7028,6 +7033,10 @@ const EXTERNAL_API_DECLARED_CREATION_LIMIT: usize = 10;
 /// a larger per-id budget while retaining the anonymous network floor.
 const EXTERNAL_API_DECLARED_LIMIT: usize = 240;
 const EXTERNAL_API_INTEGRATION_LIMIT: usize = 600;
+/// @ref LLP 0204#d94--shareable-capability-links — a resolved link receives
+/// one attributable budget which composes with, and never replaces, the
+/// anonymous network floor charged before secret lookup.
+const EXTERNAL_API_CAPABILITY_LINK_LIMIT: usize = 240;
 const EXTERNAL_API_BLESSED_MULTIPLIER: usize = 4;
 
 /// Each agent-management route owns a distinct closed budget. Equal limits do
@@ -7127,6 +7136,38 @@ struct NormalizedDeclaredClientId {
 struct ExternalClientIdContext {
     declared: Option<NormalizedDeclaredClientId>,
     status: Arc<StdMutex<Option<&'static str>>>,
+}
+
+/// Bearer-free result of the capability-link request-secret resolver. The
+/// raw path token is intentionally discarded before the request reaches a
+/// handler; every subsequent diagnostic, receipt, and span uses the
+/// registered route template plus this non-secret durable id.
+///
+/// @ref LLP 0031#capability-link-mint-and-serve-family — secret URL
+/// placeholders are normalized to the registered template at ingress.
+#[derive(Clone, Debug)]
+struct ResolvedCapabilityLink(
+    crate::storage::capability_links::CapabilityLinkRecord,
+);
+
+fn capability_link_token_from_path(spec: RouteSpec, path: &str) -> Option<&str> {
+    match spec.path {
+        "/capability-links/{token}" => path.strip_prefix("/capability-links/"),
+        "/capability-links/{token}/invoke" => path
+            .strip_prefix("/capability-links/")
+            .and_then(|path| path.strip_suffix("/invoke")),
+        _ => None,
+    }
+    .filter(|token| !token.is_empty() && !token.contains('/'))
+}
+
+fn capability_link_unavailable_error() -> ApiError {
+    SnapbackError::error(
+        "SNAPBACK_CAPABILITY_LINK_UNAVAILABLE",
+        "capability-links",
+        "the capability link is unavailable",
+    )
+    .into()
 }
 
 impl ExternalClientIdContext {
@@ -7633,6 +7674,9 @@ pub enum CredentialResolution {
     OptionalSessionOrScopedToken,
     RequiredSessionBearer,
     RequiredSessionOrScopedToken,
+    /// Exact secret URL bearer resolved only on the two registered
+    /// capability-link token paths. It never becomes a session or principal.
+    CapabilityLinkBearer,
     AdminSecretReadLease,
     OperationSpecific,
 }
@@ -7695,6 +7739,10 @@ pub enum ResponseSensitivity {
     /// logging posture stays that of application data (bodies excluded);
     /// cache posture is `no-store` in v1 (the middleware's non-public arm).
     DeclaredPublicApplicationData,
+    /// Arbitrary app-derived output from one closed anonymous external
+    /// projection. Selection never grants function authority; the handler
+    /// re-checks exposure, anonymous authorization, and composed admission.
+    ExternalAnonymousApplicationData,
     ApplicationData,
     ConnectionSecret,
     OperatorMetadata,
@@ -8020,6 +8068,7 @@ impl RouteSpec {
                     | CredentialResolution::FamilyAlarmBearer
                     | CredentialResolution::SignedUrlToken
                     | CredentialResolution::RehearsalCapability
+                    | CredentialResolution::CapabilityLinkBearer
                     | CredentialResolution::OperationSpecific
             ),
             RoutePolicy::AppAuth => {
@@ -8093,6 +8142,35 @@ impl RouteSpec {
         {
             return fail(
                 "rehearsal capability must be an operator operation with an exact grant effect and credential-secret response",
+            );
+        }
+        if self.credential_resolution == CredentialResolution::CapabilityLinkBearer
+            && (self.path_policy != RoutePolicy::Public
+                || self.invocation_authority != InvocationAuthority::None
+                || !matches!(
+                    (self.method, self.path, self.response_sensitivity),
+                    (
+                        "GET",
+                        "/capability-links/{token}",
+                        ResponseSensitivity::PublicNoStore
+                    ) | (
+                        "POST",
+                        "/capability-links/{token}/invoke",
+                        ResponseSensitivity::ExternalAnonymousApplicationData
+                    )
+                ))
+        {
+            return fail(
+                "capability-link bearers are closed to the inert landing and anonymous invoke rows",
+            );
+        }
+        if self.response_sensitivity == ResponseSensitivity::ExternalAnonymousApplicationData
+            && !(self.method == "POST"
+                && self.path == "/capability-links/{token}/invoke"
+                && self.credential_resolution == CredentialResolution::CapabilityLinkBearer)
+        {
+            return fail(
+                "external anonymous application data is closed to capability-link invoke",
             );
         }
         if self.credential_resolution == CredentialResolution::AgentCredentialBody
@@ -8246,6 +8324,7 @@ impl RouteSpec {
                     // sessions mode changes nothing about the lane.
                     | CredentialResolution::SignedUrlToken
                     | CredentialResolution::RehearsalCapability
+                    | CredentialResolution::CapabilityLinkBearer
                     | CredentialResolution::OperationSpecific
             ),
             RoutePolicy::AppAuth => false,
@@ -9037,6 +9116,65 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::PublicNoStore,
             ),
             post(auth_integration_retire).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+        ),
+        // @ref LLP 0031#capability-link-mint-and-serve-family — minting is a
+        // session-scoped grant operation; the two token paths use their exact
+        // request-secret resolver and never reinterpret the bearer as a user.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/capability-links",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(capability_link_mint).layer(DefaultBodyLimit::max(
+                crate::storage::capability_links::CAPABILITY_LINK_PINNED_ARGS_MAX_BYTES + 32 * 1024,
+            )),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "GET",
+                "/capability-links/{token}",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::CapabilityLinkBearer,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::PublicNoStore,
+            ),
+            get(capability_link_landing).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/capability-links/{token}/invoke",
+                RouteClass::AppData,
+                RoutePolicy::Public,
+                CredentialResolution::CapabilityLinkBearer,
+                InvocationAuthority::None,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::ExternalAnonymousApplicationData,
+            ),
+            post(capability_link_invoke).layer(DefaultBodyLimit::max(
+                crate::args_contract::MAX_FUNCTION_ARGS_BYTES,
+            )),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "DELETE",
+                "/capability-links/{id}",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::PublicNoStore,
+            ),
+            delete(capability_link_revoke).layer(DefaultBodyLimit::max(0)),
         ),
         RegisteredRoute::new(
             app_function_route("POST", "/query/{name}"),
@@ -10348,6 +10486,26 @@ fn pasteable_delivery_route(spec: RouteSpec) -> bool {
         )
 }
 
+/// A capability-link URL must remain usable when pasted into an ordinary
+/// browser or opened by a preview crawler. The bearer path is its complete
+/// credential, and the closed resolver plus invocation gate provide the
+/// relevant versioned boundary; requiring a custom auth-client header would
+/// make the commissioned share-link surface unusable.
+///
+/// @ref LLP 0031#capability-link-mint-and-serve-family — both public bearer rows are closed
+/// to their registered templates and install no caller authority.
+fn pasteable_capability_link_route(spec: RouteSpec) -> bool {
+    spec.class == RouteClass::AppData
+        && spec.policy == RoutePolicy::Public
+        && spec.invocation_authority == InvocationAuthority::None
+        && spec.credential_resolution == CredentialResolution::CapabilityLinkBearer
+        && matches!(
+            (spec.method, spec.path),
+            ("GET", "/capability-links/{token}")
+                | ("POST", "/capability-links/{token}/invoke")
+        )
+}
+
 fn session_online_protocol_refusal(
     spec: RouteSpec,
     runtime: &AppState,
@@ -10361,6 +10519,7 @@ fn session_online_protocol_refusal(
         // @ref LLP 0204#d3--surface-2-the-mcp-server
         || spec.path == "/mcp"
         || pasteable_delivery_route(spec)
+        || pasteable_capability_link_route(spec)
         || bare_public_artifact_route(spec)
         || runtime.auth_mode_state().active != crate::manifest::AuthMode::Sessions
     {
@@ -10494,6 +10653,10 @@ async fn session_live_protocol_refusal(
 
 fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
     match spec.path {
+        "/capability-links" | "/capability-links/{id}" => {
+            Some(InvocationSource::CapabilityLinkManagement)
+        }
+        "/capability-links/{token}/invoke" => Some(InvocationSource::HttpCapabilityLink),
         "/auth/session" => Some(InvocationSource::BootstrapHandshake),
         "/auth/refresh" => Some(InvocationSource::AuthRefresh),
         "/auth/logout" => Some(InvocationSource::AuthLogout),
@@ -11916,6 +12079,12 @@ async fn admit_hosted_sender_request(
         Err(error) => return Err(ApiError::from(error).into_response()),
     };
     let effective_source = require_hosted_effective_source(effective_source)?;
+    // The capability URL has no hosted sender-proof carrier. Return before
+    // constructing a canonical external URI so the raw request-secret path
+    // cannot enter sender-proof diagnostics or receipts.
+    if effective.credential_resolution == CredentialResolution::CapabilityLinkBearer {
+        return Ok(None);
+    }
     let canonical_external_uri = match hosted.canonical_external_uri(&request_uri, now_ms) {
         Ok(uri) => uri,
         Err(error) => return Err(ApiError::from(error).into_response()),
@@ -12284,6 +12453,18 @@ async fn enforce_registered_route_policy_inner(
             ApiError::from(SnapbackError::error(code, "auth", message)).into_response(),
         );
     }
+    // Capability-link tokens are the complete credential on their two closed
+    // paths. Reject an Authorization credential before secret lookup so a
+    // session/service bearer can never be reinterpreted as link authority.
+    // The refusal intentionally matches every unavailable link outcome.
+    if effective.credential_resolution == CredentialResolution::CapabilityLinkBearer
+        && request.headers().contains_key(header::AUTHORIZATION)
+    {
+        return apply_registered_response_controls(
+            effective,
+            capability_link_unavailable_error().into_response(),
+        );
+    }
     let sender_nonce_response = request
         .extensions()
         .get::<SenderNonceResponse>()
@@ -12356,6 +12537,46 @@ async fn enforce_registered_route_policy_inner(
         Err(error) => {
             return apply_registered_response_controls(effective, error.into_response());
         }
+    };
+    let resolved_capability_link = if effective.credential_resolution
+        == CredentialResolution::CapabilityLinkBearer
+    {
+        let Some(token) = capability_link_token_from_path(spec, request.uri().path()) else {
+            return finish_registered_response(
+                effective,
+                capability_link_unavailable_error().into_response(),
+                route_admission.as_ref(),
+                None,
+            );
+        };
+        if !crate::storage::capability_links::token_has_closed_shape(token) {
+            return finish_registered_response(
+                effective,
+                capability_link_unavailable_error().into_response(),
+                route_admission.as_ref(),
+                None,
+            );
+        }
+        let token = token.to_owned();
+        let resolved = with_snapback(&runtime.snapback, move |snapback| {
+            snapback
+                .auth_database_mut()
+                .resolve_capability_link(&token, now_millis())
+        })
+        .await;
+        match resolved {
+            Ok(record) => Some(ResolvedCapabilityLink(record)),
+            Err(error) => {
+                return finish_registered_response(
+                    effective,
+                    ApiError::from(error).into_response(),
+                    route_admission.as_ref(),
+                    None,
+                );
+            }
+        }
+    } else {
+        None
     };
     let hosted_sender_admission = match admit_hosted_sender_request(
         spec,
@@ -13266,6 +13487,7 @@ async fn enforce_registered_route_policy_inner(
             &runtime,
             client_id_context.as_ref(),
             authority,
+            resolved_capability_link.as_ref(),
             network_digest,
             network_generation,
             now_ms,
@@ -13308,6 +13530,9 @@ async fn enforce_registered_route_policy_inner(
     }
     if let Some(authority) = prepared_authority.as_ref() {
         request.extensions_mut().insert(authority.clone());
+    }
+    if let Some(link) = resolved_capability_link {
+        request.extensions_mut().insert(link);
     }
     if let Some(admission) = route_admission.as_ref() {
         request.extensions_mut().insert(admission.clone());
@@ -16507,7 +16732,19 @@ pub(crate) fn router_from_registrations(
                 }
             },
         ));
-        match paths.iter_mut().find(|(path, _)| *path == spec.path) {
+        // Axum treats placeholder names as structurally identical. Preserve
+        // the taxonomy's security-significant `{token}` versus ordinary
+        // `{id}` names while merging the GET and DELETE method routers onto
+        // the one runtime path shape.
+        let same_runtime_path = |path: &str| {
+            path == spec.path
+                || matches!(
+                    (path, spec.path),
+                    ("/capability-links/{token}", "/capability-links/{id}")
+                        | ("/capability-links/{id}", "/capability-links/{token}")
+                )
+        };
+        match paths.iter_mut().find(|(path, _)| same_runtime_path(path)) {
             Some((_, existing)) => {
                 let merged = std::mem::take(existing).merge(method_router);
                 *existing = merged;
@@ -21890,6 +22127,7 @@ fn external_api_route(spec: RouteSpec) -> bool {
             | "/api/v1/run"
             | "/api/v1/ask"
             | "/mcp"
+            | "/capability-links/{token}/invoke"
     )
 }
 
@@ -23015,10 +23253,36 @@ async fn admit_external_api_lane(
     runtime: &AppState,
     client_id_context: Option<&ExternalClientIdContext>,
     authority: &PreparedAuthority,
+    capability_link: Option<&ResolvedCapabilityLink>,
     network_digest: [u8; 32],
     network_generation: u64,
     now_ms: u64,
 ) -> Result<crate::telemetry::CallerAttributionV1, ApiError> {
+    if let Some(ResolvedCapabilityLink(link)) = capability_link {
+        if let Some(context) = client_id_context
+            && context.declared.is_some()
+        {
+            context.set_status("ignored-capability-link");
+        }
+        runtime
+            .connections
+            .consume_external_api(
+                ExternalApiThrottleSource::Link(link.id.clone()),
+                EXTERNAL_API_CAPABILITY_LINK_LIMIT,
+                Instant::now(),
+            )
+            .map_err(|retry_after| {
+                external_api_throttle_error(
+                    "SNAPBACK_CAPABILITY_LINK_LIMIT_EXCEEDED",
+                    "link",
+                    "the per-link external API budget is exhausted",
+                    retry_after,
+                )
+            })?;
+        return Ok(crate::telemetry::CallerAttributionV1::link(
+            link.id.clone(),
+        ));
+    }
     if let ResolvedAppAuthority::ServicePrincipal {
         actor_user_id,
         integration_status: Some(status),
@@ -23194,6 +23458,409 @@ async fn validate_external_api_request(
         .into());
     }
     Ok(())
+}
+
+/// @ref LLP 0204#open-questions — the OQ9 ruling makes v1 links short-lived by
+/// default and forbids minting beyond a bounded maximum.
+const CAPABILITY_LINK_DEFAULT_EXPIRY_MS: u64 = 7 * 24 * 60 * 60 * 1_000;
+const CAPABILITY_LINK_MAX_EXPIRY_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
+const CAPABILITY_LINK_MAX_USES: u64 = 9_007_199_254_740_991;
+
+fn empty_json_object() -> Value {
+    Value::Object(serde_json::Map::new())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CapabilityLinkMintRequest {
+    function: String,
+    #[serde(default = "empty_json_object")]
+    pinned_args: Value,
+    #[serde(default)]
+    caller_args: Vec<String>,
+    expires_in_ms: Option<u64>,
+    uses: Option<u64>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CapabilityLinkMintResponse {
+    id: String,
+    url: String,
+    expires_at_ms: u64,
+    remaining_uses: Option<u64>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CapabilityLinkLandingResponse {
+    id: String,
+    function: String,
+    kind: crate::storage::capability_links::CapabilityLinkFunctionKind,
+    caller_args: Vec<String>,
+    expires_at_ms: u64,
+    remaining_uses: Option<u64>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CapabilityLinkInvokeRequest {
+    #[serde(default = "empty_json_object")]
+    args: Value,
+}
+
+fn capability_link_input_invalid(message: &'static str) -> ApiError {
+    SnapbackError::error(
+        "SNAPBACK_CAPABILITY_LINK_INPUT_INVALID",
+        "capability-links",
+        message,
+    )
+    .into()
+}
+
+fn capability_link_kind(
+    kind: &FunctionKind,
+) -> crate::storage::capability_links::CapabilityLinkFunctionKind {
+    match kind {
+        FunctionKind::Query | FunctionKind::LiveQuery => {
+            crate::storage::capability_links::CapabilityLinkFunctionKind::Query
+        }
+        FunctionKind::Mutation => {
+            crate::storage::capability_links::CapabilityLinkFunctionKind::Mutation
+        }
+        FunctionKind::Action => {
+            crate::storage::capability_links::CapabilityLinkFunctionKind::Action
+        }
+    }
+}
+
+/// Mint is a scoped session act, but v1 use-time lineage deliberately follows
+/// principal validity rather than session liveness: ending the minting session
+/// does not kill an otherwise valid link, while deleting/deactivating that
+/// human principal does.
+///
+/// @ref LLP 0204#d94--shareable-capability-links — a link adds arguments,
+/// attribution, and budgets to an already-anonymous function, never authority.
+async fn capability_link_mint(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    input: Result<Json<CapabilityLinkMintRequest>, JsonRejection>,
+) -> Result<Json<CapabilityLinkMintResponse>, ApiError> {
+    require_provider_session_authority(&authority, InvocationSource::CapabilityLinkManagement)?;
+    let ResolvedAppAuthority::Session {
+        user_id,
+        session_id,
+        authority_instance_id,
+        ..
+    } = authority.resolved()
+    else {
+        unreachable!("capability-link management source requires session authority")
+    };
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    let expires_in_ms = request
+        .expires_in_ms
+        .unwrap_or(CAPABILITY_LINK_DEFAULT_EXPIRY_MS);
+    if expires_in_ms == 0 || expires_in_ms > CAPABILITY_LINK_MAX_EXPIRY_MS {
+        return Err(SnapbackError::error(
+            "SNAPBACK_CAPABILITY_LINK_EXPIRY_INVALID",
+            "capability-links",
+            "expiresInMs must be positive and no greater than the v1 maximum",
+        )
+        .with_details(json!({
+            "defaultMs": CAPABILITY_LINK_DEFAULT_EXPIRY_MS,
+            "maximumMs": CAPABILITY_LINK_MAX_EXPIRY_MS,
+        }))
+        .into());
+    }
+    if request
+        .uses
+        .is_some_and(|uses| uses == 0 || uses > CAPABILITY_LINK_MAX_USES)
+    {
+        return Err(capability_link_input_invalid(
+            "uses must be positive and within the v1 safe counter bound",
+        ));
+    }
+    let caller_arg_count = request.caller_args.len();
+    let caller_args = request.caller_args.into_iter().collect::<BTreeSet<_>>();
+    if caller_args.len() != caller_arg_count {
+        return Err(capability_link_input_invalid(
+            "callerArgs must not contain duplicate field names",
+        ));
+    }
+    let caller_args = caller_args.into_iter().collect::<Vec<_>>();
+    let pinned_args = match request.pinned_args {
+        Value::Null => empty_json_object(),
+        Value::Object(object) => Value::Object(object),
+        _ => {
+            return Err(capability_link_input_invalid(
+                "pinnedArgs must be a JSON object",
+            ));
+        }
+    };
+    let pinned_args_json = serde_json::to_string(&pinned_args)
+        .map_err(|_| capability_link_input_invalid("pinnedArgs does not serialize"))?;
+    if pinned_args_json.len()
+        > crate::storage::capability_links::CAPABILITY_LINK_PINNED_ARGS_MAX_BYTES
+    {
+        return Err(capability_link_input_invalid(
+            "pinnedArgs exceeds the capability-link storage bound",
+        ));
+    }
+    let now_ms = now_millis();
+    let expires_at_ms = now_ms
+        .checked_add(expires_in_ms)
+        .ok_or_else(|| capability_link_input_invalid("capability-link expiry overflowed"))?;
+    let function_name = request.function;
+    let minter_principal_id = user_id.clone();
+    let minter_session_id = session_id.clone();
+    let minter_authority_instance_id = authority_instance_id.clone();
+    let remaining_uses = request.uses;
+    let effect_authority = authority.clone();
+    let minted = with_snapback(&state, move |snapback| {
+        let _effect = effect_authority.effect_guard("capability-link mint transaction")?;
+        let function = snapback.capability_link_mint_function(&function_name)?;
+        let function_kind = capability_link_kind(&function.kind);
+        if matches!(
+            function_kind,
+            crate::storage::capability_links::CapabilityLinkFunctionKind::Mutation
+                | crate::storage::capability_links::CapabilityLinkFunctionKind::Action
+        ) && remaining_uses != Some(1)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CAPABILITY_LINK_MUTATION_APPROVAL_REQUIRED",
+                "capability-links",
+                "mutating v1 capability links must be single-use until the approval gate lands",
+            )
+            .with_details(json!({ "dependency": "LLP 0204 D9.5" })));
+        }
+        crate::args_contract::validate_function_args_template(
+            &function,
+            &pinned_args,
+            &caller_args.iter().cloned().collect(),
+        )?;
+        snapback.auth_database_mut().mint_capability_link(
+            crate::storage::capability_links::MintCapabilityLink {
+                minter_principal_id,
+                minter_session_id,
+                minter_authority_instance_id,
+                function_id: function.id,
+                function_name: function.name,
+                function_kind,
+                pinned_args_json,
+                caller_args,
+                expires_at_ms,
+                remaining_uses,
+                now_ms,
+            },
+        )
+    })
+    .await?;
+    Ok(Json(CapabilityLinkMintResponse {
+        id: minted.record.id,
+        url: format!("/capability-links/{}", minted.token),
+        expires_at_ms: minted.record.expires_at_ms,
+        remaining_uses: minted.record.remaining_uses,
+    }))
+}
+
+/// Inert preview-crawler-safe projection: no use is consumed and no durable
+/// field is touched. The handler receives only the bearer-free resolver fact.
+async fn capability_link_landing(
+    State(state): State<SharedSnapback>,
+    Extension(ResolvedCapabilityLink(link)): Extension<ResolvedCapabilityLink>,
+) -> Result<Json<CapabilityLinkLandingResponse>, ApiError> {
+    let function_id = link.function_id.clone();
+    let function = with_snapback(&state, move |snapback| {
+        snapback.capability_link_use_function(&function_id)
+    })
+    .await?;
+    if capability_link_kind(&function.kind) != link.function_kind {
+        return Err(capability_link_unavailable_error());
+    }
+    Ok(Json(CapabilityLinkLandingResponse {
+        id: link.id,
+        function: function.name,
+        kind: link.function_kind,
+        caller_args: link.caller_args,
+        expires_at_ms: link.expires_at_ms,
+        remaining_uses: link.remaining_uses,
+    }))
+}
+
+async fn capability_link_invoke(
+    State(runtime): State<AppState>,
+    State(state): State<SharedSnapback>,
+    State(read): State<crate::local::ReadLane>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Extension(route): Extension<RouteSpec>,
+    Extension(ResolvedCapabilityLink(link)): Extension<ResolvedCapabilityLink>,
+    input: Result<Json<CapabilityLinkInvokeRequest>, JsonRejection>,
+) -> Response {
+    let result: Result<(crate::manifest::FunctionDefinition, Value), ApiError> = async {
+        let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+        let caller = request.args.as_object().ok_or_else(|| {
+            capability_link_input_invalid("capability-link args must be a JSON object")
+        })?;
+        let allowed = link.caller_args.iter().collect::<BTreeSet<_>>();
+        if caller.keys().any(|name| !allowed.contains(name)) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CAPABILITY_LINK_CALLER_ARG_DENIED",
+                "capability-links",
+                "the request supplied an argument outside the link's callerArgs subset",
+            )
+            .into());
+        }
+        let function_id = link.function_id.clone();
+        let function = with_snapback(&state, move |snapback| {
+            snapback.capability_link_use_function(&function_id)
+        })
+        .await?;
+        if capability_link_kind(&function.kind) != link.function_kind {
+            return Err(capability_link_unavailable_error());
+        }
+        let pinned = serde_json::from_str::<Value>(&link.pinned_args_json)
+            .map_err(|_| {
+                ApiError::from(SnapbackError::error(
+                    "SNAPBACK_CAPABILITY_LINK_CATALOG_CORRUPT",
+                    "capability-links",
+                    "capability-link catalog differs from the exact protected shape",
+                ))
+            })?
+            .as_object()
+            .cloned()
+            .ok_or_else(|| {
+                ApiError::from(SnapbackError::error(
+                    "SNAPBACK_CAPABILITY_LINK_CATALOG_CORRUPT",
+                    "capability-links",
+                    "capability-link catalog differs from the exact protected shape",
+                ))
+            })?;
+        let mut merged = caller.clone();
+        for (name, value) in pinned {
+            merged.insert(name, value);
+        }
+        let merged = Value::Object(merged);
+        crate::args_contract::validate_function_args(&function, &merged)?;
+        Ok((function, merged))
+    }
+    .await;
+    let (function, args) = match result {
+        Ok(prepared) => prepared,
+        Err(error) => return error.into_response(),
+    };
+    let link_id = link.id.clone();
+    let consume_link_id = link_id.clone();
+    let consumed = with_snapback(&state, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .consume_capability_link_use(&consume_link_id, now_millis())
+    })
+    .await;
+    let consumed = match consumed {
+        Ok(consumed) => consumed,
+        Err(error) => return ApiError::from(error).into_response(),
+    };
+    let mut response = match link.function_kind {
+        crate::storage::capability_links::CapabilityLinkFunctionKind::Query => {
+            let mut request = FiniteQueryRequest::default();
+            request.request.input.args = args;
+            invoke_query(
+                State(runtime.clone()),
+                State(state.clone()),
+                State(read),
+                Extension(authority),
+                Extension(route),
+                Path(function.name),
+                Ok(Json(request)),
+            )
+            .await
+        }
+        crate::storage::capability_links::CapabilityLinkFunctionKind::Mutation => {
+            let mut request = MutationRequest::default();
+            request.input.args = args;
+            invoke_mutation(
+                State(runtime.clone()),
+                State(state.clone()),
+                Extension(authority),
+                Extension(route),
+                Path(function.name),
+                Ok(Json(request)),
+            )
+            .await
+        }
+        crate::storage::capability_links::CapabilityLinkFunctionKind::Action => {
+            let mut request = FunctionCallRequest::default();
+            request.input.args = args;
+            invoke_action(
+                State(runtime.clone()),
+                State(state.clone()),
+                HeaderMap::new(),
+                Extension(authority),
+                Extension(route),
+                Path(function.name),
+                Ok(Json(request)),
+            )
+            .await
+            .into_response()
+        }
+    };
+    let outcome = response
+        .extensions()
+        .get::<TelemetryDiagnosticCode>()
+        .map(|code| code.0.as_str())
+        .unwrap_or(if response.status().is_success() {
+            "ok"
+        } else {
+            "failed"
+        })
+        .to_owned();
+    let ordinal = consumed.ordinal;
+    if let Err(error) = with_snapback(&state, move |snapback| {
+        snapback.auth_database_mut().settle_capability_link_use(
+            &link_id,
+            ordinal,
+            &outcome,
+            now_millis(),
+        )
+    })
+    .await
+    {
+        response = ApiError::from(error).into_response();
+    }
+    response
+}
+
+async fn capability_link_revoke(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, ApiError> {
+    require_provider_session_authority(&authority, InvocationSource::CapabilityLinkManagement)?;
+    let ResolvedAppAuthority::Session {
+        user_id,
+        session_id,
+        authority_instance_id,
+        ..
+    } = authority.resolved()
+    else {
+        unreachable!("capability-link management source requires session authority")
+    };
+    let minter_principal_id = user_id.clone();
+    let minter_session_id = session_id.clone();
+    let minter_authority_instance_id = authority_instance_id.clone();
+    let effect_authority = authority.clone();
+    with_snapback(&state, move |snapback| {
+        let _effect = effect_authority.effect_guard("capability-link revoke transaction")?;
+        snapback.auth_database_mut().revoke_capability_link(
+            &id,
+            &minter_principal_id,
+            &minter_session_id,
+            &minter_authority_instance_id,
+            now_millis(),
+        )
+    })
+    .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// `/query/{name}` runs on the lock-free read lane when the instance is

@@ -150,6 +150,10 @@ here (or listed here but gone from the code).
 | /auth/request-code | auth.sessions |
 | /auth/session | auth.sessions |
 | /auth/step-up/request | auth.sessions |
+| /capability-links | api.external-exposure |
+| /capability-links/{id} | api.external-exposure |
+| /capability-links/{token} | api.external-exposure |
+| /capability-links/{token}/invoke | api.external-exposure |
 | /client-mutations/acknowledge | sync.offline |
 | /client-mutations/identity-range | sync.offline |
 | /connection/open | realtime.durable-push |

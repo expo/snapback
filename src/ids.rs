@@ -74,6 +74,9 @@ pub enum Kind {
     /// One app-visible integration registration. The principal itself remains
     /// a random `usr_` id; this row id is chronological operational metadata.
     Integration,
+    /// One durable shareable capability-link record. The bearer secret has a
+    /// separate credential spelling and is never stored in this identifier.
+    CapabilityLink,
     // --- runtime and protocol --------------------------------------------
     Mutation,
     Connection,
@@ -151,6 +154,9 @@ impl Kind {
             Kind::GrantRequest => ("greq", TimeOrdered),
             Kind::Grant => ("grt", TimeOrdered),
             Kind::Integration => ("intg", TimeOrdered),
+            // @ref LLP 0204#d94--shareable-capability-links — the observable
+            // link id is safe attribution; the raw URL token remains secret.
+            Kind::CapabilityLink => ("cplk", TimeOrdered),
 
             // These five keep the spellings they already had in the tree, so
             // only the body encoding changes for them.
@@ -215,6 +221,7 @@ pub const ALL: &[Kind] = &[
     Kind::GrantRequest,
     Kind::Grant,
     Kind::Integration,
+    Kind::CapabilityLink,
     Kind::Mutation,
     Kind::Connection,
     Kind::Subscription,

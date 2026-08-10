@@ -873,6 +873,7 @@ impl LocalDatabase {
         crate::push::activate_manifest_in(&tx, staged.schema_manifest.push_seam.as_ref())?;
         crate::storage::auth_integrations::activate_manifest_in(&tx, &staged.schema_manifest)?;
         crate::storage::declared_clients::activate_manifest_in(&tx, &staged.schema_manifest)?;
+        crate::storage::capability_links::activate_manifest_in(&tx, &staged.schema_manifest)?;
         crate::storage::ask_spend::activate_manifest_in(&tx, &staged.schema_manifest)?;
         crate::storage::stream_transcripts::activate_manifests_in(
             &tx,
@@ -1888,6 +1889,7 @@ fn apply_schema_tables(tx: &Transaction<'_>, manifest: &SchemaManifest) -> Snapb
     crate::push::activate_manifest_in(tx, manifest.push_seam.as_ref())?;
     crate::storage::auth_integrations::activate_manifest_in(tx, manifest)?;
     crate::storage::declared_clients::activate_manifest_in(tx, manifest)?;
+    crate::storage::capability_links::activate_manifest_in(tx, manifest)?;
     crate::storage::ask_spend::activate_manifest_in(tx, manifest)?;
     Ok(())
 }

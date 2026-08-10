@@ -799,6 +799,13 @@ pub enum InvocationSource {
     /// registered route; the tool dispatcher still enters the same per-kind
     /// finite invocation handlers as `/api/v1/*`.
     HttpMcp,
+    /// One v1 capability-link invocation. The bearer adds arguments,
+    /// attribution, and budget treatment to an anonymous invocation; it never
+    /// supplies an actor principal or new function authority.
+    HttpCapabilityLink,
+    /// Session-only capability-link mint/revoke management. This is an
+    /// authority-only scoped-grant operation, never a function runner.
+    CapabilityLinkManagement,
     LocalQuery,
     LocalMutation,
     LocalAction,
@@ -864,7 +871,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 39] = [
+    pub const ALL: [Self; 41] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -876,6 +883,8 @@ impl InvocationSource {
         Self::HttpRun,
         Self::HttpAsk,
         Self::HttpMcp,
+        Self::HttpCapabilityLink,
+        Self::CapabilityLinkManagement,
         Self::LocalQuery,
         Self::LocalMutation,
         Self::LocalAction,
@@ -920,6 +929,7 @@ impl InvocationSource {
                 InvocationTarget::Function(FunctionKindConstraint::Action)
             }
             Self::HttpMcp
+            | Self::HttpCapabilityLink
             | Self::DirectAdminRunner
             | Self::HostOperationFunctionRun
             | Self::BranchOperation => InvocationTarget::Function(FunctionKindConstraint::Any),
@@ -930,6 +940,7 @@ impl InvocationSource {
             | Self::AgentGrantManagement
             | Self::HttpRun
             | Self::HttpAsk
+            | Self::CapabilityLinkManagement
             | Self::ProtectedRecordErasure
             | Self::OperationCoverageActivation
             | Self::MutationSettlementAcknowledgement
@@ -1949,6 +1960,7 @@ fn source_allows_authority(
         InvocationSource::AuthRefresh
         | InvocationSource::AuthLogout
         | InvocationSource::AgentGrantManagement
+        | InvocationSource::CapabilityLinkManagement
         | InvocationSource::PushTokenRegistry => {
             mode == AuthMode::Sessions && matches!(resolved, ResolvedAppAuthority::Session { .. })
         }
@@ -1961,6 +1973,9 @@ fn source_allows_authority(
             ordinary
                 || (mode == AuthMode::Sessions
                     && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. }))
+        }
+        InvocationSource::HttpCapabilityLink => {
+            matches!(resolved, ResolvedAppAuthority::Anonymous)
         }
         InvocationSource::ConnectionOpen => {
             ordinary
@@ -2843,6 +2858,7 @@ mod tests {
                 InvocationSource::AuthRefresh
                 | InvocationSource::AuthLogout
                 | InvocationSource::AgentGrantManagement
+                | InvocationSource::CapabilityLinkManagement
                 | InvocationSource::PushTokenRegistry => {
                     mode == AuthMode::Sessions && matches!(kind, Kind::Session)
                 }
@@ -2854,6 +2870,7 @@ mod tests {
                 | InvocationSource::HttpMcp => {
                     ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
                 }
+                InvocationSource::HttpCapabilityLink => matches!(kind, Kind::Anonymous),
                 InvocationSource::ConnectionOpen => {
                     ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
                 }
