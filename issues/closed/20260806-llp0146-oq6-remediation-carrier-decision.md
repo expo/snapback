@@ -245,3 +245,21 @@ hosted; stale-artifact refusal owned by the repair-apply consumer; fixture
 corpus assigned to LLP 0095. Recorded in LLP 0146 OQ6, LLP 0094 (dated wire
 amendment), and LLP 0095 (fixture obligations). Implementation follows the
 ticket's nine-step list.
+
+## Resolution — 2026-08-10 — implemented under the option-B ruling
+
+All nine follow-on steps landed in the consolidated remediation-carrier
+landing: LLP 0094/0095 amendments; the v1 registry/schema promotion
+(`schemas/remediation-kinds.v1.*`); the `diagnostic.details.remediationSet`
+carrier with construction helpers at the shared Diagnostic boundary
+(`src/remediation.rs`); contextual offers for the suggestion families and
+the scoped-token/auth refusals; the `remediation.apply` host operation with
+`SNAPBACK_REMEDIATION_ARTIFACT_STALE` fencing; cross-projection parity and
+the LLP 0095 fixture corpus (`schemas/remediation.wire-fixtures.v1.json`,
+`tests/remediation_registry_v1.rs`, client decoder suite); regenerated
+error/host-op schemas and clients; the ControlCatalog `remediation`
+projection (LLP 0184 amendment); and the guide diagnostics/agent-controls
+workflow update. Orchestrator hardening during landing: the requestGrant
+action serializes `grantableScope` per the ruled schemas, and the carrier
+module was made a true contract leaf (ServedSurfacesV1 dependency
+inversion) with both new modules assigned in the ownership manifest.

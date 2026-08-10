@@ -317,7 +317,7 @@ pub(crate) fn unknown_path_details(guessed: &str, paths: &[&str]) -> Value {
     details
 }
 
-fn path_set_hash(paths: &[&str]) -> String {
+pub(crate) fn path_set_hash(paths: &[&str]) -> String {
     let mut paths = paths.to_vec();
     paths.sort_unstable();
     paths.dedup();
@@ -329,13 +329,6 @@ fn path_set_hash(paths: &[&str]) -> String {
     format!("sha256:{:x}", digest.finalize())
 }
 
-pub(crate) fn route_registry_hash() -> String {
-    let paths = crate::server::route_registry()
-        .iter()
-        .map(|route| route.path)
-        .collect::<Vec<_>>();
-    path_set_hash(&paths)
-}
 
 fn contract_kind(contract: &ResultValueContract) -> &'static str {
     match contract {

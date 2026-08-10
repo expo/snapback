@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "3ee55dd68e30c458ade11083ddb1ec2afd00629a",
-    "sourceDigest": "sha256:a8d61d7238aa07ca41737ac417ea8a2839a9ee8a2e4020cda86b9e37890a63c0"
+    "commit": "6ccf4590aab94681a1fd72176ee7a6f7dd209c27",
+    "sourceDigest": "sha256:82d3bb28231d815a7543db76d5a2528039e2b61fca4915be9f1ac35727d94279"
   },
   "limits": {
     "lookupBytes": 16384
@@ -18110,7 +18110,7 @@
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2994,
+          "line": 3009,
           "column": 49
         },
         {
@@ -19061,7 +19061,7 @@
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2956,
+          "line": 2971,
           "column": 14
         },
         {
@@ -19689,7 +19689,7 @@
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2019,
+          "line": 2034,
           "column": 18
         },
         {
@@ -24769,7 +24769,7 @@
         },
         {
           "file": "src/host_ops.rs",
-          "line": 3231,
+          "line": 3246,
           "column": 14
         },
         {
@@ -37970,7 +37970,7 @@
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2497,
+          "line": 2512,
           "column": 18
         },
         {
@@ -37990,7 +37990,7 @@
       "sites": [
         {
           "file": "src/host_ops.rs",
-          "line": 2502,
+          "line": 2517,
           "column": 18
         },
         {
@@ -43110,12 +43110,12 @@
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2780,
+          "line": 2795,
           "column": 36
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2785,
+          "line": 2800,
           "column": 14
         },
         {
@@ -46059,7 +46059,7 @@
       "sites": [
         {
           "file": "src/host_ops.rs",
-          "line": 2032,
+          "line": 2047,
           "column": 22
         },
         {
@@ -46086,7 +46086,7 @@
       "sites": [
         {
           "file": "src/host_ops.rs",
-          "line": 2305,
+          "line": 2320,
           "column": 18
         },
         {
@@ -46106,7 +46106,7 @@
       "sites": [
         {
           "file": "src/host_ops.rs",
-          "line": 2169,
+          "line": 2184,
           "column": 22
         },
         {
@@ -46181,17 +46181,17 @@
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2155,
+          "line": 2170,
           "column": 18
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2487,
+          "line": 2502,
           "column": 18
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2545,
+          "line": 2560,
           "column": 18
         },
         {
@@ -46271,7 +46271,7 @@
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2044,
+          "line": 2059,
           "column": 18
         },
         {
@@ -46313,17 +46313,17 @@
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2055,
+          "line": 2070,
           "column": 18
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2655,
+          "line": 2670,
           "column": 17
         },
         {
           "file": "src/host_ops.rs",
-          "line": 3069,
+          "line": 3084,
           "column": 46
         },
         {
@@ -47352,7 +47352,7 @@
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2883,
+          "line": 2898,
           "column": 14
         },
         {
@@ -65413,27 +65413,27 @@
         },
         {
           "file": "src/remediation.rs",
-          "line": 607,
+          "line": 621,
           "column": 14
         },
         {
           "file": "src/remediation.rs",
-          "line": 614,
+          "line": 628,
           "column": 14
-        },
-        {
-          "file": "src/remediation.rs",
-          "line": 623,
-          "column": 35
         },
         {
           "file": "src/remediation.rs",
           "line": 637,
+          "column": 35
+        },
+        {
+          "file": "src/remediation.rs",
+          "line": 651,
           "column": 14
         },
         {
           "file": "src/remediation.rs",
-          "line": 652,
+          "line": 666,
           "column": 14
         },
         {
@@ -71808,12 +71808,12 @@
       "sites": [
         {
           "file": "src/host_ops.rs",
-          "line": 2892,
+          "line": 2907,
           "column": 46
         },
         {
           "file": "src/host_ops.rs",
-          "line": 2900,
+          "line": 2915,
           "column": 46
         },
         {
@@ -72501,7 +72501,7 @@
       "sites": [
         {
           "file": "src/host_ops.rs",
-          "line": 2779,
+          "line": 2794,
           "column": 38
         }
       ],
@@ -73347,7 +73347,7 @@
       "sites": [
         {
           "file": "src/host_ops.rs",
-          "line": 2828,
+          "line": 2843,
           "column": 57
         },
         {

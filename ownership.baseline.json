@@ -2,7 +2,7 @@
   "schemaVersion": "snapback.module-ownership-baseline.v1",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
   "moduleCount": 223,
-  "edgeCount": 1321,
+  "edgeCount": 1322,
   "edges": [
     {
       "from": "src/admin_agent_destroy.rs",
@@ -3009,6 +3009,12 @@
       "fromOwner": "unassigned",
       "to": "src/conformance.rs",
       "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/local.rs",
+      "fromOwner": "unassigned",
+      "to": "src/connected_clients.rs",
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/local.rs",

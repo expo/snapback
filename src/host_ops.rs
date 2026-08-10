@@ -1949,7 +1949,22 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
                             )
                         })
                 })
-                .and_then(|input| crate::remediation::apply_remediation(snapback, input));
+                .and_then(|input| {
+                    let surfaces = crate::remediation::ServedSurfacesV1 {
+                        functions: snapback.served_function_manifest(),
+                        schema: snapback.served_schema_manifest(),
+                        catalog_digest: crate::control_catalog::catalog_digest(
+                            crate::control_catalog::build_catalog(),
+                        )
+                        .map(str::to_owned),
+                        served_host_ops: &SERVED_HOST_OPS,
+                        served_routes: crate::server::route_registry()
+                            .iter()
+                            .map(|route| route.path)
+                            .collect(),
+                    };
+                    crate::remediation::apply_remediation(&surfaces, input)
+                });
             match outcome {
                 Ok(applied) => envelope(
                     snapback,

@@ -29753,3 +29753,103 @@ fn live_socket_rejects_oversized_control_frames_before_json_decode() {
         "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE"
     );
 }
+
+// Relocated from src/remediation.rs so the contract leaf carries no textual
+// dependency on the runtime god-files; these exercise remediation.apply
+// through real served surfaces.
+
+fn remediation_served_surfaces(
+    snapback: &crate::local::LocalSnapback,
+) -> crate::remediation::ServedSurfacesV1<'_> {
+    crate::remediation::ServedSurfacesV1 {
+        functions: snapback.served_function_manifest(),
+        schema: snapback.served_schema_manifest(),
+        catalog_digest: crate::control_catalog::catalog_digest(
+            crate::control_catalog::build_catalog(),
+        )
+        .map(str::to_owned),
+        served_host_ops: &crate::host_ops::SERVED_HOST_OPS,
+        served_routes: crate::server::route_registry()
+            .iter()
+            .map(|route| route.path)
+            .collect(),
+    }
+}
+
+#[test]
+fn fresh_machine_remediation_selects_the_served_replacement() {
+    let snapback = crate::local::LocalSnapback::memory().expect("memory remediation fixture");
+    let artifact_hash =
+        crate::control_catalog::catalog_digest(crate::control_catalog::build_catalog())
+            .expect("build catalog digest")
+            .to_owned();
+    let item = crate::remediation::RemediationItemV1::identifier_replacement(
+        crate::remediation::RemediationKindV1::FixTypo,
+        &artifact_hash,
+        "hostOperation",
+        None,
+        "app.inspect",
+    );
+    let surfaces = remediation_served_surfaces(&snapback);
+    let result = crate::remediation::apply_remediation(
+        &surfaces,
+        crate::remediation::RemediationApplyInputV1 {
+            schema_version: crate::remediation::REMEDIATION_APPLY_SCHEMA_VERSION.to_owned(),
+            artifact_hash: artifact_hash.clone(),
+            item,
+        },
+    )
+    .expect("fresh remediation applies");
+    assert!(result.applied);
+    assert_eq!(result.artifact_hash, artifact_hash);
+    assert_eq!(result.replacement.value, "app.inspect");
+}
+
+#[test]
+fn approval_item_is_never_applied_as_a_machine_repair() {
+    let snapback = crate::local::LocalSnapback::memory().expect("memory remediation fixture");
+    let surfaces = remediation_served_surfaces(&snapback);
+    let error = crate::remediation::apply_remediation(
+        &surfaces,
+        crate::remediation::RemediationApplyInputV1 {
+            schema_version: crate::remediation::REMEDIATION_APPLY_SCHEMA_VERSION.to_owned(),
+            artifact_hash: "sha256:0123456789abcdef".to_owned(),
+            item: crate::remediation::RemediationItemV1::request_grant(
+                "function:query:fn_list_todos",
+            ),
+        },
+    )
+    .expect_err("approval remediation cannot be machine-applied");
+    assert_eq!(
+        error.diagnostic.code,
+        crate::remediation::REMEDIATION_APPROVAL_REQUIRED_CODE
+    );
+}
+
+#[test]
+fn stale_apply_has_no_durable_effect() {
+    let snapback = crate::local::LocalSnapback::memory().expect("memory remediation fixture");
+    let before = snapback.durable_version().expect("durable version before");
+    let item = crate::remediation::RemediationItemV1::identifier_replacement(
+        crate::remediation::RemediationKindV1::FixTypo,
+        "sha256:aaaaaaaaaaaaaaaa",
+        "hostOperation",
+        None,
+        "app.inspect",
+    );
+    let surfaces = remediation_served_surfaces(&snapback);
+    let error = crate::remediation::apply_remediation(
+        &surfaces,
+        crate::remediation::RemediationApplyInputV1 {
+            schema_version: crate::remediation::REMEDIATION_APPLY_SCHEMA_VERSION.to_owned(),
+            artifact_hash: "sha256:aaaaaaaaaaaaaaaa".to_owned(),
+            item,
+        },
+    )
+    .expect_err("stale artifact must refuse");
+    assert_eq!(
+        error.diagnostic.code,
+        crate::remediation::REMEDIATION_ARTIFACT_STALE_CODE
+    );
+    assert_eq!(snapback.durable_version().unwrap(), before);
+}

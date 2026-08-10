@@ -588,7 +588,21 @@ pub fn remediation_fixture_corpus() -> RemediationFixtureCorpusV1 {
     }
 }
 
-/// Consume one exact carrier item while the caller holds the LocalSnapback
+/// Read-only view of the served authoring surfaces, built by the caller that
+/// holds the generation fence. Passing the manifests instead of the runtime
+/// handle keeps this contract leaf independent of the runtime god-files.
+pub(crate) struct ServedSurfacesV1<'a> {
+    pub functions: &'a crate::manifest::FunctionManifest,
+    pub schema: &'a crate::manifest::SchemaManifest,
+    /// Digest of the served host-operation catalog, when the caller serves one.
+    pub catalog_digest: Option<String>,
+    /// The served host-operation identifiers.
+    pub served_host_ops: &'a [&'a str],
+    /// The served HTTP route paths.
+    pub served_routes: Vec<&'a str>,
+}
+
+/// Consume one exact carrier item while the caller holds the serving
 /// generation fence. This operation repairs only the identifier value it
 /// returns; it never writes, aliases, regenerates artifacts, or invokes an
 /// application function.
@@ -597,7 +611,7 @@ pub fn remediation_fixture_corpus() -> RemediationFixtureCorpusV1 {
 ///   currently served artifact hashes in the same critical section that
 ///   selects the replacement, and refuse stale with no side effects.
 pub(crate) fn apply_remediation(
-    snapback: &mut crate::local::LocalSnapback,
+    surfaces: &ServedSurfacesV1<'_>,
     input: RemediationApplyInputV1,
 ) -> Result<RemediationApplyResultV1, crate::diagnostic::SnapbackError> {
     use crate::diagnostic::SnapbackError;
@@ -655,12 +669,12 @@ pub(crate) fn apply_remediation(
         ));
     };
 
-    let current_hash = current_artifact_hash(snapback, target, owner.as_deref())
+    let current_hash = current_artifact_hash(surfaces, target, owner.as_deref())
         .ok_or_else(stale_artifact_refusal)?;
     if current_hash != input.artifact_hash {
         return Err(stale_artifact_refusal());
     }
-    if !replacement_is_served(snapback, target, owner.as_deref(), replacement) {
+    if !replacement_is_served(surfaces, target, owner.as_deref(), replacement) {
         return Err(stale_artifact_refusal());
     }
 
@@ -696,49 +710,45 @@ fn artifact_hash_is_valid(hash: &str) -> bool {
 }
 
 fn current_artifact_hash(
-    snapback: &crate::local::LocalSnapback,
+    surfaces: &ServedSurfacesV1<'_>,
     target: &str,
     owner: Option<&str>,
 ) -> Option<String> {
     match target {
-        "hostOperation" => {
-            crate::control_catalog::catalog_digest(crate::control_catalog::build_catalog())
-                .map(str::to_owned)
-        }
-        "function" => snapback.served_function_manifest().bundle_hash.clone(),
+        "hostOperation" => surfaces.catalog_digest.clone(),
+        "function" => surfaces.functions.bundle_hash.clone(),
         "argumentField" => owner
             .and_then(|owner| {
-                snapback
-                    .served_function_manifest()
+                surfaces
+                    .functions
                     .functions
                     .iter()
                     .find(|function| function.id == owner)
             })
             .and_then(|function| function.args_contract_hash.clone()),
         "schemaField" => owner
-            .and_then(|owner| snapback.served_schema_manifest().table(owner))
+            .and_then(|owner| surfaces.schema.table(owner))
             .map(crate::authoring_suggestion::table_shape_hash),
-        "httpRoute" => Some(crate::authoring_suggestion::route_registry_hash()),
+        "httpRoute" => Some(crate::authoring_suggestion::path_set_hash(
+            &surfaces.served_routes,
+        )),
         _ => None,
     }
 }
 
 fn replacement_is_served(
-    snapback: &crate::local::LocalSnapback,
+    surfaces: &ServedSurfacesV1<'_>,
     target: &str,
     owner: Option<&str>,
     replacement: &str,
 ) -> bool {
     match target {
-        "hostOperation" => crate::host_ops::SERVED_HOST_OPS.contains(&replacement),
-        "function" => snapback
-            .served_function_manifest()
-            .function(replacement)
-            .is_some(),
+        "hostOperation" => surfaces.served_host_ops.contains(&replacement),
+        "function" => surfaces.functions.function(replacement).is_some(),
         "argumentField" => owner
             .and_then(|owner| {
-                snapback
-                    .served_function_manifest()
+                surfaces
+                    .functions
                     .functions
                     .iter()
                     .find(|function| function.id == owner)
@@ -751,11 +761,9 @@ fn replacement_is_served(
                     .any(|field| field.name == replacement)
             }),
         "schemaField" => owner
-            .and_then(|owner| snapback.served_schema_manifest().table(owner))
+            .and_then(|owner| surfaces.schema.table(owner))
             .is_some_and(|table| table.fields.iter().any(|field| field.name == replacement)),
-        "httpRoute" => crate::server::route_registry()
-            .iter()
-            .any(|route| route.path == replacement),
+        "httpRoute" => surfaces.served_routes.contains(&replacement),
         _ => false,
     }
 }
@@ -846,73 +854,4 @@ mod tests {
         }
     }
 
-    #[test]
-    fn fresh_machine_remediation_selects_the_served_replacement() {
-        let mut snapback =
-            crate::local::LocalSnapback::memory().expect("memory remediation fixture");
-        let artifact_hash =
-            crate::control_catalog::catalog_digest(crate::control_catalog::build_catalog())
-                .expect("build catalog digest")
-                .to_owned();
-        let item = RemediationItemV1::identifier_replacement(
-            RemediationKindV1::FixTypo,
-            &artifact_hash,
-            "hostOperation",
-            None,
-            "app.inspect",
-        );
-        let result = apply_remediation(
-            &mut snapback,
-            RemediationApplyInputV1 {
-                schema_version: REMEDIATION_APPLY_SCHEMA_VERSION.to_owned(),
-                artifact_hash: artifact_hash.clone(),
-                item,
-            },
-        )
-        .expect("fresh remediation applies");
-        assert!(result.applied);
-        assert_eq!(result.artifact_hash, artifact_hash);
-        assert_eq!(result.replacement.value, "app.inspect");
-    }
-
-    #[test]
-    fn approval_item_is_never_applied_as_a_machine_repair() {
-        let mut snapback =
-            crate::local::LocalSnapback::memory().expect("memory remediation fixture");
-        let error = apply_remediation(
-            &mut snapback,
-            RemediationApplyInputV1 {
-                schema_version: REMEDIATION_APPLY_SCHEMA_VERSION.to_owned(),
-                artifact_hash: "sha256:0123456789abcdef".to_owned(),
-                item: RemediationItemV1::request_grant("function:query:fn_list_todos"),
-            },
-        )
-        .expect_err("approval remediation cannot be machine-applied");
-        assert_eq!(error.diagnostic.code, REMEDIATION_APPROVAL_REQUIRED_CODE);
-    }
-
-    #[test]
-    fn stale_apply_has_no_durable_effect() {
-        let mut snapback =
-            crate::local::LocalSnapback::memory().expect("memory remediation fixture");
-        let before = snapback.durable_version().expect("durable version before");
-        let item = RemediationItemV1::identifier_replacement(
-            RemediationKindV1::FixTypo,
-            "sha256:aaaaaaaaaaaaaaaa",
-            "hostOperation",
-            None,
-            "app.inspect",
-        );
-        let error = apply_remediation(
-            &mut snapback,
-            RemediationApplyInputV1 {
-                schema_version: REMEDIATION_APPLY_SCHEMA_VERSION.to_owned(),
-                artifact_hash: "sha256:aaaaaaaaaaaaaaaa".to_owned(),
-                item,
-            },
-        )
-        .expect_err("stale artifact must refuse");
-        assert_eq!(error.diagnostic.code, REMEDIATION_ARTIFACT_STALE_CODE);
-        assert_eq!(snapback.durable_version().unwrap(), before);
-    }
 }
