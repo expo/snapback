@@ -19,6 +19,7 @@ Revision history)
 **Revised:** 2026-08-10 (f — round-3 revision under the author's extended
 budget; see Revision history)
 **Revised:** 2026-08-10 (g — round-4 revision; see Revision history)
+**Revised:** 2026-08-10 (h — round-5 revision; see Revision history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -382,16 +383,21 @@ requires its named worklist record in the same landing.
   forbidden edges, allowed by the runner's pre-existing-staleness rule. Two
   enforcement requirements therefore bind alongside the analyzer upgrade:
   (i) staleness attribution for this gate is **set-based, not
-  pass/fail-based**: the gate emits canonical edge fingerprints, compares
-  the pushed revision's forbidden set `V(P)` against the merge-base's
-  actual set `V(B)`, blocks `V(P) − V(B)` unless each member is covered by
-  an exact approved waiver, and admits inherited members only while a
-  committed open ticket names that exact set and its observation revision
-  — a Boolean last-green comparison cannot distinguish inherited from
-  introduced reds and is not compliant; (ii) every ALLOWED-WITH-STALENESS
-  push must reference (or the next landing must commit) the backstop ticket
-  naming the exact stale edge set, so a red on main is always a tracked
-  object — the hook itself never creates uncommitted state. "Fixed forward at the next landing" is
+  pass/fail-based**. Definitions: for a revision R, the *outstanding set*
+  `V(R)` is the canonical edge fingerprints of §2-forbidden edges present
+  at R **and not admitted by R's committed baseline or waivers**, computed
+  by one analyzer semantics applied identically to both snapshots.
+  The gate blocks `V(P) − V(B)` (pushed minus merge-base) unless each
+  member carries an exact approved waiver; provenance re-keys for
+  relocation and analyzer-upgrade discoveries are baseline entries with
+  attribution (§2), never waivers. A Boolean pass/fail or last-green
+  comparison cannot distinguish inherited from introduced reds and is not
+  compliant. (ii) inherited members (`V(P) ∩ V(B)` non-empty) are admitted
+  only while **the pushed revision itself contains** an open ticket naming
+  the exact outstanding fingerprints and their observation revision — if
+  the tree being pushed carries untracked reds, the push blocks until the
+  same push commits or refreshes that ticket. The hook never creates
+  uncommitted state; the pusher does, in the push. "Fixed forward at the next landing" is
   a convention this Decision makes auditable, not a property the arm yet
   enforces; `issues/20260810-ownership-gate-analyzer-gaps.md` tracks both.
 - **Known analyzer gap, and the requirement that closes it.** The current
@@ -485,11 +491,17 @@ These are different activities and this Decision keeps them distinct:
 - **OQ-C.** The full-process reopen contract (§4's recorded exception):
   **automatic verified reload on open** (needs an authoritative artifact
   source + digest verification + failure behavior), or
-  **inert-until-reload** (the record validates and fences the next explicit
-  reload; matches today's implementation). Recommendation:
-  inert-until-reload, with the record-fenced reload test as the slice's
-  acceptance — automatic reload can be layered later without changing the
-  authority claim.
+  **inert-until-reload**. Recommendation: inert-until-reload, whose state
+  machine the owning slice must then pin: the first artifact load after
+  reopen verifies against the persisted record's digests and refuses on
+  mismatch with a named diagnostic; recovery reload is distinguished from
+  intentional successor deployment by that digest match (a successor is a
+  new commit, never a "reload"); rehydration never advances the durable
+  high-water; serving stays fenced until a verified reload or committed
+  successor; full-`LocalSnapback` reopen/reload/retry tests are the
+  slice's acceptance. Whichever arm is ruled, the ruling lands at or
+  before this document's acceptance — the recorded-exception status ends
+  there.
 
 Whichever way OQ-A/OQ-B are ruled, acceptance carries a same-landing
 handoff: `ownership.manifest.json`'s `governedBy` gains this document, the
@@ -523,33 +535,6 @@ so slices can follow product priorities.
   three (§5); bypass-history wording corrected (one bypass, three selection
   gaps); "while Draft" → "until Accepted"; acceptance handoff note added to
   the OQ section.
-- **2026-08-10 (g).** Round-4 revision: §5's attribution requirement made a
-  complete set-based protocol (canonical edge fingerprints, V(P)−V(B)
-  blocking, waiver coverage, committed-ticket-named inherited sets); the
-  unassigned-bucket claim made honest (probe-verified gap; frozen
-  shrink-only legacy set required, analyzer ticket item 4); §3.1's
-  transaction rule scoped to the canonical store with the sidecar-store
-  exemption (telemetry, LLP 0154) that may never imply app atomicity; the
-  reopen contract raised as OQ-C (recommendation: inert-until-reload)
-  instead of silent delegation; waiver item 8 gains its accountable
-  manifest owner.
-- **2026-08-10 (f).** Round-3 revision under the author's extended budget:
-  the "honest state of the arm" paragraph (§5) records that the gate was red
-  at the revision-(d) commit and binds two enforcement requirements —
-  last-green-baseline staleness attribution (closing the masking path) and
-  mandatory stale-edge ticketing on allowed pushes; the
-  failed-activation envelope clause is narrowed to the kernel-level tests
-  that exist, with the full-process retry witness recorded as an obligation.
-- **2026-08-10 (e — UNREVIEWED).** Post-round-3 closing fixes, applied
-  after the review budget closed and not seen by any reviewer: the
-  connected-clients waiver gains its formal worklist record (item 8,
-  `issues/20260809-0199-ownership-ratchet-worklist.md`) with owner and
-  bound, and the §2 parenthetical becomes a pointer to it (both round-3
-  reviews found the prior parenthetical violated the waiver rule it
-  instantiates); the analyzer-gap ticket's wording is corrected to match
-  §5's accurate disclosure; the two first-slice inversion dispositions name
-  their owning slices; revision history reordered. Remaining round-3
-  MATERIAL concerns are dispositioned in the loop's final report, not here.
 - **2026-08-10 (d).** Round-2 revision: the monotonic-baseline rule now
   distinguishes proven pre-existing edges (freezable with provenance) from
   genuinely new coupling (fix, or explicit time-bounded waiver with named
@@ -563,3 +548,40 @@ so slices can follow product priorities.
   prove; the analyzer-gap disclosure is corrected to `super::`/`self::`
   roots and chained re-exports (grouped/alias/`pub use crate::` forms are
   parsed today).
+- **2026-08-10 (e — UNREVIEWED).** Post-round-3 closing fixes, applied
+  after the review budget closed and not seen by any reviewer: the
+  connected-clients waiver gains its formal worklist record (item 8,
+  `issues/20260809-0199-ownership-ratchet-worklist.md`) with owner and
+  bound, and the §2 parenthetical becomes a pointer to it (both round-3
+  reviews found the prior parenthetical violated the waiver rule it
+  instantiates); the analyzer-gap ticket's wording is corrected to match
+  §5's accurate disclosure; the two first-slice inversion dispositions name
+  their owning slices; revision history reordered. Remaining round-3
+  MATERIAL concerns are dispositioned in the loop's final report, not here.
+- **2026-08-10 (f).** Round-3 revision under the author's extended budget:
+  the "honest state of the arm" paragraph (§5) records that the gate was red
+  at the revision-(d) commit and binds two enforcement requirements —
+  last-green-baseline staleness attribution (closing the masking path) and
+  mandatory stale-edge ticketing on allowed pushes; the
+  failed-activation envelope clause is narrowed to the kernel-level tests
+  that exist, with the full-process retry witness recorded as an obligation.
+- **2026-08-10 (g).** Round-4 revision: §5's attribution requirement made a
+  complete set-based protocol (canonical edge fingerprints, V(P)−V(B)
+  blocking, waiver coverage, committed-ticket-named inherited sets); the
+  unassigned-bucket claim made honest (probe-verified gap; frozen
+  shrink-only legacy set required, analyzer ticket item 4); §3.1's
+  transaction rule scoped to the canonical store with the sidecar-store
+  exemption (telemetry, LLP 0154) that may never imply app atomicity; the
+  reopen contract raised as OQ-C (recommendation: inert-until-reload)
+  instead of silent delegation; waiver item 8 gains its accountable
+  manifest owner.
+- **2026-08-10 (h).** Round-5 revision: §5's set-based protocol gains its
+  definitions (outstanding set = forbidden edges not admitted by the
+  revision's committed baseline or waivers; one analyzer semantics on both
+  snapshots; relocation/upgrade re-keys are attributed baseline entries,
+  never waivers) and the committed-ticket rule is made self-consistent —
+  the pushed revision itself must contain the ticket naming untracked reds
+  or the push blocks; OQ-C keeps the choice with the author but pins the
+  inert-until-reload state machine an acceptance ruling must adopt, with
+  the recorded-exception status ending at acceptance; revision history
+  sorted chronologically.
