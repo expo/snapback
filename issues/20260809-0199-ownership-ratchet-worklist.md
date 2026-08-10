@@ -80,3 +80,16 @@ same moves as items 1/3.
 assets/jobs (kernel->background, item-1 family). Catch-ups #6-7:
 ask.rs (background) + storage/ask_spend.rs, storage/asset_grants.rs,
 storage/auth_rehearsal.rs (kernel) + auth/rehearsal.rs (leaf) assigned.
+
+**Growth 2026-08-10 (frozen at the always-run-gate landing):** the LLP 0204 S5
+wave (durable watches + approval-gated effects) landed five unmanifested
+modules and four unbaselined edges without the gate running — the fourth
+occurrence of the 20260809-ownership-gate-prepush-tier.md failure shape, and
+the landing that closed that ticket assigned them
+(`server/effects`→transport, `storage/{capability_links,pending_effects,watches}`→kernel,
+`watches`→leaf) and re-baselined. Two edges are genuinely upward and join the
+burn-down: `storage/pending_effects -> auth/provider` (kernel→sync; joins
+item 3's typed-input inversion family) and `storage/watches -> jobs`
+(kernel→background; joins item 1 — the `*_in_tx` helper relocation should
+absorb it). The two `local.rs -> watches`/`storage/watches` edges are
+unassigned-module freezes that drain with the local.rs remainder.

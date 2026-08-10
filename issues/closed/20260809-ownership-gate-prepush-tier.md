@@ -1,6 +1,19 @@
 # Add check-module-ownership to the always-run pre-push tier
 
 **Opened:** 2026-08-09
+**Resolved:** 2026-08-10 — landed as proposed. `module-ownership` is now a
+registered drift-prone gate (records: ownership.manifest.json +
+ownership.baseline.json; triggers: the ownership authorities +
+`src/` prefixes) and the first member of a new validated
+`driftAlwaysRunGates` policy tier that `selectDriftProneGates` unions into
+every pre-push selection, so every push with commits runs it regardless of
+path selection. It is also listed in `driftFailClosedCoreGates`. The landing
+had to fix forward a fourth occurrence of the failure shape this ticket
+predicted: the LLP 0204 S5 wave left five modules unmanifested
+(`server/effects`, `storage/capability_links`, `storage/pending_effects`,
+`storage/watches`, `watches`) and four unbaselined edges; assignments +
+re-baseline landed with the gate, growth recorded in
+`issues/20260809-0199-ownership-ratchet-worklist.md`.
 
 Three times today, concurrent sessions landed changes that left the
 module-ownership gate red on main without knowing it:

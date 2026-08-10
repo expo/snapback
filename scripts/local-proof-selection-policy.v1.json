@@ -52,7 +52,11 @@
       "package-readme-funnel"
     ]
   },
+  "driftAlwaysRunGates": [
+    "module-ownership"
+  ],
   "driftFailClosedCoreGates": [
+    "module-ownership",
     "contract-meta",
     "guide",
     "telemetry-receipt-check",
@@ -150,6 +154,26 @@
         ]
       },
       "regenerateCommand": "node --test tests/local_proof_inventory_v0.mjs"
+    },
+    "module-ownership": {
+      "records": [
+        "ownership.manifest.json module-to-owner assignments and ownership.baseline.json ratcheted dependency edges"
+      ],
+      "recordPaths": [
+        "ownership.baseline.json",
+        "ownership.manifest.json"
+      ],
+      "triggerRules": {
+        "files": [
+          "ownership.baseline.json",
+          "ownership.manifest.json",
+          "scripts/check-module-ownership.mjs"
+        ],
+        "prefixes": [
+          "src/"
+        ]
+      },
+      "regenerateCommand": "node scripts/check-module-ownership.mjs"
     },
     "generated-artifacts": {
       "records": [

@@ -198,22 +198,23 @@ test('drift selection preserves mapped triggers and tiers fail-closed paths', ()
   const core = context.inventory.canonicalGates.filter((gate) => (
     context.policy.driftFailClosedCoreGates.includes(gate)
   ));
+  assert.deepEqual(context.policy.driftAlwaysRunGates, ['module-ownership']);
   assert.ok(context.policy.driftFailClosedCoreGates.length > 0);
   for (const gate of context.policy.driftFailClosedCoreGates) {
     assert.ok(Object.hasOwn(context.policy.driftProneGates, gate), gate);
   }
   assert.deepEqual(
     selectDriftProneGates(['README.md'], context).selectedDriftProneGates,
-    [],
+    ['module-ownership'],
   );
   const mapped = selectDriftProneGates(['guide/index.md'], context);
-  assert.deepEqual(mapped.selectedDriftProneGates, ['guide']);
+  assert.deepEqual(mapped.selectedDriftProneGates, ['guide', 'module-ownership']);
   assert.equal(mapped.driftFailClosedDisposition, null);
   assert.deepEqual(
     selectDriftProneGates([
       'tests/agent_safe_publication_checker_v1.mjs',
     ], context).selectedDriftProneGates,
-    ['agent-safe-publication-fixtures'],
+    ['agent-safe-publication-fixtures', 'module-ownership'],
   );
   const unknown = selectDriftProneGates(['unclassified-drift-probe.xyz'], context);
   assert.equal(unknown.selectionClass, 'FAIL_CLOSED_FULL');
@@ -319,7 +320,7 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
     assert.equal(consistent.status, 0, consistent.output);
     assert.match(consistent.output, /dependency mirror cache MISS [0-9a-f]{16}/u);
     assert.match(consistent.output, /PASS agent-safe-publication-fixtures/u);
-    assert.match(consistent.output, /ALLOWED: 1 selected drift-prone gate\(s\) passed/u);
+    assert.match(consistent.output, /ALLOWED: 2 selected drift-prone gate\(s\) passed/u);
     console.log(
       `DEMO consistent committed trigger in isolated checkout -> allowed\n`
         + relevantLines(consistent.output),
@@ -356,8 +357,10 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
     commitAll(repo, 'test: committed unmeasured path');
     const fast = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
     assert.equal(fast.status, 0, fast.output);
-    assert.match(fast.output, /FAST PATH: 1 committed changed path\(s\); 0 drift-prone gates run/u);
-    console.log(`DEMO (c) committed unmeasured path -> fast path\n${relevantLines(fast.output)}`);
+    assert.match(fast.output, /selected 1 gate\(s\): module-ownership/u);
+    assert.match(fast.output, /PASS module-ownership/u);
+    assert.match(fast.output, /ALLOWED: 1 selected drift-prone gate\(s\) passed/u);
+    console.log(`DEMO (c) committed docs-only path -> always-run ownership gate\n${relevantLines(fast.output)}`);
 
     const noOp = run(repo, 'git', ['push', 'origin', 'HEAD:refs/heads/main'], { env });
     assert.equal(noOp.status, 0, noOp.output);
@@ -370,7 +373,10 @@ test('same-change hook and main backstop operate on committed pushes', { timeout
     });
     assert.equal(bypass.status, 0, bypass.output);
     assert.match(bypass.output, /BYPASS ACTIVE: SNAPBACK_DRIFT_GATES_BYPASS=1/u);
-    assert.match(bypass.output, /BYPASS ALLOWED: skipped 1 selected gate\(s\): guide/u);
+    assert.match(
+      bypass.output,
+      /BYPASS ALLOWED: skipped 2 selected gate\(s\): guide, module-ownership/u,
+    );
     console.log(`DEMO (d) explicit bypass -> allowed and loud\n${relevantLines(bypass.output)}`);
 
     appendFileSync(join(repo, 'guide/index.md'), '\n<!-- committed pre-existing drift probe -->\n');

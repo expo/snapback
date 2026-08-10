@@ -183,9 +183,14 @@ export function validateSelectionPolicy(policy, calls) {
       );
     }
   }
+  const driftGateIds = new Set(driftEntries.map(([gate]) => gate));
+  validateUniqueStrings(policy.driftAlwaysRunGates, 'drift always-run gates');
+  assert(policy.driftAlwaysRunGates.length > 0, 'drift always-run gates are non-empty');
+  for (const gate of policy.driftAlwaysRunGates) {
+    assert(driftGateIds.has(gate), `drift always-run gate ${gate}`);
+  }
   validateUniqueStrings(policy.driftFailClosedCoreGates, 'drift fail-closed core gates');
   assert(policy.driftFailClosedCoreGates.length > 0, 'drift fail-closed core gates are non-empty');
-  const driftGateIds = new Set(driftEntries.map(([gate]) => gate));
   for (const gate of policy.driftFailClosedCoreGates) {
     assert(driftGateIds.has(gate), `drift fail-closed core gate ${gate}`);
   }
@@ -294,7 +299,7 @@ export function selectDriftProneGates(
   );
   const selection = selectChangedPaths(changedFiles, context);
   const driftGateIds = new Set(Object.keys(context.policy.driftProneGates));
-  const selected = new Set();
+  const selected = new Set(context.policy.driftAlwaysRunGates);
   for (const gate of driftGateIds) {
     if (changedFiles.some((path) => (
       matchesRule(path, context.policy.driftProneGates[gate].triggerRules)

@@ -8,6 +8,7 @@ import {
   planSelection,
   selectGate,
   selectChangedPaths,
+  selectDriftProneGates,
   validateSelectionReceipt,
 } from '../scripts/select-local-proof.mjs';
 
@@ -234,6 +235,14 @@ test('Rust modules and ownership authorities select the module-ownership ratchet
     assert.equal(plan.selectionClass, 'FAST_ONLY', authority);
     includesAll(plan, ['module-ownership']);
   }
+});
+
+test('docs-only pushes still select the always-run module-ownership drift gate', () => {
+  assert.deepEqual(context.policy.driftAlwaysRunGates, ['module-ownership']);
+  assert.deepEqual(
+    selectDriftProneGates(['README.md'], context).selectedDriftProneGates,
+    ['module-ownership'],
+  );
 });
 
 test('native, Cloudflare, seed, and carrier changes select their unique claims', () => {
