@@ -41,6 +41,7 @@ use crate::commit_envelope::{
     OperationIdentityV1, OperationOriginatorClassV1, OperationReceiptStateV1, OperationReceiptV1,
     RetainedEnvelopeDetailV1, SnapshotAssociationKindV1, StreamQualifiedVersionV1,
 };
+pub use crate::contract_types::ForkEgressPolicyV1;
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::proof_checkpoint::{
     BoundaryProofV1, BoundaryRowV1, PromotionApprovedWriteV1, PromotionDigestHeaderV1,
@@ -237,14 +238,6 @@ impl PromotionSealKey {
         }
         Ok(Self(secret.to_vec()))
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ForkEgressPolicyV1 {
-    #[default]
-    DenyAll,
-    CaptureOnly,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]

@@ -14,6 +14,9 @@ use std::collections::BTreeMap;
 use std::io::Read;
 use std::sync::OnceLock;
 
+pub use crate::contract_types::PushAudienceReferenceV1;
+pub(crate) use crate::contract_types::PushDeferredGrantV1;
+
 pub(crate) const PUSH_TOKEN_MAX_BYTES: usize = 1_024;
 pub(crate) const PUSH_INSTALLATION_MAX_BYTES: usize = 64;
 pub(crate) const PUSH_BATCH_MESSAGES_MAX: usize = 100;
@@ -22,14 +25,6 @@ pub(crate) const PUSH_RECEIPT_FIRST_POLL_MS: u64 = 900_000;
 pub(crate) const PUSH_RECEIPT_WINDOW_MS: u64 = 86_400_000;
 pub(crate) const PUSH_RECEIPT_BATCH_MAX: usize = 1_000;
 pub(crate) const PUSH_PROVIDER_RESPONSE_MAX_BYTES: u64 = 1_048_576;
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct PushAudienceReferenceV1 {
-    pub audience: String,
-    #[serde(default)]
-    pub args: Map<String, Value>,
-}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -45,22 +40,6 @@ pub struct PushSendRequestV1 {
     /// deduplicated no-op posture.
     #[serde(default)]
     pub redrive_ambiguous: bool,
-}
-
-/// A mutation-captured authority grant for one exact deferred push send. The
-/// job row, not handler JS, owns this carrier after enqueue: the later system
-/// action can consume it only for the same audience arguments and dedupe key,
-/// and the producer's membership is checked again at send time.
-///
-/// @ref LLP 0143#d2-the-send-lane — deferred sends capture and later
-///   revalidate a narrow producer-principal grant; arbitrary principal lists
-///   are never grant-shaped authority.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct PushDeferredGrantV1 {
-    pub(crate) producer_principal: String,
-    pub(crate) to: PushAudienceReferenceV1,
-    pub(crate) dedupe_key: String,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]

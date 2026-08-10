@@ -553,6 +553,11 @@ so slices can follow product priorities.
   prove; the analyzer-gap disclosure is corrected to `super::`/`self::`
   roots and chained re-exports (grouped/alias/`pub use crate::` forms are
   parsed today).
+- **2026-08-10 (f).** §2 waiver-record references: worklist items 9, 10, and
+  11 in `issues/20260809-0199-ownership-ratchet-worklist.md` (slice-C
+  rehearsal pair, lane-J wire_version pair, logical-transfer pair), each
+  naming the edge, the inversion owner, and the bound, recorded at the
+  slice-1 re-application landing that froze them.
 - **2026-08-10 (e — UNREVIEWED).** Post-round-3 closing fixes, applied
   after the review budget closed and not seen by any reviewer: the
   connected-clients waiver gains its formal worklist record (item 8,

@@ -9,15 +9,22 @@ The gate blocks NEW edges in these directions; this ticket tracks burning
 down the grandfathered ones.
 
 
-1. **kernel→background: src/jobs.rs helpers.** storage.rs + storage/jobs.rs call
-   `crate::jobs::*_in_tx` (background-services). Fix: relocate the `*_in_tx`
-   SQL helpers + row types into `src/storage/jobs.rs`, leave scheduling policy
-   in src/jobs.rs. (Same audit later for cron.rs/assets*.rs as owner-#2 slices
-   drain them.)
-2. **kernel→sync: rqs shape imports ×8.** search/{ast,sqlite} and
-   vector/{profile,query,rebuild,sqlite,storage} import `crate::rqs` (+
-   membership_rules ×1). Fix: move the shared relational-query/stream shapes
-   from rqs.rs down to the contract leaf.
+1. ~~**kernel→background: src/jobs.rs helpers.**~~ **DONE 2026-08-10** (slice 1,
+   re-applied onto post-watches/LLP-0213 main the same day).
+   The `*_in_tx` SQL helpers + row types now live in `src/storage/jobs.rs`
+   (including main's `_snapback_job_rehearsal_provenance_v1` columns/joins,
+   which ride the moved helpers); src/jobs.rs keeps scheduling policy and
+   calls down. Inverted: `storage.rs -> jobs.rs`, `storage/jobs.rs ->
+   jobs.rs`, and `storage/watches.rs -> jobs.rs` (the S5-growth edge below,
+   absorbed by the relocation as predicted). (Same audit later for
+   cron.rs/assets*.rs as owner-#2 slices drain them.)
+2. ~~**kernel→sync: rqs shape imports ×8.**~~ **DONE 2026-08-10** (slice 1).
+   The shared relational-query/stream shapes moved to the new leaf
+   `src/rqs_contract.rs` (and search/vector type shapes to the leaf-owned
+   `search/types.rs` / `vector/types.rs`); rqs.rs re-exports. Inverted:
+   `search/{ast,sqlite} -> rqs`, `vector/{profile,query,rebuild,sqlite,storage}
+   -> rqs`, `search/sqlite -> membership_rules` (membership_rules no longer
+   imports rqs).
 3. **kernel→sync/auth-core ×~24.** storage/auth_* files call up into
    session_projection ×5, service_fence ×5, sender_proof ×4, invalidation ×2,
    lease ×2, provider ×2, coordinator, invocation ×2, admission (via
@@ -32,18 +39,40 @@ down the grandfathered ones.
    auth/lifecycle + auth/runtime; storage/hosted_admission → hosted_edge.
    Fix: extract the admission-envelope + startup-composition types downward, or
    move the composing residue out of store_state.
-6. **coordinator→transport ×1.** schema_export → host_ops. Fix: the host-op
-   result envelope type belongs on the leaf.
-7. **leaf residues ×~10.** wire→descriptor(ok, both leaf), handshake→lease,
-   descriptor→{admin,invocation}, exec_guard→session_projection,
-   args_contract/manifest→search/vector types, live_protocol→completeness,
-   telemetry_bench→bench. Each inverts by moving one shape down; none blocks.
+6. ~~**coordinator→transport ×1.**~~ **DONE 2026-08-10** (slice 1). The host-op
+   result envelope shapes moved to the new leaf `src/host_ops_contract.rs`.
+   Inverted: `schema_export -> host_ops`.
+7. ~~**leaf residues ×~10.**~~ **DONE 2026-08-10** (slice 1), except
+   wire→descriptor which stays by design (both leaf, fine). Inverted:
+   `handshake -> lease` (lease-protocol constants/duration shape moved into
+   handshake), `descriptor -> {admin, invocation}` (the authority-consuming
+   `descriptor_for_*` constructors + their tests moved up to auth/invocation;
+   the pure derivation/validation stays on the descriptor leaf),
+   `exec_guard -> session_projection`, `args_contract/manifest ->
+   search/vector types` (search/types.rs + vector/types.rs reassigned to the
+   leaf), `live_protocol -> completeness` (proof DTO family
+   CursorEndV1/PageIdentityV1/ProofVersionV1/ProofNodeIdentityV1/
+   [Unsigned]CompletenessProofV1 moved to contract_types.rs;
+   AuthorizationWitnessRecordV1 moved beside CompositeWitness in
+   auth/invalidation.rs; completeness re-exports and keeps all
+   derivation/signing logic), `telemetry_bench -> bench` (shared finite-Ibex
+   fixture extracted to background-owned src/bench_fixture.rs; the
+   feature-gated file-backed `configured_file` twin now lives in
+   telemetry_bench itself). Baseline frozen upward/sideways edges 362 → 340
+   at the slice-1 baseline refresh on the 2026-08-10 evening main (26
+   inverted, 4 pre-existing live edges entered — see the slice-C growth
+   entry below; total baseline edges 1322 → 1356, the growth being allowed
+   downward edges added by the new leaf modules and the refresh picking up
+   main's newest modules).
 
 
-Also: refresh the mixedModuleScopes prose for src/local.rs and
-src/manifest.rs (still describes pre-split scopes), and dedup the
-asset_delete_cascade/asset_receipt kernel copies when the delete/finalize
-slices drain the local.rs originals.
+Also: ~~refresh the mixedModuleScopes prose for src/local.rs and
+src/manifest.rs~~ **DONE 2026-08-10** (slice-1 re-application; both entries
+now describe today's scopes), and ~~dedup the
+asset_delete_cascade/asset_receipt kernel copies~~ **DONE** (verified
+2026-08-10: a single kernel copy lives in
+`src/storage/asset_maintenance.rs`; local.rs delegates through
+`asset_maintenance()` — no duplicate remains).
 
 **Growth 2026-08-09 (frozen at the slice-4 landing):** eaed8e784 (LLP 0204 S0
 agent registration, concurrent session) added four edges from
@@ -94,6 +123,25 @@ item 3's typed-input inversion family) and `storage/watches -> jobs`
 absorb it). The two `local.rs -> watches`/`storage/watches` edges are
 unassigned-module freezes that drain with the local.rs remainder.
 
+9. **Waiver (time-bounded): `src/auth/rehearsal.rs → src/secure_file.rs`
+   (leaf→kernel) and `src/storage/auth_rehearsal.rs → src/admin.rs`
+   (kernel→transport).** Frozen 2026-08-10 at the slice-1 re-application
+   landing; both were live main-reds from the LLP 0213 slice-C wave
+   (issues/20260810-main-module-ownership-red-rehearsal-edges.md). Inversion
+   owner: **the LLP 0213 rehearsal/auth stream** (that ticket's routed
+   author). Vehicle: item 3's typed-input/leaf-shape moves. Bound: the
+   author-sitting 24h fix-forward conversion (2026-08-11) on the routed
+   ticket; if unmet, fix-forward-by-anyone, and escalate to the author if
+   still frozen at the next 0213 slice.
+
+10. **Waiver (time-bounded): `src/local.rs → src/wire_version.rs` and
+    `src/local/tests.rs → src/wire_version.rs` (unassigned→leaf).** Lane-J
+    pair, live-red on pristine main before this landing, frozen at the same
+    `--update-baseline`. Inversion owner: **the local.rs drainage slices**
+    (same vehicle as item 8, LLP 0225 §4 item 1). Bound: due with the
+    local.rs drainage slice that assigns those modules or 2026-09-15,
+    whichever comes first.
+
 8. **Waiver (time-bounded): `src/local.rs → src/connected_clients.rs`.**
    Genuinely new god-file-pattern coupling frozen 2026-08-10 at the
    connected-client landing, reclassified as a formal waiver by LLP 0225 §2
@@ -104,3 +152,15 @@ unassigned-module freezes that drain with the local.rs remainder.
    drainage / coordinator-port slices (LLP 0225 §4 items 1 and 3). Bound: due with the sync-engine consolidation slice or
    2026-09-15, whichever comes first; if unmet, escalate to the author as a
    §2 violation rather than silently re-freezing.
+
+11. **Waiver (time-bounded): `src/schema_export.rs → src/auth/logical_transfer.rs`
+    (coordinator→sync) and `src/storage/auth_logical_transfer.rs →
+    src/auth/logical_transfer.rs` (kernel→sync).** The logical-transfer wave
+    landed both modules unmanifested (fifth occurrence of the
+    pre-push-gate failure shape); this landing assigned them (sync / kernel)
+    and froze the two edges at its `--update-baseline`. Inversion owner:
+    **the LLP 0213 logical-export stream**. Vehicle: move the export
+    envelope shape to the leaf (item 6's family) and pass typed inputs down
+    (item 3's family). Bound: due with the next LLP 0213 slice that touches
+    logical transfer or 2026-09-15, whichever comes first; if unmet,
+    escalate to the author as a §2 violation.

@@ -883,6 +883,18 @@ pub struct CompositeWitness {
     pub data: Option<DataWitness>,
 }
 
+/// The authorization-witness record named by a completeness proof. The shape
+/// lives here with [`CompositeWitness`] so sync-engine consumers never import
+/// upward; construction/digest logic stays in `crate::completeness` with the
+/// proof issuance coordinator (LLP 0199 worklist item 7).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorizationWitnessRecordV1 {
+    pub format: String,
+    pub query_instance_id: u64,
+    pub composite_witness: CompositeWitness,
+}
+
 impl CompositeWitness {
     fn validate(&self) -> SnapbackResult<()> {
         validate_uuid_v7(

@@ -3,7 +3,7 @@ use crate::auth::admission::AdmissionLease;
 use crate::auth::admission::{
     AdmissionController, AdmissionEffectGuard, ModeCommitFailure, ModeTransitionGuard,
 };
-use crate::auth::descriptor::{descriptor_for_authority, require_current_descriptor};
+use crate::auth::descriptor::require_current_descriptor;
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, AuthorizationInvalidationProjection, CompositeWitness,
     DataWitness, InvalidationDisposition, LiveInvalidationIssuer, ObligationExpectation,
@@ -13,7 +13,7 @@ use crate::auth::invalidation::{
 };
 use crate::auth::invocation::{
     FunctionAttribution, InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation,
-    ResolvedAppAuthority, RetainedLiveAuthority, WireAuthorityFields,
+    ResolvedAppAuthority, RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
 };
 use crate::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
@@ -61,6 +61,11 @@ use crate::manifest::{
 use crate::runtime::{
     CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
     IbexSubmoduleCapability, RuntimeCapabilities, RuntimeManager,
+};
+#[cfg(test)]
+pub(crate) use crate::search::sqlite::{
+    SEARCH_ANALYZER, SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1, SearchIndexManifestV1,
+    SearchQueryPlanV1, SearchTextFieldV1, SearchVisibilityV1,
 };
 use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit, NetworkSeedOutcome};
 use crate::storage::{
@@ -2578,8 +2583,7 @@ pub struct LocalSnapback {
     /// Clone-shared process-only governor registry. Durable rehearsal rows are
     /// intentionally not loaded into it after restart, making old derived
     /// sessions and deferred work inert by construction.
-    auth_rehearsal_live_grants:
-        crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
+    auth_rehearsal_live_grants: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
     /// In-flight watch evaluations by owner. Action evaluation retains its
     /// slot across detached execution; a cancelled worker therefore fails
     /// closed (throttled) until process recovery clears this hint.
@@ -10340,7 +10344,7 @@ impl LocalSnapback {
                 );
                 let authority_descriptor = if authority.active_mode() == AuthMode::Sessions {
                     let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-                    Some(crate::auth::descriptor::descriptor_for_authority(
+                    Some(crate::auth::invocation::descriptor_for_authority(
                         &authority,
                         incarnation.as_str(),
                     )?)
@@ -18273,16 +18277,19 @@ impl LocalSnapback {
                 authority_instance_id,
                 ..
             } => (
-                user_id.clone(), authority_instance_id.clone(),
+                user_id.clone(),
+                authority_instance_id.clone(),
                 crate::watches::WatchOwnerKind::User,
                 crate::watches::WatchAuthorityMode::RevalidatePrincipal,
-                None, None,
+                None,
+                None,
             ),
             ResolvedAppAuthority::ServicePrincipal {
                 actor_user_id,
                 grant_id,
                 effective_user_id: Some(effective_user_id),
-                integration_status: Some(crate::storage::auth_integrations::IntegrationStatus::Active),
+                integration_status:
+                    Some(crate::storage::auth_integrations::IntegrationStatus::Active),
                 ..
             } => {
                 let integration = self.db.integration_record_if_present(actor_user_id)?
@@ -18293,10 +18300,12 @@ impl LocalSnapback {
                         "integration watch creation requires an active integration registration",
                     ))?;
                 (
-                    actor_user_id.clone(), integration.integration_id,
+                    actor_user_id.clone(),
+                    integration.integration_id,
                     crate::watches::WatchOwnerKind::Integration,
                     crate::watches::WatchAuthorityMode::CapturedGrant,
-                    Some(grant_id.clone()), Some(effective_user_id.clone()),
+                    Some(grant_id.clone()),
+                    Some(effective_user_id.clone()),
                 )
             }
             _ => {
@@ -18336,9 +18345,15 @@ impl LocalSnapback {
             crate::watches::canonical_args(&request.query_args)?;
         let mut generated_webhook_secret = None;
         let (
-            reaction_kind, reaction_function_id, reaction_function_name,
-            reaction_function_kind, reaction_basis, reaction_args_json,
-            reaction_args_digest, webhook_url, webhook_secret,
+            reaction_kind,
+            reaction_function_id,
+            reaction_function_name,
+            reaction_function_kind,
+            reaction_basis,
+            reaction_args_json,
+            reaction_args_digest,
+            webhook_url,
+            webhook_secret,
         ) = match request.reaction {
             crate::watches::WatchReactionSpec::Function { function, args } => {
                 self.validate_external_api_function(&function)?;
@@ -18353,11 +18368,14 @@ impl LocalSnapback {
                     &reaction,
                 )?;
                 crate::args_contract::validate_function_args(&reaction, &args)?;
-                let basis = self.db.current_auth_scope_basis(
-                    &reaction.id,
-                    &reaction.kind,
-                    reaction.authority_creating,
-                )?.ok_or_else(|| watch_basis_missing("reaction"))?;
+                let basis = self
+                    .db
+                    .current_auth_scope_basis(
+                        &reaction.id,
+                        &reaction.kind,
+                        reaction.authority_creating,
+                    )?
+                    .ok_or_else(|| watch_basis_missing("reaction"))?;
                 let (args_json, args_digest) = crate::watches::canonical_args(&args)?;
                 let kind = match reaction.kind {
                     FunctionKind::Query => crate::watches::WatchFunctionKind::Query,
@@ -18367,25 +18385,39 @@ impl LocalSnapback {
                 };
                 (
                     crate::watches::WatchReactionKind::Function,
-                    reaction.id, reaction.name, kind, basis, args_json, args_digest,
-                    None, None,
+                    reaction.id,
+                    reaction.name,
+                    kind,
+                    basis,
+                    args_json,
+                    args_digest,
+                    None,
+                    None,
                 )
             }
             crate::watches::WatchReactionSpec::Webhook { url, secret } => {
                 crate::webhooks::prepare_target(&url)?;
                 let secret = match secret {
-                    Some(secret) if (16..=4_096).contains(&secret.len())
-                        && !secret.chars().any(char::is_control) => secret,
-                    Some(_) => return Err(crate::watches::input_invalid(
-                        "webhook secret must be 16..4096 bytes without control characters",
-                    )),
+                    Some(secret)
+                        if (16..=4_096).contains(&secret.len())
+                            && !secret.chars().any(char::is_control) =>
+                    {
+                        secret
+                    }
+                    Some(_) => {
+                        return Err(crate::watches::input_invalid(
+                            "webhook secret must be 16..4096 bytes without control characters",
+                        ));
+                    }
                     None => {
                         let mut bytes = [0_u8; 32];
-                        getrandom::fill(&mut bytes).map_err(|_| SnapbackError::error(
-                            "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE",
-                            "webhooks",
-                            "a webhook signing secret could not be generated",
-                        ))?;
+                        getrandom::fill(&mut bytes).map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE",
+                                "webhooks",
+                                "a webhook signing secret could not be generated",
+                            )
+                        })?;
                         let secret = base64::Engine::encode(
                             &base64::engine::general_purpose::URL_SAFE_NO_PAD,
                             bytes,
@@ -18394,13 +18426,18 @@ impl LocalSnapback {
                         secret
                     }
                 };
-                let (binding_json, binding_digest) = crate::watches::canonical_args(
-                    &json!({ "url": url }),
-                )?;
+                let (binding_json, binding_digest) =
+                    crate::watches::canonical_args(&json!({ "url": url }))?;
                 (
                     crate::watches::WatchReactionKind::Webhook,
-                    String::new(), String::new(), crate::watches::WatchFunctionKind::Action,
-                    0, binding_json, binding_digest, Some(url), Some(secret),
+                    String::new(),
+                    String::new(),
+                    crate::watches::WatchFunctionKind::Action,
+                    0,
+                    binding_json,
+                    binding_digest,
+                    Some(url),
+                    Some(secret),
                 )
             }
         };
@@ -18412,14 +18449,15 @@ impl LocalSnapback {
             },
             authority.watch_function_authority(InvocationSource::WatchEvaluation)?,
         )?;
-        let initial_document = serde_json::to_value(&initial.output).map_err(|_| {
-            crate::watches::catalog_corrupt()
-        })?;
+        let initial_document =
+            serde_json::to_value(&initial.output).map_err(|_| crate::watches::catalog_corrupt())?;
         let initial_predicate_state = crate::watches::evaluate(&predicate, &initial_document);
         let anchor_expires_at_ms = now_ms
             .checked_add(crate::watches::ANCHOR_LIFETIME_MS)
             .filter(|value| *value <= 9_007_199_254_740_991)
-            .ok_or_else(|| crate::watches::input_invalid("watch anchor lifetime overflows portable time"))?;
+            .ok_or_else(|| {
+                crate::watches::input_invalid("watch anchor lifetime overflows portable time")
+            })?;
         // The initial query passes its own ordinary invocation/effect gate.
         // Acquire management's effect fence only for the durable catalog
         // commit; nesting it around the query would self-deadlock the same
@@ -18428,9 +18466,19 @@ impl LocalSnapback {
         let watch_id = crate::ids::mint_time_ordered(crate::ids::Kind::Watch);
         let anchor_grant_id = (owner_kind == crate::watches::WatchOwnerKind::Integration)
             .then(|| crate::ids::mint_time_ordered(crate::ids::Kind::Grant));
-        let webhook_secret_ref = webhook_secret.as_ref().map(|_| format!("_snapback.webhook.{watch_id}"));
-        if let (Some(secret_ref), Some(secret)) = (webhook_secret_ref.as_deref(), webhook_secret.as_ref()) {
-            self.config.set(secret_ref, vec![secret.clone()], false, "watchAnchor", now_ms)?;
+        let webhook_secret_ref = webhook_secret
+            .as_ref()
+            .map(|_| format!("_snapback.webhook.{watch_id}"));
+        if let (Some(secret_ref), Some(secret)) =
+            (webhook_secret_ref.as_deref(), webhook_secret.as_ref())
+        {
+            self.config.set(
+                secret_ref,
+                vec![secret.clone()],
+                false,
+                "watchAnchor",
+                now_ms,
+            )?;
         }
         let mut anchor_scopes = vec![crate::storage::auth_grants::ExactGrantScope {
             function_id: query.id.clone(),
@@ -18442,8 +18490,10 @@ impl LocalSnapback {
             let reaction = self.function(&reaction_function_name)?.clone();
             anchor_scopes.push(crate::storage::auth_grants::ExactGrantScope {
                 function_id: reaction.id,
-                kind: crate::storage::auth_grants::ScopedFunctionKind::from_function_kind(&reaction.kind)
-                    .ok_or_else(crate::watches::catalog_corrupt)?,
+                kind: crate::storage::auth_grants::ScopedFunctionKind::from_function_kind(
+                    &reaction.kind,
+                )
+                .ok_or_else(crate::watches::catalog_corrupt)?,
                 basis: reaction_basis,
                 authority_creating: reaction.authority_creating,
             });
@@ -18452,38 +18502,40 @@ impl LocalSnapback {
         if owner_kind == crate::watches::WatchOwnerKind::User {
             anchor_scopes.clear();
         }
-        let create = self.db.create_watch(crate::storage::watches::CreateWatchRecord {
-            id: watch_id.clone(),
-            owner_kind,
-            owner_principal_id,
-            owner_authority_instance_id,
-            authority_mode,
-            anchor_grant_id,
-            installation_grant_id,
-            anchor_effective_user_id,
-            anchor_scopes,
-            anchor_expires_at_ms,
-            query_function_id: query.id,
-            query_function_name: query.name,
-            query_basis,
-            query_args_json,
-            query_args_digest,
-            read_dependencies: initial.read_dependencies,
-            predicate_json,
-            reaction_kind,
-            reaction_function_id,
-            reaction_function_name,
-            reaction_function_kind,
-            reaction_basis,
-            reaction_args_json,
-            reaction_args_digest,
-            webhook_url,
-            webhook_secret_ref: webhook_secret_ref.clone(),
-            daily_firing_budget: request.daily_firing_budget,
-            debounce_ms: request.debounce_ms,
-            initial_predicate_state,
-            now_ms,
-        });
+        let create = self
+            .db
+            .create_watch(crate::storage::watches::CreateWatchRecord {
+                id: watch_id.clone(),
+                owner_kind,
+                owner_principal_id,
+                owner_authority_instance_id,
+                authority_mode,
+                anchor_grant_id,
+                installation_grant_id,
+                anchor_effective_user_id,
+                anchor_scopes,
+                anchor_expires_at_ms,
+                query_function_id: query.id,
+                query_function_name: query.name,
+                query_basis,
+                query_args_json,
+                query_args_digest,
+                read_dependencies: initial.read_dependencies,
+                predicate_json,
+                reaction_kind,
+                reaction_function_id,
+                reaction_function_name,
+                reaction_function_kind,
+                reaction_basis,
+                reaction_args_json,
+                reaction_args_digest,
+                webhook_url,
+                webhook_secret_ref: webhook_secret_ref.clone(),
+                daily_firing_budget: request.daily_firing_budget,
+                debounce_ms: request.debounce_ms,
+                initial_predicate_state,
+                now_ms,
+            });
         let watch = match create {
             Ok(watch) => watch,
             Err(error) => {
@@ -18551,7 +18603,8 @@ impl LocalSnapback {
             ));
         };
         let _effect = authority.effect_guard("watchAnchor renewal transaction")?;
-        self.db.renew_watch_anchor_for_user(id, user_id, ttl_ms, now_ms)
+        self.db
+            .renew_watch_anchor_for_user(id, user_id, ttl_ms, now_ms)
     }
 
     /// Evaluate one internal watch job under credential-free, freshly
@@ -18612,14 +18665,17 @@ impl LocalSnapback {
             &record,
             InvocationSource::WatchEvaluation,
             now_ms,
-        )? else {
+        )?
+        else {
             self.db.mark_watch_dead(
                 &record.id,
                 "principal_or_captured_authority_dead",
                 "SNAPBACK_WATCH_AUTHORITY_DEAD",
                 now_ms,
             )?;
-            return Ok(WatchJobExecution::Complete(watch_outcome(&record.id, "dead")));
+            return Ok(WatchJobExecution::Complete(watch_outcome(
+                &record.id, "dead",
+            )));
         };
         let (query, reaction) = match self.current_watch_functions(&record)? {
             Some(functions) => functions,
@@ -18630,13 +18686,21 @@ impl LocalSnapback {
                     "SNAPBACK_WATCH_AUTHORITY_DEAD",
                     now_ms,
                 )?;
-                return Ok(WatchJobExecution::Complete(watch_outcome(&record.id, "dead")));
+                return Ok(WatchJobExecution::Complete(watch_outcome(
+                    &record.id, "dead",
+                )));
             }
         };
         if record.pending_firing_job_id.as_deref() == Some(&claim.job_id)
             && let Some(ordinal) = record.pending_firing_ordinal
         {
-            return self.dispatch_watch_reaction(claim, &record, reaction.as_ref(), ordinal, now_ms);
+            return self.dispatch_watch_reaction(
+                claim,
+                &record,
+                reaction.as_ref(),
+                ordinal,
+                now_ms,
+            );
         }
         let invocation = match self.invoke_query_with_dependencies_prepared(
             &query.name,
@@ -18684,12 +18748,12 @@ impl LocalSnapback {
             crate::storage::watches::EvaluationDecision::SuspendedBudget => Ok(
                 WatchJobExecution::Complete(watch_outcome(&record.id, "budget_suspended")),
             ),
-            crate::storage::watches::EvaluationDecision::NoFire => Ok(
-                WatchJobExecution::Complete(watch_outcome(&record.id, "evaluated")),
-            ),
-            crate::storage::watches::EvaluationDecision::Stale => Ok(
-                WatchJobExecution::Complete(watch_outcome(&record.id, "stale")),
-            ),
+            crate::storage::watches::EvaluationDecision::NoFire => Ok(WatchJobExecution::Complete(
+                watch_outcome(&record.id, "evaluated"),
+            )),
+            crate::storage::watches::EvaluationDecision::Stale => Ok(WatchJobExecution::Complete(
+                watch_outcome(&record.id, "stale"),
+            )),
         }
     }
 
@@ -18697,7 +18761,11 @@ impl LocalSnapback {
         &self,
         record: &crate::storage::watches::WatchRecord,
     ) -> SnapbackResult<Option<(FunctionDefinition, Option<FunctionDefinition>)>> {
-        let Some(query) = self.functions.function(&record.query_function_name).cloned() else {
+        let Some(query) = self
+            .functions
+            .function(&record.query_function_name)
+            .cloned()
+        else {
             return Ok(None);
         };
         let query_exposed = query
@@ -18710,23 +18778,30 @@ impl LocalSnapback {
         {
             return Ok(None);
         }
-        let query_basis = self.db.current_auth_scope_basis(
-            &query.id,
-            &query.kind,
-            query.authority_creating,
-        )?;
+        let query_basis =
+            self.db
+                .current_auth_scope_basis(&query.id, &query.kind, query.authority_creating)?;
         if query_basis != Some(record.query_basis) {
             return Ok(None);
         }
         if record.reaction_kind == crate::watches::WatchReactionKind::Webhook {
-            let Some(url) = record.webhook_url.as_deref() else { return Ok(None) };
+            let Some(url) = record.webhook_url.as_deref() else {
+                return Ok(None);
+            };
             crate::webhooks::prepare_target(url)?;
             return Ok(Some((query, None)));
         }
-        let Some(reaction) = self.functions.function(&record.reaction_function_name).cloned() else {
+        let Some(reaction) = self
+            .functions
+            .function(&record.reaction_function_name)
+            .cloned()
+        else {
             return Ok(None);
         };
-        let reaction_exposed = reaction.api_exposure.as_ref().is_some_and(|exposure| exposure.expose);
+        let reaction_exposed = reaction
+            .api_exposure
+            .as_ref()
+            .is_some_and(|exposure| exposure.expose);
         let reaction_basis = self.db.current_auth_scope_basis(
             &reaction.id,
             &reaction.kind,
@@ -18770,7 +18845,9 @@ impl LocalSnapback {
                     grant_id: anchor.grant_id,
                     token_id: format!("watch:{}", record.id),
                     effective_user_id: Some(anchor.effective_user_id),
-                    scopes: anchor.scopes.into_iter()
+                    scopes: anchor
+                        .scopes
+                        .into_iter()
                         .map(crate::auth::invocation::ResolvedGrantScope::from_exact)
                         .collect(),
                     token_expires_at_ms: anchor.expires_at_ms,
@@ -18778,17 +18855,19 @@ impl LocalSnapback {
                 }
             }
         };
-        Ok(Some(InvocationGate::prepare_admitted_authority(
-            source,
-            AuthMode::Sessions,
-            ServerProfile::Dev,
-            claim.admission.clone(),
-            &WireAuthorityFields::default(),
-            resolved,
-        )?
-        .with_caller_attribution(crate::telemetry::CallerAttributionV1::owner(
-            record.owner_principal_id.clone(),
-        ))))
+        Ok(Some(
+            InvocationGate::prepare_admitted_authority(
+                source,
+                AuthMode::Sessions,
+                ServerProfile::Dev,
+                claim.admission.clone(),
+                &WireAuthorityFields::default(),
+                resolved,
+            )?
+            .with_caller_attribution(crate::telemetry::CallerAttributionV1::owner(
+                record.owner_principal_id.clone(),
+            )),
+        ))
     }
 
     fn dispatch_watch_reaction(
@@ -18799,19 +18878,18 @@ impl LocalSnapback {
         ordinal: u64,
         now_ms: u64,
     ) -> SnapbackResult<WatchJobExecution> {
-        let Some(authority) = self.watch_execution_authority(
-            claim,
-            record,
-            InvocationSource::WatchReaction,
-            now_ms,
-        )? else {
+        let Some(authority) =
+            self.watch_execution_authority(claim, record, InvocationSource::WatchReaction, now_ms)?
+        else {
             self.db.mark_watch_dead(
                 &record.id,
                 "captured_authority_dead_before_reaction",
                 "SNAPBACK_WATCH_AUTHORITY_DEAD",
                 now_ms,
             )?;
-            return Ok(WatchJobExecution::Complete(watch_outcome(&record.id, "dead")));
+            return Ok(WatchJobExecution::Complete(watch_outcome(
+                &record.id, "dead",
+            )));
         };
         if record.reaction_kind == crate::watches::WatchReactionKind::Webhook {
             let payload = crate::watches::canonical_json(&json!({
@@ -18822,24 +18900,40 @@ impl LocalSnapback {
             }))?;
             let delivery_id = format!("webhook:{}:{ordinal}", record.id);
             let idempotency_key = format!("watch:{}:{ordinal}", record.id);
-            let delivery = self.db.reserve_webhook_delivery(
-                crate::storage::webhooks::ReserveDelivery {
-                    id: delivery_id,
-                    consumer_id: record.id.clone(),
-                    event_ordinal: ordinal,
-                    owner_principal_id: record.owner_principal_id.clone(),
-                    target_url: record.webhook_url.clone().ok_or_else(crate::watches::catalog_corrupt)?,
-                    payload_digest: crate::webhooks::payload_digest(&payload),
-                    payload_json: payload,
-                    secret_ref: record.webhook_secret_ref.clone().ok_or_else(crate::watches::catalog_corrupt)?,
-                    idempotency_key,
-                    max_attempts: claim.max_attempts,
-                    now_ms,
-                },
-            )?;
+            let delivery =
+                self.db
+                    .reserve_webhook_delivery(crate::storage::webhooks::ReserveDelivery {
+                        id: delivery_id,
+                        consumer_id: record.id.clone(),
+                        event_ordinal: ordinal,
+                        owner_principal_id: record.owner_principal_id.clone(),
+                        target_url: record
+                            .webhook_url
+                            .clone()
+                            .ok_or_else(crate::watches::catalog_corrupt)?,
+                        payload_digest: crate::webhooks::payload_digest(&payload),
+                        payload_json: payload,
+                        secret_ref: record
+                            .webhook_secret_ref
+                            .clone()
+                            .ok_or_else(crate::watches::catalog_corrupt)?,
+                        idempotency_key,
+                        max_attempts: claim.max_attempts,
+                        now_ms,
+                    })?;
             if delivery.state == "succeeded" {
-                self.db.settle_watch_firing(&record.id, &claim.job_id, ordinal, "succeeded", None, now_ms)?;
-                return Ok(WatchJobExecution::Complete(watch_outcome(&record.id, "succeeded")));
+                self.db.settle_watch_firing(
+                    &record.id,
+                    &claim.job_id,
+                    ordinal,
+                    "succeeded",
+                    None,
+                    now_ms,
+                )?;
+                return Ok(WatchJobExecution::Complete(watch_outcome(
+                    &record.id,
+                    "succeeded",
+                )));
             }
             return Ok(WatchJobExecution::Webhook(PreparedWatchWebhook {
                 watch_id: record.id.clone(),
@@ -18945,14 +19039,10 @@ impl LocalSnapback {
         now_ms: u64,
     ) -> SnapbackResult<Value> {
         let settled = match result {
-            Ok(_) => self.db.settle_watch_firing(
-                &watch_id,
-                &job_id,
-                ordinal,
-                "succeeded",
-                None,
-                now_ms,
-            ),
+            Ok(_) => {
+                self.db
+                    .settle_watch_firing(&watch_id, &job_id, ordinal, "succeeded", None, now_ms)
+            }
             Err(error) if attempt < max_attempts => self.db.record_watch_firing_retry(
                 &watch_id,
                 &job_id,
@@ -18994,7 +19084,9 @@ impl LocalSnapback {
         prepared: &PreparedWatchWebhook,
         now_ms: u64,
     ) -> SnapbackResult<crate::webhooks::DeliveryRequest> {
-        let record = self.db.watch_for_execution(&prepared.watch_id)?
+        let record = self
+            .db
+            .watch_for_execution(&prepared.watch_id)?
             .ok_or_else(crate::storage::watches::watch_not_found)?;
         if record.status != crate::watches::WatchStatus::Active
             || record.owner_principal_id != prepared.owner_principal_id
@@ -19043,17 +19135,22 @@ impl LocalSnapback {
             return Err(crate::webhooks::DeliveryOutcome::Permanent {
                 code: "SNAPBACK_WEBHOOK_DELIVERY_INVALID",
                 http_status: None,
-            }.into_error());
+            }
+            .into_error());
         }
-        let secret = self.config.values(&prepared.delivery.secret_ref)
+        let secret = self
+            .config
+            .values(&prepared.delivery.secret_ref)
             .filter(|values| values.len() == 1)
             .and_then(|values| values.first())
             .cloned()
-            .ok_or_else(|| SnapbackError::error(
-                "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE",
-                "webhooks",
-                "webhook signing secret is unavailable",
-            ))?;
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE",
+                    "webhooks",
+                    "webhook signing secret is unavailable",
+                )
+            })?;
         Ok(crate::webhooks::DeliveryRequest {
             delivery_id: prepared.delivery.id.clone(),
             idempotency_key: prepared.delivery.idempotency_key.clone(),
@@ -19074,42 +19171,87 @@ impl LocalSnapback {
         let result = match outcome {
             crate::webhooks::DeliveryOutcome::Succeeded { http_status } => {
                 self.db.settle_webhook_attempt(
-                    &prepared.delivery.id, attempt, "succeeded", Some(http_status), None, now_ms,
+                    &prepared.delivery.id,
+                    attempt,
+                    "succeeded",
+                    Some(http_status),
+                    None,
+                    now_ms,
                 )?;
                 self.db.settle_watch_firing(
-                    &prepared.watch_id, &prepared.job_id, prepared.ordinal,
-                    "succeeded", None, now_ms,
+                    &prepared.watch_id,
+                    &prepared.job_id,
+                    prepared.ordinal,
+                    "succeeded",
+                    None,
+                    now_ms,
                 )?;
                 Ok(watch_outcome(&prepared.watch_id, "succeeded"))
             }
             crate::webhooks::DeliveryOutcome::Retryable { code, http_status }
-                if attempt < max_attempts => {
+                if attempt < max_attempts =>
+            {
                 self.db.settle_webhook_attempt(
-                    &prepared.delivery.id, attempt, "retryable", http_status, Some(code), now_ms,
+                    &prepared.delivery.id,
+                    attempt,
+                    "retryable",
+                    http_status,
+                    Some(code),
+                    now_ms,
                 )?;
                 self.db.record_watch_firing_retry(
-                    &prepared.watch_id, &prepared.job_id, prepared.ordinal, code, now_ms,
+                    &prepared.watch_id,
+                    &prepared.job_id,
+                    prepared.ordinal,
+                    code,
+                    now_ms,
                 )?;
-                Err(SnapbackError::error(code, "webhooks", "webhook delivery will retry"))
+                Err(SnapbackError::error(
+                    code,
+                    "webhooks",
+                    "webhook delivery will retry",
+                ))
             }
             crate::webhooks::DeliveryOutcome::Retryable { http_status, .. } => {
                 let code = "SNAPBACK_WEBHOOK_DEAD_LETTERED";
                 self.db.settle_webhook_attempt(
-                    &prepared.delivery.id, attempt, "dead", http_status, Some(code), now_ms,
+                    &prepared.delivery.id,
+                    attempt,
+                    "dead",
+                    http_status,
+                    Some(code),
+                    now_ms,
                 )?;
                 self.db.settle_watch_firing(
-                    &prepared.watch_id, &prepared.job_id, prepared.ordinal,
-                    "failed", Some(code), now_ms,
+                    &prepared.watch_id,
+                    &prepared.job_id,
+                    prepared.ordinal,
+                    "failed",
+                    Some(code),
+                    now_ms,
                 )?;
-                Err(SnapbackError::error(code, "webhooks", "webhook exhausted its bounded attempts"))
+                Err(SnapbackError::error(
+                    code,
+                    "webhooks",
+                    "webhook exhausted its bounded attempts",
+                ))
             }
             crate::webhooks::DeliveryOutcome::Permanent { code, http_status } => {
                 self.db.settle_webhook_attempt(
-                    &prepared.delivery.id, attempt, "dead", http_status, Some(code), now_ms,
+                    &prepared.delivery.id,
+                    attempt,
+                    "dead",
+                    http_status,
+                    Some(code),
+                    now_ms,
                 )?;
                 self.db.settle_watch_firing(
-                    &prepared.watch_id, &prepared.job_id, prepared.ordinal,
-                    "refused", Some(code), now_ms,
+                    &prepared.watch_id,
+                    &prepared.job_id,
+                    prepared.ordinal,
+                    "refused",
+                    Some(code),
+                    now_ms,
                 )?;
                 Ok(json!({
                     "watchId": prepared.watch_id,
@@ -19177,7 +19319,10 @@ impl LocalSnapback {
         };
         let now_ms = now_millis();
         for record in records {
-            let Some(function) = self.functions.function(&record.query_function_name).cloned()
+            let Some(function) = self
+                .functions
+                .function(&record.query_function_name)
+                .cloned()
             else {
                 continue;
             };
@@ -20880,8 +21025,7 @@ impl LocalSnapback {
                 &transition.body.predecessor_schema_hash
             }
         };
-        if expected
-            .is_some_and(|generation| generation.schema_hash == active_schema_hash.as_str())
+        if expected.is_some_and(|generation| generation.schema_hash == active_schema_hash.as_str())
         {
             return Ok(());
         }
@@ -27050,7 +27194,7 @@ fn validate_function_schema_references(
                 };
                 let membership_visibility = matches!(
                     index.visibility,
-                    crate::search::types::SearchVisibilityV1::Membership { .. }
+                    crate::search::sqlite::SearchVisibilityV1::Membership { .. }
                 );
                 if function.kind == FunctionKind::LiveQuery {
                     // @ref LLP 0136#admission-path-decision — the authored
@@ -27068,7 +27212,7 @@ fn validate_function_schema_references(
                     }
                     let public_read = matches!(
                         index.visibility,
-                        crate::search::types::SearchVisibilityV1::PublicRead
+                        crate::search::sqlite::SearchVisibilityV1::PublicRead
                     );
                     if function.authority_independent != public_read {
                         return Err(SnapbackError::error(

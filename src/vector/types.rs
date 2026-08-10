@@ -3,11 +3,25 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 
-pub use super::profile::VectorMetricV1;
-use super::profile::{
-    VECTOR_COMPONENT_ABS_MAX, VECTOR_PROFILE_DIMENSIONS_MAX, VECTOR_PROFILE_DIMENSIONS_MIN,
-};
-use super::storage::{VECTOR_MAINTENANCE_BYTES_MAX, VECTOR_MAINTENANCE_EFFECTS_MAX};
+pub const VECTOR_DISTANCE_PROFILE_ID: &str = "snapback-vector-distance-v1";
+pub const VECTOR_ORDERING_PROFILE_ID: &str = "nearest-first-row-id.v1";
+pub const VECTOR_PROFILE_DIMENSIONS_MIN: u32 = 1;
+pub const VECTOR_PROFILE_DIMENSIONS_MAX: u32 = 4_096;
+/// `2^100`, encoded directly so admission does not depend on `pow` behavior.
+pub const VECTOR_COMPONENT_ABS_MAX: f64 = f64::from_bits(0x4630_0000_0000_0000);
+pub const VECTOR_DISTANCE_PROFILE_DIGEST: &str =
+    "sha256:9ce9feab0c6dcb2d009e212d34484051c8594b8ef0e9066d392c0449a8001e1b";
+pub const VECTOR_MAINTENANCE_EFFECTS_MAX: u64 = 1_024;
+pub const VECTOR_MAINTENANCE_BYTES_MAX: u64 = 4 * 1024 * 1024;
+
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum VectorMetricV1 {
+    L2sq,
+    Dot,
+}
 
 pub const VECTOR_CAPABILITY: &str = "vector_search_v1";
 pub const VECTOR_RESULT_PROJECTION: &str = "vector-page-v1";
@@ -217,12 +231,12 @@ impl VectorSearchFactsV1 {
         Self {
             capability_id: VECTOR_CAPABILITY.to_owned(),
             maturity: "experimental".to_owned(),
-            distance_profile: super::profile::VECTOR_DISTANCE_PROFILE_ID.to_owned(),
-            distance_profile_digest: super::profile::VECTOR_DISTANCE_PROFILE_DIGEST.to_owned(),
-            ordering_profile: super::profile::VECTOR_ORDERING_PROFILE_ID.to_owned(),
+            distance_profile: VECTOR_DISTANCE_PROFILE_ID.to_owned(),
+            distance_profile_digest: VECTOR_DISTANCE_PROFILE_DIGEST.to_owned(),
+            ordering_profile: VECTOR_ORDERING_PROFILE_ID.to_owned(),
             metrics: vec!["l2sq".to_owned(), "dot".to_owned()],
-            dimension_min: super::profile::VECTOR_PROFILE_DIMENSIONS_MIN,
-            dimension_max: super::profile::VECTOR_PROFILE_DIMENSIONS_MAX,
+            dimension_min: VECTOR_PROFILE_DIMENSIONS_MIN,
+            dimension_max: VECTOR_PROFILE_DIMENSIONS_MAX,
             k_default: VECTOR_DEFAULT_K,
             k_max: VECTOR_MAX_K,
             corpus_max: VECTOR_MAX_CORPUS,
@@ -276,10 +290,7 @@ mod tests {
 
     #[test]
     fn request_filter_values_are_closed_and_ordering_id_is_pinned() {
-        assert_eq!(
-            crate::vector::profile::VECTOR_ORDERING_PROFILE_ID,
-            "nearest-first-row-id.v1"
-        );
+        assert_eq!(VECTOR_ORDERING_PROFILE_ID, "nearest-first-row-id.v1");
         assert!(
             serde_json::from_value::<VectorRequestV1>(json!({
                 "vector": [0.0],

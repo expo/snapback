@@ -77,7 +77,7 @@ pub struct LiveSubscribeOutput {
         rename = "completenessProof",
         skip_serializing_if = "Option::is_none"
     )]
-    pub completeness_proof: Option<crate::completeness::CompletenessProofV1>,
+    pub completeness_proof: Option<crate::contract_types::CompletenessProofV1>,
     /// Exact owner-produced preimage named by `completenessProof`'s witness
     /// digest. This additive member is transported beside the signed proof so
     /// a client can validate the authorization fence before installing result
@@ -88,7 +88,7 @@ pub struct LiveSubscribeOutput {
         rename = "authorizationWitness",
         skip_serializing_if = "Option::is_none"
     )]
-    pub authorization_witness: Option<crate::completeness::AuthorizationWitnessRecordV1>,
+    pub authorization_witness: Option<crate::auth::invalidation::AuthorizationWitnessRecordV1>,
     /// Fresh resume token for `rqsEligible` subscriptions answered with rows
     /// (the "initial `LiveReplace`" mint of LLP 0091 §0A.5 on this arm).
     #[serde(default, skip_serializing_if = "Option::is_none")]

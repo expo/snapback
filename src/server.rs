@@ -12,14 +12,13 @@ use crate::auth::crypto::{
     AgentCredential, CreationInvitation, CredentialClass, PairingCode, ScopedToken, SessionBearer,
     classify_credential, dispatch_credential_class,
 };
-use crate::auth::descriptor::descriptor_for_resolved_authority;
 use crate::auth::handshake::{
     AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionAuthorityKind,
     AuthSessionFacts, AuthSessionResponse,
 };
 use crate::auth::invocation::{
     FunctionAttribution, InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority,
-    WireAuthorityFields,
+    WireAuthorityFields, descriptor_for_resolved_authority,
 };
 use crate::auth::lease::{
     AUTHORIZED_LEASE_PROTOCOL_VERSION, AuthorizedLease, AuthorizedLeaseRequestIdentity,
@@ -3647,10 +3646,8 @@ pub(crate) async fn execute_job_claim_detached(
         let attempt = claim.attempt;
         let max_attempts = claim.max_attempts;
         let context = claim.watch_context();
-        let prepared = with_snapback(state, move |snapback| {
-            snapback.prepare_watch_job(context)
-        })
-        .await;
+        let prepared =
+            with_snapback(state, move |snapback| snapback.prepare_watch_job(context)).await;
         let result = match prepared {
             Ok(crate::local::WatchJobExecution::Complete(value)) => Ok(value),
             Ok(crate::local::WatchJobExecution::Action(prepared)) => {
@@ -3694,27 +3691,31 @@ pub(crate) async fn execute_job_claim_detached(
                 })
                 .await;
                 let outcome = match delivery {
-                    Ok(delivery) => tokio::task::spawn_blocking(move || {
-                        crate::webhooks::deliver(delivery)
-                    })
-                    .await
-                    .unwrap_or(crate::webhooks::DeliveryOutcome::Retryable {
-                        code: "SNAPBACK_WEBHOOK_DELIVERY_RETRYABLE",
-                        http_status: None,
-                    }),
+                    Ok(delivery) => {
+                        tokio::task::spawn_blocking(move || crate::webhooks::deliver(delivery))
+                            .await
+                            .unwrap_or(crate::webhooks::DeliveryOutcome::Retryable {
+                                code: "SNAPBACK_WEBHOOK_DELIVERY_RETRYABLE",
+                                http_status: None,
+                            })
+                    }
                     Err(error)
                         if matches!(
                             error.diagnostic.code.as_str(),
                             "SNAPBACK_WEBHOOK_TARGET_UNAVAILABLE"
                                 | "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE"
-                        ) => crate::webhooks::DeliveryOutcome::Retryable {
-                        code: if error.diagnostic.code == "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE" {
-                            "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE"
-                        } else {
-                            "SNAPBACK_WEBHOOK_TARGET_UNAVAILABLE"
-                        },
-                        http_status: None,
-                    },
+                        ) =>
+                    {
+                        crate::webhooks::DeliveryOutcome::Retryable {
+                            code: if error.diagnostic.code == "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE"
+                            {
+                                "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE"
+                            } else {
+                                "SNAPBACK_WEBHOOK_TARGET_UNAVAILABLE"
+                            },
+                            http_status: None,
+                        }
+                    }
                     Err(error) => crate::webhooks::DeliveryOutcome::Permanent {
                         code: match error.diagnostic.code.as_str() {
                             "SNAPBACK_WATCH_AUTHORITY_DEAD" => "SNAPBACK_WATCH_AUTHORITY_DEAD",
@@ -12270,9 +12271,7 @@ async fn charge_hosted_sender_attempt(
     .await;
     match result {
         Ok(decision) if decision.admitted => Ok(()),
-        Ok(decision) => {
-            Err(ApiError::auth_budget_throttled(decision).into_response())
-        }
+        Ok(decision) => Err(ApiError::auth_budget_throttled(decision).into_response()),
         Err(_) => {
             let mut response = ApiError::from(SnapbackError::error(
                 "SNAPBACK_AUTH_THROTTLE_UNAVAILABLE",
@@ -15650,11 +15649,8 @@ async fn coordinated_mint_session(
             if rehearsal.require_existing_identity && plan.creates_identity() {
                 return Err(crate::auth::rehearsal::authority_ended());
             }
-            plan.bind_rehearsal_provenance(
-                rehearsal.provenance,
-                rehearsal.governing_not_after_ms,
-            )
-            .map_err(ProviderError::into_snapback_error)?;
+            plan.bind_rehearsal_provenance(rehearsal.provenance, rehearsal.governing_not_after_ms)
+                .map_err(ProviderError::into_snapback_error)?;
             plan.bind_rehearsal_effect(rehearsal.exercise)
                 .map_err(ProviderError::into_snapback_error)?;
         }
@@ -20455,8 +20451,7 @@ async fn execute_auth_host_operation(
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 live.retain(|authority_id, authority| {
                     authority_id != &revoked_grant_id
-                        && authority.parent_grant_id.as_deref()
-                            != Some(revoked_grant_id.as_str())
+                        && authority.parent_grant_id.as_deref() != Some(revoked_grant_id.as_str())
                 });
             }
             Ok(auth_host_result(runtime, request, server_url, outcome).await)
@@ -20604,16 +20599,11 @@ async fn execute_auth_host_operation(
             {
                 let admission = provider.admit().await;
                 let lookup_challenge_id = challenge_id.clone();
-                let (admission, coordination) = with_snapback(
-                    &runtime.snapback,
-                    move |snapback| {
-                        let coordination = admission.exchange_coordination(
-                            snapback.auth_database_mut(),
-                            &lookup_challenge_id,
-                        );
-                        (admission, coordination)
-                    },
-                )
+                let (admission, coordination) = with_snapback(&runtime.snapback, move |snapback| {
+                    let coordination = admission
+                        .exchange_coordination(snapback.auth_database_mut(), &lookup_challenge_id);
+                    (admission, coordination)
+                })
                 .await;
                 let coordination = match coordination {
                     Ok(Some(coordination)) => coordination,
@@ -20638,8 +20628,7 @@ async fn execute_auth_host_operation(
                 };
                 let resolved_contact = coordination.address().clone();
                 let provenance = match crate::auth::rehearsal::AuthRehearsalProvenanceV1::for_grant(
-                    &grant,
-                    true,
+                    &grant, true,
                 ) {
                     Ok(provenance) => provenance,
                     Err(error) => {
@@ -20728,8 +20717,7 @@ async fn execute_auth_host_operation(
                     }
                 };
                 let provenance = match crate::auth::rehearsal::AuthRehearsalProvenanceV1::for_grant(
-                    &grant,
-                    false,
+                    &grant, false,
                 ) {
                     Ok(provenance) => provenance,
                     Err(error) => {
@@ -20757,8 +20745,12 @@ async fn execute_auth_host_operation(
                             grant.expires_at,
                         )
                         .map(|outcome| match outcome {
-                            crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Fresh(value)
-                            | crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Replay(value) => value,
+                            crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Fresh(
+                                value,
+                            )
+                            | crate::storage::auth_rehearsal::RehearsalExerciseOutcome::Replay(
+                                value,
+                            ) => value,
                         })
                 })
                 .await;
@@ -20784,8 +20776,7 @@ async fn execute_auth_host_operation(
                 };
                 let address = admission.address().clone();
                 let provenance = match crate::auth::rehearsal::AuthRehearsalProvenanceV1::for_grant(
-                    &grant,
-                    false,
+                    &grant, false,
                 ) {
                     Ok(provenance) => provenance,
                     Err(error) => {
@@ -20914,21 +20905,17 @@ async fn execute_auth_host_operation(
                     return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
                 }
             };
-            let outcome = coordinated_mint_session(
-                runtime,
-                &provider,
-                admission,
-                route_admission,
-                None,
-            )
-                .await
-                .and_then(|issue| {
-                    let (credential, committed_revocation) = issue.into_parts();
-                    // Cap finalization has already completed before plaintext
-                    // reaches this serialization boundary.
-                    let _ = committed_revocation;
-                    serde_json::to_value(credential).map_err(|_| auth_provider_unavailable_error())
-                });
+            let outcome =
+                coordinated_mint_session(runtime, &provider, admission, route_admission, None)
+                    .await
+                    .and_then(|issue| {
+                        let (credential, committed_revocation) = issue.into_parts();
+                        // Cap finalization has already completed before plaintext
+                        // reaches this serialization boundary.
+                        let _ = committed_revocation;
+                        serde_json::to_value(credential)
+                            .map_err(|_| auth_provider_unavailable_error())
+                    });
             Ok(auth_host_result(runtime, request, server_url, outcome).await)
         }
         "auth.rescueCollidingTable" => {
@@ -24876,11 +24863,14 @@ async fn watch_create(
             effective_user_id: Some(_),
             ..
         } => ("integration", "capturedGrant"),
-        _ => return Err(SnapbackError::error(
-            "SNAPBACK_WATCH_OWNER_DENIED",
-            "watches",
-            "watch creation requires a session or active delegated integration",
-        ).into()),
+        _ => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_WATCH_OWNER_DENIED",
+                "watches",
+                "watch creation requires a session or active delegated integration",
+            )
+            .into());
+        }
     };
     if request.owner_kind != expected_profile.0 || request.authority_mode != expected_profile.1 {
         return Err(crate::watches::input_invalid(
@@ -24891,24 +24881,29 @@ async fn watch_create(
     let reaction = match request.reaction.kind.as_str() {
         "function" if request.reaction.url.is_none() && request.reaction.secret.is_none() => {
             crate::watches::WatchReactionSpec::Function {
-                function: request.reaction.function.ok_or_else(|| crate::watches::input_invalid(
-                    "function reactions require function",
-                ))?,
+                function: request.reaction.function.ok_or_else(|| {
+                    crate::watches::input_invalid("function reactions require function")
+                })?,
                 args: request.reaction.args,
             }
         }
-        "webhook" if request.reaction.function.is_none()
-            && request.reaction.args == empty_json_object() => {
+        "webhook"
+            if request.reaction.function.is_none()
+                && request.reaction.args == empty_json_object() =>
+        {
             crate::watches::WatchReactionSpec::Webhook {
-                url: request.reaction.url.ok_or_else(|| crate::watches::input_invalid(
-                    "webhook reactions require url",
-                ))?,
+                url: request.reaction.url.ok_or_else(|| {
+                    crate::watches::input_invalid("webhook reactions require url")
+                })?,
                 secret: request.reaction.secret,
             }
         }
-        _ => return Err(crate::watches::input_invalid(
-            "reaction must be exactly function {function,args} or webhook {url,secret?}",
-        ).into()),
+        _ => {
+            return Err(crate::watches::input_invalid(
+                "reaction must be exactly function {function,args} or webhook {url,secret?}",
+            )
+            .into());
+        }
     };
     let record = with_snapback(&state, move |snapback| {
         snapback.create_watch(
@@ -26150,9 +26145,9 @@ async fn require_effect_approval_if_configured(
                     "the active function generation cannot be frozen for approval",
                 )
             })?;
-        let caller = authority.telemetry_caller_details().unwrap_or_else(|| {
-            json!({ "callerLane": "first-party", "callerKey": "first-party" })
-        });
+        let caller = authority
+            .telemetry_caller_details()
+            .unwrap_or_else(|| json!({ "callerLane": "first-party", "callerKey": "first-party" }));
         let caller_lane = caller
             .get("callerLane")
             .and_then(Value::as_str)
@@ -26181,25 +26176,23 @@ async fn require_effect_approval_if_configured(
                 generation,
                 authority_instance_id,
                 ..
-            } => {
-                crate::storage::pending_effects::PendingEffectAuthority::Session {
-                    user_id: user_id.clone(),
-                    session_id: session_id.clone(),
-                    provider: provider.clone(),
-                    generation: *generation,
-                    authority_instance_id: authority_instance_id.clone(),
-                    authorization_stream_incarnation: authority
-                        .authorization_stream_incarnation()
-                        .ok_or_else(|| {
-                            SnapbackError::error(
-                                "SNAPBACK_EFFECT_BINDING_STALE",
-                                "effects",
-                                "session effect authority has no authorization-stream binding",
-                            )
-                        })?
-                        .to_owned(),
-                }
-            }
+            } => crate::storage::pending_effects::PendingEffectAuthority::Session {
+                user_id: user_id.clone(),
+                session_id: session_id.clone(),
+                provider: provider.clone(),
+                generation: *generation,
+                authority_instance_id: authority_instance_id.clone(),
+                authorization_stream_incarnation: authority
+                    .authorization_stream_incarnation()
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_EFFECT_BINDING_STALE",
+                            "effects",
+                            "session effect authority has no authorization-stream binding",
+                        )
+                    })?
+                    .to_owned(),
+            },
             ResolvedAppAuthority::ServicePrincipal {
                 actor_user_id,
                 credential_id,
@@ -26209,17 +26202,15 @@ async fn require_effect_approval_if_configured(
                 effective_user_id,
                 token_expires_at_ms,
                 ..
-            } => {
-                crate::storage::pending_effects::PendingEffectAuthority::ServicePrincipal {
-                    actor_user_id: actor_user_id.clone(),
-                    credential_id: credential_id.clone(),
-                    credential_generation: *credential_generation,
-                    grant_id: grant_id.clone(),
-                    token_id: token_id.clone(),
-                    effective_user_id: effective_user_id.clone(),
-                    token_expires_at_ms: *token_expires_at_ms,
-                }
-            }
+            } => crate::storage::pending_effects::PendingEffectAuthority::ServicePrincipal {
+                actor_user_id: actor_user_id.clone(),
+                credential_id: credential_id.clone(),
+                credential_generation: *credential_generation,
+                grant_id: grant_id.clone(),
+                token_id: token_id.clone(),
+                effective_user_id: effective_user_id.clone(),
+                token_expires_at_ms: *token_expires_at_ms,
+            },
             _ => {
                 return Err(SnapbackError::error(
                     "SNAPBACK_EFFECT_INPUT_INVALID",
@@ -26233,9 +26224,7 @@ async fn require_effect_approval_if_configured(
             declared_write_set.push(primary);
         }
         let link_origin_id = link.as_ref().map(|link| link.id.clone());
-        let approver_principal_id = link
-            .as_ref()
-            .map(|link| link.minter_principal_id.clone());
+        let approver_principal_id = link.as_ref().map(|link| link.minter_principal_id.clone());
         snapback
             .auth_database_mut()
             .create_pending_effect(crate::storage::pending_effects::CreatePendingEffect {

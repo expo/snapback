@@ -9,8 +9,10 @@ use super::{
     LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback,
     MAX_LIVE_SUBSCRIPTIONS, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MY_MEMBERSHIPS_LIVE_FUNCTION,
     MaintenanceOperation, PendingLiveFanout, PendingLiveLane, PendingLiveScheduler,
-    PendingLiveWork, PublicInspect, RetryEpisodeKey, RetryReservationKind, SnapbackError,
-    SnapbackResult, StagedMutationExecution, StagedNestedMutation, StagedRecordedMutation,
+    PendingLiveWork, PublicInspect, RetryEpisodeKey, RetryReservationKind, SEARCH_ANALYZER,
+    SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1, SearchIndexManifestV1,
+    SearchQueryPlanV1, SearchTextFieldV1, SearchVisibilityV1, SnapbackError, SnapbackResult,
+    StagedMutationExecution, StagedNestedMutation, StagedRecordedMutation,
     bounded_projection_result_contract, enforce_snapshot_batch_cursor_budget,
     next_secret_read_reset_generation, now_millis, order_field_bounds_from_functions,
     refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
@@ -49,10 +51,6 @@ use crate::manifest::{
     TableManifest, ValueExpr, ctx_ledger_version,
 };
 use crate::runtime::ExecutedIbexMutation;
-use crate::search::types::{
-    SEARCH_ANALYZER, SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1, SearchIndexManifestV1,
-    SearchQueryPlanV1, SearchTextFieldV1, SearchVisibilityV1,
-};
 use crate::storage::auth_grants::{ExactGrantScope, ScopedFunctionKind};
 use crate::storage::{BufferedWrite, DbRead};
 use crate::vector::{
@@ -22064,7 +22062,7 @@ fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
     let service_fences = snapback.db.service_authority_fence_registry();
     let first = service_mutation_authority(&service_fences, "token-a", 1, "grant-a");
     let descriptor =
-        crate::auth::descriptor::descriptor_for_resolved_authority(first.resolved(), INCARNATION)
+        crate::auth::invocation::descriptor_for_resolved_authority(first.resolved(), INCARNATION)
             .expect("service descriptor");
 
     let first_result = snapback

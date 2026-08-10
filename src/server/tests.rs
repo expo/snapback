@@ -1310,17 +1310,13 @@ async fn rehearsal_capability_manifest_reports_absent_available_and_active() {
         .expect("install settled rehearsal sessions posture");
 
     assert_eq!(projected_rehearsal_status(&state).await, "available");
-    state
-        .auth_rehearsal_live_grants
-        .write()
-        .unwrap()
-        .insert(
-            "grant-active".to_owned(),
-            crate::auth::rehearsal::RehearsalLiveAuthority {
-                expires_at_ms: super::now_millis() + 60_000,
-                parent_grant_id: None,
-            },
-        );
+    state.auth_rehearsal_live_grants.write().unwrap().insert(
+        "grant-active".to_owned(),
+        crate::auth::rehearsal::RehearsalLiveAuthority {
+            expires_at_ms: super::now_millis() + 60_000,
+            parent_grant_id: None,
+        },
+    );
     assert_eq!(projected_rehearsal_status(&state).await, "active");
     Arc::make_mut(&mut state.server).profile = ServerProfile::Prod;
     assert_eq!(projected_rehearsal_status(&state).await, "absent");
@@ -7591,15 +7587,10 @@ async fn mint_test_credential(state: &AppState, email: &str) -> serde_json::Valu
         .expect("installed auth provider");
     let admission = provider.admit_email(email).await.expect("admit test email");
     let route_admission = test_route_admission(state).0;
-    let issue = super::coordinated_mint_session(
-        state,
-        &provider,
-        admission,
-        &route_admission,
-        None,
-    )
-        .await
-        .expect("mint test session");
+    let issue =
+        super::coordinated_mint_session(state, &provider, admission, &route_admission, None)
+            .await
+            .expect("mint test session");
     let (credential, _committed_revocation) = issue.into_parts();
     serde_json::to_value(credential).expect("serialize test credential")
 }
@@ -8209,7 +8200,7 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
             .auth_database_mut()
             .ensure_authorization_stream_incarnation()
             .expect("authorization stream incarnation");
-        crate::auth::descriptor::descriptor_for_authority(&retained_authority, incarnation.as_str())
+        crate::auth::invocation::descriptor_for_authority(&retained_authority, incarnation.as_str())
             .expect("prepared authority descriptor")
             .authority_instance_id
     })
@@ -10827,18 +10818,12 @@ async fn hosted_sender_shared_throttle_charges_denials_before_proof_and_body() {
     assert_eq!(denied.status(), StatusCode::TOO_MANY_REQUESTS);
     assert_eq!(denied.headers()[header::RETRY_AFTER], "2");
     let denied = response_json(denied).await;
-    assert_eq!(
-        denied["diagnostic"]["code"],
-        "SNAPBACK_AUTH_THROTTLED",
-    );
+    assert_eq!(denied["diagnostic"]["code"], "SNAPBACK_AUTH_THROTTLED",);
     assert_eq!(
         denied["diagnostic"]["details"]["budgetName"],
         "auth.enumeration",
     );
-    assert_eq!(
-        denied["diagnostic"]["details"]["retryAfter"]["kind"],
-        "at",
-    );
+    assert_eq!(denied["diagnostic"]["details"]["retryAfter"]["kind"], "at",);
     assert!(
         denied["diagnostic"]["details"]["correlationId"]
             .as_str()
@@ -17951,15 +17936,10 @@ async fn postcommit_admin_mint_cap_finalize_failure_still_terminalizes_eviction(
     let admission = provider.admit_email(email).await.expect("admit cap email");
     let route_admission = test_route_admission(&state).0;
 
-    let error = super::coordinated_mint_session(
-        &state,
-        &provider,
-        admission,
-        &route_admission,
-        None,
-    )
-        .await
-        .expect_err("injected postcommit issuance finalize failure");
+    let error =
+        super::coordinated_mint_session(&state, &provider, admission, &route_admission, None)
+            .await
+            .expect_err("injected postcommit issuance finalize failure");
     assert_eq!(
         error.diagnostic.code, "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
         "terminal propagation must not mask the issuance diagnostic"
@@ -29765,7 +29745,11 @@ fn watch_anchor_renewal_route_is_session_only_and_surface_mapped() {
         .into_iter()
         .filter(|route| route.method == "POST" && route.path == "/watches/{id}/renew")
         .collect::<Vec<_>>();
-    assert_eq!(matching.len(), 1, "renewal has exactly one registered route");
+    assert_eq!(
+        matching.len(),
+        1,
+        "renewal has exactly one registered route"
+    );
     let route = matching[0];
     assert_eq!(route.class, RouteClass::AppData);
     assert_eq!(route.policy, RoutePolicy::SessionAuth);

@@ -14,11 +14,8 @@ use rusqlite::{Connection, OptionalExtension, Row, Transaction, params};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub use crate::contract_types::BranchId;
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
-
-/// Stable identity of an ephemeral branch within one logical app.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct BranchId(pub String);
 
 /// Identity of a branch's typed ephemeral **child version-stream**.
 ///

@@ -124,6 +124,7 @@
       "src/diagnostic.rs",
       "src/exec_guard.rs",
       "src/handler_wire.rs",
+      "src/host_ops_contract.rs",
       "src/identity.rs",
       "src/ids.rs",
       "src/live_wire.rs",
@@ -133,9 +134,12 @@
       "src/remediation.rs",
       "src/result_contract.rs",
       "src/result_transform.rs",
+      "src/rqs_contract.rs",
+      "src/search/types.rs",
       "src/service_profile.rs",
       "src/telemetry_contract.rs",
       "src/value_expr.rs",
+      "src/vector/types.rs",
       "src/watches.rs",
       "src/wire_fixtures.rs",
       "src/wire_version.rs"
@@ -173,7 +177,6 @@
       "src/search/rebuild.rs",
       "src/search/scorer.rs",
       "src/search/sqlite.rs",
-      "src/search/types.rs",
       "src/search/unicode17_generated.rs",
       "src/secure_file.rs",
       "src/storage.rs",
@@ -191,6 +194,7 @@
       "src/storage/auth_grants.rs",
       "src/storage/auth_integrations.rs",
       "src/storage/auth_invalidation.rs",
+      "src/storage/auth_logical_transfer.rs",
       "src/storage/auth_mode.rs",
       "src/storage/auth_rehearsal.rs",
       "src/storage/auth_rescue.rs",
@@ -233,8 +237,7 @@
       "src/vector/query.rs",
       "src/vector/rebuild.rs",
       "src/vector/sqlite.rs",
-      "src/vector/storage.rs",
-      "src/vector/types.rs"
+      "src/vector/storage.rs"
     ],
     "sync-realtime-engine": [
       "src/auth/admission.rs",
@@ -242,6 +245,7 @@
       "src/auth/invalidation.rs",
       "src/auth/invocation.rs",
       "src/auth/lease.rs",
+      "src/auth/logical_transfer.rs",
       "src/auth/provider.rs",
       "src/auth/sender_proof.rs",
       "src/auth/service_fence.rs",
@@ -272,6 +276,7 @@
       "src/auth/backup.rs",
       "src/auth/lifecycle.rs",
       "src/auth/mailbox.rs",
+      "src/bench_fixture.rs",
       "src/cron.rs",
       "src/error_tracking.rs",
       "src/errors_query.rs",
@@ -354,17 +359,17 @@
       },
       {
         "owner": "unassigned",
-        "scope": "All remaining local runtime, lifecycle, auth, execution, and orchestration behavior until later slices place it."
+        "scope": "The remaining ~30.7k-line unassigned local runtime: lifecycle, auth wiring, invocation, watches, and orchestration behavior awaiting later extraction slices."
       }
     ],
     "src/manifest.rs": [
       {
         "owner": "shared-contract-types-leaf",
-        "scope": "Language-neutral schema, wire, and generation types that are the intended canonical leaf."
+        "scope": "The shared contract/types leaf scope: language-neutral schema, wire, and generation shapes that other subsystems import downward."
       },
       {
         "owner": "unassigned",
-        "scope": "Subsystem-coupled identity, vector, push, assets, auth, and other behavior pending extraction."
+        "scope": "Subsystem-coupled residue (identity, vector, push, assets, auth helpers) still colocated here pending extraction."
       }
     ]
   },

@@ -19,6 +19,15 @@ use zeroize::Zeroizing;
 use crate::auth::invalidation::CompositeWitness;
 use crate::manifest::ArtifactGeneration;
 
+// The pure proof/witness shapes live on lower-ranked owners so leaf and sync
+// consumers never import upward; their derivation, validation, and issuance
+// logic stays here with the signing coordinator (LLP 0199 worklist item 7).
+pub use crate::auth::invalidation::AuthorizationWitnessRecordV1;
+pub use crate::contract_types::{
+    CompletenessProofV1, CursorEndV1, PageIdentityV1, ProofNodeIdentityV1, ProofVersionV1,
+    UnsignedCompletenessProofV1,
+};
+
 pub const PROOF_KEYRING_FILE_NAME: &str = "completeness-proof-keyring.json";
 pub const TRUSTED_COMPOSITION_ACTIVATION_FILE_NAME: &str = "trusted-composition-activation.json";
 const PROOF_KEYRING_FORMAT_VERSION: u32 = 1;
@@ -180,14 +189,6 @@ impl TrustedCompositionActivationV1 {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AuthorizationWitnessRecordV1 {
-    pub format: String,
-    pub query_instance_id: u64,
-    pub composite_witness: CompositeWitness,
-}
-
 impl AuthorizationWitnessRecordV1 {
     pub fn new(query_instance_id: u64, composite_witness: CompositeWitness) -> Result<Self> {
         if query_instance_id == 0 || query_instance_id > 9_007_199_254_740_991 {
@@ -213,18 +214,6 @@ impl AuthorizationWitnessRecordV1 {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
-#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
-pub enum CursorEndV1 {
-    First,
-    Cursor {
-        #[serde(rename = "profileId")]
-        profile_id: String,
-        digest: String,
-    },
-    Terminal,
-}
-
 impl CursorEndV1 {
     pub fn input(profile_id: &str, wire: Option<&str>) -> Self {
         match wire {
@@ -245,21 +234,6 @@ impl CursorEndV1 {
             },
         }
     }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
-#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
-pub enum PageIdentityV1 {
-    SealedTerminal {
-        input: CursorEndV1,
-        output: CursorEndV1,
-    },
-    Visible {
-        input: CursorEndV1,
-        #[serde(rename = "boundaryVectorDigest")]
-        boundary_vector_digest: String,
-        output: CursorEndV1,
-    },
 }
 
 impl PageIdentityV1 {
@@ -432,76 +406,6 @@ pub fn result_digest_v1(established_result: &Value) -> Result<String> {
             bytes_base64url: &encoded,
         },
     )
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ProofVersionV1 {
-    pub stream: String,
-    pub commit: u64,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ProofNodeIdentityV1 {
-    pub position: u64,
-    pub class_id: String,
-    pub class_version: u64,
-    pub node_plan_hash: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct UnsignedCompletenessProofV1 {
-    pub format: String,
-    pub materialization_key: String,
-    pub query_instance_id: u64,
-    pub activation_hash: String,
-    pub plan_hash: String,
-    pub version: ProofVersionV1,
-    pub authorization_witness_digest: String,
-    pub page: PageIdentityV1,
-    pub nodes: Vec<ProofNodeIdentityV1>,
-    pub batch_identity: String,
-    pub result_digest: String,
-    pub proof_key_id: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CompletenessProofV1 {
-    pub format: String,
-    pub materialization_key: String,
-    pub query_instance_id: u64,
-    pub activation_hash: String,
-    pub plan_hash: String,
-    pub version: ProofVersionV1,
-    pub authorization_witness_digest: String,
-    pub page: PageIdentityV1,
-    pub nodes: Vec<ProofNodeIdentityV1>,
-    pub batch_identity: String,
-    pub result_digest: String,
-    pub proof_key_id: String,
-    pub signature: String,
-}
-
-impl From<CompletenessProofV1> for UnsignedCompletenessProofV1 {
-    fn from(proof: CompletenessProofV1) -> Self {
-        Self {
-            format: proof.format,
-            materialization_key: proof.materialization_key,
-            query_instance_id: proof.query_instance_id,
-            activation_hash: proof.activation_hash,
-            plan_hash: proof.plan_hash,
-            version: proof.version,
-            authorization_witness_digest: proof.authorization_witness_digest,
-            page: proof.page,
-            nodes: proof.nodes,
-            batch_identity: proof.batch_identity,
-            result_digest: proof.result_digest,
-            proof_key_id: proof.proof_key_id,
-        }
-    }
 }
 
 impl CompletenessProofV1 {

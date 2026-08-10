@@ -41,7 +41,7 @@ const AUTH_LOCK_RANK_SESSION: u8 = 30;
 // @ref LLP 0059#locking-and-linearization — the independent mode cut is the
 // final lock in a composed publication; registry and mode ranks make that
 // cross-module order executable in every debug/test build.
-pub(crate) const AUTH_LOCK_RANK_CONNECTION_REGISTRY: u8 = 40;
+pub(crate) use crate::exec_guard::AUTH_LOCK_RANK_CONNECTION_REGISTRY;
 pub(crate) const AUTH_LOCK_RANK_MODE_ADMISSION: u8 = 50;
 
 pub(crate) struct AuthLockRankGuard(u8);
