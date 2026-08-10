@@ -190,15 +190,37 @@ at the authorization-aware construction site without a second lookup race.
    ruled remediation/apply workflow, including approval and stale-generation
    examples.
 
+## Author ruling — 2026-08-10
+
+**Option B ruled.** The carrier is the versioned diagnostic-details member:
+`diagnostic.details.remediationSet`, with
+`schemaVersion: "snapback.remediation-set.v1"`,
+`registryVersion: "snapback.remediation-kinds.v1"`, the exact contextual
+`artifactHash` where applicable, and bounded `items` — the shape proposed
+above is adopted, including the name. The registry is ruled **global and
+versioned, not keyed solely by refusal code**: a reviewed code-to-template
+table is permitted as an implementation aid, but offered entries are
+constructed contextually at the authorization-aware refusal site, and every
+machine-applicable item binds to the exact artifact hash observed at refusal
+time. Outer wire envelopes remain unchanged; the nested schema/version and
+the LLP 0095 fixture obligations are mandatory, not optional. The nine-step
+follow-on above is unblocked and commissioned.
+
 ## Author ruling checklist
 
-- [ ] Carrier option A, B, or C selected, with exact field/object name.
-- [ ] Registry ownership ruled: global kinds plus contextual offers, or a
-      refusal-code-keyed alternative with a stated answer for contextual data.
-- [ ] Compatibility and versioning rule stated for every envelope family.
-- [ ] Disclosure behavior stated across CLI, HTTP, MCP, and hosted projection.
-- [ ] Stale-artifact refusal code/consumer ownership assigned.
-- [ ] Fixture corpus and generated-client migration assigned to LLP 0095.
+- [x] Carrier option **B** selected — `diagnostic.details.remediationSet`
+      (ruled 2026-08-10).
+- [x] Registry ownership ruled: global versioned kinds plus contextual
+      offers (ruled 2026-08-10).
+- [x] Compatibility and versioning ruled: outer envelopes unchanged; nested
+      `schemaVersion`/`registryVersion` mandatory (ruled 2026-08-10).
+- [x] Disclosure ruled: constructed at the authorization-aware diagnostic
+      site; identical across CLI, HTTP, MCP, and hosted via the shared
+      diagnostic (ruled 2026-08-10).
+- [x] Stale-artifact refusal code/consumer ownership assigned to follow-on
+      step 5's implementation, named at review (ruled 2026-08-10).
+- [x] Fixture corpus and generated-client migration assigned to LLP 0095
+      (ruled 2026-08-10).
 
 ## Implementation boundary note (2026-08-08)
 

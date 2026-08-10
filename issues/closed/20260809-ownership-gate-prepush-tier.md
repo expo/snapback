@@ -42,3 +42,11 @@ volunteer to run it).
 Owner note: touches `.githooks/pre-push` and/or the gate-selection policy —
 a deliberate frozen-record-policy change, so it lands via the normal review
 path, not as a drive-by.
+
+## Author ruling — 2026-08-10
+
+Approved. Add `scripts/check-module-ownership.mjs` to the pre-push hook's
+fast fail-closed core tier unconditionally, landing via the normal review
+path as a deliberate frozen-record-policy change. This gate is also the
+enforcement arm of the commissioned core-modularization Decision
+(`issues/20260808-core-modularization-decision.md`).

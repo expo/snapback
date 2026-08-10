@@ -15,3 +15,12 @@ posture, composing with the existing server-derived principals and
 external-identity-broker custody rules (LLP 0057/0151). The LLP
 0066/0067 auth-mode matrix is the design home; this ticket is the
 demand signal with benchmark evidence.
+
+## Author ruling — 2026-08-10
+
+Commissioned. Design an RFC for a first-class email+password provider on the
+existing sessions surface: server-side argon2id KDF, signup + signin callable
+non-interactively, a declared and testable lockout/rate posture, composing
+with server-derived principals and the external-identity-broker custody
+rules (LLP 0057/0151). Scope fence: exactly email+password on the sessions
+surface — this commission is not a general OAuth/identity-provider program.

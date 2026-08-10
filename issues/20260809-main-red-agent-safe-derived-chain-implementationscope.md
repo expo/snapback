@@ -23,3 +23,14 @@ the evidence-chain owner.
 
 Verified: the failure reproduces with and without unrelated working-tree
 changes; the 2331 other lib tests pass.
+
+## Author ruling — 2026-08-10
+
+**Author-routing released: any session may fix this forward now** (same
+24-hour fix-forward convention as
+`issues/20260809-main-red-handler-error-exposure-triple.md`). Preferred
+path: land the `implementationScope` struct field with its validation
+semantics recovered from the `2c4d707aa` landing context; if the field's
+meaning cannot be pinned from that context, re-mint the fixture without the
+field to restore green and file the field's re-introduction as its own
+ticket.

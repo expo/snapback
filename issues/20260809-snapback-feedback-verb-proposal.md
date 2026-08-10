@@ -35,3 +35,11 @@ Endpoint ownership, retention, consent copy — the former LLP 0207 OQ4.
 ## Disposition if declined
 
 Remains a filed ticket; no verb lands anywhere else.
+
+## Author ruling — 2026-08-10
+
+Accepted in principle — build it. Ownership assigned as proposed to LLP 0193
+(the Phase 4 grading loop is the consumer). Fences: explicit invocation
+only, no ambient collection (the rejected telemetry stays rejected); the
+owner designs endpoint ownership, retention, and consent copy before the
+verb ships. Nothing else blocks on this.

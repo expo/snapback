@@ -39,3 +39,12 @@ W-MUTATION-IR, W-SHORTID, settlement identity).
   authored start" and §1.9 "no cross-scope or global counter"). Consume it
   rather than re-deriving. LLP 0007's 2026-08-08 amendment records the same
   boundary in the storage authority.
+
+## Author greenlight — 2026-08-10
+
+Writing this Decision is greenlit now, and the schema lane's worked proposal
+is endorsed wholesale — see the author ruling recorded in
+`issues/20260808-numeric-identity-default-columns.md` (sequence semantics,
+server-owned always, non-empty-table refusal in v1, `v.serial({ start })` as
+the working spelling). That ticket lands as this Decision's first
+schema-owner amendment.

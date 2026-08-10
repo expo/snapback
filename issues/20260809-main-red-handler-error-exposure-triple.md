@@ -31,3 +31,14 @@ issues/20260809-main-red-agent-safe-derived-chain-implementationscope.md.)
 shows the same signature (generic SNAPBACK_HANDLER_FAILED where the enriched
 scrubbed detail is expected) and reproduces with the pre-a8787cb53 harness
 bootstrap, so it belongs to this family too. Same owner.
+
+## Author ruling — 2026-08-10
+
+**Author-routing released: any session may fix this forward now.** General
+convention adopted at the same sitting: a main-red ticket unclaimed by its
+landing's author for 24 hours converts to fix-forward-by-anyone. Guidance:
+rename `SNAPBACK_HANDLER_ERROR_EXPOSURE` out of the scanner namespace (or
+classify it) per the `$APP_*` precedent; treat the three behavioral failures
+as regressions in the enrichment landing to fix or partially revert — the
+scrubbed-detail addendum indicates a real gap in the enrichment, not stale
+tests.

@@ -74,3 +74,11 @@ the gate owner rather than a mechanical fix.
 `bun run --cwd packages/snapback-codegen test` exits 0 on a clone where
 `git clean -ndX demos` reports nothing, with no prior
 `check-generated-artifacts` run.
+
+## Author ruling — 2026-08-10
+
+Option 4 ruled: move gate (c) out of the package unit suite into the
+generated-artifact gate (or the review-surface check), where the closure is
+guaranteed materialized. The package suite stays hermetic, the corpus
+exemplar stays a real in-corpus mutation, and nothing new is committed.
+Resolution criteria above unchanged.

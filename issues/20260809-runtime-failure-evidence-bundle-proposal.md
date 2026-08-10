@@ -38,3 +38,13 @@ saw only 0156's header).
 ## Disposition if declined
 
 Remains a filed ticket; no mechanism lands anywhere else.
+
+## Author ruling — 2026-08-10
+
+Accepted in principle as a scope amendment to LLP 0156, with two fences: v1
+is local-capture-only (no hosted upload — the retention/privacy design
+defers with it), and the redaction contract is a tested invariant, not a
+convention (a bundle that leaks a staged secret once is worse than no
+bundle). First task for the amendment author: verify fit with 0156's
+exemplar/raw-tier machinery before committing to the shape — the review loop
+assumed that fit without verifying it.

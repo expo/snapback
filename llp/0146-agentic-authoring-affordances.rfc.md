@@ -1035,6 +1035,23 @@ all await the author ruling requested in
 `issues/20260806-llp0146-oq6-remediation-carrier-decision.md`. This record does
 not change this RFC's Draft status and does not claim D7 complete.
 
+#### OQ6 author ruling — 2026-08-10
+
+Option B ruled: contextual typed remediations ride in a versioned
+diagnostic-details member, `diagnostic.details.remediationSet`
+(`schemaVersion: "snapback.remediation-set.v1"`, `registryVersion:
+"snapback.remediation-kinds.v1"`, per-item artifact-hash preconditions where
+machine-applicable), leaving every closed outer envelope unchanged. The kind
+registry is global and versioned, not keyed solely by refusal code; offered
+entries are constructed contextually at the authorization-aware refusal
+site, and every machine-applicable item binds to the exact artifact hash
+observed at refusal time. The full ruling, checklist, and the nine-step
+implementation program live in
+`issues/20260806-llp0146-oq6-remediation-carrier-decision.md`; the
+`draft-pending-oq6` registry/schema drafts promote to the ruled v1 identity
+as that program's step 2, and LLP 0094/0095 receive the carrier's
+compatibility/fixture amendments as its step 1.
+
 ## Declined and deferred
 
 ### Declined 1 — Automatic aliasing from popular wrong guesses
