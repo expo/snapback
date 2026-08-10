@@ -38,6 +38,7 @@ mod asset_attempts;
 mod asset_maintenance;
 mod asset_reads;
 mod auth_catalog_ops;
+mod branch_ops;
 mod checkpoints;
 // The item-3 provider integration consumes these crate-private seams after this
 // catalog lane lands; keep the catalog module narrow without making unfinished
@@ -60,6 +61,7 @@ pub use asset_attempts::{AssetAttemptsKernel, AssetPreparedVariant, AssetPublish
 pub use asset_maintenance::AssetMaintenanceKernel;
 pub use asset_reads::{AssetDelivery, AssetDeliveryOutcome, AssetReadsKernel};
 pub use auth_catalog_ops::AuthCatalogKernel;
+pub use branch_ops::{BranchOpsKernel, BranchOpsReadKernel};
 pub use checkpoints::{CheckpointsKernel, CheckpointsReadKernel};
 use connections::registered_writer_coverage_manifest;
 pub use connections::{PooledReader, ReaderPool};
@@ -2006,6 +2008,14 @@ impl LocalDatabase {
         AuthCatalogKernel::new_read(self)
     }
 
+    pub fn branch_ops(&mut self) -> BranchOpsKernel<'_> {
+        BranchOpsKernel::new(self)
+    }
+
+    pub fn branch_ops_read(&self) -> BranchOpsReadKernel<'_> {
+        BranchOpsReadKernel::new(self)
+    }
+
     pub fn membership_plans(&mut self) -> MembershipPlansKernel<'_> {
         MembershipPlansKernel::new(self)
     }
@@ -2292,14 +2302,6 @@ impl LocalDatabase {
         report
     }
 
-    pub(crate) fn derived_fork(&self) -> Option<&crate::instance_fork::DerivedForkRuntime> {
-        self.derived_fork.as_ref()
-    }
-
-    pub(crate) fn in_app_branch(&self) -> Option<&crate::fork_promotion::InAppBranchRuntime> {
-        self.in_app_branch.as_ref()
-    }
-
     /// Capture an owned, in-memory read snapshot for detached handler
     /// execution when the live database has no WAL reader pool (`:memory:`).
     /// The backup runs while the caller holds the short instance lock; handler
@@ -2372,160 +2374,6 @@ impl LocalDatabase {
     #[allow(dead_code)] // Consumed by the ENG-24596 keyring integration lane.
     pub(crate) fn database_path(&self) -> Option<&Path> {
         self.path.as_deref()
-    }
-
-    pub(crate) fn create_managed_in_app_branch(
-        &mut self,
-        request: &crate::fork_promotion::InAppBranchCreateV1,
-    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
-        let path = self.path.clone().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
-                "storage",
-                "managed in-app branches require a file-backed canonical database",
-            )
-        })?;
-        if self.derived_fork.is_some() || self.in_app_branch.is_some() {
-            return Err(SnapbackError::error(
-                "SNAPBACK_BRANCH_NESTING_UNSUPPORTED",
-                "storage",
-                "a fork or branch cannot create another managed in-app branch",
-            ));
-        }
-        crate::fork_promotion::create_managed_in_app_branch(&mut self.conn, &path, request)
-    }
-
-    pub(crate) fn list_managed_in_app_branches(
-        &self,
-        now_ms: i64,
-    ) -> SnapbackResult<Vec<crate::fork_promotion::ManagedInAppBranchReceiptV1>> {
-        let path = self.path.as_deref().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
-                "storage",
-                "managed in-app branches require a file-backed canonical database",
-            )
-        })?;
-        crate::fork_promotion::list_managed_in_app_branches(&self.conn, path, now_ms)
-    }
-
-    pub(crate) fn inspect_managed_in_app_branch(
-        &self,
-        branch_id: &crate::branches::BranchId,
-        now_ms: i64,
-    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
-        let path = self.path.as_deref().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
-                "storage",
-                "managed in-app branches require a file-backed canonical database",
-            )
-        })?;
-        crate::fork_promotion::inspect_managed_in_app_branch(&self.conn, path, branch_id, now_ms)
-    }
-
-    pub(crate) fn managed_in_app_branch_path(
-        &self,
-        branch_id: &crate::branches::BranchId,
-        now_ms: i64,
-    ) -> SnapbackResult<PathBuf> {
-        let path = self.path.as_deref().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
-                "storage",
-                "managed in-app branches require a file-backed canonical database",
-            )
-        })?;
-        crate::fork_promotion::managed_in_app_branch_path(&self.conn, path, branch_id, now_ms)
-    }
-
-    pub(crate) fn branch_operation_retry(
-        &self,
-        branch_id: &crate::branches::BranchId,
-        draft: &crate::fork_promotion::BranchOperationDraftV1,
-    ) -> SnapbackResult<Option<crate::fork_promotion::BranchOperationV1>> {
-        crate::fork_promotion::branch_operation_retry(&self.conn, branch_id, draft)
-    }
-
-    pub(crate) fn branch_operation_log(
-        &self,
-        branch_id: &crate::branches::BranchId,
-    ) -> SnapbackResult<Vec<crate::fork_promotion::BranchOperationV1>> {
-        crate::fork_promotion::branch_operation_log(&self.conn, branch_id)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn captured_effect_intents(
-        &self,
-        branch_id: &crate::branches::BranchId,
-    ) -> SnapbackResult<Vec<crate::fork_promotion::CapturedEffectIntentV1>> {
-        crate::fork_promotion::captured_effect_intents(&self.conn, branch_id)
-    }
-
-    pub(crate) fn inspect_local_in_app_branch(
-        &self,
-        branch_id: &crate::branches::BranchId,
-    ) -> SnapbackResult<crate::fork_promotion::InAppBranchReceiptV1> {
-        crate::fork_promotion::inspect_in_app_branch(&self.conn, branch_id)
-    }
-
-    pub(crate) fn execute_branch_operation(
-        &mut self,
-        branch_id: &crate::branches::BranchId,
-        draft: &crate::fork_promotion::BranchOperationDraftV1,
-        now_ms: i64,
-        result: Value,
-    ) -> SnapbackResult<crate::fork_promotion::BranchOperationV1> {
-        crate::fork_promotion::execute_receipt_only_branch_operation(
-            &mut self.conn,
-            branch_id,
-            draft,
-            result,
-            now_ms,
-        )
-    }
-
-    pub(crate) fn finalize_captured_effect_operation(
-        &mut self,
-        context: &crate::fork_promotion::BranchEffectExecutionContextV1,
-        result: Value,
-        diagnostic_code: Option<&str>,
-    ) -> SnapbackResult<Option<crate::fork_promotion::BranchOperationV1>> {
-        crate::fork_promotion::finalize_captured_effect_operation(
-            &mut self.conn,
-            context,
-            result,
-            diagnostic_code,
-        )
-    }
-
-    pub(crate) fn reap_expired_managed_in_app_branches(
-        &mut self,
-        now_ms: i64,
-    ) -> SnapbackResult<Vec<crate::fork_promotion::ManagedInAppBranchReceiptV1>> {
-        let path = self.path.clone().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
-                "storage",
-                "managed in-app branches require a file-backed canonical database",
-            )
-        })?;
-        crate::fork_promotion::reap_expired_managed_in_app_branches(&mut self.conn, &path, now_ms)
-    }
-
-    pub(crate) fn drop_managed_in_app_branch(
-        &mut self,
-        branch_id: &crate::branches::BranchId,
-        now_ms: i64,
-    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
-        let path = self.path.clone().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
-                "storage",
-                "managed in-app branches require a file-backed canonical database",
-            )
-        })?;
-        crate::fork_promotion::drop_managed_in_app_branch(&mut self.conn, &path, branch_id, now_ms)
     }
 
     /// Durably upsert host-owned `StreamAttemptV1` rows. The write-ahead
@@ -5075,38 +4923,6 @@ impl LocalDatabase {
             .commit)
     }
 
-    /// Managed in-app branch mutation carrier. The branch operation is
-    /// derived and inserted inside the same transaction as the app commit.
-    pub(crate) fn execute_branch_mutation_guarded<G, BeforeCommit>(
-        &mut self,
-        plan: &MutationPlan,
-        input: &HandlerInput,
-        branch_operation: &crate::fork_promotion::BranchMutationCommitV1,
-        before_commit: BeforeCommit,
-    ) -> SnapbackResult<MutationCommit>
-    where
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        require_covered_mutation_identity_for_lane(
-            &self.conn,
-            CoveredMutationLaneV1::Ordinary,
-            None,
-        )?;
-        Ok(self
-            .execute_mutation_plan_with_lifecycle_and_settlement_time(
-                write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
-                plan,
-                input,
-                true,
-                None,
-                None,
-                Some(branch_operation),
-                &|| Ok(()),
-                before_commit,
-            )?
-            .commit)
-    }
-
     pub fn execute_mutation_idempotent(
         &mut self,
         plan: &MutationPlan,
@@ -6490,27 +6306,6 @@ impl LocalDatabase {
             CoveredMutationLaneV1::HostChild,
             None,
             check_live,
-            before_commit,
-        )
-    }
-
-    pub(crate) fn commit_branch_buffered_writes_guarded<G, BeforeCommit>(
-        &mut self,
-        input: &HandlerInput,
-        payload: BufferedCommitPayload,
-        branch_operation: &crate::fork_promotion::BranchMutationCommitV1,
-        before_commit: BeforeCommit,
-    ) -> SnapbackResult<MutationCommit>
-    where
-        BeforeCommit: FnOnce() -> SnapbackResult<G>,
-    {
-        self.commit_buffered_writes_for_lane(
-            input,
-            payload,
-            None,
-            CoveredMutationLaneV1::Ordinary,
-            Some(branch_operation),
-            || Ok(()),
             before_commit,
         )
     }

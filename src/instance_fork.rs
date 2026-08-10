@@ -1856,7 +1856,7 @@ pub(crate) fn arm_open_derived_fork_app_row_coverage(
     database: &mut crate::storage::LocalDatabase,
     activated_at_ms: u64,
 ) -> SnapbackResult<ForkAppRowCoverageReceiptV1> {
-    let runtime = database.derived_fork().cloned().ok_or_else(|| {
+    let runtime = database.branch_ops_read().derived_fork().cloned().ok_or_else(|| {
         writer_coverage_invalid("writer coverage activation requires a minted derived fork")
     })?;
     let database_path = database

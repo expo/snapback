@@ -28608,6 +28608,7 @@ globalThis.__snapbackHandlers = {
 
         let branch_path = snapback
             .db
+            .branch_ops_read()
             .managed_in_app_branch_path(&branch_id, 1_009)
             .expect("resolve server-custodied branch path");
         let branch = LocalSnapback::open(branch_path).expect("open branch for assertions");
@@ -28621,6 +28622,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             branch
                 .db
+                .branch_ops_read()
                 .branch_operation_log(&branch_id)
                 .expect("reopened operation log")
                 .len(),
@@ -28718,11 +28720,13 @@ globalThis.__snapbackHandlers = {
 
         let path = snapback
             .db
+            .branch_ops_read()
             .managed_in_app_branch_path(&branch_id, 1_002)
             .expect("branch path");
         let reopened = LocalSnapback::open(&path).expect("reopen captured branch");
         let intents = reopened
             .db
+            .branch_ops_read()
             .captured_effect_intents(&branch_id)
             .expect("ordered payload-free intents");
         assert_eq!(
@@ -28785,11 +28789,13 @@ globalThis.__snapbackHandlers = {
 
         let path = snapback
             .db
+            .branch_ops_read()
             .managed_in_app_branch_path(&branch_id, 1_003)
             .expect("branch path");
         let branch = LocalSnapback::open(path).expect("reopen branch");
         let operations = branch
             .db
+            .branch_ops_read()
             .branch_operation_log(&branch_id)
             .expect("public carrier operation log");
         assert_eq!(

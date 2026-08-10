@@ -61,3 +61,10 @@ move the shape to the leaf) and `auth/invocation -> telemetry`
 shape or a callback). Slices 6-7 also relocated five kernel->sync
 type-imports (provider, sender_proof, session_projection ×2, invocation)
 into item 3's burn-down as recorded in their commit messages.
+
+**Growth 2026-08-09 (slice-10 landing):** relocating the branch cluster made
+two pre-existing kernel->background upward edges explicit (branch_ops ->
+fork_promotion, -> instance_fork — the branch lifecycle calls domain
+promotion/fork logic; invert by passing typed plans down). Fourth
+unmanifested-module catch: storage/stream_transcripts.rs assigned to the
+kernel at this landing (reinforces 20260809-ownership-gate-prepush-tier.md).

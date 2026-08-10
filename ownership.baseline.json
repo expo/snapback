@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v1",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 203,
-  "edgeCount": 1200,
+  "moduleCount": 205,
+  "edgeCount": 1210,
   "edges": [
     {
       "from": "src/admin_agent_destroy.rs",
@@ -2273,6 +2273,12 @@
       "toOwner": "storage-migration-kernel"
     },
     {
+      "from": "src/ephemeral.rs",
+      "fromOwner": "sync-realtime-engine",
+      "to": "src/stream_attempt.rs",
+      "toOwner": "sync-realtime-engine"
+    },
+    {
       "from": "src/errors_query.rs",
       "fromOwner": "background-services",
       "to": "src/diagnostic.rs",
@@ -3128,6 +3134,12 @@
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/storage/migration_executor.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/local.rs",
+      "fromOwner": "unassigned",
+      "to": "src/storage/stream_transcripts.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
@@ -4957,6 +4969,12 @@
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/storage/stream_transcripts.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/server.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/stream_attempt.rs",
       "toOwner": "sync-realtime-engine"
     },
@@ -5371,6 +5389,12 @@
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/storage/stream_transcripts.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/server/tests.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/stream_attempt.rs",
       "toOwner": "sync-realtime-engine"
     },
@@ -5469,12 +5493,6 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/authoring_suggestion.rs",
       "toOwner": "shared-contract-types-leaf"
-    },
-    {
-      "from": "src/storage.rs",
-      "fromOwner": "storage-migration-kernel",
-      "to": "src/branches.rs",
-      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/storage.rs",
@@ -6067,6 +6085,12 @@
     {
       "from": "src/storage/auth_mode.rs",
       "fromOwner": "storage-migration-kernel",
+      "to": "src/storage/stream_transcripts.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/auth_mode.rs",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/vector/sqlite.rs",
       "toOwner": "storage-migration-kernel"
     },
@@ -6267,6 +6291,24 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/branch_ops.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/branches.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/branch_ops.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/fork_promotion.rs",
+      "toOwner": "background-services"
+    },
+    {
+      "from": "src/storage/branch_ops.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/instance_fork.rs",
+      "toOwner": "background-services"
     },
     {
       "from": "src/storage/checkpoints.rs",
@@ -6507,6 +6549,24 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/migration.rs",
       "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/stream_transcripts.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/diagnostic.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/stream_transcripts.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/manifest.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/stream_transcripts.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/stream_attempt.rs",
+      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/tests.rs",

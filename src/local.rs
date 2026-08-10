@@ -3545,7 +3545,10 @@ impl LocalSnapback {
     pub(crate) fn derived_fork_identity(
         &self,
     ) -> Option<&crate::instance_fork::DerivedForkLineageV1> {
-        self.db.derived_fork().map(|runtime| &runtime.lineage)
+        self.db
+            .branch_ops_read()
+            .derived_fork()
+            .map(|runtime| &runtime.lineage)
     }
 
     /// The one host-op egress gate both action hosts share: classify the op
@@ -3569,10 +3572,10 @@ impl LocalSnapback {
         family: crate::instance_fork::EgressFamily,
         now_ms: u64,
     ) -> SnapbackResult<()> {
-        if let Some(runtime) = self.db.derived_fork() {
+        if let Some(runtime) = self.db.branch_ops_read().derived_fork() {
             return Err(runtime.deny(family, now_ms));
         }
-        if let Some(runtime) = self.db.in_app_branch() {
+        if let Some(runtime) = self.db.branch_ops_read().in_app_branch() {
             return Err(runtime.mediate(family, now_ms));
         }
         Ok(())
@@ -6198,14 +6201,16 @@ impl LocalSnapback {
             egress_policy,
             created_at_ms: now_ms,
         };
-        self.db.create_managed_in_app_branch(&request)
+        self.db.branch_ops().create_managed_in_app_branch(&request)
     }
 
     pub(crate) fn list_operator_in_app_branches(
         &self,
         now_ms: i64,
     ) -> SnapbackResult<Vec<crate::fork_promotion::ManagedInAppBranchReceiptV1>> {
-        self.db.list_managed_in_app_branches(now_ms)
+        self.db
+            .branch_ops_read()
+            .list_managed_in_app_branches(now_ms)
     }
 
     pub(crate) fn inspect_operator_in_app_branch(
@@ -6213,14 +6218,18 @@ impl LocalSnapback {
         branch_id: &crate::branches::BranchId,
         now_ms: i64,
     ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
-        self.db.inspect_managed_in_app_branch(branch_id, now_ms)
+        self.db
+            .branch_ops_read()
+            .inspect_managed_in_app_branch(branch_id, now_ms)
     }
 
     pub(crate) fn reap_expired_operator_in_app_branches(
         &mut self,
         now_ms: i64,
     ) -> SnapbackResult<Vec<crate::fork_promotion::ManagedInAppBranchReceiptV1>> {
-        self.db.reap_expired_managed_in_app_branches(now_ms)
+        self.db
+            .branch_ops()
+            .reap_expired_managed_in_app_branches(now_ms)
     }
 
     pub(crate) fn drop_operator_in_app_branch(
@@ -6228,7 +6237,9 @@ impl LocalSnapback {
         branch_id: &crate::branches::BranchId,
         now_ms: i64,
     ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
-        self.db.drop_managed_in_app_branch(branch_id, now_ms)
+        self.db
+            .branch_ops()
+            .drop_managed_in_app_branch(branch_id, now_ms)
     }
 
     /// Execute one real served mutation/action against the managed writable
@@ -6254,8 +6265,14 @@ impl LocalSnapback {
         now_ms: i64,
         server_profile: ServerProfile,
     ) -> SnapbackResult<crate::fork_promotion::BranchOperationV1> {
-        let receipt = self.db.inspect_managed_in_app_branch(branch_id, now_ms)?;
-        let path = self.db.managed_in_app_branch_path(branch_id, now_ms)?;
+        let receipt = self
+            .db
+            .branch_ops_read()
+            .inspect_managed_in_app_branch(branch_id, now_ms)?;
+        let path = self
+            .db
+            .branch_ops_read()
+            .managed_in_app_branch_path(branch_id, now_ms)?;
         let artifact_binding = json!({
             "schemaHash": &receipt.branch.artifact_binding.schema_hash,
             "functionBundleHash": &receipt.branch.artifact_binding.function_bundle_hash,
@@ -6267,7 +6284,10 @@ impl LocalSnapback {
         let upstream_identity = format!("branch.execute.v1:{request_id}");
         let operation_id = crate::commit_envelope::derive_host_operation_id(&upstream_identity, 0);
         let mut branch = LocalSnapback::open(path)?;
-        let retained_operations = branch.db.branch_operation_log(branch_id)?;
+        let retained_operations = branch
+            .db
+            .branch_ops_read()
+            .branch_operation_log(branch_id)?;
         let causal_predecessors = retained_operations
             .iter()
             .find(|operation| operation.identity.key.operation_id == operation_id)
@@ -6325,7 +6345,11 @@ impl LocalSnapback {
             draft.clone(),
             now_ms,
         );
-        if let Some(retained) = branch.db.branch_operation_retry(branch_id, &draft)? {
+        if let Some(retained) = branch
+            .db
+            .branch_ops_read()
+            .branch_operation_retry(branch_id, &draft)?
+        {
             return Ok(retained);
         }
         let current_artifacts = crate::fork_promotion::BranchArtifactBindingV1 {
@@ -6409,11 +6433,15 @@ impl LocalSnapback {
                     == crate::fork_promotion::ForkEgressPolicyV1::CaptureOnly
                 {
                     let diagnostic_code = error.diagnostic.code.clone();
-                    if let Some(operation) = branch.db.finalize_captured_effect_operation(
-                        &effect_context,
-                        json!({ "handlerDiagnosticCode": diagnostic_code }),
-                        Some(&error.diagnostic.code),
-                    )? {
+                    if let Some(operation) = branch
+                        .db
+                        .branch_ops()
+                        .finalize_captured_effect_operation(
+                            &effect_context,
+                            json!({ "handlerDiagnosticCode": diagnostic_code }),
+                            Some(&error.diagnostic.code),
+                        )?
+                    {
                         return Ok(operation);
                     }
                 }
@@ -6421,6 +6449,7 @@ impl LocalSnapback {
             }
             return branch
                 .db
+                .branch_ops_read()
                 .branch_operation_retry(branch_id, &draft)?
                 .ok_or_else(|| {
                     SnapbackError::error(
@@ -6449,11 +6478,15 @@ impl LocalSnapback {
                 .diagnostic
                 .as_ref()
                 .map(|diagnostic| diagnostic.code.as_str());
-            if let Some(operation) = branch.db.finalize_captured_effect_operation(
-                &effect_context,
-                run.result.clone().unwrap_or(Value::Null),
-                diagnostic_code,
-            )? {
+            if let Some(operation) = branch
+                .db
+                .branch_ops()
+                .finalize_captured_effect_operation(
+                    &effect_context,
+                    run.result.clone().unwrap_or(Value::Null),
+                    diagnostic_code,
+                )?
+            {
                 return Ok(operation);
             }
         }
@@ -6465,6 +6498,7 @@ impl LocalSnapback {
             {
                 return branch
                     .db
+                    .branch_ops_read()
                     .branch_operation_retry(branch_id, &draft)?
                     .ok_or_else(|| {
                         SnapbackError::error(
@@ -6474,7 +6508,10 @@ impl LocalSnapback {
                         )
                     });
             }
-            let after = branch.db.inspect_local_in_app_branch(branch_id)?;
+            let after = branch
+                .db
+                .branch_ops_read()
+                .inspect_local_in_app_branch(branch_id)?;
             if after.deny_all_attempt_count > receipt.branch.deny_all_attempt_count {
                 return Err(SnapbackError::error(
                     "SNAPBACK_BRANCH_EGRESS_DENIED",
@@ -6497,7 +6534,7 @@ impl LocalSnapback {
                 "a successful branch action cannot be retained until CaptureOnly settlement exists",
             ));
         }
-        branch.db.execute_branch_operation(
+        branch.db.branch_ops().execute_branch_operation(
             branch_id,
             &draft,
             now_ms,
@@ -11731,12 +11768,15 @@ impl LocalSnapback {
                         auth_fingerprint: None,
                     });
                     match (branch_operation, identity.as_ref()) {
-                        (Some(branch_operation), None) => self.db.execute_branch_mutation_guarded(
-                            plan,
-                            &input,
-                            branch_operation,
-                            || prepared.effect_guard("branch mutation transaction"),
-                        )?,
+                        (Some(branch_operation), None) => self
+                            .db
+                            .branch_ops()
+                            .execute_branch_mutation_guarded(
+                                plan,
+                                &input,
+                                branch_operation,
+                                || prepared.effect_guard("branch mutation transaction"),
+                            )?,
                         (Some(_), Some(_)) => {
                             return Err(SnapbackError::error(
                                 "SNAPBACK_BRANCH_OPERATION_INVALID",
@@ -11803,7 +11843,7 @@ impl LocalSnapback {
                     };
                     match (branch_operation, identity.as_ref()) {
                         (Some(branch_operation), None) => {
-                            self.db.commit_branch_buffered_writes_guarded(
+                            self.db.branch_ops().commit_branch_buffered_writes_guarded(
                                 &input,
                                 payload,
                                 branch_operation,
