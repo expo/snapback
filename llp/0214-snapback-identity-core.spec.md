@@ -7,8 +7,10 @@ Security, Delivery, Testing
 **Author:** Charlie Cheever / Codex (gpt-5.6-sol) via Claude orchestration
 **Date:** 2026-08-09
 **Revised:** 2026-08-09 (v0.1 — initial commissioned Draft)
+**Revised:** 2026-08-10 (v0.2 — LLP 0227 reconciliation amendment,
+commissioned by the author; see §20)
 **Related:** LLP 0212, LLP 0011, LLP 0151, LLP 0057, LLP 0055, LLP 0036,
-LLP 0045, LLP 0053, LLP 0058
+LLP 0045, LLP 0053, LLP 0058, LLP 0215, LLP 0227
 
 ## Summary
 
@@ -3235,3 +3237,54 @@ Acceptance requires:
   provisioning, and claims surfaces;
 - implementation of every acceptance row claimed by the landing; and
 - an explicit author decision before status advances.
+
+## 20. Amendment (2026-08-10): reconciliation with LLP 0227
+
+Commissioned by the author 2026-08-10 to resolve the two-spec catalog-v3
+collision found in LLP 0227's super-refine loop
+(`llp/reviews/0227-password-credential-auth.gpt-5.md` rounds 2–5). This Spec
+is the **catalog authority**; the outcome:
+
+1. **This Spec's credential shape supersedes 0227's sketch DDL wholesale.**
+   `_auth_credentials` (kind-based base) + `_auth_password_credentials`
+   (typed material, argon2id-pinned, `policy_version`) + the
+   `_auth_password_one_live_per_user` partial index replace 0227's
+   identity-linked sketch. 0227's upgrade-on-verify composes as a material
+   rewrite under the base row's `generation` compare-and-swap. Import
+   note: 0227's create/attach modes admit foreign `scrypt`/`bcrypt` PHC
+   strings; the `algorithm = 'argon2id'` CHECK therefore widens to the
+   bounded allowlist `('argon2id','scrypt','bcrypt')` with 0227's
+   parameter caps, upgrading-on-verify back to argon2id — the sole change
+   this reconciliation makes to §3.7.
+2. **The composed v3 descriptor gains one relation from 0227:**
+   `_auth_password_attempts` (canonical address PRIMARY KEY,
+   `window_start_ms`, `failed_count`, `locked_until_ms`) — internal,
+   account-existence-blind lockout state only, per 0227's non-oracular
+   contract; the canonical-address custody list gains this row. It is
+   **not** a budget substrate: rate metering is LLP 0215's, and this Spec's
+   second-endpoint-counter prohibition stands.
+3. **Identifier class:** the local-password provider's per-app identifier
+   mode is declared at activation — `username-v1` (this Spec's floor) or
+   `email-v1` (0227's benchmark slice, subject = canonical address).
+   Provider-scoped lookups keep 0227's containment: a local-password
+   identity never satisfies an email-code lookup, cross-provider email
+   equality never auto-links (§3.5 unchanged), and 0227's
+   set-displacement/same-principal-reset flows carry over with displacement
+   realized as `revoked_at_ms` retirement of the credential **plus**
+   retirement of the local-password identity link, with the affected
+   session set terminated through the planned session-terminal operation
+   (LLP 0059 `durableDelete`) — not FK cascade.
+4. **Public refusal-code family:** this Spec's uniform
+   `SNAPBACK_AUTH_CREDENTIAL_INVALID` is the public wire code; 0227's
+   `SNAPBACK_AUTH_PASSWORD_*` names survive only as internal
+   classifications and observability facts.
+5. **Flow semantics adopted from 0227** (normative here, detailed there):
+   the two-phase exact-predecessor verification fence extended over the
+   ledger predecessor; step-up-bound first-password set with the
+   `identityId` target; uniform KDF spend for lock-window attempts; reset
+   screening parity.
+6. **Landing remains gated** on this Spec's own preconditions (§19) —
+   including the backup-format blocker
+   (`issues/20260810-llp-0214-floor-catalog-v3-backup-blocked.md`) — and
+   the exact composed descriptor fixtures now include items 1–2 above plus
+   the LLP 0031 route-policy tuples for 0227's four routes.

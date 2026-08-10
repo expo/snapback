@@ -18,6 +18,8 @@ budget; see Revision history)
 **Revised:** 2026-08-10 (g — round-4 revision; see Revision history)
 **Revised:** 2026-08-10 (h — round-5 closing revision; loop terminal — see
 Revision history)
+**Revised:** 2026-08-10 (i — 0214 reconciliation applied; see Revision
+history)
 **Related:** LLP 0057 (auth catalog and provider protocol — the substrate this
 extends), LLP 0151 (first-party identity integrations — tier-1
 username+password sketch and the identities-vs-credentials rule), LLP 0039
@@ -554,12 +556,27 @@ the auth milestone **without hand-rolled hashing and without shelling out to
 
 ## Status
 
-Review (h). Commissioned 2026-08-10 from
+Review (i). Commissioned 2026-08-10 from
 `issues/20260809-password-credential-auth.md`. No implementation has begun.
 
 ## Revision history
 
 - **(a)** initial draft. **(b)** Draft → Review at loop start.
+- **(i — 0214 reconciliation, author-commissioned)** The reconciliation
+  this RFC's implementation gate demanded is ruled (LLP 0214 §20, v0.2):
+  0214's kind-based credential shape supersedes this RFC's sketch DDL
+  wholesale (the sketch remains as design rationale only); the composed v3
+  descriptor gains `_auth_password_attempts` as lockout-only internal
+  state; the per-app identifier mode is declared at activation
+  (`email-v1` for this slice); displacement realizes as `revoked_at_ms`
+  retirement + identity-link retirement + `durableDelete` session
+  termination (not FK cascade); the public wire code family is 0214's
+  uniform `SNAPBACK_AUTH_CREDENTIAL_INVALID`, with this RFC's
+  `SNAPBACK_AUTH_PASSWORD_*` names internal/observability-only; the
+  scrypt/bcrypt import allowlist widens 0214 §3.7's algorithm CHECK with
+  this RFC's parameter caps. Implementation stays gated on 0214 §19's
+  preconditions including the backup blocker. Reconciliation deliverables
+  (v) and (vi) are discharged into 0214's descriptor-fixture obligation.
 - **(h — closing revision, loop terminal)** round-5 convergent fixes from
   both families: the two surviving (f)-era budget-substrate sentences
   removed (LLP 0215 is the sole budget authority — the propagation gap both
