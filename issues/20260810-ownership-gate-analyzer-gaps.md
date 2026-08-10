@@ -36,11 +36,12 @@ newly visible pre-existing edges are frozen with attribution, not treated as
 new violations.
 
 3. **Staleness attribution masks new edges after one allowed red** (round-3
-   finding): a red allowed as pre-existing at its baseline makes every later
-   push's identical edges "pre-existing" too. Required: attribute against
-   the last GREEN baseline, and file/refresh the backstop ticket naming the
-   stale edges on every ALLOWED-WITH-STALENESS push (LLP 0225 §5, revision
-   f).
+   finding). Required (superseding the earlier last-green wording, per LLP
+   0225 §5 revisions g-i): set-based attribution — canonical edge
+   fingerprints; block V(pushed) − V(merge-base) with §2's
+   monotonic-baseline growth check run as the same protocol; inherited
+   reds admitted only while the pushed revision contains an open ticket
+   naming at least the outstanding fingerprints and observation revision.
 
 4. **The `unassigned` bucket accepts new modules** (round-4 probe: a
    synthetic module added to the bucket validates). Required: freeze the

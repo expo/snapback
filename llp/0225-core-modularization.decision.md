@@ -20,6 +20,8 @@ Revision history)
 budget; see Revision history)
 **Revised:** 2026-08-10 (g — round-4 revision; see Revision history)
 **Revised:** 2026-08-10 (h — round-5 revision; see Revision history)
+**Revised:** 2026-08-10 (i — closing revision, loop terminal; see Revision
+history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -387,10 +389,16 @@ requires its named worklist record in the same landing.
   `V(R)` is the canonical edge fingerprints of §2-forbidden edges present
   at R **and not admitted by R's committed baseline or waivers**, computed
   by one analyzer semantics applied identically to both snapshots.
-  The gate blocks `V(P) − V(B)` (pushed minus merge-base) unless each
-  member carries an exact approved waiver; provenance re-keys for
-  relocation and analyzer-upgrade discoveries are baseline entries with
-  attribution (§2), never waivers. A Boolean pass/fail or last-green
+  The gate blocks `V(P) − V(B)` (pushed minus merge-base), **and in the
+  same run enforces §2's monotonic-baseline comparison against the
+  merge-base baseline** — the two checks are one protocol, because `V(P)`
+  excludes edges the push's own baseline admits, so the set-difference
+  alone would pass a new edge laundered by a same-push baseline freeze;
+  §2's growth check is what blocks it. Provenance re-keys for relocation
+  and analyzer-upgrade discoveries are baseline entries with attribution
+  (§2), never waivers; an inherited-red ticket names **at least** the
+  outstanding fingerprints (a superset containing since-fixed entries
+  still admits). A Boolean pass/fail or last-green
   comparison cannot distinguish inherited from introduced reds and is not
   compliant. (ii) inherited members (`V(P) ∩ V(B)` non-empty) are admitted
   only while **the pushed revision itself contains** an open ticket naming
@@ -500,14 +508,17 @@ These are different activities and this Decision keeps them distinct:
   high-water; serving stays fenced until a verified reload or committed
   successor; full-`LocalSnapback` reopen/reload/retry tests are the
   slice's acceptance. Whichever arm is ruled, the ruling lands at or
-  before this document's acceptance — the recorded-exception status ends
-  there.
+  before this document's acceptance; the recorded-exception status then
+  ends **when the ruled contract's tests land**, not at the ruling itself
+  — acceptance fixes the contract, the owning slice discharges it.
 
 Whichever way OQ-A/OQ-B are ruled, acceptance carries a same-landing
 handoff: `ownership.manifest.json`'s `governedBy` gains this document, the
 stale `mixedModuleScopes` prose (e.g. `local.rs`'s activation scope still
-described as "targeted" though extracted) is refreshed, and LLP 0199
-`@ref`s that name superseded sections are repointed.
+described as "targeted" though extracted) is refreshed, LLP 0199 `@ref`s
+that name superseded sections are repointed, and the analyzer-gaps
+ticket's fix directions are aligned to §5's current protocol (its item 3
+still words the superseded last-green shape).
 
 ## Confidence
 
@@ -575,6 +586,18 @@ so slices can follow product priorities.
   reopen contract raised as OQ-C (recommendation: inert-until-reload)
   instead of silent delegation; waiver item 8 gains its accountable
   manifest owner.
+- **2026-08-10 (i — closing revision, loop terminal).** The convergent
+  round-6 fixes only: §5(i) explicitly couples the set-difference to §2's
+  monotonic-baseline check as one protocol (both families identified the
+  laundering seam between them) with the at-least-fingerprints ticket
+  semantics; the reopen exception ends when the ruled contract's tests
+  land, not at the ruling; the acceptance handoff gains the ticket-wording
+  alignment. The live-tree §5(ii) obligation was discharged by
+  `issues/20260810-main-module-ownership-red-rehearsal-edges.md`. The loop
+  ends here: six rounds, direction endorsed by both families throughout;
+  remaining gpt-5 round-6 concerns are gate-implementation protocol
+  refinements whose venue is the analyzer/gate-fix slice, enumerated in
+  the loop's final report. This revision is final-unreviewed.
 - **2026-08-10 (h).** Round-5 revision: §5's set-based protocol gains its
   definitions (outstanding set = forbidden edges not admitted by the
   revision's committed baseline or waivers; one analyzer semantics on both
