@@ -1,11 +1,11 @@
 // Snapback Messenger — schema.
 //
-// Five durable tables (users, conversations, conversationMembers, messages,
-// reactions) plus one ephemeral collection (typing). Identity is dev-mode
-// client-asserted (see functions.mjs), the same trade-off Warble documents:
-// every write takes the acting handle as an argument rather than deriving it
-// from authUserId(), because the persona switcher has no session to derive
-// from. That is a demo convenience, not a production posture.
+// Seven durable tables (users, conversations, conversationMembers, messages,
+// reactions, viewOnceMessages, viewOnceConsumptions) plus one ephemeral
+// collection (typing). The interactive surface uses dev-mode client-asserted
+// personas, the same trade-off Warble documents. The view-once handlers are
+// deliberately different: they derive principals from auth and are witnessed
+// by the acceptance suite's Sessions-mode copy of this backend.
 
 import {
   allow,
@@ -74,12 +74,36 @@ export const reactions = defineTable({
   // handler scan, same trick as Warble's likes table.
   .index('by_message_user_emoji', ['messageId', 'userHandle', 'emoji'], { unique: true });
 
+export const viewOnceMessages = defineTable({
+  conversationId: v.id('conversations'),
+  authorPrincipal: v.string(),
+  // This typed reverse reference, not the pending grants, protects the asset
+  // from reference GC until every recipient has had a chance to open it.
+  asset: v.assetRef({ upload: 'viewOnceImageUpload' }),
+  // OWNER-VISIBLE liveness bookkeeping: recipient principal -> live grantId.
+  grants: v.json(),
+  caption: v.string(),
+  createdAt: v.integer(),
+})
+  .index('by_conversation', ['conversationId']);
+
+export const viewOnceConsumptions = defineTable({
+  viewOnceMessageId: v.id('viewOnceMessages'),
+  principal: v.string(),
+  openedAt: v.integer(),
+})
+  // Product state, not asset state: this is what makes a second logical open
+  // refuse even while the first activation remains live.
+  .index('by_message_principal', ['viewOnceMessageId', 'principal'], { unique: true });
+
 export default defineSchema({
   users,
   conversations,
   conversationMembers,
   messages,
   reactions,
+  viewOnceMessages,
+  viewOnceConsumptions,
 }, {
   ephemeral: defineEphemeral({
     // "X is typing…" — connection-keyed so a departing tab clears itself,

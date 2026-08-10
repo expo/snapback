@@ -37,7 +37,10 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // grow it only with a deliberate row addition, never to absorb prose creep.
 // Bumped 51200 -> 52224 on 2026-08-09 for the api.external-exposure row
 // (LLP 0204 S1): the page had 73 bytes of headroom before the row.
-const CAPABILITIES_SIZE_BUDGET_BYTES = 52224;
+// Bumped 52224 -> 52736 on 2026-08-10 for the LLP 0220 D2 backend.assets
+// citations (view-once demo witness, recipe doc path, llp/0220): the page
+// had 28 bytes of headroom before the mandated additions.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 52736;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

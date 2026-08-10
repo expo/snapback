@@ -1,10 +1,14 @@
 # LLP 0220: Recipient-bound asset grants — recipes, guide coverage, and the activation-TTL question
 
 **Type:** Plan
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Assets, Auth, Guide, Demos, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-10 (Accepted → Implemented — D1/D2/D3 landed; see
+"Implementation record (2026-08-10)". OQ1 (activation TTL) and OQ4
+(owner-side revoke-all affordance) remain open by design and were
+deliberately not built; OQ2/OQ3 unchanged.)
 **Revised:** 2026-08-10 (Review → Accepted — accepted to begin implementation
 (author direction in-session); final verdicts bind revision (c) with the (d)
 tail unreviewed and disclosed; round-2 GPT family failed-to-review (three
@@ -48,8 +52,8 @@ produced the pilot), `benchmarks/records/2026-08-09-social-messenger-p2-pilot.md
 (pilot record, F5), `issues/closed/20260809-asset-recipient-grant-authority-g4.md`
 (the design-commission ticket, closed on the D5(b) landing),
 `issues/closed/20260809-asset-upload-dx-papercuts-g11.md` (recipe half),
-`issues/20260809-s5d10-asset-grant-codes-unclassified.md` (open diagnostics
-tail of the same landing)
+`issues/closed/20260809-s5d10-asset-grant-codes-unclassified.md` (diagnostics
+tail of the same landing; closed by D2)
 
 ## Summary
 
@@ -260,6 +264,53 @@ capability-gate.
   Land with a diary entry per repo convention. *Proof:* the demo's
   acceptance suite green in the local proof; diary records the DX delta
   against the pilot's ~80-line composition.
+
+## Implementation record (2026-08-10)
+
+All three deliverables landed together (single program batch, this repo):
+
+- **D1** — `guide/recipes/view-once-media.md` created (send/open/close-and-
+  delete/delivery, consumption-row-is-product-state, sole-authority-path,
+  crash-gap honesty, stated limits, fallback cross-linked); assets.md
+  §Anti-patterns reconciled: the stale "Do not call the designed grant
+  operations yet" bullet removed, the surviving sole-authority bullet
+  rewritten to name both the first-class grant edge and the fallback grant
+  row. Grep witness: `grep -n 'not a shipped\|designed grant' 
+  guide/backend/assets.md` returns nothing. The dead
+  `#compose-view-once-access-with-per-recipient-grant-rows` anchor named at
+  acceptance had already been repointed on main before this program (the
+  bullet's anchor now resolves to §"Portable fallback: app-owned grant
+  rows"); D1 verified rather than re-fixed it. Proof:
+  `node scripts/check-guide.mjs` green.
+- **D2** — `backend.assets` capability row now cites the demo witness
+  (`demos/messaging-snapback/tests/acceptance/headless.mjs`), llp/0220, and
+  the recipe page (named in the description; the index's docs cell is
+  mechanically single-page, so the page pointer rides the description and
+  the recipe's own `capabilities:` claim). Maturity stays `partial`;
+  nonclaims unchanged. The eight D5(b) codes were already classified on
+  main (`f706d11c8` mapper, `4a2123340` reviewed tables); verified green at
+  `79ac057b5` (`cargo test s5_d10`, 4/4 including
+  `s5_d10_production_diagnostic_inventory_cannot_drift`) and the ticket
+  closed with the optional gate-selection fix explicitly declined.
+- **D3** — `demos/messaging-snapback` extended with the full recipe on the
+  first-class primitive (viewOnceMessages + unique viewOnceConsumptions;
+  sendViewOnce/openViewOnce/closeViewOnce/deleteViewOnceForEveryone;
+  consumption-check-before-activate ordering; close clears the owner-visible
+  grants map). Sessions-mode acceptance suite grew 11 → 18 checks, all the
+  strengthened probes green: hostile 403 → 200 → 403, pending-confers-
+  nothing, repeated **and** race-concurrent second open refused with
+  `SNAPBACK_APP_REFUSAL`/`VIEW_ONCE_ALREADY_CONSUMED` (asserted not
+  `SNAPBACK_ASSET_GRANT_STATE_INVALID`), two-recipient delete-for-everyone,
+  close-then-delete via the liveness bookkeeping, non-recipient open and
+  non-author delete refusals. Diary 0058 records the DX delta vs the
+  pilot's ~80-line composition. The interactive Expo UI is deliberately
+  unchanged (dev-mode personas cannot witness session-derived grant
+  authority); the demo README documents this honestly.
+
+One client-surface note discovered by D3 (does not contradict the Plan): a
+declared refusal reaches the JS client as `diagnostic.code =
+'SNAPBACK_APP_REFUSAL'` with `diagnostic.details.appCode`; the error object
+carries no top-level `code` property.
 
 ## Open questions
 

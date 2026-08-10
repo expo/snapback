@@ -188,6 +188,49 @@ export const conversationMessages = defineJsLiveQuery({
   },
 });
 
+const viewOnceMessageRow = v.object({
+  _id: v.id('viewOnceMessages'),
+  conversationId: v.id('conversations'),
+  authorPrincipal: v.string(),
+  asset: v.assetRef(),
+  grants: v.json(),
+  caption: v.string(),
+  createdAt: v.integer(),
+  consumedPrincipals: v.array(v.string()),
+});
+
+/** Demo-scoped inspection query. It intentionally omits conversation
+ * membership policy so the headless witness can inspect owner-visible grant
+ * bookkeeping; a product surface would scope this to the author/recipients. */
+export const viewOnceMessageById = defineJsLiveQuery({
+  args: { viewOnceMessageId: v.id('viewOnceMessages') },
+  auth: 'authenticated',
+  result: results.records(viewOnceMessageRow),
+  reads: ['viewOnceMessages', 'viewOnceConsumptions'],
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get('viewOnceMessages', args.viewOnceMessageId);
+    if (!message) return [];
+    const consumptions = await ctx.db
+      .query('viewOnceConsumptions')
+      .withIndex('by_message_principal')
+      .eq('viewOnceMessageId', args.viewOnceMessageId)
+      .take(1024)
+      .collect();
+    // `results.records` is closed: return only fields named above, never the
+    // stored document's _version/_updatedAt system fields.
+    return [{
+      _id: message._id,
+      conversationId: message.conversationId,
+      authorPrincipal: message.authorPrincipal,
+      asset: message.asset,
+      grants: message.grants,
+      caption: message.caption,
+      createdAt: message.createdAt,
+      consumedPrincipals: consumptions.map((consumption) => consumption.principal).sort(),
+    }];
+  },
+});
+
 // ---------------------------------------------------------------------------
 // Writes
 // ---------------------------------------------------------------------------
@@ -213,6 +256,21 @@ export const messageImageUpload = defineAssetUpload({
     location: 'strip',
     variants: [{ key: 'thumb', width: 320 }],
   },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+
+// The owner-only policy is load-bearing: recipients must have no authority
+// path except their first-class grant edge. This intent is exercised only by
+// the Sessions-mode headless witness; the interactive dev-mode UI is unchanged.
+export const viewOnceImageUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  reads: [],
+  accept: { mediaTypes: ['image/jpeg', 'image/png'], maxBytes: 8_000_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'owner-only' },
+  grants: true,
+  image: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 
@@ -251,6 +309,153 @@ export const sendMessage = defineJsMutation({
       lastMessageAt: now,
     });
     return messageId;
+  },
+});
+
+export const sendViewOnce = defineJsMutation({
+  args: {
+    conversationId: v.id('conversations'),
+    assetId: v.string(),
+    recipients: v.array(v.string()),
+    caption: v.optional(v.string()),
+  },
+  auth: 'authenticated',
+  refusals: ['VIEW_ONCE_RECIPIENTS_EMPTY', 'VIEW_ONCE_RECIPIENT_DUPLICATE'],
+  result: results.value(v.id('viewOnceMessages')),
+  reads: ['conversations'],
+  writes: ['viewOnceMessages'],
+  handler: async (ctx, args) => {
+    const owner = ctx.auth.userId;
+    if (args.recipients.length === 0) {
+      ctx.refuse('VIEW_ONCE_RECIPIENTS_EMPTY');
+    }
+    const recipients = Array.from(new Set(args.recipients));
+    if (recipients.length !== args.recipients.length) {
+      ctx.refuse('VIEW_ONCE_RECIPIENT_DUPLICATE');
+    }
+    const conversation = await ctx.db.get('conversations', args.conversationId);
+    if (!conversation) throw new Error('conversation not found');
+    const asset = await ctx.assets.attach(args.assetId, { upload: 'viewOnceImageUpload' });
+    const messageId = await ctx.db.insert('viewOnceMessages', {
+      conversationId: args.conversationId,
+      authorPrincipal: owner,
+      asset,
+      grants: {},
+      caption: String(args.caption ?? '').trim(),
+      createdAt: ctx.runtime.now(),
+    });
+    const grantEntries = [];
+    for (const recipient of recipients) {
+      const { grantId } = await ctx.assets.grant(args.assetId, recipient, { state: 'pending' });
+      grantEntries.push([recipient, grantId]);
+    }
+    const grants = Object.fromEntries(grantEntries);
+    await ctx.db.patch('viewOnceMessages', messageId, { grants });
+    return messageId;
+  },
+});
+
+export const openViewOnce = defineJsMutation({
+  args: { viewOnceMessageId: v.id('viewOnceMessages') },
+  auth: 'authenticated',
+  refusals: ['VIEW_ONCE_NOT_RECIPIENT', 'VIEW_ONCE_ALREADY_CONSUMED'],
+  result: results.value(v.boolean()),
+  reads: ['viewOnceMessages', 'viewOnceConsumptions'],
+  writes: ['viewOnceConsumptions'],
+  handler: async (ctx, args) => {
+    const principal = ctx.auth.userId;
+    const message = await ctx.db.get('viewOnceMessages', args.viewOnceMessageId);
+    let grantId = null;
+    for (const [recipient, recipientGrantId] of Object.entries(message?.grants ?? {})) {
+      if (recipient === principal) grantId = recipientGrantId;
+    }
+    if (typeof grantId !== 'string') {
+      ctx.refuse('VIEW_ONCE_NOT_RECIPIENT');
+    }
+
+    // @ref LLP 0220#design-detail-the-recipe-this-plan-pages — product
+    // consumption must refuse before activation is staged, so a fresh second
+    // open never falls through to SNAPBACK_ASSET_GRANT_STATE_INVALID.
+    const consumed = await ctx.db
+      .query('viewOnceConsumptions')
+      .withIndex('by_message_principal')
+      .eq('viewOnceMessageId', args.viewOnceMessageId)
+      .eq('principal', principal)
+      .first();
+    if (consumed) {
+      ctx.refuse('VIEW_ONCE_ALREADY_CONSUMED', { openedAt: consumed.openedAt });
+    }
+    await ctx.db.insert('viewOnceConsumptions', {
+      viewOnceMessageId: args.viewOnceMessageId,
+      principal,
+      openedAt: ctx.runtime.now(),
+    });
+    await ctx.assets.activate(grantId);
+    return true;
+  },
+});
+
+export const closeViewOnce = defineJsMutation({
+  args: { viewOnceMessageId: v.id('viewOnceMessages') },
+  auth: 'authenticated',
+  refusals: ['VIEW_ONCE_NOT_RECIPIENT'],
+  result: results.value(v.boolean()),
+  reads: ['viewOnceMessages'],
+  writes: ['viewOnceMessages'],
+  handler: async (ctx, args) => {
+    const principal = ctx.auth.userId;
+    const message = await ctx.db.get('viewOnceMessages', args.viewOnceMessageId);
+    let grantId = null;
+    for (const [recipient, recipientGrantId] of Object.entries(message?.grants ?? {})) {
+      if (recipient === principal) grantId = recipientGrantId;
+    }
+    if (typeof grantId !== 'string') {
+      ctx.refuse('VIEW_ONCE_NOT_RECIPIENT');
+    }
+    const grants = Object.fromEntries(
+      Object.entries(message.grants).filter(([recipient]) => recipient !== principal),
+    );
+
+    // @ref LLP 0220#design-detail-the-recipe-this-plan-pages — revoke removes
+    // the system edge, so clearing its id in the same mutation keeps a later
+    // owner delete-for-everyone from staging an unknown-grant refusal.
+    await ctx.assets.revoke(grantId);
+    await ctx.db.patch('viewOnceMessages', args.viewOnceMessageId, { grants });
+    return true;
+  },
+});
+
+export const deleteViewOnceForEveryone = defineJsMutation({
+  args: { viewOnceMessageId: v.id('viewOnceMessages') },
+  auth: 'authenticated',
+  refusals: ['VIEW_ONCE_NOT_FOUND', 'VIEW_ONCE_NOT_AUTHOR'],
+  result: results.value(v.boolean()),
+  reads: ['viewOnceMessages', 'viewOnceConsumptions'],
+  writes: ['viewOnceMessages', 'viewOnceConsumptions'],
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get('viewOnceMessages', args.viewOnceMessageId);
+    if (!message) {
+      ctx.refuse('VIEW_ONCE_NOT_FOUND');
+    }
+    if (message.authorPrincipal !== ctx.auth.userId) {
+      ctx.refuse('VIEW_ONCE_NOT_AUTHOR');
+    }
+    // The map contains only still-live edges because recipient close clears
+    // its entry atomically with revoke.
+    for (const grantId of Object.values(message.grants)) {
+      await ctx.assets.revoke(grantId);
+    }
+    const consumptions = await ctx.db
+      .query('viewOnceConsumptions')
+      .withIndex('by_message_principal')
+      .eq('viewOnceMessageId', args.viewOnceMessageId)
+      .take(1024)
+      .collect();
+    for (const consumption of consumptions) {
+      await ctx.db.delete('viewOnceConsumptions', consumption._id);
+    }
+    await ctx.db.delete('viewOnceMessages', args.viewOnceMessageId);
+    return true;
   },
 });
 

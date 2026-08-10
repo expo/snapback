@@ -5,7 +5,10 @@ import { join } from 'node:path';
 
 import { createExternalSessionClient, SnapbackClient } from '@expo/snapback-client';
 import { createAssetClient, createMemoryAssetTaskStore } from '@expo/snapback-client/assets';
-import { generate } from '@expo/snapback-codegen';
+// Use the checkout-local generator so this fixture exercises the same
+// admission surface as the grant primitive under test, not an older package
+// closure that predates `grants: true`.
+import { generate } from '../../../../packages/snapback-codegen/index.mjs';
 
 import { importGeneratedModule } from '../../../_kit/generated-artifacts.mjs';
 import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
@@ -13,7 +16,7 @@ import { resolveHeadlessAppLayout } from '../../../_kit/repo-layout.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 import { makeSolidPng } from '../../scripts/make-png.mjs';
 
-const suite = createSuite('messaging-snapback / headless', { expectedChecks: 11 });
+const suite = createSuite('messaging-snapback / headless', { expectedChecks: 18 });
 const { appDir, backendDir, repoRoot } = resolveHeadlessAppLayout(import.meta.url);
 const scratch = mkdtempSync(join(tmpdir(), 'messaging-sessions-acceptance-'));
 const fixtureBackendDir = join(scratch, 'snapback');
@@ -111,13 +114,61 @@ async function mintOrdinarySession(server, email) {
   return envelope.data;
 }
 
+async function captureRejection(promise, label) {
+  try {
+    await promise;
+  } catch (error) {
+    return error;
+  }
+  throw new Error(`${label} unexpectedly fulfilled`);
+}
+
+function assertAppRefusal(error, appCode, label) {
+  assert(error && typeof error === 'object', `${label} returned an error object`);
+  // The client error carries no top-level `code`: the platform envelope is
+  // `diagnostic.code` and the declared refusal rides `diagnostic.details`
+  // (guide/backend/mutations.md §Application refusals).
+  assertEqual(error.diagnostic?.code, 'SNAPBACK_APP_REFUSAL', `${label} diagnostic code`);
+  assertEqual(error.diagnostic?.details?.appCode, appCode, `${label} application code`);
+  assert(
+    error.diagnostic?.code !== 'SNAPBACK_ASSET_GRANT_STATE_INVALID',
+    `${label} did not fall through to grant-state-invalid`,
+  );
+}
+
 let app;
 try {
   await seedFixture(operatorServer);
-  const minted = await mintOrdinarySession(operatorServer, 'lin@messaging.test');
-  const client = createExternalSessionClient(operatorServer.baseUrl, {
-    bearerToken: minted.token,
-    clientStoreId: 'messaging-g0-lin',
+  // Four ordinary principals, with independent client stores. The repeated
+  // and race probes also adopt the same recipient bearers into second stores
+  // so every call has fresh client mutation identity rather than replaying.
+  const ownerMinted = await mintOrdinarySession(operatorServer, 'lin@messaging.test');
+  const recipientAMinted = await mintOrdinarySession(operatorServer, 'ada@messaging.test');
+  const recipientBMinted = await mintOrdinarySession(operatorServer, 'grace@messaging.test');
+  const outsiderMinted = await mintOrdinarySession(operatorServer, 'outsider@messaging.test');
+  const ownerClient = createExternalSessionClient(operatorServer.baseUrl, {
+    bearerToken: ownerMinted.token,
+    clientStoreId: 'messaging-view-once-owner',
+  });
+  const recipientAClient = createExternalSessionClient(operatorServer.baseUrl, {
+    bearerToken: recipientAMinted.token,
+    clientStoreId: 'messaging-view-once-recipient-a-1',
+  });
+  const recipientASecondClient = createExternalSessionClient(operatorServer.baseUrl, {
+    bearerToken: recipientAMinted.token,
+    clientStoreId: 'messaging-view-once-recipient-a-2',
+  });
+  const recipientBClient = createExternalSessionClient(operatorServer.baseUrl, {
+    bearerToken: recipientBMinted.token,
+    clientStoreId: 'messaging-view-once-recipient-b-1',
+  });
+  const recipientBSecondClient = createExternalSessionClient(operatorServer.baseUrl, {
+    bearerToken: recipientBMinted.token,
+    clientStoreId: 'messaging-view-once-recipient-b-2',
+  });
+  const outsiderClient = createExternalSessionClient(operatorServer.baseUrl, {
+    bearerToken: outsiderMinted.token,
+    clientStoreId: 'messaging-view-once-outsider',
   });
   const { default: api } = await importGeneratedModule(generatedDir, 'api.mjs');
   // The application-facing object deliberately carries no admin token,
@@ -125,13 +176,34 @@ try {
   // public origin and the ordinary external-session client.
   app = {
     appDir,
-    client,
-    mintedUserId: minted.session.userId,
+    client: ownerClient,
+    mintedUserId: ownerMinted.session.userId,
+    clients: {
+      owner: ownerClient,
+      recipientA: recipientAClient,
+      recipientASecond: recipientASecondClient,
+      recipientB: recipientBClient,
+      recipientBSecond: recipientBSecondClient,
+      outsider: outsiderClient,
+    },
+    sessions: {
+      owner: ownerMinted,
+      recipientA: recipientAMinted,
+      recipientB: recipientBMinted,
+      outsider: outsiderMinted,
+    },
     provisioned: { schema: 'current', functions: 'current', seed: 'seeded' },
     server: { baseUrl: operatorServer.baseUrl },
     close: async () => {
       try {
-        await client.closeAuth();
+        await Promise.all([
+          ownerClient.closeAuth(),
+          recipientAClient.closeAuth(),
+          recipientASecondClient.closeAuth(),
+          recipientBClient.closeAuth(),
+          recipientBSecondClient.closeAuth(),
+          outsiderClient.closeAuth(),
+        ]);
       } finally {
         try {
           await operatorServer.stop();
@@ -141,6 +213,56 @@ try {
       }
     },
   };
+
+  const viewOnceAssets = createAssetClient(app.clients.owner);
+  let viewOnceUploadSequence = 0;
+  async function sendFreshViewOnce(recipients, caption) {
+    viewOnceUploadSequence += 1;
+    const png = makeSolidPng(12, 12, [
+      30 + (viewOnceUploadSequence * 37) % 180,
+      40 + (viewOnceUploadSequence * 53) % 170,
+      50 + (viewOnceUploadSequence * 71) % 160,
+    ]);
+    const upload = viewOnceAssets.start({
+      upload: api.viewOnceImageUpload,
+      file: new Blob([png], { type: 'image/png' }),
+      declaredFilename: `view-once-${viewOnceUploadSequence}.png`,
+      declaredContentType: 'image/png',
+    });
+    const finished = await upload.done;
+    assertEqual(finished.status, 'ready', JSON.stringify(finished.diagnostic));
+    const sent = await app.clients.owner.mutate(api.sendViewOnce, {
+      args: {
+        conversationId: 'conv_group_founders',
+        assetId: finished.assetId,
+        recipients,
+        caption,
+      },
+    });
+    return { assetId: finished.assetId, messageId: sent.result };
+  }
+
+  const strictFetch = (assetId, session) => fetch(
+    `${app.server.baseUrl}/assets/records/${encodeURIComponent(assetId)}/bytes/primary`,
+    {
+      headers: {
+        'x-snapback-auth-client-protocol': '1',
+        authorization: `Bearer ${session.token}`,
+      },
+    },
+  );
+
+  async function assertStrictDenied(response, label) {
+    assertEqual(response.status, 403, `${label} is a real authorization denial`);
+    const envelope = await response.json();
+    const diagnostic = envelope?.diagnostics?.[0] ?? envelope?.diagnostic ?? envelope;
+    assertEqual(diagnostic?.code, 'SNAPBACK_ASSET_FORBIDDEN', `${label} diagnostic`);
+  }
+
+  async function assertStrictAllowed(response, label) {
+    assertEqual(response.status, 200, `${label} is authorized`);
+    assertEqual(response.headers.get('content-type'), 'image/png', `${label} content type`);
+  }
 
   await runAcceptance(suite, async () => {
   await suite.check('seed provisions users, conversations, and a message backlog', async () => {
@@ -262,6 +384,218 @@ try {
       'cross-origin',
       'public rendition is embeddable cross-origin',
     );
+  });
+
+  const ownerPrincipal = app.sessions.owner.session.userId;
+  const recipientAPrincipal = app.sessions.recipientA.session.userId;
+  const recipientBPrincipal = app.sessions.recipientB.session.userId;
+  let hostileViewOnce;
+
+  await suite.check('view-once send refuses empty and duplicate recipient sets', async () => {
+    const empty = await captureRejection(app.clients.owner.mutate(api.sendViewOnce, {
+      args: {
+        conversationId: 'conv_group_founders',
+        assetId: 'unused-empty-recipient-asset',
+        recipients: [],
+      },
+    }), 'empty view-once recipient set');
+    assertAppRefusal(empty, 'VIEW_ONCE_RECIPIENTS_EMPTY', 'empty view-once recipient set');
+
+    const duplicate = await captureRejection(app.clients.owner.mutate(api.sendViewOnce, {
+      args: {
+        conversationId: 'conv_group_founders',
+        assetId: 'unused-duplicate-recipient-asset',
+        recipients: [recipientAPrincipal, recipientAPrincipal],
+      },
+    }), 'duplicate view-once recipient set');
+    assertAppRefusal(duplicate, 'VIEW_ONCE_RECIPIENT_DUPLICATE', 'duplicate view-once recipient set');
+  });
+
+  await suite.check('view-once hostile sequence: outsider and pending recipient get 403, then open gets 200', async () => {
+    hostileViewOnce = await sendFreshViewOnce(
+      [recipientAPrincipal, recipientBPrincipal],
+      'hostile sequence',
+    );
+    await assertStrictDenied(
+      await strictFetch(hostileViewOnce.assetId, app.sessions.outsider),
+      'outsider strict fetch',
+    );
+    await assertStrictDenied(
+      await strictFetch(hostileViewOnce.assetId, app.sessions.recipientA),
+      'pending recipient A strict fetch',
+    );
+
+    const outsiderOpen = await captureRejection(app.clients.outsider.mutate(api.openViewOnce, {
+      args: { viewOnceMessageId: hostileViewOnce.messageId },
+    }), 'outsider open');
+    assertAppRefusal(outsiderOpen, 'VIEW_ONCE_NOT_RECIPIENT', 'outsider open');
+
+    const opened = await app.clients.recipientA.mutate(api.openViewOnce, {
+      args: { viewOnceMessageId: hostileViewOnce.messageId },
+    });
+    assertEqual(opened.result, true, 'recipient A open committed');
+    await assertStrictAllowed(
+      await strictFetch(hostileViewOnce.assetId, app.sessions.recipientA),
+      'active recipient A strict fetch',
+    );
+  });
+
+  await suite.check('view-once repeated second open refuses from product consumption state', async () => {
+    // A second external client guarantees this is a fresh mutation call, not
+    // replay of the first client's clientKey.
+    const repeated = await captureRejection(app.clients.recipientASecond.mutate(api.openViewOnce, {
+      args: { viewOnceMessageId: hostileViewOnce.messageId },
+    }), 'repeated second open');
+    assertAppRefusal(repeated, 'VIEW_ONCE_ALREADY_CONSUMED', 'repeated second open');
+    assert(
+      repeated.diagnostic?.code !== 'SNAPBACK_ASSET_GRANT_STATE_INVALID',
+      'repeated second open is explicitly not grant-state-invalid',
+    );
+    await assertStrictAllowed(
+      await strictFetch(hostileViewOnce.assetId, app.sessions.recipientA),
+      'recipient A bytes remain active after refused second open',
+    );
+  });
+
+  await suite.check('view-once concurrent race admits one open and refuses the loser from product state', async () => {
+    const raced = await sendFreshViewOnce([recipientBPrincipal], 'race');
+    const outcomes = await Promise.allSettled([
+      app.clients.recipientB.mutate(api.openViewOnce, {
+        args: { viewOnceMessageId: raced.messageId },
+      }),
+      app.clients.recipientBSecond.mutate(api.openViewOnce, {
+        args: { viewOnceMessageId: raced.messageId },
+      }),
+    ]);
+    const fulfilled = outcomes.filter((outcome) => outcome.status === 'fulfilled');
+    const rejected = outcomes.filter((outcome) => outcome.status === 'rejected');
+    assertEqual(fulfilled.length, 1, 'exactly one concurrent open fulfills');
+    assertEqual(rejected.length, 1, 'exactly one concurrent open rejects');
+    assertAppRefusal(
+      rejected[0].reason,
+      'VIEW_ONCE_ALREADY_CONSUMED',
+      'concurrent second-open loser',
+    );
+    assert(
+      rejected[0].reason?.diagnostic?.code !== 'SNAPBACK_ASSET_GRANT_STATE_INVALID',
+      'race loser is explicitly not grant-state-invalid',
+    );
+    const state = await app.clients.owner.query(api.viewOnceMessageById, {
+      args: { viewOnceMessageId: raced.messageId },
+    });
+    assertEqual(state.rows.length, 1, 'raced message remains owner-visible');
+    assertEqual(
+      state.rows[0].consumedPrincipals.filter((principal) => principal === recipientBPrincipal).length,
+      1,
+      'race commits exactly one consumption row',
+    );
+    await app.clients.owner.mutate(api.deleteViewOnceForEveryone, {
+      args: { viewOnceMessageId: raced.messageId },
+    });
+  });
+
+  await suite.check('view-once close revokes strict delivery and clears owner bookkeeping', async () => {
+    const closed = await app.clients.recipientA.mutate(api.closeViewOnce, {
+      args: { viewOnceMessageId: hostileViewOnce.messageId },
+    });
+    assertEqual(closed.result, true, 'recipient A close committed');
+    await assertStrictDenied(
+      await strictFetch(hostileViewOnce.assetId, app.sessions.recipientA),
+      'recipient A strict fetch after close',
+    );
+    const state = await app.clients.owner.query(api.viewOnceMessageById, {
+      args: { viewOnceMessageId: hostileViewOnce.messageId },
+    });
+    assertEqual(state.rows.length, 1, 'hostile-sequence row remains after one close');
+    assert(
+      !Object.hasOwn(state.rows[0].grants, recipientAPrincipal),
+      'owner-visible grants map no longer contains recipient A',
+    );
+    assert(
+      Object.hasOwn(state.rows[0].grants, recipientBPrincipal),
+      'recipient B pending edge remains live until owner cleanup',
+    );
+    await app.clients.owner.mutate(api.deleteViewOnceForEveryone, {
+      args: { viewOnceMessageId: hostileViewOnce.messageId },
+    });
+  });
+
+  await suite.check('view-once two-recipient delete-for-everyone revokes both active edges and deletes product state', async () => {
+    const deleted = await sendFreshViewOnce(
+      [recipientAPrincipal, recipientBPrincipal],
+      'delete for everyone',
+    );
+    await app.clients.recipientA.mutate(api.openViewOnce, {
+      args: { viewOnceMessageId: deleted.messageId },
+    });
+    await app.clients.recipientB.mutate(api.openViewOnce, {
+      args: { viewOnceMessageId: deleted.messageId },
+    });
+    await assertStrictAllowed(
+      await strictFetch(deleted.assetId, app.sessions.recipientA),
+      'recipient A before delete-for-everyone',
+    );
+    await assertStrictAllowed(
+      await strictFetch(deleted.assetId, app.sessions.recipientB),
+      'recipient B before delete-for-everyone',
+    );
+
+    const nonAuthorDelete = await captureRejection(
+      app.clients.recipientA.mutate(api.deleteViewOnceForEveryone, {
+        args: { viewOnceMessageId: deleted.messageId },
+      }),
+      'non-author delete-for-everyone',
+    );
+    assertAppRefusal(nonAuthorDelete, 'VIEW_ONCE_NOT_AUTHOR', 'non-author delete-for-everyone');
+
+    const ownerDeleted = await app.clients.owner.mutate(api.deleteViewOnceForEveryone, {
+      args: { viewOnceMessageId: deleted.messageId },
+    });
+    assertEqual(ownerDeleted.result, true, 'owner delete-for-everyone committed');
+    await assertStrictDenied(
+      await strictFetch(deleted.assetId, app.sessions.recipientA),
+      'recipient A after delete-for-everyone',
+    );
+    await assertStrictDenied(
+      await strictFetch(deleted.assetId, app.sessions.recipientB),
+      'recipient B after delete-for-everyone',
+    );
+    const gone = await app.clients.owner.query(api.viewOnceMessageById, {
+      args: { viewOnceMessageId: deleted.messageId },
+    });
+    assertEqual(gone.rows.length, 0, 'view-once row and its typed reference are gone');
+  });
+
+  await suite.check('view-once close-then-delete revokes only the still-live recipient edge', async () => {
+    const closeThenDelete = await sendFreshViewOnce(
+      [recipientAPrincipal, recipientBPrincipal],
+      'close then delete',
+    );
+    await app.clients.recipientA.mutate(api.openViewOnce, {
+      args: { viewOnceMessageId: closeThenDelete.messageId },
+    });
+    await app.clients.recipientA.mutate(api.closeViewOnce, {
+      args: { viewOnceMessageId: closeThenDelete.messageId },
+    });
+    const afterClose = await app.clients.owner.query(api.viewOnceMessageById, {
+      args: { viewOnceMessageId: closeThenDelete.messageId },
+    });
+    assert(!Object.hasOwn(afterClose.rows[0].grants, recipientAPrincipal), 'closed A edge is absent');
+    assert(Object.hasOwn(afterClose.rows[0].grants, recipientBPrincipal), 'pending B edge is still live');
+
+    const ownerDeleted = await app.clients.owner.mutate(api.deleteViewOnceForEveryone, {
+      args: { viewOnceMessageId: closeThenDelete.messageId },
+    });
+    assertEqual(ownerDeleted.result, true, 'delete succeeds after a sibling close');
+    await assertStrictDenied(
+      await strictFetch(closeThenDelete.assetId, app.sessions.recipientB),
+      'recipient B after close-then-delete',
+    );
+    const gone = await app.clients.owner.query(api.viewOnceMessageById, {
+      args: { viewOnceMessageId: closeThenDelete.messageId },
+    });
+    assertEqual(gone.rows.length, 0, 'close-then-delete removes message and consumptions');
+    assertEqual(ownerPrincipal, app.mintedUserId, 'owner query ran under the asset owner session');
   });
 
   await suite.check('anonymous lane: the same image attempt refuses at the ownership boundary', async () => {

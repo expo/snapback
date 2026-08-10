@@ -2801,6 +2801,11 @@ The paved view-once recipe uses first-class asset grants. Opt the upload intent
 in explicitly, keep its ordinary policy owner-only so the grant is the
 recipient's sole authority path, and choose a revocable delivery profile:
 
+For the complete send → open → close/delete → delivery composition, use the
+[view-once media recipe](../recipes/view-once-media.md). This section is the
+operation reference; the recipe carries the application-owned consumption and
+live-edge bookkeeping that make "view once" a product behavior.
+
 ```js fragment reason="view-once intent showing the grants opt-in and sole-authority constraint"
 export const messageImageUpload = defineAssetUpload({
   auth: 'authenticated',
@@ -3296,11 +3301,12 @@ records expose the canonical `digest`, `digestAlgorithm`, and
   terminal row.** Use [`assets.upload()`](#upload-when-you-only-need-the-ready-asset-id)
   for settle-or-reject behavior, or branch on all four raw terminal statuses.
 - **Do not add a second recipient-readable reference to view-once media.** Keep
-  the [per-recipient grant row](#portable-fallback-app-owned-grant-rows)
-  as the sole authority edge and retain a typed reverse reference until open
-  or cancellation.
-- **Do not call the designed grant operations yet.** LLP 0210 D5(b) is a
-  design reference, not a shipped API; use the row composition above.
+  either the [first-class grant edge](#grant-and-revoke-per-recipient-access)
+  from the [view-once media recipe](../recipes/view-once-media.md), or the
+  [fallback app-owned grant row](#portable-fallback-app-owned-grant-rows), as
+  the recipient's sole authority path. Retain an owner-only typed reverse
+  reference through the pending window so reference GC cannot reclaim the
+  asset before open or cancellation.
 
 ---
 

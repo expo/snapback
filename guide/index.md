@@ -177,9 +177,12 @@ you never build around a feature because you didn't know it existed.
 - [Assets](./backend/assets.md) — generated upload intents, one-call
   File/Blob/picker upload, signed-URL issuance with a shared TTL-refresh
   controller and React hook, TUS resumable transfer, typed `v.assetRef`
-  attachment, private delivery, the view-once grant-row recipe,
+  attachment, private delivery, per-recipient grants and view-once guidance,
   consistent-cut logical export, and signing-key rotation (local target;
   byte-level backup remains a nonclaim).
+- [View-once media with per-recipient access](./recipes/view-once-media.md) —
+  local grant-edge recipe for disappearing photos: atomic send/open/close,
+  product-owned consumption, delete-for-everyone, and strict revocation.
 - [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture
   identity, non-destructive matching, explicit reset-install/clear, and
   migration boundaries (experimental).
@@ -337,6 +340,10 @@ you never build around a feature because you didn't know it existed.
   — generated mutation IR, durable intent identity, typed provisional
   presentation, logical-mint mapping, and ambiguous retry (Contention
   Calendar, distilled).
+- [View-once media with per-recipient access](./recipes/view-once-media.md) —
+  disappearing photos and ephemeral media with one pending grant per
+  recipient, a unique consumption row, close versus delete-for-everyone, and
+  next-request denial (messaging-snapback, distilled; local-only).
 - [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
   — worked-example translations of common Convex/Supabase journeys into
   Snapback, CI-verified against real demo sources (LLP 0186 W2).

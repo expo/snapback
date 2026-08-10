@@ -228,3 +228,64 @@ transcludes this actual demo hook and explicitly bridges the schema term
 that the hook's pre-subscribe snapshot was not referentially stable for
 React's external-store contract; the package now caches that state, and the
 typing proof fails unless the indicator itself becomes visible.
+
+## 2026-08-10 — View-once on first-class recipient grants (LLP 0220 D3)
+
+This pass added the app-shaped witness the grant primitive was missing:
+`viewOnceMessages` keeps the typed asset reference and an owner-visible map of
+still-live recipient grant ids; `viewOnceConsumptions` is the unique product
+record for `(message, principal)`; four authenticated mutations implement
+send/open/close/delete-for-everyone; and the Sessions-mode headless fixture
+drives hostile delivery and concurrency probes with four minted principals.
+The interactive Expo surface remains deliberately unchanged because its
+dev-mode persona switcher has no real sessions from which these handlers could
+derive an authoritative principal.
+
+The DX improvement over the Clique P2 pilot is substantial. That lane had to
+hand-compose roughly 80 lines of authority policy in ordinary grant rows,
+including transfer-at-open by patching `viewerPrincipal`, row-backed sharing,
+revocation, GC retention, and the surrounding security reasoning. Here the
+security-sensitive transitions are three direct calls — `grant`, `activate`,
+and `revoke` — and Snapback owns active-edge read authority, invalidation, GC
+protection, atomic transition receipts, and the global quota. The application
+code is left with the things that really are product semantics: what counts as
+"opened," the caption/message relationship, and which still-live grant ids an
+owner must revoke for delete-for-everyone. Compared with React plus Convex or
+Supabase, this feels much closer to using a purpose-built storage authority
+primitive than reconstructing revocable media access from database rows,
+storage URLs, and policy glue.
+
+Two ordering/bookkeeping details were more load-bearing than their line counts
+suggest. `openViewOnce` must query and insert the unique consumption record
+*before* staging `ctx.assets.activate`: otherwise a fresh second logical open
+reports the platform's grant-state refusal, while an exact client-key replay
+would merely return the first result. Neither proves view-once product state.
+And revoke removes a grant record rather than leaving a terminal tombstone, so
+recipient close must delete that id from the message's grants map in the same
+mutation. If it does not, a later owner delete-for-everyone stages a revoke of
+an unknown id and aborts the entire mutation, leaving siblings authorized.
+The map is therefore liveness bookkeeping, not a convenient cache. LLP 0220's
+future owner-side revoke-all question would remove this sharp edge, but the
+current primitive is internally consistent.
+
+The main authoring friction was visible and actionable. Inline handlers reject
+dynamic computed property access, so building and narrowing the required JSON
+map needed `Object.fromEntries`/`Object.entries` rather than ordinary
+`grants[principal]` spelling. Codegen also honestly degrades the `v.json()` map
+to `unknown` in provider bindings. The grant-enabled JPEG/PNG intent required
+an explicit `image.location` decision (`strip`), which is a good privacy gate.
+Finally, raw strict-delivery probes in Sessions mode must send
+`x-snapback-auth-client-protocol: 1`; omitting it yields a malformed-profile
+400, not the 403 authorization evidence the hostile sequence needs.
+
+Verification: checkout-local codegen passed for seven tables and thirteen
+operations (with the expected `v.json()` result-type warning), and the
+18-check Sessions-mode suite ran green against the bootstrapped debug binary
+(the implementation agent's sandbox could not bind `127.0.0.1:0`, so the
+runtime run happened in the orchestrating session). The first real run
+surfaced one client-surface fact the suite initially guessed wrong: a
+declared refusal reaches the external JS client with `diagnostic.code =
+'SNAPBACK_APP_REFUSAL'` and the app code in `diagnostic.details.appCode` —
+there is no top-level `error.code` property on the thrown error. Guide pages
+describe the envelope correctly, but an example of the *client-side* match
+(as opposed to the handler-side `ctx.refuse`) would have saved a round trip.

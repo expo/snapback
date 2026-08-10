@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "5ea9c1be8334af07027f67157f8763cc89cf05c6",
-    "sourceDigest": "sha256:612f0650e585283350f5eb482c70cbc83e664252f24e679b547a1dd40b0bee84"
+    "commit": "79ac057b5cb051404ee3f72478583fc289c2a0dc",
+    "sourceDigest": "sha256:c9c24a25cac5241b1a1a5a4be3a20d035dbba5925eed912b885370926e8239d2"
   },
   "limits": {
     "lookupBytes": 16384
@@ -13,7 +13,7 @@
     "sourceFiles": 402,
     "emittingSites": 9952,
     "httpClassified": 918,
-    "guideAnchored": 334
+    "guideAnchored": 335
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -10305,8 +10305,10 @@
       ],
       "httpStatus": 409,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/recipes/view-once-media.md#2-open-ephemeral-media-exactly-once",
+      "guideAnchors": [
+        "/_snapback/guide/recipes/view-once-media.md#2-open-ephemeral-media-exactly-once"
+      ]
     },
     "SNAPBACK_ASSET_GRANT_UNKNOWN": {
       "code": "SNAPBACK_ASSET_GRANT_UNKNOWN",

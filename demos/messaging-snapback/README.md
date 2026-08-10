@@ -2,7 +2,8 @@
 
 A messaging app on Snapback: 1-1 DMs, group chats, text and image messages,
 emoji reactions, WhatsApp-style reply previews (a quoted pointer to the
-original message, never a nested thread), and live typing indicators. Expo
+original message, never a nested thread), live typing indicators, and a
+headless acceptance witness for session-bound view-once media grants. Expo
 Router client (iOS, Android, web from one codebase), dev-mode client-asserted
 auth with a persona switcher.
 
@@ -43,10 +44,10 @@ Press `w` for web, or scan the QR code for iOS/Android via Expo Go.
 
 ## How it is built
 
-`snapback/schema.mjs` + `snapback/functions.mjs` are the whole backend: five
+`snapback/schema.mjs` + `snapback/functions.mjs` are the whole backend: seven
 tables (`users`, `conversations`, `conversationMembers`, `messages`,
-`reactions`) and one ephemeral collection (`typing`). Two things shaped the
-design:
+`reactions`, `viewOnceMessages`, `viewOnceConsumptions`) and one ephemeral
+collection (`typing`). Three things shaped the design:
 
 - **Conversations are denormalized for a single-scan inbox.** `lastMessageText`/
   `lastMessageAuthorName`/`lastMessageAt` are patched on every send, so
@@ -56,9 +57,30 @@ design:
   snapshot and groups reactions per message / looks up the quoted reply
   target with same-file helper functions — the shape a declarative plan
   can't express, and exactly what `defineJsLiveQuery` is for.
+- **View-once keeps security authority in first-class grant edges and product
+  state in app rows.** Send attaches one owner-only, private-strict asset and
+  mints a pending grant per recipient. Open inserts a unique consumption row
+  before activating the grant; close revokes it and clears its id from the
+  owner-visible grants map; owner delete-for-everyone revokes every remaining
+  id and removes the typed reference and consumptions atomically.
 
 Auth is `dev` mode (client-asserted identity via a persona switcher), the
 same trade-off `demos/warble` documents — not a production posture.
+
+## Why view-once is headless-only
+
+The Expo UI is intentionally unchanged. Its persona switcher runs against a
+dev-mode server and has no real sessions, while view-once grant ownership,
+activation, and revoke derive the principal from `ctx.auth.userId`. The
+headless acceptance suite stages the same backend in Sessions mode, mints four
+ordinary principals, and is the honest witness for the flow. Wiring the
+session-bound feature into the dev-persona UI would demonstrate a different,
+weaker authority model.
+
+The inspection live query is also explicitly demo-scoped: it lets any
+authenticated test principal address a row so the suite can inspect owner-side
+grant bookkeeping. A production app would scope that query to conversation
+membership and the author/recipients.
 
 ## Known limitation: in-app photo upload
 
@@ -78,10 +100,12 @@ Full mechanism and a suggested guide fix in
 node demos/messaging-snapback/tests/acceptance/headless.mjs
 ```
 
-Ten checks: seed shape, reply-as-pointer semantics (not a thread), reaction
-idempotency, DM dedup, group membership, a real asset upload through the
-trusted pipeline, empty-message refusal, and a live cross-client ephemeral
-typing check.
+Eighteen checks: the existing messaging, asset-upload, and live typing proofs;
+recipient-set validation; hostile pending/outsider delivery; repeated and
+concurrent second-open refusal from product consumption state; strict
+403→200→403 close; two-recipient delete-for-everyone; and close-then-delete
+bookkeeping. Strict asset requests include the Sessions protocol offer so the
+403 assertions are authorization evidence rather than malformed-request 400s.
 
 Screenshots from a real run (Expo web + a real local server) are under
 [`evidence/`](./evidence/). Build notes and comparisons to Convex/Supabase are
