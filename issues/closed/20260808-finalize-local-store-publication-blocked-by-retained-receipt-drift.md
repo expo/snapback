@@ -56,3 +56,16 @@ re-verify the finalize chain end to end. Decide at the same time whether
 `packages/snapback-client/index.mjs` belongs in that receipt's pinned source set
 at all — a package-root re-export change forcing a Move-1 requalification may be
 over-pinning.
+
+## Resolution — 2026-08-10
+
+The full qualified chain ran end to end on a post-S0 tree (activation remint
+ceremony, this session): `triage-graph-move1-v1.mjs` full run (8/8 PASS,
+re-minted activation + exit/budget receipts), `fleet-observatory-move1-v1.mjs`
+(8/8 PASS), `local-store-carrier-exit-v1.mjs` (17 PASS / 0 gap), then
+`scripts/finalize-local-persistent-store-publication` (status: published) and
+`node --test tests/agent_safe_publication_checker_v1.mjs` → 110 pass / 0 fail.
+All re-minted records land together with this closure. The over-pinning design
+question (does `packages/snapback-client/index.mjs` belong in the Move-1
+pinned source set) stays with the signed-composition ticket's analogous
+"bind a toolchain-stable identity" question for LLP 0087's owner.

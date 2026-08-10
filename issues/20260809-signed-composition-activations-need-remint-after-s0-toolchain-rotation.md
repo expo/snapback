@@ -57,3 +57,17 @@ landing uses the documented loud bypass; the carrier refresh and receipt
 re-mint fold into this ticket's resolution ceremony (which should run
 once, after the structured-stored-values landing that rotates the schema
 a third time today).
+
+## Dated note — 2026-08-10, remint ceremony (3 of 4 complete)
+
+Re-minted through their full acceptance ceremonies on the current toolchain
+and landed together: `demos/triage-graph` (8/8), `demos/fleet-observatory-move1`
+(8/8), `demos/latency-kanban` (5/5). The downstream carrier chain is re-greened
+(see the two closed local-store tickets). Still outstanding:
+`demos/zero-bakeoff/apps/contention-calendar` — its rung-2 ceremony failed
+twice on the "alice provisional paint missed one frame" latency assertion
+under heavy machine load (load average ~200, concurrent agent fleet); the
+committed tree keeps its pre-rotation generation bit-identical. Re-run
+`tests/acceptance/contention-calendar-rung2-v1.mjs` on a quiet machine to
+finish this ticket. The toolchain-stable-identity design question for
+LLP 0087's owner remains open.

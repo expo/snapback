@@ -54,3 +54,12 @@ In a checkout at or after this landing, with the ibex runtime bootstrapped and
 3. `scripts/finalize-local-persistent-store-publication`, then verify
    `node --test tests/agent_safe_publication_checker_v1.mjs`.
 4. Commit all re-minted records together and close this ticket.
+
+## Resolution — 2026-08-10
+
+The blocking activation ceremony ran (see the signed-composition ticket):
+triage-graph and fleet-observatory activations re-minted through their full
+acceptance runs on the post-S0 toolchain, then the documented remedy chain
+completed exactly as specified: carrier-exit 17 PASS / 0 gap, finalize
+published, publication checker 110/0. All re-minted receipts, activations,
+and the refreshed publication carrier/anchor land together with this closure.

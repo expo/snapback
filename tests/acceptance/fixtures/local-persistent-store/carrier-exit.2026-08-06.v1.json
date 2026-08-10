@@ -6,16 +6,16 @@
     "LLP 0166#executable-acceptance",
     "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
   ],
-  "startedAt": "2026-08-10T05:36:05.629Z",
-  "completedAt": "2026-08-10T05:37:42.838Z",
+  "startedAt": "2026-08-10T09:50:55.061Z",
+  "completedAt": "2026-08-10T10:00:48.192Z",
   "runtime": {
-    "node": "v25.9.0",
+    "node": "v24.18.0",
     "platform": "darwin",
     "arch": "arm64",
     "hostnameClass": "local-evidence-machine"
   },
   "source": {
-    "revision": "d201b359f6b303c1b659a602883fa7a75e2385ce",
+    "revision": "1952d6f8ca72b239a199f99f4e5237f521842881",
     "dirty": true,
     "dirtyPaths": [
       "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
@@ -29,7 +29,9 @@
       "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
       "tests/acceptance/triage-graph-move1-v1-evidence.md",
-      "target"
+      ".ceremony-carrier.log",
+      ".ceremony-fleet.log",
+      ".ceremony-triage.log"
     ],
     "files": [
       {
@@ -122,19 +124,19 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-        "sha256": "8be62cc8481493ba2e6e14baa830c6d9171b7ad72da4f24ba82be4561a506503"
+        "sha256": "9806f9df6dd879b334503f69d6c9afb98fc03b1402915ac59c4b46f37cd0abac"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-        "sha256": "31838b231de0fda505ca50165d9fc093bcf9e3f250d416405190ce8abaee8634"
+        "sha256": "1cf7f5e3f7607f5e90b487df434f3ccbebd0bcaffefa75111f95585b261c0c87"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "45a25abdeb66e21e2ba8855cf8c55c993ec7464b1d07fbb77e2b8239e6b83a6c"
+        "sha256": "2f0fd506f5a779f9b83c161809f56e53dbdb1478c1efb4b244e9cdc0883fb46c"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "849cd800d131658cf15eb925d27833fd12d15f13f59a5083fe92e224f152f82b"
+        "sha256": "f853da3f3d85a04bcf3ed1b75f7c20bde8524e10aeeacfc49b1cf33e62c519c4"
       }
     ]
   },
@@ -284,7 +286,7 @@
           2,
           3
         ],
-        "relaunchToReadableMs": 1526.813,
+        "relaunchToReadableMs": 7481.048,
         "browser": {
           "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
           "version": "Google Chrome 151.0.7922.76",
@@ -297,12 +299,12 @@
         },
         "cleanup": {
           "firstBrowser": {
-            "pid": 57453,
+            "pid": 69214,
             "requestedSignal": "SIGKILL",
             "processTreeExitAttested": true
           },
           "finalBrowser": {
-            "pid": 57787,
+            "pid": 70938,
             "requestedSignal": "SIGTERM",
             "processTreeExitAttested": true
           },
@@ -400,7 +402,7 @@
           {
             "type": "boundary",
             "boundary": "before-rename",
-            "pid": 43121,
+            "pid": 69698,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -411,7 +413,7 @@
           {
             "type": "boundary",
             "boundary": "after-rename-before-directory-sync",
-            "pid": 43124,
+            "pid": 69866,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -444,12 +446,12 @@
       "status": "PASS",
       "evidence": {
         "serverBinary": "target/debug/snapback",
-        "serverBinarySha256": "c9fee6da6d81b153c5eaecf28acca863ca7078184a675d50dab8a0cde5d1e89a",
+        "serverBinarySha256": "c5b84b881579a869575409c139425f484a392482fb605824585abfd19ff14c5b",
         "launchRung": "configured",
         "backendStoppedBeforeRelaunch": true,
         "activationPreparation": {
           "format": "snapback.composition-activation-preparation.v1",
-          "activationHash": "sha256:0c77f6b160255ee393a43ba381c271698a24e86d96f31c0ec067eebd01ecf2b1",
+          "activationHash": "sha256:2d20b2e4f3bbb5491a61d93d9ed16275c270eb3e71803181374ccc9efb585b8a",
           "sourceClass": "temporary-backend-source",
           "next": "rerun Snapback codegen for this backend"
         },
@@ -491,7 +493,7 @@
         },
         "materialization": {
           "records": 1,
-          "qmk1": "qmk1.XMJITeXRSTEP9JWjsiA2XuXiV7XgMbvIEXHz2LseqP0",
+          "qmk1": "qmk1.rE3LqvUaj96l0OtQZUtAMnzjO8sSgSGxHsE7kDaBwKI",
           "freshness": "retained",
           "fragments": 1,
           "leaseCustody": 1
@@ -660,7 +662,7 @@
           "version": 7,
           "token": "sbrt1.carrier-exit.7"
         },
-        "maintenanceMs": 73568.239
+        "maintenanceMs": 329758.629
       }
     },
     {
@@ -735,14 +737,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 100,
           "hydrationPayloadBytes": 14981,
-          "hydrationElapsedMs": 222.054,
+          "hydrationElapsedMs": 307.004,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-          "budgetFreezeSha256": "8be62cc8481493ba2e6e14baa830c6d9171b7ad72da4f24ba82be4561a506503",
+          "budgetFreezeSha256": "9806f9df6dd879b334503f69d6c9afb98fc03b1402915ac59c4b46f37cd0abac",
           "move1Exit": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-          "move1ExitSha256": "31838b231de0fda505ca50165d9fc093bcf9e3f250d416405190ce8abaee8634"
+          "move1ExitSha256": "1cf7f5e3f7607f5e90b487df434f3ccbebd0bcaffefa75111f95585b261c0c87"
         }
       }
     },
@@ -762,14 +764,14 @@
           "hydrationAttempts": 1,
           "hydrationRows": 200,
           "hydrationPayloadBytes": 49652,
-          "hydrationElapsedMs": 154.643,
+          "hydrationElapsedMs": 219.691,
           "hydrationCeilingMs": 1000
         },
         "receipts": {
           "budgetFreeze": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-          "budgetFreezeSha256": "45a25abdeb66e21e2ba8855cf8c55c993ec7464b1d07fbb77e2b8239e6b83a6c",
+          "budgetFreezeSha256": "2f0fd506f5a779f9b83c161809f56e53dbdb1478c1efb4b244e9cdc0883fb46c",
           "move1Exit": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-          "move1ExitSha256": "849cd800d131658cf15eb925d27833fd12d15f13f59a5083fe92e224f152f82b"
+          "move1ExitSha256": "f853da3f3d85a04bcf3ed1b75f7c20bde8524e10aeeacfc49b1cf33e62c519c4"
         }
       }
     },

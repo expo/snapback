@@ -2,27 +2,27 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v1",
-    "databaseId": "019fea2a-74f3-7452-adf4-38b314759a06",
+    "databaseId": "019feb0a-4138-7852-b244-c173fa5aa741",
     "deploymentId": "triage-graph-p3-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
     "expectedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "triage-graph",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:42b8bf4c71e50b9e49cdac09df4be57dc3bde3f9102cd03e1a0c9dd0fbcf17a4",
-      "bundleHash": "snapback.v1:sessions:function:sha256:faf73f09f1c129e95a74201d6c73d77e4ba19c799e14c152360aa9818e97b590",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:a07a1250d2472bf75a100c4f98e3910c2f208a5508ae707cbd4b4d7e884ea4a0"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:dcf7091a396aeb57d9019303b59ee152a24a04d6c1dbcf714edd0bef1c3b9cb4",
+      "bundleHash": "snapback.v1:sessions:function:sha256:78f2bfdb5a0a23440b6395ed7426f8e5106469926cd0360dfe559c769d1475eb",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:f63e98722a96500b80431880f27ad64cb00a2747ad7341a9c93ed3e3145d76c4"
     },
-    "proofKeyManifestDigest": "sha256:3f386fe99c65c4572c722c222eb32e1062ea65fffd70bb49b41272bfe79177d7"
+    "proofKeyManifestDigest": "sha256:e97fb778bffe7a6ccece8a3e1b5b6a420e4351e38d293604f4ff5747246b3071"
   },
-  "activationHash": "sha256:de0e2baf1f393dd34f86fae462d6d35520b833029d836e29c37f468afc08bfd5",
+  "activationHash": "sha256:3901aec6b393b68f66b2294175b2385be1f208635bf57903032988c6d57d85b8",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.1o2qhrgC23uJy0OIWv19_A",
+        "proofKeyId": "sbpk1.PCz1vCMGARDtALDs2UBu2w",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "H66IXNDqcA3-7UfF4zJK1pDRnnz4mayIbjQXNvhCQQ4"
+        "publicKeyBase64url": "wOl4ohXs41h_q17wF4WNv5RpYBdpRA2ASEP3LrkeOpo"
       }
     ]
   }

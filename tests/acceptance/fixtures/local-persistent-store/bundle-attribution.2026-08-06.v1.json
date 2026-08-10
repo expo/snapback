@@ -2,7 +2,7 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-06",
   "source": {
-    "revision": "d201b359f6b303c1b659a602883fa7a75e2385ce",
+    "revision": "1952d6f8ca72b239a199f99f4e5237f521842881",
     "dirty": true,
     "dirtyPaths": [
       "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
@@ -16,7 +16,9 @@
       "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
       "tests/acceptance/triage-graph-move1-v1-evidence.md",
-      "target"
+      ".ceremony-carrier.log",
+      ".ceremony-fleet.log",
+      ".ceremony-triage.log"
     ],
     "files": [
       {
@@ -109,19 +111,19 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-        "sha256": "8be62cc8481493ba2e6e14baa830c6d9171b7ad72da4f24ba82be4561a506503"
+        "sha256": "9806f9df6dd879b334503f69d6c9afb98fc03b1402915ac59c4b46f37cd0abac"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-        "sha256": "31838b231de0fda505ca50165d9fc093bcf9e3f250d416405190ce8abaee8634"
+        "sha256": "1cf7f5e3f7607f5e90b487df434f3ccbebd0bcaffefa75111f95585b261c0c87"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "45a25abdeb66e21e2ba8855cf8c55c993ec7464b1d07fbb77e2b8239e6b83a6c"
+        "sha256": "2f0fd506f5a779f9b83c161809f56e53dbdb1478c1efb4b244e9cdc0883fb46c"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "849cd800d131658cf15eb925d27833fd12d15f13f59a5083fe92e224f152f82b"
+        "sha256": "f853da3f3d85a04bcf3ed1b75f7c20bde8524e10aeeacfc49b1cf33e62c519c4"
       }
     ]
   },
@@ -146,7 +148,7 @@
   },
   "output": {
     "minifiedBytes": 720892,
-    "gzipBytes": 198879,
+    "gzipBytes": 199570,
     "brotliBytes": 160296,
     "sha256": "acd4a44457e431e518bbd59d37e811d82532658583f3b738c341589bcdb44d11"
   },
