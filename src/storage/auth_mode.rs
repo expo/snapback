@@ -3128,7 +3128,7 @@ mod tests {
         assert_eq!(committed.auth_mode_snapshot().unwrap().state, returned);
     }
 
-    // @ref LLP 0199#target-ownership-map — pending projection pins ride the
+    // @ref LLP 0225#1-ownership-map — pending projection pins ride the
     //   classified complete-pair verdict and never participate in successor
     //   identity; reopen reads only what the reconciled SQLite cut committed.
     #[test]

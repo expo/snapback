@@ -1,7 +1,7 @@
 # LLP 0225: Core modularization — the consolidated ownership map, commit boundaries, and enforcement arm
 
 **Type:** Decision
-**Status:** Review
+**Status:** Accepted
 **Systems:** Rust core, Server, Storage, Migration, Live/realtime, Assets,
 Jobs, Auth, Transport, Embedding, Proof/gates, LLP governance
 **Author:** Claude (Fable 5), commissioned by Charlie Cheever (author ruling
@@ -22,6 +22,9 @@ budget; see Revision history)
 **Revised:** 2026-08-10 (h — round-5 revision; see Revision history)
 **Revised:** 2026-08-10 (i — closing revision, loop terminal; see Revision
 history)
+**Revised:** 2026-08-10 (j — Accepted: OQ-A superseded-with-pointer, OQ-B
+confirmed, OQ-C inert-until-reload (author rulings); same-landing handoff
+applied)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -63,8 +66,7 @@ This document consolidates all three into one governing record:
   (`src/generation_activation.rs`, with the OQ3 composite-commit follow-up of
   2026-08-09 recorded in 0199's revision history).
 
-Until this document is Accepted, LLP 0199 remains the governing record. On
-acceptance, this Decision becomes the **single amendment point** for the
+Accepted 2026-08-10: this Decision becomes the **single amendment point** for the
 ownership map and dependency direction (§6), and the author disposes of 0199
 — the recommended disposition is Superseded-with-pointer, keeping 0199 as the
 acceptance/provenance record (its OQ rulings and super-refine history remain
@@ -487,32 +489,24 @@ These are different activities and this Decision keeps them distinct:
 
 ## Open questions for the author
 
-- **OQ-A.** On acceptance, dispose of LLP 0199: Superseded-with-pointer
-  (recommended — this document becomes the single governing and amendment
-  record; 0199 remains the acceptance/provenance history), or keep 0199
-  Accepted with this document as a consolidation companion (weaker: two
-  amendment points).
-- **OQ-B.** Confirm §5's amendment rule as stated — direction-changing
-  manifest edits require a prose amendment *first* — or relax to
-  same-landing co-amendment.
+- **OQ-A — RULED 2026-08-10 (Charlie Cheever): Superseded-with-pointer.**
+  This document is the single governing and amendment record; LLP 0199 is
+  Superseded, retained as the acceptance/provenance history.
+- **OQ-B — RULED 2026-08-10 (Charlie Cheever): confirmed as stated.**
+  Direction-changing manifest edits require the prose amendment *first*.
 
-- **OQ-C.** The full-process reopen contract (§4's recorded exception):
-  **automatic verified reload on open** (needs an authoritative artifact
-  source + digest verification + failure behavior), or
-  **inert-until-reload**. Recommendation: inert-until-reload, whose state
-  machine the owning slice must then pin: the first artifact load after
-  reopen verifies against the persisted record's digests and refuses on
-  mismatch with a named diagnostic; recovery reload is distinguished from
-  intentional successor deployment by that digest match (a successor is a
-  new commit, never a "reload"); rehydration never advances the durable
-  high-water; serving stays fenced until a verified reload or committed
-  successor; full-`LocalSnapback` reopen/reload/retry tests are the
-  slice's acceptance. Whichever arm is ruled, the ruling lands at or
-  before this document's acceptance; the recorded-exception status then
-  ends **when the ruled contract's tests land**, not at the ruling itself
-  — acceptance fixes the contract, the owning slice discharges it.
+- **OQ-C — RULED 2026-08-10 (Charlie Cheever): inert-until-reload.** The
+  owning slice pins the state machine as specified here: the first artifact
+  load after reopen verifies against the persisted record's digests and
+  refuses on mismatch with a named diagnostic; recovery reload is
+  distinguished from intentional successor deployment by that digest match;
+  rehydration never advances the durable high-water; serving stays fenced
+  until a verified reload or committed successor; full-`LocalSnapback`
+  reopen/reload/retry tests are the slice's acceptance. The recorded
+  exception ends when those tests land
+  (`issues/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`).
 
-Whichever way OQ-A/OQ-B are ruled, acceptance carries a same-landing
+With OQ-A/OQ-B ruled, acceptance carries this same-landing
 handoff: `ownership.manifest.json`'s `governedBy` gains this document, the
 stale `mixedModuleScopes` prose (e.g. `local.rs`'s activation scope still
 described as "targeted" though extracted) is refreshed, LLP 0199 `@ref`s

@@ -1430,7 +1430,7 @@ impl LocalDatabase {
 /// Narrow typed access to asset attempt, staging, and work-execution storage
 /// operations.
 ///
-/// @ref LLP 0199#target-ownership-map — asset services enter the storage
+/// @ref LLP 0225#1-ownership-map — asset services enter the storage
 /// kernel through typed operations instead of a raw SQLite transaction.
 pub struct AssetAttemptsKernel<'a> {
     db: &'a mut LocalDatabase,

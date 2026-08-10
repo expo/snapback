@@ -1541,7 +1541,7 @@ fn test_now_millis() -> u64 {
 /// Narrow typed access to asset delivery, inspection, host-operation, and
 /// deletion storage operations.
 ///
-/// @ref LLP 0199#target-ownership-map — asset services enter the storage
+/// @ref LLP 0225#1-ownership-map — asset services enter the storage
 /// kernel through typed operations instead of a raw SQLite transaction.
 pub struct AssetReadsKernel<'a> {
     db: &'a mut LocalDatabase,

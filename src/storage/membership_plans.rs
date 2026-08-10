@@ -1194,7 +1194,7 @@ impl LocalDatabase {
 
 /// Narrow typed access to membership authorization, planning, and commit operations.
 ///
-/// @ref LLP 0199#target-ownership-map — membership writes enter the storage
+/// @ref LLP 0225#1-ownership-map — membership writes enter the storage
 /// kernel through typed operations instead of the wide `LocalDatabase` surface.
 pub struct MembershipPlansKernel<'a> {
     db: &'a mut LocalDatabase,

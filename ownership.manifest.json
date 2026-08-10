@@ -1,8 +1,9 @@
 {
   "schemaVersion": "snapback.module-ownership-manifest.v1",
   "governedBy": [
-    "LLP 0199#target-ownership-map",
-    "LLP 0199#author-rulings-accepted-2026-08-08-charlie-cheever"
+    "LLP 0225#1-ownership-map",
+    "LLP 0225#2-dependency-direction",
+    "LLP 0199 (superseded provenance record)"
   ],
   "dependencyDirection": {
     "description": "transport/adapters -> domain services -> storage/migration kernel -> shared contract/types leaf",
@@ -349,7 +350,7 @@
     "src/local.rs": [
       {
         "owner": "generation-activation-coordinator",
-        "scope": "Generation composition and activation transitions targeted for the first semantic extraction."
+        "scope": "Generation composition and activation transitions extracted 2026-08-09 as src/generation_activation.rs (LLP 0225 \u00a74 first slice)."
       },
       {
         "owner": "unassigned",

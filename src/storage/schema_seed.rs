@@ -1206,7 +1206,7 @@ impl LocalDatabase {
 
 /// Narrow typed access to schema application, seeding, and destructive reset.
 ///
-/// @ref LLP 0199#target-ownership-map — callers enter the storage kernel
+/// @ref LLP 0225#1-ownership-map — callers enter the storage kernel
 /// through typed operations instead of the wide `LocalDatabase` surface.
 pub struct SchemaSeedKernel<'a> {
     db: &'a mut LocalDatabase,

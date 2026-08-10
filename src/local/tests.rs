@@ -16995,7 +16995,7 @@ fn projection_activation_rebuild_materializes_and_republishes() {
     assert_eq!(error.diagnostic.code, "SNAPBACK_UNKNOWN_FUNCTION");
 }
 
-// @ref LLP 0199#target-ownership-map — the failed successor never pins its
+// @ref LLP 0225#1-ownership-map — the failed successor never pins its
 //   repeatable materialization without the composite generation commit;
 //   retry rebuilds and proves its manifest against the physical rows.
 #[test]
@@ -17156,7 +17156,7 @@ fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization(
     assert_eq!(rows[0]["title"], json!("alpha"));
 }
 
-// @ref LLP 0199#target-ownership-map — crash/reopen trusts the persisted deployment
+// @ref LLP 0225#1-ownership-map — crash/reopen trusts the persisted deployment
 //   generation and stored materialization, never the old process handle.
 #[test]
 fn generation_activation_reopen_uses_durable_record_and_matching_materialization() {

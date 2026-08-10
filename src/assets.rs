@@ -129,7 +129,7 @@ pub const ASSET_PUBLICATION_RETENTION_MS: u64 = 7 * 24 * 60 * 60 * 1000;
 // while the retained in-process finalize path may deliberately run it beneath
 // an outer Local guard for callers that cannot release that guard.
 //
-// @ref LLP 0199#target-ownership-map — background services prepare CPU/network
+// @ref LLP 0225#1-ownership-map — background services prepare CPU/network
 //   work outside the global writer and enter the kernel through narrow commits.
 // @ref LLP 0044#publication-and-crash-recovery — preparation is re-drivable;
 //   planned/staged/committed publication records remain the durable authority.

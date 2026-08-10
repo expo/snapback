@@ -3329,7 +3329,7 @@ mod guarded_commit_tests {
             .expect("read metadata")
     }
 
-    // @ref LLP 0199#target-ownership-map — the persisted raw-dev generation
+    // @ref LLP 0225#1-ownership-map — the persisted raw-dev generation
     //   record, not the process Arc/fence, proves which pins and sequence
     //   enrollments survived every crash cut.
     #[test]

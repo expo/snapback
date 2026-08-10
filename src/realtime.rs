@@ -5,7 +5,7 @@
 //! pending-frame and delivery-observability state live with the realtime
 //! engine rather than the local adapter hub.
 //!
-//! @ref LLP 0199#target-ownership-map — subscriptions, invalidation, and
+//! @ref LLP 0225#1-ownership-map — subscriptions, invalidation, and
 //! fan-out belong to the durable sync/realtime domain service.
 
 use serde::{Deserialize, Serialize};

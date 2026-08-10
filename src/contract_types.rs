@@ -4,7 +4,7 @@
 //! modules may consume these definitions, but contract types must not depend on
 //! those owners.
 //!
-//! @ref LLP 0199#target-ownership-map — the shared contract/types leaf is the
+//! @ref LLP 0225#1-ownership-map — the shared contract/types leaf is the
 //!   canonical downward dependency for Rust owners and generated artifacts.
 
 use serde::{Deserialize, Deserializer, Serialize};

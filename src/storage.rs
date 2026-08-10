@@ -2591,7 +2591,7 @@ impl LocalDatabase {
     /// transaction. Process publication is intentionally a caller-owned
     /// postcondition and must not occur inside this operation.
     ///
-    /// @ref LLP 0199#target-ownership-map — the storage kernel owns the
+    /// @ref LLP 0225#1-ownership-map — the storage kernel owns the
     ///   composite commit primitive; the activation coordinator owns ordering
     ///   and installs process state only after this durable fact commits.
     pub(crate) fn commit_function_generation(

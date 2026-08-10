@@ -1,7 +1,7 @@
 # LLP 0226: Identity architecture — namespaces, provenance, and conversion
 
 **Type:** Decision
-**Status:** Review
+**Status:** Accepted
 **Systems:** Schema, Auth, Mutations, Storage, Client SDK, Effects
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-10
@@ -17,6 +17,8 @@ budget; see Status)
 **Revised:** 2026-08-10 (g — round-4 revision; see Status)
 **Revised:** 2026-08-10 (h — round-5 revision; see Status)
 **Revised:** 2026-08-10 (i — closing revision, loop terminal; see Status)
+**Revised:** 2026-08-10 (j — Accepted: both loop-proposed rulings
+(bootstrap conversion; destructive-reset-new-lineage) author-confirmed)
 **Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0011, LLP 0043, LLP 0057,
 LLP 0058, LLP 0081, LLP 0110, LLP 0129, LLP 0133, LLP 0135, LLP 0148,
 LLP 0151, LLP 0158, LLP 0163, LLP 0191, LLP 0192,
@@ -176,7 +178,8 @@ Conversions between namespaces are the trust boundaries. The rules:
   restarts within a store lineage** — the high-water mark is durable and
   survives restart, fork, and restore — so the public serial value is the
   bare numeric with no prefix, and two visible rows can never share one.
-  The lineage boundary is decided here too: **destructive reset
+  The lineage boundary is decided here too (author confirmed 2026-08-10,
+  Charlie Cheever — destructive reset begins a new lineage): **destructive reset
   (`resetInstall`, `clear`, legacy reset) begins a new lineage** — data and
   counters restart together, so no visible collision can arise; **physical restore**
   continues the restored store's lineage and high-water (the bytes carry
@@ -320,8 +323,8 @@ platform ask). Constraints from this Decision:
   `ctx.auth.userId`) is the app-side key; provider identities (`idn_…`,
   `(issuer, subject)`) stay inside the auth substrate, and email is a
   mutable attribute and never a stored binding key (C-6).
-- **Bootstrap conversion (loop-proposed ruling, for author confirmation at
-  acceptance):** a narrowly scoped, verified **bootstrap** conversion
+- **Bootstrap conversion (RULED — author confirmed 2026-08-10, Charlie
+  Cheever):** a narrowly scoped, verified **bootstrap** conversion
   `provider identity → app row` is permitted at binding-creation time only
   — the moment C-2's writer holds both verified sides — after which all
   steady-state handler access keys on the principal, and every durable
@@ -393,7 +396,8 @@ governs).
 
 ## Status
 
-Review, 2026-08-10 (i). Becomes Accepted on author sign-off; each owner lane
+Accepted, 2026-08-10 (j) — author sign-off with both loop-proposed rulings
+confirmed. Each owner lane
 lands as a dated amendment to its owning LLP with a pointer added here.
 
 Revision (c), from dual-family round-1 review: the auth row split into

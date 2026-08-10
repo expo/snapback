@@ -971,7 +971,7 @@ impl LocalDatabase {
 
 /// Narrow typed access to push-registry and handoff-ledger storage operations.
 ///
-/// @ref LLP 0199#target-ownership-map — push services enter the storage
+/// @ref LLP 0225#1-ownership-map — push services enter the storage
 /// kernel through typed operations instead of a raw auth-catalog transaction.
 pub struct PushRegistryKernel<'a> {
     db: &'a mut LocalDatabase,

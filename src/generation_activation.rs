@@ -38,7 +38,7 @@ pub(crate) struct SameModeNetworkActivation {
 
 /// Owns compose -> install -> post-install ordering for one app generation.
 ///
-/// @ref LLP 0199#target-ownership-map — owner 1 (generation activation
+/// @ref LLP 0225#1-ownership-map — owner 1 (generation activation
 /// coordinator): one domain owner composes the generation successor
 ///   and the storage kernel's commit primitives without exposing a new public
 ///   wire or embedding surface.

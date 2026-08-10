@@ -128,7 +128,7 @@ impl LocalDatabase {
 
 /// Narrow typed access to membership-domain storage reads.
 ///
-/// @ref LLP 0199#target-ownership-map — membership projections enter the
+/// @ref LLP 0225#1-ownership-map — membership projections enter the
 /// storage kernel through a typed operation instead of an asset transaction.
 pub struct MembershipReadsKernel<'a> {
     db: &'a mut LocalDatabase,

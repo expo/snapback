@@ -1876,7 +1876,7 @@ enum AuthCatalogAccess<'a> {
 
 /// Narrow typed access to protected auth-catalog operations.
 ///
-/// @ref LLP 0199#target-ownership-map — auth services enter the storage
+/// @ref LLP 0225#1-ownership-map — auth services enter the storage
 /// kernel through typed operations instead of a raw auth-catalog transaction.
 pub struct AuthCatalogKernel<'a> {
     db: AuthCatalogAccess<'a>,

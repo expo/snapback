@@ -624,7 +624,7 @@ impl LocalDatabase {
 /// Narrow typed access to client-mutation settlement, operation identity, and
 /// stream-attempt persistence operations.
 ///
-/// @ref LLP 0199#target-ownership-map — settlement callers enter the storage
+/// @ref LLP 0225#1-ownership-map — settlement callers enter the storage
 /// kernel through typed operations instead of the wide `LocalDatabase` surface.
 pub struct SettlementKernel<'a> {
     db: &'a mut LocalDatabase,

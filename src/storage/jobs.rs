@@ -131,7 +131,7 @@ impl LocalDatabase {
 
 /// Narrow typed access to the jobs/cron storage operations.
 ///
-/// @ref LLP 0199#target-ownership-map — storage callers enter the kernel
+/// @ref LLP 0225#1-ownership-map — storage callers enter the kernel
 /// through typed operations instead of the wide `LocalDatabase` surface.
 pub struct JobsKernel<'a> {
     db: &'a mut LocalDatabase,

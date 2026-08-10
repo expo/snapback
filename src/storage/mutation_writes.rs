@@ -477,7 +477,7 @@ impl LocalDatabase {
 /// membership, asset, and dry-run variants deliberately share the same
 /// transaction-owning helpers in the storage hub.
 ///
-/// @ref LLP 0199#target-ownership-map — storage callers enter the kernel
+/// @ref LLP 0225#1-ownership-map — storage callers enter the kernel
 /// through typed operations instead of the wide `LocalDatabase` surface.
 pub struct MutationWritesKernel<'a> {
     db: &'a mut LocalDatabase,

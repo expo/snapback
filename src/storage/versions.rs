@@ -249,7 +249,7 @@ impl LocalDatabase {
 
 /// Narrow typed access to version counters, the change journal, and record history.
 ///
-/// @ref LLP 0199#target-ownership-map — storage callers enter the kernel
+/// @ref LLP 0225#1-ownership-map — storage callers enter the kernel
 /// through typed operations instead of the wide `LocalDatabase` surface.
 pub struct VersionsKernel<'a> {
     db: &'a mut LocalDatabase,

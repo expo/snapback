@@ -703,7 +703,7 @@ impl LocalDatabase {
 
 /// Narrow typed access to asset maintenance storage operations.
 ///
-/// @ref LLP 0199#target-ownership-map — asset maintenance enters the storage
+/// @ref LLP 0225#1-ownership-map — asset maintenance enters the storage
 /// kernel through typed operations instead of a raw SQLite transaction.
 pub struct AssetMaintenanceKernel<'a> {
     db: &'a mut LocalDatabase,

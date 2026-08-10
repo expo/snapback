@@ -1,7 +1,7 @@
 # LLP 0199: Incremental core modularization — extract owners, do not rewrite
 
 **Type:** Decision
-**Status:** Accepted
+**Status:** Superseded (by LLP 0225, 2026-08-10 — the consolidated governing and amendment record; this document remains the acceptance/provenance history of the decision)
 **Systems:** Rust core, Server, Storage, Migration, Live/realtime, Assets, Jobs, Auth, Embedding, LLP governance
 **Author:** Claude (Fable 5)
 **Date:** 2026-08-08

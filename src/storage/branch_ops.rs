@@ -219,7 +219,7 @@ impl LocalDatabase {
 
 /// Narrow typed access to branch/fork lifecycle and atomic branch-commit operations.
 ///
-/// @ref LLP 0199#target-ownership-map — branch callers enter the storage
+/// @ref LLP 0225#1-ownership-map — branch callers enter the storage
 /// kernel through typed operations instead of the wide `LocalDatabase` surface.
 pub struct BranchOpsKernel<'a> {
     db: &'a mut LocalDatabase,

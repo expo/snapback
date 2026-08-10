@@ -145,7 +145,7 @@ pub struct ProjectionRebuildReceipt {
 /// Publication facts computed by repeatable projection materialization but
 /// not yet made durable as the active generation's rebuild-skip oracle.
 ///
-/// @ref LLP 0199#target-ownership-map — projection pins join the generation
+/// @ref LLP 0225#1-ownership-map — projection pins join the generation
 ///   record in the owning composite kernel transaction; materialized rows are
 ///   deliberately safe to commit earlier and rebuild after a crash.
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -18,7 +18,7 @@
 // result-size heuristic.
 #![allow(clippy::result_large_err)]
 
-// @ref LLP 0199#target-ownership-map — owner 6 preserves this supported
+// @ref LLP 0225#1-ownership-map — owner 6 preserves this supported
 // façade while non-façade implementation modules become crate-private.
 pub mod embed;
 
@@ -72,11 +72,11 @@ pub(crate) mod connected_clients;
 pub mod config;
 pub mod conformance;
 pub(crate) mod contract_exact;
-// @ref LLP 0199#target-ownership-map — owner 1: crate-private generation
+// @ref LLP 0225#1-ownership-map — owner 1: crate-private generation
 // activation coordinator.
 pub(crate) mod generation_activation;
 pub(crate) mod spike_trace;
-// @ref LLP 0199#target-ownership-map — dependency-free shared contract/types
+// @ref LLP 0225#1-ownership-map — dependency-free shared contract/types
 // leaf consumed downward by Rust owners and generated-artifact producers.
 #[doc(hidden)]
 pub mod contract_types;

@@ -18932,7 +18932,7 @@ fn rust_sources_below(path: &Path, sources: &mut Vec<PathBuf>) {
         if path.is_dir() {
             rust_sources_below(&path, sources);
         } else if path.extension().is_some_and(|extension| extension == "rs") {
-            // @ref LLP 0199#sequencing-guidance-not-a-schedule — the
+            // @ref LLP 0225#4-migration-sequence — the
             // cosmetic hub splits preserve `#[cfg(test)]` on each parent
             // module, but a standalone AST parse cannot see that parent
             // cfg and must exclude the four extracted test bodies.
