@@ -97,6 +97,7 @@ pub enum RemediationActionV1 {
         target: String,
     },
     RequestGrant {
+        #[serde(rename = "grantableScope")]
         scope: String,
     },
     UseDifferentPrincipal {

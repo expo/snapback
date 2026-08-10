@@ -4085,6 +4085,9 @@ fn admit_declared_refusal(
     Err(error.with_private_failure_context(context))
 }
 
+/// Fold-only projection of [`parse_handler_output_with_claim`]; production
+/// callers consume the claim, so only the projection tests use this shape.
+#[cfg(test)]
 pub(crate) fn parse_handler_output(module: &IbexModule, output: String) -> SnapbackResult<Value> {
     parse_handler_output_with_claim(module, output).0
 }
