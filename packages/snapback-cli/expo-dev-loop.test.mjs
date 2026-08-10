@@ -5,9 +5,11 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -108,6 +110,26 @@ async function eventually(check, { timeoutMs = 30_000, label = 'condition' } = {
   throw new Error(`timed out waiting for ${label}${lastError ? `: ${lastError.message}` : ''}`);
 }
 
+function snapshotEnvFiles(directory) {
+  const files = {};
+  const visit = (current, prefix = '') => {
+    const entries = readdirSync(current, { withFileTypes: true })
+      .sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      if (entry.name === 'node_modules' || entry.name === '.git') continue;
+      const path = join(current, entry.name);
+      const relativePath = join(prefix, entry.name);
+      if (entry.isDirectory()) {
+        visit(path, relativePath);
+      } else if (/^\.env/u.test(entry.name)) {
+        files[relativePath] = readFileSync(path).toString('base64');
+      }
+    }
+  };
+  visit(directory);
+  return files;
+}
+
 function fixture(name, { sessions }) {
   const projectRoot = join(scratchRoot, name);
   const backendRoot = join(projectRoot, 'snapback');
@@ -129,7 +151,6 @@ function fixture(name, { sessions }) {
     appJson: join(expoRoot, 'app.json'),
     easJson: join(expoRoot, 'eas.json'),
     committedEnv: join(expoRoot, '.env'),
-    localEnv: join(expoRoot, '.env.local'),
   };
   writeFileSync(publicConfig.appJson, `${JSON.stringify({ expo: { plugins: ['@expo/snapback-expo'] } }, null, 2)}\n`);
   writeFileSync(publicConfig.easJson, `${JSON.stringify({ build: { development: {} } }, null, 2)}\n`);
@@ -154,6 +175,7 @@ function fixture(name, { sessions }) {
 
 async function startFixture(target, options = {}) {
   const events = [];
+  const environmentBefore = snapshotEnvFiles(target.expoRoot);
   const supervisor = await runExpoDev({
     backendDirectory: target.backendRoot,
     projectRoot: target.projectRoot,
@@ -177,14 +199,10 @@ async function startFixture(target, options = {}) {
     onEvent(event) { events.push(event); },
   });
   supervisors.push(supervisor);
-  assert.equal(
-    readFileSync(target.publicConfig.localEnv, 'utf8'),
-    `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN=${supervisor.exchangeOrigin}\n`,
-  );
-  assert(
-    events.some((event) => event.state === 'client-environment-written'
-      && event.clientEnvironment.path === target.publicConfig.localEnv),
-    'startup must report the generated local client environment',
+  assert.deepEqual(
+    snapshotEnvFiles(target.expoRoot),
+    environmentBefore,
+    'supervised startup must not create or mutate any .env* file',
   );
   return { supervisor, events };
 }
@@ -255,6 +273,7 @@ async function runCliSupervisor(target) {
     { label: 'snapback dev --expo CLI readiness' },
   );
   const readyEvent = events.find((event) => event.state === 'ready');
+  assert.equal(readyEvent.connectCarrier, 'supervisor-rendezvous');
   const listenerEvent = events.find((event) => event.state === 'listeners-verified');
   const exchange = await (
     await fetch(`${readyEvent.bootstrap.origin}${SUPERVISED_EXCHANGE_PATH}`)
@@ -394,6 +413,12 @@ try {
   const settledRun = await startFixture(settled);
   const { supervisor, events } = settledRun;
   assert.equal(supervisor.state, 'ready');
+  assert.equal(supervisor.connectCarrier, 'supervisor-rendezvous');
+  const settledReadyEvent = events.find((event) => event.state === 'ready');
+  assert.equal(settledReadyEvent?.connectCarrier, 'supervisor-rendezvous');
+  const supervisorDescriptor = join(dirname(settled.readyFile), 'expo-supervisor.json');
+  assert.equal(existsSync(supervisorDescriptor), true);
+  assert.equal(statSync(supervisorDescriptor).mode & 0o777, 0o600);
   assertListenerInventory(supervisor);
   assert.equal(supervisor.binding.source, 'supervised-dev');
   assert.equal(supervisor.binding.integrity.channel, 'local-supervised-ipc');
@@ -463,6 +488,8 @@ try {
   );
   assert.equal(provider.inspection().stores, 1);
   assert.equal(provider.inspection().serverSubscriptions, 1);
+  // @ref LLP 0223#design-detail — ticket 1's live connect proof is this
+  // app-level mutation followed by its observed canonical live-query update.
   const firstBody = `expo-e1-first-${process.pid}`;
   await surface.mutations.publish({ body: firstBody });
   await eventually(
@@ -605,6 +632,10 @@ try {
   await Promise.all(Object.entries(settledOrigins).map(([label, origin]) => (
     assertOriginClosed(origin, `settled ${label}`)
   )));
+  await eventually(
+    () => !existsSync(supervisorDescriptor),
+    { label: 'settled supervisor descriptor cleanup' },
+  );
   await eventually(() => !existsSync(settled.readyFile), { label: 'settled ready-file cleanup' });
 
   // Exercise the packaged command wiring and signal path, not only the
@@ -672,7 +703,7 @@ try {
     'shutdown reports every owned arm reclaimed',
   );
 
-  console.log('expo-dev-loop.test.mjs: supervised binding/bootstrap, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement, leak matrix, and strict cleanup pass');
+  console.log('expo-dev-loop.test.mjs: zero-write rendezvous carrier, transient descriptor, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement, leak matrix, and strict cleanup pass');
 } finally {
   await Promise.allSettled(supervisors.map((supervisor) => supervisor.close()));
   rmSync(scratchRoot, { recursive: true, force: true });

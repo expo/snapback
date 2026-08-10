@@ -1,10 +1,22 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { createExternalSessionClient } from '@expo/snapback-client';
+import {
+  SUPERVISED_EXCHANGE_PATH,
+  runExpoDev,
+} from '@expo/snapback-cli/expo-dev';
 import {
   createSnapbackReactProvider,
   observeSnapbackSurface,
@@ -18,6 +30,7 @@ import artifacts from './snapback/generated/artifacts.json' with { type: 'json' 
 // vacuous success. Static scaffold coherence lives in acceptance.static.mjs.
 
 const EXPECTED_CHECKS = Object.freeze([
+  'zero-config-supervised-connect',
   'managed-lifecycle',
   'artifact-identity',
   'membership-and-conversation-shape',
@@ -39,12 +52,6 @@ const executable = join(
   '.bin',
   process.platform === 'win32' ? 'snapback.cmd' : 'snapback',
 );
-const child = spawn(executable, [
-  'dev', 'snapback', '--db', database, '--ready-file', readyFile,
-], {
-  cwd: root,
-  stdio: ['pipe', 'pipe', 'pipe'],
-});
 
 let stdout = '';
 let stderr = '';
@@ -63,9 +70,39 @@ let surface = null;
 let provider = null;
 let client = null;
 let childSpawnError = null;
+let child = null;
 
 const appendBounded = (current, chunk) =>
   `${current}${chunk.toString('utf8')}`.slice(-MAX_CHILD_OUTPUT_BYTES);
+
+const startManagedChild = () => {
+  child = spawn(executable, [
+    'dev', 'snapback', '--db', database, '--ready-file', readyFile,
+  ], {
+    cwd: root,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  child.stdout.on('data', (chunk) => {
+    const text = chunk.toString('utf8');
+    stdout = appendBounded(stdout, chunk);
+    stdoutRemainder = `${stdoutRemainder}${text}`.slice(-MAX_CHILD_OUTPUT_BYTES);
+    for (;;) {
+      const newline = stdoutRemainder.indexOf('\n');
+      if (newline === -1) break;
+      const line = stdoutRemainder.slice(0, newline).trim();
+      stdoutRemainder = stdoutRemainder.slice(newline + 1);
+      if (!line) continue;
+      try {
+        const event = JSON.parse(line);
+        if (event?.schemaVersion === 'snapback.dev.v1') lifecycleEvents.push(event);
+      } catch {
+        // Non-event output is retained only in the bounded failure diagnostic.
+      }
+    }
+  });
+  child.stderr.on('data', (chunk) => { stderr = appendBounded(stderr, chunk); });
+  child.on('error', (error) => { childSpawnError = error; });
+};
 
 const mintOrdinarySession = async (adminToken) => {
   const mint = spawn(executable, [
@@ -104,31 +141,11 @@ const mintOrdinarySession = async (adminToken) => {
   return Object.freeze({ token: envelope.data.token });
 };
 
-child.stdout.on('data', (chunk) => {
-  const text = chunk.toString('utf8');
-  stdout = appendBounded(stdout, chunk);
-  stdoutRemainder = `${stdoutRemainder}${text}`.slice(-MAX_CHILD_OUTPUT_BYTES);
-  for (;;) {
-    const newline = stdoutRemainder.indexOf('\n');
-    if (newline === -1) break;
-    const line = stdoutRemainder.slice(0, newline).trim();
-    stdoutRemainder = stdoutRemainder.slice(newline + 1);
-    if (!line) continue;
-    try {
-      const event = JSON.parse(line);
-      if (event?.schemaVersion === 'snapback.dev.v1') lifecycleEvents.push(event);
-    } catch {
-      // Non-event output is retained only in the bounded failure diagnostic.
-    }
-  }
-});
-child.stderr.on('data', (chunk) => { stderr = appendBounded(stderr, chunk); });
-child.on('error', (error) => { childSpawnError = error; });
-
 const until = async (predicate, label, timeoutMs = 30_000) => {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (childSpawnError) throw childSpawnError;
+    if (child === null) throw new Error(`${label}: managed dev was not started`);
     const value = await predicate();
     if (value) return value;
     if (child.exitCode !== null) {
@@ -145,6 +162,7 @@ const pass = (id, details = null) => {
 };
 
 const waitForExit = async (timeoutMs) => {
+  if (child === null) return true;
   const deadline = Date.now() + timeoutMs;
   while (child.exitCode === null && child.signalCode === null && Date.now() < deadline) {
     await new Promise((resolveWait) => setTimeout(resolveWait, 25));
@@ -152,7 +170,139 @@ const waitForExit = async (timeoutMs) => {
   return child.exitCode !== null || child.signalCode !== null;
 };
 
+const snapshotEnvFiles = (directory) => {
+  const files = {};
+  const visit = (current, prefix = '') => {
+    const entries = readdirSync(current, { withFileTypes: true })
+      .sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      if (entry.name === 'node_modules' || entry.name === '.git') continue;
+      const path = join(current, entry.name);
+      const relativePath = join(prefix, entry.name);
+      if (entry.isDirectory()) {
+        visit(path, relativePath);
+      } else if (/^\.env/u.test(entry.name)) {
+        files[relativePath] = readFileSync(path).toString('base64');
+      }
+    }
+  };
+  visit(directory);
+  return files;
+};
+
+// @ref LLP 0223#design-detail — the scaffold itself proves the supervised
+// process carrier, Sessions readiness, transient descriptor, and app round trip.
+const runZeroConfigSupervisedConnect = async () => {
+  const supervisedReadyFile = join(stateRoot, 'supervised.ready.json');
+  const supervisedDatabase = join(stateRoot, 'supervised.sqlite3');
+  const supervisorDescriptor = join(stateRoot, 'expo-supervisor.json');
+  const metroScript = join(stateRoot, 'headless-metro.mjs');
+  const environmentBefore = snapshotEnvFiles(root);
+  const events = [];
+  writeFileSync(metroScript, `
+import { createServer } from 'node:http';
+
+const port = Number(process.env.SNAPBACK_EXPO_METRO_PORT);
+const supervisorOrigin = process.env.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN;
+const server = createServer((_request, response) => {
+  response.setHeader('content-type', 'application/json');
+  response.end(JSON.stringify({ ok: true, supervisorOrigin }));
+});
+server.listen(port, '127.0.0.1');
+const stop = () => server.close(() => process.exit(0));
+process.once('SIGTERM', stop);
+process.once('SIGINT', stop);
+`);
+
+  let supervisor = null;
+  let roundTripClient = null;
+  let details = null;
+  try {
+    supervisor = await runExpoDev({
+      backendDirectory: join(root, 'snapback'),
+      projectRoot: root,
+      expoDirectory: root,
+      readyFile: supervisedReadyFile,
+      database: supervisedDatabase,
+      platform: 'ios',
+      email: 'zero-config@expo-chat.test',
+      metroCommand: { command: process.execPath, args: [metroScript] },
+      serverStdio: ['ignore', 'ignore', 'ignore'],
+      onEvent(event) { events.push(event); },
+    });
+    assert.equal(supervisor.state, 'ready');
+    assert.equal(supervisor.connectCarrier, 'supervisor-rendezvous');
+    const readiness = events.find((event) => event.state === 'ready');
+    assert(readiness, 'supervised acceptance must observe the final readiness event');
+    assert.equal(readiness.connectCarrier, 'supervisor-rendezvous');
+    assert.equal(readiness.authority.status, 'ready');
+    assert.equal(readiness.authority.authMode, 'sessions');
+    assert.deepEqual(snapshotEnvFiles(root), environmentBefore);
+    assert.equal(existsSync(supervisorDescriptor), true);
+    assert.equal(statSync(supervisorDescriptor).mode & 0o777, 0o600);
+
+    const metroResponse = await fetch(supervisor.metroOrigin);
+    assert.equal(metroResponse.ok, true);
+    const metroFacts = await metroResponse.json();
+    assert.equal(metroFacts.supervisorOrigin, readiness.bootstrap.origin);
+
+    const bootstrapResponse = await fetch(
+      `${readiness.bootstrap.origin}${SUPERVISED_EXCHANGE_PATH}`,
+    );
+    assert.equal(bootstrapResponse.ok, true);
+    const exchange = await bootstrapResponse.json();
+    assert.equal(exchange.format, 'snapback.expo-supervised-exchange.v1');
+    assert.equal(exchange.binding.source, 'supervised-dev');
+    assert.equal(exchange.binding.target.origin, readiness.binding.target.origin);
+    assert.equal(exchange.authority.status, 'ready');
+    assert.equal(exchange.authority.tokenType, 'Bearer');
+    assert.match(exchange.authority.token, /^sbs_/u);
+
+    roundTripClient = createExternalSessionClient(exchange.binding.target.origin, {
+      bearerToken: exchange.authority.token,
+      rqsStore: null,
+      offlineQueue: false,
+    });
+    const before = (await roundTripClient.query(api.messagesForConversation, {
+      args: { conversationId: CONVERSATION_ID },
+    })).rows;
+    const body = `Zero-config supervised acceptance ${process.pid}`;
+    const mutation = await roundTripClient.mutate(api.sendMessage, {
+      args: {
+        conversationId: CONVERSATION_ID,
+        senderId: 'user_ada',
+        body,
+      },
+      clientMutationId: `zero-config-supervised-${process.pid}`,
+    });
+    assert.equal(typeof mutation.result, 'string');
+    const after = (await roundTripClient.query(api.messagesForConversation, {
+      args: { conversationId: CONVERSATION_ID },
+    })).rows;
+    assert.equal(before.some((row) => row.text === body), false);
+    assert(after.some((row) => row._id === mutation.result && row.text === body));
+    details = {
+      connectCarrier: readiness.connectCarrier,
+      authMode: readiness.authority.authMode,
+      queryFunctionId: api.messagesForConversation.id,
+      mutationFunctionId: api.sendMessage.id,
+      descriptorMode: '0600',
+    };
+  } finally {
+    try {
+      await roundTripClient?.closeAuth();
+    } finally {
+      await supervisor?.close();
+    }
+  }
+  assert.deepEqual(snapshotEnvFiles(root), environmentBefore);
+  assert.equal(existsSync(supervisorDescriptor), false);
+  return details;
+};
+
 try {
+  pass('zero-config-supervised-connect', await runZeroConfigSupervisedConnect());
+  startManagedChild();
   const ready = await until(() => {
     if (!existsSync(readyFile)) return null;
     try { return JSON.parse(readFileSync(readyFile, 'utf8')); } catch { return null; }
@@ -343,8 +493,8 @@ try {
     };
   }
 
-  if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
-  if (!(await waitForExit(10_000))) child.kill('SIGKILL');
+  if (child !== null && child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+  if (!(await waitForExit(10_000))) child?.kill('SIGKILL');
   cleanup.devExited = await waitForExit(5_000);
   if (!cleanup.devExited) {
     failure ??= {

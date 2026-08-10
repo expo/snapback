@@ -202,6 +202,7 @@ export interface ExpoDevSupervisor {
   readonly state: 'ready' | 'authority-required';
   readonly correlationId: string;
   readonly supervisorGeneration: string;
+  readonly connectCarrier: 'supervisor-rendezvous';
   readonly device: ExpoDeviceIdentity;
   readonly binding: Readonly<Record<string, unknown>>;
   readonly exchangeOrigin: string;

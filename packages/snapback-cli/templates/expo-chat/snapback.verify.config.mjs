@@ -26,6 +26,7 @@ export default defineVerifyConfig({
       new URL(import.meta.resolve('@expo/snapback-cli/carrier-kit')),
     ],
     paths: [
+      { id: 'zero-config-supervised-connect', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
       { id: 'membership-dm-group-shape', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
       { id: 'test-persona-membership-switch', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },
       { id: 'conversation-surface-read', kind: 'success', targetProfileId: 'local-dev-sqlite-ibex' },

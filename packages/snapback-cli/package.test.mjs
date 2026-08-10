@@ -478,6 +478,8 @@ console.log(JSON.stringify({
   assert.equal(chatStatic.status, 0, chatStatic.stderr);
   const chatAcceptanceSource = readFileSync(join(chatProject, 'acceptance.mjs'), 'utf8');
   assert.match(chatAcceptanceSource, /snapback\.starter-acceptance\.v1/u);
+  assert.match(chatAcceptanceSource, /zero-config-supervised-connect/u);
+  assert.match(chatAcceptanceSource, /runExpoDev/u);
   assert.match(chatAcceptanceSource, /observeSnapbackSurface/u);
   assert.match(chatAcceptanceSource, /client\.mutate\(api\.sendMessage/u);
 

@@ -26,7 +26,6 @@
     "comparator-receipt.schema.json",
     "deployment-control.d.mts",
     "deployment-control.mjs",
-    "expo-client-environment.mjs",
     "expo-dev.d.mts",
     "expo-dev.mjs",
     "fake-expo-push.d.mts",

@@ -284,7 +284,7 @@ process.stdout.write('human output\\n' + JSON.stringify(receipt) + '\\n');
 for (const [template, pathCount] of [
   ['todo-contract', 2],
   ['react', 2],
-  ['expo-chat', 6],
+  ['expo-chat', 7],
   ['crud-dashboard', 4],
   ['media-feed', 4],
 ]) {

@@ -35,3 +35,20 @@ ignore `.env*.local`; session material stays in the transient no-store
 exchange. Full supervised `expo-dev-loop.test.mjs` (real runtime binary)
 passes with the new assertions. The mint-docs half landed earlier today
 (see the 2026-08-10 dated note above). Both halves done — closing.
+
+## Dated note — 2026-08-10 (env auto-write superseded by LLP 0223)
+
+The `.env.local` auto-write above landed hours before LLP 0223 (this
+ticket's execution Plan) was accepted, and the accepted Decision explicitly
+rejects it: "Auto-inject, do not auto-write" — a durable copy of the
+rendezvous origin held as ambient configuration is a stale-lifecycle bug
+across supervisor generations, and the fallback constraint is a
+generation/expiry-bound file under `.snapback/`, "never an ambient
+`.env.local`". The LLP 0223 implementation reverted the auto-write and
+replaced it with the acceptance-level proof of the supervisor-native
+contract this ticket's Convex comparison actually needed: process-env
+injection into Metro, provider `ready` plus a live app-level round trip
+with zero manual config, an asserted no-`.env*` invariant, and descriptor
+transience (0o600, removed on close). The ticket stays closed; its env
+half is answered by the injected contract and its proof rather than a
+persisted file.

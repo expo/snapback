@@ -21,10 +21,6 @@ import {
   runDev,
   scrubDynamicLoaderEnvironment,
 } from './index.mjs';
-import {
-  isLoopbackHost,
-  writeExpoClientEnvironment,
-} from './expo-client-environment.mjs';
 import { stopProcessGroup } from './process-teardown.mjs';
 
 export const EXPO_DEV_EVENT_FORMAT = 'snapback.expo-dev.v1';
@@ -45,6 +41,10 @@ export function expoMetroChildEnvironment({ env, bootstrapOrigin, port }) {
   const childEnv = {
     ...(env ?? {}),
     EXPO_NO_TELEMETRY: '1',
+    // @ref LLP 0223#decision — auto-inject, do not auto-write: the
+    // credential-free rendezvous origin is process-scoped supervisor
+    // environment; a durable .env copy is a rejected stale-lifecycle
+    // configuration surface.
     EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN: bootstrapOrigin,
     SNAPBACK_EXPO_METRO_PORT: String(port),
     RCT_METRO_PORT: String(port),
@@ -128,6 +128,7 @@ const BROWSER_EXCHANGE_ORIGIN_PREFIXES = Object.freeze([
 const DEFAULT_BINDING_TTL_MS = 60 * 60 * 1_000;
 const DEFAULT_EMAIL = 'snapback-dev@localhost.invalid';
 const CONTROL_BODY_LIMIT_BYTES = 4 * 1_024;
+const SUPERVISED_CONNECT_CARRIER = 'supervisor-rendezvous';
 
 export function admittedBrowserExchangeOrigin(originHeader) {
   if (typeof originHeader !== 'string') return null;
@@ -153,6 +154,13 @@ function constantTimeTokenEqual(presented, expected) {
     && typeof expected === 'string'
     && expected.length > 0
     && hashesEqual;
+}
+
+function isLoopbackHost(host) {
+  const normalized = String(host).toLowerCase().replace(/^\[|\]$/gu, '');
+  return normalized === '::1'
+    || normalized === 'localhost'
+    || normalized.startsWith('127.');
 }
 
 function portFromOrigin(origin, label) {
@@ -1443,21 +1451,11 @@ export async function runExpoDev(options = {}) {
       now: options.now?.() ?? Date.now(),
       ttlMs: options.bindingTtlMs ?? DEFAULT_BINDING_TTL_MS,
     });
-    const clientBootstrapOrigin = appOrigin(route.appHost, bootstrap.port);
-    const clientEnvironment = writeExpoClientEnvironment(
-      expoDirectory,
-      clientBootstrapOrigin,
-    );
-    emit({
-      ok: true,
-      state: 'client-environment-written',
-      clientEnvironment,
-    });
     metro = startMetro({
       command: options.metroCommand,
       directory: expoDirectory,
       port: metroPort,
-      bootstrapOrigin: clientBootstrapOrigin,
+      bootstrapOrigin: appOrigin(route.appHost, bootstrap.port),
       env: childEnv,
       emit,
       onExit(code, signal, cause) {
@@ -1514,6 +1512,7 @@ export async function runExpoDev(options = {}) {
     emit({
       ok: authority.status === 'ready',
       state: finalState,
+      connectCarrier: SUPERVISED_CONNECT_CARRIER,
       ...createExpoRoutingReadiness(route),
       binding: publicBinding(binding),
       authority: authority.status === 'ready'
@@ -1574,6 +1573,7 @@ export async function runExpoDev(options = {}) {
       },
       correlationId,
       supervisorGeneration: generation,
+      connectCarrier: SUPERVISED_CONNECT_CARRIER,
       device: route.device,
       get binding() { return publicBinding(binding); },
       exchangeOrigin: bootstrap.origin,

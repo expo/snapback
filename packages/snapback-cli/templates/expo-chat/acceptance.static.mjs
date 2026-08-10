@@ -79,7 +79,9 @@ assert.match(
   /event\.state === 'generated-and-loaded' && event\.managed === true/,
   'runtime acceptance must wait for the managed CLI load lifecycle, not only the ready file',
 );
+assert.match(runtimeAcceptance, /runExpoDev/);
 for (const check of [
+  'zero-config-supervised-connect',
   'membership-and-conversation-shape',
   'test-persona-membership-switch',
   'reply-and-observation',
