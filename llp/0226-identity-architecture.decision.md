@@ -9,9 +9,10 @@
 **Revised:** 2026-08-10 (b — Draft → Review at llp-super-refine loop start,
 the one authorized transition; independent-loop topology)
 **Revised:** 2026-08-10 (c — round-1 revision; see Status)
+**Revised:** 2026-08-10 (d — round-2 revision; see Status)
 **Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0011, LLP 0043, LLP 0057,
 LLP 0058, LLP 0081, LLP 0110, LLP 0129, LLP 0133, LLP 0135, LLP 0148,
-LLP 0151, LLP 0158, LLP 0191,
+LLP 0151, LLP 0158, LLP 0163, LLP 0191,
 issues/20260808-identity-architecture-decision.md,
 issues/20260808-numeric-identity-default-columns.md,
 issues/20260808-guide-gap-principal-to-app-identity-binding.md,
@@ -48,13 +49,13 @@ its representative authoring surface.
 
 | Namespace | Provenance | Uniqueness scope | Mutability | Surface |
 | --- | --- | --- | --- | --- |
-| **Row identity (authoritative)** | The server's committed `_id` (LLP 0148 prefixed encoding, `prefix_` + base32) — minted server-side in Lane L, or an accepted client-minted ledger id in Lane Q (LLP 0133) | One table within one store lifetime (fork/restore rotates the stream, LLP 0158) | Immutable; never reused | `v.id(table)`, `_id` |
+| **Row identity (authoritative)** | The server's committed `_id` — minted server-side in Lane L (LLP 0148 prefixed encoding for framework mints), or an accepted client-minted id in Lane Q under the server's admission grammar (LLP 0133's `generatedIds` pin) | One table within one store lifetime (fork/restore rotates the stream, LLP 0158) | `_id` is a row *address*, not a lifetime identity: delete/recreate with the same `_id` mints a fresh **row incarnation** (LLP 0110); lifetime-sensitive references bind `(_id, rowIncarnation)` | `v.id(table)`, `_id` |
 | **Row identity (speculative)** | The client mints optimistically for local-first creation; becomes authoritative or is rewritten at settlement via C-7's id map | One client's optimistic state until settlement | Replaced, not mutated | optimistic `_id` before settlement (LLP 0133) |
 | **Principal (account identity)** | Snapback mints `usr_…` at account creation | One auth catalog/instance | The id is immutable; its **linked credential set is mutable** (LLP 0151 lifecycle) | `ctx.auth.userId`, `v.principal()` |
-| **Provider identity (credential)** | The provider's immutable `(issuer, subject)` pair, recorded as an `_auth_identities` row (`idn_…`) linking to one principal | One auth provider installation | Immutable as a credential row; **email and profile claims are mutable attributes, never identity**; the principal link changes only via LLP 0151 lifecycle flows | auth substrate only — never handler-visible in v1 |
+| **Provider identity** | The provider asserts the subject; Snapback mints the `idn_…` link row recording `(provider installation, subject) → principal` — physically keyed `(provider, subject)` unique; OIDC subjects are canonically `(issuer, subject)`, other providers define their subject per LLP 0151 (email-code: the canonical address) | One auth provider installation | The `(provider, subject)` pair is immutable as recorded; the principal link changes only via LLP 0151 lifecycle flows; **profile claims are mutable attributes, never identity** | auth substrate only — never handler-visible in v1 |
 | **Source key** | The application (client-generable; safe for local-first creation) | Declared unique index scope on one table | Two grades, declared: an **identity-grade** source key is immutable and never reused; a mutable unique field is an ordinary lookup key, not an identity (C-3/C-6) | declared unique field + alternate-key lookup (schema lane) |
-| **Serial identity (identity column)** | Server allocates, always — sequence semantics, gaps allowed | One table within one store lifetime; the constraint-prefix mechanics for table scope are the successor profile's to define (M-3) | Immutable after allocation; not writable by handlers, ever | `v.serial({ start })` (schema lane) |
-| **Settlement identity** | Server derives a digest over `{authFingerprint, authorityInstanceId, clientMutationId, function, inputFingerprint[, operationIssuance]}` | App + instance + operation | Immutable; replay-stable by construction | `ctx.mutation.settlement()` (LLP 0043) |
+| **Serial identity (identity column)** | Server allocates, always — sequence semantics, gaps allowed | One table within one store lineage: **the table counter never restarts** — its high-water mark is durable and survives restart, fork, and restore, so the public value is the bare numeric with no prefix (M-3) | Immutable after allocation; not writable by handlers, ever | `v.serial({ start })` (schema lane) |
+| **Settlement identity** | Server derives a versioned digest: the base preimage `{authFingerprint, authorityInstanceId, clientMutationId, function, inputFingerprint}`, with issuance-bearing operations additionally binding `operationIssuance` **and** `artifactGenerationDigest` (LLP 0163's complete selected-artifact binding) | Caller/auth + instance + operation (+ selected artifact for issuance-bearing ops) — `authFingerprint` hashes principal/session/user, i.e. the *caller*, not the app | Immutable; replay-stable by construction | `ctx.mutation.settlement()` (LLP 0043) |
 | **Stream identity** | Framework mints the opaque `versionStream` (LLP 0043/0053); rotated on fork/restore (LLP 0158) | One instance's durable data stream | Rotates as a unit; values never compared across streams | resume tokens, live-query cursors |
 | **Artifact identity** | Toolchain digests the evaluated code graph (LLP 0009/0010/0024) | One deployment's loaded artifacts | Immutable; a new build is a new identity | artifact digests, readiness receipts |
 | **Counter identity** | Framework: `(counterName, scopeTable, scopeRowId, scopeIncarnation)` in `_snapback_sequence_counters_v1` (LLP 0135 §1.1) | The declaring app | N/A — substrate, never app-visible as a value | `AllocateSequence`, handler allocation |
@@ -101,9 +102,10 @@ Conversions between namespaces are the trust boundaries. The rules:
   looked up interactively but a queued/offline operation addressing through
   it must bind the expected `_id` (and an appropriate generation) and
   refuse on reassignment — otherwise key reuse retargets the operation to
-  the wrong row (the ABA failure). Rotation, deletion-with-reuse, not-found,
-  and stale-queue behavior are the schema amendment's to specify under this
-  rule.
+  the wrong row (the ABA failure). "An appropriate generation" means the row
+  incarnation of LLP 0110 wherever row lifetime matters. Rotation,
+  deletion-with-reuse, not-found, and stale-queue behavior are the schema
+  amendment's to specify under this rule.
 - **C-4 (client mutation id → settlement identity).** A raw client-chosen
   `clientMutationId` is never an effect key. The only conversion is the
   server-derived settlement digest, which namespaces it to app, instance,
@@ -113,42 +115,56 @@ Conversions between namespaces are the trust boundaries. The rules:
   counter identity never convert into application data. Apps distinguish
   instances by endpoint + stream identity (LLP 0158 OQ9), not by comparing
   stream values; counter state is unreadable by construction.
-- **C-6 (mutable attributes never key conversions).** Email, display name,
-  and other mutable attributes may be *looked up* but never used as the
-  stored key of any binding or mapping. The stored key is the immutable
-  member of the source namespace, chosen per conversion: inside the auth
-  substrate, provider identity → principal keys on `(issuer, subject)`;
-  **app-side bindings (C-2) key on the principal**, never on the credential;
-  row conversions key on `_id` or an identity-grade source key.
+- **C-6 (mutable attributes never key durable app-side conversions).**
+  Email, display name, and other mutable attributes may be *looked up* but
+  never used as the stored key of a durable app-side binding or mapping. The
+  stored key is the immutable member of the source namespace, chosen per
+  conversion: inside the auth substrate, provider identity → principal keys
+  on the recorded `(provider, subject)` pair (where a provider's subject
+  *is* an address — email-code — that is that provider's subject inside its
+  own namespace, not a license for app-side email keys); **app-side bindings
+  (C-2) key on the principal**, never on the credential; row conversions key
+  on `_id` (with row incarnation where lifetime matters) or an
+  identity-grade source key.
 - **C-7 (speculative → authoritative row identity).** LLP 0133's settlement
   id map is the declared conversion between the two row-identity regimes:
-  Lane Q accepts client-minted ledger ids as authoritative; Lane L rederives
-  server-side and publishes the `(mint site, occurrence)`-keyed map that
-  rewrites optimistic ids, with 0133's private receipt scope, unmapped
-  outcome, rewrite, and cascade rules governing. No other conversion between
-  speculative and authoritative row identity exists.
+  Lane Q accepts client-minted ids (the `generatedIds` pin) as
+  authoritative under the server's admission grammar; Lane L receives the
+  same values as *claims*, rederives server-side, and publishes the
+  `(mint site, occurrence)`-keyed map that rewrites optimistic ids, with
+  0133's private receipt scope, unmapped outcome, rewrite, and cascade rules
+  governing. No other conversion between speculative and authoritative row
+  identity exists.
 
 ### 3. Conformance rules for the mints
 
 - **M-1 (one authority per namespace per scope).** Exactly one component
-  mints values in each namespace within a scope. Concretely: no second
-  counter authority beside `_snapback_sequence_counters_v1` (LLP 0135 §1.1's
+  *admits* values into each namespace within a scope. For server mints the
+  admitter and the minter coincide; for Lane Q row ids the client mints but
+  the server's admission grammar is the single authority — no second
+  admitter exists. Concretely: no second counter authority beside
+  `_snapback_sequence_counters_v1` (LLP 0135 §1.1's
   rejection-with-rationale is adopted here as a corpus-wide rule).
-- **M-2 (server-owned mints refuse client values with stable codes).** Where
-  the server owns the mint (serial identity, settlement identity, Lane L row
-  identity), a client- or handler-supplied value refuses with a stable
+- **M-2 (server-owned values refuse application overrides with stable
+  codes).** Where the server owns a value (serial identity, settlement
+  identity, the committed `_id` a handler reads), an **application or
+  handler attempt to supply or override** it refuses with a stable
   `SNAPBACK_*` diagnostic; it is never silently accepted or silently
-  replaced. This does **not** apply to Lane Q's accepted client-minted
-  ledger row ids — that acceptance is the accepted LLP 0133 contract, and
-  C-7 is its declared conversion.
+  replaced. The **protocol claim channels are exempt and governed
+  exclusively by C-7**: Lane Q's accepted client-minted ids and Lane L's
+  speculative claims (recorded and rewritten, never refused) are the
+  accepted LLP 0133 contract, not overrides.
 - **M-3 (uniqueness is scoped, and the scope is stated).** Every uniqueness
-  claim names its scope from §1's table. Client-observable unique
-  constraints over server-allocated values carry an incarnation prefix so a
-  restarted allocator cannot collide observably with orphaned rows — for
-  row-scoped counters that is LLP 0110/0135's `(scopeId,
-  relationIncarnation)` rule as defined; for table-scoped serial values the
-  successor profile defines the equivalent prefix carrier (a table-scoped
-  counter has no scope row, so the row-scoped rule cannot apply as-is).
+  claim names its scope from §1's table. Row-scoped counters keep LLP
+  0110/0135's `(scopeId, relationIncarnation)` prefix rule: they
+  intentionally restart with their recreated parent, and the prefix is what
+  keeps duplicate numerics unreachable. **Table-scoped serial counters take
+  the opposite decision, made here, not in the profile: the counter never
+  restarts within a store lineage** — the high-water mark is durable and
+  survives restart, fork, and restore — so the public serial value is the
+  bare numeric with no prefix, and two visible rows can never share one.
+  The successor profile chooses mechanics under that observable contract,
+  never the contract itself.
 - **M-4 (exhaustion fails closed).** Bounded namespaces (serial identity
   under LLP 0007's JavaScript-safe integer profile) refuse on exhaustion
   with LLP 0135 §1.5's shape: the refusal surfaces inside the allocating
@@ -221,13 +237,18 @@ folded in as the ruled direction:
   counter advance *into* the transaction, which un-burns values on
   rollback — gap-burning needs its own durable reservation boundary, or the
   amendment must show why in-transaction advance plus retry satisfies the
-  gap semantics); the table/incarnation key shape; assignment order for
-  multiple or conditional inserts, with "strictly increasing" defined as
-  **allocation order** (commit order may interleave); crash-before-commit
-  and exact-replay behavior; range/bulk allocation (LLP 0135 OQ2); and
-  contention evidence — the off-the-write-path claim is an expectation
-  pending measurement (today's SQLite target serializes writes globally
-  anyway; a future multiwriter target has a real hot-counter point).
+  gap semantics); the durable counter-key shape (whether the field name
+  participates in counter identity, what rename means, whether multiple
+  serial fields per table are permitted); the `start` grammar (required or
+  defaulted, signed/range domain within the JS-safe bound); assignment
+  order for multiple or conditional inserts, with "strictly increasing"
+  defined as **allocation order** (commit order may interleave);
+  crash-before-commit and exact-replay behavior; the durable high-water
+  carrier that implements M-3's no-restart contract across fork/restore;
+  range/bulk allocation (LLP 0135 OQ2); and contention evidence — the
+  off-the-write-path claim is an expectation pending measurement (today's
+  SQLite target serializes writes globally anyway; a future multiwriter
+  target has a real hot-counter point).
 - **Evolution:** v1 **refuses adding a serial column to a non-empty table**,
   pointing at LLP 0081's reviewed `AddField` + backfill lane; a portable
   in-transaction backfill ordered by `(_createdAt, _id)` is the documented
@@ -263,10 +284,12 @@ Owner: LLP 0043 (offline replay/retention), where the handler-visible
 settlement identity already landed 2026-08-08
 (`ctx.mutation.settlement()` → `{clientMutationId, settlementId}`; ticket
 `issues/closed/20260808-handler-settlement-identity-surface.md`). That
-landing is this lane's floor and already conforms: server-derived digest,
-namespaced to app (authFingerprint), instance (authorityInstanceId), and
-operation (function + inputFingerprint), read-only, mutation-only (C-4,
-M-2). Remaining lane scope: guide absorption
+landing is this lane's floor and already conforms: server-derived versioned
+digest, namespaced to caller (authFingerprint hashes
+principal/session/user), instance (authorityInstanceId), operation
+(function + inputFingerprint), and — for issuance-bearing operations — the
+selected artifact (`artifactGenerationDigest`, LLP 0163), read-only,
+mutation-only (C-4, M-2). Remaining lane scope: guide absorption
 (`issues/20260808-guide-gap-mutation-settlement-identity.md`, closed), the
 hosted-arm asymmetry (hosted answers all-null today — an honest twin, not a
 conformance failure, but the capability claim stays local-target), and any
@@ -296,12 +319,15 @@ Physical layout of the successor counter profile, the alternate-key lookup
 grammar, which verified claims the auth projection exposes, wire encodings,
 diagnostics codes beyond the requirement that they exist and be stable, and
 all sequencing among the lanes (OQ5's envelope-early tail governs). Those
-belong to the owner amendments. No comparative claim against any other
-system is made (LLP 0183's comparator protocol governs).
+belong to the owner amendments. Row-incarnation mechanics belong to LLP
+0110/0129's owners; conversions that bind row lifetime cite them (C-3's
+incarnation clause is the interface, not a new mechanism). No comparative
+claim against any other system is made (LLP 0183's comparator protocol
+governs).
 
 ## Status
 
-Review, 2026-08-10 (c). Becomes Accepted on author sign-off; each owner lane
+Review, 2026-08-10 (d). Becomes Accepted on author sign-off; each owner lane
 lands as a dated amendment to its owning LLP with a pointer added here.
 
 Revision (c), from dual-family round-1 review: the auth row split into
@@ -315,3 +341,18 @@ the table-scope carrier); M-4 pinned to LLP 0135 §1.5's in-transaction
 refusal shape; the schema amendment's mandatory question list added
 (reservation timing, assignment order, replay, contention evidence);
 Related gains 0008/0011/0057/0058/0133/0158.
+
+Revision (d), from dual-family round-2 review: M-2 rescoped to
+application/handler overrides with the C-7 protocol claim channels exempt
+(Lane L claims are recorded and rewritten, never refused) and M-1 restated
+as single-*admitter*; `_id` corrected to a row address with LLP 0110 row
+incarnations carrying lifetime (C-3's "appropriate generation" named); the
+provider-identity row rebuilt on the physical `(provider, subject)` link
+model with per-provider subject definitions and the email prohibition
+narrowed to durable app-side keys; the serial no-restart/no-prefix contract
+decided at this Decision's level (M-3); the settlement digest corrected to
+the versioned preimages including `artifactGenerationDigest` for
+issuance-bearing operations (LLP 0163 added to Related) with caller-scoped
+`authFingerprint`; the schema amendment's mandatory list gains counter-key,
+`start`-grammar, and high-water questions; "ledger id" replaced with LLP
+0133's `generatedIds` vocabulary.

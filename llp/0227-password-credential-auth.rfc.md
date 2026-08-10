@@ -10,6 +10,7 @@ in `issues/20260809-password-credential-auth.md`)
 **Revised:** 2026-08-10 (b — Draft → Review at llp-super-refine loop start,
 the one authorized transition; independent-loop topology)
 **Revised:** 2026-08-10 (c — round-1 revision; see Revision history)
+**Revised:** 2026-08-10 (d — round-2 revision; see Revision history)
 **Related:** LLP 0057 (auth catalog and provider protocol — the substrate this
 extends), LLP 0151 (first-party identity integrations — tier-1
 username+password sketch and the identities-vs-credentials rule), LLP 0039
@@ -63,45 +64,71 @@ lifecycle spec.
 ## Credential storage
 
 Per LLP 0151's structural rule, **identities and authenticators do not share a
-relation**. The catalog (an LLP 0057 versioned migration) adds one table:
+relation**. The catalog (an LLP 0057 versioned migration) adds two tables:
 
 ```sql
 CREATE TABLE "_auth_password_credentials" (
   id TEXT NOT NULL PRIMARY KEY,
   user_id TEXT NOT NULL,
-  identity_id TEXT NOT NULL,          -- the canonical-address identity row
+  identity_id TEXT NOT NULL,          -- the 'password' identity row
   phc_string TEXT NOT NULL,           -- self-describing PHC format
   credential_generation INTEGER NOT NULL DEFAULT 1,
   created_at_ms INTEGER NOT NULL,
   updated_at_ms INTEGER NOT NULL,
-  failed_attempts INTEGER NOT NULL DEFAULT 0,
-  locked_until_ms INTEGER,
   FOREIGN KEY(user_id) REFERENCES "_auth_users"(id) ON DELETE CASCADE,
   FOREIGN KEY(identity_id, user_id)
     REFERENCES "_auth_identities"(id, user_id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX "_auth_password_credentials_identity_uq"
   ON "_auth_password_credentials"(identity_id);
+CREATE UNIQUE INDEX "_auth_password_credentials_user_uq"
+  ON "_auth_password_credentials"(user_id);   -- one live password per principal
+
+CREATE TABLE "_auth_password_attempts" (      -- the single lockout authority
+  address_hash TEXT NOT NULL,                 -- keyed hash of the canonical
+                                              -- address (no plaintext address
+                                              -- enters this relation)
+  source_class TEXT NOT NULL,
+  window_start_ms INTEGER NOT NULL,
+  failed_count INTEGER NOT NULL DEFAULT 0,
+  locked_until_ms INTEGER,
+  PRIMARY KEY (address_hash, source_class)
+);
 ```
+
+**One live password credential per principal** (`_user_uq`): change needs no
+credential selector, and import's attach mode refuses when one exists.
+Failure accounting lives **only** in `_auth_password_attempts` — the
+credential row carries none, so there are not two accounting authorities.
+Addresses enter the ledger as keyed hashes, leaving LLP 0057's
+canonical-address custody list unchanged. `source_class` on the local target
+is the two-valued `loopback` / `remote` partition of the peer address (the
+hosted edge's effective-source grouping takes over when a hosted auth target
+exists); rows are GC'd once their window and any lock expire, under a bounded
+row count whose exhaustion refuses with `SNAPBACK_AUTH_THROTTLED`.
 
 At most one password credential per identity; the identity row (and therefore
 the canonical address, canonicalized exactly per LLP 0057 §Canonical address)
 is the join point back to the principal. Implementation adds the catalog's
-usual CHECK discipline (positive JS-safe generation, nonnegative counters,
-timestamp domains, PHC length bound) and the address-keyed attempt ledger
-(§Lockout) as a second bounded relation.
+usual CHECK discipline to both tables (positive JS-safe generation,
+nonnegative counts, timestamp domains, PHC length bound, lock range).
 
-**This is auth catalog v3.** The current implementation recognizes exactly
-v1 and v2, and an extra protected `_auth_*` table under either marker is
-catalog corruption — so this RFC is a catalog version, not a mechanical
-number: fresh activation creates v3; v2→v3 upgrades **automatically at
-activation** (additive `CREATE TABLE`s, no data rewrite, one transaction
-under LLP 0057's catalog rules with its crash/rollback discipline); v1
-behavior is unchanged from 0057 (v1→v2 remains deferred, and v1→v3 composes
-that deferral); an older binary encountering v3 refuses per 0057's
-recognition discipline rather than serving unknown tables; password routes on
-a pre-v3 catalog refuse with a stable readiness code and
-`authProgramReadiness` exposes the fact.
+**Catalog versioning defers to LLP 0214, the identity-core catalog
+authority.** LLP 0214 already defines catalog marker 3 (with its own —
+richer — `_auth_password_credentials` shape, credentials/assurances/recovery
+relations, and an explicit **no silent v1/v2 migration** rule), and its
+catalog-v3 floor is currently blocked on backup-format interactions
+(`issues/20260810-llp-0214-floor-catalog-v3-backup-blocked.md`). This RFC
+therefore mints **no catalog version of its own**: its two tables land as a
+strict subset of 0214's catalog progression, reconciled with 0214's owner —
+where 0214's password shape and this sketch differ, 0214's shape supersedes;
+if this slice ships before 0214's v3 unblocks, it lands under the next
+marker agreed with that owner. 0214's no-silent-migration rule is adopted
+(the earlier automatic-upgrade language is withdrawn); backup-manifest,
+reset, restore, and crash consequences ride 0214's ticket. Unchanged either
+way: an older binary refuses an unknown catalog per 0057's recognition
+discipline, and password routes on a catalog without these tables refuse
+with a stable readiness code surfaced through `authProgramReadiness`.
 
 **KDF: argon2id, pinned v1 parameters** (OWASP-aligned): memory 19 456 KiB,
 iterations 2, parallelism 1, 16-byte random salt, 32-byte tag. Stored as a PHC
@@ -174,7 +201,11 @@ coordinator), while change is an **authenticated same-authority rotation**
 (the `withCredentialRotation` path refresh already uses: verify same
 authority descriptor, replace the credential within it, refuse on authority
 mismatch or stale response). Custody, refresh, and the logout barrier are
-untouched.
+untouched. **Sender-constrained custody:** when sender-constrained
+credentials are active, v1 password methods refuse with a typed client
+error rather than silently downgrading to bearer-only custody; the
+route-bound issuance/nonce-rotation protocol for password mints is deferred
+with the rest of the sender-constrained program.
 
 ## Principal binding: same sessions, no parallel identity
 
@@ -207,36 +238,58 @@ every later refresh with no new column and no DTO change.
   session-creation core** as a successful exchange.
 - **Change** requires an authenticated session **and** the current password.
   The **set** form (`currentPassword: null`, principal has no password
-  credential) additionally requires a **fresh operation-bound email-code
-  challenge** consumed in the same transaction (LLP 0151's step-up rule): a
-  stolen bearer alone can neither rotate nor create the credential. Set on an
-  address whose `'password'` identity belongs to a *different* principal
-  **displaces** that identity and its credential when the acting principal
-  holds the address's `'email-code'` identity — email proof outranks an
-  unverified squat; the displaced principal keeps its sessions and data but
-  loses password login. Both change forms write the hash, increment
-  `credential_generation`, rotate the acting session's bearer, and revoke the
-  user's other sessions (revocation operation below).
-- **Reset** reuses LLP 0057's challenge machinery: request a code via the
-  existing `POST /auth/request-code`, then `POST /auth/password/reset`
-  consumes the challenge in one transaction that verifies the code for the
-  credential's address, replaces the hash, revokes the user's other sessions,
-  and mints a fresh session. Note 0057's one-active-challenge-per-address
+  credential) binds **the address of the acting principal's own
+  `'email-code'` identity** — a principal without one (password-only after
+  displacement, broker-minted, imported without attach) cannot set and
+  refuses with a typed code — and additionally requires a **fresh
+  operation-bound step-up challenge** consumed in the same transaction
+  (LLP 0151's rule): the change/set DTO gains an optional
+  `stepUp: { challengeId, code }` member, carried by a new closed
+  password-set entry in the existing operation-tagged step-up enum, bound to
+  the exact session generation, authority instance, operation, and target as
+  the existing step-up consumers are. A stolen bearer alone can neither
+  rotate nor create the credential. Set on an address whose `'password'`
+  identity belongs to a *different* principal **displaces** that identity
+  and its credential — email proof outranks an unverified squat. Displacement
+  retires the squatter's `'password'` identity row, which **revokes the
+  sessions minted through it** (they cascade with the identity — the honest
+  consequence, asserted in acceptance); the displaced principal keeps its
+  account, data, and any sessions minted through other identities, and loses
+  password login. Both change forms write the hash, increment
+  `credential_generation`, rotate the acting session's bearer, and revoke
+  the user's other sessions (revocation operation below).
+- **Reset is same-principal only.** `POST /auth/password/reset` resolves the
+  address, then requires that the address's `'email-code'` identity and its
+  `'password'` identity belong to the **same principal**; any other
+  configuration (password-only account, email-code-only account, or the
+  two-principal squat state) refuses with the uniform failure code —
+  transferring a squatter's credential to an email-prover, or resetting a
+  password-only account that has never proved the address, is exactly the
+  pre-hijack this RFC contains, and LLP 0151 reaches the same posture
+  (email reset only against a verified email; recovery for password-only
+  accounts is the recovery-codes package, out of this slice). A password-only
+  principal's recovery path in v1 is therefore: none self-serve (documented
+  non-recoverable posture; the gated operator seam and 0151's recovery codes
+  are the successors). The reset transaction consumes the challenge, applies
+  the **same screening policy and version as signup/change** (identical
+  `PASSWORD_WEAK` refusal), replaces the hash, revokes the user's other
+  sessions, and mints a fresh session. 0057's one-active-challenge
   invariant applies: a reset code and a sign-in code are the same spendable
-  proof (either is consumable at `/auth/exchange`), and a new request
-  supersedes the outstanding challenge — security-equivalent, and stated so
-  suites don't trip on it. Local target: capture mailbox (admin- and
-  impersonation-gated, test material); production reset carries LLP 0045's
-  mail adapter as its external prerequisite. Preissued recovery codes stay
-  with the 0151 lifecycle spec.
+  proof, and a new request supersedes the outstanding challenge. Local
+  target: capture mailbox (admin- and impersonation-gated, test material);
+  production reset carries LLP 0045's mail adapter as its external
+  prerequisite. Preissued recovery codes stay with the 0151 lifecycle spec.
 
 **Two-phase verification fence.** Verification reads the exact predecessor —
 `(credential id, credential_generation, phc_string, lock state)` — computes
 the KDF outside the writer lock (LLP 0011), then the issuing/accounting
 transaction **requires that exact `(id, generation)` predecessor** before any
 failure accounting, upgrade-on-verify swap, or session mint; on mismatch (a
-concurrent change/reset landed) it refuses or restarts — a stale proof never
-authorizes, mirroring LLP 0059's exact-predecessor discipline.
+concurrent change/reset landed) it **refuses** with the uniform
+`SNAPBACK_AUTH_PASSWORD_INVALID` and performs **no failure accounting** — a
+stale proof never authorizes and never penalizes, mirroring LLP 0059's
+exact-predecessor discipline. (No restart: the old password is simply wrong
+now.)
 
 **User-scoped revocation operation.** Change and reset use a **new**
 user-scoped revocation (LLP 0057's bulk-revocation transaction is
@@ -308,7 +361,9 @@ class as `auth.mintSession`) has two explicit modes:
 provisions principal + `'password'` identity + credential as signup does) and
 **attach** (`{ email, phcString, expectedUserId }` — attaches the credential
 and `'password'` identity to exactly that existing principal, refusing on any
-mismatch or identity collision). The pilot's data absorbs via **attach**: its
+mismatch, on any identity collision, and when the principal already holds a
+password credential — the one-per-principal index is load-bearing). The
+pilot's data absorbs via **attach**: its
 principals were minted through the sanctioned session-mint seam and already
 exist. Foreign hashes are bounded, not just allowlisted: encoded length,
 algorithm/version, salt and tag sizes, and every cost parameter (memory,
@@ -341,9 +396,14 @@ hosted auth target exists.
 - **Screening.** Length 8–1024 bytes plus a compact embedded
   common-password blocklist at signup and change — LLP 0151's launch
   baseline, without claiming full NIST SP 800-63B reproduction.
-- **Custody.** No password or hash in argv, logs, receipts, snapshots, or
-  inspect; credential responses `no-store`; body-capture logging disabled on
-  these routes — all inherited LLP 0057 rules, restated here as in-scope.
+- **Custody.** No password or hash in argv, logs, receipts, diagnostics,
+  inspect payloads, or **logical/app-level exports and projections**;
+  credential responses `no-store`; body-capture logging disabled on these
+  routes — all inherited LLP 0057 rules. Owner-authorized **physical**
+  store custody deliberately carries the database bytes as-is: `snapback
+  store export`, whole-store backup, and replication ciphertext (LLP 0192)
+  produce faithful copies including credential hashes, while their
+  manifests and diagnostics remain redacted.
 
 ## Acceptance criteria
 
@@ -374,9 +434,12 @@ the auth milestone **without hand-rolled hashing and without shelling out to
    revoked after change/reset (only that user's — a bystander session on the
    instance survives); the acting session's bearer is rotated; old bearer
    follows the 0057 credential-resolution matrix; a signin racing a
-   change/reset (KDF completed against the predecessor hash) refuses rather
-   than minting, and a bearer alone cannot set a first password (step-up
-   challenge required).
+   change/reset (KDF completed against the predecessor hash) refuses with
+   uniform `PASSWORD_INVALID` and no failure accounting; a bearer alone
+   cannot set a first password (step-up challenge required); displacement
+   revokes exactly the sessions minted through the displaced `'password'`
+   identity while the squatter's other sessions and data survive; reset
+   refuses in the two-principal squat and password-only configurations.
 5. **Import:** an imported scrypt PHC credential signs in successfully and is
    observed (admin projection: generation + algorithm class only) to have
    upgraded to argon2id.
@@ -407,12 +470,28 @@ the auth milestone **without hand-rolled hashing and without shelling out to
 
 ## Status
 
-Review (c). Commissioned 2026-08-10 from
+Review (d). Commissioned 2026-08-10 from
 `issues/20260809-password-credential-auth.md`. No implementation has begun.
 
 ## Revision history
 
 - **(a)** initial draft. **(b)** Draft → Review at loop start.
+- **(d)** round-2 revision from dual-family review: catalog authority
+  deferred to LLP 0214 (no competing v3; no-silent-migration adopted;
+  automatic-upgrade language withdrawn); reset pinned same-principal-only
+  with the four configurations enumerated and password-only accounts
+  declared non-recoverable-self-serve in v1; displacement made realizable
+  (identity retirement cascades its sessions — promise corrected);
+  first-set step-up given its wire carrier (`stepUp` DTO member + closed
+  step-up operation) and address rule (acting principal's own email-code
+  identity); lockout ledger pinned (`_auth_password_attempts` DDL, hashed
+  addresses, loopback/remote source classes, GC bounds) with credential-row
+  counters removed — single accounting authority; one live password per
+  principal enforced by index, attach refuses duplicates; reset applies
+  identical screening; custody wording scoped to logical exports with LLP
+  0192 physical custody carved out; fence disposition pinned to
+  refuse-without-accounting; sender-constrained custody refuses password
+  methods in v1.
 - **(c)** round-1 revision from dual-family review: password login
   identifiers become their own `'password'` provider namespace (pre-hijack
   containment structural; email-code path unmodified; `session.provider`
