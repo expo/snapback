@@ -1,9 +1,21 @@
 # M6 iOS-simulator choreography segment
 
-This is the frozen P1 specification for the native M6 proof. The executable
-simulator driver lands with the P2 pilot; `choreography.mjs` currently records
-`ios-simulator-m6` as required external evidence with `externalPass:null`.
-That is intentionally non-green.
+This is the frozen specification for the separate native M6 proof. The P2
+hardening re-scopes milestone green to the implemented web queue/flush segment
+and records this artifact separately: a lane may pass its M6 authoring green
+without claiming native cold-offline behavior, while O4/native scoring remains
+null or failed until this artifact exists. `choreography.mjs` accepts the
+artifact status through `--simulator-status` and retains it under
+`choreography.supplementalExternal` with `requiredForGreen:false`.
+
+The re-scope is deliberate. P1 specified `simctl` process mechanics but did not
+freeze an app-side event/receipt protocol that a generic driver could use to
+know when offline assertions finished, when to restart a lane-specific backend,
+or whether a screenshot corresponded to server truth. Shipping only the wrapper
+would create ceremonial evidence. A future generic driver must first add that
+cross-lane app protocol; until then each lane's native acceptance harness may
+produce the artifacts below, and the benchmark records them without promoting
+them into web green.
 
 ## Preconditions
 
@@ -44,7 +56,7 @@ That is intentionally non-green.
 
 ## Artifacts
 
-The P2 driver writes one run directory containing:
+A qualifying lane-native driver writes one run directory containing:
 
 - `m6-ios-screen.mp4` — uninterrupted recording from pre-launch offline state
   through reconnect, ordered flush, and final receipts.
@@ -92,6 +104,19 @@ fake successful response. Offline is established by the cold app launch while
 the configured backend is actually stopped; reconnect is the restart of that
 same backend.
 
-At P2 the outer harness runs the web `m6()` segment first, invokes this simulator
-driver second, validates its artifacts, and replaces `externalPass:null` with the
-simulator receipt result before evaluating milestone green.
+The outer harness runs the web `m6()` segment and evaluates web green from its
+implemented browser checks plus suite evidence. If a native artifact exists,
+the outer run records a status file such as:
+
+```json
+{
+  "id": "ios-simulator-m6",
+  "pass": true,
+  "receipt": "artifacts/m6-ios-run.json",
+  "reason": null
+}
+```
+
+The native artifact is then scored and published separately. Missing evidence
+uses `pass:null` and an explanatory reason; it is never inferred from web
+behavior or silently reported as a native pass.

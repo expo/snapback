@@ -5,7 +5,9 @@
 **Systems:** Competitive evaluation, Benchmarks, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-09 (j — author clarification for future benchmark
+**Revised:** 2026-08-10 (k — P2 F2 choreography hardening: M6 native
+evidence is separately recorded from web authoring green, while required web
+checks remain fail-closed); 2026-08-09 (j — author clarification for future benchmark
 runs: the Following feed always includes the viewer's own posts and reposts
 without a persisted self-follow edge; the completed P2 pilot is not
 retroactively changed); 2026-08-08 (i — Review → Accepted, applied on the
@@ -101,7 +103,7 @@ Milestones (reduced run = M1–M3; full run = M1–M7):
   search, in-chat and global message search (results for synced
   messages must be available offline).
 - **M6 — Offline writes, push, custom-client API.** Cold-start
-  offline history (native-simulator proof here), offline compose with
+  offline history (separately recorded native-simulator proof here), offline compose with
   queue-and-flush and correct receipt transitions, push notification
   emission at the provider seam (logged payload; real APNs/FCM out of
   scope — that would measure Apple, not the backend), and a
@@ -178,8 +180,11 @@ invocations, and correction loops under the protocol's attribution rule
   structure: a milestone's **authoring clock** stops when the
   harness records both a passing run of the milestone's acceptance
   suite **and** a passing run of that milestone's choreography
-  segment — two-client and simulator behavior gates green too, so a
-  realtime-heavy milestone cannot go green headless. The suite pass
+  segment — required two-client web behavior gates green too, so a
+  realtime-heavy milestone cannot go green from its suite alone. M6's
+  simulator proof is a separately recorded native/O4 artifact: its absence
+  leaves native proof absent but does not block the web authoring-green clock.
+  The suite pass
   is honored only if its **coverage manifest** validates: at P1 every
   checklist item is split into atomic assertions with stable IDs,
   each assigned one executor class, and the manifest maps every
@@ -314,10 +319,10 @@ experience; a separate grader scores outcome.**
    transcript. It runs the builder's suite, independently executes the
    checklist via the custom-client API and browser automation on the
    web build, and files a severity-bucketed defect list. Native
-   (simulator) proofs are not grader-driven: the **harness** executes
-   the frozen choreography script on the simulator and produces
-   mechanically checkable artifacts (recordings plus structured
-   receipts); the grader scores O4 from those artifacts, never from
+   (simulator) proofs are not grader-driven: a lane-native harness executes
+   the frozen simulator choreography and produces mechanically checkable
+   artifacts (recordings plus structured receipts), recorded separately from
+   web authoring green; the grader scores O4 from those artifacts, never from
    builder assertions. A sanitized grader evidence/action trace is
    the published artifact (raw transcripts follow LLP 0197's
    redaction posture and 0198's raw-transcripts-never-publish rule);
@@ -718,3 +723,14 @@ The brief's replay contract absorbs this at P3 freeze; the pilot
 record's Supabase figures are reinterpreted accordingly (its
 post-registration 18.56/s sustained rate becomes the comparable
 figure).
+
+**2026-08-10 — F2 choreography hardening.** M6 simulator evidence is
+re-scoped from an external prerequisite of web authoring green to a separately
+recorded native/O4 artifact. P1 froze `simctl` process mechanics but not the
+cross-lane app-side event protocol needed for a generic driver to identify
+offline completion, restart a lane-specific backend, or bind UI observations
+to server state. A wrapper without that protocol would create ceremonial
+evidence. Lane-native drivers still follow the frozen artifact contract;
+missing evidence cannot support native/O4 claims. Required web choreography
+continues to fail closed: every implemented check must pass and no required
+check may remain unimplemented.

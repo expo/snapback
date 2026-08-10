@@ -2,7 +2,7 @@
 
 Presentational UI kit for the **social-messenger** canonical
 benchmark (app name: **Clique**). Version: see [`VERSION`](./VERSION)
-(`0.1.0-p1`; the P3 freeze bumps to `1.0.0` and pins hashes in the
+(`0.2.0-p2`; the P3 freeze bumps to `1.0.0` and pins hashes in the
 brief). Governing design: LLP 0201 D6
 (`llp/0201-social-messenger-canonical-benchmark.plan.md`);
 coordination pins: `benchmarks/tools/social-messenger/CONTRACT.md`;
@@ -77,10 +77,10 @@ import { Composer, MessageBubble, TypingIndicator } from '@snapback-bench/social
 />
 ```
 
-Every interactive/observable element carries its exact contract
-testID from `CONTRACT.md` (scheme `sm-<area>-<element>`; the contract
-set is implemented exactly once each, extras use additional stable
-`sm-` IDs). Choreography consumes only the contract set.
+Every interactive/observable kit element carries its exact component-level
+contract testID from `CONTRACT.md` (scheme `sm-<area>-<element>`). Lane shells
+own the route- and message-action IDs that require application state or
+navigation. Choreography consumes only the shared contract set.
 
 ## Typechecking
 
@@ -94,8 +94,8 @@ they are peers supplied by the lane's app.)
 
 ## Versioning
 
-`VERSION`, `package.json`, and the brief's pinned kit version move
-together. `0.1.0-p1` is the P1 authoring version; the P3 freeze bumps
-to `1.0.0` after the cross-backend neutrality review and pilot
-shakedown, and the frozen hash is recorded in the brief. Post-freeze
+`VERSION`, `package.json`, and the brief's pinned kit version move together.
+`0.2.0-p2` adds the accessible state consumed by the hardened choreography;
+the P3 freeze bumps to `1.0.0` after the cross-backend neutrality review and
+pilot shakedown, and the frozen hash is recorded in the brief. Post-freeze
 changes require a version bump and re-disclosure per LLP 0197.

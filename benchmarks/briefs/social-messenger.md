@@ -95,7 +95,9 @@ These apply across all milestones.
 - **Platform proof per milestone:** interaction proofs run on web
   (two browser contexts for two-client choreography); every milestone
   also produces an iOS Hermes bundle export as a build artifact. M6's
-  offline proofs additionally run on the iOS simulator. Android is a
+  offline proofs additionally run on the iOS simulator as a separately
+  recorded native/O4 artifact; absence of that artifact cannot support a
+  native claim but does not block the web authoring-green clock. Android is a
   spot-check outside scored runs, not a per-run requirement.
 - **Seeding:** a versioned, idempotent seed installs the fixture
   personas and starter content. Both seeds — the small starter seed
@@ -286,13 +288,16 @@ numbered item — compound items get one class per clause) is assigned
 exactly one executor class: **suite-required** (the builder's
 scripted suite must cover it; the harness validates a coverage
 manifest mapping every suite-required assertion to a test),
-**[choreo]** (two-client and simulator behavior — executed by the
-harness choreography script), or **[grader]** (source inspection,
+**[choreo]** (two-client behavior executed by the web harness, plus M6 native
+behavior recorded by a separate lane-native harness artifact), or **[grader]** (source inspection,
 API probing, snapshot comparison — grader phase only). **A
 milestone's green receipt requires both a passing suite run
 (coverage-validated) and a passing run of that milestone's
 choreography segment** — realtime behavior gates green too; only
-[grader] assertions are deferred to grading. The grader
+[grader] assertions are deferred to grading. M6 assertions marked
+`native-artifact` are recorded and scored independently and do not gate web
+authoring green; missing evidence leaves native/O4 proof absent rather than
+passing it. The grader
 spot-verifies the coverage mapping is honest. Tags below mark items
 whose class is not obvious from phrasing.
 
@@ -587,10 +592,10 @@ Spec:
 
 Acceptance:
 
-1. Cold-start offline (iOS simulator, backend stopped): history and
+1. [native-artifact] Cold-start offline (iOS simulator, backend stopped): history and
    previously viewed media render; synced-message search works; a
    previously viewed view-once photo does **not** render.
-2. Send two messages offline; both show pending; on reconnect they
+2. [native-artifact] Send two messages offline; both show pending; on reconnect they
    arrive in order and reach `read` normally.
 3. With Bob's clients closed, Alice messages him; the logged push
    payload has the right target, sender, and preview; a view-once

@@ -1,15 +1,15 @@
 {
-  "manifestVersion": "0.1.1-p1",
+  "manifestVersion": "0.2.0-p2",
   "title": "social-messenger assertion-ID manifest",
   "provenance": {
     "brief": "benchmarks/briefs/social-messenger.md (Milestones section, acceptance checklists; Executors and Statuses paragraphs)",
     "plan": "llp/0201-social-messenger-canonical-benchmark.plan.md (D2 coverage-manifest rule, D3 executor split)",
-    "phase": "LLP 0201 P1 deliverable — DRAFT until the P3 freeze pins hashes",
-    "note": "Every numbered acceptance checklist item of M1-M7 is split into atomic assertions, one per observable clause, per the brief's Executors paragraph ('every assertion (not merely every numbered item - compound items get one class per clause) is assigned exactly one executor class'). IDs are stable from P1 forward; the P3 freeze may add assertions but never renumbers existing ones."
+    "phase": "LLP 0201 P2 hardening — DRAFT until the P3 freeze pins hashes",
+    "note": "Every numbered acceptance checklist item of M1-M7 is split into atomic assertions, one per observable clause, per the brief's Executors paragraph ('every assertion (not merely every numbered item - compound items get one class per clause) is assigned exactly one executor class'). IDs are stable from P1 forward; the P3 freeze may add assertions but never renumbers existing ones. P2 marks M6 simulator assertions greenRequired:false because their lane-native artifact is recorded and scored separately from web authoring green."
   },
   "executorClasses": {
     "suite-required": "The builder's scripted acceptance suite must cover it; the harness validates a coverage manifest mapping every suite-required assertion to a test. Green requires a passing coverage-validated suite run.",
-    "choreo": "Two-client and simulator behavior, executed by the harness choreography script. A milestone's green receipt also requires a passing run of its choreography segment.",
+    "choreo": "Two-client web behavior executed by the choreography harness, plus M6 simulator behavior recorded through a separate lane-native artifact. A milestone's green receipt requires its web choreography segment; assertions explicitly marked greenRequired:false remain separately scored evidence.",
     "grader": "Source inspection, API probing, snapshot comparison - grader phase only; never gates the milestone's green receipt."
   },
   "runScopeValues": {
@@ -694,56 +694,63 @@
           "checklistItem": 1,
           "text": "Cold-start offline (iOS simulator, backend stopped): previously synced chats and message history render.",
           "executor": "choreo",
+          "greenRequired": false,
           "runScope": "all",
-          "tags": ["simulator", "offline"]
+          "tags": ["simulator", "offline", "native-artifact"]
         },
         {
           "id": "m6-a02",
           "checklistItem": 1,
           "text": "Cold-start offline: previously viewed media renders.",
           "executor": "choreo",
+          "greenRequired": false,
           "runScope": "all",
-          "tags": ["simulator", "offline"]
+          "tags": ["simulator", "offline", "native-artifact"]
         },
         {
           "id": "m6-a03",
           "checklistItem": 1,
           "text": "Cold-start offline: search over synced messages works.",
           "executor": "choreo",
+          "greenRequired": false,
           "runScope": "all",
-          "tags": ["simulator", "offline"]
+          "tags": ["simulator", "offline", "native-artifact"]
         },
         {
           "id": "m6-a04",
           "checklistItem": 1,
           "text": "Cold-start offline: a previously viewed view-once photo does NOT render (view-once media is never durably cached).",
           "executor": "choreo",
+          "greenRequired": false,
           "runScope": "all",
-          "tags": ["simulator", "offline"]
+          "tags": ["simulator", "offline", "native-artifact"]
         },
         {
           "id": "m6-a05",
           "checklistItem": 2,
           "text": "Two messages composed offline both show a visible pending state.",
           "executor": "choreo",
+          "greenRequired": false,
           "runScope": "all",
-          "tags": ["simulator", "offline"]
+          "tags": ["simulator", "offline", "native-artifact"]
         },
         {
           "id": "m6-a06",
           "checklistItem": 2,
           "text": "On reconnect the queued messages flush and arrive in order.",
           "executor": "choreo",
+          "greenRequired": false,
           "runScope": "all",
-          "tags": ["simulator", "offline"]
+          "tags": ["simulator", "offline", "native-artifact"]
         },
         {
           "id": "m6-a07",
           "checklistItem": 2,
           "text": "The flushed messages walk the normal receipt states and reach 'read'.",
           "executor": "choreo",
+          "greenRequired": false,
           "runScope": "all",
-          "tags": ["simulator", "offline"]
+          "tags": ["simulator", "offline", "native-artifact"]
         },
         {
           "id": "m6-a08",

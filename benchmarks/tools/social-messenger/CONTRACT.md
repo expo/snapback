@@ -1,6 +1,6 @@
-# Social-messenger P1 coordination contract
+# Social-messenger coordination contract
 
-Shared pins for the P1 scaffolding lanes (LLP 0201 D7 P1). Every P1
+Shared pins for the P1 scaffolding and P2 hardening lanes (LLP 0201 D7). Every
 artifact conforms to this file; the brief
 (`benchmarks/briefs/social-messenger.md`) is the authority wherever
 this file is silent.
@@ -45,22 +45,57 @@ One action per line:
 quoted strings for text. The fixture lane freezes the exact grammar in
 `fixtures/social-messenger/action-schema.md`; all lanes defer to it.
 
-## Test IDs (kit implements exactly these; extras allowed; choreography consumes only these)
+## Test IDs (shared authoring surfaces; extras allowed; choreography consumes only these)
+
+The P1 kit owns the component-level subset. Lane shells implement route- and
+message-action IDs that require application state or navigation; P2 added those
+IDs so the hardened choreography can remain backend-neutral.
 
 Scheme `sm-<area>-<element>`:
 `sm-auth-email`, `sm-auth-password`, `sm-auth-submit`,
+`sm-settings-logout`,
 `sm-feed-tab-following`, `sm-feed-tab-global`, `sm-feed-item`,
 `sm-post-like`, `sm-post-repost`, `sm-post-reply`,
 `sm-compose-input`, `sm-compose-submit`,
-`sm-profile-follow`, `sm-profile-edit`, `sm-profile-save`,
+`sm-profile-follow`, `sm-profile-edit`, `sm-profile-save`, `sm-profile`,
+`sm-profile-field-displayname`, `sm-profile-field-bio`,
 `sm-chats-item`, `sm-convo-input`, `sm-convo-send`,
 `sm-convo-bubble`, `sm-convo-typing`, `sm-convo-receipt`,
-`sm-convo-reaction`, `sm-convo-quote`,
-`sm-chatsettings-color`, `sm-chatsettings-background`,
-`sm-search-input`, `sm-search-result`,
+`sm-convo-reaction`, `sm-convo-reaction-chip`, `sm-convo-react`,
+`sm-convo-quote`, `sm-convo-file`, `sm-convo-attach`, `sm-convo-media`,
+`sm-convo-edit`, `sm-convo-delete`, `sm-convo-tombstone`,
+`sm-convo-settings`, `sm-convo-viewonce-toggle`, `sm-convo-viewonce`,
+`sm-convo-error`, `sm-media-viewer-image`, `sm-media-viewer-video`,
+`sm-media-viewer-close`, `sm-chatsettings-color`,
+`sm-chatsettings-background`, `sm-chatsettings-background-preview`,
+`sm-chatsettings-disappearing`, `sm-search-input`, `sm-search-result`,
+`sm-search-offline`,
 `sm-poll-option`, `sm-poll-tally`.
+
+The P2 choreography hardening also freezes these accessible-state semantics:
+
+- `sm-profile` contains the visible display name and bio.
+- Each `sm-chatsettings-color` has a stable `data-value` (or accessible label)
+  and exposes selection via `aria-pressed=true`, `data-selected=true`, or a
+  checked input.
+- `sm-chatsettings-background` is a file input or opens a file chooser;
+  `sm-chatsettings-background-preview` contains the synchronized rendered
+  image and changes `src`, state, or style when the background changes.
+- Every `sm-chatsettings-disappearing` option exposes its value through
+  `data-value`, a native form value, or accessible value text. The values are
+  `off`, `24h`, and `7d` (the fixture's shortened-window profile changes
+  duration, not the option values).
+- `sm-convo-file` is a file input; `sm-convo-attach` is the file-chooser
+  fallback. `sm-convo-media` contains the real rendered `img` or `video`.
+- `sm-convo-react`, `sm-convo-edit`, and `sm-convo-delete` are the message
+  actions; reaction choices use `sm-convo-reaction`, and visible aggregate
+  chips use `sm-convo-reaction-chip`.
+- View-once uses `sm-convo-viewonce-toggle`, `sm-convo-viewonce`, the media
+  viewer IDs, and a consumed/denied accessible state or `sm-convo-error`.
 
 ## Versioning
 
-Each subdirectory carries a `VERSION` file (`0.1.0-p1`); the P3
-freeze bumps to `1.0.0` and pins hashes in the brief.
+The choreography and UI-kit subdirectories are `0.2.0-p2` after pilot
+hardening; other P1 artifacts remain at their existing pre-freeze versions.
+The P3 freeze bumps the complete instrument to `1.0.0` and pins hashes in the
+brief.

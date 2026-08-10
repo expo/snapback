@@ -18,6 +18,9 @@ Two directories form one instrument:
   IDs (`m1-a01` …), each with exactly one executor class
   (`suite-required` / `choreo` / `grader`) per the brief's Executors
   paragraph, and run-scope conditionality where the brief marks it.
+  M6 simulator assertions carry `greenRequired:false` and are scored from the
+  separately recorded native artifact rather than the web authoring-green
+  receipt.
   Lanes' coverage manifests map every suite-required assertion to a
   test; the grader report keys per-assertion results by these IDs.
 - `applicability.json` — the 16-dimension applicability manifest:

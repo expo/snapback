@@ -1,6 +1,6 @@
 # Social-messenger choreography receipts
 
-Version `0.1.0-p1` writes newline-delimited JSON to `receipts.jsonl`. The same
+Version `0.2.0-p2` writes newline-delimited JSON to `receipts.jsonl`. The same
 objects are written to stdout with the literal prefix `STRUCTURED RECEIPT ` so
 an outer run harness can separate proof records from ordinary process output.
 Each line validates independently against `receipts.schema.json`.
@@ -13,13 +13,16 @@ is `(segment, assertion)`. The required proof fields are:
 - `segment`: one of `m1` through `m6`.
 - `assertion`: the stable choreography assertion name.
 - `implemented`: whether this harness version actually attempted the check.
-- `pass`: true only when `implemented` is true and a retained attempt passed.
+- `required`: whether leaving this assertion unimplemented blocks the segment.
+- `status`: `passed`, `failed`, or `skipped`.
+- `pass`: boolean for an attempted check and `null` for an explicit skip.
 - `timings`: every attempt, including errors and all three timing attempts.
 - `bestOf`: `1` for ordinary checks and `3` for timing-sensitive checks.
 
 An unsupported check is not omitted and never passes. It has
-`implemented:false`, `pass:false`, an empty `timings` array, and an explanatory
-`details.reason`.
+`implemented:false`, `status:"skipped"`, `pass:null`, an empty `timings` array,
+and a non-empty `details.reason`. A required skip blocks choreography green; an
+optional skip remains visible without being reported as a failed attempt.
 
 For `bestOf:3`, the harness always runs all three attempts. The assertion passes
 when at least one attempt passes, and `details.selectedAttempt` identifies the
@@ -40,6 +43,8 @@ outer run harness:
   "segment": "m3",
   "assertion": "__segment__",
   "implemented": false,
+  "required": true,
+  "status": "failed",
   "pass": false,
   "timings": [
     {
@@ -53,16 +58,20 @@ outer run harness:
   "bestOf": 1,
   "assertions": {
     "total": 3,
+    "required": 3,
     "implemented": 2,
     "passed": 2,
     "failed": 0,
-    "notImplemented": 1
+    "skipped": 1,
+    "notImplemented": 1,
+    "requiredUnimplemented": 1
   },
   "suite": { "pass": true, "receipt": "acceptance/m3.json" },
   "choreography": {
     "browserPass": false,
     "requiredExternal": [],
     "externalPass": true,
+    "supplementalExternal": [],
     "pass": false
   },
   "green": false
@@ -71,12 +80,13 @@ outer run harness:
 
 The normative aggregation is:
 
-1. `browserPass` is true only if every assertion receipt in the segment passes.
-   Missing or `implemented:false` assertions therefore fail closed.
-2. `externalPass` is true when there is no external leg or when every required
-   external receipt passes. It is `null`, never true, when evidence is absent.
-   M6 requires `ios-simulator-m6`; the P1 skeleton records it as `null` until
-   the P2 pilot implements the simulator driver.
+1. `browserPass` is true only when every implemented assertion passes and no
+   required assertion remains unimplemented. Optional skips therefore stay
+   explicit without becoming silent failed attempts.
+2. `externalPass` is true when every external leg required for web green passes.
+   In `0.2.0-p2` there are no such legs. M6's `ios-simulator-m6` status is
+   recorded under `supplementalExternal` with `requiredForGreen:false`; it is a
+   distinct native/O4 artifact governed by `simulator.md`.
 3. `choreography.pass` (and the summary's top-level `pass`) is
    `browserPass && externalPass === true`.
 4. `green` is true only when `suite.pass === true && choreography.pass === true`.
@@ -92,7 +102,7 @@ The optional suite-status input is an object keyed by milestone:
 }
 ```
 
-The path is an evidence pointer; this P1 harness does not interpret or bless
+The path is an evidence pointer; this P2 harness does not interpret or bless
 the builder's suite contents. A passing suite status must carry a non-empty
 pointer. Coverage-manifest validation belongs to the outer run harness described
 by the benchmark brief.
@@ -100,6 +110,6 @@ by the benchmark brief.
 ## Compatibility
 
 Consumers must reject an unknown major receipt version and validate with the
-schema matching the declared version; unknown fields under this P1 schema are
-rejected. Stable `(segment, assertion)` names must not be silently repurposed;
+schema matching the declared version; unknown fields are rejected. Stable
+`(segment, assertion)` names must not be silently repurposed;
 changed semantics require a version bump.

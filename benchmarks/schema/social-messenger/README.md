@@ -1,14 +1,16 @@
 # social-messenger scoring manifests and record schema
 
-**Provenance:** LLP 0201 P1 (D2/D3/D4), per
+**Provenance:** LLP 0201 P1/P2 (D2/D3/D4), per
 `benchmarks/tools/social-messenger/CONTRACT.md`; authority:
 `benchmarks/briefs/social-messenger.md` and
 `llp/0201-social-messenger-canonical-benchmark.plan.md`. **Version:**
-`VERSION` (`0.1.1-p1` — DRAFT until the P3 freeze).
+`VERSION` (`0.2.0-p2` — DRAFT until the P3 freeze).
 
 - `assertions.json` — assertion-ID manifest: 43 checklist items
   (M1:7 M2:8 M3:7 M4:5 M5:5 M6:6 M7:5) split into 101 atomic
   assertions with stable IDs and one executor class each.
+  M6 simulator assertions are marked `greenRequired:false`: they remain
+  separately recorded native/O4 evidence and do not gate web authoring green.
 - `applicability.json` — the 16 rubric dimensions (45/55 weight
   split), observing milestones, applicability predicates,
   complete-lane enumeration, usable-grading-record gate.

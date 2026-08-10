@@ -68,6 +68,8 @@ const DISAPPEARING_OPTIONS: readonly { value: DisappearingSetting; label: string
  * count, and the member roster with admin affordances. All persistence,
  * sync, and permission enforcement live in the lane/backend.
  */
+// @ref LLP 0201#d6--ui-kit — expose observable state through neutral
+// presentation/accessibility props without introducing a backend-shaped API.
 export function ChatSettingsForm({
   isGroup,
   canEdit,
@@ -130,6 +132,7 @@ export function ChatSettingsForm({
                 accessibilityLabel={`Accent color ${accent.name}`}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
+                accessibilityValue={{ text: accent.value }}
                 key={accent.name}
                 onPress={() => onSelectAccentColor(accent)}
                 style={[
@@ -156,9 +159,16 @@ export function ChatSettingsForm({
           testID="sm-chatsettings-background"
         >
           {backgroundUri ? (
-            <Image source={{ uri: backgroundUri }} style={styles.backgroundThumb} />
+            <Image
+              source={{ uri: backgroundUri }}
+              style={styles.backgroundThumb}
+              testID="sm-chatsettings-background-preview"
+            />
           ) : (
-            <View style={[styles.backgroundThumb, styles.backgroundThumbEmpty]} />
+            <View
+              style={[styles.backgroundThumb, styles.backgroundThumbEmpty]}
+              testID="sm-chatsettings-background-preview"
+            />
           )}
           <Text style={styles.backgroundLabel}>
             {backgroundUri ? 'Change background' : 'Choose background'}
@@ -177,11 +187,12 @@ export function ChatSettingsForm({
                   accessibilityLabel={`Disappearing messages ${label}`}
                   accessibilityRole="button"
                   accessibilityState={{ selected, disabled: !canEdit }}
+                  accessibilityValue={{ text: value }}
                   disabled={!canEdit}
                   key={value}
                   onPress={() => onSelectDisappearing(value)}
                   style={[styles.segment, selected && styles.segmentSelected]}
-                  testID={`sm-chatsettings-disappearing-${value}`}
+                  testID="sm-chatsettings-disappearing"
                 >
                   <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>
                     {label}

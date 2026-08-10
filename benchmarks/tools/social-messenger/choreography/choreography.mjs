@@ -3,14 +3,40 @@
 import { randomUUID } from "node:crypto";
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
 
-const VERSION = "0.1.0-p1";
+const VERSION = "0.2.0-p2";
 const SEGMENTS = ["m1", "m2", "m3", "m4", "m5", "m6"];
+const DEFAULT_FIXTURES_DIR = fileURLToPath(
+  new URL("../../../fixtures/social-messenger", import.meta.url),
+);
 const DEFAULT_RECEIPTS_PATH = fileURLToPath(
   new URL("./receipts.jsonl", import.meta.url),
 );
+
+const DEFAULT_ADAPTER = {
+  schemaVersion: "social-messenger.choreography-adapter.v1",
+  routes: {
+    profile: "/profile/{handle}",
+    profileEdit: "/profile/edit",
+    settings: "/settings",
+    search: "/search",
+  },
+  fixtures: {
+    directory: DEFAULT_FIXTURES_DIR,
+    image: "media/img-05.png",
+    background: "media/img-01.png",
+    video: "media/vid-01.mp4",
+    groupTitle: "Weekend Plans",
+    searchToken: "coffee",
+    searchExpected: "Coffee after work?",
+  },
+  disappearing: {
+    optionValue: "24h",
+    waitMs: 300_000,
+  },
+};
 
 // CONTRACT.md is the sole authority for test IDs. `testId()` refuses any ID
 // outside this frozen set so later additions cannot silently invent selectors.
@@ -18,6 +44,7 @@ const CONTRACT_TEST_IDS = new Set([
   "sm-auth-email",
   "sm-auth-password",
   "sm-auth-submit",
+  "sm-settings-logout",
   "sm-feed-tab-following",
   "sm-feed-tab-global",
   "sm-feed-item",
@@ -29,6 +56,9 @@ const CONTRACT_TEST_IDS = new Set([
   "sm-profile-follow",
   "sm-profile-edit",
   "sm-profile-save",
+  "sm-profile",
+  "sm-profile-field-displayname",
+  "sm-profile-field-bio",
   "sm-chats-item",
   "sm-convo-input",
   "sm-convo-send",
@@ -36,11 +66,29 @@ const CONTRACT_TEST_IDS = new Set([
   "sm-convo-typing",
   "sm-convo-receipt",
   "sm-convo-reaction",
+  "sm-convo-reaction-chip",
+  "sm-convo-react",
   "sm-convo-quote",
+  "sm-convo-file",
+  "sm-convo-attach",
+  "sm-convo-media",
+  "sm-convo-edit",
+  "sm-convo-delete",
+  "sm-convo-tombstone",
+  "sm-convo-settings",
+  "sm-convo-viewonce-toggle",
+  "sm-convo-viewonce",
+  "sm-convo-error",
+  "sm-media-viewer-image",
+  "sm-media-viewer-video",
+  "sm-media-viewer-close",
   "sm-chatsettings-color",
   "sm-chatsettings-background",
+  "sm-chatsettings-background-preview",
+  "sm-chatsettings-disappearing",
   "sm-search-input",
   "sm-search-result",
+  "sm-search-offline",
   "sm-poll-option",
   "sm-poll-tally",
 ]);
@@ -53,12 +101,15 @@ Options:
   --headed               show browser windows (default: headless)
   --receipts <path>      JSONL output (default: ./receipts.jsonl beside script)
   --suite-status <path>  JSON suite-status input used for green summaries
+  --adapter <path>       lane navigation/fixture adapter JSON
+  --simulator-status <path>
+                         optional separately recorded M6 simulator status
   --timeout <ms>         ordinary assertion timeout (default: 10000)
   --help                  show this help
 
 Required environment:
   CHOREO_BASE_URL
-  CHOREO_PASSWORD, or both CHOREO_ALICE_PASSWORD and CHOREO_BOB_PASSWORD
+  CHOREO_PASSWORD, or per-persona passwords (Carol is required for M5)
 
 See README.md for every environment variable and the suite-status shape.`;
 }
@@ -86,6 +137,8 @@ function parseArgs(argv) {
     headed: false,
     receiptsPath: process.env.CHOREO_RECEIPTS ?? DEFAULT_RECEIPTS_PATH,
     suiteStatusPath: process.env.CHOREO_SUITE_STATUS ?? null,
+    adapterPath: process.env.CHOREO_ADAPTER ?? null,
+    simulatorStatusPath: process.env.CHOREO_SIMULATOR_STATUS ?? null,
     timeoutMs: Number(process.env.CHOREO_TIMEOUT_MS ?? 10_000),
     segmentArg: null,
     help: false,
@@ -105,6 +158,12 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === "--suite-status") {
       options.suiteStatusPath = takeValue(argv, index, arg);
+      index += 1;
+    } else if (arg === "--adapter") {
+      options.adapterPath = takeValue(argv, index, arg);
+      index += 1;
+    } else if (arg === "--simulator-status") {
+      options.simulatorStatusPath = takeValue(argv, index, arg);
       index += 1;
     } else if (arg === "--timeout") {
       options.timeoutMs = Number(takeValue(argv, index, arg));
@@ -129,6 +188,10 @@ function parseArgs(argv) {
   options.receiptsPath = resolve(options.receiptsPath);
   if (options.suiteStatusPath) {
     options.suiteStatusPath = resolve(options.suiteStatusPath);
+  }
+  if (options.adapterPath) options.adapterPath = resolve(options.adapterPath);
+  if (options.simulatorStatusPath) {
+    options.simulatorStatusPath = resolve(options.simulatorStatusPath);
   }
   return options;
 }
@@ -193,17 +256,128 @@ async function loadSuiteStatuses(path) {
   return parsed;
 }
 
+function assertPlainObject(value, label) {
+  if (!value || Array.isArray(value) || typeof value !== "object") {
+    throw new Error(`${label} must be an object`);
+  }
+}
+
+async function loadAdapter(path) {
+  if (!path) return structuredClone(DEFAULT_ADAPTER);
+  const parsed = JSON.parse(await readFile(path, "utf8"));
+  assertPlainObject(parsed, "lane adapter");
+  if (parsed.schemaVersion !== DEFAULT_ADAPTER.schemaVersion) {
+    throw new Error(
+      `lane adapter schemaVersion must be ${DEFAULT_ADAPTER.schemaVersion}`,
+    );
+  }
+  for (const [name, value] of [
+    ["routes", parsed.routes],
+    ["fixtures", parsed.fixtures],
+    ["disappearing", parsed.disappearing],
+  ]) {
+    if (value !== undefined) assertPlainObject(value, `lane adapter ${name}`);
+  }
+  const adapter = {
+    ...structuredClone(DEFAULT_ADAPTER),
+    ...parsed,
+    routes: { ...DEFAULT_ADAPTER.routes, ...parsed.routes },
+    fixtures: { ...DEFAULT_ADAPTER.fixtures, ...parsed.fixtures },
+    disappearing: { ...DEFAULT_ADAPTER.disappearing, ...parsed.disappearing },
+  };
+  for (const [name, route] of Object.entries(adapter.routes)) {
+    if (typeof route !== "string" || !route.startsWith("/")) {
+      throw new Error(`lane adapter routes.${name} must be an absolute URL path`);
+    }
+  }
+  for (const name of ["image", "background", "video", "groupTitle", "searchToken", "searchExpected"]) {
+    if (typeof adapter.fixtures[name] !== "string" || adapter.fixtures[name].length === 0) {
+      throw new Error(`lane adapter fixtures.${name} must be a non-empty string`);
+    }
+  }
+  if (
+    typeof adapter.disappearing.optionValue !== "string" ||
+    adapter.disappearing.optionValue.length === 0 ||
+    !Number.isInteger(adapter.disappearing.waitMs) ||
+    adapter.disappearing.waitMs <= 0
+  ) {
+    throw new Error(
+      "lane adapter disappearing requires a non-empty optionValue and positive integer waitMs",
+    );
+  }
+  if (
+    typeof adapter.fixtures.directory !== "string" ||
+    adapter.fixtures.directory.length === 0
+  ) {
+    throw new Error("lane adapter fixtures.directory must be a non-empty string");
+  }
+  adapter.fixtures.directory = resolve(dirname(path), adapter.fixtures.directory);
+  return adapter;
+}
+
+async function loadSimulatorStatus(path) {
+  if (!path) {
+    return {
+      id: "ios-simulator-m6",
+      pass: null,
+      receipt: null,
+      status: "not-recorded",
+      reason: "simulator evidence is recorded separately from M6 web green",
+    };
+  }
+  const parsed = JSON.parse(await readFile(path, "utf8"));
+  assertPlainObject(parsed, "simulator status");
+  if (parsed.id !== "ios-simulator-m6") {
+    throw new Error("simulator status id must be ios-simulator-m6");
+  }
+  if (![true, false, null].includes(parsed.pass)) {
+    throw new Error("simulator status pass must be boolean or null");
+  }
+  if (parsed.pass === true && (typeof parsed.receipt !== "string" || !parsed.receipt)) {
+    throw new Error("passing simulator status must carry a receipt pointer");
+  }
+  if (
+    parsed.receipt !== undefined &&
+    parsed.receipt !== null &&
+    typeof parsed.receipt !== "string"
+  ) {
+    throw new Error("simulator status receipt must be string or null");
+  }
+  if (
+    parsed.reason !== undefined &&
+    parsed.reason !== null &&
+    typeof parsed.reason !== "string"
+  ) {
+    throw new Error("simulator status reason must be string or null");
+  }
+  return {
+    id: parsed.id,
+    pass: parsed.pass,
+    receipt: parsed.receipt ?? null,
+    status: parsed.pass === true ? "passed" : parsed.pass === false ? "failed" : "not-recorded",
+    reason:
+      parsed.reason ??
+      (parsed.pass === null ? "simulator evidence is not recorded" : null),
+  };
+}
+
 function createCheckRunner(emit) {
   const bySegment = new Map();
 
   async function check(
     segment,
     assertion,
-    { bestOf = 1, implemented = true, reason = null } = {},
+    { bestOf = 1, implemented = true, required = true, reason = null } = {},
     attemptFn = null,
   ) {
     if (![1, 3].includes(bestOf)) {
       throw new Error(`${segment}/${assertion}: bestOf must be 1 or 3`);
+    }
+    if (!implemented && (typeof reason !== "string" || reason.trim().length === 0)) {
+      throw new Error(`${segment}/${assertion}: skipped checks require a reason`);
+    }
+    if (implemented && typeof attemptFn !== "function") {
+      throw new Error(`${segment}/${assertion}: implemented checks require an attempt function`);
     }
 
     const timings = [];
@@ -240,12 +414,15 @@ function createCheckRunner(emit) {
 
     successful.sort((left, right) => left.timing.durationMs - right.timing.durationMs);
     const selected = successful[0] ?? null;
+    const status = !implemented ? "skipped" : selected ? "passed" : "failed";
     const receipt = await emit({
       type: "assertion",
       segment,
       assertion,
       implemented,
-      pass: implemented && selected !== null,
+      required,
+      status,
+      pass: implemented ? selected !== null : null,
       timings,
       bestOf,
       details: {
@@ -277,7 +454,19 @@ async function waitForValue(locator, predicate, timeoutMs, description) {
 
 async function observableState(locator) {
   return locator.evaluate((element) => {
-    const attributes = ["aria-label", "title", "data-state", "data-count"]
+    const attributes = [
+      "aria-label",
+      "aria-pressed",
+      "aria-selected",
+      "aria-valuetext",
+      "title",
+      "data-state",
+      "data-count",
+      "data-selected",
+      "data-value",
+      "src",
+      "style",
+    ]
       .map((name) => element.getAttribute(name) ?? "")
       .join("|");
     return `${element.textContent ?? ""}|${attributes}`.replace(/\s+/g, " ").trim();
@@ -359,13 +548,19 @@ async function openConversation(page, counterpart, timeoutMs) {
 }
 
 async function openAliceBobConversation(ctx) {
+  const openFromAnySurface = async (page, counterpart) => {
+    if (await testId(page, "sm-convo-input").isVisible()) return;
+    if (!(await testId(page, "sm-chats-item").first().isVisible())) {
+      await page.goto(ctx.baseUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: ctx.timeoutMs,
+      });
+    }
+    await openConversation(page, counterpart, ctx.timeoutMs);
+  };
   await Promise.all([
-    testId(ctx.alicePage, "sm-convo-input").isVisible().then((visible) =>
-      visible ? undefined : openConversation(ctx.alicePage, "Bob", ctx.timeoutMs),
-    ),
-    testId(ctx.bobPage, "sm-convo-input").isVisible().then((visible) =>
-      visible ? undefined : openConversation(ctx.bobPage, "Alice", ctx.timeoutMs),
-    ),
+    openFromAnySurface(ctx.alicePage, "Bob"),
+    openFromAnySurface(ctx.bobPage, "Alice"),
   ]);
 }
 
@@ -379,17 +574,196 @@ async function sendConversationText(page, text, timeoutMs) {
   return bubble;
 }
 
+function routeUrl(ctx, route, replacements = {}) {
+  let pathname = ctx.adapter.routes[route];
+  for (const [name, value] of Object.entries(replacements)) {
+    pathname = pathname.replaceAll(`{${name}}`, encodeURIComponent(value));
+  }
+  if (/\{[^}]+\}/u.test(pathname)) {
+    throw new Error(`lane adapter route ${route} has unresolved placeholders: ${pathname}`);
+  }
+  return new URL(pathname, ctx.baseUrl).href;
+}
+
+function fixturePath(ctx, name) {
+  return resolve(ctx.adapter.fixtures.directory, ctx.adapter.fixtures[name]);
+}
+
+async function openProfile(ctx, page, handle) {
+  await page.goto(routeUrl(ctx, "profile", { handle }), {
+    waitUntil: "domcontentloaded",
+    timeout: ctx.timeoutMs,
+  });
+  await testId(page, "sm-profile").waitFor({ state: "visible", timeout: ctx.timeoutMs });
+}
+
+async function setFileThroughControl(page, directId, triggerId, path, timeoutMs) {
+  const direct = testId(page, directId);
+  if ((await direct.count()) > 0) {
+    const isFileInput = await direct.first().evaluate(
+      (element) =>
+        element instanceof HTMLInputElement && element.type.toLowerCase() === "file",
+    );
+    if (isFileInput) {
+      await direct.first().setInputFiles(path);
+      return;
+    }
+  }
+  const chooserPromise = page.waitForEvent("filechooser", { timeout: timeoutMs });
+  await clickVisible(
+    (await direct.count()) > 0 ? direct : testId(page, triggerId),
+    timeoutMs,
+  );
+  const chooser = await chooserPromise;
+  await chooser.setFiles(path);
+}
+
+async function waitForLoadedMedia(root, kind, timeoutMs) {
+  const selector = kind === "video" ? "video" : "img";
+  let media = root.locator(selector).first();
+  if ((await media.count()) === 0 && (await root.count()) > 0) {
+    const rootIsMedia = await root
+      .first()
+      .evaluate((element, expected) => element.tagName.toLowerCase() === expected, selector);
+    if (rootIsMedia) media = root.first();
+  }
+  await media.waitFor({ state: "visible", timeout: timeoutMs });
+  await waitForValue(
+    media,
+    async (target) => {
+      const value = await target.evaluate((element) => {
+        if (element instanceof HTMLImageElement) {
+          return element.complete && element.naturalWidth > 0;
+        }
+        if (element instanceof HTMLVideoElement) return element.readyState >= 1;
+        return false;
+      });
+      return { matched: value, value: value ? 1 : 0 };
+    },
+    timeoutMs,
+    `${kind} media bytes`,
+  );
+  if (kind === "video") {
+    await media.evaluate(async (element) => {
+      element.muted = true;
+      await element.play();
+    });
+    await waitForValue(
+      media,
+      async (target) => {
+        const value = await target.evaluate(
+          (element) => element instanceof HTMLVideoElement && !element.paused,
+        );
+        return { matched: value, value: value ? 1 : 0 };
+      },
+      timeoutMs,
+      "video playback",
+    );
+  }
+}
+
+async function openAction(page, bubble, actionId, timeoutMs) {
+  const direct = testId(bubble, actionId);
+  if ((await direct.count()) > 0) {
+    await clickVisible(direct, timeoutMs);
+    return;
+  }
+  await bubble.click({ delay: 700 });
+  await testId(page, actionId).first().waitFor({ state: "visible", timeout: timeoutMs });
+  await testId(page, actionId).first().click();
+}
+
+async function reopenPersona(ctx, key) {
+  const context = ctx[`${key}Context`];
+  const page = await context.newPage();
+  ctx[`${key}Page`] = page;
+  await page.goto(ctx.baseUrl, { waitUntil: "domcontentloaded", timeout: ctx.timeoutMs });
+  if ((await testId(page, "sm-auth-email").count()) > 0) {
+    const persona = ctx.personas[key];
+    await testId(page, "sm-auth-email").fill(persona.email);
+    await testId(page, "sm-auth-password").fill(persona.password);
+    await testId(page, "sm-auth-submit").click();
+  }
+  await testId(page, "sm-feed-tab-following")
+    .or(testId(page, "sm-chats-item"))
+    .first()
+    .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+  return page;
+}
+
 async function m1(ctx) {
   await ctx.check(
     "m1",
     "profile-edit-live-visibility",
-    {
-      implemented: false,
-      bestOf: 3,
-      reason:
-        "CONTRACT.md has edit/save IDs but no profile navigation or display-name/bio input IDs; the skeleton will not guess selectors.",
+    { bestOf: 3 },
+    async (attempt) => {
+      await openProfile(ctx, ctx.bobPage, "alice");
+      await ctx.alicePage.goto(routeUrl(ctx, "profileEdit"), {
+        waitUntil: "domcontentloaded",
+        timeout: ctx.timeoutMs,
+      });
+      const displayName = `Alice Choreo ${ctx.runId.slice(0, 8)} ${attempt}`;
+      const bio = `Live profile ${ctx.runId.slice(0, 8)} ${attempt}`;
+      await testId(ctx.alicePage, "sm-profile-field-displayname").fill(displayName);
+      await testId(ctx.alicePage, "sm-profile-field-bio").fill(bio);
+      const started = performance.now();
+      await testId(ctx.alicePage, "sm-profile-save").click();
+      const visible = await waitForValue(
+        testId(ctx.bobPage, "sm-profile"),
+        async (target) => {
+          const value = await target.innerText();
+          return { matched: value.includes(displayName) && value.includes(bio), value };
+        },
+        ctx.timeoutMs,
+        "Bob's live Alice profile",
+      );
+      return {
+        metrics: { visibleMs: rounded(performance.now() - started) },
+        note: `other client observed display name and bio in ${visible.elapsedMs}ms`,
+      };
     },
   );
+
+  await ctx.check("m1", "session-persists-on-relaunch", {}, async () => {
+    await ctx.alicePage.goto(ctx.baseUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: ctx.timeoutMs,
+    });
+    await ctx.alicePage.reload({ waitUntil: "domcontentloaded", timeout: ctx.timeoutMs });
+    await testId(ctx.alicePage, "sm-feed-tab-following")
+      .or(testId(ctx.alicePage, "sm-chats-item"))
+      .first()
+      .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    if ((await testId(ctx.alicePage, "sm-auth-email").count()) > 0) {
+      throw new Error("Alice returned to the auth screen after relaunch");
+    }
+    return {};
+  });
+
+  await ctx.check("m1", "logout-remains-signed-out-on-relaunch", {}, async () => {
+    await ctx.alicePage.goto(routeUrl(ctx, "settings"), {
+      waitUntil: "domcontentloaded",
+      timeout: ctx.timeoutMs,
+    });
+    await clickVisible(testId(ctx.alicePage, "sm-settings-logout"), ctx.timeoutMs);
+    await testId(ctx.alicePage, "sm-auth-email").waitFor({
+      state: "visible",
+      timeout: ctx.timeoutMs,
+    });
+    await ctx.alicePage.reload({ waitUntil: "domcontentloaded", timeout: ctx.timeoutMs });
+    await testId(ctx.alicePage, "sm-auth-email").waitFor({
+      state: "visible",
+      timeout: ctx.timeoutMs,
+    });
+    await testId(ctx.alicePage, "sm-auth-email").fill(ctx.personas.alice.email);
+    await testId(ctx.alicePage, "sm-auth-password").fill(ctx.personas.alice.password);
+    await testId(ctx.alicePage, "sm-auth-submit").click();
+    await testId(ctx.alicePage, "sm-feed-tab-following")
+      .or(testId(ctx.alicePage, "sm-chats-item"))
+      .first()
+      .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    return {};
+  });
 }
 
 async function m2(ctx) {
@@ -430,6 +804,11 @@ async function m2(ctx) {
     bestOf: 3,
     reason:
       "sm-profile-follow exists, but the contract exposes no deterministic way to navigate Bob to Alice's profile.",
+  });
+  await ctx.check("m2", "feed-author-avatar-and-display-name", {
+    implemented: false,
+    reason:
+      "The P2 ticket does not extend M2's feed-author observation surface; this required choreography assertion remains an explicit skip.",
   });
 
   await ctx.check(
@@ -523,6 +902,7 @@ async function m2(ctx) {
   );
   await ctx.check("m2", "repost-following-feed-surface", {
     implemented: false,
+    required: false,
     bestOf: 3,
     reason:
       "This clause depends on first establishing a followed-user edge; deterministic profile navigation is absent from the frozen test-ID contract.",
@@ -595,6 +975,12 @@ async function m2(ctx) {
 }
 
 async function m3(ctx) {
+  await ctx.check("m3", "dm-live-messages-and-sender-avatar", {
+    implemented: false,
+    bestOf: 3,
+    reason:
+      "The P2 ticket does not extend M3's sender-avatar observation surface; the required two-client assertion remains an explicit skip.",
+  });
   await ctx.check(
     "m3",
     "typing-indicator-within-2s-expires-within-5s",
@@ -630,10 +1016,24 @@ async function m3(ctx) {
       "sm-convo-receipt identifies the element, but the contract does not pin an accessible sent/delivered/read state token; glyph/color inference would fake semantic proof.",
   });
 
+  await ctx.check("m3", "group-receipt-waits-for-slowest-member", {
+    implemented: false,
+    bestOf: 3,
+    reason:
+      "The P2 ticket does not add group-recipient lifecycle controls or a semantic aggregate-receipt state token.",
+  });
+
+  await ctx.check("m3", "removed-member-live-cutoff-and-retained-history", {
+    implemented: false,
+    bestOf: 3,
+    reason:
+      "The P2 ticket does not add group-member removal controls; the required cutoff/history choreography remains an explicit skip.",
+  });
+
   await ctx.check(
     "m3",
     "quoted-reply-excerpt-and-jump",
-    { bestOf: 3 },
+    { bestOf: 3, required: false },
     async (attempt) => {
       await openAliceBobConversation(ctx);
       const original = `choreo-${ctx.runId}-m3-original-${attempt}`;
@@ -664,42 +1064,384 @@ async function m3(ctx) {
 }
 
 async function m4(ctx) {
-  const checks = [
-    ["photo-message-live-render", "The contract exposes no media-message picker/upload test ID."],
-    ["video-message-live-playback", "The contract exposes no media-message picker/upload test ID."],
-    [
-      "reaction-live-replace-remove",
-      "sm-convo-reaction identifies reaction UI, but no emoji picker/choice state IDs are pinned.",
-    ],
-    ["edit-live-visibility", "The contract exposes no message edit action or editor test ID."],
-    ["delete-live-tombstone", "The contract exposes no delete-for-everyone action test ID."],
-  ];
-  for (const [assertion, reason] of checks) {
-    await ctx.check("m4", assertion, {
-      implemented: false,
-      bestOf: assertion.includes("live") ? 3 : 1,
-      reason,
-    });
+  const photo = await ctx.check(
+    "m4",
+    "photo-message-live-render",
+    { bestOf: 3 },
+    async (attempt) => {
+      await openAliceBobConversation(ctx);
+      const caption = `choreo-${ctx.runId}-m4-photo-${attempt}`;
+      await setFileThroughControl(
+        ctx.alicePage,
+        "sm-convo-file",
+        "sm-convo-attach",
+        fixturePath(ctx, "image"),
+        ctx.timeoutMs,
+      );
+      await testId(ctx.alicePage, "sm-convo-input").fill(caption);
+      const started = performance.now();
+      await testId(ctx.alicePage, "sm-convo-send").click();
+      const bubble = testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: caption }).last();
+      await bubble.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await waitForLoadedMedia(testId(bubble, "sm-convo-media"), "image", ctx.timeoutMs);
+      return {
+        metrics: { visibleMs: rounded(performance.now() - started) },
+        data: { caption },
+      };
+    },
+  );
+
+  await ctx.check("m4", "video-message-live-playback", {}, async () => {
+    await openAliceBobConversation(ctx);
+    const caption = `choreo-${ctx.runId}-m4-video`;
+    await setFileThroughControl(
+      ctx.alicePage,
+      "sm-convo-file",
+      "sm-convo-attach",
+      fixturePath(ctx, "video"),
+      ctx.timeoutMs,
+    );
+    await testId(ctx.alicePage, "sm-convo-input").fill(caption);
+    await testId(ctx.alicePage, "sm-convo-send").click();
+    const bubble = testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: caption }).last();
+    await bubble.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    const inline = testId(bubble, "sm-convo-media");
+    const hasInlineVideo =
+      (await inline.count()) > 0 &&
+      (await inline.first().evaluate(
+        (element) =>
+          element instanceof HTMLVideoElement || element.querySelector("video") !== null,
+      ));
+    if (hasInlineVideo) {
+      await waitForLoadedMedia(inline, "video", ctx.timeoutMs);
+    } else {
+      await clickVisible(inline, ctx.timeoutMs);
+      const viewer = testId(ctx.bobPage, "sm-media-viewer-video");
+      await waitForLoadedMedia(viewer, "video", ctx.timeoutMs);
+      await clickVisible(testId(ctx.bobPage, "sm-media-viewer-close"), ctx.timeoutMs);
+    }
+    return {};
+  });
+
+  await ctx.check(
+    "m4",
+    "reaction-live-replace-remove",
+    { bestOf: 3 },
+    async () => {
+      if (!photo.data?.caption) throw new Error("photo prerequisite did not yield a caption");
+      await openAliceBobConversation(ctx);
+      const bobBubble = testId(ctx.bobPage, "sm-convo-bubble")
+        .filter({ hasText: photo.data.caption })
+        .last();
+      const aliceBubble = testId(ctx.alicePage, "sm-convo-bubble")
+        .filter({ hasText: photo.data.caption })
+        .last();
+      await Promise.all([
+        bobBubble.waitFor({ state: "visible", timeout: ctx.timeoutMs }),
+        aliceBubble.waitFor({ state: "visible", timeout: ctx.timeoutMs }),
+      ]);
+
+      const started = performance.now();
+      await openAction(ctx.bobPage, bobBubble, "sm-convo-react", ctx.timeoutMs);
+      await clickVisible(
+        testId(ctx.bobPage, "sm-convo-reaction").filter({ hasText: "👍" }),
+        ctx.timeoutMs,
+      );
+      const aliceThumb = testId(aliceBubble, "sm-convo-reaction-chip").filter({ hasText: "👍" });
+      await aliceThumb.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      const setVisibleMs = rounded(performance.now() - started);
+
+      await openAction(ctx.bobPage, bobBubble, "sm-convo-react", ctx.timeoutMs);
+      await clickVisible(
+        testId(ctx.bobPage, "sm-convo-reaction").filter({ hasText: "❤️" }),
+        ctx.timeoutMs,
+      );
+      await aliceThumb.waitFor({ state: "hidden", timeout: ctx.timeoutMs });
+      const aliceHeart = testId(aliceBubble, "sm-convo-reaction-chip").filter({ hasText: "❤️" });
+      await aliceHeart.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      if ((await testId(aliceBubble, "sm-convo-reaction-chip").count()) !== 1) {
+        throw new Error("reaction replacement left more than one reaction chip");
+      }
+
+      await openAction(ctx.bobPage, bobBubble, "sm-convo-react", ctx.timeoutMs);
+      await clickVisible(
+        testId(ctx.bobPage, "sm-convo-reaction").filter({ hasText: "❤️" }),
+        ctx.timeoutMs,
+      );
+      await aliceHeart.waitFor({ state: "hidden", timeout: ctx.timeoutMs });
+      return { metrics: { visibleMs: setVisibleMs } };
+    },
+  );
+
+  await ctx.check(
+    "m4",
+    "edit-live-visibility",
+    { bestOf: 3 },
+    async (attempt) => {
+      await openAliceBobConversation(ctx);
+      const original = `choreo-${ctx.runId}-m4-edit-${attempt}`;
+      const edited = `${original}-edited`;
+      const aliceBubble = await sendConversationText(ctx.alicePage, original, ctx.timeoutMs);
+      await testId(ctx.bobPage, "sm-convo-bubble")
+        .filter({ hasText: original })
+        .last()
+        .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await openAction(ctx.alicePage, aliceBubble, "sm-convo-edit", ctx.timeoutMs);
+      await testId(ctx.alicePage, "sm-convo-input").fill(edited);
+      const started = performance.now();
+      await testId(ctx.alicePage, "sm-convo-send").click();
+      const bobEdited = testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: edited }).last();
+      await bobEdited.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      if (!/edited/i.test(await bobEdited.innerText())) {
+        throw new Error("recipient bubble did not expose the edited label");
+      }
+      return { metrics: { visibleMs: rounded(performance.now() - started) } };
+    },
+  );
+
+  await ctx.check("m4", "delete-live-tombstone", {}, async () => {
+    await openAliceBobConversation(ctx);
+    const text = `choreo-${ctx.runId}-m4-delete`;
+    const aliceBubble = await sendConversationText(ctx.alicePage, text, ctx.timeoutMs);
+    const bobBubble = testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: text }).last();
+    await bobBubble.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    const tombstones = testId(ctx.bobPage, "sm-convo-tombstone");
+    const before = await tombstones.count();
+    await openAction(ctx.alicePage, aliceBubble, "sm-convo-delete", ctx.timeoutMs);
+    await waitForCount(
+      tombstones,
+      (count) => count > before,
+      ctx.timeoutMs,
+      "Bob's delete-for-everyone tombstone",
+    );
+    const tombstoneText = await tombstones.last().innerText();
+    if (!/message was deleted|deleted/i.test(tombstoneText)) {
+      throw new Error(`unexpected tombstone text: ${tombstoneText}`);
+    }
+    return {};
+  });
+}
+
+async function controlValue(locator) {
+  return locator.evaluate((element) =>
+    element.getAttribute("data-value") ??
+    element.getAttribute("aria-valuetext") ??
+    element.getAttribute("aria-label") ??
+    element.getAttribute("value") ??
+    (element.textContent ?? "").trim(),
+  );
+}
+
+async function selectedControl(locator, value) {
+  for (let index = 0; index < (await locator.count()); index += 1) {
+    const candidate = locator.nth(index);
+    if ((await controlValue(candidate)) !== value) continue;
+    const selected = await candidate.evaluate((element) =>
+      element.getAttribute("aria-pressed") === "true" ||
+      element.getAttribute("aria-selected") === "true" ||
+      element.getAttribute("data-selected") === "true" ||
+      (element instanceof HTMLInputElement && element.checked),
+    );
+    if (selected) return candidate;
   }
+  return null;
+}
+
+async function selectControlOption(locator, value, timeoutMs) {
+  await locator.first().waitFor({ state: "visible", timeout: timeoutMs });
+  const firstTag = await locator.first().evaluate((element) => element.tagName.toLowerCase());
+  if (firstTag === "select") {
+    await locator.first().selectOption(value);
+    return;
+  }
+  for (let index = 0; index < (await locator.count()); index += 1) {
+    const candidate = locator.nth(index);
+    if ((await controlValue(candidate)) === value) {
+      await candidate.click();
+      return;
+    }
+  }
+  throw new Error(`control did not expose option value ${value}`);
 }
 
 async function m5(ctx) {
-  await ctx.check("m5", "chat-color-background-sync", {
-    implemented: false,
-    bestOf: 3,
-    reason:
-      "Color/background IDs exist, but chat-settings navigation, selected value, and background upload semantics are not pinned.",
+  await ctx.check("m5", "chat-color-background-sync", {}, async () => {
+    if (!ctx.carolPage) throw new Error("Carol's context is required for chat customization");
+    const groupTitle = ctx.adapter.fixtures.groupTitle;
+    await Promise.all([
+      openConversation(ctx.alicePage, groupTitle, ctx.timeoutMs),
+      openConversation(ctx.carolPage, groupTitle, ctx.timeoutMs),
+    ]);
+    await Promise.all([
+      clickVisible(testId(ctx.alicePage, "sm-convo-settings"), ctx.timeoutMs),
+      clickVisible(testId(ctx.carolPage, "sm-convo-settings"), ctx.timeoutMs),
+    ]);
+    const aliceColors = testId(ctx.alicePage, "sm-chatsettings-color");
+    const carolColors = testId(ctx.carolPage, "sm-chatsettings-color");
+    await Promise.all([
+      aliceColors.first().waitFor({ state: "visible", timeout: ctx.timeoutMs }),
+      carolColors.first().waitFor({ state: "visible", timeout: ctx.timeoutMs }),
+    ]);
+    if ((await aliceColors.count()) < 2) {
+      throw new Error("chat settings must expose at least two color choices");
+    }
+    let target = aliceColors.nth(0);
+    for (let index = 0; index < (await aliceColors.count()); index += 1) {
+      const candidate = aliceColors.nth(index);
+      const selected = await selectedControl(aliceColors, await controlValue(candidate));
+      if (!selected) {
+        target = candidate;
+        break;
+      }
+    }
+    const targetValue = await controlValue(target);
+    const started = performance.now();
+    await target.click();
+    await waitForValue(
+      carolColors,
+      async (controls) => ({
+        matched: (await selectedControl(controls, targetValue)) !== null,
+        value: targetValue,
+      }),
+      ctx.timeoutMs,
+      `Carol's selected chat color ${targetValue}`,
+    );
+
+    const carolPreview = testId(ctx.carolPage, "sm-chatsettings-background-preview");
+    const before = await observableState(carolPreview);
+    await setFileThroughControl(
+      ctx.alicePage,
+      "sm-chatsettings-background",
+      "sm-chatsettings-background",
+      fixturePath(ctx, "background"),
+      ctx.timeoutMs,
+    );
+    await waitForStateChange(
+      carolPreview,
+      before,
+      ctx.timeoutMs,
+      "Carol's synchronized chat background",
+    );
+    await waitForLoadedMedia(carolPreview, "image", ctx.timeoutMs);
+    return { metrics: { visibleMs: rounded(performance.now() - started) } };
   });
-  await ctx.check("m5", "disappearing-message-expiry-and-purge", {
-    implemented: false,
-    bestOf: 3,
-    reason: "The contract exposes no disappearing-setting or expiry-state test ID.",
+
+  await ctx.check(
+    "m5",
+    "view-once-single-view-and-refusal",
+    { required: false },
+    async () => {
+      await openAliceBobConversation(ctx);
+      const caption = `choreo-${ctx.runId}-m5-view-once`;
+      await setFileThroughControl(
+        ctx.alicePage,
+        "sm-convo-file",
+        "sm-convo-attach",
+        fixturePath(ctx, "image"),
+        ctx.timeoutMs,
+      );
+      await clickVisible(testId(ctx.alicePage, "sm-convo-viewonce-toggle"), ctx.timeoutMs);
+      await testId(ctx.alicePage, "sm-convo-input").fill(caption);
+      await testId(ctx.alicePage, "sm-convo-send").click();
+      const bubble = testId(ctx.bobPage, "sm-convo-bubble")
+        .filter({ hasText: caption })
+        .last();
+      const affordance = testId(bubble, "sm-convo-viewonce");
+      await affordance.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await affordance.click();
+      const viewer = testId(ctx.bobPage, "sm-media-viewer-image");
+      await waitForLoadedMedia(viewer, "image", ctx.timeoutMs);
+      await clickVisible(testId(ctx.bobPage, "sm-media-viewer-close"), ctx.timeoutMs);
+      await affordance.click().catch(() => {});
+      const denied = testId(ctx.bobPage, "sm-convo-error");
+      const state = await observableState(affordance).catch(() => "");
+      if (!/opened|viewed|denied|consumed/i.test(state)) {
+        await denied
+          .filter({ hasText: /opened|viewed|denied|consumed/i })
+          .first()
+          .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      }
+      if ((await viewer.count()) > 0 && (await viewer.isVisible())) {
+        throw new Error("view-once media rendered on the second open");
+      }
+      return {};
+    },
+  );
+
+  await ctx.check("m5", "warm-offline-search-over-synced-messages", {}, async () => {
+    await openAliceBobConversation(ctx);
+    await testId(ctx.alicePage, "sm-convo-bubble").first().waitFor({
+      state: "visible",
+      timeout: ctx.timeoutMs,
+    });
+    await ctx.alicePage.goto(routeUrl(ctx, "search"), {
+      waitUntil: "domcontentloaded",
+      timeout: ctx.timeoutMs,
+    });
+    await testId(ctx.alicePage, "sm-search-input").waitFor({
+      state: "visible",
+      timeout: ctx.timeoutMs,
+    });
+    await ctx.aliceContext.setOffline(true);
+    try {
+      await testId(ctx.alicePage, "sm-search-input").fill(ctx.adapter.fixtures.searchToken);
+      await testId(ctx.alicePage, "sm-search-result")
+        .filter({ hasText: ctx.adapter.fixtures.searchExpected })
+        .first()
+        .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await testId(ctx.alicePage, "sm-search-offline").waitFor({
+        state: "visible",
+        timeout: ctx.timeoutMs,
+      });
+    } finally {
+      await ctx.aliceContext.setOffline(false);
+    }
+    return {};
   });
-  await ctx.check("m5", "view-once-single-view-and-refusal", {
-    implemented: false,
-    bestOf: 1,
-    reason: "The contract exposes no view-once compose, open, close, or denied-state test ID.",
-  });
+
+  await ctx.check(
+    "m5",
+    "disappearing-message-expiry-and-purge",
+    { required: false },
+    async () => {
+      await openAliceBobConversation(ctx);
+      await clickVisible(testId(ctx.alicePage, "sm-convo-settings"), ctx.timeoutMs);
+      const disappearing = testId(ctx.alicePage, "sm-chatsettings-disappearing");
+      await selectControlOption(
+        disappearing,
+        ctx.adapter.disappearing.optionValue,
+        ctx.timeoutMs,
+      );
+      await ctx.alicePage.goto(ctx.baseUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: ctx.timeoutMs,
+      });
+      await openAliceBobConversation(ctx);
+      const text = `choreo-${ctx.runId}-m5-expiring`;
+      await sendConversationText(ctx.alicePage, text, ctx.timeoutMs);
+      await testId(ctx.bobPage, "sm-convo-bubble")
+        .filter({ hasText: text })
+        .last()
+        .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+      await Promise.all([ctx.alicePage.close(), ctx.bobPage.close()]);
+      await new Promise((resolvePromise) =>
+        setTimeout(resolvePromise, ctx.adapter.disappearing.waitMs),
+      );
+      await Promise.all([reopenPersona(ctx, "alice"), reopenPersona(ctx, "bob")]);
+      await Promise.all([
+        openConversation(ctx.alicePage, "Bob", ctx.timeoutMs),
+        openConversation(ctx.bobPage, "Alice", ctx.timeoutMs),
+      ]);
+      const visible = await Promise.all([
+        visibleTexts(testId(ctx.alicePage, "sm-convo-bubble").filter({ hasText: text })),
+        visibleTexts(testId(ctx.bobPage, "sm-convo-bubble").filter({ hasText: text })),
+      ]);
+      if (visible.some((values) => values.length > 0)) {
+        throw new Error("expired message remained visible after both clients relaunched");
+      }
+      return {};
+    },
+  );
 }
 
 async function m6(ctx) {
@@ -763,34 +1505,52 @@ const SEGMENT_FUNCTIONS = { m1, m2, m3, m4, m5, m6 };
 
 // @ref LLP 0201#d2--quantitative-instrument — milestone green is the
 // fail-closed conjunction of suite evidence and the full choreography segment.
+export function aggregateChoreography(assertionReceipts) {
+  const counts = {
+    total: assertionReceipts.length,
+    required: assertionReceipts.filter((item) => item.required).length,
+    implemented: assertionReceipts.filter((item) => item.implemented).length,
+    passed: assertionReceipts.filter((item) => item.status === "passed").length,
+    failed: assertionReceipts.filter((item) => item.status === "failed").length,
+    skipped: assertionReceipts.filter((item) => item.status === "skipped").length,
+    notImplemented: assertionReceipts.filter((item) => !item.implemented).length,
+    requiredUnimplemented: assertionReceipts.filter(
+      (item) => item.required && !item.implemented,
+    ).length,
+  };
+  const browserPass =
+    counts.total > 0 && counts.failed === 0 && counts.requiredUnimplemented === 0;
+  const reason = counts.requiredUnimplemented > 0
+    ? `${counts.requiredUnimplemented} required assertion(s) remain unimplemented`
+    : counts.failed > 0
+      ? `${counts.failed} implemented assertion(s) failed`
+      : null;
+  return { counts, browserPass, reason };
+}
+
 async function emitSegmentSummary({
   emit,
   segment,
   assertionReceipts,
   durationMs,
   suiteStatus,
+  simulatorStatus,
 }) {
-  const counts = {
-    total: assertionReceipts.length,
-    implemented: assertionReceipts.filter((item) => item.implemented).length,
-    passed: assertionReceipts.filter((item) => item.pass).length,
-    failed: assertionReceipts.filter((item) => item.implemented && !item.pass).length,
-    notImplemented: assertionReceipts.filter((item) => !item.implemented).length,
-  };
-  const browserPass = counts.total > 0 && counts.passed === counts.total;
-  const requiredExternal = segment === "m6" ? ["ios-simulator-m6"] : [];
-  const externalPass = requiredExternal.length === 0 ? true : null;
+  const { counts, browserPass, reason } = aggregateChoreography(assertionReceipts);
+  const requiredExternal = [];
+  const externalPass = true;
   const choreographyPass = browserPass && externalPass === true;
   const suite = suiteStatus
     ? { pass: suiteStatus.pass, receipt: suiteStatus.receipt ?? null }
     : { pass: null, receipt: null };
   const green = suite.pass === true && choreographyPass;
-
   return emit({
     type: "segment-summary",
     segment,
     assertion: "__segment__",
-    implemented: counts.implemented === counts.total && externalPass !== null,
+    implemented: counts.requiredUnimplemented === 0,
+    required: true,
+    status: choreographyPass ? "passed" : "failed",
     pass: choreographyPass,
     timings: [
       {
@@ -805,7 +1565,7 @@ async function emitSegmentSummary({
     details: {
       selection: "segment aggregate",
       selectedAttempt: choreographyPass ? 1 : null,
-      reason: externalPass === null ? "required simulator receipt is not implemented in P1" : null,
+      reason,
     },
     assertions: counts,
     suite,
@@ -813,6 +1573,10 @@ async function emitSegmentSummary({
       browserPass,
       requiredExternal,
       externalPass,
+      supplementalExternal:
+        segment === "m6"
+          ? [{ ...simulatorStatus, requiredForGreen: false }]
+          : [],
       pass: choreographyPass,
     },
     green,
@@ -838,11 +1602,20 @@ async function main() {
   const sharedPassword = process.env.CHOREO_PASSWORD;
   const alicePassword = process.env.CHOREO_ALICE_PASSWORD ?? sharedPassword;
   const bobPassword = process.env.CHOREO_BOB_PASSWORD ?? sharedPassword;
-  if (!baseUrl || !alicePassword || !bobPassword) {
+  const carolPassword = process.env.CHOREO_CAROL_PASSWORD ?? sharedPassword;
+  if (
+    !baseUrl ||
+    !alicePassword ||
+    !bobPassword ||
+    (options.segments.includes("m5") && !carolPassword)
+  ) {
     process.stderr.write(`CHOREO_BASE_URL and persona password environment variables are required.\n\n${usage()}\n`);
     process.exitCode = 2;
     return;
   }
+
+  const adapter = await loadAdapter(options.adapterPath);
+  const simulatorStatus = await loadSimulatorStatus(options.simulatorStatusPath);
 
   let playwright;
   try {
@@ -860,43 +1633,54 @@ async function main() {
   const suiteStatuses = await loadSuiteStatuses(options.suiteStatusPath);
   const { check, bySegment } = createCheckRunner(emit);
   const browserType = playwright[options.browser];
-  const browser = await browserType.launch({ headless: !options.headed });
+  const browser = await browserType.launch({
+    headless: !options.headed,
+    ...(process.env.CHOREO_BROWSER_EXECUTABLE
+      ? { executablePath: process.env.CHOREO_BROWSER_EXECUTABLE }
+      : {}),
+  });
   const aliceContext = await browser.newContext();
   const bobContext = await browser.newContext();
+  const carolContext = options.segments.includes("m5") ? await browser.newContext() : null;
   const alicePage = await aliceContext.newPage();
   const bobPage = await bobContext.newPage();
+  const carolPage = carolContext ? await carolContext.newPage() : null;
   const summaries = [];
+  const personas = {
+    alice: {
+      email: process.env.CHOREO_ALICE_EMAIL ?? "alice@example.com",
+      password: alicePassword,
+    },
+    bob: {
+      email: process.env.CHOREO_BOB_EMAIL ?? "bob@example.com",
+      password: bobPassword,
+    },
+    carol: {
+      email: process.env.CHOREO_CAROL_EMAIL ?? "carol@example.com",
+      password: carolPassword,
+    },
+  };
 
   try {
-    await Promise.all([
-      login(
-        alicePage,
-        baseUrl,
-        {
-          email: process.env.CHOREO_ALICE_EMAIL ?? "alice@example.com",
-          password: alicePassword,
-        },
-        options.timeoutMs,
-      ),
-      login(
-        bobPage,
-        baseUrl,
-        {
-          email: process.env.CHOREO_BOB_EMAIL ?? "bob@example.com",
-          password: bobPassword,
-        },
-        options.timeoutMs,
-      ),
-    ]);
+    const loginTasks = [
+      login(alicePage, baseUrl, personas.alice, options.timeoutMs),
+      login(bobPage, baseUrl, personas.bob, options.timeoutMs),
+    ];
+    if (carolPage) loginTasks.push(login(carolPage, baseUrl, personas.carol, options.timeoutMs));
+    await Promise.all(loginTasks);
 
     const context = {
       runId,
       baseUrl,
+      adapter,
+      personas,
       timeoutMs: options.timeoutMs,
       aliceContext,
       bobContext,
+      carolContext,
       alicePage,
       bobPage,
+      carolPage,
       check,
     };
 
@@ -909,24 +1693,40 @@ async function main() {
         assertionReceipts: bySegment.get(segment) ?? [],
         durationMs: performance.now() - started,
         suiteStatus: suiteStatuses[segment],
+        simulatorStatus,
       });
       summaries.push(summary);
       if (segment !== options.segments.at(-1)) {
-        await Promise.allSettled([
+        const resets = [
           alicePage.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: options.timeoutMs }),
           bobPage.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: options.timeoutMs }),
-        ]);
+        ];
+        if (carolPage) {
+          resets.push(
+            carolPage.goto(baseUrl, {
+              waitUntil: "domcontentloaded",
+              timeout: options.timeoutMs,
+            }),
+          );
+        }
+        await Promise.allSettled(resets);
       }
     }
   } finally {
-    await Promise.allSettled([aliceContext.close(), bobContext.close()]);
+    await Promise.allSettled(
+      [aliceContext, bobContext, carolContext]
+        .filter(Boolean)
+        .map((context) => context.close()),
+    );
     await browser.close();
   }
 
   process.exitCode = summaries.every((summary) => summary.green) ? 0 : 1;
 }
 
-main().catch((error) => {
-  process.stderr.write(`choreography fatal: ${errorText(error)}\n`);
-  process.exitCode = 2;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    process.stderr.write(`choreography fatal: ${errorText(error)}\n`);
+    process.exitCode = 2;
+  });
+}
