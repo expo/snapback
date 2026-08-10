@@ -6,7 +6,19 @@
 Hosted platform, Developer experience, Docs
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** 2026-08-10 (Status → Implemented: every S0–S5 sequencing
+**Revised:** 2026-08-10 (author sitting: the commissioned remainders were
+ruled. (1) Untrusted-code execution: commission an investigation into what
+confident launch requires on BOTH the Ibex restricted worker and
+workerd/v8 before any promotion. (2) Capability links: commission the FULL
+granted-operation extension — the named LLP 0055/0058/0031 amendments plus
+the LLP 0150 bearer-exception entry, reads and writes. (3) External
+automations: build the full bundle now — the LLP 0070 webhook/egress
+slice, watchAnchor grant issuance, and integration-owned watches.
+(4) Hosted gates: full program start (LLP 0039 deployment-security
+contract + LLP 0019 F8 audit log; the approval-gated-only audit scope may
+be the first landing). All four run in parallel; a qualified npm publish
+follows the 0.1.16 receipt-regression fix.)
+2026-08-10 (Status → Implemented: every S0–S5 sequencing
 deliverable has landed on local targets with per-section dated
 implementation notes; commissioned remainders stay explicitly named —
 hosted gates run as the separate LLP 0039 + LLP 0019 F8 sibling program,
