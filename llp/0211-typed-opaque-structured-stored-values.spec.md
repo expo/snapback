@@ -5,7 +5,12 @@
 **Systems:** Schema, Application data API, Storage, Code generation, Client SDK
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-09
-**Revised:** 2026-08-09, Phase A implementation records the closed structured
+**Revised:** 2026-08-10 (ACCEPTED by the author, Charlie — the
+super-refine close-out's unreviewed-tail caveat acknowledged in the
+acceptance; and the **support flip performed** under the same ruling:
+`structured_stored_value_v1_registered` is true, the separate reviewed
+act §Capability required, with the Phase A acceptance corpus green at
+`979f3aab5`). Prior: 2026-08-09, Phase A implementation records the closed structured
 dispatch, persisted carrier, canonical storage path, observation refusals,
 experimental capability registration, and acceptance corpus. The OQ3 proposed
 ceilings are now frozen at 32 KiB per value, 48 KiB per row, depth 16, and

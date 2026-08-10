@@ -11722,8 +11722,12 @@ impl TargetCapabilityFacts {
             jobs_one_off_v1_registered: true,
             expo_push_seam_v1_registered: true,
             result_contract_v1_registered: true,
-            // Phase A installs and proves the surface without advertising it.
-            structured_stored_value_v1_registered: false,
+            // @ref LLP 0211#capability-and-maturity-the-llp-0134-publication-contract
+            //   — the support flip is the separate reviewed act the Spec
+            //   requires: performed 2026-08-10 on the author's acceptance of
+            //   LLP 0211, with the Phase A acceptance corpus green at the
+            //   landed 979f3aab5.
+            structured_stored_value_v1_registered: true,
             settlement_bounded_skew_registered: true,
             args_contract_v1_registered: true,
             versioned_seed_install_v1_registered: true,
@@ -15592,6 +15596,13 @@ mod membership_manifest_grammar_tests {
             ),
             (
                 TargetCapabilityId::ResultContractV1,
+                CapabilityMaturity::Experimental,
+            ),
+            // @ref LLP 0211#capability-and-maturity-the-llp-0134-publication-contract
+            //   — advertised by the reviewed support flip (author acceptance,
+            //   2026-08-10).
+            (
+                TargetCapabilityId::StructuredStoredValueV1,
                 CapabilityMaturity::Experimental,
             ),
             (

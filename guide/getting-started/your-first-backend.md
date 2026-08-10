@@ -83,9 +83,9 @@ partial: specialized validators — typed asset references (`v.assetRef`,
 > **Unreleased.** The typed-structured declaration grammar (stored
 > `v.object`/`v.array`/non-literal unions) is newer than the newest
 > published closure, 0.1.17, and is available on contributor-source local
-> builds. Structured storage is registered as experimental but
-> deliberately remains local-support-false until its separate
-> acceptance-review flip. Stored enum fields shipped in the published
+> builds. Structured storage is experimental with local support ON
+> (the reviewed flip landed with LLP 0211's acceptance, 2026-08-10).
+> Stored enum fields shipped in the published
 > closure and are not fenced.
 
 **Closed string domains (enums).** A field whose values come from a fixed set
