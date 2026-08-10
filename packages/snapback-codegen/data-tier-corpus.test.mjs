@@ -50,24 +50,6 @@ const fail = (message) => {
   if (tickSteps !== PATTERN_IDS.length + 7) fail(`applyFeedTick builder plan has ${tickSteps} steps, expected ${PATTERN_IDS.length + 7}`);
 }
 
-// --- Gate (c): the negative exemplar is a real in-corpus mutation ---
-// applyLiveFeedSnapshot's generated manifest carries the class-specific
-// "outgrew the IR: conditional writes" info diagnostic.
-{
-  const manifestPath = join(REPO_ROOT, 'demos', 'all-aboard', 'snapback', 'generated', 'functions.manifest.json');
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  const outgrown = (manifest.unsupportedDependencyDiagnostics ?? []).find(
-    (d) => d.code === 'MUTATION_OUTGREW_IR' && d.details?.function === 'applyLiveFeedSnapshot',
-  );
-  if (!outgrown) {
-    fail('all-aboard functions.manifest.json is missing the MUTATION_OUTGREW_IR diagnostic for applyLiveFeedSnapshot (gate c)');
-  } else {
-    if (outgrown.details.class !== 'conditional-writes') fail(`outgrew-IR class is ${outgrown.details.class}, expected conditional-writes`);
-    if (!outgrown.message.includes('outgrew the IR: conditional writes')) fail(`outgrew-IR message lacks the class-specific text: ${outgrown.message}`);
-    if (outgrown.severity !== 'info') fail(`outgrew-IR severity is ${outgrown.severity}, expected info`);
-  }
-}
-
 const cases = buildCorpusCases();
 const profile = JSON.parse(readFileSync(PROFILE_PATH, 'utf8'));
 const names = new Set();

@@ -45,6 +45,7 @@ while IFS=$'\t' read -r outbound_actions target_profile backend_root; do
         run "${codegen[@]}"
     fi
 done <<< "$CODEGEN_JOBS"
+run node scripts/check-data-tier-corpus-exemplar.mjs
 run node admin-ui/generate-contract-bindings.mjs
 
 REVIEW_ROOTS=()

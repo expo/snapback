@@ -1,6 +1,6 @@
 # `data-tier-corpus.test.mjs` is non-hermetic: a fresh clone's codegen suite is red
 
-**Status:** Open — needs a design call from the generated-artifact gate owner
+**Status:** Resolved 2026-08-10
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 3
@@ -82,3 +82,48 @@ generated-artifact gate (or the review-surface check), where the closure is
 guaranteed materialized. The package suite stays hermetic, the corpus
 exemplar stays a real in-corpus mutation, and nothing new is committed.
 Resolution criteria above unchanged.
+
+## Resolution — 2026-08-10
+
+Gate (c) moved to `scripts/check-data-tier-corpus-exemplar.mjs`, invoked by
+`scripts/check-generated-artifacts` immediately after its registered codegen
+jobs materialize every generated closure. The generic
+`scripts/verify-generated-review-surface.mjs` remains limited to review-cache
+custody, graph-digest, projection, and tracked-index invariants; the
+All Aboard corpus-semantic assertion does not belong in that reusable layer.
+The moved checker preserves all four original predicates: the regenerated
+manifest must contain the `MUTATION_OUTGREW_IR` diagnostic for
+`applyLiveFeedSnapshot`, with class `conditional-writes`, message text
+`outgrew the IR: conditional writes`, and severity `info`. Gates (a) and (b)
+remain in the package suite.
+
+Verification in the isolated L1 worktree:
+
+- `git clean -fdX demos` left
+  `demos/all-aboard/snapback/generated/functions.manifest.json` absent.
+  With no preceding generated-artifact run,
+  `node packages/snapback-codegen/data-tier-corpus.test.mjs` exited 0:
+  `37 cases verified; builder-parity assertions passed`.
+- After regenerating the registered All Aboard job with
+  `SNAPBACK_OUTBOUND_ACTIONS=1`,
+  `node scripts/check-data-tier-corpus-exemplar.mjs` exited 0.
+- Temporarily changing the expected message substring to
+  `outgrew the IR: conditional writes BROKEN` made that checker report the
+  missing class-specific text and exit 1. Restoring the expectation returned
+  the checker to exit 0.
+- `./ref-check --verbose` exited 0: 225 LLP docs, 4,809 refs in 9,598 files,
+  0 errors, 0 unchecked.
+
+The exact full-suite command was also attempted from the absent-manifest
+state under the repository's Node 24 engine. It no longer fails on gate (c),
+but this checkout has an independent pre-existing red in
+`schema-reference-type-flow.test.mjs`: the test expects the newly supported
+`structured_stored_value_v1` schema to be refused (`generated.ok === false`),
+while generation succeeds. `structured-stored-values.test.mjs` has the same
+stale expectation when run alone. Thus this lane proves removal of the
+fresh-clone dependency but cannot honestly record an observed exit 0 for the
+entire package command on this base revision. Likewise, the full
+`scripts/check-generated-artifacts` command is independently baseline-red
+before reaching All Aboard at the known stale signed trusted-composition
+activation for `demos/latency-kanban`; the moved checker was therefore run
+directly against the regenerated All Aboard closure for its green/red proof.
