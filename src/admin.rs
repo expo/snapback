@@ -65,6 +65,10 @@ use tokio::sync::Mutex;
 /// Contract/Exact bundle in `admin-ui/dist`; when that snapshot is unavailable,
 /// browsers get an explicit capability diagnostic instead of a separate
 /// handwritten console.
+///
+/// @ref LLP 0017#static-bundling-and-the-native-shell — published runtimes
+/// carry their build-matched snapshot; this recovery page is a contributor
+/// source-build diagnostic and must not turn package consumers into builders.
 const MISSING_ADMIN_DIST_HTML: &str = r#"<!doctype html>
 <html lang="en">
 <head>
@@ -85,10 +89,11 @@ const MISSING_ADMIN_DIST_HTML: &str = r#"<!doctype html>
 <main>
 <h1>Snapback Admin Console unavailable</h1>
 <p><code>SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING</code></p>
-<p>The Snapback admin console is served from the Contract/Exact static build. Build it, or set <code>SNAPBACK_ADMIN_DIST</code> to a built admin snapshot.</p>
-<pre>cd admin-ui
-./build.sh
-cargo run --manifest-path ../Cargo.toml -- --memory</pre>
+<p>Published <code>@expo/snapback-cli</code> installs include and select a build-matched console automatically. If a published install shows this page, reinstall that exact package closure.</p>
+<p><strong>Contributor source-build recovery:</strong> build the checkout's Contract/Exact snapshot, then restart the source runtime. <code>SNAPBACK_ADMIN_DIST</code> is available only when deliberately testing another contributor-built snapshot.</p>
+<pre>bun install --frozen-lockfile --cwd admin-ui
+bun run --cwd admin-ui build
+cargo run -- start --memory</pre>
 <p>The headless admin API is still available at <a href="/_snapback/api/inspect"><code>/_snapback/api/inspect</code></a>.</p>
 </main>
 </body>

@@ -336,8 +336,14 @@ async fn missing_console_dist_is_explicit_and_inspect_still_serves() {
         "missing dist reports a stable capability diagnostic"
     );
     assert!(
-        body.contains("admin-ui") && body.contains("./build.sh"),
-        "diagnostic tells the developer how to build the Contract console"
+        body.contains("Published <code>@expo/snapback-cli</code> installs include")
+            && body.contains("Contributor source-build recovery")
+            && body.contains("bun run --cwd admin-ui build"),
+        "diagnostic distinguishes packaged consumers from contributor recovery"
+    );
+    assert!(
+        !body.contains("cd admin-ui"),
+        "diagnostic must not give a source-checkout cd instruction to package consumers"
     );
 
     let inspect = json(app.oneshot(get("/_snapback/api/inspect")).await.unwrap()).await;

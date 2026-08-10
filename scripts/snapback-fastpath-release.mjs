@@ -21,6 +21,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  assertStagedRuntimeAdminConsole,
   assertStagedRuntimeStoreQualification,
 } from './publication-store-qualification-gate.mjs';
 
@@ -546,6 +547,10 @@ async function releasePass(options) {
     stagedDir: options.out,
     ledger,
   });
+  const adminConsoleSummary = assertStagedRuntimeAdminConsole({
+    stagedDir: options.out,
+    ledger,
+  });
   const ledgerSha256 = await sha256File(ledgerPath);
   let retainedLedger = null;
   if (options.retainLedger) {
@@ -568,6 +573,7 @@ async function releasePass(options) {
     ledgerSha256,
     retainedLedger,
     gateSummary,
+    adminConsoleSummary,
     publication: [],
     byteVerification: [],
     smokeReceipt: null,

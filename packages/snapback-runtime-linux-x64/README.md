@@ -5,6 +5,8 @@
 Prebuilt Snapback server and Hermes runtime for x86-64 Linux. Application
 authors normally receive this platform package through `@expo/snapback-cli`;
 do not install it directly or treat the platform artifact as the authoring API.
+The package also carries the build-matched immutable admin-console snapshot;
+the CLI selects it automatically when starting this runtime.
 
 ## Documentation outside a checkout
 

@@ -22,6 +22,7 @@ import {
   assertPublicPackageBuildIdentity,
   installPackagedStoreQualificationReceipt,
 } from '../../scripts/runtime-package-authority.mjs';
+import { installAdminConsoleSnapshot } from '../snapback-cli/admin-snapshot.mjs';
 import {
   readLinuxRuntimeArtifactAttestation,
   validateLinuxRuntimeArtifactAttestation,
@@ -54,6 +55,7 @@ const sourceHermesHeader = resolve(
   explicitHermesHeader
     ?? join(repositoryRoot, 'vendor', 'ibex', 'linux', 'hermes-headers', 'hermes', 'hermes.h'),
 );
+const sourceAdminDist = resolve(repositoryRoot, 'admin-ui', 'dist');
 
 function fail(code, message) {
   console.error(`${code}: ${message}`);
@@ -124,6 +126,7 @@ if (elfMachine(sourceBinary) !== 62 || elfMachine(sourceHermes) !== 62) {
 }
 
 const sourceTestStaging = process.argv.includes('--source-test-staging');
+const nativeArtifactStaging = process.argv.includes('--native-artifact-staging');
 let identity;
 let transportedQualification = null;
 let artifactAttestation = null;
@@ -186,9 +189,14 @@ try {
 const binDirectory = join(packageRoot, 'bin');
 const libDirectory = join(packageRoot, 'lib');
 const includeDirectory = join(packageRoot, 'include');
+const adminDirectory = join(packageRoot, 'admin');
+// Native-artifact staging transports only the binary/Hermes inputs to the
+// final publication assembler; that assembler adds and seals the console.
+const allowMissingAdminConsole = sourceTestStaging || nativeArtifactStaging;
 rmSync(binDirectory, { recursive: true, force: true });
 rmSync(libDirectory, { recursive: true, force: true });
 rmSync(includeDirectory, { recursive: true, force: true });
+rmSync(adminDirectory, { recursive: true, force: true });
 rmSync(join(packageRoot, 'runtime-readiness.json'), { force: true });
 mkdirSync(binDirectory, { recursive: true });
 mkdirSync(libDirectory, { recursive: true });
@@ -198,6 +206,25 @@ chmodSync(join(binDirectory, 'snapback'), 0o755);
 cpSync(sourceHermes, join(libDirectory, 'libhermesvm.so'));
 chmodSync(join(libDirectory, 'libhermesvm.so'), 0o755);
 cpSync(sourceHermesHeader, join(includeDirectory, 'hermes', 'hermes.h.artifact'));
+if (!nativeArtifactStaging && existsSync(sourceAdminDist)) {
+  try {
+    installAdminConsoleSnapshot({
+      sourceRoot: sourceAdminDist,
+      destinationRoot: adminDirectory,
+      expectedSourceRevision: crossHost ? explicitRevision : identity.binary.gitCommit,
+    });
+  } catch (error) {
+    fail(
+      error?.code ?? 'SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID',
+      error?.message ?? 'admin console snapshot could not be installed',
+    );
+  }
+} else if (!allowMissingAdminConsole) {
+  fail(
+    'SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID',
+    `build-matched admin console snapshot is missing at ${sourceAdminDist}; run bun install --frozen-lockfile --cwd admin-ui && bun run --cwd admin-ui build`,
+  );
+}
 try {
   if (crossHost) {
     for (const soname of Object.keys(
@@ -264,6 +291,7 @@ try {
     ...(transportedQualification === null
       ? { environment: process.env }
       : { qualification: transportedQualification }),
+    adminConsoleRequired: !allowMissingAdminConsole,
   });
 } catch (error) {
   fail(

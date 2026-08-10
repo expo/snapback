@@ -73,6 +73,7 @@ jobs:
       - name: Build and launch-test the relocatable Linux runtime
         run: |
           scripts/bootstrap-ibex-runtime
+          bun run --cwd admin-ui build
           SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback
           node packages/snapback-runtime-linux-x64/prepare-runtime.mjs
           node packages/snapback-runtime-linux-x64/package.test.mjs

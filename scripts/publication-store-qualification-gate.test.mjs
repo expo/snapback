@@ -6,8 +6,10 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
+  assertStagedRuntimeAdminConsole,
   assertStagedRuntimeStoreQualification,
 } from './publication-store-qualification-gate.mjs';
+import { writeAdminConsoleSnapshotManifest } from '../packages/snapback-cli/admin-snapshot.mjs';
 
 const VERSION = '0.1.17';
 const REVISION = 'a'.repeat(40);
@@ -31,7 +33,7 @@ function validReceipt(overrides = {}) {
   };
 }
 
-function writeTarball(root, name, receipt) {
+function writeTarball(root, name, receipt, { admin = null } = {}) {
   const slug = name.split('/').at(-1);
   const scratch = join(root, `.scratch-${slug}`);
   const packageRoot = join(scratch, 'package');
@@ -44,6 +46,23 @@ function writeTarball(root, name, receipt) {
       join(bin, 'packaged-store-qualification.receipt.json'),
       `${JSON.stringify(receipt)}\n`,
     );
+  }
+  if (admin !== null) {
+    const adminRoot = join(packageRoot, 'admin');
+    mkdirSync(join(adminRoot, '__exact'), { recursive: true });
+    writeFileSync(join(adminRoot, 'index.html'), '<title>Snapback Admin Console</title>\n');
+    writeFileSync(join(adminRoot, '__exact', 'platform-manifest.json'), '{}\n');
+    writeAdminConsoleSnapshotManifest({
+      root: adminRoot,
+      sourceRevision: admin.sourceRevision ?? REVISION,
+      sourceDirty: admin.sourceDirty ?? false,
+    });
+    if (admin.tamper === true) {
+      writeFileSync(join(adminRoot, 'index.html'), '<title>tampered</title>\n');
+    }
+    writeFileSync(join(packageRoot, 'runtime-readiness.json'), `${JSON.stringify({
+      sourceRevision: admin.runtimeRevision ?? REVISION,
+    })}\n`);
   }
   const tarball = `${slug}.tgz`;
   const packed = spawnSync('tar', ['czf', join(root, tarball), '-C', scratch, 'package'], {
@@ -64,11 +83,17 @@ function withFixture(operation) {
   }
 }
 
-function makeLedger(root, receipts, { runtimeNames = RUNTIME_NAMES, includeNonRuntime = false } = {}) {
+function makeLedger(root, receipts, {
+  runtimeNames = RUNTIME_NAMES,
+  includeNonRuntime = false,
+  adminByName = null,
+} = {}) {
   const packages = runtimeNames.map((name) => ({
     name,
     version: VERSION,
-    tarball: writeTarball(root, name, receipts.get(name)),
+    tarball: writeTarball(root, name, receipts.get(name), {
+      admin: adminByName?.get(name) ?? null,
+    }),
   }));
   if (includeNonRuntime) {
     packages.push({
@@ -115,6 +140,49 @@ test('valid receipts on both platforms are admitted and summarized', () => {
     assert(summary.every((row) => row.gitCommit === REVISION));
   });
 });
+
+test('clean build-matched admin snapshots on both runtime platforms are admitted', () => {
+  withFixture((root) => {
+    const receipt = validReceipt();
+    const ledger = makeLedger(
+      root,
+      new Map(RUNTIME_NAMES.map((name) => [name, receipt])),
+      { adminByName: new Map(RUNTIME_NAMES.map((name) => [name, {}])) },
+    );
+    const summary = assertStagedRuntimeAdminConsole({ stagedDir: root, ledger });
+    assert.deepEqual(summary.map((row) => row.name), RUNTIME_NAMES);
+    assert(summary.every((row) => row.sourceRevision === REVISION));
+    assert(summary.every((row) => /^[0-9a-f]{64}$/u.test(row.snapshotSha256)));
+  });
+});
+
+for (const [label, invalidAdmin, code] of [
+  ['missing snapshot', null, 'SNAPBACK_PUBLICATION_STORE_RECEIPT_INVALID'],
+  ['dirty snapshot', { sourceDirty: true }, 'SNAPBACK_PUBLICATION_STORE_RECEIPT_INVALID'],
+  ['tampered snapshot', { tamper: true }, 'SNAPBACK_PUBLICATION_STORE_RECEIPT_INVALID'],
+  [
+    'runtime revision drift',
+    { runtimeRevision: 'b'.repeat(40) },
+    'SNAPBACK_PUBLICATION_STORE_RECEIPT_IDENTITY_DRIFTED',
+  ],
+]) {
+  test(`${label} is refused by admin publication qualification`, () => {
+    withFixture((root) => {
+      const receipt = validReceipt();
+      const adminByName = new Map(RUNTIME_NAMES.map((name) => [name, {}]));
+      adminByName.set(RUNTIME_NAMES[0], invalidAdmin);
+      const ledger = makeLedger(
+        root,
+        new Map(RUNTIME_NAMES.map((name) => [name, receipt])),
+        { adminByName },
+      );
+      throwsCode(
+        () => assertStagedRuntimeAdminConsole({ stagedDir: root, ledger }),
+        code,
+      );
+    });
+  });
+}
 
 for (const [label, receipt] of [
   ['wrong schemaVersion', validReceipt({ schemaVersion: 'wrong' })],

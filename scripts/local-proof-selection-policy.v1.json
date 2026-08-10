@@ -686,7 +686,8 @@
     {
       "id": "admin",
       "groups": [
-        "exact-admin"
+        "exact-admin",
+        "packaging"
       ],
       "prefixes": [
         "admin-ui/"

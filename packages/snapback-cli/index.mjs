@@ -100,6 +100,7 @@ import {
   submitHostedOperatorRequest,
 } from './hosted-control.mjs';
 import { stopProcessGroup } from './process-teardown.mjs';
+import { validateAdminConsoleSnapshot } from './admin-snapshot.mjs';
 export {
   addTarget,
   applyBackupPlan,
@@ -217,14 +218,37 @@ const PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV =
   'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT';
 const PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE =
   'packaged-store-qualification.receipt.json';
+const ADMIN_DIST_ENV = 'SNAPBACK_ADMIN_DIST';
 
 // @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
 // — a co-installed receipt is ambient only for the exact adjacent runtime;
 // an explicit caller environment always wins.
 export function runtimeSpawnEnvironment(binary, environment = process.env) {
   const clean = scrubDynamicLoaderEnvironment(environment);
-  if (Object.hasOwn(clean, PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV)) return clean;
   const binaryPath = resolve(binary);
+  // @ref LLP 0017#serving-model — an installed runtime carries the immutable
+  // console snapshot; the CLI supplies its directory without asking a
+  // consumer to know package topology or set a contributor override.
+  if (!Object.hasOwn(clean, ADMIN_DIST_ENV)
+      && basename(dirname(binaryPath)) === 'bin') {
+    const runtimeRoot = dirname(dirname(binaryPath));
+    const runtimeReceiptPath = join(runtimeRoot, 'runtime-readiness.json');
+    try {
+      const runtimeReceipt = JSON.parse(readFileSync(runtimeReceiptPath, 'utf8'));
+      const adminRoot = join(runtimeRoot, 'admin');
+      validateAdminConsoleSnapshot({
+        root: adminRoot,
+        expectedSourceRevision: runtimeReceipt.sourceRevision,
+      });
+      clean[ADMIN_DIST_ENV] = adminRoot;
+    } catch {
+      // Package resolution validates the sealed console fail-closed. An
+      // explicit runtime override may have no packaged snapshot; retain the
+      // contributor/source fallback instead of treating package layout as
+      // ambient authority.
+    }
+  }
+  if (Object.hasOwn(clean, PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV)) return clean;
   const receiptPath = join(dirname(binaryPath), PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE);
   if (!existsSync(receiptPath)) return clean;
   try {

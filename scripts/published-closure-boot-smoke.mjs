@@ -21,6 +21,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
+import { validateAdminConsoleSnapshot } from '../packages/snapback-cli/admin-snapshot.mjs';
+
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
 const RECEIPT_SCHEMA_VERSION = 'snapback.packaged-store-qualification.v1';
 const RECEIPT_CAPABILITY_ID = 'single_table_v1';
@@ -124,6 +126,42 @@ export function validateRuntimeReceiptShape(receipt) {
     );
   }
   return receipt;
+}
+
+// @ref LLP 0017#validation-requirements — the installed-closure smoke must prove
+// the real console route serves the exact index sealed into the runtime
+// package, rather than accepting the source-only missing-dist diagnostic.
+export async function validateAdminConsoleResponse({ response, manifest }) {
+  if (response?.status !== 200) {
+    throw codedError(
+      'SNAPBACK_PUBLISHED_SMOKE_CAPABILITY_UNADVERTISED',
+      `installed admin console returned HTTP ${response?.status ?? 'unknown'}`,
+    );
+  }
+  const contentType = response.headers?.get?.('content-type') ?? '';
+  if (!contentType.toLowerCase().includes('text/html')) {
+    throw codedError(
+      'SNAPBACK_PUBLISHED_SMOKE_CAPABILITY_UNADVERTISED',
+      `installed admin console returned non-HTML content type '${contentType}'`,
+    );
+  }
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const text = bytes.toString('utf8');
+  if (text.includes('SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING')) {
+    throw codedError(
+      'SNAPBACK_PUBLISHED_SMOKE_CAPABILITY_UNADVERTISED',
+      'installed admin console returned the source-only missing-dist diagnostic',
+    );
+  }
+  const index = manifest?.files?.find((file) => file.path === 'index.html');
+  const observedSha256 = createHash('sha256').update(bytes).digest('hex');
+  if (!index || index.bytes !== bytes.byteLength || index.sha256 !== observedSha256) {
+    throw codedError(
+      'SNAPBACK_PUBLISHED_SMOKE_CAPABILITY_UNADVERTISED',
+      'installed admin console route did not serve its sealed index.html bytes',
+    );
+  }
+  return { bytes: bytes.byteLength, sha256: observedSha256 };
 }
 
 function readBoundedJson(path, code, label) {
@@ -279,12 +317,16 @@ function receiptTemplate({ version, registry, platform, runtimePackage, startedA
     durationMs: null,
     runtimePackage,
     receiptSha256: null,
+    adminSnapshotSha256: null,
     checks: {
       installed: false,
       receiptPresent: false,
+      adminSnapshotPresent: false,
+      adminBuildMatched: false,
       codegen: false,
       capabilityAcknowledged: false,
       ready: false,
+      adminRoute: false,
       capabilityAdvertised: false,
       ensureApp: false,
       liveQuery: false,
@@ -345,10 +387,9 @@ async function runSmoke(options) {
         `no published runtime package is defined for ${platform}`,
       );
     }
+    const runtimeRoot = join(appRoot, 'node_modules', ...runtimePackage.split('/'));
     const runtimeReceiptPath = join(
-      appRoot,
-      'node_modules',
-      ...runtimePackage.split('/'),
+      runtimeRoot,
       'bin',
       'packaged-store-qualification.receipt.json',
     );
@@ -369,6 +410,34 @@ async function runSmoke(options) {
     validateRuntimeReceiptShape(runtimeReceipt);
     receipt.receiptSha256 = createHash('sha256').update(runtimeReceiptBytes).digest('hex');
     receipt.checks.receiptPresent = true;
+
+    const runtimeReadiness = readBoundedJson(
+      join(runtimeRoot, 'runtime-readiness.json'),
+      'SNAPBACK_PUBLISHED_SMOKE_RECEIPT_ABSENT',
+      `installed ${runtimePackage} runtime readiness receipt`,
+    );
+    let adminSnapshot;
+    try {
+      adminSnapshot = validateAdminConsoleSnapshot({
+        root: join(runtimeRoot, 'admin'),
+        expectedSourceRevision: runtimeReadiness.sourceRevision,
+        requireClean: true,
+      });
+    } catch (error) {
+      throw codedError(
+        'SNAPBACK_PUBLISHED_SMOKE_CAPABILITY_UNADVERTISED',
+        `installed ${runtimePackage} has no clean build-matched admin console: ${error.message}`,
+      );
+    }
+    receipt.adminSnapshotSha256 = adminSnapshot.manifest.snapshotSha256;
+    receipt.checks.adminSnapshotPresent = true;
+    if (runtimeReadiness.sourceRevision !== runtimeReceipt.binaryIdentity?.gitCommit) {
+      throw codedError(
+        'SNAPBACK_PUBLISHED_SMOKE_RECEIPT_ABSENT',
+        'installed admin console and packaged-store qualification bind different revisions',
+      );
+    }
+    receipt.checks.adminBuildMatched = true;
 
     writeBackend(backendRoot);
     const codegenPath = join(appRoot, 'node_modules', '@expo', 'snapback-codegen', 'index.mjs');
@@ -432,6 +501,15 @@ async function runSmoke(options) {
       );
     }
     receipt.checks.ready = true;
+
+    const adminResponse = await fetch(
+      `${descriptor.serverUrl.replace(/\/$/u, '')}/_snapback/admin/`,
+    );
+    await validateAdminConsoleResponse({
+      response: adminResponse,
+      manifest: adminSnapshot.manifest,
+    });
+    receipt.checks.adminRoute = true;
 
     try {
       const adminToken = descriptor.adminTokenFile

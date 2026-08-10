@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import {
   parseArguments,
+  validateAdminConsoleResponse,
   validateRuntimeReceiptShape,
   waitForReadyFile,
 } from './published-closure-boot-smoke.mjs';
@@ -51,6 +52,33 @@ test('runtime receipt shape requires v1 single_table_v1 qualification', () => {
       (error) => error.code === 'SNAPBACK_PUBLISHED_SMOKE_RECEIPT_ABSENT',
     );
   }
+});
+
+test('admin response must be the exact sealed HTML rather than the missing-dist diagnostic', async () => {
+  const body = '<!doctype html><title>Snapback Admin Console</title>';
+  const sha256 = (await import('node:crypto'))
+    .createHash('sha256')
+    .update(body)
+    .digest('hex');
+  const manifest = {
+    files: [{ path: 'index.html', bytes: Buffer.byteLength(body), sha256 }],
+  };
+  const verdict = await validateAdminConsoleResponse({
+    response: new Response(body, { headers: { 'content-type': 'text/html; charset=utf-8' } }),
+    manifest,
+  });
+  assert.equal(verdict.sha256, sha256);
+
+  await assert.rejects(
+    () => validateAdminConsoleResponse({
+      response: new Response(
+        'SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING',
+        { headers: { 'content-type': 'text/html' } },
+      ),
+      manifest,
+    }),
+    (error) => error.code === 'SNAPBACK_PUBLISHED_SMOKE_CAPABILITY_UNADVERTISED',
+  );
 });
 
 test('ready-file waiter admits a synthetic bounded ready file', async () => {

@@ -39,7 +39,10 @@ import {
 } from './snapback-publish-core.mjs';
 import { sha256TarEntry } from './snapback-tar-entry.mjs';
 import { enforceTelemetryCurrentGate } from './telemetry-release-gate.mjs';
-import { assertStagedRuntimeStoreQualification } from './publication-store-qualification-gate.mjs';
+import {
+  assertStagedRuntimeAdminConsole,
+  assertStagedRuntimeStoreQualification,
+} from './publication-store-qualification-gate.mjs';
 import { verifyRuntimePackageSeal } from '../packages/snapback-cli/runtime-readiness.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -170,6 +173,25 @@ function run(command, args, options = {}) {
     maxBuffer: 64 * 1024 * 1024,
     timeout: options.timeout ?? 180_000,
   });
+}
+
+function buildAdminConsoleSnapshot() {
+  // @ref LLP 0017#static-bundling-and-the-native-shell — publication owns a
+  // fresh static/native snapshot; runtime preparation must never bless an
+  // ambient, potentially stale dist directory.
+  const adminRoot = join(root, 'admin-ui');
+  const installed = run(
+    'bun',
+    ['install', '--frozen-lockfile', '--cwd', adminRoot],
+    { timeout: 360_000 },
+  );
+  if (installed.status !== 0) {
+    fail(`could not install the locked admin console build graph:\n${installed.stderr || installed.stdout}`);
+  }
+  const built = run('bun', ['run', '--cwd', adminRoot, 'build'], { timeout: 360_000 });
+  if (built.status !== 0) {
+    fail(`could not build the packaged admin console snapshot:\n${built.stderr || built.stdout}`);
+  }
 }
 
 function publishedName(sourceName, preset) {
@@ -444,6 +466,7 @@ if (options.publish && options.platformReceipts.length !== 2) {
 if (!options.publish && (options.qualifiedLedger || options.platformReceipts.length > 0)) {
   fail('--qualified-ledger and --platform-receipt are real-publication inputs only');
 }
+if (!options.publish) buildAdminConsoleSnapshot();
 if (options.publish
     && !/^bakeoff-\d+-\d+-\d+-[0-9a-f]{12}$/.test(options.tag)) {
   fail('real publication requires a non-default candidate tag bakeoff-<version>-<source-sha12>');
@@ -575,6 +598,10 @@ if (options.publish && resolve(ledgerPath) === resolve(options.qualifiedLedger))
 if (options.publish) {
   try {
     assertStagedRuntimeStoreQualification({
+      stagedDir: qualifiedRoot,
+      ledger: qualifiedLedger,
+    });
+    assertStagedRuntimeAdminConsole({
       stagedDir: qualifiedRoot,
       ledger: qualifiedLedger,
     });

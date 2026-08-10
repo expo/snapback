@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import { assertPublicPackageBuildIdentity } from '../../scripts/runtime-package-authority.mjs';
 import { resolveRuntimeBinary } from '../snapback-cli/index.mjs';
+import { writeAdminConsoleSnapshotManifest } from '../snapback-cli/admin-snapshot.mjs';
 import {
   RUNTIME_PACKAGE_QUALIFICATION_FAILED_CODE,
   produceRuntimePackageSeal,
@@ -27,12 +28,12 @@ const manifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.u
 assert.equal(manifest.name, PACKAGE_NAME);
 assert.deepEqual(manifest.os, ['darwin']);
 assert.deepEqual(manifest.cpu, ['arm64']);
-assert.deepEqual(manifest.files, ['README.md', 'bin', 'Frameworks', 'include', 'runtime-readiness.json']);
+assert.deepEqual(manifest.files, ['README.md', 'admin', 'bin', 'Frameworks', 'include', 'runtime-readiness.json']);
 
 const ignoreRules = readFileSync(new URL('./.gitignore', import.meta.url), 'utf8')
   .split(/\r?\n/u)
   .filter(Boolean);
-assert.deepEqual(ignoreRules, ['/bin/', '/Frameworks/', '/include/', '/runtime-readiness.json']);
+assert.deepEqual(ignoreRules, ['/bin/', '/admin/', '/Frameworks/', '/include/', '/runtime-readiness.json']);
 
 const sourceRevision = 'a'.repeat(40);
 const buildIdentity = {
@@ -79,6 +80,17 @@ process.exit(ok ? 0 : 1);
   writeFixture(framework, 'darwin Hermes runtime bytes');
   symlinkSync('Versions/1/hermesvm', frameworkAlias);
   writeFixture(header, 'darwin Hermes compile header bytes');
+  const adminIndex = join(sealRoot, 'admin', 'index.html');
+  writeFixture(adminIndex, '<title>Snapback Admin Console</title>');
+  writeFixture(
+    join(sealRoot, 'admin', '__exact', 'platform-manifest.json'),
+    '{}\n',
+  );
+  writeAdminConsoleSnapshotManifest({
+    root: join(sealRoot, 'admin'),
+    sourceRevision,
+    sourceDirty: false,
+  });
 
   const sealed = produceRuntimePackageSeal({
     root: sealRoot,
@@ -93,12 +105,15 @@ process.exit(ok ? 0 : 1);
   assert.equal(sealed.receipt.qualification.report.ok, true);
   assert.equal(sealed.receipt.sourceRevision, sourceRevision);
   assert.equal(sealed.receipt.buildIdentity.buildDistribution, 'public-package');
-  assert.equal(sealed.receipt.artifacts.length, 2);
+  assert.equal(sealed.receipt.artifacts.length, 5);
   assert.deepEqual(
     sealed.receipt.artifacts.map((artifact) => artifact.path),
     [
       'include/hermes/hermes.h.artifact',
       'Frameworks/hermesvm.framework/Versions/1/hermesvm',
+      'admin/__exact/platform-manifest.json',
+      'admin/index.html',
+      'admin/snapback-admin-snapshot.json',
     ],
   );
 
@@ -122,6 +137,15 @@ process.exit(ok ? 0 : 1);
     architecture: 'arm64',
   }).reason, 'framework-drift');
   writeFileSync(framework, 'darwin Hermes runtime bytes');
+  writeFileSync(adminIndex, '<title>tampered admin</title>');
+  assert.equal(verifyRuntimePackageSeal({
+    root: sealRoot,
+    binaryPath: binary,
+    packageName: PACKAGE_NAME,
+    platform: 'darwin',
+    architecture: 'arm64',
+  }).reason, 'admin-console-drift');
+  writeFileSync(adminIndex, '<title>Snapback Admin Console</title>');
   writeFileSync(binary, `${binarySource}\n// swapped binary`);
   chmodSync(binary, 0o755);
   assert.equal(verifyRuntimePackageSeal({

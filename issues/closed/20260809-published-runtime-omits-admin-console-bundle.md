@@ -1,6 +1,6 @@
 # Published runtime omits the shipped admin-console bundle
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Severity:** P2 (published-release defect; headless API and source-checkout workaround exist)
 **Systems:** Admin console, Packaged dev loop, Runtime packaging, Publication qualification
 **Date:** 2026-08-09
@@ -81,3 +81,29 @@ contributor workaround, not an acceptable consumer workflow.
 - If a missing-dist diagnostic remains reachable for contributor/source-only
   modes, its remediation distinguishes that mode from a packaged consumer app
   and does not instruct consumers to `cd admin-ui`.
+
+## Resolution (2026-08-10)
+
+The admin build now emits a closed snapshot manifest binding the source
+revision, dirty state, mount path, member byte counts and hashes, and a closure
+digest. Both platform runtime packages carry that snapshot at `admin/`; their
+runtime-readiness seal covers every member, and `@expo/snapback-cli`
+automatically supplies the validated package path to the server. An explicit
+contributor override still wins.
+
+Publication preparation builds the locked admin surface before staging. The
+staged-tarball qualification gate requires a clean snapshot matching both the
+ledger and runtime-readiness revisions for every runtime platform. The
+post-publish exact-version smoke additionally fetches `/_snapback/admin/` and
+compares the response with the installed snapshot's sealed `index.html`, so
+the missing-dist diagnostic cannot pass as a console.
+
+The remaining missing-dist page is source/contributor recovery only. It tells
+published-package consumers to reinstall the exact closure and gives a
+root-relative contributor build command; it no longer instructs consumers to
+`cd admin-ui`.
+
+Focused proof covered snapshot tamper/dirty/revision failures, both runtime
+package seals, the publication gate and post-publish smoke fixtures, the Rust
+source-only diagnostic, and a real staged Darwin runtime served through the
+CLI with `SNAPBACK_ADMIN_DIST` initially absent.

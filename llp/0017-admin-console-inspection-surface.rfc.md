@@ -5,6 +5,11 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
+**Revised (published console closure):** 2026-08-10 (each published platform
+runtime now carries a closed, build-matched Contract/Exact snapshot; the CLI
+selects it automatically, the runtime package seal binds every console byte,
+and publication plus post-publish smoke refuse a missing, dirty, mismatched, or
+non-serving snapshot.)
 **Revised:** 2026-08-10 (fresh master admin tokens remain visible on interactive stdout only; captured stdout receives the owner-only file pointer or an explicit restart/configuration recovery).
 **Revised:** 2026-08-03 (implemented the reviewed claim-link reachability affordances end to end: exact registered-origin leases, terminal QR, receipt-owned path-scoped tailscaled serve publication, the sole-parser ephemeral LAN relay and ruled-cleartext warning, claim-to-credential fail-closed observation, and backend-bound tab storage, with fake-daemon lifecycle, hostile-framing, hard-kill, and real-interface planted-link proofs). Same day: (designed the claim link's reachability affordances — `--qr` terminal QR rendering, `--tailscale` publication through tailscaled's serve proxy path-scoped to `/_snapback` with receipt-owned mapping lifecycle, and `--lan` as an ephemeral CLI-hosted relay: lifetime-scoped master-registered origin admission, sole-parser anti-smuggling discipline, console-slice-only forwarding that categorically excludes the master-exchange path, a fail-closed server-issued lease, tab-scoped reachability-session credential storage, and an explicit ruled-cleartext LAN transport posture with mandatory warning; revised same day after a dual-family delta round — both families NOT READY on the initial affordances text (origin/CSRF contract, LAN transport confidentiality, whole-namespace exposure, tailscale crash cleanup, parser discipline, relay-lifetime observation, storage-on-reusable-origins) — this text incorporates those fixes and is itself review-unreviewed). Same day: (implemented the one-time operator claim link end to end: bounded process-ephemeral digest-only claims, atomic single-winner exchange, provenance-capped renewal, durable digest-only redemption/status/revocation binding, attached/default and reattach CLI observation, console fragment exchange, loopback/hosted refusal, and planted-link acceptance proof). Same day: (designed the one-time operator claim link — `snapback admin link` mints a single-use thirty-minute process-ephemeral claim code redeemed from a `#claim=` URL, loopback-only, for one `sbcc_` credential with distinct provenance that slides within a ninety-minute absolute cap, a master-readable redemption record, and master revocation; the thirty/ninety windows are an author ruling widening the review round's five-minute/non-renewable-ten-minute bounds for parallel long-running sessions; added the "only ephemeral authority transits the human" design principle complementing LLP 0150, with the 401 master-paste prompt named as the acknowledged pre-existing exception; revised same day after a dual-family delta review round — both families NOT READY on the initial amendment (non-loopback contradiction, notification underspecification, renewal inheritance) — this text incorporates those fixes and is itself review-unreviewed). Same day: (`snapback admin` performs trusted ready-file discovery and hands only a derived `sbcc_` credential to the browser in a URL fragment; active dev/loopback credentials slide within an eight-hour cap and digest-only state reattaches beside file-backed databases; a short-TTL, rate-limited, single-use RFC-8628-shaped terminal approval flow covers remote browsers).
 **Revised:** 2026-08-02 (0137 G1 follow-on: descriptor-scoped `P.secret-read-root` custody now retains an open handle to the adopted inode until teardown, preventing immediate inode-number reuse from making an identity-only guard delete a foreign replacement). 2026-08-01 (0137 G1: the `P.secret-read-root` sibling is descriptor-scoped custody — the serve process removes it identity-guarded with the ready descriptor at shutdown/teardown instead of orphaning it; the database-scoped `<db>.admin-token` reattach custody is unchanged). 2026-07-15 (the instance home now discovers the build-bound Snapback Guide for humans and its one-request flat projection for agent clients in every negotiated rendering). 2026-07-13 (ENG-24595: browsers exchange the master admin token for a short-lived, non-renewable console credential and never persist the master; config status exposes only closed verification state; the browser runner no longer manufactures app identity; earlier: ENG-24338 review follow-up: the readiness descriptor itself is atomically published owner-only at 0600, and CLI URL/token resolution uses one validated descriptor snapshot; ENG-24359 review follow-up: filesystem static assets are opened by a root-directory capability plus component-relative no-follow handles and read from the verified final descriptor; platforms without that primitive fail closed instead of retaining a canonicalize/read race; ENG-24338/ENG-24346/ENG-24359: trusted token discovery, owner-only no-follow capability files, and canonical static-asset containment; earlier: 2026-07-04 admin serving now has a single UI implementation: the Contract/Exact `admin-ui/dist` snapshot. The server auto-discovers a built repo-local dist when `SNAPBACK_ADMIN_DIST` is unset; if no dist is available, `/_snapback/admin` returns a missing-dist diagnostic instead of the deleted handwritten fallback console. Earlier: 2026-07-03 instance home is embedded-only again: the short-lived `home-ui/` Contract surface, `SNAPBACK_HOME_DIST`, and `/_snapback/home/*` lane were removed because `/` is a recovery/status page whose value is zero-toolchain reliability, while the admin dashboard remains the useful Contract/Exact dogfooding surface. Earlier: 2026-07-02 instance home briefly gained a Contract surface and shared-build-preset notes; this revision supersedes that slice. Earlier same day: added §Instance home page: the root `/` is now content-negotiated — a branded, embedded HTML homepage for browsers over the same public metadata object served as YAML/JSON/Markdown; app identity comes from the schema manifest's optional `app` block. Earlier same day: ENG-22598: Secrets surface was added to the then-existing admin consoles over the LLP 0036 config ops. Earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
@@ -270,6 +275,16 @@ diagnostics.json}`). The Rust server serves the whole snapshot under
 `/_snapback/api/*`. The same dist therefore loads in a plain browser and exposes
 a macOS-loadable native envelope — one URL, two surfaces.
 
+For published installs, `admin-ui/build.mjs` closes that dist with a manifest
+containing its source revision, clean/dirty fact, member byte counts and
+digests, and a closure digest. Each platform runtime package carries the same
+snapshot at `admin/`; its runtime-readiness seal binds every console member
+beside the binary and Hermes artifacts. `@expo/snapback-cli` validates the
+snapshot against the runtime receipt and supplies its path to the server.
+Because the binary's embedded Guide, the runtime qualification, and the
+console manifest all bind one source revision, an installed product cannot
+silently combine a current server with an ambient or stale console.
+
 Filesystem serving treats the configured dist as a directory capability, not
 as a string prefix. On Unix the server resolves that root once, opens it through
 no-follow directory descriptors, walks every request component with relative
@@ -321,14 +336,15 @@ is well-formed and decode-compatible with the loosened host decoder (LLP 0268
 made the dev-only fields optional), but loading the served URL in ExactAppMac
 against this snapshot has not yet been run end-to-end.
 
-The server now auto-discovers a repo-local `admin-ui/dist` when it has already
-been built and `SNAPBACK_ADMIN_DIST` is unset, making the Contract/Exact console
-the default in a prepared checkout. `SNAPBACK_ADMIN_DIST` still pins a specific
-snapshot. The handwritten single-file console has been removed; if no built
-dist is available, `/_snapback/admin` returns a small missing-dist diagnostic
-with build instructions and the headless admin API remains available. This keeps
-core Snapback tests independent of Exact while avoiding two admin UI
-implementations.
+Published CLI installs select the sealed runtime-package snapshot automatically;
+consumers neither set `SNAPBACK_ADMIN_DIST` nor need a source checkout. A source
+runtime still auto-discovers repo-local `admin-ui/dist` when it has already been
+built, and contributors may use `SNAPBACK_ADMIN_DIST` to pin a specific test
+snapshot. The handwritten single-file console has been removed. If a source
+runtime has no built dist, `/_snapback/admin` returns a contributor-specific
+missing-dist diagnostic while the headless admin API remains available. This
+keeps core Snapback tests independent of Exact while avoiding two admin UI
+implementations or teaching package consumers to build repository assets.
 
 ## Headless Admin Contract
 
@@ -925,7 +941,10 @@ The accepted local contract must keep the following acceptance proofs green:
 - a prepared local `snapback` process serves the built Contract/Exact
   `/_snapback/admin/` and `/_snapback/api/inspect` from the same server without
   Vite;
-- a no-dist local process returns `SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING`
+- an exact-version install outside the checkout carries a clean console
+  snapshot matching the runtime/Guide revision and serves its sealed
+  `index.html` from `/_snapback/admin/` without a consumer environment override;
+- a no-dist contributor source process returns `SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING`
   for `/_snapback/admin/` while keeping `/_snapback/api/inspect` available;
 - the admin dashboard reports host, port, target profile, storage mode, SQLite
   path or in-memory status, database version, runtime engine, and capability
@@ -1053,9 +1072,10 @@ where possible.
   **native macOS shell** actually renders the static snapshot end-to-end (the
   artifacts now emit; loading them in ExactAppMac is the open verification —
   currently also blocked upstream at Exact HEAD, ENG-22578).
-- Should the packaged web console be embedded into the Rust binary from the
-  start, or served from an installed asset directory until release packaging is
-  settled?
+- **Resolved 2026-08-10:** the packaged web console is a sealed installed asset
+  directory inside each platform runtime package. This keeps the one static
+  browser/native snapshot independently inspectable while the runtime seal and
+  publication gates make it the same build identity as the binary and Guide.
 - **Resolved:** an explicit token wins; otherwise loopback file-backed servers
   mint and owner-only persist a token beside the instance, ready-file launches
   publish an owner-only sibling capability, and processes with neither location

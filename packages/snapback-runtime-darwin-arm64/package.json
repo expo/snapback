@@ -16,6 +16,7 @@
   "keywords": ["snapback", "backend", "runtime", "darwin", "arm64"],
   "files": [
     "README.md",
+    "admin",
     "bin",
     "Frameworks",
     "include",

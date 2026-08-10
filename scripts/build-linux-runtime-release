@@ -224,6 +224,7 @@ export async function main(
   logStep(output, 'preparing the Linux runtime package');
   runner(process.execPath, [
     join(cwd, 'packages', 'snapback-runtime-linux-x64', 'prepare-runtime.mjs'),
+    '--native-artifact-staging',
   ], { cwd, env: environment });
 
   const packageRoot = join(cwd, 'packages', 'snapback-runtime-linux-x64');

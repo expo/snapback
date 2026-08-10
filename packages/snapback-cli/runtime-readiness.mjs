@@ -40,6 +40,10 @@ import { isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { qualifyRuntimeBinary } from './runtime-recovery.mjs';
+import {
+  adminConsoleArtifactCandidates,
+  validateAdminConsoleSnapshot,
+} from './admin-snapshot.mjs';
 
 export const RUNTIME_READINESS_SCHEMA_VERSION = 'snapback.runtime-readiness.v1';
 export const RUNTIME_READINESS_INVALID_CODE = 'SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID';
@@ -145,6 +149,7 @@ export function packagedRuntimeArtifactCandidates(root, { platform = process.pla
       // framework's convenience symlinks, so bind the real file dyld opens
       // rather than a pre-pack alias that does not survive installation.
       join(root, 'Frameworks/hermesvm.framework/Versions/1/hermesvm'),
+      ...adminConsoleArtifactCandidates(root),
     ];
   }
   const libDirectory = join(root, 'lib');
@@ -161,6 +166,7 @@ export function packagedRuntimeArtifactCandidates(root, { platform = process.pla
   return [
     join(root, 'include/hermes/hermes.h.artifact'),
     ...[...new Set([...libraryFiles, requiredHermes])].sort(),
+    ...adminConsoleArtifactCandidates(root),
   ];
 }
 
@@ -273,17 +279,39 @@ export function verifyRuntimePackageSeal({
   platform,
   architecture,
   receiptPath = null,
+  adminConsoleRequired = true,
 }) {
   root = resolve(root);
   binaryPath = resolve(binaryPath);
   receiptPath = resolve(receiptPath ?? runtimePackageReceiptPath(root));
-  const candidates = packagedRuntimeArtifactCandidates(root, { platform });
-  const artifacts = digestRuntimeArtifacts(root, { candidates });
   const context = { root, binaryPath, receiptPath };
+  const adminRoot = join(root, 'admin');
+  try {
+    if (adminConsoleRequired || existsSync(adminRoot)) {
+      validateAdminConsoleSnapshot({ root: adminRoot });
+    }
+  } catch (error) {
+    return packageSealRefusal(
+      'admin-console-drift',
+      `the runtime package is missing an intact build-matched admin console snapshot: ${error.message}`,
+      context,
+    );
+  }
+  let candidates;
+  try {
+    candidates = packagedRuntimeArtifactCandidates(root, { platform });
+  } catch (error) {
+    return packageSealRefusal(
+      'admin-console-drift',
+      `the runtime package is missing an intact build-matched admin console snapshot: ${error.message}`,
+      context,
+    );
+  }
+  const artifacts = digestRuntimeArtifacts(root, { candidates });
   if (artifacts.length !== candidates.length) {
     return packageSealRefusal(
       'framework-drift',
-      'the runtime package is missing a sealed Hermes header or runtime artifact',
+      'the runtime package is missing a sealed Hermes or admin-console artifact',
       context,
       { expectedArtifacts: candidates.map((path) => relative(root, path)), currentArtifacts: artifacts },
     );
@@ -323,12 +351,26 @@ export function verifyRuntimePackageSeal({
       },
     );
   }
+  try {
+    if (adminConsoleRequired || existsSync(adminRoot)) {
+      validateAdminConsoleSnapshot({
+        root: adminRoot,
+        expectedSourceRevision: receipt.sourceRevision,
+      });
+    }
+  } catch (error) {
+    return packageSealRefusal(
+      'admin-console-drift',
+      `the runtime package is missing an intact build-matched admin console snapshot: ${error.message}`,
+      context,
+    );
+  }
   const expectedArtifactPaths = candidates.map((path) => relative(root, path)).sort();
   const recordedArtifactPaths = receipt.artifacts.map((artifact) => artifact.path).sort();
   if (!sameJson(expectedArtifactPaths, recordedArtifactPaths)) {
     return packageSealRefusal(
       'package-binding-drift',
-      'the runtime package receipt does not bind the complete shipped Hermes header/runtime set',
+      'the runtime package receipt does not bind the complete shipped Hermes/admin artifact set',
       context,
       { expectedArtifactPaths, recordedArtifactPaths },
     );
@@ -353,6 +395,7 @@ export function produceRuntimePackageSeal({
   environment = process.env,
   qualification = null,
   issuer = 'snapback-runtime-package-production',
+  adminConsoleRequired = true,
 }) {
   root = resolve(root);
   binaryPath = resolve(binaryPath);
@@ -381,10 +424,17 @@ export function produceRuntimePackageSeal({
     error.code = RUNTIME_READINESS_INVALID_CODE;
     throw error;
   }
+  const adminRoot = join(root, 'admin');
+  if (adminConsoleRequired || existsSync(adminRoot)) {
+    validateAdminConsoleSnapshot({
+      root: adminRoot,
+      expectedSourceRevision: sourceRevision,
+    });
+  }
   const candidates = packagedRuntimeArtifactCandidates(root, { platform });
   const artifacts = digestRuntimeArtifacts(root, { candidates });
   if (artifacts.length !== candidates.length) {
-    const error = new Error('the assembled runtime package is missing its Hermes header or runtime artifact');
+    const error = new Error('the assembled runtime package is missing a Hermes or admin-console artifact');
     error.code = RUNTIME_READINESS_INVALID_CODE;
     throw error;
   }
@@ -413,6 +463,7 @@ export function produceRuntimePackageSeal({
     packageName,
     platform,
     architecture,
+    adminConsoleRequired,
   });
   if (!verified.ok) {
     const error = new Error(verified.diagnostic.message);

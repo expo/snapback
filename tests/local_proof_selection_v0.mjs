@@ -74,6 +74,17 @@ test('affected groups retain mandatory Contract/Exact and admin behavior', () =>
   assert.equal(client.requirements.native, true);
   assert.equal(client.requirements.browser, true);
   assert.equal(client.selectedGates.includes('cloudflare-local-suite'), false);
+
+  // @ref LLP 0041#runtime-distribution — the admin build is now a published
+  // runtime input, so its source changes must select both UI and packaging
+  // qualification instead of stopping at browser acceptance.
+  const admin = select(['admin-ui/src/main.ts']);
+  assert.deepEqual(admin.selectedGroups, ['exact-admin', 'packaging']);
+  includesAll(admin, [
+    'admin-acceptance',
+    'publication-store-qualification-fixtures',
+    'published-closure-boot-smoke-fixtures',
+  ]);
 });
 
 test('single-gate re-entry closes over declared prerequisites', () => {

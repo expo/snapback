@@ -4,7 +4,7 @@ id: operating.admin-console
 order: 4
 audience: agent-first
 capabilities: [operating.admin-console]
-authorities: [llp/0017-admin-console-inspection-surface.rfc.md, src/admin.rs, src/admin_link.rs, src/cli.rs, packages/snapback-admin-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs, tests/admin_claim_link_v0.rs, tests/admin_reachability_v0.rs, tests/admin_tailscale_v0.rs]
+authorities: [llp/0017-admin-console-inspection-surface.rfc.md, src/admin.rs, src/admin_link.rs, src/cli.rs, packages/snapback-admin-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/admin-snapshot.mjs, packages/snapback-cli/runtime-readiness.mjs, packages/snapback-cli/expo-dev.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs, tests/admin_claim_link_v0.rs, tests/admin_reachability_v0.rs, tests/admin_tailscale_v0.rs]
 examples: [admin-ui]
 status: current
 targets: [local]
@@ -55,19 +55,27 @@ fragment. The page removes the fragment before boot and stores the derived
 record through the same `snapback_console_credential_v1` path used by the paste
 fallback.
 
-The server serves the immutable `dist/` snapshot at
-`/_snapback/admin/`. Set `SNAPBACK_ADMIN_DIST` to pin another snapshot; in
-a source checkout, an unset value discovers `admin-ui/dist` when it exists.
-If no dist is available, the route returns a structured missing-dist
-diagnostic instead of a second embedded implementation.
+<!-- since: 0.1.18 unreleased -->
+> **Unreleased.** Automatic build-matched console packaging is newer than the
+> newest published closure, 0.1.17. Use a contributor source build until 0.1.18
+> is published.
+
+The server serves the immutable console snapshot at `/_snapback/admin/`.
+Published `@expo/snapback-cli` installs carry a build-matched snapshot inside
+the selected platform runtime package, and the CLI configures it automatically.
+No consumer environment variable or Snapback source checkout is required. In
+a source checkout, an unset value discovers `admin-ui/dist` when it exists;
+contributors can set `SNAPBACK_ADMIN_DIST` to pin a deliberately different
+built snapshot. If a source-built runtime has no dist, the route returns a
+structured missing-dist diagnostic instead of a second embedded
+implementation.
 
 **Contributor variant (source checkout).** Build the static browser and
 native Exact artifacts, then run the same commands through cargo:
 
 ```sh
-cd admin-ui
-./build.sh
-cd ..
+bun install --frozen-lockfile --cwd admin-ui
+bun run --cwd admin-ui build
 cargo run -- start --memory --ready-file .snapback/dev.ready.json
 # in another terminal: discover the token, mint a browser credential, and open
 cargo run -- admin --ready-file .snapback/dev.ready.json

@@ -17,6 +17,7 @@
   "files": [
     "README.md",
     "adapters/fly-machines-vm-driver.mjs",
+    "admin-snapshot.mjs",
     "agent-setup.mjs",
     "carrier-kit.d.mts",
     "carrier-kit.mjs",

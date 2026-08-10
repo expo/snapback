@@ -6,6 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (published admin-console closure):** 2026-08-10 (the static
+Contract/Exact admin snapshot is now a required, build-matched member of every
+platform runtime package; runtime sealing, staged-tarball qualification, and
+the external exact-version boot smoke all prove it.)
+
 **Revised (cooperative regeneration lock):** 2026-08-10 (all codegen writers
 for one canonical backend directory now share a dependency-free advisory lock,
 so the managed watch loop, explicit `generateApp` calls, and separate codegen
@@ -402,6 +407,15 @@ lane must launch it with `LD_LIBRARY_PATH` absent before publication.
 Unsupported host tuples fail with `SNAPBACK_IBEX_HOST_UNSUPPORTED` rather than
 building Hermes during install. Additional platform packages remain required
 before claiming support beyond Apple-silicon macOS and x86-64 Linux.
+
+Each supported platform runtime also carries `admin/`, a closed immutable
+Contract/Exact snapshot produced from the same clean source revision as the
+runtime binary and its embedded Guide. Runtime preparation validates and copies
+the snapshot, the runtime-readiness seal digests every member, and the CLI
+validates the snapshot against that receipt before setting the server's admin
+dist path. `SNAPBACK_ADMIN_DIST` remains a contributor override, not an install
+step. Native artifact builders may omit the snapshot only on the explicit
+intermediate-artifact seam; final package assembly cannot.
 
 Unsupported host platforms are a declared capability fact, not a broken
 install.
@@ -1069,6 +1083,8 @@ outside the root workspace and exercise independent consumer setups.
   launching it.
 - A clean directory outside the monorepo can run `snapback new todo-contract`,
   `snapback dev`, and the generated acceptance test.
+- That external install serves the real, build-matched admin console at
+  `/_snapback/admin/` without `SNAPBACK_ADMIN_DIST` or repository files.
 - `snapback dev` attaches to an already-running server via the ready-file
   descriptor and refuses a mismatched target with a structured diagnostic.
 - An edit to schema or functions under `snapback dev` produces regenerated
@@ -1435,6 +1451,10 @@ clean `release`/`public-package` build, and a `packageClosure` at the ledger's
 own version. Codes:
 `SNAPBACK_PUBLICATION_STORE_RECEIPT_MISSING`, `..._INVALID`,
 `..._IDENTITY_DRIFTED`, `..._CLOSURE_DRIFTED`, `..._PLATFORM_INCOMPLETE`.
+The same gate extracts each runtime package and validates its complete
+`admin/` manifest and files as clean, at the ledger revision, and at the
+runtime-readiness receipt revision. A missing, stale, dirty, mismatched, or
+tampered console therefore refuses publication for either platform.
 There is no environment opt-out; pass-one staging avoids the gate by not
 invoking it. The same assertion now also guards
 `scripts/snapback-publish.mjs --publish`, so the qualified lane and the fast
@@ -1448,9 +1468,12 @@ registry into a temporary directory outside the repository, asserts the
 installed runtime package carries a qualifying receipt, writes a minimal
 backend whose generated artifact acknowledges `single_table_v1`, boots it
 through the installed CLI — the CLI's `runtimeSpawnEnvironment` is what points
-the runtime at its sibling receipt, so a bare-binary boot would not discriminate
-— waits for readiness, and then requires the served capability manifest to
-advertise `single_table_v1` before `ensureApp` and one live query. Codes:
+the runtime at both its sibling receipt and its sealed admin snapshot, so a
+bare-binary boot would not discriminate — waits for readiness, fetches
+`/_snapback/admin/`, and requires its bytes to equal the installed snapshot's
+sealed `index.html` rather than the missing-dist diagnostic. It then requires
+the served capability manifest to advertise `single_table_v1` before
+`ensureApp` and one live query. Codes:
 `SNAPBACK_PUBLISHED_SMOKE_INSTALL_FAILED`, `..._RECEIPT_ABSENT`,
 `..._CODEGEN_FAILED`, `..._CAPABILITY_NOT_EXERCISED`, `..._BOOT_FAILED`,
 `..._CAPABILITY_UNADVERTISED`.

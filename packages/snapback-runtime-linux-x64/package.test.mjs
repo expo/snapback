@@ -37,20 +37,21 @@ import {
   produceRuntimePackageSeal,
   verifyRuntimePackageSeal,
 } from '../snapback-cli/runtime-readiness.mjs';
+import { writeAdminConsoleSnapshotManifest } from '../snapback-cli/admin-snapshot.mjs';
 
 const PACKAGE_NAME = '@expo/snapback-runtime-linux-x64';
 const manifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 assert.equal(manifest.name, PACKAGE_NAME);
 assert.deepEqual(manifest.os, ['linux']);
 assert.deepEqual(manifest.cpu, ['x64']);
-assert.deepEqual(manifest.files, ['README.md', 'bin', 'lib', 'include', 'runtime-readiness.json']);
+assert.deepEqual(manifest.files, ['README.md', 'admin', 'bin', 'lib', 'include', 'runtime-readiness.json']);
 
 // @ref LLP 0041#runtime-distribution — prepared native payloads are package
 // outputs, while the source-side package contract remains reviewable.
 const ignoreRules = readFileSync(new URL('./.gitignore', import.meta.url), 'utf8')
   .split(/\r?\n/u)
   .filter(Boolean);
-assert.deepEqual(ignoreRules, ['/bin/', '/lib/', '/include/', '/runtime-readiness.json']);
+assert.deepEqual(ignoreRules, ['/bin/', '/admin/', '/lib/', '/include/', '/runtime-readiness.json']);
 assert.equal(Object.isFrozen(LINUX_PORTABLE_HOST_SONAMES), true);
 assert.deepEqual([...LINUX_PORTABLE_HOST_SONAMES], [
   'ld-linux-x86-64.so.2',
@@ -525,6 +526,15 @@ process.exit(ok ? 0 : 1);
   chmodSync(sealedBinary, 0o755);
   writeFileSync(sealedHermes, 'sealed Linux Hermes bytes');
   writeFileSync(sealedHeader, 'sealed Linux Hermes header bytes');
+  const adminIndex = join(sealRoot, 'admin', 'index.html');
+  mkdirSync(join(sealRoot, 'admin', '__exact'), { recursive: true });
+  writeFileSync(adminIndex, '<title>Snapback Admin Console</title>');
+  writeFileSync(join(sealRoot, 'admin', '__exact', 'platform-manifest.json'), '{}\n');
+  writeAdminConsoleSnapshotManifest({
+    root: join(sealRoot, 'admin'),
+    sourceRevision,
+    sourceDirty: false,
+  });
   const buildIdentity = {
     schemaVersion: 'snapback.binary-identity.v1',
     binary: {
@@ -548,7 +558,7 @@ process.exit(ok ? 0 : 1);
   assert.equal(sealed.receipt.qualification.report.schemaVersion, 'snapback.runtime-qualify.v1');
   assert.equal(sealed.receipt.qualification.report.ok, true);
   assert.equal(sealed.receipt.sourceRevision, sourceRevision);
-  assert.equal(sealed.receipt.artifacts.length, 2);
+  assert.equal(sealed.receipt.artifacts.length, 5);
   assert.equal(verifyRuntimePackageSeal({
     root: sealRoot,
     binaryPath: sealedBinary,
@@ -566,6 +576,15 @@ process.exit(ok ? 0 : 1);
     architecture: 'x64',
   }).reason, 'framework-drift');
   writeFileSync(sealedHermes, 'sealed Linux Hermes bytes');
+  writeFileSync(adminIndex, '<title>tampered admin</title>');
+  assert.equal(verifyRuntimePackageSeal({
+    root: sealRoot,
+    binaryPath: sealedBinary,
+    packageName: PACKAGE_NAME,
+    platform: 'linux',
+    architecture: 'x64',
+  }).reason, 'admin-console-drift');
+  writeFileSync(adminIndex, '<title>Snapback Admin Console</title>');
   writeFileSync(sealedBinary, `${binarySource}\n// swapped binary`);
   chmodSync(sealedBinary, 0o755);
   assert.equal(verifyRuntimePackageSeal({
