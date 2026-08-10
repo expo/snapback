@@ -127,3 +127,19 @@ attach/succession runtime work; then the amendment-gated hosted lane.
   first shipment, load-stop convergence at source version 151, a 25-version
   ahead-of-head SIGKILL cut (below the 100-version bound), clean reattachment,
   and an integrity-checked exact final restore at source version 176.
+
+## Resolution — 2026-08-09
+
+G1 complete and exceeded: vendor/celld-ltx landed at 553ae73f with
+provenance receipt and forced-differential conformance
+(scripts/check-ltx-conformance; 172 tests incl. 5/5 differential against
+the real Litestream v0.5.11 binary; skipped leg = failure), CI green on
+the ltx-conformance workflow (run 31337385024). The G2 self-hosted async
+lane also landed (commit 6c90c98b5): frontier, encrypted keyring
+snapshots, refusal fencing, snapback replicate CLI, non-vacuous MinIO
+kill-drill with receipt, and a sustained-writes regression test. Root
+cause fixed en route: the upstream port omitted Litestream's
+persistent-WAL lifecycle (vendored divergence enumerated in
+VENDOR-RECEIPT.md; upstream report to denoland/celld is a follow-up).
+Remaining LLP 0188 work (G2f succession cases, hosted G3 under the
+ratified amendments) proceeds separately. Closed.
