@@ -1,6 +1,6 @@
 # Guide manifest cannot regenerate: two snippets point at deleted sources
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 4
@@ -45,3 +45,14 @@ regenerates the manifest.
 Named as a non-blocking red gate in the wave 3 closing record under LLP 0189
 D-6: it is not claim-relevant to any wave 3 claim, and it is ticketed rather
 than blocking the close.
+
+## Resolution — 2026-08-10
+
+Overtaken and now verified clear. The line-46 `setCompleted.mjs` citation
+was already repointed by an earlier landing (the page now cites
+`setCompleted.mutation.ts`), and `runtime-links.ts` is not a deleted source
+— it is Exact/Contract-generated output that a fresh checkout must
+materialize via the documented exact-todo-v2 install/contract jobs (the
+generator's refusal message now says exactly this). After materialization,
+`generate-guide-manifest.mjs` regenerates cleanly and `check-guide.mjs` is
+green (115 pages / 1198 snippets). Manifest reconciled in this landing.

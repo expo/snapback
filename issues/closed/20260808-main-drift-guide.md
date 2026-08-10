@@ -1,6 +1,6 @@
 # main drift: guide has a stale committed record
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -45,3 +45,14 @@ node scripts/generate-guide-manifest.mjs
 
 Commit the reconciled record with the measured change, verify the gate, record
 the resolution here, and move this ticket to `issues/closed/`.
+
+## Resolution — 2026-08-10
+
+Reconciled in this landing: `node scripts/generate-guide-manifest.mjs`
+regenerated `guide/guide-manifest.generated.json` and the flat projections,
+after materializing the generated snippet sources a fresh checkout lacks
+(`SNAPBACK_OUTBOUND_ACTIONS=1` competitive-checkpoint codegen, todo-v2
+codegen + the exact-todo-v2 contract job for `runtime-links.ts`).
+`node scripts/check-guide.mjs` → ok — 115 pages, 1198 snippets, 161 routes
++ 50 host-ops joined (69 warnings are the pre-existing freshness-saturation
+program, tracked separately).
