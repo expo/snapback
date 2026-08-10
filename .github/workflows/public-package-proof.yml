@@ -111,6 +111,10 @@ jobs:
         with:
           bun-version-file: package.json
 
+      - name: Install repository dependencies
+        if: ${{ steps.ledger.outputs.scope_preset != 'ccheever' }}
+        run: bun install --frozen-lockfile
+
       - name: Prove the nested Expo client and React registry closure
         if: ${{ steps.ledger.outputs.scope_preset != 'ccheever' }}
         env:
