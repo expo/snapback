@@ -12935,15 +12935,44 @@ pub enum ResourceLimitStatus {
     Missing,
 }
 
+// Canonical capability-manifest rows for each LLP 0047 invocation-scoped
+// limit. Query and mutation share the emitted `wall_clock_timeout` row;
+// rows-read and rows-written remain separate counters. Platform rows such as
+// `maximum_row_bytes` and `maximum_storage_bytes` describe different limits
+// and therefore cannot stand in for either counter or the JavaScript heap.
+//
+// @ref LLP 0047#limits — every listed limit remains independently required.
+// @ref LLP 0216#3-the-gap-list — G0 fixes the vocabulary while G4 remains the
+//   follow-on that emits computed rows on a qualifying V8 target.
+const LLP_0047_UNTRUSTED_CODE_LIMIT_ROWS: [(&str, &[&str]); 8] = [
+    ("query wall-clock timeout", &["wall_clock_timeout"]),
+    ("mutation wall-clock timeout", &["wall_clock_timeout"]),
+    (
+        "action wall-clock timeout",
+        &["action_wall_clock_timeout"],
+    ),
+    ("CPU/instruction budget where available", &["cpu_budget"]),
+    ("maximum response size", &["maximum_result_size"]),
+    (
+        "maximum rows read/written per invocation",
+        &["maximum_rows_read", "maximum_rows_written"],
+    ),
+    ("maximum host-call count", &["maximum_host_call_count"]),
+    (
+        "maximum memory or heap size where available",
+        &["maximum_heap_size"],
+    ),
+];
+
 const UNTRUSTED_CODE_REQUIRED_LIMITS: [&str; 8] = [
-    "wall_clock_timeout",
-    "action_wall_clock_timeout",
-    "cpu_budget",
-    "maximum_result_size",
-    "maximum_rows_read",
-    "maximum_rows_written",
-    "maximum_host_call_count",
-    "maximum_heap_size",
+    LLP_0047_UNTRUSTED_CODE_LIMIT_ROWS[0].1[0],
+    LLP_0047_UNTRUSTED_CODE_LIMIT_ROWS[2].1[0],
+    LLP_0047_UNTRUSTED_CODE_LIMIT_ROWS[3].1[0],
+    LLP_0047_UNTRUSTED_CODE_LIMIT_ROWS[4].1[0],
+    LLP_0047_UNTRUSTED_CODE_LIMIT_ROWS[5].1[0],
+    LLP_0047_UNTRUSTED_CODE_LIMIT_ROWS[5].1[1],
+    LLP_0047_UNTRUSTED_CODE_LIMIT_ROWS[6].1[0],
+    LLP_0047_UNTRUSTED_CODE_LIMIT_ROWS[7].1[0],
 ];
 
 /// Decide only whether a target manifest carries the evidence profile required
@@ -13002,6 +13031,47 @@ mod untrusted_code_profile_tests {
     use super::*;
 
     #[test]
+    fn required_limit_vocabulary_covers_llp_0047_limits_one_to_one() {
+        // @ref LLP 0047#limits — the manifest vocabulary must keep every
+        // invocation-scoped limit, including both row counters.
+        assert_eq!(
+            LLP_0047_UNTRUSTED_CODE_LIMIT_ROWS.map(|(limit, _)| limit),
+            [
+                "query wall-clock timeout",
+                "mutation wall-clock timeout",
+                "action wall-clock timeout",
+                "CPU/instruction budget where available",
+                "maximum response size",
+                "maximum rows read/written per invocation",
+                "maximum host-call count",
+                "maximum memory or heap size where available",
+            ]
+        );
+
+        let mut mapped_counts = BTreeMap::new();
+        for (_, rows) in LLP_0047_UNTRUSTED_CODE_LIMIT_ROWS {
+            assert!(!rows.is_empty(), "every LLP 0047 limit needs a row");
+            for &row in rows {
+                *mapped_counts.entry(row).or_insert(0_usize) += 1;
+            }
+        }
+        let required = UNTRUSTED_CODE_REQUIRED_LIMITS
+            .into_iter()
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            mapped_counts.keys().copied().collect::<BTreeSet<_>>(),
+            required
+        );
+        assert_eq!(required.len(), UNTRUSTED_CODE_REQUIRED_LIMITS.len());
+        assert_eq!(mapped_counts["wall_clock_timeout"], 2);
+        for required in required {
+            if required != "wall_clock_timeout" {
+                assert_eq!(mapped_counts[required], 1);
+            }
+        }
+    }
+
+    #[test]
     fn local_manifest_refuses_untrusted_code_profile() {
         let error = untrusted_code_profile_evidenced(&CapabilityManifest::local_v0_declared())
             .expect_err("the local owner-code runtime is not an untrusted-code profile");
@@ -13020,25 +13090,63 @@ mod untrusted_code_profile_tests {
     }
 
     #[test]
-    fn synthetic_manifest_passes_only_with_gap_absent_and_every_limit_enforced() {
+    fn every_committed_target_manifest_refuses_untrusted_code_profile() {
+        let committed_manifests: [(&str, &[u8]); 5] = [
+            (
+                "local",
+                include_bytes!("../schemas/capability.manifest.local-dev-sqlite-ibex.json"),
+            ),
+            (
+                "local-outbound-actions",
+                include_bytes!(
+                    "../schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json"
+                ),
+            ),
+            (
+                "remote-service",
+                include_bytes!("../schemas/capability.manifest.remote-service-sqlite-ibex.json"),
+            ),
+            (
+                "cloudflare",
+                include_bytes!(
+                    "../cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json"
+                ),
+            ),
+            (
+                "cloudflare-all-aboard",
+                include_bytes!(
+                    "../cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json"
+                ),
+            ),
+        ];
+        for (name, bytes) in committed_manifests {
+            let manifest: CapabilityManifest = serde_json::from_slice(bytes)
+                .unwrap_or_else(|error| panic!("{name} manifest must parse: {error}"));
+            let error = match untrusted_code_profile_evidenced(&manifest) {
+                Ok(()) => panic!("{name} must keep refusing untrusted code"),
+                Err(error) => error,
+            };
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED",
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn synthetic_exact_canonical_manifest_passes_with_gap_absent() {
         let mut manifest = CapabilityManifest::local_v0_declared();
         manifest
             .capability_gaps
             .retain(|gap| gap != "hosted_untrusted_code");
-        for required in UNTRUSTED_CODE_REQUIRED_LIMITS {
-            if let Some(limit) = manifest
-                .resource_limits
-                .iter_mut()
-                .find(|limit| limit.name == required)
-            {
-                limit.status = ResourceLimitStatus::Enforced;
-            } else {
-                manifest.resource_limits.push(ResourceLimit {
-                    name: required.to_owned(),
-                    status: ResourceLimitStatus::Enforced,
-                });
-            }
-        }
+        manifest.resource_limits = UNTRUSTED_CODE_REQUIRED_LIMITS
+            .into_iter()
+            .map(|required| ResourceLimit {
+                name: required.to_owned(),
+                status: ResourceLimitStatus::Enforced,
+            })
+            .collect();
         untrusted_code_profile_evidenced(&manifest)
             .expect("the synthetic complete profile is accepted only as a gate fixture");
     }
