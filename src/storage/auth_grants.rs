@@ -158,6 +158,7 @@ pub(crate) enum PairingPresentation {
     Existing(PendingGrantRequest),
 }
 
+#[allow(clippy::large_enum_variant)] // transient resolution value; boxing the hot arm buys nothing
 enum PairingAttemptOutcome {
     Presented(PairingPresentation),
     Invalid,

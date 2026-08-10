@@ -126,10 +126,10 @@ where
     if parsed.scheme() == "http" && !(allow_test_loopback_http && all_loopback) {
         return Err(target_invalid());
     }
-    if !all_loopback || !allow_test_loopback_http {
-        if addresses.iter().any(|address| !is_public_ip(address.ip())) {
-            return Err(ssrf_refused());
-        }
+    if (!all_loopback || !allow_test_loopback_http)
+        && addresses.iter().any(|address| !is_public_ip(address.ip()))
+    {
+        return Err(ssrf_refused());
     }
     Ok(PreparedTarget {
         url: url.to_owned(),

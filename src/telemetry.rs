@@ -5140,6 +5140,7 @@ fn upsert_hourly(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)] // Stable rollup persistence boundary; regrouping is out of scope here.
 fn upsert_caller_hourly(
     tx: &Transaction<'_>,
     generation: &str,
@@ -5343,6 +5344,7 @@ fn upsert_daily(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)] // Stable rollup persistence boundary; regrouping is out of scope here.
 fn upsert_caller_daily(
     tx: &Transaction<'_>,
     generation: &str,

@@ -9,10 +9,13 @@
 //! WAL, which in-memory SQLite cannot run. The in-memory fallback is asserted
 //! separately.
 
+fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
+}
+
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use snapback::admin::AppState;
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
     FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
@@ -222,7 +225,7 @@ async fn l7_busy_mutation_does_not_stall_other_endpoints() {
     })
     .await
     .expect("setup");
-    let state = AppState::detached(snapback);
+    let state = test_detached_app_state(snapback);
     let write_lane = state.snapback.clone();
     let app = snapback::server::app(state);
 
@@ -316,7 +319,7 @@ async fn l6_memory_instance_falls_back_to_the_write_lane() {
         !snapback.read_lane().available(),
         "in-memory instances must report the read lane unavailable"
     );
-    let app = snapback::server::app(AppState::detached(snapback));
+    let app = snapback::server::app(test_detached_app_state(snapback));
 
     let response = app
         .oneshot(post_json(
@@ -381,7 +384,7 @@ async fn l7_every_blocking_route_passes_the_exec_guard() {
     .await
     .expect("setup");
     // ENG-23442: connection-scoped routes demand the /connection/open grant.
-    let state = AppState::detached(snapback);
+    let state = test_detached_app_state(snapback);
     let sweep_grant = state
         .connections
         .open(Some("conn_sweep".to_owned()), None, true)
@@ -516,7 +519,7 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     // ENG-23442: grants for the three connections this test exercises. The
     // registry is its own small lock, so verification cannot queue behind the
     // busy write lane — which the lock observation/completion ordering proves.
-    let state = AppState::detached(snapback);
+    let state = test_detached_app_state(snapback);
     let write_lane = state.snapback.clone();
     let observer_grant = state
         .connections

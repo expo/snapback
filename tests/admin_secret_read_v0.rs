@@ -393,7 +393,8 @@ fn sessions_app(profile: ServerProfile) -> (snapback::server::SnapbackApp, Secre
     context.profile = profile;
     context.admin_token = Some("ordinary-admin".to_owned());
     let (state, operator) =
-        AppState::from_snapback_with_secret_read_operator(seeded_snapback(), context);
+        AppState::try_from_snapback_with_secret_read_operator(seeded_snapback(), context)
+            .expect("secret read app state");
     (
         snapback::server::app(state.with_policy_auth_mode(PolicyAuthMode::Sessions)),
         operator,

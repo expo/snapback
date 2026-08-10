@@ -4720,6 +4720,7 @@ fn read_id_page(
 
 /// Insert one row into a staged generation with EXPLICIT system fields —
 /// §4's identity rules, never the application insert path's fresh stamps.
+#[allow(clippy::too_many_arguments)] // Stable migration-row boundary; regrouping is out of scope here.
 fn insert_staged_row(
     tx: &Transaction<'_>,
     staged: &TableManifest,

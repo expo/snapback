@@ -2,10 +2,13 @@
 //! serves the build-embedded guide, including the complete flat projection and
 //! the two cache/version identity headers.
 
+fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
+}
+
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
-use snapback::admin::AppState;
 use snapback::guide::{FLAT_PATH, GUIDE_CONTENT_SHA256, INDEX_PATH, SECTION_FLAT_PATHS};
 use snapback::local::LocalSnapback;
 use snapback::server::{
@@ -19,7 +22,7 @@ use std::time::{Duration, Instant};
 use tower::ServiceExt;
 
 fn memory_server() -> snapback::server::SnapbackApp {
-    app(AppState::detached(
+    app(test_detached_app_state(
         LocalSnapback::memory().expect("in-memory served-guide server"),
     ))
 }

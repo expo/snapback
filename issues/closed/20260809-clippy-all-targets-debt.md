@@ -18,3 +18,16 @@ Breakdown at the fix commit:
 
 Local-proof's cargo-clippy gate stays red until the sweep lands; reds are
 fix-forward per LLP 0189, not retroactive invalidation.
+
+## Resolution — 2026-08-10
+
+Swept in the clippy-debt landing: all ~83 deprecated AppState constructor
+callers migrated to the try_* forms (test code uses .expect; the deprecated
+public constructors remain for compatibility; the internal pub(crate)
+new_with_secret_read_operator wrapper was removed with its last caller), the
+assorted lints fixed, and 21 scoped #[allow]s with one-line reasons where
+signature redesign was out of scope. Verified on the landing tree:
+`cargo clippy --all-targets -- -D warnings` exit 0; lib suite 2480 passed /
+2 failed (both pre-existing, ticketed); four pre-existing non-lib target
+failures proven at pristine base 84097094b and ticketed separately
+(handler-error-exposure triple; 20260810-effects-routes-route-policy-parity-red.md).

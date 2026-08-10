@@ -354,6 +354,7 @@ fn build_conditional_s3_store(
 }
 
 #[derive(Clone)]
+#[allow(clippy::large_enum_variant)] // Preserve the established backend representation and ownership.
 enum BackendFactory {
     File {
         root: PathBuf,
@@ -394,6 +395,7 @@ impl BackendFactory {
     }
 }
 
+#[allow(clippy::large_enum_variant)] // Preserve the established backend representation and ownership.
 enum ReplicaBackend {
     File(FileReplicaClient),
     Object(ObjectStoreClient),
@@ -682,6 +684,7 @@ impl MetadataStore {
                     .read(true)
                     .write(true)
                     .create(true)
+                    .truncate(false)
                     .open(&lock_path)
                     .map_err(|error| {
                         replication_error(

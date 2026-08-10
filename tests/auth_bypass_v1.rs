@@ -319,7 +319,8 @@ fn sessions_app() -> (
     context.profile = ServerProfile::Dev;
     context.admin_token = Some(MASTER.to_owned());
     let (state, operator) =
-        AppState::from_snapback_with_secret_read_operator(seeded_snapback(), context);
+        AppState::try_from_snapback_with_secret_read_operator(seeded_snapback(), context)
+            .expect("auth bypass app state");
     (
         snapback::server::app(state.with_policy_auth_mode(PolicyAuthMode::Sessions)),
         operator,

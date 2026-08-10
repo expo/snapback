@@ -6,6 +6,10 @@
 //! retry, sender/scope mismatch, expiry), distinct concurrent boots,
 //! attach-deadline reaping, and no stranded state on partial failure.
 
+fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
+}
+
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
@@ -322,7 +326,7 @@ async fn app_with_seeded_state() -> (AppState, AppState) {
     })
     .await
     .expect("setup");
-    let state = AppState::detached(snapback);
+    let state = test_detached_app_state(snapback);
     (state.clone(), state)
 }
 
@@ -392,7 +396,7 @@ async fn nested_route_params_reach_ibex_handler_and_decode_integer() {
     })
     .await
     .expect("nested setup");
-    let app = AppState::detached(snapback);
+    let app = test_detached_app_state(snapback);
 
     let (status, body) = send(
         &app,

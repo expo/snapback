@@ -18525,7 +18525,8 @@ pub fn live_socket_operations() -> Vec<(&'static str, RouteClass)> {
 /// Backwards-compatible entry point: build the full app with a detached
 /// (loopback, address-unknown) server context.
 pub fn router(snapback: LocalSnapback) -> SnapbackApp {
-    app(AppState::detached(snapback))
+    app(AppState::try_detached(snapback)
+        .expect("router compatibility entry failed; use AppState::try_detached with app()"))
 }
 
 /// How long a connection may be idle before the reaper tears it down, and how
@@ -23463,6 +23464,7 @@ async fn start_ask_stream(
     Ok((started.attempt_token, runner, started_at_ms))
 }
 
+#[allow(clippy::too_many_arguments)] // established internal signature; regrouping is out of scope for the lint sweep
 async fn settle_ask_stream(
     state: &SharedSnapback,
     attempt_token: String,
@@ -25965,6 +25967,7 @@ async fn require_effect_approval_if_configured(
 /// @ref LLP 0028#open-questions — per-request app actions
 /// include the All Aboard walk/bike routing call, not just cron jobs.
 /// @ref LLP 0028#execution-the-action-class — ENG-23324 detached execution.
+#[allow(clippy::too_many_arguments)] // established internal signature; regrouping is out of scope for the lint sweep
 async fn invoke_action(
     State(runtime): State<AppState>,
     State(state): State<SharedSnapback>,

@@ -31,16 +31,11 @@ pub const ERROR_RESPONSE_FORMAT_VERSION: &str = "snapback.error-response.v1";
 /// forward-additive: receivers accept and ignore unknown top-level members,
 /// while rejecting an unknown `formatVersion`. This compatibility rule does
 /// not define a remediation carrier; LLP 0146 OQ6 remains open.
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum ErrorResponseFormatVersion {
     #[serde(rename = "snapback.error-response.v1")]
+    #[default]
     V1,
-}
-
-impl Default for ErrorResponseFormatVersion {
-    fn default() -> Self {
-        Self::V1
-    }
 }
 
 /// Versioned non-2xx HTTP error envelope. For the recognized v1 format,

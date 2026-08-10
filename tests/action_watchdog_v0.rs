@@ -11,10 +11,13 @@
 //! watchdog posture, so a proof that is not about timeout timing may use a
 //! wider budget without racing the timeout-focused cases.
 
+fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
+}
+
 use axum::body::Body;
 use axum::http::Request;
 use serde_json::{Value, json};
-use snapback::admin::AppState;
 use snapback::cron::CronRunOutcome;
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
@@ -300,7 +303,7 @@ async fn watchdog_state_and_app() -> (
             diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
                 || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
         }));
-        let app_state = AppState::detached(snapback);
+        let app_state = test_detached_app_state(snapback);
         let state = app_state.snapback.clone();
         (state, snapback::server::app(app_state))
     })
@@ -469,7 +472,7 @@ async fn detached_action_secret_redaction_survives_config_rotation() {
         snapback
             .set_config_entry("leakKey", vec![fixture_secret], false, "test")
             .expect("set secret A");
-        let app_state = AppState::detached(snapback);
+        let app_state = test_detached_app_state(snapback);
         let state = app_state.snapback.clone();
         (state, snapback::server::app(app_state))
     })

@@ -380,13 +380,13 @@ impl RegistryInner {
         let expired = self
             .by_token
             .iter()
-            .filter_map(|(token, record)| {
-                (record.terminal.is_some()
+            .filter(|(token, record)| {
+                record.terminal.is_some()
                     && !record.live_auth_is_retained(now)
-                    && !self.dirty.contains(token)
-                    && !self.referenced_by_any_invocation(token))
-                .then(|| token.clone())
+                    && !self.dirty.contains(*token)
+                    && !self.referenced_by_any_invocation(token)
             })
+            .map(|(token, _)| token.clone())
             .collect::<Vec<_>>();
         for token in expired {
             self.reap_terminal(&token);
@@ -979,10 +979,7 @@ impl StreamAttemptRegistry {
                 "this action no longer owns the stream attempt lease",
             ));
         }
-        let next_total = record
-            .emitted_bytes
-            .checked_add(byte_len as u64)
-            .unwrap_or(u64::MAX);
+        let next_total = record.emitted_bytes.saturating_add(byte_len as u64);
         if next_total > STREAM_ATTEMPT_MAX_BYTES as u64 {
             return Err(stream_error(
                 "SNAPBACK_STREAM_ATTEMPT_LIMIT_EXCEEDED",

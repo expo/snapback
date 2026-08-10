@@ -581,10 +581,10 @@ mod tests {
             .insert_restore_fixture_for_test(
                 session_id,
                 &format!("authority-{suffix}"),
-                &vec![suffix; 32],
+                &[suffix; 32],
                 &format!("sbc_{suffix:022}"),
                 &format!("user{suffix}@example.com"),
-                &vec![suffix; 32],
+                &[suffix; 32],
                 &format!("sbak_{suffix:022}"),
             )
             .unwrap();

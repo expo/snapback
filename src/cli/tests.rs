@@ -734,7 +734,7 @@ fn admin_cli_pins_launch_and_terminal_approval_shapes() {
                 ..
             }),
             ..
-        })) if path == PathBuf::from("link.ready.json")
+        })) if path == Path::new("link.ready.json")
     ));
 
     let status = Cli::parse_from([
@@ -3139,10 +3139,11 @@ async fn ready_file_cli_mints_a_derived_lease_without_exposing_the_root() {
     let mut context =
         crate::admin::ServerContext::new(address.ip().to_string(), address.port(), true);
     context.admin_token = Some("ordinary-admin".to_owned());
-    let (state, operator) = crate::admin::AppState::from_snapback_with_secret_read_operator(
+    let (state, operator) = crate::admin::AppState::try_from_snapback_with_secret_read_operator(
         crate::local::LocalSnapback::memory().unwrap(),
         context,
-    );
+    )
+    .expect("CLI secret read app state");
     let startup_nonce = crate::identity::binary_identity().startup_nonce;
     let app = crate::server::app(state.with_secret_read_mint_bridge(
         crate::admin_secret_read::SecretReadMintBridge::new(

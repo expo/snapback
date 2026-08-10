@@ -195,7 +195,7 @@ async fn network_profile_http_release_marks_delay_and_keeps_normal_identity() {
 async fn poll_lane_marker_uses_frame_admission_snapshot_and_normal_preserves_bytes() {
     let mut context = ServerContext::detached();
     context.profile = ServerProfile::Test;
-    let state = AppState::from_snapback(
+    let state = test_app_state_from_snapback(
         LocalSnapback::memory().expect("poll marker fixture"),
         context,
     );
@@ -310,7 +310,7 @@ async fn network_profile_admin_api_uses_shared_authorizer_and_activation_gate() 
     let mut context = ServerContext::detached();
     context.profile = ServerProfile::Test;
     context.admin_token = Some("network-profile-admin".to_owned());
-    let state = AppState::from_snapback(
+    let state = test_app_state_from_snapback(
         LocalSnapback::memory().expect("network profile admin fixture"),
         context,
     );
@@ -373,7 +373,7 @@ async fn network_profile_admin_api_uses_shared_authorizer_and_activation_gate() 
     let mut context = ServerContext::detached();
     context.profile = ServerProfile::Prod;
     context.admin_token = Some("prod-admin".to_owned());
-    let prod = AppState::from_snapback(
+    let prod = test_app_state_from_snapback(
         LocalSnapback::memory().expect("production gate fixture"),
         context,
     );
@@ -439,10 +439,9 @@ use crate::manifest::{
     ApiAskBudgets, ApiAskManifest, ApiAskModelManifest, ApiAskPerPrincipalDayBudget,
     ApiAskPerRequestBudget, ApiAskResultVolumeBudget, ApiAskTokenBudget, ApiBudgetsManifest,
     ApiDisclosure, ApiFunctionApproval, ApiFunctionExposure, ApiManifest, ApiOAuthBundle,
-    ApiOAuthManifest, AuthInput,
-    AuthManifest, AuthMode, AuthRequirement, CronActivationPolicy, CronJitterPolicy,
-    CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule,
-    FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
+    ApiOAuthManifest, AuthInput, AuthManifest, AuthMode, AuthRequirement, CronActivationPolicy,
+    CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy,
+    CronSchedule, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
     FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, InvitedBy,
     MutationAcknowledgementRequest, MutationPlan, MutationStep, QueryPlan, ReturnValue,
     SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, SeedData, TableManifest, TargetCapabilityId,
@@ -477,6 +476,14 @@ use tokio::sync::{Mutex, Semaphore};
 use tower::ServiceExt as _;
 use uuid::Uuid;
 
+fn test_app_state_from_snapback(snapback: LocalSnapback, context: ServerContext) -> AppState {
+    AppState::try_from_snapback(snapback, context).expect("test app state")
+}
+
+fn test_detached_app_state(snapback: LocalSnapback) -> AppState {
+    AppState::try_detached(snapback).expect("detached test app state")
+}
+
 fn operator_delete_server_fixture(profile: ServerProfile, derived: bool) -> AppState {
     let mut context = ServerContext::detached();
     context.profile = profile;
@@ -485,7 +492,7 @@ fn operator_delete_server_fixture(profile: ServerProfile, derived: bool) -> AppS
     snapback
         .register_ephemeral_collection(EphemeralCollection::local_cursor("boardCursors", "boardId"))
         .expect("register operator delete fixture collection");
-    let mut state = AppState::from_snapback(snapback, context)
+    let mut state = test_app_state_from_snapback(snapback, context)
         .with_server_startup_nonce("operator-delete-startup")
         .expect("install deterministic startup nonce");
     if derived {
@@ -642,7 +649,7 @@ impl ManualServerAuthClock {
 
 #[test]
 fn one_database_rejects_a_second_independent_app_state_graph() {
-    let first = AppState::detached(LocalSnapback::memory().expect("shared registry fixture"));
+    let first = test_detached_app_state(LocalSnapback::memory().expect("shared registry fixture"));
     let clone = first.clone();
     assert!(
         first
@@ -650,14 +657,12 @@ fn one_database_rejects_a_second_independent_app_state_graph() {
             .is_same_registry(&clone.service_authority_fences),
         "router clones retain one terminal graph"
     );
-    let second = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        AppState::new(
-            first.snapback.clone(),
-            first.read.clone(),
-            first.ephemeral.clone(),
-            (*first.server).clone(),
-        )
-    }));
+    let second = AppState::try_new(
+        first.snapback.clone(),
+        first.read.clone(),
+        first.ephemeral.clone(),
+        (*first.server).clone(),
+    );
     assert!(
         second.is_err(),
         "a second independent connection/lifecycle graph must be rejected"
@@ -666,7 +671,7 @@ fn one_database_rejects_a_second_independent_app_state_graph() {
 
 #[tokio::test]
 async fn tus_upload_cors_headers_cover_the_protocol() {
-    let state = AppState::from_snapback(
+    let state = test_app_state_from_snapback(
         LocalSnapback::memory().expect("TUS CORS fixture"),
         bound_loopback_context(),
     );
@@ -773,7 +778,7 @@ async fn http_telemetry_uses_registered_names_codes_and_private_unmatched_detail
     let directory = tempfile::tempdir().expect("telemetry HTTP fixture directory");
     let database_path = directory.path().join("http-telemetry.sqlite3");
     let snapback = LocalSnapback::open(&database_path).expect("file-backed HTTP fixture");
-    let state = AppState::from_snapback(snapback, bound_loopback_context());
+    let state = test_app_state_from_snapback(snapback, bound_loopback_context());
     let telemetry = state.telemetry.clone();
     let router = app(state);
 
@@ -1044,7 +1049,7 @@ async fn successful_bind_records_process_ready_exactly_once() {
     let database_path = directory.path().join("ready.sqlite3");
     let local = LocalSnapback::open(&database_path).expect("ready local instance");
     let telemetry = local.telemetry();
-    let state = AppState::detached(local);
+    let state = test_detached_app_state(local);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind ready listener");
@@ -1066,7 +1071,7 @@ async fn successful_bind_records_process_ready_exactly_once() {
     let direct_path = directory.path().join("direct-ready.sqlite3");
     let direct_local = LocalSnapback::open(&direct_path).expect("direct local instance");
     let direct_telemetry = direct_local.telemetry();
-    let direct_state = AppState::detached(direct_local);
+    let direct_state = test_detached_app_state(direct_local);
     let mut direct = super::app(direct_state);
     direct_telemetry
         .force_flush()
@@ -1140,7 +1145,7 @@ fn bound_loopback_context() -> ServerContext {
 fn production_rehearsal_carrier_refusal_precedes_shape_validation() {
     let mut context = ServerContext::detached();
     context.profile = ServerProfile::Prod;
-    let state = AppState::from_snapback(
+    let state = test_app_state_from_snapback(
         LocalSnapback::memory().expect("production rehearsal prevalidation fixture"),
         context,
     );
@@ -1207,9 +1212,10 @@ async fn production_rehearsal_operation_refuses_before_admin_and_body_details() 
     let mut context = ServerContext::detached();
     context.record_bound_address("127.0.0.1:4287".parse().unwrap());
     context.profile = ServerProfile::Prod;
-    let state = AppState::from_snapback(snapback, context)
+    let state = test_app_state_from_snapback(snapback, context)
         .with_policy_auth_mode(PolicyAuthMode::Sessions)
-        .with_auth_provider(provider);
+        .try_with_auth_provider(provider)
+        .expect("auth provider app state");
     let router = app(state);
     let body = serde_json::to_vec(&json!({
         "operation": "auth.rehearsal.mint",
@@ -1294,8 +1300,9 @@ async fn rehearsal_capability_manifest_reports_absent_available_and_active() {
     let mut context = ServerContext::detached();
     context.record_bound_address("127.0.0.1:4287".parse().unwrap());
     context.profile = ServerProfile::Test;
-    let mut state = AppState::from_snapback(snapback, context)
-        .with_auth_provider(provider)
+    let mut state = test_app_state_from_snapback(snapback, context)
+        .try_with_auth_provider(provider)
+        .expect("auth provider app state")
         .with_auth_runtime_facts(
             settled_sessions_state(),
             AuthProgramReadiness::new(true, true, true, true, true, true, true),
@@ -1355,10 +1362,11 @@ async fn rehearsal_capture_releases_after_charge_and_exact_retry_is_free() {
     context.profile = ServerProfile::Test;
     context.admin_token = Some("auth-http-admin".to_owned());
     let state = activate_test_sessions(
-        AppState::from_snapback(snapback, context)
+        test_app_state_from_snapback(snapback, context)
             .with_policy_auth_mode(PolicyAuthMode::Sessions)
             .with_impersonation_capabilities(registry)
-            .with_auth_provider(provider),
+            .try_with_auth_provider(provider)
+            .expect("auth provider app state"),
     );
     let email = "rehearsal-capture@example.test";
     let provider = state.auth_provider.clone().expect("rehearsal provider");
@@ -1584,10 +1592,11 @@ fn auth_runtime_fixture_with(
     let mut context = bound_loopback_context();
     context.profile = ServerProfile::Test;
     context.admin_token = Some("auth-http-admin".to_owned());
-    let state = AppState::from_snapback(snapback, context)
+    let state = test_app_state_from_snapback(snapback, context)
         .with_policy_auth_mode(mode)
         .with_impersonation_capabilities(registry)
-        .with_auth_provider(provider);
+        .try_with_auth_provider(provider)
+        .expect("auth provider app state");
     (state, capability.expect("captured capability"))
 }
 
@@ -1781,9 +1790,10 @@ fn manual_clock_sessions_fixture(start_ms: u64) -> (AppState, Arc<ManualServerAu
     let mut context = bound_loopback_context();
     context.profile = ServerProfile::Test;
     let state = activate_test_sessions(
-        AppState::from_snapback(snapback, context)
+        test_app_state_from_snapback(snapback, context)
             .with_policy_auth_mode(PolicyAuthMode::Sessions)
-            .with_auth_provider(provider),
+            .try_with_auth_provider(provider)
+            .expect("auth provider app state"),
     );
     (state, clock)
 }
@@ -1827,8 +1837,9 @@ fn auth_invalidation_reset_fixture() -> AppState {
         .install_auth_invalidation(issuer.clone(), authorization, version_stream)
         .expect("install predecessor invalidation projections");
 
-    AppState::from_snapback(snapback, bound_loopback_context())
-        .with_auth_provider(provider)
+    test_app_state_from_snapback(snapback, bound_loopback_context())
+        .try_with_auth_provider(provider)
+        .expect("auth provider app state")
         .with_auth_invalidation(issuer)
         .with_auth_runtime_facts(
             settled_sessions_state(),
@@ -1848,7 +1859,7 @@ fn dormant_dev_reset_fixture() -> AppState {
         .expect("build dormant stream coordinator");
     let mut context = bound_loopback_context();
     context.profile = ServerProfile::Dev;
-    AppState::from_snapback(snapback, context).with_auth_runtime(&runtime, coordinator)
+    test_app_state_from_snapback(snapback, context).with_auth_runtime(&runtime, coordinator)
 }
 
 fn auth_projection_http_fixture(
@@ -2037,9 +2048,10 @@ fn auth_projection_http_fixture(
         )
         .expect("raise projection HTTP obligations");
 
-    AppState::from_snapback(snapback, bound_loopback_context())
+    test_app_state_from_snapback(snapback, bound_loopback_context())
         .with_policy_auth_mode(PolicyAuthMode::Sessions)
-        .with_auth_provider(provider)
+        .try_with_auth_provider(provider)
+        .expect("auth provider app state")
         .with_auth_invalidation(issuer)
         .with_auth_runtime_facts(
             settled_sessions_state(),
@@ -2240,8 +2252,9 @@ globalThis.__snapbackHandlers = {
 
     let mut context = bound_loopback_context();
     context.profile = ServerProfile::Test;
-    let state = AppState::from_snapback(snapback, context)
-        .with_auth_provider(provider)
+    let state = test_app_state_from_snapback(snapback, context)
+        .try_with_auth_provider(provider)
+        .expect("auth provider app state")
         .with_auth_invalidation(issuer)
         .with_auth_runtime_facts(settled, readiness)
         .expect("install protected-room sessions posture");
@@ -3469,8 +3482,9 @@ fn sessions_activation_server_fixture_with_api(
     context.record_bound_address("127.0.0.1:43621".parse().unwrap());
     context.profile = ServerProfile::Test;
     context.admin_token = Some("auth-http-admin".to_owned());
-    AppState::from_snapback(snapback, context)
-        .with_auth_provider(provider)
+    test_app_state_from_snapback(snapback, context)
+        .try_with_auth_provider(provider)
+        .expect("auth provider app state")
         .with_auth_invalidation(issuer)
         .with_auth_runtime_facts(settled, readiness)
         .expect("install activation sessions posture")
@@ -3568,10 +3582,10 @@ async fn approval_effect_server_fixture_with_authority_creation(
             .find(|function| function.name == "queuedWrite")
             .unwrap();
         queued_write.api_exposure = Some(ApiFunctionExposure {
-                expose: true,
-                since: None,
-                approval: Some(approval),
-            });
+            expose: true,
+            since: None,
+            approval: Some(approval),
+        });
         queued_write.authority_creating = authority_creating;
         sessions_activation_server_fixture_with_api(
             functions,
@@ -4258,9 +4272,12 @@ async fn approval_gate_returns_one_pending_shape_on_bare_api_mcp_and_link_ingres
             .method("POST")
             .uri(uri)
             .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(serde_json::to_vec(&json!({
-                "args": { "value": value },
-            })).unwrap()))
+            .body(Body::from(
+                serde_json::to_vec(&json!({
+                    "args": { "value": value },
+                }))
+                .unwrap(),
+            ))
             .unwrap();
         offer_auth_client_protocol(&mut request);
         request
@@ -4269,59 +4286,89 @@ async fn approval_gate_returns_one_pending_shape_on_bare_api_mcp_and_link_ingres
         ("/mutation/queuedWrite", "bare-pending"),
         ("/api/v1/mutation/queuedWrite", "api-pending"),
     ] {
-        let response = router.clone().oneshot(mutation_request(uri, value)).await.unwrap();
+        let response = router
+            .clone()
+            .oneshot(mutation_request(uri, value))
+            .await
+            .unwrap();
         let status = response.status();
         let body = response_json(response).await;
         assert_eq!(status, StatusCode::ACCEPTED, "{body}");
-        assert_eq!(body["diagnostic"]["code"], "SNAPBACK_EFFECT_APPROVAL_PENDING");
-        assert!(body["diagnostic"]["details"]["effectId"]
-            .as_str().unwrap().starts_with("pfx_"));
-        assert_eq!(body["diagnostic"]["details"]["preview"]["kind"], "disclosed");
+        assert_eq!(
+            body["diagnostic"]["code"],
+            "SNAPBACK_EFFECT_APPROVAL_PENDING"
+        );
+        assert!(
+            body["diagnostic"]["details"]["effectId"]
+                .as_str()
+                .unwrap()
+                .starts_with("pfx_")
+        );
+        assert_eq!(
+            body["diagnostic"]["details"]["preview"]["kind"],
+            "disclosed"
+        );
     }
 
-    let mcp = router.clone().oneshot(mcp_protocol_request(
-        "POST",
-        json!({
-            "jsonrpc": "2.0",
-            "id": 41,
-            "method": "tools/call",
-            "params": {
-                "name": "snapback_fn_fn_queuedwrite",
-                "arguments": { "args": { "value": "mcp-pending" } }
-            }
-        }),
-        None,
-        None,
-        None,
-    )).await.unwrap();
+    let mcp = router
+        .clone()
+        .oneshot(mcp_protocol_request(
+            "POST",
+            json!({
+                "jsonrpc": "2.0",
+                "id": 41,
+                "method": "tools/call",
+                "params": {
+                    "name": "snapback_fn_fn_queuedwrite",
+                    "arguments": { "args": { "value": "mcp-pending" } }
+                }
+            }),
+            None,
+            None,
+            None,
+        ))
+        .await
+        .unwrap();
     assert_eq!(mcp.status(), StatusCode::OK);
-    assert!(serde_json::to_string(&response_json(mcp).await).unwrap()
-        .contains("SNAPBACK_EFFECT_APPROVAL_PENDING"));
+    assert!(
+        serde_json::to_string(&response_json(mcp).await)
+            .unwrap()
+            .contains("SNAPBACK_EFFECT_APPROVAL_PENDING")
+    );
 
     let owner = mint_test_credential(&state, "effect-link-owner@example.test").await;
     let bearer = owner["token"].as_str().unwrap();
-    let minted = router.clone().oneshot(session_auth_http_request(
-        "/capability-links",
-        serde_json::to_vec(&json!({
-            "function": "queuedWrite",
-            "pinnedArgs": { "value": "link-pending" },
-            "uses": 2,
-        })).unwrap(),
-        bearer,
-    )).await.unwrap();
+    let minted = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/capability-links",
+            serde_json::to_vec(&json!({
+                "function": "queuedWrite",
+                "pinnedArgs": { "value": "link-pending" },
+                "uses": 2,
+            }))
+            .unwrap(),
+            bearer,
+        ))
+        .await
+        .unwrap();
     let minted_status = minted.status();
     let minted = response_json(minted).await;
     assert_eq!(minted_status, StatusCode::OK, "{minted}");
     assert_eq!(minted["approvalPerUse"], true);
     let link_url = minted["url"].as_str().unwrap();
-    let invoked = router.clone().oneshot(
-        Request::builder()
-            .method("POST")
-            .uri(format!("{link_url}/invoke"))
-            .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(r#"{"args":{}}"#))
-            .unwrap(),
-    ).await.unwrap();
+    let invoked = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("{link_url}/invoke"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(r#"{"args":{}}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
     assert_eq!(invoked.status(), StatusCode::ACCEPTED);
     let invoked = response_json(invoked).await;
     assert_eq!(
@@ -4329,12 +4376,17 @@ async fn approval_gate_returns_one_pending_shape_on_bare_api_mcp_and_link_ingres
         "SNAPBACK_EFFECT_APPROVAL_PENDING",
     );
     let link_effect_id = invoked["diagnostic"]["details"]["effectId"]
-        .as_str().unwrap();
-    let approved = router.clone().oneshot(session_auth_http_request(
-        &format!("/effects/{link_effect_id}/approve"),
-        br#"{}"#.to_vec(),
-        bearer,
-    )).await.unwrap();
+        .as_str()
+        .unwrap();
+    let approved = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            &format!("/effects/{link_effect_id}/approve"),
+            br#"{}"#.to_vec(),
+            bearer,
+        ))
+        .await
+        .unwrap();
     assert_eq!(approved.status(), StatusCode::OK);
 }
 
@@ -4342,22 +4394,29 @@ async fn approval_gate_returns_one_pending_shape_on_bare_api_mcp_and_link_ingres
 async fn external_gate_keeps_first_party_direct_and_approval_executes_or_denies_once() {
     let external_state = approval_effect_server_fixture(ApiFunctionApproval::External).await;
     let external_router = app(external_state.clone());
-    let mut anonymous_request =
-        Request::builder()
-            .method("POST")
-            .uri("/mutation/queuedWrite")
-            .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(r#"{"args":{"value":"external-pending"}}"#))
-            .unwrap();
+    let mut anonymous_request = Request::builder()
+        .method("POST")
+        .uri("/mutation/queuedWrite")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(r#"{"args":{"value":"external-pending"}}"#))
+        .unwrap();
     offer_auth_client_protocol(&mut anonymous_request);
-    let anonymous = external_router.clone().oneshot(anonymous_request).await.unwrap();
+    let anonymous = external_router
+        .clone()
+        .oneshot(anonymous_request)
+        .await
+        .unwrap();
     assert_eq!(anonymous.status(), StatusCode::ACCEPTED);
     let user = mint_test_credential(&external_state, "effect-first-party@example.test").await;
-    let direct = external_router.clone().oneshot(session_auth_http_request(
-        "/mutation/queuedWrite",
-        br#"{"args":{"value":"first-party-direct"}}"#.to_vec(),
-        user["token"].as_str().unwrap(),
-    )).await.unwrap();
+    let direct = external_router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/mutation/queuedWrite",
+            br#"{"args":{"value":"first-party-direct"}}"#.to_vec(),
+            user["token"].as_str().unwrap(),
+        ))
+        .await
+        .unwrap();
     assert_eq!(direct.status(), StatusCode::OK);
 
     let state = approval_effect_server_fixture(ApiFunctionApproval::Required).await;
@@ -4369,17 +4428,28 @@ async fn external_gate_keeps_first_party_direct_and_approval_executes_or_denies_
             .method("POST")
             .uri("/mutation/queuedWrite")
             .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(serde_json::to_vec(&json!({
-                "args": { "value": value },
-            })).unwrap()))
+            .body(Body::from(
+                serde_json::to_vec(&json!({
+                    "args": { "value": value },
+                }))
+                .unwrap(),
+            ))
             .unwrap();
         offer_auth_client_protocol(&mut request);
         request
     };
-    let pending = response_json(router.clone().oneshot(create("approved-effect"))
-        .await.unwrap()).await;
+    let pending = response_json(
+        router
+            .clone()
+            .oneshot(create("approved-effect"))
+            .await
+            .unwrap(),
+    )
+    .await;
     let effect_id = pending["diagnostic"]["details"]["effectId"]
-        .as_str().unwrap().to_owned();
+        .as_str()
+        .unwrap()
+        .to_owned();
 
     let mut inbox = Request::builder()
         .method("GET")
@@ -4389,54 +4459,89 @@ async fn external_gate_keeps_first_party_direct_and_approval_executes_or_denies_
         .unwrap();
     offer_auth_client_protocol(&mut inbox);
     let inbox = response_json(router.clone().oneshot(inbox).await.unwrap()).await;
-    assert!(inbox.as_array().unwrap().iter().any(|effect| effect["id"] == effect_id));
+    assert!(
+        inbox
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|effect| effect["id"] == effect_id)
+    );
 
-    let approved = router.clone().oneshot(session_auth_http_request(
-        &format!("/effects/{effect_id}/approve"),
-        br#"{}"#.to_vec(),
-        bearer,
-    )).await.unwrap();
+    let approved = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            &format!("/effects/{effect_id}/approve"),
+            br#"{}"#.to_vec(),
+            bearer,
+        ))
+        .await
+        .unwrap();
     assert_eq!(approved.status(), StatusCode::OK);
     assert_eq!(approved.headers()["x-snapback-effect-id"], effect_id);
     let _approved_body = response_json(approved).await;
     let lookup_id = effect_id.clone();
     let stored = with_snapback(&state.snapback, move |snapback| {
-        snapback.auth_database_mut().pending_effect(&lookup_id, super::now_millis())
-    }).await.unwrap();
-    assert_eq!(stored.status, crate::storage::pending_effects::PendingEffectStatus::Executed);
+        snapback
+            .auth_database_mut()
+            .pending_effect(&lookup_id, super::now_millis())
+    })
+    .await
+    .unwrap();
     assert_eq!(
-        stored.journal.iter().map(|entry| entry.transition.as_str()).collect::<Vec<_>>(),
+        stored.status,
+        crate::storage::pending_effects::PendingEffectStatus::Executed
+    );
+    assert_eq!(
+        stored
+            .journal
+            .iter()
+            .map(|entry| entry.transition.as_str())
+            .collect::<Vec<_>>(),
         ["created", "approved", "executed"],
     );
     state.telemetry.force_flush().unwrap();
-    assert!(state.telemetry
-        .event_details_for_test("function_run", "queuedWrite")
-        .into_iter()
-        .flatten()
-        .any(|details| {
-            details["callerLane"] == "anonymous"
-                && details["callerKey"] == "anonymous"
-                && details["approverKey"] == approver["session"]["userId"]
-        }));
+    assert!(
+        state
+            .telemetry
+            .event_details_for_test("function_run", "queuedWrite")
+            .into_iter()
+            .flatten()
+            .any(|details| {
+                details["callerLane"] == "anonymous"
+                    && details["callerKey"] == "anonymous"
+                    && details["approverKey"] == approver["session"]["userId"]
+            })
+    );
 
-    let denied = response_json(router.clone().oneshot(create("denied-effect"))
-        .await.unwrap()).await;
-    let denied_id = denied["diagnostic"]["details"]["effectId"].as_str().unwrap();
-    let denied = router.clone().oneshot(session_auth_http_request(
-        &format!("/effects/{denied_id}/deny"),
-        br#"{}"#.to_vec(),
-        bearer,
-    )).await.unwrap();
+    let denied = response_json(
+        router
+            .clone()
+            .oneshot(create("denied-effect"))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let denied_id = denied["diagnostic"]["details"]["effectId"]
+        .as_str()
+        .unwrap();
+    let denied = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            &format!("/effects/{denied_id}/deny"),
+            br#"{}"#.to_vec(),
+            bearer,
+        ))
+        .await
+        .unwrap();
     assert_eq!(denied.status(), StatusCode::OK);
     assert_eq!(response_json(denied).await["status"], "refused");
 }
 
 #[tokio::test]
 async fn authority_creating_effect_requires_operation_bound_step_up() {
-    let state = approval_effect_server_fixture_with_authority_creation(
-        ApiFunctionApproval::Required,
-        true,
-    ).await;
+    let state =
+        approval_effect_server_fixture_with_authority_creation(ApiFunctionApproval::Required, true)
+            .await;
     let provider = state.auth_provider.clone().expect("effect auth provider");
     let router = app(state.clone());
     let approver = mint_test_credential(&state, "effect-step-up@example.test").await;
@@ -4450,41 +4555,58 @@ async fn authority_creating_effect_requires_operation_bound_step_up() {
     offer_auth_client_protocol(&mut invoke);
     let pending = response_json(router.clone().oneshot(invoke).await.unwrap()).await;
     let effect_id = pending["diagnostic"]["details"]["effectId"]
-        .as_str().unwrap().to_owned();
+        .as_str()
+        .unwrap()
+        .to_owned();
 
-    let missing = router.clone().oneshot(session_auth_http_request(
-        &format!("/effects/{effect_id}/approve"),
-        br#"{}"#.to_vec(),
-        bearer,
-    )).await.unwrap();
+    let missing = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            &format!("/effects/{effect_id}/approve"),
+            br#"{}"#.to_vec(),
+            bearer,
+        ))
+        .await
+        .unwrap();
     assert_eq!(missing.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(
         response_json(missing).await["diagnostic"]["code"],
         "SNAPBACK_AUTH_STEP_UP_REQUIRED",
     );
 
-    let challenge = router.clone().oneshot(session_auth_http_request(
-        "/auth/step-up/request",
-        serde_json::to_vec(&json!({
-            "operation": "effectApproval",
-            "effectId": effect_id,
-        })).unwrap(),
-        bearer,
-    )).await.unwrap();
+    let challenge = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/step-up/request",
+            serde_json::to_vec(&json!({
+                "operation": "effectApproval",
+                "effectId": effect_id,
+            }))
+            .unwrap(),
+            bearer,
+        ))
+        .await
+        .unwrap();
     assert_eq!(challenge.status(), StatusCode::OK);
     let challenge_id = response_json(challenge).await["challengeId"]
-        .as_str().unwrap().to_owned();
-    let mailbox = serde_json::to_value(
-        provider.mailbox_entry(&challenge_id).await.unwrap(),
-    ).unwrap();
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let mailbox =
+        serde_json::to_value(provider.mailbox_entry(&challenge_id).await.unwrap()).unwrap();
     let code = mailbox["code"].as_str().unwrap();
-    let approved = router.clone().oneshot(session_auth_http_request(
-        &format!("/effects/{effect_id}/approve"),
-        serde_json::to_vec(&json!({
-            "stepUp": { "challengeId": challenge_id, "code": code },
-        })).unwrap(),
-        bearer,
-    )).await.unwrap();
+    let approved = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            &format!("/effects/{effect_id}/approve"),
+            serde_json::to_vec(&json!({
+                "stepUp": { "challengeId": challenge_id, "code": code },
+            }))
+            .unwrap(),
+            bearer,
+        ))
+        .await
+        .unwrap();
     assert_eq!(approved.status(), StatusCode::OK);
 }
 
@@ -4499,44 +4621,69 @@ async fn effect_approval_refuses_generation_rotation() {
             .method("POST")
             .uri("/mutation/queuedWrite")
             .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(serde_json::to_vec(&json!({
-                "args": { "value": value },
-            })).unwrap()))
+            .body(Body::from(
+                serde_json::to_vec(&json!({
+                    "args": { "value": value },
+                }))
+                .unwrap(),
+            ))
             .unwrap();
         offer_auth_client_protocol(&mut request);
         request
     };
     let rotated = response_json(
-        router.clone().oneshot(pending_request("rotate-before-approval"))
-            .await.unwrap(),
-    ).await;
+        router
+            .clone()
+            .oneshot(pending_request("rotate-before-approval"))
+            .await
+            .unwrap(),
+    )
+    .await;
     let rotated_id = rotated["diagnostic"]["details"]["effectId"]
-        .as_str().unwrap().to_owned();
+        .as_str()
+        .unwrap()
+        .to_owned();
     let mut successor = activation_functions('4', false);
     for function in &mut successor.functions {
         function.api_exposure = Some(ApiFunctionExposure::default());
     }
-    successor.functions.iter_mut()
+    successor
+        .functions
+        .iter_mut()
         .find(|function| function.name == "queuedWrite")
-        .unwrap().api_exposure = Some(ApiFunctionExposure {
-            expose: true,
-            since: None,
-            approval: Some(ApiFunctionApproval::Required),
-        });
-    let activated = router.clone().oneshot(auth_http_request(
-        "POST",
-        "/_snapback/api/functions/load",
-        serde_json::to_vec(&successor).unwrap(),
-        true,
-        Some("auth-http-admin"),
-        None,
-    )).await.unwrap();
-    assert_eq!(activated.status(), StatusCode::OK, "{}", response_json(activated).await);
-    let refused = router.clone().oneshot(session_auth_http_request(
-        &format!("/effects/{rotated_id}/approve"),
-        br#"{}"#.to_vec(),
-        bearer,
-    )).await.unwrap();
+        .unwrap()
+        .api_exposure = Some(ApiFunctionExposure {
+        expose: true,
+        since: None,
+        approval: Some(ApiFunctionApproval::Required),
+    });
+    let activated = router
+        .clone()
+        .oneshot(auth_http_request(
+            "POST",
+            "/_snapback/api/functions/load",
+            serde_json::to_vec(&successor).unwrap(),
+            true,
+            Some("auth-http-admin"),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        activated.status(),
+        StatusCode::OK,
+        "{}",
+        response_json(activated).await
+    );
+    let refused = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            &format!("/effects/{rotated_id}/approve"),
+            br#"{}"#.to_vec(),
+            bearer,
+        ))
+        .await
+        .unwrap();
     assert_eq!(refused.status(), StatusCode::CONFLICT);
     assert_eq!(
         response_json(refused).await["diagnostic"]["code"],
@@ -4552,31 +4699,56 @@ async fn effect_approval_refuses_a_revoked_original_session() {
     let original_bearer = original["token"].as_str().unwrap();
     let approver = mint_test_credential(&state, "effect-successor@example.test").await;
     let approver_bearer = approver["token"].as_str().unwrap();
-    let pending = response_json(router.clone().oneshot(session_auth_http_request(
-        "/mutation/queuedWrite",
-        br#"{"args":{"value":"revoked-original"}}"#.to_vec(),
-        original_bearer,
-    )).await.unwrap()).await;
+    let pending = response_json(
+        router
+            .clone()
+            .oneshot(session_auth_http_request(
+                "/mutation/queuedWrite",
+                br#"{"args":{"value":"revoked-original"}}"#.to_vec(),
+                original_bearer,
+            ))
+            .await
+            .unwrap(),
+    )
+    .await;
     let effect_id = pending["diagnostic"]["details"]["effectId"]
-        .as_str().unwrap().to_owned();
-    let logout = router.clone().oneshot(session_auth_http_request(
-        "/auth/logout",
-        br#"{}"#.to_vec(),
-        original_bearer,
-    )).await.unwrap();
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let logout = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            "/auth/logout",
+            br#"{}"#.to_vec(),
+            original_bearer,
+        ))
+        .await
+        .unwrap();
     assert_eq!(logout.status(), StatusCode::NO_CONTENT);
-    let refused = router.clone().oneshot(session_auth_http_request(
-        &format!("/effects/{effect_id}/approve"),
-        br#"{}"#.to_vec(),
-        approver_bearer,
-    )).await.unwrap();
+    let refused = router
+        .clone()
+        .oneshot(session_auth_http_request(
+            &format!("/effects/{effect_id}/approve"),
+            br#"{}"#.to_vec(),
+            approver_bearer,
+        ))
+        .await
+        .unwrap();
     assert!(!refused.status().is_success());
-    assert!(response_json(refused).await["diagnostic"]["code"]
-        .as_str().unwrap().starts_with("SNAPBACK_AUTH_"));
+    assert!(
+        response_json(refused).await["diagnostic"]["code"]
+            .as_str()
+            .unwrap()
+            .starts_with("SNAPBACK_AUTH_")
+    );
     let lookup_id = effect_id.clone();
     let stored = with_snapback(&state.snapback, move |snapback| {
-        snapback.auth_database_mut().pending_effect(&lookup_id, super::now_millis())
-    }).await.unwrap();
+        snapback
+            .auth_database_mut()
+            .pending_effect(&lookup_id, super::now_millis())
+    })
+    .await
+    .unwrap();
     assert_eq!(
         stored.status,
         crate::storage::pending_effects::PendingEffectStatus::Refused,
@@ -5866,6 +6038,7 @@ async fn external_api_v1_is_opt_in_unpinned_disclosed_and_exact_origin_cors() {
 }
 
 #[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serializes process-global egress environment for this whole async fixture.
 async fn external_ask_is_granted_read_only_receipted_stream_settled_and_mcp_mirrored() {
     let _environment_lock = ASK_EGRESS_ENV_TEST_LOCK
         .get_or_init(|| StdMutex::new(()))
@@ -13397,7 +13570,7 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
         snapback
             .auth_database_mut()
             .auth_catalog()
-            .set_agent_credential_rotated_at_for_test(&agent_user_id, 0)
+            .set_agent_credential_rotated_at_for_test(agent_user_id, 0)
     })
     .await
     .unwrap();
@@ -14305,9 +14478,11 @@ async fn public_health_revalidates_provider_readiness_without_leaking_keyring_de
     let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).unwrap());
     let keyring_path = AuthKeyringStore::keyring_path(&database_path);
     let retained = std::fs::read(&keyring_path).unwrap();
-    let router =
-        app(AppState::from_snapback(snapback, bound_loopback_context())
-            .with_auth_provider(provider));
+    let router = app(
+        test_app_state_from_snapback(snapback, bound_loopback_context())
+            .try_with_auth_provider(provider)
+            .expect("auth provider app state"),
+    );
 
     let available = router
         .clone()
@@ -14661,7 +14836,7 @@ async fn registration_refuses_under_disabled_and_dev_modes() {
         "SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED"
     );
 
-    let dev_state = AppState::detached(LocalSnapback::memory().expect("dev registration"));
+    let dev_state = test_detached_app_state(LocalSnapback::memory().expect("dev registration"));
     let dev = app(dev_state)
         .oneshot(agent_registration_http_request(json!({})))
         .await
@@ -16378,7 +16553,9 @@ async fn production_step_up_delivery_fails_closed_without_capture() {
         .load_or_mint_initial(super::now_millis(), &OsRandom)
         .unwrap();
     let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Prod, keyring).unwrap());
-    let state = state.with_auth_provider(provider);
+    let state = state
+        .try_with_auth_provider(provider)
+        .expect("auth provider app state");
     let router = app(state.clone());
     let response = router
         .oneshot(session_auth_http_request(
@@ -16608,7 +16785,7 @@ async fn authorized_durable_http_body_holds_commit_through_final_poll() {
 
 #[tokio::test]
 async fn unpolled_http_batch_is_suppressed_and_requeued_after_authority_mismatch() {
-    let state = AppState::detached(LocalSnapback::memory().expect("mismatch HTTP fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("mismatch HTTP fixture"));
     let opened = state
         .connections
         .open(Some("mismatch-http".to_owned()), None, true)
@@ -16667,7 +16844,7 @@ async fn unpolled_http_batch_is_suppressed_and_requeued_after_authority_mismatch
 
 #[tokio::test]
 async fn no_lease_projection_still_revalidates_exact_grant_at_first_poll() {
-    let state = AppState::detached(LocalSnapback::memory().expect("direct HTTP fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("direct HTTP fixture"));
     let opened = state
         .connections
         .open(Some("direct-http".to_owned()), None, true)
@@ -16736,7 +16913,8 @@ async fn no_lease_projection_still_revalidates_exact_grant_at_first_poll() {
 
 #[tokio::test]
 async fn projection_only_http_body_loses_to_marker_installed_after_selection() {
-    let state = AppState::detached(LocalSnapback::memory().expect("projection marker fixture"));
+    let state =
+        test_detached_app_state(LocalSnapback::memory().expect("projection marker fixture"));
     let opened = state
         .connections
         .open(Some("projection-marker-http".to_owned()), None, true)
@@ -16798,7 +16976,7 @@ async fn projection_only_http_body_loses_to_marker_installed_after_selection() {
 
 #[tokio::test]
 async fn http_unbound_ordinary_lease_loses_to_later_exact_marker() {
-    let state = AppState::detached(LocalSnapback::memory().expect("HTTP marker fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("HTTP marker fixture"));
     let opened = state
         .connections
         .open(Some("unbound-exact-marker-http".to_owned()), None, true)
@@ -16837,7 +17015,7 @@ async fn http_unbound_ordinary_lease_loses_to_later_exact_marker() {
 
 #[tokio::test]
 async fn http_exact_ordinary_lease_loses_to_later_unbound_marker() {
-    let state = AppState::detached(LocalSnapback::memory().expect("HTTP marker fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("HTTP marker fixture"));
     let opened = state
         .connections
         .open(Some("exact-unbound-marker-http".to_owned()), None, true)
@@ -16876,7 +17054,7 @@ async fn http_exact_ordinary_lease_loses_to_later_unbound_marker() {
 
 #[tokio::test]
 async fn http_exact_marker_lease_loses_to_later_unbound_marker() {
-    let state = AppState::detached(LocalSnapback::memory().expect("HTTP marker rank fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("HTTP marker rank fixture"));
     let opened = state
         .connections
         .open(Some("exact-marker-rank-http".to_owned()), None, true)
@@ -16922,7 +17100,7 @@ async fn http_exact_marker_lease_loses_to_later_unbound_marker() {
 
 #[tokio::test]
 async fn websocket_projection_offer_loses_to_marker_installed_after_selection() {
-    let state = AppState::detached(LocalSnapback::memory().expect("WS marker fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("WS marker fixture"));
     let opened = state
         .connections
         .open(Some("projection-marker-ws".to_owned()), None, true)
@@ -16982,7 +17160,7 @@ async fn websocket_projection_offer_loses_to_marker_installed_after_selection() 
 
 #[test]
 fn websocket_selected_marker_defers_precomputed_projections_and_emits_alone() {
-    let state = AppState::detached(LocalSnapback::memory().expect("WS marker-alone fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("WS marker-alone fixture"));
     let opened = state
         .connections
         .open(Some("marker-alone-ws".to_owned()), None, true)
@@ -17131,7 +17309,7 @@ async fn leased_marker_suppresses_http_projection_then_marker_emits_alone_before
 async fn cancelled_mode_root_releases_http_batch_at_eof_while_body_is_retained() {
     use http_body::Body as _;
 
-    let state = AppState::detached(LocalSnapback::memory().expect("cancelled HTTP fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("cancelled HTTP fixture"));
     let opened = state
         .connections
         .open(Some("cancelled-http".to_owned()), None, true)
@@ -17171,7 +17349,7 @@ async fn cancelled_mode_root_releases_http_batch_at_eof_while_body_is_retained()
 
 #[tokio::test]
 async fn unpolled_http_batch_is_suppressed_and_whole_id_cleaned_after_pressure_eviction() {
-    let state = AppState::detached(LocalSnapback::memory().expect("pressure HTTP fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("pressure HTTP fixture"));
     let opened = state
         .connections
         .open(Some("pressure-http".to_owned()), None, true)
@@ -17342,7 +17520,7 @@ async fn committed_reset_between_http_selection_and_first_poll_suppresses_batch(
 
 #[tokio::test]
 async fn coalescing_replacement_between_http_selection_and_first_poll_retries_latest() {
-    let state = AppState::detached(LocalSnapback::memory().expect("coalesce HTTP fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("coalesce HTTP fixture"));
     let opened = state
         .connections
         .open(Some("coalesce-http".to_owned()), None, true)
@@ -17714,9 +17892,10 @@ async fn postcommit_admin_mint_cap_finalize_failure_still_terminalizes_eviction(
     let mut context = bound_loopback_context();
     context.profile = ServerProfile::Test;
     let state = activate_test_sessions(
-        AppState::from_snapback(snapback, context)
+        test_app_state_from_snapback(snapback, context)
             .with_policy_auth_mode(PolicyAuthMode::Sessions)
-            .with_auth_provider(provider.clone()),
+            .try_with_auth_provider(provider.clone())
+            .expect("auth provider app state"),
     );
     let email = "admin-cap-finalize@example.com";
     let first = mint_test_credential(&state, email).await;
@@ -17844,9 +18023,10 @@ async fn refresh_gate_preserves_outside_grace_reuse_revocation() {
     let mut context = bound_loopback_context();
     context.profile = ServerProfile::Test;
     let state = activate_test_sessions(
-        AppState::from_snapback(snapback, context)
+        test_app_state_from_snapback(snapback, context)
             .with_policy_auth_mode(PolicyAuthMode::Sessions)
-            .with_auth_provider(provider),
+            .try_with_auth_provider(provider)
+            .expect("auth provider app state"),
     );
     let initial = mint_test_credential(&state, "reuse@example.com").await;
     let predecessor = initial["token"].as_str().unwrap().to_owned();
@@ -18085,9 +18265,10 @@ async fn successful_finite_session_use_extends_the_projection_deadline() {
         )
         .expect("construct manual-clock auth provider"),
     );
-    let state = AppState::from_snapback(snapback, bound_loopback_context())
+    let state = test_app_state_from_snapback(snapback, bound_loopback_context())
         .with_policy_auth_mode(PolicyAuthMode::Sessions)
-        .with_auth_provider(provider);
+        .try_with_auth_provider(provider)
+        .expect("auth provider app state");
     let credential = mint_test_credential(&state, "sliding-use@example.com").await;
     let bearer = credential["token"].as_str().unwrap().to_owned();
     let coordinator = state.auth_coordinator.clone().unwrap();
@@ -18395,10 +18576,11 @@ async fn auth_rescue_host_op_returns_pinned_metadata_and_keeps_service_live() {
     let mut context = bound_loopback_context();
     context.profile = ServerProfile::Test;
     context.admin_token = Some("auth-rescue-admin".to_owned());
-    let state = AppState::from_snapback(snapback, context)
+    let state = test_app_state_from_snapback(snapback, context)
         .with_policy_auth_mode(PolicyAuthMode::Dev)
         .with_impersonation_capabilities(registry)
-        .with_auth_provider(provider);
+        .try_with_auth_provider(provider)
+        .expect("auth provider app state");
     let router = app(state);
 
     let rescue = |source: &str, target: &str| {
@@ -24386,7 +24568,7 @@ fn anonymous_stream_reset_refusal_is_retryable_carrier() {
 
 #[test]
 fn hosted_sender_binding_mints_and_rotates_only_sct2_grants() {
-    let state = crate::admin::AppState::detached(
+    let state = test_detached_app_state(
         LocalSnapback::memory().expect("in-memory hosted sender registry state"),
     );
     let registry = state.connections.clone();
@@ -25075,7 +25257,9 @@ fn external_api_buckets_compose_without_declared_sybil_amplification() {
         ),
         Err(60)
     );
-    assert!(super::EXTERNAL_API_DECLARED_LIMIT > super::EXTERNAL_API_ANONYMOUS_FLOOR_LIMIT);
+    const {
+        assert!(super::EXTERNAL_API_DECLARED_LIMIT > super::EXTERNAL_API_ANONYMOUS_FLOOR_LIMIT);
+    }
 
     let mut integrations = ConnectionRegistryState::default();
     for _ in 0..super::EXTERNAL_API_INTEGRATION_LIMIT {
@@ -25307,7 +25491,7 @@ fn connection_reverse_indexes_do_not_leave_ghosts() {
 /// public connection id.
 #[test]
 fn stale_prepared_connection_act_cannot_drain_reused_connection_outbox() {
-    let state = AppState::detached(LocalSnapback::memory().expect("memory fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("memory fixture"));
     let registry = state.connections.clone();
     let first = registry
         .open(Some("reused-wire-id".to_owned()), None, true)
@@ -25372,7 +25556,7 @@ fn stale_prepared_connection_act_cannot_drain_reused_connection_outbox() {
 /// this forced-reuse seam proves the exact drain remains safe anyway.
 #[test]
 fn polling_id_reuse_drops_predecessor_effects_and_delivers_successor() {
-    let state = AppState::detached(LocalSnapback::memory().expect("memory fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("memory fixture"));
     let registry = state.connections.clone();
     let first = registry
         .open(Some("poll-reuse".to_owned()), None, true)
@@ -25534,7 +25718,7 @@ async fn prepared_connection_act_loses_to_concurrent_stream_premark() {
 /// fail-closed suspension until physical cleanup finishes.
 #[test]
 fn ordinary_socket_teardown_suspends_exact_grant_until_finish() {
-    let state = AppState::detached(LocalSnapback::memory().expect("teardown fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("teardown fixture"));
     let opened = state
         .connections
         .open(Some("ordinary-teardown".to_owned()), None, true)
@@ -25626,7 +25810,7 @@ fn ordinary_socket_teardown_suspends_exact_grant_until_finish() {
 /// `Current` after socket suspension wins.
 #[tokio::test]
 async fn room_authority_resolution_fails_closed_after_teardown_or_terminal_wins() {
-    let state = AppState::detached(LocalSnapback::memory().expect("room race fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("room race fixture"));
 
     let unmanaged = state
         .connections
@@ -25781,7 +25965,7 @@ async fn room_authority_resolution_fails_closed_after_teardown_or_terminal_wins(
 /// effect fence and leave a forced same-readable-id successor untouched.
 #[tokio::test]
 async fn stale_exact_socket_teardown_does_not_erase_same_id_replacement() {
-    let state = AppState::detached(LocalSnapback::memory().expect("reuse teardown fixture"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("reuse teardown fixture"));
     let opened = state
         .connections
         .open(Some("teardown-reuse".to_owned()), None, true)
@@ -25960,7 +26144,7 @@ fn admin_and_idle_retirement_immediately_invalidate_old_bearers() {
 
 #[tokio::test]
 async fn admin_disconnect_route_retires_bearer_and_awaits_whole_id_cleanup() {
-    let state = AppState::detached(LocalSnapback::memory().expect("admin disconnect state"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("admin disconnect state"));
     let opened = state
         .connections
         .open(Some("admin-disconnect-route".to_owned()), None, true)
@@ -26011,7 +26195,8 @@ async fn admin_disconnect_route_retires_bearer_and_awaits_whole_id_cleanup() {
 /// the first task; cancelling maintenance cannot orphan later grants.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn maintenance_bulk_retirement_spawns_all_cleanup_before_first_await() {
-    let state = AppState::detached(LocalSnapback::memory().expect("maintenance cleanup state"));
+    let state =
+        test_detached_app_state(LocalSnapback::memory().expect("maintenance cleanup state"));
     let ids = ["maintenance-first", "maintenance-second"];
     for connection_id in ids {
         state
@@ -26081,7 +26266,7 @@ async fn maintenance_bulk_retirement_spawns_all_cleanup_before_first_await() {
 /// ownership remains fail-closed and retryable after child failure.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn maintenance_cleanup_join_failure_retains_exact_retry_capture() {
-    let state = AppState::detached(LocalSnapback::memory().expect("cleanup retry state"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("cleanup retry state"));
     let telemetry_dir = tempfile::tempdir().expect("cleanup telemetry directory");
     let telemetry_app = telemetry_dir.path().join("cleanup.sqlite3");
     let telemetry = crate::telemetry::Telemetry::open_for_database(
@@ -26859,7 +27044,7 @@ async fn rejected_connection_open_bodies_still_consume_session_budget() {
 
 #[tokio::test]
 async fn service_token_terminalization_is_carrier_exact_within_one_durable_grant() {
-    let state = AppState::detached(LocalSnapback::memory().unwrap());
+    let state = test_detached_app_state(LocalSnapback::memory().unwrap());
     let open = |connection_id: &str, token_id: &str| {
         state
             .connections
@@ -27434,7 +27619,7 @@ async fn committed_reset_terminalizes_only_the_exact_bound_socket() {
 /// wakes.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn preterminal_wake_blocked_on_registry_observes_typed_event_after_retirement() {
-    let state = AppState::detached(LocalSnapback::memory().expect("terminal wake state"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("terminal wake state"));
     let opened = state
         .connections
         .open(Some("terminal-wake-registry".to_owned()), None, true)
@@ -27538,7 +27723,7 @@ async fn preterminal_wake_blocked_on_registry_observes_typed_event_after_retirem
 /// survives the predecessor's asynchronous post-Local sweep.
 #[tokio::test]
 async fn terminal_retired_whole_id_cleanup_preserves_typed_event_and_minted_successor() {
-    let state = AppState::detached(LocalSnapback::memory().expect("terminal cleanup state"));
+    let state = test_detached_app_state(LocalSnapback::memory().expect("terminal cleanup state"));
     let predecessor = state
         .connections
         .open(Some("terminal-whole-id".to_owned()), None, true)
@@ -28054,7 +28239,7 @@ fn connection_registry_pressure_evicts_lru_instead_of_permanently_wedging() {
 /// the grant undisturbed.
 #[test]
 fn wire_version_binding_echo_and_reopen_immutability() {
-    let state = crate::admin::AppState::detached(
+    let state = test_detached_app_state(
         LocalSnapback::memory().expect("in-memory wire-version registry state"),
     );
     let registry = state.connections.clone();
@@ -28170,9 +28355,8 @@ fn wire_version_binding_echo_and_reopen_immutability() {
 
 #[test]
 fn ephemeral_expiry_binding_echo_and_reopen_immutability() {
-    let state = crate::admin::AppState::detached(
-        LocalSnapback::memory().expect("in-memory expiry registry state"),
-    );
+    let state =
+        test_detached_app_state(LocalSnapback::memory().expect("in-memory expiry registry state"));
     let registry = state.connections.clone();
     fn attempt<'a>(suggested: &str, previous: Option<&'a str>) -> ConnectionOpenAttempt<'a> {
         let (incarnation, publication) =
@@ -28231,7 +28415,7 @@ fn ephemeral_expiry_binding_echo_and_reopen_immutability() {
 
 #[test]
 fn hosted_ephemeral_four_way_enforcement_is_lineage_owned() {
-    let state = crate::admin::AppState::detached(
+    let state = test_detached_app_state(
         LocalSnapback::memory().expect("in-memory authority-instance registry state"),
     );
     let registry = state.connections.clone();
@@ -28472,9 +28656,8 @@ fn hosted_ephemeral_four_way_enforcement_is_lineage_owned() {
 
 #[tokio::test]
 async fn hosted_ephemeral_post_verification_errors_repeat_the_instance() {
-    let state = crate::admin::AppState::detached(
-        LocalSnapback::memory().expect("post-verification error state"),
-    );
+    let state =
+        test_detached_app_state(LocalSnapback::memory().expect("post-verification error state"));
     let instance = format!("eai1.{}", "c".repeat(43));
     let (incarnation, publication) = FencedPublication::anonymous_for_unmanaged_dev_connection();
     let opened = state
@@ -28595,7 +28778,7 @@ fn hosted_ephemeral_requirement_needs_current_single_instance_admission() {
 /// fields follow one matrix (unknown refuses, absent degrades).
 #[tokio::test]
 async fn connection_open_http_wire_version_offer_matrix() {
-    let state = crate::admin::AppState::detached(
+    let state = test_detached_app_state(
         LocalSnapback::memory().expect("in-memory wire-version HTTP state"),
     );
     let router = app(state);
@@ -28741,7 +28924,7 @@ async fn connection_open_http_wire_version_offer_matrix() {
 /// duplicates and extra candidates.
 #[tokio::test]
 async fn stream_upgrade_enforces_the_wire_version_offer_matrix() {
-    let state = crate::admin::AppState::detached(
+    let state = test_detached_app_state(
         LocalSnapback::memory().expect("in-memory wire-version socket state"),
     );
     let registry = state.connections.clone();
@@ -28842,9 +29025,8 @@ async fn stream_upgrade_enforces_the_wire_version_offer_matrix() {
 
 #[tokio::test]
 async fn pressure_evicted_socket_cannot_receive_notifier_delivery() {
-    let state = crate::admin::AppState::detached(
-        LocalSnapback::memory().expect("in-memory socket test state"),
-    );
+    let state =
+        test_detached_app_state(LocalSnapback::memory().expect("in-memory socket test state"));
     let registry = state.connections.clone();
     let ephemeral = state.ephemeral.clone();
     let grant = registry
@@ -28960,9 +29142,8 @@ async fn pressure_evicted_socket_cannot_receive_notifier_delivery() {
 /// scheduling hiccup can slow one sample, never the median.
 #[tokio::test]
 async fn accepted_live_socket_delivers_small_frames_without_nagle_delay() {
-    let state = crate::admin::AppState::detached(
-        LocalSnapback::memory().expect("in-memory nodelay socket state"),
-    );
+    let state =
+        test_detached_app_state(LocalSnapback::memory().expect("in-memory nodelay socket state"));
     let registry = state.connections.clone();
     let ephemeral = state.ephemeral.clone();
     let grant = registry
@@ -29086,7 +29267,7 @@ async fn accepted_live_socket_delivers_small_frames_without_nagle_delay() {
 async fn terminal_socket_sends_closed_auth_error_then_4401() {
     let directory = tempfile::tempdir().expect("terminal socket telemetry directory");
     let database_path = directory.path().join("terminal-socket.sqlite3");
-    let state = crate::admin::AppState::detached(
+    let state = test_detached_app_state(
         LocalSnapback::open(&database_path).expect("file-backed terminal socket state"),
     );
     let telemetry = state.telemetry.clone();
@@ -29223,7 +29404,7 @@ async fn terminal_socket_sends_closed_auth_error_then_4401() {
 async fn aborted_live_stream_task_records_reserved_cancellation() {
     let directory = tempfile::tempdir().expect("aborted socket telemetry directory");
     let database_path = directory.path().join("aborted-socket.sqlite3");
-    let state = crate::admin::AppState::detached(
+    let state = test_detached_app_state(
         LocalSnapback::open(&database_path).expect("file-backed aborted socket state"),
     );
     let telemetry = state.telemetry.clone();

@@ -717,6 +717,7 @@ pub(crate) enum ProjectedConnectionTokenResolution {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(clippy::large_enum_variant)] // transient resolution value; boxing the hot arm buys nothing
 pub(crate) enum ProjectedBoundSessionResolution {
     Current(ProjectedSessionAuthority),
     Terminal { reason: RevocationReason },

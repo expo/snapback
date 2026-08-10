@@ -21,3 +21,9 @@ migration is staged), fix the stray lints, and keep the
 `--all-targets -D warnings` gate green. The Lane C landing removed 3 of
 the errors (stray `src/local/tests.rs.orig` and adjacent dead code); the
 remainder is untouched.
+
+## Resolution — 2026-08-10
+
+Resolved by the same landing as 20260809-clippy-all-targets-debt.md:
+`cargo clippy --all-targets -- -D warnings` exits 0 on the landed tree, so
+the local-proof cargo-clippy gate re-greens at this landing.

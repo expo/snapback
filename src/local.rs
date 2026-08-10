@@ -1317,6 +1317,7 @@ pub(crate) struct AdmittedJobClaim {
     observation: crate::telemetry::ObservationSpan,
 }
 
+#[allow(clippy::large_enum_variant)] // transient resolution value; boxing the hot arm buys nothing
 pub(crate) enum WatchJobExecution {
     Complete(Value),
     Action(PreparedWatchAction),
@@ -18675,6 +18676,7 @@ impl LocalSnapback {
         })))
     }
 
+    #[allow(clippy::too_many_arguments)] // established internal signature; regrouping is out of scope for the lint sweep
     pub(crate) fn settle_watch_action(
         &mut self,
         watch_id: String,
@@ -22095,10 +22097,11 @@ impl LocalSnapback {
                 &control,
             ),
             PendingLiveWork::Refresh | PendingLiveWork::Data => {
-                let force_replace = pending
-                    .force_replace
-                    .then(|| BTreeSet::from([subscription_id.to_owned()]))
-                    .unwrap_or_default();
+                let force_replace = if pending.force_replace {
+                    BTreeSet::from([subscription_id.to_owned()])
+                } else {
+                    BTreeSet::new()
+                };
                 self.notify_live_subscriptions_in_frame(
                     &pending.changes,
                     &BTreeSet::new(),
@@ -23568,6 +23571,7 @@ impl LocalSnapback {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)] // established internal signature; regrouping is out of scope for the lint sweep
     fn notify_live_subscriptions_in_frame(
         &mut self,
         changes: &[ChangedRow],
@@ -24230,6 +24234,7 @@ impl LocalSnapback {
     /// returned disposition owns delivery (including an evaluated no-change).
     ///
     /// @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01
+    #[allow(clippy::too_many_arguments)] // established internal signature; regrouping is out of scope for the lint sweep
     fn try_live_delta_fanout(
         &mut self,
         subscription: &LiveSubscription,

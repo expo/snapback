@@ -7,10 +7,17 @@
 //! for LLP 0030 attach. The mutationDryRun explain kind has its own suite in
 //! `tests/dry_run_v0.rs`.
 
+fn test_app_state_from_snapback(
+    snapback: snapback::local::LocalSnapback,
+    context: snapback::admin::ServerContext,
+) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
+}
+
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header};
 use serde_json::{Value, json};
-use snapback::admin::{AppState, ServerContext, ServerProfile};
+use snapback::admin::{ServerContext, ServerProfile};
 use snapback::admin_impersonation::{
     IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
 };
@@ -217,7 +224,7 @@ async fn cron_list_get_alias_enforces_admin_read_and_returns_the_same_dto() {
     let mut context = ServerContext::from_bound_listener(&listener).unwrap();
     context.profile = ServerProfile::Test;
     context.admin_token = Some("cron-admin".to_owned());
-    let test_app = snapback::server::app(AppState::from_snapback(
+    let test_app = snapback::server::app(test_app_state_from_snapback(
         LocalSnapback::memory().expect("cron-list HTTP fixture"),
         context,
     ));
@@ -303,9 +310,10 @@ async fn build_and_instance_control_catalogs_are_admin_read_gated_and_identity_b
     let mut context = ServerContext::from_bound_listener(&listener).unwrap();
     context.profile = ServerProfile::Test;
     context.admin_token = Some("catalog-admin".to_owned());
-    let state = AppState::from_snapback(LocalSnapback::memory().expect("catalog fixture"), context)
-        .with_server_startup_nonce("catalog-startup-nonce")
-        .unwrap();
+    let state =
+        test_app_state_from_snapback(LocalSnapback::memory().expect("catalog fixture"), context)
+            .with_server_startup_nonce("catalog-startup-nonce")
+            .unwrap();
     let test_app = snapback::server::app(state);
 
     let refused = test_app
@@ -391,7 +399,7 @@ async fn network_profile_ops_share_the_activation_gate_and_standard_envelope() {
     let mut test_context = ServerContext::detached();
     test_context.profile = ServerProfile::Test;
     test_context.admin_token = Some("host-ops-network-test".to_owned());
-    let test_app = snapback::server::app(AppState::from_snapback(
+    let test_app = snapback::server::app(test_app_state_from_snapback(
         LocalSnapback::memory().expect("test-profile fixture"),
         test_context,
     ));
@@ -479,7 +487,7 @@ async fn network_profile_ops_share_the_activation_gate_and_standard_envelope() {
     let mut prod_context = ServerContext::detached();
     prod_context.profile = ServerProfile::Prod;
     prod_context.admin_token = Some("host-ops-network-prod".to_owned());
-    let prod_app = snapback::server::app(AppState::from_snapback(
+    let prod_app = snapback::server::app(test_app_state_from_snapback(
         LocalSnapback::memory().expect("prod-profile fixture"),
         prod_context,
     ));
@@ -525,7 +533,7 @@ async fn principal_bearing_mcp_profile_set_records_authenticated_provenance() {
     context.profile = ServerProfile::Test;
     context.admin_token = Some("host-ops-network-principal".to_owned());
     let app = snapback::server::app(
-        AppState::from_snapback(
+        test_app_state_from_snapback(
             LocalSnapback::memory().expect("principal profile fixture"),
             context,
         )

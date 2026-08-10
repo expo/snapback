@@ -1,11 +1,18 @@
 //! LLP 0043 M1/M2 / ENG-23965: durable client mutation identity, exact
 //! ctx-ledger replay, and reconnect-safe exactly-once settlement.
 
+fn test_app_state_from_snapback(
+    snapback: snapback::local::LocalSnapback,
+    context: snapback::admin::ServerContext,
+) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
+}
+
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use snapback::admin::{AppState, ServerContext};
+use snapback::admin::ServerContext;
 use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
     ArtifactGeneration, AuthInput, CtxAnswerLedger, FunctionManifest, FunctionResultContract,
@@ -554,7 +561,7 @@ async fn admin_purge_is_gated_explicit_and_auth_selective() {
     const TOKEN: &str = "offline-purge-secret";
     let mut context = ServerContext::detached();
     context.admin_token = Some(TOKEN.to_owned());
-    let app = snapback::server::app(AppState::from_snapback(memory(), context));
+    let app = snapback::server::app(test_app_state_from_snapback(memory(), context));
     let user_id = "cm_admin_purge_user".to_owned();
     let other_id = "cm_admin_purge_other".to_owned();
     let user_request = MutationRequest {

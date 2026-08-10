@@ -269,6 +269,7 @@ impl RehearsalAuthorityFence {
 /// or activate new assurance kinds.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[allow(dead_code)] // LLP 0213 slice B staged surface; consumers land with the following rehearsal-effect slices
 pub struct RehearsalAssuranceV1 {
     pub kind: String,
     pub provenance: String,
@@ -277,6 +278,7 @@ pub struct RehearsalAssuranceV1 {
     pub governing_authority: RehearsalGoverningAuthorityV1,
 }
 
+#[allow(dead_code)] // LLP 0213 slice B staged surface; consumers land with the following rehearsal-effect slices
 impl RehearsalAssuranceV1 {
     pub fn validate_use_at(
         &self,
@@ -306,6 +308,7 @@ impl RehearsalAssuranceV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[allow(dead_code)] // LLP 0213 slice B staged surface; consumers land with the following rehearsal-effect slices
 pub enum RegisteredEgressChannel {
     RuntimeFetch,
     PushProvider,
@@ -315,6 +318,7 @@ pub enum RegisteredEgressChannel {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[allow(dead_code)] // LLP 0213 slice B staged surface; consumers land with the following rehearsal-effect slices
 pub enum RegisteredEgressAdapter {
     Real,
     DeclaredSimulator,

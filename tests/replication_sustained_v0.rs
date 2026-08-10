@@ -228,7 +228,7 @@ fn server_and_external_status_sustain_one_hundred_file_replica_commits() {
     loop {
         let observed = status(binary, &remote, &key_file, &database);
         assert_eq!(observed["degraded"], Value::Bool(false), "{observed}");
-        if observed["observedLag"]["sourceVersions"] == Value::from(0) {
+        if observed["observedLag"]["sourceVersions"] == 0 {
             break;
         }
         assert!(

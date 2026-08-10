@@ -5,6 +5,17 @@
 //! data explorer reads through schema-aware storage, the function runner uses
 //! the normal invocation path, and non-loopback binds gate admin.
 
+fn test_app_state_from_snapback(
+    snapback: snapback::local::LocalSnapback,
+    context: snapback::admin::ServerContext,
+) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
+}
+
+fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
+}
+
 use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode};
@@ -428,7 +439,7 @@ async fn function_runner_runs_query_and_mutation_with_read_write_sets() {
 
 #[tokio::test]
 async fn websocket_live_stream_pushes_existing_live_updates() {
-    let state = AppState::detached(seeded_snapback());
+    let state = test_detached_app_state(seeded_snapback());
     let shared = state.snapback.clone();
     // ENG-23442: the stream upgrade demands the connection grant.
     let grant = state
@@ -628,7 +639,7 @@ async fn root_path_reports_non_loopback_admin_state() {
     // production transport fence. Opt in to the explicit development-only
     // plaintext override so a non-loopback harness can reach that projection.
     let app = snapback::server::app(
-        AppState::from_snapback(seeded_snapback(), exposed_context(None))
+        test_app_state_from_snapback(seeded_snapback(), exposed_context(None))
             .with_insecure_dev_auth_override(true),
     );
 
@@ -882,8 +893,9 @@ async fn master_console_exchange_rate_counts_invalid_master_attempts() {
 
 #[tokio::test]
 async fn console_credential_cannot_satisfy_sessions_secret_read() {
-    let state = AppState::from_snapback(seeded_snapback(), loopback_context(Some("master-secret")))
-        .with_policy_auth_mode(PolicyAuthMode::Sessions);
+    let state =
+        test_app_state_from_snapback(seeded_snapback(), loopback_context(Some("master-secret")))
+            .with_policy_auth_mode(PolicyAuthMode::Sessions);
     let app = snapback::server::app(state);
     let body = json(
         app.clone()
@@ -1086,7 +1098,7 @@ async fn console_claim_exchange_is_atomic_uniform_master_observable_and_revocabl
     let mut sessions_context = loopback_context(Some("master-secret"));
     sessions_context.console_credentials = shared_credentials;
     let sessions_app = snapback::server::app(
-        AppState::from_snapback(seeded_snapback(), sessions_context)
+        test_app_state_from_snapback(seeded_snapback(), sessions_context)
             .with_policy_auth_mode(PolicyAuthMode::Sessions),
     );
     let secret_read = sessions_app
@@ -1279,7 +1291,7 @@ async fn ephemeral_cleanup_requires_current_startup_and_returns_receipt() {
         .expect("ephemeral cleanup route is registered");
     assert_eq!(route.path_policy, snapback::server::RoutePolicy::AdminWrite);
 
-    let state = AppState::from_snapback(seeded_snapback(), loopback_context(None))
+    let state = test_app_state_from_snapback(seeded_snapback(), loopback_context(None))
         .with_server_startup_nonce("startup-cleanup-test")
         .unwrap();
     let app = snapback::server::app(state);
@@ -2139,7 +2151,7 @@ async fn connection_open_adopts_suggestions_in_dev_and_mints_in_prod() {
     // Prod never adopts caller-selected ids.
     let mut prod_context = loopback_context(None);
     prod_context.profile = snapback::admin::ServerProfile::Prod;
-    let prod_state = AppState::from_snapback(seeded_snapback(), prod_context);
+    let prod_state = test_app_state_from_snapback(seeded_snapback(), prod_context);
     // Production refuses ordinary app data while durable auth is still dev.
     // Install exact future item-5 readiness so this assertion continues to
     // isolate the profile's caller-selected-id behavior.
@@ -2150,7 +2162,11 @@ async fn connection_open_adopts_suggestions_in_dev_and_mints_in_prod() {
         )
         .expect("production connection-open fixture provider"),
     );
-    let prod = snapback::server::app(sessions_runtime(prod_state.with_auth_provider(provider)));
+    let prod = snapback::server::app(sessions_runtime(
+        prod_state
+            .try_with_auth_provider(provider)
+            .expect("auth provider app state"),
+    ));
     let minted = json(
         prod.oneshot(
             Request::builder()
@@ -2322,7 +2338,7 @@ async fn ephemeral_session_identity_conflicts_fail_through_websocket_frames() {
     let mut presence = EphemeralCollection::local_cursor("sessionPresence", "roomId");
     presence.key_mode = KeyMode::Session;
     snapback.register_ephemeral_collection(presence).unwrap();
-    let state = AppState::detached(snapback);
+    let state = test_detached_app_state(snapback);
     let grant = state
         .connections
         .open(Some("conn-b".to_owned()), None, true)
@@ -2616,7 +2632,7 @@ async fn live_subscribe_route_enforces_and_releases_per_connection_capacity() {
 async fn stream_upgrade_requires_the_connection_token() {
     use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
-    let state = AppState::detached(seeded_snapback());
+    let state = test_detached_app_state(seeded_snapback());
     let grant = state
         .connections
         .open(Some("gated_ws".to_owned()), None, true)
@@ -2706,7 +2722,7 @@ fn missing_dist_app(snapback: LocalSnapback) -> snapback::server::SnapbackApp {
 }
 
 fn app_with_context(snapback: LocalSnapback, ctx: ServerContext) -> snapback::server::SnapbackApp {
-    snapback::server::app(AppState::from_snapback(snapback, ctx))
+    snapback::server::app(test_app_state_from_snapback(snapback, ctx))
 }
 
 fn sessions_runtime(state: AppState) -> AppState {
@@ -3008,7 +3024,7 @@ fn todo_functions() -> FunctionManifest {
 /// store, and a frame matching the socket identity passes the gate.
 #[tokio::test]
 async fn s3_websocket_frames_bind_to_the_socket_connection() {
-    let state = AppState::detached(seeded_snapback());
+    let state = test_detached_app_state(seeded_snapback());
     let grant = state
         .connections
         .open(Some("client_ws_a".to_owned()), None, true)
@@ -3107,7 +3123,7 @@ async fn ephemeral_unsubscribe_is_bound_to_the_socket_connection() {
     snapback
         .register_ephemeral_collection(EphemeralCollection::local_cursor("cursors", "roomId"))
         .unwrap();
-    let state = AppState::detached(snapback);
+    let state = test_detached_app_state(snapback);
     let grant = state
         .connections
         .open(Some("owner_ws".to_owned()), None, true)

@@ -5,11 +5,18 @@
 //! a real generated owned-CRUD artifact, finite-range mutation transport, and
 //! both public and administrative explanation transports.
 
+fn test_app_state_from_snapback(
+    snapback: snapback::local::LocalSnapback,
+    context: snapback::admin::ServerContext,
+) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
+}
+
 use axum::body::{Body, to_bytes};
 use axum::http::{Method, Request, StatusCode, header};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
-use snapback::admin::{AppState, ServerContext, ServerProfile};
+use snapback::admin::{ServerContext, ServerProfile};
 use snapback::auth::mode::DeploymentIdentity;
 use snapback::commit_envelope::{
     ExplanationDispositionV1, OperationCoverageActivationResponseV1, OperationExplanationRequestV1,
@@ -254,7 +261,10 @@ async fn generated_owner_mutations_compose_public_admin_explanation_and_app_effe
         .apply_schema(schema)
         .expect("apply generated owned-CRUD schema");
     snapback.load_functions(functions);
-    let router = app(AppState::from_snapback(snapback, loopback_dev_context()));
+    let router = app(test_app_state_from_snapback(
+        snapback,
+        loopback_dev_context(),
+    ));
 
     let activation: OperationCoverageActivationResponseV1 = successful_json(
         &router,

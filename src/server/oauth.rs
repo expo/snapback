@@ -798,14 +798,14 @@ pub(super) async fn oauth_revoke(
         )
     })
     .await;
-    if let Ok(revocation) = result {
-        if !revocation.token_ids.is_empty() {
-            let lifecycle = runtime.auth_terminal_lifecycle.clone();
-            let close_by = terminal_close_by(Instant::now());
-            crate::exec_guard::run_or_defer_after_local(move || {
-                lifecycle.terminate_service_tokens(&revocation.token_ids, close_by)
-            });
-        }
+    if let Ok(revocation) = result
+        && !revocation.token_ids.is_empty()
+    {
+        let lifecycle = runtime.auth_terminal_lifecycle.clone();
+        let close_by = terminal_close_by(Instant::now());
+        crate::exec_guard::run_or_defer_after_local(move || {
+            lifecycle.terminate_service_tokens(&revocation.token_ids, close_by)
+        });
     }
     StatusCode::OK.into_response()
 }

@@ -588,6 +588,7 @@ pub(crate) fn prepare_asset_finalize(
 /// Lock-held finalize preflight either proves the attempt already completed or
 /// freezes every fact the repeatable, database-free prepare and later commit
 /// need to carry across the unlocked window.
+#[allow(clippy::large_enum_variant)] // Preserve the established allocation-free finalize handoff.
 pub(crate) enum FinalizePreflightV1 {
     AlreadyComplete(AssetFinalizeResponseV1),
     Proceed(FinalizePrepareTicketV1),

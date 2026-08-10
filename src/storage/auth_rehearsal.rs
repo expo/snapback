@@ -107,7 +107,7 @@ impl LocalDatabase {
         bindings: &RehearsalBindingFacts,
         now_ms: u64,
     ) -> SnapbackResult<AuthRehearsalGrantV1> {
-        let outcome = self.with_auth_transaction(|transaction| {
+        self.with_auth_transaction(|transaction| {
             if !table_exists(transaction, GRANTS)? {
                 return Ok(Err(crate::auth::rehearsal::carrier_required()));
             }
@@ -124,8 +124,7 @@ impl LocalDatabase {
                 return Ok(Err(error));
             }
             Ok(Ok(grant))
-        })?;
-        outcome
+        })?
     }
 
     /// Mint one immutable grant, carrier digest, initial counters, marker
@@ -425,6 +424,7 @@ enum ExerciseTransactionOutcome {
     Denied(SnapbackError),
 }
 
+#[allow(clippy::large_enum_variant)] // transient resolution value; boxing the hot arm buys nothing
 pub(crate) enum RehearsalAtomicEffectAdmission {
     Admitted(PreparedRehearsalAtomicEffect),
     Replay(serde_json::Value),
@@ -666,10 +666,7 @@ fn apply_exercise_in(
         ));
     };
     let request_digest = plan.request.normalized_digest()?;
-    let binding_error = match plan.bindings.validate_grant(&grant, plan.now_ms) {
-        Ok(()) => None,
-        Err(error) => Some(error),
-    };
+    let binding_error = plan.bindings.validate_grant(&grant, plan.now_ms).err();
     if let Some(error) = binding_error {
         if error.diagnostic.code == "SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH" {
             transaction.execute(
@@ -909,7 +906,20 @@ fn load_grant_by_carrier(
     transaction: &rusqlite::Connection,
     carrier_hash: &[u8; 32],
 ) -> SnapbackResult<Option<AuthRehearsalGrantV1>> {
-    let row: Option<(String, Option<i64>, Option<String>, i64, i64, i64, i64, i64, i64, i64, i64)> = transaction
+    type StoredGrantRow = (
+        String,
+        Option<i64>,
+        Option<String>,
+        i64,
+        i64,
+        i64,
+        i64,
+        i64,
+        i64,
+        i64,
+        i64,
+    );
+    let row: Option<StoredGrantRow> = transaction
         .query_row(
             &format!("SELECT record_json, revoked_at_ms, terminal_reason, challenge_attempts, identity_creates, session_mints, verification_simulations, window_installs, clock_advances, allocation_units, uses_charged FROM {GRANTS} WHERE carrier_hash = ?1"),
             params![carrier_hash.as_slice()],

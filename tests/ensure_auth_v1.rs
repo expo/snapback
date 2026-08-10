@@ -1,10 +1,17 @@
 //! ENG-24595: `/app/ensure` is a closed intent family whose provisioning
 //! branch is authorized before hashes or effects.
 
+fn test_app_state_from_snapback(
+    snapback: snapback::local::LocalSnapback,
+    context: snapback::admin::ServerContext,
+) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
+}
+
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use snapback::admin::{AppState, ServerContext, ServerProfile};
+use snapback::admin::{ServerContext, ServerProfile};
 use snapback::auth::mode::{
     AuthModeStatus, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
 };
@@ -231,7 +238,7 @@ fn explicit_provision_metadata_is_admin_write_in_both_modes() {
 
 #[tokio::test]
 async fn explicit_provision_requires_admin_before_equal_hashes_or_effects() {
-    let state = AppState::from_snapback(
+    let state = test_app_state_from_snapback(
         LocalSnapback::memory().expect("ensure instance"),
         context(ServerProfile::Dev),
     );
@@ -273,7 +280,7 @@ async fn explicit_provision_requires_admin_before_equal_hashes_or_effects() {
 
 #[tokio::test]
 async fn cross_mode_provision_commits_pending_state_and_closes_admission_before_success() {
-    let state = AppState::from_snapback(
+    let state = test_app_state_from_snapback(
         LocalSnapback::memory().expect("cross-mode ensure instance"),
         context(ServerProfile::Dev),
     );
@@ -320,7 +327,7 @@ async fn cross_mode_provision_commits_pending_state_and_closes_admission_before_
 
 #[tokio::test]
 async fn requested_active_desired_posture_blocks_public_branches_but_keeps_recovery() {
-    let state = AppState::from_snapback(
+    let state = test_app_state_from_snapback(
         LocalSnapback::memory().expect("pending ensure instance"),
         context(ServerProfile::Dev),
     )
@@ -387,7 +394,7 @@ async fn public_sessions_attest_requires_exact_durable_sessions_posture_and_reje
             "dev",
         )
         .expect("prepare loaded v0 pair");
-    let state = AppState::from_snapback(snapback, context(ServerProfile::Dev))
+    let state = test_app_state_from_snapback(snapback, context(ServerProfile::Dev))
         .with_policy_auth_mode(PolicyAuthMode::Sessions);
     let shared = state.snapback.clone();
     let router = app(state);
@@ -435,7 +442,7 @@ async fn public_sessions_attest_requires_exact_durable_sessions_posture_and_reje
 
 #[tokio::test]
 async fn unknown_or_non_string_intent_takes_strongest_gate_before_shape_error() {
-    let router = app(AppState::from_snapback(
+    let router = app(test_app_state_from_snapback(
         LocalSnapback::memory().expect("unknown-intent ensure instance"),
         context(ServerProfile::Dev),
     ));
@@ -466,7 +473,7 @@ async fn unknown_or_non_string_intent_takes_strongest_gate_before_shape_error() 
 
 #[tokio::test]
 async fn explicit_provision_profile_gate_runs_before_core_effects() {
-    let state = AppState::from_snapback(
+    let state = test_app_state_from_snapback(
         LocalSnapback::memory().expect("prod ensure instance"),
         context(ServerProfile::Prod),
     );

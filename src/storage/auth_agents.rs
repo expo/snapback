@@ -89,6 +89,7 @@ impl LocalDatabase {
     /// @ref LLP 0055#routes-and-credential-classes — invited creation consumes
     /// one `sbagi_`, records its user minter as owner, and fences operator
     /// invitations against non-prod-to-prod laundering.
+    #[allow(clippy::too_many_arguments)] // Stable registration boundary; regrouping is out of scope here.
     pub(crate) fn register_agent_principal(
         &mut self,
         mode: AgentsMode,

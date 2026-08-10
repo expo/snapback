@@ -126,6 +126,7 @@ impl RpcFailure {
     }
 }
 
+#[allow(clippy::too_many_arguments)] // Established RPC dispatch boundary; regrouping is out of scope here.
 async fn dispatch(
     runtime: &AppState,
     state: &SharedSnapback,
@@ -368,6 +369,7 @@ fn tool_list(catalog: &Catalog, _authority: &PreparedAuthority) -> Value {
     })
 }
 
+#[allow(clippy::too_many_arguments)] // Established RPC dispatch boundary; regrouping is out of scope here.
 async fn call_tool(
     runtime: &AppState,
     state: &SharedSnapback,

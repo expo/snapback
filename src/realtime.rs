@@ -8,30 +8,8 @@
 //! @ref LLP 0199#target-ownership-map — subscriptions, invalidation, and
 //! fan-out belong to the durable sync/realtime domain service.
 
-use crate::storage::ChangedRow;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
-use std::time::Instant;
-
-/// The merged, not-yet-delivered data fan-out for one or more deferred commit
-/// frames. Holds only committed change rows (data) plus subscription *ids*
-/// whose membership went stale, never subscription references, so
-/// subscriptions may come and go while a frame is pending.
-///
-/// @ref LLP 0008#dated-decision--post-commit-fan-out-coalescing-2026-08-08 —
-/// a coalesced flush is semantically one multi-write commit frame: the delta
-/// classifier collapses to the last change per row id and the replace lane
-/// re-queries current state.
-pub(crate) struct PendingLiveFanout {
-    pub(crate) changes: Vec<ChangedRow>,
-    /// Subscriptions that received a full resync (permission/authorization)
-    /// while this frame was pending: their captured membership is newer than
-    /// parts of `changes`, so at flush they must take the honest
-    /// re-query/replace lane, never the op-log delta lane.
-    pub(crate) force_replace: BTreeSet<String>,
-    pub(crate) frames: u64,
-    pub(crate) first_deferred_at: Instant,
-}
+use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]

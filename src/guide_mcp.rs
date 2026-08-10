@@ -117,7 +117,7 @@ fn resource_catalog(manifest: &Value) -> anyhow::Result<Vec<GuideResource>> {
         .and_then(Value::as_object)
         .context("embedded guide manifest flatProjections.sections is not an object")?;
     let mut section_entries = section_projections.iter().collect::<Vec<_>>();
-    section_entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+    section_entries.sort_by_key(|(name, _)| *name);
     for (section, projection) in section_entries {
         let path = projection
             .get("path")
@@ -227,7 +227,7 @@ fn resource_catalog(manifest: &Value) -> anyhow::Result<Vec<GuideResource>> {
         .and_then(Value::as_object)
         .context("embedded guide manifest resources is not an object")?;
     let mut resource_entries = manifest_resources.iter().collect::<Vec<_>>();
-    resource_entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+    resource_entries.sort_by_key(|(name, _)| *name);
     for (id, resource) in resource_entries {
         if resource
             .pointer("/projections/mcp")

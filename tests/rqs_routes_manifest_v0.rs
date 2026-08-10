@@ -7,6 +7,10 @@
 //! `routeManifestHash`, and the anonymous read-mode happy path that step 2's
 //! interim NOT_PUBLIC posture made unsatisfiable.
 
+fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
+}
+
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
@@ -354,7 +358,7 @@ async fn served_app() -> AppState {
     })
     .await
     .expect("setup");
-    AppState::detached(snapback)
+    test_detached_app_state(snapback)
 }
 
 /// The step-2 NOT_PUBLIC posture, now satisfiable (ENG-25453's blocked happy
@@ -849,7 +853,7 @@ async fn incomplete_read_summary_is_not_eligible() {
         })
         .await
         .expect("setup");
-        AppState::detached(snapback)
+        test_detached_app_state(snapback)
     };
     let (status, body) = send(
         &app,

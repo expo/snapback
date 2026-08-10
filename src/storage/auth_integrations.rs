@@ -820,6 +820,7 @@ impl LocalDatabase {
     /// function/kind/basis scopes here.
     ///
     /// @ref LLP 0204#d8--authority-acquisition-the-ceremony-and-the-facade — facade consent must resolve through the existing grant machinery.
+    #[allow(clippy::too_many_arguments)] // Stable OAuth authorization boundary; regrouping is out of scope here.
     pub(crate) fn begin_oauth_authorization(
         &mut self,
         consenting_user_id: &str,

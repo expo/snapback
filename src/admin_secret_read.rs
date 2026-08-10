@@ -868,10 +868,12 @@ mod tests {
 
         let mut context = crate::admin::ServerContext::detached();
         context.admin_token = Some("ordinary-admin".to_owned());
-        let (state, operator) = crate::admin::AppState::from_snapback_with_secret_read_operator(
-            LocalSnapback::memory().unwrap(),
-            context,
-        );
+        let (state, operator) =
+            crate::admin::AppState::try_from_snapback_with_secret_read_operator(
+                LocalSnapback::memory().unwrap(),
+                context,
+            )
+            .expect("secret read app state");
         let bridge = SecretReadMintBridge::new_with_clock(
             operator,
             proof_root([19; 32]),

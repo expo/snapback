@@ -8,10 +8,13 @@
 // @ref LLP 0076#diagnostics — every promised code family survives the
 //   envelope; forged codes stay untrusted.
 
+fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
+}
+
 use axum::body::Body;
 use axum::http::Request;
 use serde_json::{Value, json};
-use snapback::admin::AppState;
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
     ConfigEntryDefinition, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
@@ -130,7 +133,7 @@ async fn stream_app() -> snapback::server::SnapbackApp {
         snapback
             .set_config_entry("streamKey", vec![STREAM_SECRET.to_owned()], false, "test")
             .expect("stage stream secret");
-        snapback::server::app(AppState::detached(snapback))
+        snapback::server::app(test_detached_app_state(snapback))
     })
     .await
     .expect("stream envelope fixture setup")

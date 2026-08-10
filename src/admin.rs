@@ -2649,16 +2649,8 @@ impl AppState {
         ))
     }
 
-    pub(crate) fn new_with_secret_read_operator(
-        snapback: SharedSnapback,
-        read: ReadLane,
-        ephemeral: EphemeralApi,
-        server: ServerContext,
-    ) -> (Self, SecretReadOperator) {
-        Self::try_new_with_secret_read_operator(snapback, read, ephemeral, server).expect(
-            "AppState::new_with_secret_read_operator compatibility wrapper failed; use the fallible constructor",
-        )
-    }
+    // Source-test boundary for the fallible construction core below.
+    // FALLIBLE_CONSTRUCTION_CORE_END
 
     fn network_profile_authority(&self) -> crate::network_profile::NetworkProfileAuthority {
         crate::network_profile::NetworkProfileAuthority::classified(
@@ -5914,7 +5906,7 @@ mod tests {
             .find("pub(crate) fn try_new_with_secret_read_operator(")
             .expect("fallible constructor marker")
             ..source
-                .find("    pub(crate) fn new_with_secret_read_operator(")
+                .find("    // FALLIBLE_CONSTRUCTION_CORE_END")
                 .expect("constructor end marker")];
         let provider = &source[source
             .find("    pub fn try_with_auth_provider(")
@@ -6064,7 +6056,8 @@ mod tests {
             .expect("seed protected row");
         let mut context = ServerContext::detached();
         context.admin_token = Some("protected-erasure-admin".to_owned());
-        let state = AppState::from_snapback(snapback, context);
+        let state =
+            AppState::try_from_snapback(snapback, context).expect("protected erasure app state");
         let shared = state.snapback.clone();
         let router = crate::server::app(state);
         let body = serde_json::json!({
@@ -6202,7 +6195,8 @@ mod tests {
         let mut context = ServerContext::detached();
         context.profile = ServerProfile::Prod;
         context.admin_token = Some("coverage-activation-admin".to_owned());
-        let state = AppState::from_snapback(snapback, context);
+        let state =
+            AppState::try_from_snapback(snapback, context).expect("coverage activation app state");
         let shared = state.snapback.clone();
         let router = crate::server::app(state);
         let exact_body = serde_json::json!({
@@ -6356,13 +6350,15 @@ mod tests {
         let mut local_dev_context = ServerContext::new("127.0.0.1", 0, true);
         local_dev_context.profile = ServerProfile::Dev;
         let local_dev =
-            AppState::from_snapback(LocalSnapback::memory().unwrap(), local_dev_context);
+            AppState::try_from_snapback(LocalSnapback::memory().unwrap(), local_dev_context)
+                .expect("local dev app state");
         assert!(local_dev.debug_perturbation_target_authority().is_ok());
 
         let mut local_prod_context = ServerContext::new("127.0.0.1", 0, true);
         local_prod_context.profile = ServerProfile::Prod;
         let local_prod =
-            AppState::from_snapback(LocalSnapback::memory().unwrap(), local_prod_context);
+            AppState::try_from_snapback(LocalSnapback::memory().unwrap(), local_prod_context)
+                .expect("local prod app state");
         let refusal = local_prod
             .debug_perturbation_target_authority()
             .expect_err("a production profile must refuse this perturbation");
@@ -6384,10 +6380,11 @@ mod tests {
                 .unwrap();
         let mut derived_context = ServerContext::new("127.0.0.1", 0, true);
         derived_context.profile = ServerProfile::Dev;
-        let derived = AppState::from_snapback(
+        let derived = AppState::try_from_snapback(
             LocalSnapback::open(destination.join(&receipt.database_file)).unwrap(),
             derived_context,
-        );
+        )
+        .expect("derived app state");
         assert!(derived.derived_instance_identity.is_some());
         // The distinct, narrower grant this gate deliberately does NOT
         // inherit: the same derived instance already passes the
@@ -6418,10 +6415,11 @@ mod tests {
         let receipt =
             crate::instance_fork::publish(&source, &destination, "app-a", "parent-a", 42, None)
                 .unwrap();
-        let state = AppState::from_snapback(
+        let state = AppState::try_from_snapback(
             LocalSnapback::open(destination.join(&receipt.database_file)).unwrap(),
             ServerContext::new("127.0.0.1", 0, true),
-        );
+        )
+        .expect("derived profile app state");
         assert_eq!(
             state
                 .derived_instance_identity
@@ -6434,10 +6432,11 @@ mod tests {
             Some(true)
         );
 
-        let primary = AppState::from_snapback(
+        let primary = AppState::try_from_snapback(
             LocalSnapback::memory().unwrap(),
             ServerContext::new("127.0.0.1", 0, true),
-        );
+        )
+        .expect("primary profile app state");
         assert!(primary.derived_instance_identity.is_none());
         assert_eq!(
             primary.network_profile_authority().derived_instance_present,
@@ -6540,10 +6539,11 @@ mod tests {
 
         let mut context = ServerContext::detached();
         context.admin_token = Some("ordinary-admin".to_owned());
-        let (mut state, operator) = AppState::from_snapback_with_secret_read_operator(
+        let (mut state, operator) = AppState::try_from_snapback_with_secret_read_operator(
             LocalSnapback::memory().unwrap(),
             context,
-        );
+        )
+        .expect("secret read app state");
         let telemetry = crate::telemetry::Telemetry::in_memory_with_identity(
             "01900000-0000-7000-8000-000000000099",
             TelemetryStoreIdentity::new("app-route-proof", "environment-route-proof").unwrap(),
@@ -6951,7 +6951,8 @@ mod tests {
         let mut context = ServerContext::detached();
         context.admin_token = Some("ordinary-admin".to_owned());
         let (state, operator) =
-            AppState::from_snapback_with_secret_read_operator(snapback, context);
+            AppState::try_from_snapback_with_secret_read_operator(snapback, context)
+                .expect("secret read lease app state");
         let lease = operator
             .mint(SecretReadLeaseRequest {
                 scopes: BTreeSet::from([SecretReadScope::FunctionRun(

@@ -78,6 +78,7 @@ impl AgentDestroyCapabilityRegistry {
 
 impl AgentDestroyCapabilityOperator {
     /// Test/embedding seam.
+    #[cfg(test)]
     pub(crate) fn expose_secret(&self) -> &str {
         self.bearer.expose_secret()
     }

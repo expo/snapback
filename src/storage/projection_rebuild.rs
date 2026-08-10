@@ -279,11 +279,11 @@ pub(super) fn materialize_projection_in(
     cause: &str,
     now_ms: u64,
 ) -> SnapbackResult<PendingProjectionPublication> {
-    let current_version = current_version_on(&tx)?;
+    let current_version = current_version_on(tx)?;
     let next_version = next_storage_version(current_version)?;
-    let root_table = schema_table(&schema, &plan.root)?;
-    let output_table = schema_table(&schema, &plan.output_table)?;
-    let (identity, activated_at_ms) = ensure_projection_identity(&tx, &plan.id, now_ms)?;
+    let root_table = schema_table(schema, &plan.root)?;
+    let output_table = schema_table(schema, &plan.output_table)?;
+    let (identity, activated_at_ms) = ensure_projection_identity(tx, &plan.id, now_ms)?;
 
     // --- Enumerate every root; prove existing-data fan-out. -----------
     let mut desired: BTreeMap<String, (Vec<Value>, Map<String, Value>)> = BTreeMap::new();
@@ -298,7 +298,7 @@ pub(super) fn materialize_projection_in(
     };
     let (sql, values) = build_query_sql(
         root_table,
-        &schema,
+        schema,
         &scan,
         &HandlerInput::default(),
         &BTreeMap::new(),
@@ -373,7 +373,7 @@ pub(super) fn materialize_projection_in(
         let Some(key) = projection_root_key(plan, id, root.as_object())? else {
             continue;
         };
-        let Some(logical) = projection_logical_row(&tx, &schema, plan, root, now_ms)? else {
+        let Some(logical) = projection_logical_row(tx, schema, plan, root, now_ms)? else {
             continue;
         };
         desired.insert(projection_key_bytes(&key)?, (key, logical));
@@ -391,7 +391,7 @@ pub(super) fn materialize_projection_in(
         };
         let (sql, values) = build_query_sql(
             output_table,
-            &schema,
+            schema,
             &scan,
             &HandlerInput::default(),
             &BTreeMap::new(),
@@ -432,9 +432,9 @@ pub(super) fn materialize_projection_in(
         match pending.remove(id) {
             None => {
                 // Not in the rebuilt generation: remove.
-                if delete_document(&tx, output_table, id)? {
+                if delete_document(tx, output_table, id)? {
                     record_change(
-                        &tx,
+                        tx,
                         next_version,
                         &output_table.name,
                         id,
@@ -452,7 +452,7 @@ pub(super) fn materialize_projection_in(
                 });
                 if !unchanged {
                     patch_document(
-                        &tx,
+                        tx,
                         output_table,
                         id,
                         logical,
@@ -460,9 +460,9 @@ pub(super) fn materialize_projection_in(
                         now_ms,
                         order_field_bounds,
                     )?;
-                    let document = get_document_from_tx(&tx, output_table, id, next_version)?;
+                    let document = get_document_from_tx(tx, output_table, id, next_version)?;
                     record_change(
-                        &tx,
+                        tx,
                         next_version,
                         &output_table.name,
                         id,
@@ -477,7 +477,7 @@ pub(super) fn materialize_projection_in(
     }
     for (output_id, (_, logical)) in &pending {
         let document = insert_document(
-            &tx,
+            tx,
             output_table,
             output_id,
             logical,
@@ -486,7 +486,7 @@ pub(super) fn materialize_projection_in(
             order_field_bounds,
         )?;
         record_change(
-            &tx,
+            tx,
             next_version,
             &output_table.name,
             output_id,
@@ -549,7 +549,7 @@ pub(super) fn materialize_projection_in(
         at_ms: now_ms,
     };
     if changed {
-        set_version(&tx, next_version)?;
+        set_version(tx, next_version)?;
     }
     Ok(PendingProjectionPublication {
         plan_id: plan.id.clone(),
@@ -587,6 +587,7 @@ impl LocalDatabase {
     /// it cannot publish through its owning transaction. OQ3 leaves no current
     /// activation caller: materialization stays unpinned until either the
     /// raw-dev generation or complete-pair record commits with it.
+    #[allow(dead_code)] // Reserved compensation seam for a future non-transactional activation path.
     pub(crate) fn clear_projection_plan_digests(
         &mut self,
         plan_ids: &[String],

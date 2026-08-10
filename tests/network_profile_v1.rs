@@ -3,6 +3,13 @@
 //! Timing synchronization is entirely response/frame-driven: the tests never
 //! sleep to guess whether a deadline has elapsed.
 
+fn test_app_state_from_snapback(
+    snapback: snapback::local::LocalSnapback,
+    context: snapback::admin::ServerContext,
+) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
+}
+
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header};
 use futures_util::StreamExt;
@@ -443,7 +450,7 @@ fn test_app() -> (AppState, SnapbackApp) {
     let mut context = ServerContext::detached();
     context.profile = ServerProfile::Test;
     context.admin_token = Some(ADMIN_TOKEN.to_owned());
-    let state = AppState::from_snapback(configured(), context);
+    let state = test_app_state_from_snapback(configured(), context);
     let app = snapback::server::app(state.clone());
     (state, app)
 }

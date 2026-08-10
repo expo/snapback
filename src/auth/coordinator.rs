@@ -377,6 +377,7 @@ pub(crate) struct ConnectionSessionThrottleKey {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)] // transient resolution value; boxing the hot arm buys nothing
 pub(crate) enum ConnectionBearerResolution {
     Current(PreparedConnectionSessionAuthority),
     Superseded(ConnectionSessionThrottleKey),
@@ -387,6 +388,7 @@ pub(crate) enum ConnectionBearerResolution {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(clippy::large_enum_variant)] // transient resolution value; boxing the hot arm buys nothing
 pub(crate) enum BoundSessionResolution {
     Current(ResolvedAppAuthority),
     Terminal { reason: RevocationReason },

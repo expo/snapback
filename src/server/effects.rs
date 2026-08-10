@@ -392,6 +392,30 @@ pub(super) async fn effect_approve(
     result.into_response()
 }
 
+pub(super) async fn effect_deny(
+    State(runtime): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(effect_id): Path<String>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> Result<Json<crate::storage::pending_effects::PendingEffectRecord>, ApiError> {
+    let (approver_id, _) = require_effect_session(&authority)?;
+    let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
+    let now_ms = installed_auth_provider(&runtime)?.now_ms();
+    let effect_authority = authority.clone();
+    Ok(Json(with_snapback(&runtime.snapback, move |snapback| {
+        let _effect = effect_authority.effect_guard("pending-effect denial transaction")?;
+        snapback.auth_database_mut().decide_pending_effect(
+            &effect_id,
+            &approver_id,
+            false,
+            false,
+            None,
+            now_ms,
+        )
+    }).await?))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -423,26 +447,3 @@ mod tests {
     }
 }
 
-pub(super) async fn effect_deny(
-    State(runtime): State<AppState>,
-    Extension(authority): Extension<PreparedAuthority>,
-    Path(effect_id): Path<String>,
-    headers: HeaderMap,
-    body: Result<Bytes, BytesRejection>,
-) -> Result<Json<crate::storage::pending_effects::PendingEffectRecord>, ApiError> {
-    let (approver_id, _) = require_effect_session(&authority)?;
-    let _: EmptyAuthRequest = parse_auth_json(&headers, body)?;
-    let now_ms = installed_auth_provider(&runtime)?.now_ms();
-    let effect_authority = authority.clone();
-    Ok(Json(with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = effect_authority.effect_guard("pending-effect denial transaction")?;
-        snapback.auth_database_mut().decide_pending_effect(
-            &effect_id,
-            &approver_id,
-            false,
-            false,
-            None,
-            now_ms,
-        )
-    }).await?))
-}

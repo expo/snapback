@@ -3976,13 +3976,13 @@ fn write_rehearsal_capability_sidecar(sidecar: &Path, carrier: &[u8]) -> anyhow:
     // capability and requires the operator to revoke/remove an older sidecar
     // explicitly. The strict creator validates type, owner, mode, links, and
     // ACLs on the opened descriptor before and after writing secret bytes.
-    crate::secure_file::write_new_owner_only(&sidecar, carrier).with_context(|| {
+    crate::secure_file::write_new_owner_only(sidecar, carrier).with_context(|| {
         format!(
             "failed to publish owner-only rehearsal capability {}",
             sidecar.display()
         )
     })?;
-    let metadata = std::fs::symlink_metadata(&sidecar)?;
+    let metadata = std::fs::symlink_metadata(sidecar)?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
@@ -6945,7 +6945,7 @@ async fn run_composed(
             return Err(anyhow::Error::new(crate::auth::rehearsal::state_present()));
         }
         if let Some(rehearsal_sidecar) = rehearsal_capability_file.as_deref() {
-            match std::fs::symlink_metadata(&rehearsal_sidecar) {
+            match std::fs::symlink_metadata(rehearsal_sidecar) {
                 Ok(_) => {
                     return Err(anyhow::Error::new(
                         crate::auth::rehearsal::config_forbidden(),

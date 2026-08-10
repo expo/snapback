@@ -6,10 +6,17 @@
 //! queries/mutations get no config surface, reset preserves config, and no
 //! operation or envelope ever contains a value.
 
+fn test_app_state_from_snapback(
+    snapback: snapback::local::LocalSnapback,
+    context: snapback::admin::ServerContext,
+) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
+}
+
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
-use snapback::admin::{AppState, ServerContext};
+use snapback::admin::ServerContext;
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
     ConfigEntryDefinition, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
@@ -414,7 +421,7 @@ fn context(loopback: bool, token: Option<&str>) -> ServerContext {
 }
 
 fn app(snapback: LocalSnapback, ctx: ServerContext) -> snapback::server::SnapbackApp {
-    snapback::server::app(AppState::from_snapback(snapback, ctx))
+    snapback::server::app(test_app_state_from_snapback(snapback, ctx))
 }
 
 #[tokio::test]

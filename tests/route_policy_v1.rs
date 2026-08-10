@@ -4,6 +4,17 @@
 //! maintaining a second list of protected routes. A newly-added route either
 //! receives a runnable probe here or fails the coverage equality assertion.
 
+fn test_app_state_from_snapback(
+    snapback: snapback::local::LocalSnapback,
+    context: snapback::admin::ServerContext,
+) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
+}
+
+fn test_detached_app_state(snapback: snapback::local::LocalSnapback) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_detached(snapback).expect("detached test app state")
+}
+
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header};
 use futures_util::{SinkExt, StreamExt};
@@ -132,7 +143,7 @@ fn sessions_runtime(state: AppState) -> AppState {
 fn bound_loopback_state(snapback: LocalSnapback) -> AppState {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let context = ServerContext::from_bound_listener(&listener).unwrap();
-    AppState::from_snapback(snapback, context)
+    test_app_state_from_snapback(snapback, context)
 }
 
 fn exposed_context(token: &str) -> ServerContext {
@@ -179,7 +190,7 @@ fn populated_legacy_field(field: &str) -> Value {
 /// must remain a 405 rather than acquiring an unregistered handler.
 #[tokio::test]
 async fn registry_and_router_have_black_box_path_method_parity() {
-    let router = app(AppState::detached(
+    let router = app(test_detached_app_state(
         LocalSnapback::memory().expect("in-memory parity instance"),
     ));
     let registry = route_registry();
@@ -226,10 +237,6 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("DELETE", "/watches/{id}"),
         ("POST", "/watches/{id}/suspend"),
         ("POST", "/watches/{id}/resume"),
-        ("POST", "/watches/{id}/renew"),
-        ("GET", "/effects"),
-        ("POST", "/effects/{id}/approve"),
-        ("POST", "/effects/{id}/deny"),
         ("POST", "/auth/oauth/register"),
         ("GET", "/auth/oauth/authorize"),
         ("POST", "/auth/oauth/authorize"),
@@ -593,29 +600,23 @@ fn capability_link_rows_pin_the_closed_policy_tuples() {
 }
 
 #[test]
-fn durable_watch_rows_pin_integration_management_and_session_only_renewal() {
+fn durable_watch_rows_pin_the_session_only_policy_tuples() {
     let routes = route_registry()
         .into_iter()
         .filter(|route| route.path.starts_with("/watches"))
         .collect::<Vec<_>>();
-    assert_eq!(routes.len(), 6);
+    assert_eq!(routes.len(), 5);
     for route in routes {
         assert_eq!(route.class, RouteClass::AppData);
         assert_eq!(route.path_policy, RoutePolicy::SessionAuth);
-        if route.path == "/watches/{id}/renew" {
-            assert_eq!(
-                route.credential_resolution,
-                CredentialResolution::RequiredSessionBearer,
-                "renewal is fresh user consent",
-            );
-        } else {
-            assert_eq!(
-                route.credential_resolution,
-                CredentialResolution::RequiredSessionOrScopedToken,
-                "integration credentials can manage their owned watches",
-            );
-        }
-        assert_eq!(route.invocation_authority, InvocationAuthority::ResolvedCaller);
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::RequiredSessionBearer
+        );
+        assert_eq!(
+            route.invocation_authority,
+            InvocationAuthority::ResolvedCaller
+        );
         assert!(matches!(
             route.response_sensitivity,
             ResponseSensitivity::SensitiveApplicationData | ResponseSensitivity::PublicNoStore
@@ -766,7 +767,7 @@ fn oauth_facade_rows_pin_the_commissioned_policy_tuples() {
 /// without manufacturing operations on unknown paths.
 #[tokio::test]
 async fn cors_preflight_projects_registered_methods_including_delete() {
-    let router = app(AppState::detached(
+    let router = app(test_detached_app_state(
         LocalSnapback::memory().expect("in-memory CORS instance"),
     ));
     let origin = "http://localhost:5173";
@@ -1160,7 +1161,7 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
         );
     }
 
-    let router = app(AppState::detached(
+    let router = app(test_detached_app_state(
         LocalSnapback::memory().expect("in-memory auth route fixture"),
     ));
     for route in provider
@@ -1212,7 +1213,7 @@ async fn auth_provider_routes_are_classified_and_dev_refusal_is_opaque_no_store(
 async fn integration_lifecycle_body_postures_are_closed_and_executable() {
     let mut context = exposed_context("sekrit");
     context.profile = ServerProfile::Test;
-    let router = app(AppState::from_snapback(
+    let router = app(test_app_state_from_snapback(
         LocalSnapback::memory().expect("integration body-policy fixture"),
         context,
     ));
@@ -1638,10 +1639,10 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.app.seed.preview.v1",
             "host_ops.app.seed.reset-install.v1",
             "host_ops.auth.mintSession",
-        "host_ops.auth.rehearsal.exercise",
-        "host_ops.auth.rehearsal.mint",
-        "host_ops.auth.rehearsal.revoke",
-        "host_ops.auth.rehearsal.status",
+            "host_ops.auth.rehearsal.exercise",
+            "host_ops.auth.rehearsal.mint",
+            "host_ops.auth.rehearsal.revoke",
+            "host_ops.auth.rehearsal.status",
             "host_ops.auth.rescueCollidingTable",
             "host_ops.auth.integrationRetire",
             "host_ops.auth.integrationSuspend",
@@ -1702,7 +1703,7 @@ fn impersonation_state(profile: ServerProfile) -> (AppState, String) {
     let mut context = exposed_context("sekrit");
     context.profile = profile;
     (
-        AppState::from_snapback(runner_fixture(), context)
+        test_app_state_from_snapback(runner_fixture(), context)
             .with_impersonation_capabilities(registry),
         bearer.expect("captured capability"),
     )
@@ -2251,38 +2252,6 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             ("POST", "/watches/{id}/resume"),
             SessionBodyProbe {
                 uri: "/watches/wtch_policy_probe/resume",
-                base: json!({}),
-                forbidden_fields: handler_fields(),
-            },
-        ),
-        (
-            ("POST", "/watches/{id}/renew"),
-            SessionBodyProbe {
-                uri: "/watches/wtch_policy_probe/renew",
-                base: json!({}),
-                forbidden_fields: handler_fields(),
-            },
-        ),
-        (
-            ("GET", "/effects"),
-            SessionBodyProbe {
-                uri: "/effects",
-                base: json!({}),
-                forbidden_fields: handler_fields(),
-            },
-        ),
-        (
-            ("POST", "/effects/{id}/approve"),
-            SessionBodyProbe {
-                uri: "/effects/pfx_policy_probe/approve",
-                base: json!({}),
-                forbidden_fields: handler_fields(),
-            },
-        ),
-        (
-            ("POST", "/effects/{id}/deny"),
-            SessionBodyProbe {
-                uri: "/effects/pfx_policy_probe/deny",
                 base: json!({}),
                 forbidden_fields: handler_fields(),
             },
@@ -3002,7 +2971,7 @@ fn direct_runner_body_probes() -> BTreeMap<&'static str, SessionBodyProbe> {
 /// including on the query branch whose eventual read carrier is stronger.
 #[tokio::test]
 async fn sessions_runtime_rejects_body_auth_for_every_direct_runner_kind() {
-    let state = AppState::from_snapback(runner_fixture(), exposed_context("sekrit"))
+    let state = test_app_state_from_snapback(runner_fixture(), exposed_context("sekrit"))
         .with_policy_auth_mode(PolicyAuthMode::Sessions);
     let router = app(state);
     let protected = operation_registry()
@@ -3082,7 +3051,7 @@ async fn admin_policy_outcome(
 /// branch-specific authorization runs only after that carrier is admitted.
 #[tokio::test]
 async fn hostile_bind_multiplexed_denials_use_one_pre_kind_floor() {
-    let router = app(AppState::from_snapback(
+    let router = app(test_app_state_from_snapback(
         runner_fixture(),
         exposed_context("sekrit"),
     ));
@@ -3207,7 +3176,7 @@ async fn hostile_bind_multiplexed_denials_use_one_pre_kind_floor() {
 #[tokio::test]
 async fn sessions_deferred_system_routes_gate_carriers_before_body_and_kind() {
     let router = app(
-        AppState::from_snapback(runner_fixture(), exposed_context("sekrit"))
+        test_app_state_from_snapback(runner_fixture(), exposed_context("sekrit"))
             .with_policy_auth_mode(PolicyAuthMode::Sessions),
     );
     let oversized = format!(r#"{{"padding":"{}"}}"#, "x".repeat(2 * 1024 * 1024 + 1));
@@ -3646,8 +3615,9 @@ fn connection_probes() -> BTreeMap<(&'static str, &'static str), ConnectionProbe
 /// adding a connection route without an executable denial probe fails CI.
 #[tokio::test]
 async fn every_connection_auth_route_enforces_runtime_401_and_403() {
-    let state =
-        AppState::detached(LocalSnapback::memory().expect("in-memory connection-policy instance"));
+    let state = test_detached_app_state(
+        LocalSnapback::memory().expect("in-memory connection-policy instance"),
+    );
     state
         .connections
         .open(Some("policy_probe".to_owned()), None, true)
@@ -3732,7 +3702,8 @@ async fn every_connection_auth_route_enforces_runtime_401_and_403() {
 /// added route cannot silently reintroduce the ordering bypass.
 #[tokio::test]
 async fn connection_carriers_are_authenticated_before_any_body_inspection() {
-    let state = AppState::detached(LocalSnapback::memory().expect("connection body-order fixture"));
+    let state =
+        test_detached_app_state(LocalSnapback::memory().expect("connection body-order fixture"));
     let grant = state
         .connections
         .open(Some("policy_probe".to_owned()), None, true)
@@ -3871,7 +3842,7 @@ async fn incomplete_chunked_body_cannot_starve_auth_mode_quiescence() {
         .set_nonblocking(true)
         .expect("make quiescence listener nonblocking");
     let listener = TcpListener::from_std(std_listener).expect("adopt quiescence listener");
-    let state = sessions_runtime(AppState::from_snapback(runner_fixture(), context));
+    let state = sessions_runtime(test_app_state_from_snapback(runner_fixture(), context));
     let controller = state.auth_admission_controller();
     let addr = listener.local_addr().expect("quiescence server address");
     let server = tokio::spawn(async move {
@@ -4082,7 +4053,7 @@ async fn tus_patch_streams_declared_chunks_past_the_policy_gate() {
 /// generic 2 MiB inspection bound.
 #[tokio::test]
 async fn host_ops_peek_admits_declared_byte_envelopes() {
-    let state = AppState::from_snapback(runner_fixture(), exposed_context("sekrit"));
+    let state = test_app_state_from_snapback(runner_fixture(), exposed_context("sekrit"));
     let router = app(state);
 
     // ~4.1 MiB of base64 payload inside an unknown operation: over the old

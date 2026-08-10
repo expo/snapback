@@ -45,6 +45,7 @@ globalThis.__snapbackHandlers = {
 /// work. The file-backed read lane proves the second commit is already durable
 /// even while later subscriber turns remain.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[allow(clippy::await_holding_lock)] // Serializes this process-global scheduler stress fixture.
 async fn settlement_and_refusal_are_isolated_from_fanout_backlog() {
     let _serial = LIVE_SCHEDULER_TEST_SERIAL
         .lock()
@@ -186,6 +187,7 @@ async fn settlement_and_refusal_are_isolated_from_fanout_backlog() {
 /// second consecutive timeout tears the subscription down with the existing
 /// resync-required signal.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[allow(clippy::await_holding_lock)] // Serializes this process-global scheduler stress fixture.
 async fn evaluation_timeout_retries_once_then_tears_down() {
     let _serial = LIVE_SCHEDULER_TEST_SERIAL
         .lock()

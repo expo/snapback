@@ -6393,10 +6393,12 @@ mod tests {
         publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
         let database = destination.join("app.sqlite3");
         let snapback = crate::local::LocalSnapback::open(&database).unwrap();
-        let (state, operator) = crate::admin::AppState::from_snapback_with_secret_read_operator(
-            snapback,
-            crate::admin::ServerContext::detached(),
-        );
+        let (state, operator) =
+            crate::admin::AppState::try_from_snapback_with_secret_read_operator(
+                snapback,
+                crate::admin::ServerContext::detached(),
+            )
+            .expect("fork secret read app state");
         let lease = operator
             .mint(crate::admin_secret_read::SecretReadLeaseRequest {
                 scopes: BTreeSet::from([
@@ -6468,10 +6470,12 @@ mod tests {
             .auth_database_mut()
             .activate_push_registry_for_test(declaration)
             .unwrap();
-        let (state, _operator) = crate::admin::AppState::from_snapback_with_secret_read_operator(
-            snapback,
-            crate::admin::ServerContext::detached(),
-        );
+        let (state, _operator) =
+            crate::admin::AppState::try_from_snapback_with_secret_read_operator(
+                snapback,
+                crate::admin::ServerContext::detached(),
+            )
+            .expect("fork push app state");
         let error = crate::server::drive_push_maintenance_once(
             &state.snapback,
             crate::admin::ServerProfile::Test,

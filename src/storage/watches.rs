@@ -1071,6 +1071,7 @@ fn watch_anchor_digest(
     )
 }
 
+#[allow(clippy::too_many_arguments)] // established internal signature; regrouping is out of scope for the lint sweep
 fn anchor_binding_digest(
     watch_id: &str,
     effective_user_id: &str,
@@ -1265,9 +1266,9 @@ fn row_for_id_on(conn: &Connection, id: &str) -> SnapbackResult<Option<WatchReco
              FROM _snapback_watches WHERE id = ?1",
             params![id],
             |row| {
-                Ok((0..43)
+                (0..43)
                     .map(|index| row.get::<_, SqlValue>(index))
-                    .collect::<Result<Vec<_>, _>>()?)
+                    .collect::<Result<Vec<_>, _>>()
             },
         )
         .optional()?;

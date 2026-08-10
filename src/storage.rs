@@ -2543,6 +2543,7 @@ impl LocalDatabase {
         self.order_field_bounds = Arc::new(bounds);
     }
 
+    #[allow(dead_code)] // retained kernel surface; the staged sequence-declaration callers land next
     pub(crate) fn install_sequence_declarations(
         &mut self,
         declarations: BTreeMap<String, crate::manifest::SequenceDeclaration>,
@@ -2690,6 +2691,7 @@ impl LocalDatabase {
         Ok(record)
     }
 
+    #[allow(dead_code)] // retained kernel surface; the staged sequence-declaration callers land next
     pub(crate) fn function_generation_record(
         &self,
     ) -> SnapbackResult<Option<FunctionGenerationRecord>> {

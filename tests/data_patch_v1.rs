@@ -1,5 +1,12 @@
 //! LLP 0184 §A: bounded existing-row patch preview/apply over host-ops.
 
+fn test_app_state_from_snapback(
+    snapback: snapback::local::LocalSnapback,
+    context: snapback::admin::ServerContext,
+) -> snapback::admin::AppState {
+    snapback::admin::AppState::try_from_snapback(snapback, context).expect("test app state")
+}
+
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header};
 use serde_json::{Value, json};
@@ -202,7 +209,7 @@ fn fixture(profile: ServerProfile, token_ttl_ms: u64) -> Fixture {
             Ok(())
         })
         .expect("capture test capability");
-    let state = AppState::from_snapback(snapback, context)
+    let state = test_app_state_from_snapback(snapback, context)
         .with_impersonation_capabilities(registry)
         .with_data_patch_token_ttl_ms(token_ttl_ms);
     let app = snapback::server::app(state.clone());
