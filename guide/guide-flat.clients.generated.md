@@ -1356,7 +1356,7 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts]
 examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, demos/_kit/tests/provider-live-conformance.mjs, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/optimistic-create.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts]
 status: current
 targets: [local]
@@ -1489,6 +1489,45 @@ stale references and production builds keep the strict
 `SNAPBACK_REACT_REFERENCE_INVALID` throw — recovery never weakens admission.
 Regression witness: `packages/snapback-react/hmr-generation-handoff.test.mjs`;
 governing design: LLP 0114 (mounted-provider HMR generation handoff).
+
+<!-- since: 0.1.18 unreleased -->
+
+> **Unreleased.** The static React core entry is newer than the newest
+> published Snapback closure, 0.1.17. Use it from this source checkout until
+> the next qualified closure is published.
+
+## Keep query-only application bundles narrow
+
+The package root is the Full compatibility composition: it includes generated
+application surfaces, synchronous command tasks, and asset hooks even when a
+particular component imports only the provider and query hook. If an
+application does not use those capability families, select the static core
+entry at every React import site:
+
+```ts fragment reason="application imports and generated references vary by project"
+import {
+  SnapbackProvider,
+  createSnapbackReactProvider,
+  useSnapbackMutation,
+  useSnapbackOptimisticCreate,
+  useSnapbackQuery,
+} from '@expo/snapback-react/core';
+```
+
+This is a packaging selection, not another React state owner. The core
+provider uses the same prepared binding, query/group registry, optimistic
+layers, presence rooms, outbox state, auth barrier, and cleanup protocol as
+the root. It deliberately does not export `useSurface`, command hooks,
+imperative commands, asset hooks, or `SnapbackAssetImage`, and its provider
+does not have `surface`, `assets`, or command-task inspection members.
+`useSnapbackOptimisticCreate` is part of core because it projects the existing
+provider-owned query/outbox state rather than selecting the command/asset
+capability.
+
+Keep importing from `@expo/snapback-react` when the application uses an
+[application surface](./surfaces.md), command task, or asset projection. Those
+APIs remain synchronous and unchanged on the root; the core entry does not
+replace them with lazy proxies.
 
 ## Bind a generated query
 

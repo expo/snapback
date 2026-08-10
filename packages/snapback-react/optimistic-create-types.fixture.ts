@@ -1,9 +1,13 @@
 import api from '../../demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api';
 import type {
   Id,
-  ProvisionalId,
 } from '../../demos/todo/snapback/generated/api';
-import { useSnapbackOptimisticCreate } from './index.mjs';
+import type {
+  SnapbackProvisionalId as ProvisionalId,
+} from '@expo/snapback-client';
+// The provider-owned optimistic-create projection is part of the static core
+// composition; adding ./core must not regress yesterday's typed surface.
+import { useSnapbackOptimisticCreate } from './core.mjs';
 
 const calendar = useSnapbackOptimisticCreate(api.reserve, {
   query: api.schedule,

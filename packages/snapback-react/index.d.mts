@@ -161,7 +161,67 @@ export type ConnectionEphemeralCollectionReference<
 
 export const skip: unique symbol;
 
-export interface SnapbackReactProvider {
+export interface SnapbackReactCoreProvider {
+  readonly kind: 'snapback.react-provider.v1';
+  readonly providerInstanceId: string;
+  readonly binding: PreparedReactBinding;
+  /** Activate provider-owned registrations. Idempotent for an active provider. */
+  start(): SnapbackReactCoreProvider;
+  registerEphemeralRepublisher(
+    reference: string,
+    callback: (context: Readonly<{
+      collection: string;
+      publish(value: unknown, options?: Readonly<Record<string, unknown>>): Promise<unknown>;
+    }>) => unknown,
+  ): Readonly<{ dispose(): void }>;
+  /** Quiesce provider-owned live query and presence handles for host lifecycle. */
+  pause(): Promise<void>;
+  /** Resume provider-owned live query and presence handles after host activation. */
+  resume(): Promise<void>;
+  inspection(): Readonly<{
+    providerInstanceId: string;
+    terminal: boolean;
+    custodyPaused: boolean;
+    hostPaused: boolean;
+    stores: number;
+    optimisticLayers: number;
+    optimisticCreateViews: number;
+    optimisticCreateConsumers: number;
+    provisionalCreates: number;
+    confirmedOptimisticLayers: readonly Readonly<{
+      attemptId: string;
+      mutationId: string;
+      queryId: string;
+      confirmedRevision: number;
+      storeRevision: number;
+    }>[];
+    consumers: number;
+    serverSubscriptions: number;
+    leases: number;
+    reservations: number;
+    timers: number;
+    listeners: number;
+    presenceStores: number;
+    presenceConsumers: number;
+    presenceSubscriptions: number;
+    publishers: number;
+    presenceTimers: number;
+    presenceListeners: number;
+    resyncReasons: readonly string[];
+    diagnostics: readonly SnapbackDiagnostic[];
+    preparedRegistrations: number;
+    preparedGroupSource: PreparedReactQueryGroup['source'] | null;
+    preparedGroupReason: string | null;
+    preparedGroupBoot: PreparedReactQueryGroup['boot'];
+    /** Mounted-provider HMR generation handoff state (development only). */
+    generationHandoff: 'active' | 'ok' | 'failed' | null;
+  }>;
+  dispose(): Promise<void>;
+}
+
+/** Full root composition. The ./core entry returns SnapbackReactCoreProvider
+ * and statically omits these surface/command/asset capabilities. */
+export interface SnapbackReactProvider extends SnapbackReactCoreProvider {
   readonly kind: 'snapback.react-provider.v1';
   readonly providerInstanceId: string;
   readonly binding: PreparedReactBinding;
@@ -584,7 +644,7 @@ export interface SnapbackOutboxObserver {
   dispose(): void;
 }
 export function observeSnapbackOutbox(
-  provider: SnapbackReactProvider,
+  provider: SnapbackReactCoreProvider,
   listener: (state: SnapbackOutboxState) => void,
 ): SnapbackOutboxObserver;
 export function useEphemeralRepublisher(
@@ -619,7 +679,7 @@ export interface SnapbackPresenceObserver<Value, Scope> {
 export function observeSnapbackPresence<
   Ref extends ConnectionEphemeralCollectionReference,
 >(
-  provider: SnapbackReactProvider,
+  provider: SnapbackReactCoreProvider,
   reference: Ref,
   options: Readonly<{
     scope: EphemeralScope<Ref>;
@@ -629,14 +689,14 @@ export function observeSnapbackPresence<
   listener: (state: PresenceState<EphemeralValue<Ref>>) => void,
 ): SnapbackPresenceObserver<EphemeralValue<Ref>, EphemeralScope<Ref>>;
 export function observeSnapbackQueries<const Entries extends QueryEntryMap>(
-  provider: SnapbackReactProvider,
+  provider: SnapbackReactCoreProvider,
   entries: Entries,
   listener: (state: QueryGroupState<Entries>) => void,
 ): SnapbackQueryGroupObserver<Entries>;
 export function observeSnapbackQueries<
   const Group extends PreparedReactQueryGroup,
 >(
-  provider: SnapbackReactProvider,
+  provider: SnapbackReactCoreProvider,
   group: Group,
   listener: (
     state: QueryGroupState<QueryGroupEntries<Group['reference']> & QueryEntryMap>,
@@ -647,7 +707,7 @@ export function observeSnapbackOptimisticCreate<
   Q extends QueryReference,
   Selected = readonly OptimisticCreateEntity<OptimisticCreateQueryRow<Q>>[],
 >(
-  provider: SnapbackReactProvider,
+  provider: SnapbackReactCoreProvider,
   reference: Ref,
   options: Readonly<{
     query: Q;
@@ -660,7 +720,7 @@ export function invokeSnapbackMutation<
   Ref extends MutationReference,
   Q extends QueryReference = never,
 >(
-  provider: SnapbackReactProvider,
+  provider: SnapbackReactCoreProvider,
   reference: Ref,
   args: FunctionArgs<Ref>,
   options?: Readonly<{

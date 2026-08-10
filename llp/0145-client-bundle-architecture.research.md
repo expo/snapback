@@ -11,6 +11,10 @@ rollover when the growth is attributed to a landed, receipted feature,
 attribution review otherwise — replacing per-instance author rulings. See
 §Phase A → "2026-08-10 author ruling — standing disposition for flagged
 growth". No ceiling, ledger, or instrument rule changes.)
+**Revised:** 2026-08-10 (the Option 2 React slice landed as a prospective
+`@expo/snapback-react/core` composition over the LLP 0114 registry owner;
+Phase A now records its exact root-to-core reductions and additive receipt
+protocol).
 **Revised:** 2026-08-01 (v0.2, round-1 super-refine corrections — both families
 NOT READY; reviews in `reviews/0145-client-bundle-architecture.codex.md` and
 `reviews/0145-client-bundle-architecture.fable.md`. Substantive changes: the
@@ -1494,6 +1498,43 @@ and the root-negative fixture must exclude it. The ledger also executes the
 registry custody/security suite, including successor-bearer fencing. This is a
 Phase A instrument extension and a low-risk D6 boundary repair, not evidence
 for Micro, Phase C, a new carrier, or a notification-delivery capability.
+
+#### 2026-08-10 implementation amendment — static React core composition
+
+Option 2 now has a bounded React slice. The published package root remains the
+Full compatibility composition, including synchronous surface, command-task,
+and asset semantics. The new `@expo/snapback-react/core` entry selects the
+same LLP 0114 prepared-binding registry owner but makes those three optional
+capability families unreachable. A supporting
+`@expo/snapback-client/react-binding` subpath keeps admission off the Full
+client barrel; it is classified as sync-owned because its prepared-binding
+and development-handoff seam deliberately owns local admission.
+
+The comparison below uses the committed pre-change `current.v1.json` root
+profiles as “before” and the same instrument/method on the prospective core
+profiles as “after”:
+
+| Workload | Minified bytes | gzip bytes | Brotli bytes |
+| --- | ---: | ---: | ---: |
+| query (`react-external` → `react-core-query`) | 114,826 → 61,681 (**−53,145; −46.28%**) | 34,830 → 19,329 (**−15,501; −44.50%**) | 30,450 → 16,951 (**−13,499; −44.33%**) |
+| query + mutation (`external-react-application` → `react-core-application`) | 115,001 → 62,605 (**−52,396; −45.56%**) | 34,883 → 19,586 (**−15,297; −43.85%**) | 30,483 → 17,173 (**−13,310; −43.66%**) |
+
+The unchanged Full profiles also remain inside their active ceilings: query is
+114,777 / 34,825 / 30,415 bytes (−49 / −5 / −35), and query + mutation is
+114,952 / 34,876 / 30,460 bytes (−49 / −7 / −23). No historical receipt is
+edited or loosened.
+
+`react-core-composition-profiles.v1.json` declares three negative core
+profiles, one positive Full profile, and the newly exported client binding
+subpath. The runner proves the core profiles contain the shared React
+implementation while literally excluding `full-capabilities.mjs`,
+`commands.mjs`, and `assets.mjs`; the positive profile must contain all three.
+They belong to a prospective additive
+`baseline.react-core-composition.v1.json`. Per the source-bound first-run rule,
+that receipt can be minted only after the implementation and instrument are a
+reachable commit. A no-commit implementation lane therefore leaves the
+historical receipts byte-identical and hands the exact post-commit writer step
+to its integrator.
 
 #### 2026-08-03 implementation amendment — workload-version rollover ledgers
 

@@ -6,7 +6,7 @@ ownership; install the headless client alone for non-React consumers. The full
 build-matched documentation becomes available after the Snapback development
 server is installed and running.
 
-The package exports:
+The package root is the full compatibility composition. It exports:
 
 - `createSnapbackReactProvider` and `SnapbackProvider`;
 - `useSnapbackQuery(ref, args)` and `useSnapbackQueries(entriesOrPreparedGroup)`;
@@ -19,6 +19,26 @@ The package exports:
   `observeSnapbackOptimisticCreate`, `observeSnapbackPresence`, and
   `invokeSnapbackMutation` acceptance/adapter seams; and
 - `bindSnapbackAppLifecycle` for a React Native application-state owner.
+
+Query/mutation applications that do not use generated surfaces, command tasks,
+or asset hooks should import the same provider and core hooks from the static
+core entry:
+
+```ts
+import {
+  SnapbackProvider,
+  createSnapbackReactProvider,
+  useSnapbackMutation,
+  useSnapbackOptimisticCreate,
+  useSnapbackQuery,
+} from '@expo/snapback-react/core';
+```
+
+`./core` uses the same provider registry, query stores, mutation attempts,
+presence rooms, and outbox owner as the root. It changes only static capability
+reachability: `useSurface`, command projections, asset projections, and their
+client runtimes are available from the root and are deliberately absent from
+the core namespace.
 
 Prepare a deployment-bound client before rendering:
 
