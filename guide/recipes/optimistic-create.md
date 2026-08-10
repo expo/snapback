@@ -3,14 +3,14 @@ title: "Recipe: optimistic create with a server-minted ID"
 id: recipes.optimistic-create
 order: 6
 audience: agent-first
-capabilities: [clients.optimistic-mutation-view]
-authorities: [llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0133-local-settlement.spec.md, llp/0155-local-sync-product-direction.rfc.md, packages/snapback-client/index.mjs, demos/zero-bakeoff/apps/contention-calendar/snapback/functions.mjs, demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx, tests/acceptance/contention-calendar-rung2-v1.mjs]
-examples: [demos/zero-bakeoff/apps/contention-calendar, tests/acceptance/contention-calendar-rung2-v1.mjs]
+capabilities: [clients.optimistic-create, clients.optimistic-mutation-view]
+authorities: [llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0133-local-settlement.spec.md, llp/0155-local-sync-product-direction.rfc.md, packages/snapback-client/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/optimistic-create.test.mjs, demos/_kit/tests/provider-live-conformance.mjs, demos/zero-bakeoff/apps/contention-calendar/snapback/functions.mjs, tests/acceptance/contention-calendar-rung2-v1.mjs]
+examples: [packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-react/optimistic-create.test.mjs, demos/_kit/tests/provider-live-conformance.mjs, demos/zero-bakeoff/apps/contention-calendar]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
+reviewed: 2026-08-10
+reviewed-commit: HEAD
 ---
 
 # Recipe: optimistic create with a server-minted ID
@@ -20,17 +20,19 @@ reviewed-commit: 88a35fb65fa736c8078642622bd4ec96a4014373
 > [auth/targets](../auth/targets.md).
 
 Snapback can render an optimistic insert before the server mints its canonical
-row id without forging a generated `Id<Table>`. The shipped path is the
-framework-neutral `SnapbackClient.createOptimisticMutationView` over a durable
-outbox and a locally executable generated mutation IR. Contention Calendar is
-the executable React witness, and its retained rung-2 acceptance proves
-provisional filtering/order/count/relationships, rejection, logical-mint id
-mapping, response-loss retry, and observer convergence.
+row id without forging a generated `Id<Table>`. React applications use
+`useSnapbackOptimisticCreate`, a provider-owned projection over the exact
+canonical query store. The lower-level
+`SnapbackClient.createOptimisticMutationView` remains available for headless
+compositions. Both paths use the durable outbox, the same locally executable
+generated mutation IR, and the same LLP 0133 logical-mint settlement.
 
-This is a lower-level composition than `useSnapbackMutation`. There is still
-no first-class provider-owned React hook that inserts a typed provisional row
-into a canonical `useSnapbackQuery` store; that ergonomic capability remains
-the explicit `clients.optimistic-create` GAP.
+The React package tests prove typed provisional presentation, filtering,
+ordering, relationship projection, both response/query orderings, overlapping
+rejection, Strict Mode remount, authority cuts, and cleanup. The real-server
+provider conformance gate drops a response after commit, replays the exact
+durable intent, consumes the same `idMap`, and observes one canonical rendered
+row.
 
 ## Author one generated insert
 
@@ -66,69 +68,46 @@ Generation must classify the mutation `local-executable`. Unsupported local
 IR refuses or degrades explicitly; do not add a handwritten reducer while
 claiming same-operation parity.
 
-## Keep provisional and canonical identities distinct
+## Project the provider-owned query
 
-The optimistic layer contains a speculative mint, but application UI must not
-cast it to the branded canonical id. Derive presentation identity from the
-layer's durable `clientMutationId`; use the generated row id only after the
-authoritative query supplies it:
+The hook pairs one generated insert with one generated documents live query.
+Its `select` function is where provisional and canonical entities share
+filtering, ordering, counts, and relationship projection:
 
-```tsx source=demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx
-type VisibleReservation = Readonly<{
-  identity:
-    | Readonly<{ kind: 'provisional'; intentId: string }>
-    | Readonly<{ kind: 'canonical'; id: Reservation['_id'] }>;
-  fields: ReservationFields;
-  resourceTitle: string;
-}>;
+```ts source=packages/snapback-react/optimistic-create-types.fixture.ts
+const calendar = useSnapbackOptimisticCreate(api.reserve, {
+  query: api.schedule,
+  args: {},
+  select: (entities) => entities
+    .filter((entity) => entity.fields.slotKey === 'slot-a')
+    .sort((left, right) => left.fields.resourceKey.localeCompare(right.fields.resourceKey)),
+});
 ```
 
-That distinction prevents a speculative string from leaking into mutation
-arguments or durable application state as if the server had minted it. It also
-gives React a stable key: `intent:${intentId}` while provisional,
-`canonical:${id}` after authoritative delivery.
+The generated `OptimisticCreateEntity<Row>` union has a top-level `kind`.
+Canonical identity is the server's `Id<Table>` and canonical fields include
+the server metadata. Provisional identity is a distinct generated
+`ProvisionalId<Table>` backed by `clientMutationId`; its fields omit all
+server-authored identity/version/timestamp fields. TypeScript therefore
+refuses a provisional identity where a canonical id is required. The private
+speculative mint used by local IR evaluation is never application data.
 
-## Open one view over the canonical base
+Call `calendar.create(args)` rather than `client.mutate` plus a handwritten
+append reducer. The provider opens one shared optimistic view for the exact
+canonical query store, replays private layers over every authoritative base,
+and closes it after its consumers and durable work are gone. Because this is a
+generated insert rather than the generic reducer API, it does not trigger the
+append-reducer replay advisory.
 
-The client needs a durable RQS store and offline queue. Fetch the canonical
-rows, create the optimistic view, subscribe to it, and rebase it whenever the
-canonical live query advances:
+## Settle by durable intent identity
 
-```tsx source=demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx
-      const view = await client.createOptimisticMutationView({
-        authoritativeRows: { reservations: scheduleRows.rows },
-        connected: true,
-      });
-```
-
-The view replays private generated-IR layers over the newest authoritative
-base in durable sequence. Projection code can filter, sort, count, and join
-the `visibleRows` with already-complete bounded local data; it must preserve
-the identity union above and never expose a provisional mint as canonical.
-
-## Mutate normally, then retire by settlement identity
-
-`client.mutate(api.reserve, { args })` sees the generated IR, records durable
-intent, and paints the provisional row before the server response. On success,
-install authoritative rows and retire the exact `clientMutationId`:
-
-```tsx source=demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx
-      const schedule = await client.query(api.schedule);
-      canonicalRef.current = schedule.rows;
-      await viewRef.current?.rebase({
-        authoritativeRows: { reservations: schedule.rows },
-        retiredSettlementIdentities: settlement.clientMutationId
-          ? [settlement.clientMutationId]
-          : [],
-        connected: true,
-        cause: 'reservation-authoritative-delivery',
-      });
-```
-
-A successful server-minted insert carries an LLP 0133 `idMap`. The mapping is
-not guessed from equal row content, call order, or mint counts: it pairs the
+A successful server-minted insert carries an LLP 0133 `idMap`. The provider
+does not guess from equal row content, call order, or mint counts: it pairs the
 local and authoritative ids by logical mint identity `(site, occurrence)`.
-The executable acceptance checks every member:
+Response-first success bridges the provisional entity until canonical
+delivery. Query-first delivery is held behind the unresolved mutation, then
+the mapping retires the provisional layer atomically. The lower-level
+Contention Calendar acceptance checks every mapping member:
 
 ```js source=tests/acceptance/contention-calendar-rung2-v1.mjs
   assert.equal(mapping.speculative, claim.claimed);
@@ -138,10 +117,10 @@ The executable acceptance checks every member:
   assert.equal(mapping.disposition, 'mapped');
 ```
 
-On rejection, refresh/rebase from the canonical base. The rejected private
-layer retires immediately and later layers replay. Show a stable declared
-application refusal when the backend supplies one; never parse handler message
-text ([declared refusals](../backend/mutations.md#consume-the-structured-result)).
+On rejection, only the rejected private layer retires and later layers replay.
+Show a stable declared application refusal when the backend supplies one;
+never parse handler message text
+([declared refusals](../backend/mutations.md#consume-the-structured-result)).
 
 ## Reuse the exact intent after an ambiguous response
 
@@ -151,26 +130,28 @@ semantics-affecting identity. The server's settlement ledger republishes the
 stored result and the same logical-mint mapping, so one intent creates one
 canonical row.
 
-Contention Calendar's retained receipt proves two wire attempts, one
-authoritative application, the same result, and the same `idMap` after a
-simulated response loss **after commit**. Run the source check without a
-server:
+The provider-live conformance gate proves two wire attempts, one authoritative
+application, the same durable `clientMutationId`, the same `idMap`, and one
+canonical entity after a simulated response loss **after commit**:
 
 ```sh
-node tests/acceptance/contention-calendar-rung2-v1.mjs --check
+node demos/_kit/tests/provider-live-conformance.mjs
 ```
 
-The same view also replays pending generated operations on boot. App code owns
-view/live-handle teardown and must keep one authority partition per durable
-store; never adopt an old authority's optimistic layers into a new principal.
+`create` rejects a queued dispatch with
+`SNAPBACK_REACT_MUTATION_QUEUED`, but the provider keeps the provisional layer
+and discovers the retained settlement after outbox replay. Never issue a fresh
+create to recover an ambiguous response. Authority replacement blanks the old
+view; Strict Mode and HMR remounts share the provider-owned view instead of
+duplicating durable work.
 
 ## Choose the right current path
 
-| Need | Current path |
+| Need | Shipped path |
 | --- | --- |
-| A simple React form where pending rows need no query filtering, ordering, counts, or relationships | Use the component-local intent-keyed pending sidecar in [the React guide](../clients/react.md#optimistically-create-a-row-the-server-will-name). |
-| Generated-IR create must participate in one shared local projection and survive ambiguous retry/restart | Compose `createOptimisticMutationView` as this recipe shows. |
-| A provisional row directly inside the provider's typed `useSnapbackQuery` store through a first-class hook | GAP: `clients.optimistic-create`; do not pretend this lower-level view is that API. |
+| React create participates in one provider-owned canonical query projection | `useSnapbackOptimisticCreate`. |
+| Acceptance adapter needs the exact hook path without a React renderer | `observeSnapbackOptimisticCreate`. |
+| A headless composition genuinely needs direct view/rebase control | `SnapbackClient.createOptimisticMutationView`. |
 
 ## Anti-patterns
 
@@ -179,5 +160,5 @@ store; never adopt an old authority's optimistic layers into a new principal.
   the same operation.
 - Do not settle by row-content equality, response order, or mint count.
 - Do not retry an ambiguous mutation under a fresh intent identity.
-- Do not claim `useSnapbackMutation` has a first-class optimistic-insert
-  option; the shipped view is a lower-level headless composition.
+- Do not hand-author a parallel pending sidecar when the row needs the query's
+  filtering, ordering, counts, or relationships.

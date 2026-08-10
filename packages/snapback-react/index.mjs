@@ -632,6 +632,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     store.authoritativeData = validateResultContract(store.resultContract, rows);
     store.freshness = 'current';
     captureRetention(store);
+    observeOptimisticCreateAuthority(store);
     for (const layer of store.optimisticLayers) {
       if (!layer.confirmed) continue;
       try {
@@ -919,6 +920,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       retention: null,
       optimisticLayers: [],
       pendingMutations: new Map(),
+      optimisticCreate: null,
       pins: 0,
       registeredSubscription: mustResubscribe ? null : preparedRegistration,
       readOnlySnapshot,
@@ -934,6 +936,268 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     );
     stores.set(store.key, store);
     return store;
+  };
+
+  const connectedForOptimisticCreate = (store) => (
+    ['live', 'polling'].includes(store.snapshot.connection)
+  );
+
+  const optimisticCreateTable = (descriptor) => {
+    const contract = descriptor.resultContract?.descriptor;
+    if (contract?.kind !== 'documents' || typeof contract.table !== 'string') {
+      throw diagnosticError(
+        'SNAPBACK_REACT_OPTIMISTIC_CREATE_QUERY_UNSUPPORTED',
+        'optimistic create requires a generated documents query for exactly one table',
+        { queryId: descriptor.reference.id },
+      );
+    }
+    return contract.table;
+  };
+
+  const admittedOptimisticCreateMutation = (reference, table) => {
+    const admitted = admittedReactReference(binding, reference, 'Mutation');
+    const ir = reference.mutationIr;
+    const steps = ir?.plan?.steps;
+    const inserts = Array.isArray(steps)
+      ? steps.filter((step) => step?.Insert != null)
+      : [];
+    if (
+      ir?.format !== 'snapback.generated-mutation-ir.v1'
+      || ir.capabilityClass !== 'local-executable'
+      || !Array.isArray(steps)
+      || steps.length !== 1
+      || inserts.length !== 1
+      || inserts[0].Insert?.table !== table
+    ) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_OPTIMISTIC_CREATE_INSERT_REQUIRED',
+        'optimistic create requires one generated local-executable Insert for the query table',
+        { mutationId: admitted.id, table },
+      );
+    }
+    // Admission owns the authorization/deployment check, but its compact
+    // reference intentionally omits the generated IR carrier. Dispatch the
+    // exact generated reference after that check so sourceIdentity continues
+    // to compare against the codegen-owned expectedGeneration bytes.
+    return reference;
+  };
+
+  const closeOptimisticCreate = (store, state, { force = false } = {}) => {
+    if (store.optimisticCreate !== state) return;
+    state.generation += 1;
+    state.unsubscribe?.();
+    state.unsubscribe = null;
+    state.view?.close();
+    state.view = null;
+    state.opening = null;
+    state.snapshot = null;
+    state.confirmed.clear();
+    state.deferred = false;
+    state.cache = null;
+    if (state.pinReleased === false) releaseLayerPin(store, state);
+    if (force || state.consumers === 0) store.optimisticCreate = null;
+  };
+
+  const optimisticCreateHasWork = (state) => (
+    state.unresolved > 0
+    || (state.snapshot?.layers.length ?? 0) > 0
+    || (state.snapshot?.queuedOnly.length ?? 0) > 0
+  );
+
+  const syncOptimisticCreatePin = (store, state) => {
+    const needsPin = optimisticCreateHasWork(state);
+    if (needsPin && state.pinReleased) {
+      state.pinReleased = false;
+      store.pins += 1;
+      store.idleEpoch += 1;
+      if (!store.handle) startStore(store);
+    } else if (!needsPin && !state.pinReleased) {
+      releaseLayerPin(store, state);
+    }
+    if (!needsPin && state.consumers === 0) {
+      const generation = state.generation;
+      queueMicrotask(() => {
+        if (
+          store.optimisticCreate === state
+          && state.generation === generation
+          && state.consumers === 0
+          && !optimisticCreateHasWork(state)
+        ) closeOptimisticCreate(store, state);
+      });
+    }
+  };
+
+  const notifyOptimisticCreate = (store, state) => {
+    if (store.optimisticCreate !== state || terminal) return;
+    state.snapshot = state.view?.getSnapshot() ?? null;
+    state.cache = null;
+    syncOptimisticCreatePin(store, state);
+    for (const listener of [...store.listeners.values()]) {
+      try { listener(); } catch { /* one consumer cannot starve siblings */ }
+    }
+    notifyConnection();
+    if (state.snapshot?.layers.some((layer) => layer.layerStatus === 'bridging')) {
+      void discoverOptimisticCreateSettlements(store, state);
+    }
+  };
+
+  const settlementAuthoritativeIds = (settlement) => Object.freeze(
+    (settlement?.receipt?.idMap ?? [])
+      .filter((entry) => entry?.disposition === 'mapped' && typeof entry.authoritative === 'string')
+      .map((entry) => entry.authoritative),
+  );
+
+  const reflectedOptimisticCreate = (store, confirmation) => (
+    confirmation.authoritativeIds.some((id) => (
+      store.authoritativeData.some((row) => row?._id === id)
+    ))
+    || store.authoritativeRevision > confirmation.revision
+  );
+
+  const applyOptimisticCreateAuthority = async (store, state, cause) => {
+    if (
+      store.optimisticCreate !== state
+      || state.view === null
+      || state.unresolved > 0
+      || runtimePaused()
+    ) {
+      if (state.unresolved > 0) state.deferred = true;
+      return;
+    }
+    const retiredSettlementIdentities = [...state.confirmed]
+      .filter(([, confirmation]) => reflectedOptimisticCreate(store, confirmation))
+      .map(([identity]) => identity);
+    state.deferred = false;
+    await state.view.rebase({
+      authoritativeRows: { [state.table]: store.authoritativeData },
+      retiredSettlementIdentities,
+      connected: connectedForOptimisticCreate(store),
+      cause,
+    });
+    if (store.optimisticCreate !== state) return;
+    for (const identity of retiredSettlementIdentities) state.confirmed.delete(identity);
+    notifyOptimisticCreate(store, state);
+  };
+
+  const discoverOptimisticCreateSettlements = async (store, state) => {
+    if (
+      state.settlementDiscovery !== null
+      || typeof client.settledMutations !== 'function'
+      || store.optimisticCreate !== state
+    ) return state.settlementDiscovery;
+    state.settlementDiscovery = Promise.resolve(client.settledMutations()).then(async (entries) => {
+      if (store.optimisticCreate !== state || !Array.isArray(entries)) return;
+      const bridging = new Set(
+        (state.snapshot?.layers ?? [])
+          .filter((layer) => layer.layerStatus === 'bridging')
+          .map((layer) => layer.clientMutationId),
+      );
+      for (const entry of entries) {
+        if (!bridging.has(entry?.clientMutationId) || state.confirmed.has(entry.clientMutationId)) continue;
+        state.confirmed.set(entry.clientMutationId, Object.freeze({
+          revision: store.authoritativeRevision,
+          authoritativeIds: settlementAuthoritativeIds(entry.settlement),
+        }));
+      }
+      await applyOptimisticCreateAuthority(store, state, 'react-provider-settlement-recovered');
+    }).catch(recordDiagnostic).finally(() => {
+      if (store.optimisticCreate === state) state.settlementDiscovery = null;
+    });
+    return state.settlementDiscovery;
+  };
+
+  const ensureOptimisticCreateView = async (store, state) => {
+    if (state.view !== null) return state.view;
+    if (state.opening !== null) return state.opening;
+    if (
+      terminal
+      || runtimePaused()
+      || store.authoritativeRevision === 0
+      || store.freshness !== 'current'
+    ) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_OPTIMISTIC_STORE_MISSING',
+        'optimistic create requires a current authoritative query store',
+        { queryId: store.reference.id },
+      );
+    }
+    if (typeof client.createOptimisticMutationView !== 'function') {
+      throw diagnosticError(
+        'SNAPBACK_REACT_OPTIMISTIC_CREATE_UNSUPPORTED',
+        'the prepared client does not provide generated-IR optimistic mutation views',
+      );
+    }
+    const generation = ++state.generation;
+    state.opening = client.createOptimisticMutationView({
+      authoritativeRows: { [state.table]: store.authoritativeData },
+      connected: connectedForOptimisticCreate(store),
+    }).then((view) => {
+      if (
+        terminal
+        || runtimePaused()
+        || store.optimisticCreate !== state
+        || state.generation !== generation
+      ) {
+        view.close();
+        throw diagnosticError(
+          'SNAPBACK_CLIENT_AUTHORITY_STALE',
+          'optimistic create view opened under stale provider authority',
+        );
+      }
+      state.view = view;
+      state.unsubscribe = view.subscribe(() => notifyOptimisticCreate(store, state));
+      notifyOptimisticCreate(store, state);
+      return view;
+    }).catch((error) => {
+      if (store.optimisticCreate === state && state.generation === generation) {
+        state.opening = null;
+      }
+      throw error;
+    });
+    return state.opening;
+  };
+
+  const optimisticCreateState = (store, descriptor) => {
+    const table = optimisticCreateTable(descriptor);
+    if (store.optimisticCreate !== null) {
+      if (store.optimisticCreate.table !== table) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_OPTIMISTIC_CREATE_QUERY_CONFLICT',
+          'one canonical query store cannot project optimistic creates for two tables',
+          { queryId: descriptor.reference.id },
+        );
+      }
+      return store.optimisticCreate;
+    }
+    const state = {
+      table,
+      consumers: 0,
+      generation: 0,
+      view: null,
+      opening: null,
+      unsubscribe: null,
+      snapshot: null,
+      cache: null,
+      unresolved: 0,
+      confirmed: new Map(),
+      deferred: false,
+      pinReleased: true,
+      settlementDiscovery: null,
+    };
+    store.optimisticCreate = state;
+    return state;
+  };
+
+  const observeOptimisticCreateAuthority = (store) => {
+    const state = store.optimisticCreate;
+    if (state === null) return;
+    state.cache = null;
+    if (state.view === null) {
+      if (state.consumers > 0) void ensureOptimisticCreateView(store, state).catch(recordDiagnostic);
+      return;
+    }
+    void applyOptimisticCreateAuthority(store, state, 'react-provider-authoritative-delivery')
+      .catch(recordDiagnostic);
   };
 
   const publishMaterialized = (store) => {
@@ -2139,6 +2403,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     blank() {
       custodyPaused = true;
       for (const store of stores.values()) {
+        if (store.optimisticCreate !== null) {
+          closeOptimisticCreate(store, store.optimisticCreate, { force: true });
+        }
         store.generation += 1;
         store.snapshot = pending('idle');
         store.freshness = 'unknown';
@@ -2368,6 +2635,214 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     lease.cleanups.push(() => state.waiters.delete(waiter));
   };
 
+  const optimisticCreateEntities = (store, state) => {
+    const authoritative = Array.isArray(store.authoritativeData)
+      ? store.authoritativeData
+      : [];
+    const canonicalById = new Map(authoritative.map((row) => [row?._id, row]));
+    const intentByMint = new Map();
+    for (const entry of state?.snapshot?.layers ?? []) {
+      if (typeof entry?.clientMutationId !== 'string') continue;
+      for (const write of entry?.layer?.writes ?? []) {
+        if (
+          write?.operation === 'insert'
+          && write.table === state.table
+          && typeof write.id === 'string'
+        ) intentByMint.set(write.id, entry.clientMutationId);
+      }
+    }
+    const rows = state?.snapshot?.visibleRows?.[state.table] ?? authoritative;
+    return deepFreeze(rows.map((row) => {
+      const canonical = canonicalById.get(row?._id);
+      if (canonical !== undefined) {
+        return {
+          kind: 'canonical',
+          identity: { kind: 'canonical', id: canonical._id },
+          fields: canonical,
+        };
+      }
+      const intentId = intentByMint.get(row?._id);
+      if (intentId === undefined) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_OPTIMISTIC_CREATE_IDENTITY_MISSING',
+          'a provisional insert has no durable intent identity',
+          { table: state.table },
+        );
+      }
+      const fields = { ...row };
+      delete fields._id;
+      delete fields._version;
+      delete fields._createdAt;
+      delete fields._updatedAt;
+      return {
+        kind: 'provisional',
+        identity: { kind: 'provisional', id: intentId, intentId },
+        fields,
+      };
+    }));
+  };
+
+  const optimisticCreateSnapshot = (descriptor) => {
+    if (descriptor.skipped) return SKIPPED;
+    const store = stores.get(descriptor.key);
+    if (!store) return SERVER_PENDING;
+    const base = store.snapshot;
+    if (!['ready', 'refreshing'].includes(base.status)) return base;
+    const state = store.optimisticCreate;
+    if (
+      state?.cache?.base === base
+      && state.cache.view === state.snapshot
+    ) return state.cache.value;
+    const value = Object.freeze({
+      ...base,
+      data: optimisticCreateEntities(store, state),
+    });
+    if (state !== null) state.cache = { base, view: state.snapshot, value };
+    return value;
+  };
+
+  const subscribeOptimisticCreate = (descriptor, listener, previousLease = null) => {
+    if (descriptor.skipped) {
+      throw new TypeError('optimistic create query args cannot be skip');
+    }
+    const lease = subscribeMany(
+      [descriptor],
+      listener,
+      previousLease?._queryLease ?? previousLease,
+    );
+    const store = stores.get(descriptor.key);
+    const state = optimisticCreateState(store, descriptor);
+    state.consumers += 1;
+    if (store.authoritativeRevision > 0 && store.freshness === 'current') {
+      void ensureOptimisticCreateView(store, state).catch(recordDiagnostic);
+    }
+    let released = false;
+    return Object.freeze({
+      _queryLease: lease,
+      release() {
+        if (released) return;
+        released = true;
+        state.consumers = Math.max(0, state.consumers - 1);
+        lease.release();
+        syncOptimisticCreatePin(store, state);
+      },
+    });
+  };
+
+  // @ref LLP 0155#identity-model — the paved React create surface exposes
+  // durable intent identity as a provisional type and keeps the generated
+  // speculative mint private to the headless rebase engine.
+  // @ref LLP 0133#divergence-on-settle — response-first confirmations bridge
+  // until authoritative delivery; query-first rows are held behind the same
+  // identity map, and rejection removes only the durable layer it owns.
+  const runOptimisticCreate = async (mutationReference, mutationArgs, descriptor) => {
+    if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
+    if (mutationReference?.[HANDOFF_DEFERRED_REFERENCE] === true) {
+      mutationReference = mutationReference.reference;
+    }
+    if (descriptor.skipped) throw new TypeError('optimistic create query args cannot be skip');
+    const store = stores.get(descriptor.key);
+    if (
+      runtimePaused()
+      || !store
+      || store.authoritativeRevision === 0
+      || store.freshness !== 'current'
+    ) {
+      throw diagnosticError(
+        'SNAPBACK_REACT_OPTIMISTIC_STORE_MISSING',
+        'optimistic create requires a current authoritative query store',
+        { queryId: descriptor.reference.id },
+      );
+    }
+    const state = optimisticCreateState(store, descriptor);
+    let admittedMutation;
+    try {
+      admittedMutation = admittedOptimisticCreateMutation(mutationReference, state.table);
+    } catch (error) {
+      const target = recoverableGeneration(error, mutationReference);
+      if (target === null) throw error;
+      await beginGenerationHandoff(target).promise;
+      admittedMutation = admittedOptimisticCreateMutation(mutationReference, state.table);
+    }
+    canonicalizeClientValueV1(mutationArgs);
+    const mutationContract = preparedReactResultContract(binding, admittedMutation);
+    const view = await ensureOptimisticCreateView(store, state);
+    const capture = client.authorityFence?.capture?.() ?? null;
+    if (capture && !client.authorityFence?.isCurrent?.(capture)) {
+      throw diagnosticError(
+        'SNAPBACK_CLIENT_AUTHORITY_STALE',
+        'optimistic create authority is no longer current',
+      );
+    }
+    state.unresolved += 1;
+    syncOptimisticCreatePin(store, state);
+    let output;
+    try {
+      output = await client.mutate(admittedMutation, {
+        args: mutationArgs,
+        authorityCapture: capture,
+        ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
+      });
+    } catch (error) {
+      state.unresolved = Math.max(0, state.unresolved - 1);
+      if (store.optimisticCreate !== state || (capture && !client.authorityFence?.isCurrent?.(capture))) {
+        throw diagnosticError(
+          'SNAPBACK_CLIENT_AUTHORITY_STALE',
+          'optimistic create completed under stale authority',
+        );
+      }
+      try {
+        await view.refresh({
+          connected: connectedForOptimisticCreate(store),
+          cause: 'react-provider-create-rejected',
+        });
+      } finally {
+        notifyOptimisticCreate(store, state);
+        await applyOptimisticCreateAuthority(store, state, 'react-provider-rejection-rebase');
+      }
+      throw error;
+    }
+    state.unresolved = Math.max(0, state.unresolved - 1);
+    if (store.optimisticCreate !== state || (capture && !client.authorityFence?.isCurrent?.(capture))) {
+      throw diagnosticError(
+        'SNAPBACK_CLIENT_AUTHORITY_STALE',
+        'optimistic create completed under stale authority',
+      );
+    }
+    const queued = queuedMutationError(admittedMutation, output);
+    if (queued !== null) {
+      await view.refresh({
+        connected: connectedForOptimisticCreate(store),
+        cause: 'react-provider-create-queued',
+      });
+      notifyOptimisticCreate(store, state);
+      await applyOptimisticCreateAuthority(store, state, 'react-provider-queued-rebase');
+      throw queued;
+    }
+    const result = validateResultContract(
+      mutationContract,
+      output.result,
+      { violationCode: 'SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED' },
+    );
+    if (typeof output.clientMutationId !== 'string') {
+      throw diagnosticError(
+        'SNAPBACK_REACT_OPTIMISTIC_CREATE_IDENTITY_MISSING',
+        'generated optimistic create settlement omitted its durable intent identity',
+      );
+    }
+    state.confirmed.set(output.clientMutationId, Object.freeze({
+      revision: store.authoritativeRevision,
+      authoritativeIds: settlementAuthoritativeIds(output),
+    }));
+    await view.refresh({
+      connected: connectedForOptimisticCreate(store),
+      cause: 'react-provider-create-confirmed',
+    });
+    notifyOptimisticCreate(store, state);
+    await applyOptimisticCreateAuthority(store, state, 'react-provider-confirmation-rebase');
+    return result;
+  };
+
   const registry = Object.freeze({
     descriptor(reference, args, groupBoot = null, preparedEntryName = null) {
       try {
@@ -2394,13 +2869,16 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       return subscribeMany([descriptor], listener, previousLease);
     },
     subscribeMany,
+    subscribeOptimisticCreate,
     runMutation,
+    runOptimisticCreate,
     runCommandMutation,
     createPresenceToken,
     presenceDescriptor,
     subscribePresence,
     presenceSnapshot,
     snapshot,
+    optimisticCreateSnapshot,
     get connectionId() { return connectionId; },
     aggregateConnection,
     subscribeConnection(listener) {
@@ -2430,6 +2908,17 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         stores: stores.size,
         optimisticLayers: [...stores.values()].reduce(
           (sum, store) => sum + store.optimisticLayers.length,
+          0,
+        ),
+        optimisticCreateViews: [...stores.values()].filter(
+          (store) => store.optimisticCreate?.view !== null,
+        ).length,
+        optimisticCreateConsumers: [...stores.values()].reduce(
+          (sum, store) => sum + (store.optimisticCreate?.consumers ?? 0),
+          0,
+        ),
+        provisionalCreates: [...stores.values()].reduce(
+          (sum, store) => sum + (store.optimisticCreate?.snapshot?.layers.length ?? 0),
           0,
         ),
         confirmedOptimisticLayers: Object.freeze([...stores.values()].flatMap((store) => (
@@ -2485,7 +2974,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       const pendingRegisteredRetirement = retireUnadoptedPreparedSubscriptions();
       for (const lease of [...leases]) releaseLease(lease);
       for (const token of [...roomLeases]) releasePresenceToken(token);
-      for (const store of stores.values()) stopStore(store, { blank: true });
+      for (const store of stores.values()) {
+        if (store.optimisticCreate !== null) {
+          closeOptimisticCreate(store, store.optimisticCreate, { force: true });
+        }
+        stopStore(store, { blank: true });
+      }
       for (const room of rooms.values()) stopRoom(room);
       await Promise.allSettled([
         ...[...allHandles].map((handle) => handle.settled()),
@@ -2926,6 +3420,57 @@ export function useSnapbackMutation(reference, options = {}) {
   );
 }
 
+const selectOptimisticCreateState = (state, select) => {
+  if (!['ready', 'refreshing'].includes(state.status) || typeof select !== 'function') return state;
+  return Object.freeze({ ...state, data: deepFreeze(select(state.data)) });
+};
+
+/** Provider-owned generated-IR optimistic create over the exact canonical
+ * query store identified by `query` + `args`. The returned query data uses a
+ * canonical/provisional entity union; provisional identity is durable intent
+ * identity and never the evaluator's speculative row mint. */
+export function useSnapbackOptimisticCreate(reference, options) {
+  const provider = useProvider();
+  if (!options || typeof options !== 'object' || options.query == null) {
+    throw new TypeError('useSnapbackOptimisticCreate requires query and args options');
+  }
+  const lease = useRef(null);
+  const argsKey = canonicalHookInputKey(options.args);
+  const descriptor = useMemo(
+    () => provider.registry.descriptor(options.query, options.args),
+    [provider, options.query, argsKey],
+  );
+  const subscribe = useCallback((listener) => {
+    const next = provider.registry.subscribeOptimisticCreate(
+      descriptor,
+      listener,
+      lease.current,
+    );
+    lease.current = next;
+    return () => {
+      const releasing = next;
+      queueMicrotask(() => {
+        if (lease.current === releasing) lease.current = null;
+        releasing.release();
+      });
+    };
+  }, [provider, descriptor]);
+  const state = useSyncExternalStore(
+    subscribe,
+    () => provider.registry.optimisticCreateSnapshot(descriptor),
+    () => SERVER_PENDING,
+  );
+  const selected = useMemo(
+    () => selectOptimisticCreateState(state, options.select),
+    [state, options.select],
+  );
+  const create = useCallback(
+    (args) => provider.registry.runOptimisticCreate(reference, args, descriptor),
+    [provider, reference, descriptor],
+  );
+  return useMemo(() => Object.freeze({ query: selected, create }), [selected, create]);
+}
+
 // @ref LLP 0180#react-and-surface-projections — the hook is a named
 // projection of the same provider-owned asset and mutation children used by
 // surfaces. It owns no command transport or authority lane of its own.
@@ -2998,6 +3543,42 @@ export function observeSnapbackQueries(providerValue, entries, listener) {
       closed = true;
       lease?.release();
       lease = null;
+    },
+  });
+}
+
+/** Framework-neutral acceptance projection of useSnapbackOptimisticCreate. */
+export function observeSnapbackOptimisticCreate(
+  providerValue,
+  mutationReference,
+  options,
+  listener,
+) {
+  const provider = assertProvider(providerValue);
+  if (!options || typeof options !== 'object' || options.query == null) {
+    throw new TypeError('observeSnapbackOptimisticCreate requires query and args options');
+  }
+  const descriptor = provider.registry.descriptor(options.query, options.args);
+  let closed = false;
+  const snapshot = () => selectOptimisticCreateState(
+    provider.registry.optimisticCreateSnapshot(descriptor),
+    options.select,
+  );
+  const emit = () => {
+    if (!closed) listener(snapshot());
+  };
+  const lease = provider.registry.subscribeOptimisticCreate(descriptor, emit);
+  emit();
+  return Object.freeze({
+    snapshot,
+    create(args) {
+      if (closed) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'optimistic create observer is closed');
+      return provider.registry.runOptimisticCreate(mutationReference, args, descriptor);
+    },
+    dispose() {
+      if (closed) return;
+      closed = true;
+      lease.release();
     },
   });
 }

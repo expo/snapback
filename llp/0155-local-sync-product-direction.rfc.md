@@ -5,7 +5,10 @@
 **Systems:** Application data API, Client SDK, Client integration, Realtime, Local sync, Offline sync, Relational queries, Optimistic updates, Storage, Auth, Conflict handling, Developer experience, Testing, Competitive analysis
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-02
-**Revised:** 2026-08-04 (Move 3's generated-mutation-IR exit deliberately
+**Revised:** 2026-08-10 (Move 4 implementation record: Candidate A generated
+`Insert` IR plus LLP 0133 logical-mint mapping proved sufficient for the
+first-class React provider surface; no Candidate B authoring extension was
+needed. See the dated record under Move 4). 2026-08-04 (Move 3's generated-mutation-IR exit deliberately
 evolves the shipped Full/root bundle workload. LLP 0063's immutable-baseline
 rule therefore applies through a prospective workload-version rollover of the
 exact affected profiles, retaining the local-read-admission receipt as the
@@ -965,6 +968,26 @@ Contention Calendar must prove:
 - ambiguous redelivery is idempotent; and
 - every observer converges on authoritative capacity and order.
 
+### Dated implementation record — 2026-08-10
+
+Move 4's first-class local-target React surface shipped as
+`useSnapbackOptimisticCreate` over the existing Candidate A generated
+local-executable `Insert` carrier and LLP 0133 settlement map. This answers OQ7
+for the admitted single-insert shape: the public provisional identity is the
+durable `clientMutationId` under a distinct generated `ProvisionalId<Table>`;
+the speculative row mint remains private, and the server's logical-mint
+`idMap` retires the bridge. No Candidate B computation or second authored
+mutation transform was added.
+
+The package proof covers shared filter/order/count/relation projection,
+response-before-query and query-before-response settlement, overlapping
+rejection, authority cuts, Strict Mode/HMR sharing, and cleanup. The existing
+real-server provider conformance gate drops a response after authoritative
+commit, replays the exact protocol identity, recovers the identical `idMap`,
+and renders one canonical entity. The capability claim is therefore the
+narrow local React provider shape only; related-operation retargeting and
+broader generated IR shapes remain outside this landing.
+
 ## Move 5 — Replicache-class app-authored mutators only after proof
 
 ### Outcome
@@ -1411,10 +1434,10 @@ to remove authority or result validation from a profile that needs it.
 6. Which mutation IR operations constitute Candidate A's first useful class?
    This RFC recommends the Kanban point/indexed operations, not a broad grammar
    chosen without workload evidence.
-7. Can Candidate A express a typed provisional reference entirely from LLP
-   0133's existing logical-mint mapping, or is Move 4 necessarily a Candidate B
-   extension? The LLP 0129 lab owns the answer — after OQ10's Candidate-B
-   boundary and owner are frozen.
+7. **Answered for the shipped single-Insert React shape on 2026-08-10:**
+   Candidate A plus LLP 0133 expresses the provisional reference without a
+   Candidate B extension; see Move 4's dated implementation record. Broader IR
+   shapes and related-operation retargeting are not inferred.
 8. What semantic conflict payload is the minimum useful Notebook result without
    embedding a general merge framework? LLP 0144's declared refusal unions
    should carry the transport shape.

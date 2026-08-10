@@ -504,6 +504,18 @@
         "node packages/snapback-client/package.test.mjs",
         "node packages/snapback-react/package.test.mjs"
       ]
+    },
+    {
+      "filename": "baseline.react-optimistic-create.v1.json",
+      "workloadVersion": "react-optimistic-create.2026-08-10.v1",
+      "inputs": {
+        "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
+        "lockfileSha256": "3aa805546ef4b1b35cd89bcdb4ae1c98e9eda9096621e2f76851ed0ed676e2cf"
+      },
+      "behaviorCommands": [
+        "node packages/snapback-react/package.test.mjs",
+        "node packages/snapback-client/package.test.mjs"
+      ]
     }
   ],
   "profiles": [
@@ -1303,15 +1315,15 @@
       "externals": [
         "react"
       ],
-      "minifiedBytes": 106237,
-      "gzipBytes": 32708,
-      "brotliBytes": 28535,
-      "outputSha256": "5886b8531665200379992f8cba876961f220105f5e73193a74a39e289f5d454e",
+      "minifiedBytes": 115001,
+      "gzipBytes": 34883,
+      "brotliBytes": 30483,
+      "outputSha256": "6a5cf061916a1603a4aa4101e090c8155d87eb5bb4acdbef63a52075d7338a34",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-react",
-            "bytes": 53749
+            "bytes": 62513
           },
           {
             "name": "@expo/snapback-client",
@@ -1330,7 +1342,7 @@
           {
             "module": "packages/snapback-react/index.mjs",
             "package": "@expo/snapback-react",
-            "bytes": 53749
+            "bytes": 62513
           },
           {
             "module": "packages/snapback-client/assets.mjs",
@@ -1902,7 +1914,7 @@
             "imports": []
           },
           "packages/snapback-react/index.mjs": {
-            "bytes": 151355,
+            "bytes": 172890,
             "imports": [
               {
                 "path": "./react-runtime.mjs",
@@ -1967,7 +1979,7 @@
           }
         },
         "output": {
-          "bytes": 106237,
+          "bytes": 115001,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/external-react-application.fixture.mjs",
           "imports": [
             {
@@ -2046,7 +2058,7 @@
               "bytesInOutput": 232
             },
             "packages/snapback-react/index.mjs": {
-              "bytesInOutput": 53749
+              "bytesInOutput": 62513
             },
             "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/external-react-application.fixture.mjs": {
               "bytesInOutput": 177
@@ -2057,7 +2069,7 @@
       "savings": {
         "minifiedBytes": 0,
         "gzipBytes": 0,
-        "brotliBytes": 10
+        "brotliBytes": 0
       }
     },
     {
@@ -17350,15 +17362,15 @@
       "externals": [
         "react"
       ],
-      "minifiedBytes": 106062,
-      "gzipBytes": 32652,
-      "brotliBytes": 28488,
-      "outputSha256": "d615465dc8bd6256ba0507bd06aa3915a4146f0319190f1bb51b6f8cf8d2ae30",
+      "minifiedBytes": 114826,
+      "gzipBytes": 34830,
+      "brotliBytes": 30450,
+      "outputSha256": "366d6bf56088ebe9c8a086a3385b0d22ab45d378f1f0bb926e0cbb82012040bf",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-react",
-            "bytes": 53596
+            "bytes": 62360
           },
           {
             "name": "@expo/snapback-client",
@@ -17377,7 +17389,7 @@
           {
             "module": "packages/snapback-react/index.mjs",
             "package": "@expo/snapback-react",
-            "bytes": 53596
+            "bytes": 62360
           },
           {
             "module": "packages/snapback-client/assets.mjs",
@@ -17949,7 +17961,7 @@
             "imports": []
           },
           "packages/snapback-react/index.mjs": {
-            "bytes": 151355,
+            "bytes": 172890,
             "imports": [
               {
                 "path": "./react-runtime.mjs",
@@ -18014,7 +18026,7 @@
           }
         },
         "output": {
-          "bytes": 106062,
+          "bytes": 114826,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/react-external.fixture.mjs",
           "imports": [
             {
@@ -18093,7 +18105,7 @@
               "bytesInOutput": 232
             },
             "packages/snapback-react/index.mjs": {
-              "bytesInOutput": 53596
+              "bytesInOutput": 62360
             },
             "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/react-external.fixture.mjs": {
               "bytesInOutput": 155
@@ -19044,6 +19056,7 @@
     "baseline.search-prewitness-refusal.v1.json",
     "baseline.rqs-store-competing-writer.v1.json",
     "baseline.lease-custody-and-remediation.v1.json",
-    "baseline.live-wire-replay-seam.v1.json"
+    "baseline.live-wire-replay-seam.v1.json",
+    "baseline.react-optimistic-create.v1.json"
   ]
 }

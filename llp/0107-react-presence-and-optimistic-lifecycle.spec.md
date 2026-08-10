@@ -5,7 +5,11 @@
 **Systems:** React, React/Expo, Ephemeral state, Client integration, Realtime, Auth, Mutation settlement, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-09 (queued-settlement truthfulness: a durably queued
+**Revised:** 2026-08-10 (first-class generated optimistic create: one
+provider-owned hook/view projects a typed durable provisional identity over
+the exact canonical query store, consumes LLP 0133 logical-mint mappings for
+response/query ordering and replay recovery, and preserves authority,
+Strict Mode/HMR, and cleanup ownership). 2026-08-09 (queued-settlement truthfulness: a durably queued
 React mutation rejects only through the distinct
 `SnapbackQueuedMutationError` / `SNAPBACK_REACT_MUTATION_QUEUED` class so the
 generated resolved type stays result-only; positive development builds warn
@@ -60,6 +64,15 @@ useSnapbackMutation<Ref extends MutationReference,
     isAuthoritative?(current: FunctionResult<Q>,
       result: FunctionResult<Ref>): boolean}}
 ): (args: FunctionArgs<Ref>) => Promise<FunctionResult<Ref>>
+
+useSnapbackOptimisticCreate<Ref extends MutationReference,
+  Q extends QueryReference, Selected = readonly OptimisticCreateEntity<
+    QueryRow<Q>>[]>(
+  ref: Ref,
+  options: {query: Q; args: FunctionArgs<Q>;
+    select?(entities: readonly OptimisticCreateEntity<QueryRow<Q>>[]): Selected}
+): {query: QueryState<Selected>;
+    create(args: FunctionArgs<Ref>): Promise<FunctionResult<Ref>>}
 ```
 
 References match the prepared app/target; scope/value/query args use LLP 0114's
@@ -69,6 +82,15 @@ generated/deployed collection name, schemas, key mode, bounds, app/target,
 schema, and static policy/projection digest; runtime trusts only that map.
 `ConnectionEphemeralCollectionReference` admits literal `Connection`; other,
 stale, or forged refs refuse `SNAPBACK_REACT_PRESENCE_KEY_MODE_UNSUPPORTED`.
+
+The optimistic-create overload admits only one generated local-executable
+`Insert` into the exact documents-query table. Its canonical branch carries
+the generated `Id<Table>` and complete row; its provisional branch carries a
+distinct generated `ProvisionalId<Table>` backed by durable
+`clientMutationId`, with the evaluator's speculative mint and server-authored
+row metadata excluded. `select` is the explicit filter/order/count/relation
+projection over both branches. `observeSnapbackOptimisticCreate` is the
+framework-neutral acceptance twin of the hook.
 
 ## Presence ownership
 
@@ -392,6 +414,22 @@ No durable/offline/SSR/history/cross-room/custom-key presence, caller authority
 facts, React-owned transport/cache/ledger, HTTP authority, or hosted inheritance.
 
 ## Implementation journal
+
+2026-08-10 (first-class optimistic create,
+`issues/closed/20260808-first-class-react-optimistic-create.md`):
+`useSnapbackOptimisticCreate` and its observer twin now own one headless
+generated-IR view per exact provider query store. Response-first settlements
+bridge until canonical delivery; query-first delivery waits behind the
+unresolved dispatch; rejection refreshes only its durable layer; and queued
+response-loss recovery discovers the retained settlement by exact
+`clientMutationId` and retires through the same LLP 0133 `idMap`. Generated
+clients export `ProvisionalId<Table>`, while the React union prevents it from
+flowing to `Id<Table>` and omits server metadata from provisional fields.
+Package tests cover projection semantics, both delivery orderings, overlapping
+rejection, authority cuts, Strict Mode remount, replay recovery, and zero-leak
+cleanup. The existing provider-live conformance gate adds a real served
+drop-after-commit/replay witness with identical protocol identity and one
+canonical rendered row. No new proof gate was introduced.
 
 2026-08-09 (queued-settlement truthfulness,
 `issues/closed/20260809-queued-mutation-settlement-truthfulness.md`): the React

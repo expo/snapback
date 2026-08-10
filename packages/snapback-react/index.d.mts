@@ -8,6 +8,7 @@ import type {
   PreparedReactQueryGroup,
   PreparedReactBinding,
   QueryGroupEntries,
+  SnapbackProvisionalId,
   SnapbackEphemeralReference,
   SnapbackFunctionReference,
 } from '@expo/snapback-client';
@@ -124,6 +125,34 @@ export type MutationReference<
   Result = unknown,
 > = SnapbackFunctionReference<Name, 'Mutation', Args, Result>;
 
+type OptimisticCreateQueryRow<Ref extends QueryReference> =
+  FunctionResult<Ref> extends ReadonlyArray<infer Row> ? Row : never;
+type OptimisticCreateTable<Row> = Row extends {
+  readonly _id: string & { readonly __snapbackIdTable: infer Table extends string };
+} ? Table : string;
+export type OptimisticCreateProvisionalFields<Row> = Omit<
+  Row,
+  '_id' | '_version' | '_createdAt' | '_updatedAt'
+>;
+export type OptimisticCreateEntity<Row> =
+  | Readonly<{
+      kind: 'canonical';
+      identity: Readonly<{
+        kind: 'canonical';
+        id: Row extends { readonly _id: infer Id } ? Id : string;
+      }>;
+      fields: Row;
+    }>
+  | Readonly<{
+      kind: 'provisional';
+      identity: Readonly<{
+        kind: 'provisional';
+        id: SnapbackProvisionalId<OptimisticCreateTable<Row>>;
+        intentId: SnapbackProvisionalId<OptimisticCreateTable<Row>>;
+      }>;
+      fields: OptimisticCreateProvisionalFields<Row>;
+    }>;
+
 export type ConnectionEphemeralCollectionReference<
   Name extends string = string,
   Scope = Record<string, unknown>,
@@ -162,6 +191,17 @@ export interface SnapbackReactProvider {
     custodyPaused: boolean;
     hostPaused: boolean;
     stores: number;
+    optimisticLayers: number;
+    optimisticCreateViews: number;
+    optimisticCreateConsumers: number;
+    provisionalCreates: number;
+    confirmedOptimisticLayers: readonly Readonly<{
+      attemptId: string;
+      mutationId: string;
+      queryId: string;
+      confirmedRevision: number;
+      storeRevision: number;
+    }>[];
     consumers: number;
     serverSubscriptions: number;
     leases: number;
@@ -493,6 +533,25 @@ export function useSnapbackMutation<
     }>;
   }>,
 ): (args: FunctionArgs<Ref>) => Promise<FunctionResult<Ref>>;
+
+/** Provider-owned generated-IR insert projected over the exact canonical
+ * query store. The generated speculative mint remains private; provisional
+ * entities expose only durable intent identity. */
+export function useSnapbackOptimisticCreate<
+  Ref extends MutationReference,
+  Q extends QueryReference,
+  Selected = readonly OptimisticCreateEntity<OptimisticCreateQueryRow<Q>>[],
+>(
+  reference: Ref,
+  options: Readonly<{
+    query: Q;
+    args: FunctionArgs<Q>;
+    select?: (entities: readonly OptimisticCreateEntity<OptimisticCreateQueryRow<Q>>[]) => Selected;
+  }>,
+): Readonly<{
+  query: QueryState<Selected>;
+  create(args: FunctionArgs<Ref>): Promise<FunctionResult<Ref>>;
+}>;
 export function useSnapbackCommand<Command extends AssetBearingCommandReferenceV1>(
   reference: Command,
 ): (args: CommandArgs<Command>) => CommandTask<CommandResult<Command>>;
@@ -541,6 +600,11 @@ export interface SnapbackQueryGroupObserver<Entries extends QueryEntryMap> {
   snapshot(): QueryGroupState<Entries>;
   dispose(): void;
 }
+export interface SnapbackOptimisticCreateObserver<Args, Result, Selected> {
+  snapshot(): QueryState<Selected>;
+  create(args: Args): Promise<Result>;
+  dispose(): void;
+}
 export interface SnapbackPresenceObserver<Value, Scope> {
   update(options: Readonly<{
     scope: Scope;
@@ -578,6 +642,20 @@ export function observeSnapbackQueries<
     state: QueryGroupState<QueryGroupEntries<Group['reference']> & QueryEntryMap>,
   ) => void,
 ): SnapbackQueryGroupObserver<QueryGroupEntries<Group['reference']> & QueryEntryMap>;
+export function observeSnapbackOptimisticCreate<
+  Ref extends MutationReference,
+  Q extends QueryReference,
+  Selected = readonly OptimisticCreateEntity<OptimisticCreateQueryRow<Q>>[],
+>(
+  provider: SnapbackReactProvider,
+  reference: Ref,
+  options: Readonly<{
+    query: Q;
+    args: FunctionArgs<Q>;
+    select?: (entities: readonly OptimisticCreateEntity<OptimisticCreateQueryRow<Q>>[]) => Selected;
+  }>,
+  listener: (state: QueryState<Selected>) => void,
+): SnapbackOptimisticCreateObserver<FunctionArgs<Ref>, FunctionResult<Ref>, Selected>;
 export function invokeSnapbackMutation<
   Ref extends MutationReference,
   Q extends QueryReference = never,

@@ -32,13 +32,19 @@
 // See Exact LLP 0284 §2.2 (connection axis), §5.2 (provider conformance) —
 // an external corpus, cited in prose because ref annotations resolve locally.
 
-import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../client.mjs';
 import { startServer } from '../server-process.mjs';
 import { generate, crossCheckContractQueryBinding } from '../codegen.mjs';
 import { assert, assertEqual, createSuite, eventually } from '../harness.mjs';
+import { createFileRqsResumeStore } from '../../../packages/snapback-client/rqs-store-file.mjs';
+import { prepareReactBindingForClient } from '../../../packages/snapback-client/react-binding.mjs';
+import {
+  createSnapbackReactProvider,
+  observeSnapbackOptimisticCreate,
+} from '../../../packages/snapback-react/index.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..');
@@ -916,6 +922,152 @@ try {
       return { pollTransport: established.transport, connection: handle.connection };
     } finally {
       handle.dispose();
+    }
+  });
+
+  await suite.check('React optimistic create survives response loss with one canonical row (LLP 0155 Move 4)', async () => {
+    // This app is generated under the repository root so package imports
+    // resolve normally, but it never acquires repository custody: the whole
+    // backend and its generated artifacts are removed in the finally block.
+    const backend = mkdtempSync(join(repoRoot, '.provider-optimistic-create-'));
+    const generatedDir = join(backend, 'generated');
+    const defineUrl = pathToFileURL(join(repoRoot, 'packages/snapback-codegen/define.mjs')).href;
+    let client = null;
+    let provider = null;
+    let observer = null;
+    let store = null;
+    const nativeFetch = globalThis.fetch;
+    try {
+      writeFileSync(join(backend, 'schema.mjs'), `
+import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
+export const records = defineTable({ title: v.string(), rank: v.integer() }).sync();
+export default defineSchema({ records });
+`);
+      writeFileSync(join(backend, 'functions.mjs'), `
+import { arg, asc, defineLiveQuery, defineMutation, insert, returnBinding, results, v } from ${JSON.stringify(defineUrl)};
+export const records = defineLiveQuery({ table: 'records', args: {}, order: [asc('rank')] });
+export const createRecord = defineMutation({
+  args: { title: v.string(), rank: v.integer() },
+  result: results.value(v.id('records')),
+  plan: insert('records', { title: arg('title'), rank: arg('rank') }, { bindIdAs: 'recordId' }),
+  returns: returnBinding('recordId'),
+});
+`);
+      const generated = await generate(backend);
+      assert(generated.ok, `optimistic-create fixture codegen failed: ${JSON.stringify(generated.diagnostics)}`);
+      const schema = JSON.parse(readFileSync(join(generatedDir, 'schema.manifest.json'), 'utf8'));
+      const functions = JSON.parse(readFileSync(join(generatedDir, 'functions.manifest.json'), 'utf8'));
+      const api = (await import(`${pathToFileURL(join(generatedDir, 'api.mjs')).href}?provider-live=1`)).api;
+      await db.loadSchema(schema);
+      await db.loadFunctions(functions);
+      await db.reset();
+
+      store = createFileRqsResumeStore({
+        directory: join(backend, 'rqs'),
+        clientStoreId: 'provider-optimistic-create',
+      });
+      await store.whenLockSettled?.();
+      client = new SnapbackClient(server.baseUrl, {
+        ...server.clientOptions,
+        custody: 'anonymous-public',
+        rqsStore: store,
+        offlineQueue: true,
+      });
+      const binding = await prepareReactBindingForClient(client, { generatedManifest: functions });
+      provider = createSnapbackReactProvider(binding, {
+        connectionId: 'provider-optimistic-create',
+      });
+      observer = observeSnapbackOptimisticCreate(
+        provider,
+        api.createRecord,
+        { query: api.records, args: {} },
+        () => {},
+      );
+      await eventually(() => {
+        const snapshot = observer.snapshot();
+        assert(snapshot.status === 'ready', `query is ${snapshot.status}`);
+      }, 'optimistic-create canonical query readiness');
+
+      const requests = [];
+      let droppedSettlement = null;
+      globalThis.fetch = async (input, init) => {
+        const rawUrl = typeof input === 'string' || input instanceof URL
+          ? String(input)
+          : input?.url;
+        const body = init?.body ? JSON.parse(String(init.body)) : null;
+        const response = await nativeFetch(input, init);
+        if (
+          rawUrl
+          && new URL(rawUrl).pathname === '/mutation/createRecord'
+          && body?.args?.title === 'response-loss'
+        ) {
+          requests.push(body);
+          if (droppedSettlement === null) {
+            droppedSettlement = await response.clone().json();
+            throw new TypeError('simulated response loss after authoritative commit');
+          }
+        }
+        return response;
+      };
+
+      let queuedError = null;
+      try {
+        await observer.create({ title: 'response-loss', rank: 1 });
+      } catch (error) {
+        queuedError = error;
+      }
+      assert(
+        queuedError?.code === 'SNAPBACK_REACT_MUTATION_QUEUED',
+        `response loss is a durable pending settlement: ${queuedError?.stack ?? queuedError}`,
+      );
+      assertEqual(requests.length, 1, 'one original wire attempt');
+      assert(droppedSettlement?.receipt?.idMap?.length === 1, 'dropped settlement carried one identity mapping');
+
+      const replay = await client.replayQueuedMutations();
+      globalThis.fetch = nativeFetch;
+      assertEqual(replay.replayed, 1, 'one queued intent replayed');
+      assertEqual(requests.length, 2, 'one exact retry followed the lost response');
+      const protocolIdentity = (request) => ({
+        clientMutationId: request.clientMutationId,
+        args: request.args,
+        settlementLane: request.settlementLane,
+        settlementIdentity: request.settlementIdentity,
+        settlementClaims: request.settlementClaims,
+      });
+      assertEqual(
+        protocolIdentity(requests[1]),
+        protocolIdentity(requests[0]),
+        'retry preserves exact protocol identity',
+      );
+      const retained = (await client.settledMutations())
+        .find((entry) => entry.clientMutationId === queuedError.clientMutationId)?.settlement;
+      assert(retained, 'duplicate settlement remains recoverable by durable intent identity');
+      assertEqual(retained.receipt.idMap, droppedSettlement.receipt.idMap, 'retry preserves exact idMap');
+
+      await eventually(() => {
+        const snapshot = observer.snapshot();
+        assert(snapshot.status === 'ready' || snapshot.status === 'refreshing', `query is ${snapshot.status}`);
+        const matching = snapshot.data.filter((entry) => entry.fields.title === 'response-loss');
+        assertEqual(matching.length, 1, 'one rendered row after replay');
+        assertEqual(matching[0].kind, 'canonical', 'rendered row retired provisional identity atomically');
+      }, 'optimistic-create replay settlement');
+      const canonical = observer.snapshot().data.find((entry) => entry.fields.title === 'response-loss');
+      return {
+        clientMutationId: queuedError.clientMutationId,
+        wireAttempts: requests.length,
+        replayed: replay.replayed,
+        originalIdMap: droppedSettlement.receipt.idMap,
+        replayedIdMap: retained.receipt.idMap,
+        renderedRows: 1,
+        renderedIdentity: canonical.kind,
+      };
+    } finally {
+      globalThis.fetch = nativeFetch;
+      try { observer?.dispose(); } catch {}
+      try { await provider?.dispose(); } catch {}
+      try { await client?.closeAuth(); } catch {}
+      try { await store?.close?.(); } catch {}
+      rmSync(backend, { recursive: true, force: true });
     }
   });
 

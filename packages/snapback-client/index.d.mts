@@ -258,6 +258,12 @@ export type EphemeralValue<Ref> =
 export type SnapbackId<Table extends string> =
   string & { readonly __snapbackIdTable: Table };
 
+/** Structurally compatible with the generated `ProvisionalId<Table>` type.
+ * Its value is durable intent identity, never a speculative or canonical row
+ * mint, and it is deliberately not assignable to `SnapbackId<Table>`. */
+export type SnapbackProvisionalId<Table extends string> =
+  string & { readonly __snapbackProvisionalIdTable: Table };
+
 /**
  * Admit an id from an untyped boundary after validating Snapback's bounded
  * opaque-id grammar. This does not assert that the referenced row exists.

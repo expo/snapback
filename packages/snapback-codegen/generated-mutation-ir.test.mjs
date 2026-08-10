@@ -99,9 +99,12 @@ export const authoritativeValue = defineMutation({
     api.api.authoritativeValue.mutationIr.capabilityCode,
     'SNAPBACK_GENERATED_IR_AUTHORITATIVE_EXPR_SERVER_ONLY',
   );
+  const apiTypes = readFileSync(join(root, 'generated', 'api.d.ts'), 'utf8');
+  assert.match(apiTypes, /mutationIr\?: GeneratedMutationIrV1/u);
   assert.match(
-    readFileSync(join(root, 'generated', 'api.d.ts'), 'utf8'),
-    /mutationIr\?: GeneratedMutationIrV1/u,
+    apiTypes,
+    /export type ProvisionalId<Table extends string> = string & \{ readonly __snapbackProvisionalIdTable: Table \};/u,
+    'generated clients expose provisional identity without weakening canonical Id<Table>',
   );
 
   const firstHash = create.operationHash;

@@ -1702,6 +1702,56 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-react/package.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.react-optimistic-create.v1.json',
+    profileFilename: 'sessions-custody-offline-queue-profiles.v1.json',
+    workloadVersion: 'react-optimistic-create.2026-08-10.v1',
+    profileIds: Object.freeze([
+      'external-react-application',
+      'react-external',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.lease-custody-and-remediation.v1.json',
+        profileIds: Object.freeze(['external-react-application']),
+      }),
+      Object.freeze({
+        filename: 'baseline.live-wire-replay-seam.v1.json',
+        profileIds: Object.freeze(['react-external']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-10',
+      landing: '26fb0b9484e1c0a782dc1c2a62e4c179decdc05f',
+      fix: 'Provider-owned useSnapbackOptimisticCreate: distinct provisional '
+        + 'identity type, canonical-query projection, settlement/replay '
+        + 'handling, and authority fencing — closes the clients.optimistic-'
+        + 'create GAP row (promoted to local/shipped) with package tests and '
+        + 'served acceptance coverage.',
+      ticket: 'issues/closed/20260808-first-class-react-optimistic-create.md',
+      standingPolicy: 'LLP 0145 Phase A, 2026-08-10 author ruling: attributed '
+        + 'growth from a landed, receipted fix takes an automatic blessed rollover.',
+      byteDeltas: 'external-react-application min 106237->115001 (+8764), '
+        + 'gzip 32708->34883 (+2175), brotli 28545->30483 (+1938); '
+        + 'react-external min 106062->114826 (+8764), gzip 32652->34830 '
+        + '(+2178), brotli 28488->30450 (+1962).',
+      summary: 'Advance exactly the two React closures for the landed '
+        + 'optimistic-create surface; every other active ceiling and both '
+        + 'predecessors remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'external-react-application',
+      'react-external',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/package.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {

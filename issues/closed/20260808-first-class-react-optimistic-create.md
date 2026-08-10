@@ -1,6 +1,6 @@
 # First-class React-provider optimistic create remains missing
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Date:** 2026-08-08
 **Severity:** P3
 **Systems:** React client, Optimistic mutation view, Generated IDs
@@ -53,3 +53,20 @@ LLP 0133 settlement identity:
 The current executable lower-level recipe is
 `guide/recipes/optimistic-create.md`; do not duplicate its settlement
 machinery in this issue.
+
+## Resolution
+
+Shipped `useSnapbackOptimisticCreate` and
+`observeSnapbackOptimisticCreate` in `@expo/snapback-react`. One
+provider-owned headless view now projects generated single-`Insert` layers
+over the exact canonical query store. Generated clients export a distinct
+`ProvisionalId<Table>`; the public entity union keeps the speculative mint and
+server-authored metadata private until LLP 0133 `idMap` settlement.
+
+`packages/snapback-react/optimistic-create.test.mjs` covers typed projection,
+explicit filter/order/relation semantics, both response/query orderings,
+overlapping rejection, authority replacement, Strict Mode remount, replay
+recovery, and cleanup. The existing real-server
+`provider-live-conformance` gate now drops a response after commit, replays the
+same `clientMutationId`, observes the same `idMap`, and renders one canonical
+row. `clients.optimistic-create` is consequently `local / shipped`.

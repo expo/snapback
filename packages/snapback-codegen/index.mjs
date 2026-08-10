@@ -10285,6 +10285,7 @@ function renderMicroDeclaration(functions, functionsModule, schemaDef) {
       ? ["import type { MicroLiveHandle, MicroRuntime } from '@expo/snapback-client/micro/live';"]
       : ["type MicroRuntime = MicroCoreRuntime;"]),
     "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
+    "export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };",
     "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
     'export interface MicroDataModel {',
   ];
@@ -11333,6 +11334,7 @@ function renderApiTypes(
     "export type SchemaVersion = 'snapback.v0';",
     "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
     "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
+    "export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };",
     "export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';",
     // @ref LLP 0131#the-search-fixture-cv-5 — the request-grammar types are
     // derived from the exported Rust-owned search.request.schema.json, not

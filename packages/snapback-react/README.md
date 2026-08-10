@@ -11,9 +11,12 @@ The package exports:
 - `createSnapbackReactProvider` and `SnapbackProvider`;
 - `useSnapbackQuery(ref, args)` and `useSnapbackQueries(entriesOrPreparedGroup)`;
 - `useSnapbackMutation(ref, { optimistic })`;
+- `useSnapbackOptimisticCreate(ref, { query, args, select })` for one
+  generated `Insert` with typed provisional identity;
 - `useSnapbackPresence(ref, { scope, value, ttlMs })`;
 - `useSnapbackConnection()`;
-- framework-neutral `observeSnapbackQueries`, `observeSnapbackPresence`, and
+- framework-neutral `observeSnapbackQueries`,
+  `observeSnapbackOptimisticCreate`, `observeSnapbackPresence`, and
   `invokeSnapbackMutation` acceptance/adapter seams; and
 - `bindSnapbackAppLifecycle` for a React Native application-state owner.
 
@@ -51,8 +54,10 @@ Generated references supply exact argument and result types. Same-key sibling
 queries share one authoritative external store and upstream attempt. Same-room
 presence consumers share one headless room and managed heartbeat. Optimistic
 layers rebase over newer live authority and selectively roll back on
-rejection. Authority changes blank predecessor data; Strict Mode replay, late
-handles, grants, socket demand, timers, and final disposal are package-owned.
+rejection. Generated optimistic creates use a distinct `ProvisionalId<Table>`
+until logical-mint settlement maps the server's canonical `Id<Table>`.
+Authority changes blank predecessor data; Strict Mode replay, late handles,
+grants, socket demand, timers, and final disposal are package-owned.
 
 For a generated route group, prime before mount and hand the prepared group to
 both the provider and hook/observer:

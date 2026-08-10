@@ -4,8 +4,8 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
-examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts]
+examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, demos/_kit/tests/provider-live-conformance.mjs, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/optimistic-create.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
@@ -387,82 +387,87 @@ site; production builds skip the check.
 
 ## Optimistically create a row the server will name
 
-The `optimistic:` projection **updates rows that already exist** in the
-authoritative store. It cannot fabricate a new row for a create mutation
-whose canonical `_id` the server mints: the projected rows are validated
-against the generated result contract, and the row identity is a branded
-generated ID that only the server produces — TypeScript refuses a forged
-provisional ID, and that refusal is deliberate (a fake ID could leak into
-mutation arguments and durable state). When a **genuine** external id
-arrives through an untyped boundary — a route param, a deep-link token —
-admit it with `admitSnapbackId(table, value)` from `@expo/snapback-client`
-rather than casting: it proves only the bounded wire grammar and
-deliberately claims nothing about row existence. An append-shaped reducer
-(`rows => [...rows, capturedRow]`) is also not idempotent over its own
-output, so it trips the development replay advisory above.
+Use `useSnapbackOptimisticCreate` when one locally executable generated
+`Insert` should appear immediately in the exact provider-owned query store.
+The hook returns `{ query, create }`: `query` has the ordinary
+`pending | ready | refreshing | error` state axis, while its ready data is a
+canonical/provisional entity union. The provider owns the durable optimistic
+view, canonical rebases, authority partition, Strict Mode/HMR sharing, and
+cleanup.
 
-The current paved shape is a **component-local pending sidecar keyed by an
-app-generated intent key** — never a forged row ID:
-
-```tsx fragment reason="illustrative pending-sidecar shape; row fields come from the application schema"
-let intentSequence = 0; // module-local; the key needs uniqueness, not unpredictability
-const [pending, setPending] = useState<Array<{ intentKey: string; title: string }>>([]);
-const createTask = useSnapbackMutation(api.createTask);
-
-async function submit(title: string) {
-  const intentKey = `intent-${Date.now()}-${intentSequence++}`; // app-local presentation key only
-  setPending((rows) => [...rows, { intentKey, title }]);
-  try {
-    await createTask({ title });
-    // Immediate success: the canonical row arrives by live delivery.
-    setPending((rows) => rows.filter((row) => row.intentKey !== intentKey));
-  } catch (error) {
-    if ((error as { code?: string }).code === 'SNAPBACK_REACT_MUTATION_QUEUED') {
-      return; // replay is pending; do not erase the user's acknowledged intent
-    }
-    const appCode = (error as { diagnostic?: { details?: { appCode?: unknown } } })
-      .diagnostic?.details?.appCode;
-    if (typeof appCode === 'string') {
-      setPending((rows) => rows.filter((row) => row.intentKey !== intentKey));
-      showCreateRefusal(appCode);
-      return;
-    }
-    throw error;
-  }
-}
+```ts source=packages/snapback-react/optimistic-create-types.fixture.ts
+const calendar = useSnapbackOptimisticCreate(api.reserve, {
+  query: api.schedule,
+  args: {},
+  select: (entities) => entities
+    .filter((entity) => entity.fields.slotKey === 'slot-a')
+    .sort((left, right) => left.fields.resourceKey.localeCompare(right.fields.resourceKey)),
+});
 ```
 
-The time+sequence key is carrier-safe: `crypto.randomUUID()` also works on
-web, but Hermes ships no `globalThis.crypto`
-([React Expo crypto prerequisites](./react-expo.md#crypto-prerequisites-react-native-ships-no-webcrypto)),
-and a presentation-only key needs no unpredictability.
+`select` is the explicit presentation boundary for filtering, ordering,
+counts, and relationships. It receives canonical and provisional entities in
+one list, so a provisional row follows the same application projection rather
+than living in a parallel pending sidecar. A relationship can close over a
+map from another complete query; a count is simply the selected array's
+length.
 
-Render the pending items beside the query rows, marked as unsettled. A declared
-server refusal with `appCode` removes only the corresponding item; a queued or
-otherwise ambiguous outcome keeps it pending, and immediate success lets the
-authoritative row replace it through the ordinary live update. This is the
-smallest hook-native shape when a pending item does not need to participate in
-query filtering, ordering, counts, or relationships. The hook's built-in
-`optimistic` query projection is process-local, not the durable outbox overlay;
-use this sidecar plus `useSnapbackOutbox()` for an action that must remain
-visible across queued replay.
+Each entity carries a top-level `kind` discriminant. A canonical branch has a
+generated `Id<Table>` and the complete server row. A provisional branch has a
+generated `ProvisionalId<Table>` backed by the durable `clientMutationId`, and
+its `fields` omit `_id`, `_version`, `_createdAt`, and `_updatedAt`. The
+evaluator's speculative row mint is private and cannot leak into application
+state:
 
-This is honestly less composable than a provider-owned optimistic insert: the
-pending row does not participate in the query store's filtering, sorting, or
-counting. When the create **does** need those semantics, the shipped
-framework-neutral generated-IR path uses
-`SnapbackClient.createOptimisticMutationView`, durable protocol intent
-identity, and the server's logical-mint map without forging a canonical id;
-follow the CI-verified
-[optimistic-create recipe](../recipes/optimistic-create.md). That path is
-lower-level than this provider/hook.
+```ts source=packages/snapback-react/optimistic-create-types.fixture.ts
+  for (const entity of calendar.query.data) {
+    if (entity.kind === 'canonical') {
+      requireCanonicalReservation(entity.identity.id);
+      entity.fields._version.toFixed();
+    } else {
+      const provisional: ProvisionalId<'reservations'> = entity.identity.id;
+      provisional.toUpperCase();
+      entity.fields.title.toUpperCase();
+      // @ts-expect-error provisional intent identity cannot flow as a canonical row id.
+      requireCanonicalReservation(provisional);
+      // @ts-expect-error server-authored row version is absent on provisional fields.
+      entity.fields._version;
+    }
+  }
+```
 
-A first-class typed intent-ID optimistic create directly in the provider's
-canonical query store — reconciling one intent to one canonical row under
-ambiguous retry — remains an explicit GAP
-(`clients.optimistic-create` in the [capability index](../capabilities.md);
-issue
-[20260808-first-class-react-optimistic-create](repo:issues/20260808-first-class-react-optimistic-create.md)).
+Call `create` with the generated mutation's exact arguments. The one generated
+IR operation drives both local prediction and server authority; do not supply
+a second reducer. This insert-shaped path does not run the generic
+append-reducer replay advisory.
+
+```ts source=packages/snapback-react/optimistic-create-types.fixture.ts
+calendar.create({
+  idempotencyKey: 'typed-fixture',
+  resourceKey: 'room-00',
+  slotKey: 'slot-a',
+  ownerId: 'alice',
+  title: 'Planning',
+  now: 1_787_000_000_000,
+}).then((id) => requireCanonicalReservation(id));
+```
+
+On a declared rejection, only that mutation's durable layer retires and newer
+layers replay. On success, the provisional entity bridges until authoritative
+delivery consumes the settlement's logical-mint `idMap`; response-first and
+query-first delivery therefore converge without a canonical-plus-provisional
+duplicate. If `create` rejects with
+`SNAPBACK_REACT_MUTATION_QUEUED`, keep rendering the provisional entity:
+durable replay retains the exact `clientMutationId`, and the provider recovers
+the retained settlement and `idMap` after replay.
+
+The hook accepts only a generated local-executable mutation containing exactly
+one `Insert` into the document query's table. Other shapes refuse with
+`SNAPBACK_REACT_OPTIMISTIC_CREATE_INSERT_REQUIRED`; use the ordinary
+`useSnapbackMutation` optimistic projection for updates, or the lower-level
+`SnapbackClient.createOptimisticMutationView` escape hatch for a composition
+that genuinely needs direct headless control. See the complete
+[optimistic-create recipe](../recipes/optimistic-create.md).
 
 ## Show stable application errors through rollback
 
