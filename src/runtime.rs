@@ -427,6 +427,7 @@ impl RuntimeManager {
             ),
             true,
         )?;
+        invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
         invocation.declared_refusals = prepared.declared_refusals().to_vec();
         invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
         invocation.declared_sequences = prepared.sequences().to_vec();
@@ -492,6 +493,7 @@ impl RuntimeManager {
             host,
             grants,
         )?;
+        invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
         invocation.declared_refusals = prepared.declared_refusals().to_vec();
         invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
         // Actions always run fresh by the DK-4 scope fence. Per-invocation
@@ -520,6 +522,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         ),
         true,
     )?;
+    invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
     invocation.declared_refusals = prepared.declared_refusals().to_vec();
     invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
     invocation.declared_sequences = prepared.sequences().to_vec();
@@ -600,6 +603,7 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
         ),
         false,
     )?;
+    invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
     invocation.protected_query_profile = protected_query_profile;
     invocation.declared_refusals = prepared.declared_refusals().to_vec();
     invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
@@ -683,6 +687,7 @@ pub(crate) fn run_ibex_asset_authorizer_prepared(
         ),
         false,
     )?;
+    invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
     invocation.protected_query_profile = true;
     invocation.declared_refusals = prepared.declared_refusals().to_vec();
     invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
@@ -1210,6 +1215,7 @@ pub(crate) struct IbexHostContext<'a> {
     db: Option<DbRead<'a>>,
     input: HandlerInput,
     handler_auth: HandlerAuthProjection,
+    rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
     admission: AdmissionLease,
     mode: IbexInvocationMode,
     /// Default-deny input registry for auth-scoped live and retained queries.
@@ -1333,6 +1339,7 @@ impl<'a> IbexHostContext<'a> {
             db: Some(db),
             input,
             handler_auth,
+            rehearsal_provenance: None,
             admission,
             mode: if writable {
                 IbexInvocationMode::Mutation
@@ -1400,6 +1407,7 @@ impl<'a> IbexHostContext<'a> {
             db: None,
             input,
             handler_auth,
+            rehearsal_provenance: None,
             admission,
             mode: IbexInvocationMode::Action,
             protected_query_profile: false,
@@ -1992,6 +2000,11 @@ impl<'a> IbexHostContext<'a> {
                 let (_canonical, digest) = crate::jobs::canonical_args(&job_args)?;
                 let (_, push_grant_digest) =
                     crate::jobs::canonical_push_grant(push_grant.as_ref())?;
+                let rehearsal_provenance = self.rehearsal_provenance.clone();
+                let (_, rehearsal_provenance_digest) =
+                    crate::jobs::canonical_rehearsal_provenance(
+                        rehearsal_provenance.as_ref(),
+                    )?;
                 let queue = crate::jobs::JOBS_DEFAULT_QUEUE.to_owned();
                 if let Some(key) = idempotency_key.as_deref() {
                     // Read-your-enqueues: an identical buffered intent under
@@ -2004,9 +2017,14 @@ impl<'a> IbexHostContext<'a> {
                         let (_, buffered_digest) = crate::jobs::canonical_args(&buffered.args)?;
                         let (_, buffered_grant_digest) =
                             crate::jobs::canonical_push_grant(buffered.push_grant.as_ref())?;
+                        let (_, buffered_rehearsal_digest) =
+                            crate::jobs::canonical_rehearsal_provenance(
+                                buffered.rehearsal_provenance.as_ref(),
+                            )?;
                         if buffered_digest == digest
                             && buffered.max_attempts == max_attempts
                             && buffered_grant_digest == push_grant_digest
+                            && buffered_rehearsal_digest == rehearsal_provenance_digest
                         {
                             return Ok(json!({
                                 "jobId": buffered.job_id,
@@ -2024,6 +2042,8 @@ impl<'a> IbexHostContext<'a> {
                         if existing.args_digest == digest
                             && existing.max_attempts == max_attempts
                             && existing.push_grant_digest == push_grant_digest
+                            && existing.rehearsal_provenance_digest
+                                == rehearsal_provenance_digest
                         {
                             return Ok(json!({
                                 "jobId": existing.job_id,
@@ -2044,6 +2064,7 @@ impl<'a> IbexHostContext<'a> {
                     max_attempts,
                     available_at_ms,
                     push_grant,
+                    rehearsal_provenance,
                 });
                 Ok(json!({
                     "jobId": job_id,
@@ -6805,6 +6826,7 @@ mod direct_human_projection_tests {
             authority_instance_id: "authority-1".to_owned(),
             session_not_after_ms: 10_000,
             provider_not_after_ms: None,
+            rehearsal_provenance: None,
         });
         assert_eq!(session[0]["direct"], true);
         assert_eq!(session[0]["auth"]["kind"], "human");

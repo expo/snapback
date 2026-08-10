@@ -5018,6 +5018,7 @@ fn asset_sessions_authority(user: &str, source: InvocationSource) -> PreparedAut
             authority_instance_id: format!("inst-{user}"),
             session_not_after_ms: u64::MAX,
             provider_not_after_ms: None,
+            rehearsal_provenance: None,
         },
     )
     .expect("sessions authority")
@@ -18690,6 +18691,7 @@ fn cursor_negatives_hold_under_sessions_authorities() {
                 authority_instance_id: format!("authinst-{session_id}"),
                 session_not_after_ms: u64::MAX / 2,
                 provider_not_after_ms: None,
+                rehearsal_provenance: None,
             },
         )
         .expect("prepare session authority")
@@ -21296,6 +21298,7 @@ fn session_authority(authority_instance_id: &str) -> PreparedAuthority {
             authority_instance_id: authority_instance_id.to_owned(),
             session_not_after_ms: 10_000,
             provider_not_after_ms: None,
+            rehearsal_provenance: None,
         },
     )
     .expect("prepare session authority")
@@ -22122,6 +22125,7 @@ fn test_live_session_authority(
             authority_instance_id: "live-owner-authority".to_owned(),
             session_not_after_ms,
             provider_not_after_ms,
+            rehearsal_provenance: None,
         },
     )
     .expect("prepare retained live session authority")
@@ -22400,6 +22404,7 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
             authority_instance_id: "authinst-shrink".to_owned(),
             session_not_after_ms: u64::MAX / 2,
             provider_not_after_ms: None,
+            rehearsal_provenance: None,
         },
     )
     .expect("prepare session authority");
@@ -23716,6 +23721,7 @@ fn lease_session_authority() -> PreparedAuthority {
             authority_instance_id: LEASE_AUTHORITY_INSTANCE.to_owned(),
             session_not_after_ms: LEASE_SESSION_NOT_AFTER_MS,
             provider_not_after_ms: None,
+            rehearsal_provenance: None,
         },
     )
     .expect("prepare lease session authority")

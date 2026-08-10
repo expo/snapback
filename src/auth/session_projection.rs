@@ -246,6 +246,7 @@ pub(crate) struct ProjectionSessionRow {
     pub absolute_expires_at_ms: i64,
     pub revoked_at_ms: Option<i64>,
     pub terminal_cause: Option<Vec<u8>>,
+    pub rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -551,6 +552,7 @@ struct ProjectedSession {
     generation: u64,
     expires_at_ms: u64,
     absolute_expires_at_ms: u64,
+    rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
     deadline: DeadlinePair,
     state: ProjectedSessionState,
     current_token: Option<TokenDigest>,
@@ -567,6 +569,7 @@ pub(crate) struct ProjectedSessionAuthority {
     pub authority_instance_id: String,
     pub expires_at_ms: u64,
     pub absolute_expires_at_ms: u64,
+    pub rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
 }
 
 /// Exact immutable identity copied from one stored session grant for
@@ -685,6 +688,7 @@ pub(crate) struct ProjectedSessionInsert {
     pub created_at_ms: u64,
     pub expires_at_ms: u64,
     pub absolute_expires_at_ms: u64,
+    pub rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1322,6 +1326,7 @@ impl SessionProjection {
                 generation,
                 expires_at_ms,
                 absolute_expires_at_ms,
+                rehearsal_provenance: row.rehearsal_provenance,
                 deadline,
                 state,
                 current_token,
@@ -1762,6 +1767,7 @@ impl SessionProjection {
             authority_instance_id: session.authority_instance_id.clone(),
             expires_at_ms: session.expires_at_ms,
             absolute_expires_at_ms: session.absolute_expires_at_ms,
+            rehearsal_provenance: session.rehearsal_provenance.clone(),
         };
         Ok(match superseded_at_ms {
             Some(superseded_at_ms) => ProjectedTokenResolution::Superseded {
@@ -1823,6 +1829,7 @@ impl SessionProjection {
             authority_instance_id: session.authority_instance_id.clone(),
             expires_at_ms: session.expires_at_ms,
             absolute_expires_at_ms: session.absolute_expires_at_ms,
+            rehearsal_provenance: session.rehearsal_provenance.clone(),
         };
         Ok(if superseded {
             ProjectedConnectionTokenResolution::Superseded(authority)
@@ -1890,6 +1897,7 @@ impl SessionProjection {
                 authority_instance_id: session.authority_instance_id.clone(),
                 expires_at_ms: session.expires_at_ms,
                 absolute_expires_at_ms: session.absolute_expires_at_ms,
+                rehearsal_provenance: session.rehearsal_provenance.clone(),
             },
         ))
     }
@@ -2130,6 +2138,7 @@ impl SessionProjection {
             generation: insert.generation,
             expires_at_ms: insert.expires_at_ms,
             absolute_expires_at_ms: insert.absolute_expires_at_ms,
+            rehearsal_provenance: insert.rehearsal_provenance,
             deadline,
             state: ProjectedSessionState::Current,
             current_token: Some(insert.token_digest),
@@ -3038,6 +3047,7 @@ mod tests {
                 absolute_expires_at_ms: 300,
                 revoked_at_ms: None,
                 terminal_cause: None,
+                rehearsal_provenance: None,
             }],
             superseded_tokens: vec![ProjectionTokenRow {
                 token_hash: vec![10; 32],

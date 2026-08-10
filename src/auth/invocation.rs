@@ -28,7 +28,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+
+fn rehearsal_now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .min(9_007_199_254_740_991_u128) as u64
+}
 
 /// Presence of one authority-bearing wire location.
 ///
@@ -290,6 +298,9 @@ pub enum ResolvedAppAuthority {
         /// Optional provider-assertion deadline when it differs from the
         /// session's own lifetime.
         provider_not_after_ms: Option<u64>,
+        /// Protected rehearsal lineage, absent for ordinary sessions. It is
+        /// never included in the handler projection.
+        rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
     },
     /// Credential-free durable-watch authority. The worker reconstructs this
     /// only after loading the protected watch record and revalidating the
@@ -425,6 +436,7 @@ impl ResolvedAppAuthority {
             authority_instance_id: session.authority_instance_id,
             session_not_after_ms: session.expires_at_ms.min(session.absolute_expires_at_ms),
             provider_not_after_ms: None,
+            rehearsal_provenance: None,
         }
     }
 
@@ -1089,6 +1101,8 @@ pub struct PreparedAuthority {
     /// exact protected-catalog revalidation path; it is never inferred from
     /// ids or names.
     asset_callbacks_service: Option<AssetCallbacksServicePrincipal>,
+    rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+    rehearsal_fence: Option<crate::auth::rehearsal::RehearsalAuthorityFence>,
 }
 
 /// Bearer-free authority retained by a durable live subscription. It carries
@@ -1114,6 +1128,8 @@ pub(crate) struct RetainedLiveAuthority {
     matched_grant_scope: Option<ResolvedGrantScope>,
     service_publication: Option<ServiceAuthorityPublication>,
     caller_attribution: Option<crate::telemetry::CallerAttributionV1>,
+    rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+    rehearsal_fence: Option<crate::auth::rehearsal::RehearsalAuthorityFence>,
 }
 
 impl PreparedAuthority {
@@ -1139,6 +1155,48 @@ impl PreparedAuthority {
 
     pub fn resolved(&self) -> &ResolvedAppAuthority {
         &self.resolved
+    }
+
+    pub fn rehearsal_provenance(
+        &self,
+    ) -> Option<&crate::auth::rehearsal::AuthRehearsalProvenanceV1> {
+        self.rehearsal_provenance.as_ref()
+    }
+
+    /// Install the process-live governor checker after server composition has
+    /// resolved the session projection. Provenance without this host-owned
+    /// registry remains fail closed.
+    pub(crate) fn with_rehearsal_authority_registry(
+        mut self,
+        registry: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
+    ) -> SnapbackResult<Self> {
+        if let Some(provenance) = self.rehearsal_provenance.clone() {
+            let fence = crate::auth::rehearsal::RehearsalAuthorityFence::new(
+                provenance,
+                registry,
+            )?;
+            fence.validate_at(rehearsal_now_ms())?;
+            self.rehearsal_fence = Some(fence);
+        }
+        Ok(self)
+    }
+
+    /// Rehydrate protected durable provenance onto a clean System runner.
+    /// This is the only deferred-work constructor and unions rather than
+    /// replacing an existing marker.
+    pub(crate) fn with_deferred_rehearsal_provenance(
+        mut self,
+        provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+        registry: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
+    ) -> SnapbackResult<Self> {
+        if let Some(deferred) = provenance {
+            deferred.validate()?;
+            self.rehearsal_provenance = Some(match &self.rehearsal_provenance {
+                Some(current) => current.canonical_union(&deferred)?,
+                None => deferred,
+            });
+        }
+        self.with_rehearsal_authority_registry(registry)
     }
 
     pub fn projection(&self) -> &HandlerAuthProjection {
@@ -1336,13 +1394,18 @@ impl PreparedAuthority {
         //
         // @ref LLP 0059#handshake-and-readiness — the handshake incarnation
         //   and authority are one counted, final-fenced capture.
-        match &self.publication {
+        let publish_session = || match &self.publication {
             Some(publication) => {
                 let nested =
                     publication.try_publish(epoch_now_ms, monotonic_now, publish_service)?;
                 Ok(nested.flatten())
             }
             None => publish_service(),
+        };
+        match (&self.rehearsal_provenance, &self.rehearsal_fence) {
+            (Some(_), Some(fence)) => fence.try_publish(epoch_now_ms, publish_session),
+            (Some(_), None) => Err(crate::auth::rehearsal::authority_ended()),
+            (None, _) => publish_session(),
         }
     }
 
@@ -1367,14 +1430,22 @@ impl PreparedAuthority {
             matched_grant_scope: None,
             service_publication: self.service_publication.clone(),
             caller_attribution: self.caller_attribution.clone(),
+            rehearsal_provenance: self.rehearsal_provenance.clone(),
+            rehearsal_fence: self.rehearsal_fence.clone(),
         })
     }
 
     pub fn validate_admission(&self, effect: &'static str) -> SnapbackResult<()> {
-        self.admission.validate(effect)
+        self.admission.validate(effect)?;
+        match (&self.rehearsal_provenance, &self.rehearsal_fence) {
+            (Some(_), Some(fence)) => fence.validate_at(rehearsal_now_ms()),
+            (Some(_), None) => Err(crate::auth::rehearsal::authority_ended()),
+            (None, _) => Ok(()),
+        }
     }
 
     pub fn effect_guard(&self, effect: &'static str) -> SnapbackResult<AdmissionEffectGuard<'_>> {
+        self.validate_admission(effect)?;
         self.admission.effect_guard(effect)
     }
 
@@ -1474,11 +1545,16 @@ impl RetainedLiveAuthority {
             self.resolved.clone(),
             true,
         )?;
-        Ok(match &self.service_publication {
+        let prepared = match &self.service_publication {
             Some(publication) => prepared.with_service_publication(publication.clone()),
             None => prepared,
         }
-        .with_optional_caller_attribution(self.caller_attribution.clone()))
+        .with_optional_caller_attribution(self.caller_attribution.clone());
+        Ok(PreparedAuthority {
+            rehearsal_provenance: self.rehearsal_provenance.clone(),
+            rehearsal_fence: self.rehearsal_fence.clone(),
+            ..prepared
+        })
     }
 
     pub(crate) fn canonicalize_input(&self, mut input: HandlerInput) -> HandlerInput {
@@ -1751,6 +1827,13 @@ impl InvocationGate {
             )),
             _ => None,
         };
+        let rehearsal_provenance = match &resolved {
+            ResolvedAppAuthority::Session {
+                rehearsal_provenance,
+                ..
+            } => rehearsal_provenance.clone(),
+            _ => None,
+        };
         Ok(PreparedAuthority {
             admission,
             active_mode,
@@ -1766,6 +1849,8 @@ impl InvocationGate {
             authorization_stream_incarnation: None,
             caller_attribution: None,
             asset_callbacks_service: None,
+            rehearsal_provenance,
+            rehearsal_fence: None,
         })
     }
 
@@ -2390,6 +2475,7 @@ mod tests {
                 authority_instance_id: "authority_1".to_owned(),
                 session_not_after_ms: 10_000,
                 provider_not_after_ms: None,
+                rehearsal_provenance: None,
             },
         ))
         .unwrap();
@@ -2927,6 +3013,7 @@ mod tests {
                 authority_instance_id: "authority".to_owned(),
                 session_not_after_ms: 10_000,
                 provider_not_after_ms: None,
+                rehearsal_provenance: None,
             },
             Kind::Watch => ResolvedAppAuthority::RevalidatedPrincipal {
                 user_id: "user".to_owned(),
@@ -3099,6 +3186,7 @@ mod tests {
             authority_instance_id: "authority".to_owned(),
             session_not_after_ms: 10_000,
             provider_not_after_ms: None,
+            rehearsal_provenance: None,
         };
         let initial = InvocationGate::prepare_authority(
             InvocationSource::LiveInitialQuery,
@@ -3163,6 +3251,7 @@ mod tests {
             authority_instance_id: "authority-instance".to_owned(),
             session_not_after_ms: 10_000,
             provider_not_after_ms: None,
+            rehearsal_provenance: None,
         };
         let initial = InvocationGate::prepare_admitted_authority(
             InvocationSource::LiveInitialQuery,

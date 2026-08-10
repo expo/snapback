@@ -77,6 +77,10 @@ pub struct BufferedJobEnqueue {
     /// beside the job in the same producing mutation transaction and never
     /// enters the action's arguments or metadata.
     pub(crate) push_grant: Option<crate::push::PushDeferredGrantV1>,
+    /// Protected lineage copied from the prepared producing invocation. It is
+    /// not part of args and is inserted in the same transaction as the job.
+    pub(crate) rehearsal_provenance:
+        Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
 }
 
 /// Producer provenance recorded on every job row inserted by one mutation
@@ -239,6 +243,8 @@ pub struct ClaimedJob {
     pub lease_expires_at_ms: u64,
     pub idempotency_key: Option<String>,
     pub(crate) push_grant: Option<crate::push::PushDeferredGrantV1>,
+    pub(crate) rehearsal_provenance:
+        Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
 }
 
 impl ClaimedJob {
@@ -355,6 +361,12 @@ pub fn create_jobs_infra(conn: &Connection) -> SnapbackResult<()> {
           grant_digest TEXT NOT NULL,
           FOREIGN KEY(job_id) REFERENCES _snapback_jobs_v1(job_id) ON DELETE CASCADE
         );
+        CREATE TABLE IF NOT EXISTS _snapback_job_rehearsal_provenance_v1 (
+          job_id TEXT NOT NULL PRIMARY KEY,
+          provenance_json TEXT NOT NULL,
+          provenance_digest TEXT NOT NULL,
+          FOREIGN KEY(job_id) REFERENCES _snapback_jobs_v1(job_id) ON DELETE CASCADE
+        );
         CREATE TABLE IF NOT EXISTS _snapback_job_idempotency_tombstones_v1 (
           queue TEXT NOT NULL,
           action TEXT NOT NULL,
@@ -363,6 +375,7 @@ pub fn create_jobs_infra(conn: &Connection) -> SnapbackResult<()> {
           args_digest TEXT NOT NULL,
           max_attempts INTEGER NOT NULL,
           push_grant_digest TEXT,
+          rehearsal_provenance_digest TEXT,
           available_at_ms INTEGER NOT NULL,
           terminal_state TEXT NOT NULL,
           terminal_at_ms INTEGER NOT NULL,
@@ -371,6 +384,21 @@ pub fn create_jobs_infra(conn: &Connection) -> SnapbackResult<()> {
         );
         ",
     )?;
+    let mut tombstone_columns = conn.prepare(
+        "SELECT name FROM pragma_table_info('_snapback_job_idempotency_tombstones_v1')",
+    )?;
+    let has_rehearsal_digest = tombstone_columns
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?
+        .iter()
+        .any(|name| name == "rehearsal_provenance_digest");
+    drop(tombstone_columns);
+    if !has_rehearsal_digest {
+        conn.execute(
+            "ALTER TABLE _snapback_job_idempotency_tombstones_v1 ADD COLUMN rehearsal_provenance_digest TEXT",
+            [],
+        )?;
+    }
     Ok(())
 }
 
@@ -401,6 +429,7 @@ pub fn reap_terminal_jobs_in_tx(
         args_digest: String,
         max_attempts: u32,
         push_grant_digest: Option<String>,
+        rehearsal_provenance_digest: Option<String>,
         available_at_ms: u64,
         terminal_state: String,
         terminal_at_ms: u64,
@@ -408,9 +437,11 @@ pub fn reap_terminal_jobs_in_tx(
     let mut statement = tx.prepare(
         "SELECT job.job_id, job.queue, job.action, job.idempotency_key,
                 job.args_digest, job.max_attempts, grant.grant_digest,
+                rehearsal.provenance_digest,
                 job.available_at_ms, job.state, job.terminal_at_ms
            FROM _snapback_jobs_v1 AS job
            LEFT JOIN _snapback_job_push_grants_v1 AS grant ON grant.job_id = job.job_id
+           LEFT JOIN _snapback_job_rehearsal_provenance_v1 AS rehearsal ON rehearsal.job_id = job.job_id
           WHERE job.state IN ('succeeded', 'dead', 'cancelled')
             AND job.terminal_at_ms IS NOT NULL
             AND job.terminal_at_ms <= ?1
@@ -427,9 +458,10 @@ pub fn reap_terminal_jobs_in_tx(
                 args_digest: row.get(4)?,
                 max_attempts: row.get(5)?,
                 push_grant_digest: row.get(6)?,
-                available_at_ms: row.get(7)?,
-                terminal_state: row.get(8)?,
-                terminal_at_ms: row.get(9)?,
+                rehearsal_provenance_digest: row.get(7)?,
+                available_at_ms: row.get(8)?,
+                terminal_state: row.get(9)?,
+                terminal_at_ms: row.get(10)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -441,9 +473,9 @@ pub fn reap_terminal_jobs_in_tx(
             tx.execute(
                 "INSERT INTO _snapback_job_idempotency_tombstones_v1 (
                    queue, action, idempotency_key, job_id, args_digest,
-                   max_attempts, push_grant_digest, available_at_ms,
+                   max_attempts, push_grant_digest, rehearsal_provenance_digest, available_at_ms,
                    terminal_state, terminal_at_ms, successor_job_id
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, NULL)",
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, NULL)",
                 params![
                     job.queue,
                     job.action,
@@ -452,6 +484,7 @@ pub fn reap_terminal_jobs_in_tx(
                     job.args_digest,
                     job.max_attempts,
                     job.push_grant_digest,
+                    job.rehearsal_provenance_digest,
                     job.available_at_ms,
                     job.terminal_state,
                     job.terminal_at_ms,
@@ -464,6 +497,10 @@ pub fn reap_terminal_jobs_in_tx(
         )?;
         tx.execute(
             "DELETE FROM _snapback_job_push_grants_v1 WHERE job_id = ?1",
+            params![job.job_id],
+        )?;
+        tx.execute(
+            "DELETE FROM _snapback_job_rehearsal_provenance_v1 WHERE job_id = ?1",
             params![job.job_id],
         )?;
         tx.execute(
@@ -533,6 +570,23 @@ pub(crate) fn canonical_push_grant(
     Ok((Some(canonical), Some(format!("{:x}", hasher.finalize()))))
 }
 
+pub(crate) fn canonical_rehearsal_provenance(
+    provenance: Option<&crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
+) -> SnapbackResult<(Option<String>, Option<String>)> {
+    let Some(provenance) = provenance else {
+        return Ok((None, None));
+    };
+    provenance.validate()?;
+    let value = serde_json::to_value(provenance)
+        .map_err(|_| crate::auth::rehearsal::provenance_invalid())?;
+    let canonical = serde_json::to_string(&canonical_json_value(value))
+        .map_err(|_| crate::auth::rehearsal::provenance_invalid())?;
+    let mut hasher = Sha256::new();
+    hasher.update(b"snapback-job-rehearsal-provenance-v1\0");
+    hasher.update(canonical.as_bytes());
+    Ok((Some(canonical), Some(format!("{:x}", hasher.finalize()))))
+}
+
 fn canonical_json_value(value: Value) -> Value {
     match value {
         Value::Object(map) => Value::Object(
@@ -576,6 +630,7 @@ pub struct ExistingIdempotentJob {
     pub max_attempts: u32,
     pub available_at_ms: u64,
     pub push_grant_digest: Option<String>,
+    pub rehearsal_provenance_digest: Option<String>,
 }
 
 pub fn find_job_by_scoped_idempotency(
@@ -587,9 +642,10 @@ pub fn find_job_by_scoped_idempotency(
     let live = conn
         .query_row(
             "SELECT job.job_id, job.args_digest, job.max_attempts, job.available_at_ms,
-                    grant.grant_digest
+                    grant.grant_digest, rehearsal.provenance_digest
                FROM _snapback_jobs_v1 AS job
                LEFT JOIN _snapback_job_push_grants_v1 AS grant ON grant.job_id = job.job_id
+               LEFT JOIN _snapback_job_rehearsal_provenance_v1 AS rehearsal ON rehearsal.job_id = job.job_id
               WHERE job.queue = ?1 AND job.action = ?2 AND job.idempotency_key = ?3",
             params![queue, action, idempotency_key],
             |row| {
@@ -599,6 +655,7 @@ pub fn find_job_by_scoped_idempotency(
                     max_attempts: row.get(2)?,
                     available_at_ms: row.get(3)?,
                     push_grant_digest: row.get(4)?,
+                    rehearsal_provenance_digest: row.get(5)?,
                 })
             },
         )
@@ -609,7 +666,7 @@ pub fn find_job_by_scoped_idempotency(
     Ok(conn
         .query_row(
             "SELECT job_id, args_digest, max_attempts, available_at_ms,
-                    push_grant_digest
+                    push_grant_digest, rehearsal_provenance_digest
                FROM _snapback_job_idempotency_tombstones_v1
               WHERE queue = ?1 AND action = ?2 AND idempotency_key = ?3",
             params![queue, action, idempotency_key],
@@ -620,6 +677,7 @@ pub fn find_job_by_scoped_idempotency(
                     max_attempts: row.get(2)?,
                     available_at_ms: row.get(3)?,
                     push_grant_digest: row.get(4)?,
+                    rehearsal_provenance_digest: row.get(5)?,
                 })
             },
         )
@@ -658,6 +716,8 @@ pub fn insert_enqueued_jobs_in_tx(
     for enqueue in enqueues {
         let (canonical, digest) = canonical_args(&enqueue.args)?;
         let (grant_json, grant_digest) = canonical_push_grant(enqueue.push_grant.as_ref())?;
+        let (rehearsal_json, rehearsal_digest) =
+            canonical_rehearsal_provenance(enqueue.rehearsal_provenance.as_ref())?;
         if let Some(key) = enqueue.idempotency_key.as_deref()
             && let Some(existing) =
                 find_job_by_scoped_idempotency(tx, &enqueue.queue, &enqueue.action, key)?
@@ -665,6 +725,7 @@ pub fn insert_enqueued_jobs_in_tx(
             if existing.args_digest == digest
                 && existing.max_attempts == enqueue.max_attempts
                 && existing.push_grant_digest == grant_digest
+                && existing.rehearsal_provenance_digest == rehearsal_digest
             {
                 return Err(SnapbackError::error(
                     "SNAPBACK_JOB_IDEMPOTENCY_KEY_RACED",
@@ -706,6 +767,16 @@ pub fn insert_enqueued_jobs_in_tx(
                 "INSERT INTO _snapback_job_push_grants_v1 (job_id, grant_json, grant_digest)
                  VALUES (?1, ?2, ?3)",
                 params![enqueue.job_id, grant_json, grant_digest],
+            )?;
+        }
+        if let (Some(provenance_json), Some(provenance_digest)) =
+            (rehearsal_json, rehearsal_digest)
+        {
+            // @ref LLP 0213#durable-deferred-intent-provenance — enqueue and
+            //   the protected marker share the producing mutation transaction.
+            tx.execute(
+                "INSERT INTO _snapback_job_rehearsal_provenance_v1 (job_id, provenance_json, provenance_digest) VALUES (?1, ?2, ?3)",
+                params![enqueue.job_id, provenance_json, provenance_digest],
             )?;
         }
         rows.push(JobStatusRow {
@@ -757,13 +828,16 @@ pub fn claim_due_jobs_in_tx(
         claim_expires_at_ms: Option<u64>,
         idempotency_key: Option<String>,
         push_grant_json: Option<String>,
+        rehearsal_provenance_json: Option<String>,
     }
     let mut statement = tx.prepare(
         "SELECT job.job_id, job.queue, job.action, job.args_json, job.max_attempts, job.state,
                 job.state_version, job.attempt_count, job.current_fence, job.current_claim_id,
-                job.claim_expires_at_ms, job.idempotency_key, grant.grant_json
+                job.claim_expires_at_ms, job.idempotency_key, grant.grant_json,
+                rehearsal.provenance_json
            FROM _snapback_jobs_v1 AS job
            LEFT JOIN _snapback_job_push_grants_v1 AS grant ON grant.job_id = job.job_id
+           LEFT JOIN _snapback_job_rehearsal_provenance_v1 AS rehearsal ON rehearsal.job_id = job.job_id
           WHERE job.available_at_ms <= ?1
             AND (job.state = 'pending'
                  OR (job.state = 'claimed' AND job.claim_expires_at_ms IS NOT NULL
@@ -787,6 +861,7 @@ pub fn claim_due_jobs_in_tx(
                 claim_expires_at_ms: row.get(10)?,
                 idempotency_key: row.get(11)?,
                 push_grant_json: row.get(12)?,
+                rehearsal_provenance_json: row.get(13)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -903,6 +978,17 @@ pub fn claim_due_jobs_in_tx(
                         )
                         .with_details(json!({ "error": error.to_string() }))
                     })
+                })
+                .transpose()?,
+            rehearsal_provenance: job
+                .rehearsal_provenance_json
+                .map(|value| {
+                    let provenance = serde_json::from_str::<
+                        crate::auth::rehearsal::AuthRehearsalProvenanceV1,
+                    >(&value)
+                    .map_err(|_| crate::auth::rehearsal::provenance_invalid())?;
+                    provenance.validate()?;
+                    Ok::<_, SnapbackError>(provenance)
                 })
                 .transpose()?,
         });
@@ -1165,6 +1251,7 @@ mod tests {
             max_attempts: 1,
             available_at_ms,
             push_grant: None,
+            rehearsal_provenance: None,
         }
     }
 

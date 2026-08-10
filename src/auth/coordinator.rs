@@ -268,6 +268,8 @@ pub(crate) enum IssuanceFinish {
     SenderKeyBound,
     CandidateCollision,
     PredecessorChanged,
+    RehearsalReplay(serde_json::Value),
+    RehearsalDenied(SnapbackError),
 }
 
 /// Exact predecessor authority that must be terminalized after a known
@@ -932,6 +934,14 @@ impl AuthCoordinator {
                 exact_unmark_issuance(&mut topology, &carrier)?;
                 Ok(IssuanceFinish::SenderKeyBound)
             }
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::RehearsalReplay(value)) => {
+                exact_unmark_issuance(&mut topology, &carrier)?;
+                Ok(IssuanceFinish::RehearsalReplay(value))
+            }
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::RehearsalDenied(error)) => {
+                exact_unmark_issuance(&mut topology, &carrier)?;
+                Ok(IssuanceFinish::RehearsalDenied(error))
+            }
             AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
                 session,
                 committed_revocation,
@@ -1129,6 +1139,7 @@ impl AuthCoordinator {
                             .expires_at_ms
                             .min(authority.absolute_expires_at_ms),
                         provider_not_after_ms: None,
+                        rehearsal_provenance: authority.rehearsal_provenance,
                     },
                     authorization_stream_incarnation: incarnation,
                     deadline_ms,
@@ -1193,6 +1204,7 @@ impl AuthCoordinator {
                             .expires_at_ms
                             .min(authority.absolute_expires_at_ms),
                         provider_not_after_ms: None,
+                        rehearsal_provenance: authority.rehearsal_provenance,
                     })
                 }
                 ProjectedBoundSessionResolution::Terminal { reason } => {
@@ -1415,6 +1427,7 @@ impl CoordinatorTopology {
                     .expires_at_ms
                     .min(authority.absolute_expires_at_ms),
                 provider_not_after_ms: None,
+                rehearsal_provenance: authority.rehearsal_provenance,
             },
             publication,
         })
@@ -1646,6 +1659,7 @@ mod tests {
                 absolute_expires_at_ms: 9_000_000_000,
                 revoked_at_ms: None,
                 terminal_cause: None,
+                rehearsal_provenance: None,
             }],
             superseded_tokens: Vec::new(),
         };
@@ -2030,6 +2044,7 @@ mod tests {
             created_at_ms: 200,
             expires_at_ms: 1_000,
             absolute_expires_at_ms: 2_000,
+            rehearsal_provenance: None,
         };
         let carrier = fixture
             .coordinator

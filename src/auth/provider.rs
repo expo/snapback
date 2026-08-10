@@ -956,6 +956,7 @@ pub(crate) struct ProviderSessionIssuancePlan {
     eviction: Option<ProviderRevocationPlan>,
     challenge: Option<PlannedChallengeConsumption>,
     sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
+    rehearsal_exercise: Option<crate::storage::auth_rehearsal::RehearsalExercisePlan>,
 }
 
 impl fmt::Debug for ProviderSessionIssuancePlan {
@@ -973,6 +974,7 @@ pub(crate) struct ProviderSessionIssuanceCommitPlan {
     eviction: Option<ProviderRevocationPlan>,
     challenge: Option<PlannedChallengeConsumption>,
     pub(crate) sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
+    rehearsal_exercise: Option<crate::storage::auth_rehearsal::RehearsalExercisePlan>,
 }
 
 impl fmt::Debug for ProviderSessionIssuanceCommitPlan {
@@ -982,6 +984,57 @@ impl fmt::Debug for ProviderSessionIssuanceCommitPlan {
 }
 
 impl ProviderSessionIssuancePlan {
+    /// Bind a planned provider issuance to rehearsal authority before the
+    /// coordinator premarks it. The protected companion and the projected
+    /// deadline therefore describe the same session at every later phase.
+    ///
+    /// @ref LLP 0213#derived-sessions — derived expiry is clamped to the
+    ///   governing authority and the exact provenance survives projection.
+    pub(crate) fn bind_rehearsal_provenance(
+        &mut self,
+        provenance: crate::auth::rehearsal::AuthRehearsalProvenanceV1,
+        governing_not_after_ms: u64,
+    ) -> ProviderResult<()> {
+        provenance
+            .validate()
+            .map_err(ProviderError::from)?;
+        if governing_not_after_ms <= self.now_ms
+            || self.projected.rehearsal_provenance.is_some()
+        {
+            return Err(ProviderError::from(crate::auth::rehearsal::authority_ended()));
+        }
+        self.projected.expires_at_ms = self
+            .projected
+            .expires_at_ms
+            .min(governing_not_after_ms);
+        self.projected.absolute_expires_at_ms = self
+            .projected
+            .absolute_expires_at_ms
+            .min(governing_not_after_ms);
+        self.projected.rehearsal_provenance = Some(provenance);
+        Ok(())
+    }
+
+    pub(crate) fn bind_rehearsal_effect(
+        &mut self,
+        exercise: crate::storage::auth_rehearsal::RehearsalExercisePlan,
+    ) -> ProviderResult<()> {
+        if self.projected.rehearsal_provenance.is_none()
+            || self.rehearsal_exercise.replace(exercise).is_some()
+        {
+            return Err(ProviderError::from(crate::auth::rehearsal::authority_ended()));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn creates_identity(&self) -> bool {
+        matches!(self.identity, PlannedIdentityState::Create { .. })
+    }
+
+    pub(crate) fn planned_identity(&self) -> PlannedIdentityState {
+        self.identity.clone()
+    }
+
     // @ref LLP 0077#author-decisions--2026-07-23 — decision 4's first layer: a
     // sender-bound issuance re-mints its candidate bearer in the versioned
     // `sbs2_` spelling before anything derives from the plan (binding runs
@@ -1022,6 +1075,7 @@ impl ProviderSessionIssuancePlan {
             eviction: self.eviction.clone(),
             challenge: self.challenge.clone(),
             sender_issuance: self.sender_issuance.clone(),
+            rehearsal_exercise: self.rehearsal_exercise.clone(),
         }
     }
 
@@ -1055,6 +1109,7 @@ impl ProviderSessionIssuancePlan {
             eviction: None,
             challenge: None,
             sender_issuance: None,
+            rehearsal_exercise: None,
         }
     }
 
@@ -1095,6 +1150,8 @@ pub(crate) enum PlannedIssuanceCommit {
     SenderKeyBound,
     CandidateCollision,
     PredecessorChanged,
+    RehearsalReplay(serde_json::Value),
+    RehearsalDenied(SnapbackError),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -2492,6 +2549,7 @@ impl AddressAdmission {
             created_at_ms: now_ms,
             expires_at_ms,
             absolute_expires_at_ms,
+            rehearsal_provenance: None,
         };
         Ok(ProviderSessionIssuancePlan {
             address: self.address.clone(),
@@ -2502,6 +2560,7 @@ impl AddressAdmission {
             eviction,
             challenge: None,
             sender_issuance: None,
+            rehearsal_exercise: None,
         })
     }
 
@@ -3611,6 +3670,7 @@ pub(crate) fn plan_exchange_read(
         created_at_ms: now_ms,
         expires_at_ms,
         absolute_expires_at_ms,
+        rehearsal_provenance: None,
     };
     Ok(PlannedExchange::Issue(ProviderSessionIssuancePlan {
         address,
@@ -3628,6 +3688,7 @@ pub(crate) fn plan_exchange_read(
             expires_at_ms: checked_stored_time(row.expires_at_ms)?,
         }),
         sender_issuance: None,
+        rehearsal_exercise: None,
     }))
 }
 
@@ -4133,6 +4194,13 @@ fn attempt_planned_session_issuance(
                 Err(_) => AuthTransactionAttempt::CommitUncertain(commit_error),
             }
         }
+        PlannedIssuanceCommit::RehearsalReplay(_)
+        | PlannedIssuanceCommit::RehearsalDenied(_) => {
+            // Rehearsal accounting may have committed without a session.
+            // Its request-bound receipt cannot prove COMMIT certainty through
+            // the provider catalog, so retain the conservative uncertainty.
+            AuthTransactionAttempt::CommitUncertain(commit_error)
+        }
     }
 }
 
@@ -4141,6 +4209,7 @@ pub(crate) fn planned_session_issuance_transaction(
     plan: &ProviderSessionIssuanceCommitPlan,
     exchange_proof: Option<(&AuthKeyMaterial, &VerificationCode)>,
 ) -> SnapbackResult<PlannedIssuanceCommit> {
+    let mut prepared_rehearsal = None;
     if let Some(challenge) = &plan.challenge {
         let Some((key, submitted_code)) = exchange_proof else {
             return Err(internal_state_snapback());
@@ -4184,6 +4253,22 @@ pub(crate) fn planned_session_issuance_transaction(
         }
         let challenge_id =
             ChallengeId::parse(&challenge.challenge_id).map_err(|_| internal_state_snapback())?;
+        if let Some(exercise) = &plan.rehearsal_exercise {
+            match crate::storage::auth_rehearsal::prepare_rehearsal_atomic_effect_in(
+                transaction,
+                exercise,
+            )? {
+                crate::storage::auth_rehearsal::RehearsalAtomicEffectAdmission::Admitted(
+                    prepared,
+                ) => prepared_rehearsal = Some(prepared),
+                crate::storage::auth_rehearsal::RehearsalAtomicEffectAdmission::Replay(value) => {
+                    return Ok(PlannedIssuanceCommit::RehearsalReplay(value));
+                }
+                crate::storage::auth_rehearsal::RehearsalAtomicEffectAdmission::Denied(error) => {
+                    return Ok(PlannedIssuanceCommit::RehearsalDenied(error));
+                }
+            }
+        }
         let submitted = CodeDigest::compute(key, &challenge_id, &plan.address, submitted_code);
         if !submitted.verify(&challenge.code_digest) {
             let next_attempts = challenge
@@ -4214,6 +4299,21 @@ pub(crate) fn planned_session_issuance_transaction(
                     .consume_rejected_outcome(transaction)
                     .map_err(|_| internal_state_snapback())?;
             }
+            if let (Some(exercise), Some(prepared)) =
+                (&plan.rehearsal_exercise, prepared_rehearsal.take())
+            {
+                let denial = if next_attempts == challenge.max_attempts {
+                    code_locked().into_snapback_error()
+                } else {
+                    code_invalid().into_snapback_error()
+                };
+                crate::storage::auth_rehearsal::finish_rehearsal_atomic_effect_denial_in(
+                    transaction,
+                    exercise,
+                    prepared,
+                    denial,
+                )?;
+            }
             return Ok(if next_attempts == challenge.max_attempts {
                 PlannedIssuanceCommit::CodeLocked
             } else {
@@ -4222,6 +4322,24 @@ pub(crate) fn planned_session_issuance_transaction(
         }
     } else if exchange_proof.is_some() {
         return Err(internal_state_snapback());
+    }
+    if prepared_rehearsal.is_none()
+        && let Some(exercise) = &plan.rehearsal_exercise
+    {
+        match crate::storage::auth_rehearsal::prepare_rehearsal_atomic_effect_in(
+            transaction,
+            exercise,
+        )? {
+            crate::storage::auth_rehearsal::RehearsalAtomicEffectAdmission::Admitted(prepared) => {
+                prepared_rehearsal = Some(prepared)
+            }
+            crate::storage::auth_rehearsal::RehearsalAtomicEffectAdmission::Replay(value) => {
+                return Ok(PlannedIssuanceCommit::RehearsalReplay(value));
+            }
+            crate::storage::auth_rehearsal::RehearsalAtomicEffectAdmission::Denied(error) => {
+                return Ok(PlannedIssuanceCommit::RehearsalDenied(error));
+            }
+        }
     }
     if let Some(sender_issuance) = &plan.sender_issuance
         && sender_issuance
@@ -4266,6 +4384,17 @@ pub(crate) fn planned_session_issuance_transaction(
         ) => (identity_id.clone(), user_id.clone(), true),
         _ => return Ok(PlannedIssuanceCommit::PredecessorChanged),
     };
+    let derived_identity: bool = transaction.query_row(
+        "SELECT EXISTS(SELECT 1 FROM _snapback_auth_rehearsal_identities WHERE identity_id = ?1)",
+        params![identity_id],
+        |row| row.get(0),
+    ).unwrap_or(false);
+    if derived_identity && plan.projected.rehearsal_provenance.is_none() {
+        // @ref LLP 0213#derived-identities — retained rehearsal identities are
+        //   inert on ordinary mint paths; only a newly authorized rehearsal
+        //   effect may use one under a new governor.
+        return Ok(PlannedIssuanceCommit::PredecessorChanged);
+    }
     if plan.projected.user_id != user_id || plan.projected.generation != 1 {
         return Err(internal_state_snapback());
     }
@@ -4385,6 +4514,28 @@ pub(crate) fn planned_session_issuance_transaction(
             plan.projected.absolute_expires_at_ms as i64,
         ],
     )?;
+    if let Some(provenance) = &plan.projected.rehearsal_provenance {
+        let governing_not_after_ms = plan
+            .projected
+            .expires_at_ms
+            .min(plan.projected.absolute_expires_at_ms);
+        crate::storage::auth_rehearsal::insert_rehearsal_session_provenance_in(
+            transaction,
+            &plan.projected.session_id,
+            provenance,
+            governing_not_after_ms,
+            plan.now_ms,
+        )?;
+        if create_identity {
+            crate::storage::auth_rehearsal::insert_rehearsal_identity_provenance_for_provider_in(
+                transaction,
+                &identity_id,
+                provenance,
+                governing_not_after_ms,
+                plan.now_ms,
+            )?;
+        }
+    }
     if let Some(sender_issuance) = &plan.sender_issuance {
         // @ref LLP 0077#issuance-refresh-and-recovery — family key binding,
         // issuance-proof consumption, and the initial nonce are one atomic cut
@@ -4418,6 +4569,16 @@ pub(crate) fn planned_session_issuance_transaction(
         if changed != 1 {
             return Err(internal_state_snapback());
         }
+    }
+    if let (Some(exercise), Some(prepared)) =
+        (&plan.rehearsal_exercise, prepared_rehearsal)
+    {
+        crate::storage::auth_rehearsal::finish_rehearsal_atomic_effect_success_in(
+            transaction,
+            exercise,
+            prepared,
+            exercise.outcome.clone(),
+        )?;
     }
     Ok(PlannedIssuanceCommit::Committed {
         session: SessionResponse {

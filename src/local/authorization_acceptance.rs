@@ -484,6 +484,7 @@ fn session_authority(user: &str, source: InvocationSource) -> PreparedAuthority 
             authority_instance_id: authority_instance_id.to_owned(),
             session_not_after_ms: 4_000_000_000_000,
             provider_not_after_ms: None,
+            rehearsal_provenance: None,
         },
     )
     .expect("prepare acceptance session authority")

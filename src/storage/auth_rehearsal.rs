@@ -19,6 +19,8 @@ const IDEMPOTENCY: &str = "_snapback_auth_rehearsal_idempotency";
 const MINT_IDEMPOTENCY: &str = "_snapback_auth_rehearsal_mint_idempotency";
 const AUDIT: &str = "_snapback_auth_rehearsal_audit";
 const MARKERS: &str = "_snapback_auth_rehearsal_store_markers";
+const DERIVED_IDENTITIES: &str = "_snapback_auth_rehearsal_identities";
+const DERIVED_SESSIONS: &str = "_snapback_auth_rehearsal_sessions";
 
 #[derive(Debug)]
 pub(crate) struct RehearsalMintPlan {
@@ -42,7 +44,7 @@ pub(crate) enum RehearsalExerciseOutcome {
     Replay(serde_json::Value),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RehearsalExercisePlan {
     pub carrier_hash: [u8; 32],
     pub bindings: RehearsalBindingFacts,
@@ -326,6 +328,89 @@ impl LocalDatabase {
             self.with_auth_transaction(|transaction| apply_exercise_in(transaction, &plan))?;
         result.into_result()
     }
+
+    pub(crate) fn auth_rehearsal_create_identity(
+        &mut self,
+        exercise: RehearsalExercisePlan,
+        identity: crate::auth::provider::PlannedIdentityState,
+        address: &crate::auth::crypto::CanonicalAddress,
+        provenance: &crate::auth::rehearsal::AuthRehearsalProvenanceV1,
+        governing_not_after_ms: u64,
+    ) -> SnapbackResult<RehearsalExerciseOutcome> {
+        let address = address.clone();
+        let provenance = provenance.clone();
+        let result = self.with_auth_transaction(|transaction| {
+            let admission = prepare_rehearsal_atomic_effect_in(transaction, &exercise)?;
+            let prepared = match admission {
+                RehearsalAtomicEffectAdmission::Replay(value) => {
+                    return Ok(ExerciseTransactionOutcome::Replay(value));
+                }
+                RehearsalAtomicEffectAdmission::Denied(error) => {
+                    return Ok(ExerciseTransactionOutcome::Denied(error));
+                }
+                RehearsalAtomicEffectAdmission::Admitted(prepared) => prepared,
+            };
+            let (identity_id, user_id) = match &identity {
+                crate::auth::provider::PlannedIdentityState::Create {
+                    identity_id,
+                    user_id,
+                } => (identity_id.clone(), user_id.clone()),
+                crate::auth::provider::PlannedIdentityState::Existing { .. } => {
+                    finish_rehearsal_atomic_effect_denial_in(
+                        transaction,
+                        &exercise,
+                        prepared,
+                        authority_ended(),
+                    )?;
+                    return Ok(ExerciseTransactionOutcome::Denied(authority_ended()));
+                }
+            };
+            let durable: Option<String> = transaction
+                .query_row(
+                    "SELECT id FROM _auth_identities WHERE provider = 'email-code' AND subject = ?1",
+                    params![address.as_str()],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if durable.is_some() {
+                finish_rehearsal_atomic_effect_denial_in(
+                    transaction,
+                    &exercise,
+                    prepared,
+                    authority_ended(),
+                )?;
+                return Ok(ExerciseTransactionOutcome::Denied(authority_ended()));
+            }
+            transaction.execute(
+                "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
+                params![user_id, exercise.now_ms as i64],
+            )?;
+            transaction.execute(
+                "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms) VALUES(?1, ?2, 'email-code', ?3, ?4)",
+                params![identity_id, user_id, address.as_str(), exercise.now_ms as i64],
+            )?;
+            insert_rehearsal_identity_provenance_for_provider_in(
+                transaction,
+                &identity_id,
+                &provenance,
+                governing_not_after_ms,
+                exercise.now_ms,
+            )?;
+            let outcome = serde_json::json!({
+                "kind": "authRehearsalIdentity.v1",
+                "identityId": identity_id,
+                "userId": user_id,
+            });
+            finish_rehearsal_atomic_effect_success_in(
+                transaction,
+                &exercise,
+                prepared,
+                outcome.clone(),
+            )?;
+            Ok(ExerciseTransactionOutcome::Fresh(outcome))
+        })?;
+        result.into_result()
+    }
 }
 
 enum MintTransactionOutcome {
@@ -338,6 +423,226 @@ enum ExerciseTransactionOutcome {
     Fresh(serde_json::Value),
     Replay(serde_json::Value),
     Denied(SnapbackError),
+}
+
+pub(crate) enum RehearsalAtomicEffectAdmission {
+    Admitted(PreparedRehearsalAtomicEffect),
+    Replay(serde_json::Value),
+    Denied(SnapbackError),
+}
+
+pub(crate) struct PreparedRehearsalAtomicEffect {
+    grant: AuthRehearsalGrantV1,
+    request_digest: String,
+    charged: RehearsalConsumedV1,
+}
+
+/// Charge and authorize an effect inside a caller-owned auth transaction,
+/// leaving success/semantic-denial publication to the caller after its own
+/// durable write has been decided. This is the join point used by provider
+/// session issuance and first-login identity provisioning.
+///
+/// @ref LLP 0213#atomic-charge-at-linearization — accounting, provenance
+///   companions, and provider rows share one IMMEDIATE transaction.
+pub(crate) fn prepare_rehearsal_atomic_effect_in(
+    transaction: &Transaction<'_>,
+    plan: &RehearsalExercisePlan,
+) -> SnapbackResult<RehearsalAtomicEffectAdmission> {
+    ensure_tables(transaction)?;
+    let Some(mut grant) = load_grant_by_carrier(transaction, &plan.carrier_hash)? else {
+        return Ok(RehearsalAtomicEffectAdmission::Denied(
+            crate::auth::rehearsal::carrier_required(),
+        ));
+    };
+    let request_digest = plan.request.normalized_digest()?;
+    if let Err(error) = plan.bindings.validate_grant(&grant, plan.now_ms) {
+        if error.diagnostic.code == "SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH" {
+            transaction.execute(
+                &format!("UPDATE {GRANTS} SET revoked_at_ms = COALESCE(revoked_at_ms, ?2), terminal_reason = COALESCE(terminal_reason, 'bindingMismatch') WHERE grant_id = ?1"),
+                params![grant.grant_id, plan.now_ms as i64],
+            )?;
+        }
+        return Ok(RehearsalAtomicEffectAdmission::Denied(error));
+    }
+    let stored: Option<(String, String)> = transaction
+        .query_row(
+            &format!("SELECT request_digest, outcome_json FROM {IDEMPOTENCY} WHERE grant_id = ?1 AND effect = ?2 AND idempotency_key = ?3"),
+            params![grant.grant_id, plan.request.effect().as_str(), plan.request.idempotency_key()],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    if let Some((stored_digest, stored_outcome)) = stored {
+        if stored_digest == request_digest {
+            let outcome: StoredIdempotencyOutcome =
+                serde_json::from_str(&stored_outcome).map_err(|_| request_invalid())?;
+            return Ok(if outcome.ok {
+                RehearsalAtomicEffectAdmission::Replay(outcome.data)
+            } else {
+                RehearsalAtomicEffectAdmission::Denied(replayed_denial(outcome.code.as_deref()))
+            });
+        }
+        return Ok(match charge_denial(
+            transaction,
+            &mut grant,
+            plan,
+            &request_digest,
+            idempotency_conflict(),
+            false,
+        )? {
+            ExerciseTransactionOutcome::Denied(error) => {
+                RehearsalAtomicEffectAdmission::Denied(error)
+            }
+            _ => return Err(request_invalid()),
+        });
+    }
+    let mut charged = grant.consumed.clone();
+    if charged.uses_charged >= grant.limits.max_uses {
+        return atomic_persist_denial(
+            transaction,
+            &grant,
+            plan,
+            &request_digest,
+            budget_exhausted("maxUses"),
+            &charged,
+        );
+    }
+    charged.uses_charged += 1;
+    if plan.request.effect().is_attempt_counter() {
+        if charged.challenge_attempts >= grant.limits.challenge_attempts {
+            write_consumed(transaction, &grant.grant_id, &charged)?;
+            return atomic_persist_denial(
+                transaction,
+                &grant,
+                plan,
+                &request_digest,
+                budget_exhausted("challengeAttempts"),
+                &charged,
+            );
+        }
+        charged.challenge_attempts += 1;
+    }
+    write_consumed(transaction, &grant.grant_id, &charged)?;
+    if !grant.scopes.contains(&plan.request.effect()) {
+        return atomic_persist_denial(
+            transaction,
+            &grant,
+            plan,
+            &request_digest,
+            scope_denied(),
+            &charged,
+        );
+    }
+    if !crate::auth::rehearsal::selector_allows(
+        &grant,
+        &plan.request,
+        plan.resolved_contact.as_ref(),
+    ) {
+        return atomic_persist_denial(
+            transaction,
+            &grant,
+            plan,
+            &request_digest,
+            selector_denied(),
+            &charged,
+        );
+    }
+    let before = charged.for_effect(plan.request.effect());
+    let limit = grant.limits.for_effect(plan.request.effect());
+    if !plan.request.effect().is_attempt_counter() && before >= limit {
+        return atomic_persist_denial(
+            transaction,
+            &grant,
+            plan,
+            &request_digest,
+            budget_exhausted(counter_name(plan.request.effect().counter())),
+            &charged,
+        );
+    }
+    if !plan.request.effect().is_attempt_counter() {
+        increment_success_counter(&mut charged, plan.request.effect(), 1)?;
+        write_consumed(transaction, &grant.grant_id, &charged)?;
+    }
+    Ok(RehearsalAtomicEffectAdmission::Admitted(
+        PreparedRehearsalAtomicEffect {
+            grant,
+            request_digest,
+            charged,
+        },
+    ))
+}
+
+fn atomic_persist_denial(
+    transaction: &Transaction<'_>,
+    grant: &AuthRehearsalGrantV1,
+    plan: &RehearsalExercisePlan,
+    request_digest: &str,
+    error: SnapbackError,
+    charged: &RehearsalConsumedV1,
+) -> SnapbackResult<RehearsalAtomicEffectAdmission> {
+    match persist_denial(
+        transaction,
+        grant,
+        plan,
+        request_digest,
+        error,
+        charged,
+    )? {
+        ExerciseTransactionOutcome::Denied(error) => {
+            Ok(RehearsalAtomicEffectAdmission::Denied(error))
+        }
+        _ => Err(request_invalid()),
+    }
+}
+
+pub(crate) fn finish_rehearsal_atomic_effect_success_in(
+    transaction: &Transaction<'_>,
+    plan: &RehearsalExercisePlan,
+    prepared: PreparedRehearsalAtomicEffect,
+    outcome: serde_json::Value,
+) -> SnapbackResult<()> {
+    transaction.execute(
+        &format!("INSERT INTO {MARKERS}(singleton, rehearsal_admitted, first_admission_grant_digest, admitted_at_ms) VALUES(1, 1, ?1, ?2) ON CONFLICT(singleton) DO NOTHING"),
+        params![format!("sha256:{:x}", Sha256::digest(prepared.grant.grant_id.as_bytes())), plan.now_ms as i64],
+    )?;
+    persist_idempotency(
+        transaction,
+        &prepared.grant,
+        plan,
+        &prepared.request_digest,
+        StoredIdempotencyOutcome {
+            ok: true,
+            code: None,
+            data: outcome,
+        },
+    )?;
+    insert_audit(
+        transaction,
+        &prepared.grant.grant_id,
+        Some(plan.request.effect()),
+        "succeeded",
+        selector_class(plan.request.effect()),
+        &prepared.request_digest,
+        &serde_json::to_string(&prepared.grant.consumed).map_err(|_| request_invalid())?,
+        &serde_json::to_string(&prepared.charged).map_err(|_| request_invalid())?,
+        plan.now_ms,
+    )
+}
+
+pub(crate) fn finish_rehearsal_atomic_effect_denial_in(
+    transaction: &Transaction<'_>,
+    plan: &RehearsalExercisePlan,
+    prepared: PreparedRehearsalAtomicEffect,
+    error: SnapbackError,
+) -> SnapbackResult<()> {
+    let _ = persist_denial(
+        transaction,
+        &prepared.grant,
+        plan,
+        &prepared.request_digest,
+        error,
+        &prepared.charged,
+    )?;
+    Ok(())
 }
 
 impl ExerciseTransactionOutcome {
@@ -700,8 +1005,88 @@ fn ensure_tables(transaction: &Transaction<'_>) -> SnapbackResult<()> {
             rehearsal_admitted INTEGER NOT NULL CHECK(rehearsal_admitted = 1),
             first_admission_grant_digest TEXT NOT NULL,
             admitted_at_ms INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS {DERIVED_IDENTITIES}(
+            identity_id TEXT PRIMARY KEY,
+            provenance_json TEXT NOT NULL,
+            governing_not_after_ms INTEGER NOT NULL,
+            created_at_ms INTEGER NOT NULL,
+            FOREIGN KEY(identity_id) REFERENCES _auth_identities(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS {DERIVED_SESSIONS}(
+            session_id TEXT PRIMARY KEY,
+            provenance_json TEXT NOT NULL,
+            governing_not_after_ms INTEGER NOT NULL,
+            created_at_ms INTEGER NOT NULL,
+            FOREIGN KEY(session_id) REFERENCES _auth_sessions(id) ON DELETE CASCADE
         );"
     ))?;
+    Ok(())
+}
+
+pub(super) fn rehearsal_session_provenance_by_id(
+    connection: &rusqlite::Connection,
+) -> SnapbackResult<std::collections::BTreeMap<String, crate::auth::rehearsal::AuthRehearsalProvenanceV1>> {
+    if !table_exists(connection, DERIVED_SESSIONS)? {
+        return Ok(std::collections::BTreeMap::new());
+    }
+    let mut statement = connection.prepare(&format!(
+        "SELECT session_id, provenance_json FROM {DERIVED_SESSIONS} ORDER BY session_id"
+    ))?;
+    let rows = statement
+        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut provenances = std::collections::BTreeMap::new();
+    for (session_id, json) in rows {
+        let provenance: crate::auth::rehearsal::AuthRehearsalProvenanceV1 =
+            serde_json::from_str(&json).map_err(|_| crate::auth::rehearsal::provenance_invalid())?;
+        provenance.validate()?;
+        if provenances.insert(session_id, provenance).is_some() {
+            return Err(crate::auth::rehearsal::provenance_invalid());
+        }
+    }
+    Ok(provenances)
+}
+
+pub(crate) fn insert_rehearsal_session_provenance_in(
+    transaction: &Transaction<'_>,
+    session_id: &str,
+    provenance: &crate::auth::rehearsal::AuthRehearsalProvenanceV1,
+    governing_not_after_ms: u64,
+    created_at_ms: u64,
+) -> SnapbackResult<()> {
+    ensure_tables(transaction)?;
+    provenance.validate()?;
+    transaction.execute(
+        &format!("INSERT INTO {DERIVED_SESSIONS}(session_id, provenance_json, governing_not_after_ms, created_at_ms) VALUES(?1, ?2, ?3, ?4)"),
+        params![
+            session_id,
+            serde_json::to_string(provenance).map_err(|_| crate::auth::rehearsal::provenance_invalid())?,
+            governing_not_after_ms as i64,
+            created_at_ms as i64,
+        ],
+    )?;
+    Ok(())
+}
+
+pub(crate) fn insert_rehearsal_identity_provenance_for_provider_in(
+    transaction: &Transaction<'_>,
+    identity_id: &str,
+    provenance: &crate::auth::rehearsal::AuthRehearsalProvenanceV1,
+    governing_not_after_ms: u64,
+    created_at_ms: u64,
+) -> SnapbackResult<()> {
+    ensure_tables(transaction)?;
+    provenance.validate()?;
+    transaction.execute(
+        &format!("INSERT INTO {DERIVED_IDENTITIES}(identity_id, provenance_json, governing_not_after_ms, created_at_ms) VALUES(?1, ?2, ?3, ?4)"),
+        params![
+            identity_id,
+            serde_json::to_string(provenance).map_err(|_| crate::auth::rehearsal::provenance_invalid())?,
+            governing_not_after_ms as i64,
+            created_at_ms as i64,
+        ],
+    )?;
     Ok(())
 }
 
@@ -853,6 +1238,12 @@ fn replayed_denial(code: Option<&str>) -> SnapbackError {
         Some("SNAPBACK_AUTH_REHEARSAL_BUDGET_EXHAUSTED") => budget_exhausted("recorded"),
         Some("SNAPBACK_AUTH_REHEARSAL_EXPIRED") => expired(),
         Some("SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH") => binding_mismatch(),
+        Some("SNAPBACK_AUTH_CODE_INVALID") => {
+            crate::auth::provider::code_invalid().into_snapback_error()
+        }
+        Some("SNAPBACK_AUTH_CODE_LOCKED") => {
+            crate::auth::provider::code_locked().into_snapback_error()
+        }
         _ => authority_ended(),
     }
 }

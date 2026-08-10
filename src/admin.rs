@@ -2481,7 +2481,7 @@ pub struct AppState {
     /// boot. Restart invalidates every durable grant, while revoke and expiry
     /// remove entries without erasing protected rehearsal history.
     pub(crate) auth_rehearsal_live_grants:
-        Arc<std::sync::RwLock<std::collections::BTreeMap<String, u64>>>,
+        crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
     /// Item-5 process authority. Production construction publishes this only
     /// after the durable stream migration and complete pre-bind rebuild.
     pub(crate) auth_coordinator: Option<Arc<crate::auth::coordinator::AuthCoordinator>>,
@@ -2563,7 +2563,12 @@ impl AppState {
         let network_profiles = crate::network_profile::NetworkProfileState::new();
         let auth_terminal_lifecycle =
             AuthTerminalLifecycle::new(connections.clone(), &ephemeral, snapback.clone());
-        let (service_authority_fences, telemetry, derived_instance_identity) = {
+        let (
+            service_authority_fences,
+            telemetry,
+            derived_instance_identity,
+            auth_rehearsal_live_grants,
+        ) = {
             let mut instance = snapback.try_lock().map_err(|_| {
                 SnapbackError::error(
                     "SNAPBACK_EMBED_APP_STATE_BUSY",
@@ -2573,6 +2578,7 @@ impl AppState {
             })?;
             let telemetry = instance.telemetry();
             let derived_instance_identity = instance.derived_fork_identity().cloned();
+            let auth_rehearsal_live_grants = instance.auth_rehearsal_live_registry();
             let service_authority_fences = {
                 let database = instance.auth_database_mut();
                 if !database.claim_app_state_graph() {
@@ -2589,6 +2595,7 @@ impl AppState {
                 service_authority_fences,
                 telemetry,
                 derived_instance_identity,
+                auth_rehearsal_live_grants,
             )
         };
         Ok((
@@ -2626,9 +2633,7 @@ impl AppState {
                 impersonation_capabilities: None,
                 agent_destroy_capabilities: None,
                 auth_provider: None,
-                auth_rehearsal_live_grants: Arc::new(std::sync::RwLock::new(
-                    std::collections::BTreeMap::new(),
-                )),
+                auth_rehearsal_live_grants,
                 auth_coordinator: None,
                 hosted_serving: None,
                 derived_instance_identity,
