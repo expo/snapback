@@ -5,7 +5,10 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-04 (dated finite-carrier completeness amendment: ordinary
+**Revised:** 2026-08-10 (mutation-wire artifact identity amendment: finite
+mutation requests offer an exact wire version and carry codegen-time artifact
+identity so successor-only migration floors can refuse blind predecessor
+writes; see the dated amendment below). 2026-08-04 (dated finite-carrier completeness amendment: ordinary
 finite query and authorized-lease responses may carry the LLP 0157 proof /
 witness pair, and terminal snapshot-batch continuation delivery may atomically
 carry its composed page-set manifest; see the dated amendment below).
@@ -955,3 +958,44 @@ the ordering carrier. Contracts: LLP 0200 §2.1.
   under those documents' own trackers.
 
 Review artifacts: `llp/reviews/0093-client-protocol-and-native-clients.{fable,codex}.md`.
+
+## Mutation-wire artifact identity amendment — 2026-08-10
+
+The finite `POST /mutation/{name}` carrier gains two optional, closed request
+members: `wireVersion` and `expectedGeneration`. `expectedGeneration` is the
+existing exact five-member artifact identity (`schemaVersion`, `appId`,
+`schemaHash`, `bundleHash`, and `inputsHash`) emitted into generated function
+references. Its provenance is the application build: a server-returned
+deployment identity or handshake echo MUST NOT be substituted, because that
+would attest only the target being called, not the code that authored the
+write.
+
+An ordinary mutation is not connection-scoped and therefore cannot inherit
+the version bound by `/connection/open`. It carries its own exact
+`wireVersion` offer and follows LLP 0094's compatibility matrix at this finite
+boundary: `snapback.v1` is known and binds the request, any present unknown
+token refuses `SNAPBACK_WIRE_VERSION_UNSUPPORTED`, and absence is the legacy
+offerless envelope. This does not widen or silently inherit LLP 0094's B1–B3
+connection lineage; it reuses the same exact-token negotiation rule for the
+otherwise unversioned finite carrier.
+
+For a fresh, read-set-free mutation after a successor-only schema-transition
+publication, a v1-bound request MUST carry `expectedGeneration` whose
+`schemaHash` identifies the active side of the transition (successor for
+`schema-resync`, predecessor for `rollback-resync`). Missing identity or a
+non-active identity refuses `SNAPBACK_MIGRATION_UPGRADE_REQUIRED` before
+function selection, acknowledgement consumption, or handler effects. An
+offerless legacy request remains admitted when it carries no identity; if it
+does carry identity, a non-active claim is actionable advisory evidence and
+refuses. Baseline-bearing mutations remain governed by LLP 0081's row-aware
+retention-floor validation.
+
+Exactly-once settlement recovery keeps precedence: an already committed exact
+mutation identity may return its recorded result before the fresh-write
+migration gate, so a deployment cannot strand a settlement the server has
+already made. The JavaScript client offers `snapback.v1` on every direct and
+outbox-replay mutation and obtains `expectedGeneration` from its generated
+reference. The Swift client does the same and accepts the build-time
+`ArtifactGeneration` through configuration; absence is explicit and will be
+upgrade-required only when a successor-only floor makes blind identity
+mandatory.

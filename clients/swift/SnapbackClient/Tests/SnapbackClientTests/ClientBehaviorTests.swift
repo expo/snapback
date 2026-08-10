@@ -9,21 +9,43 @@ private final class ReservationStubProtocol: URLProtocol, @unchecked Sendable {
     private static let lock = NSLock()
     private static var statuses: [Int] = []
     private static var includeEffectFreeDetails = true
+    private static var successBody = #"{"ok":true}"#
     private(set) static var requestCount = 0
+    private(set) static var lastRequestBody = ""
 
     static func configure(
         _ configuredStatuses: [Int],
-        includeEffectFreeDetails: Bool = true
+        includeEffectFreeDetails: Bool = true,
+        successBody: String = #"{"ok":true}"#
     ) {
         lock.lock()
         statuses = configuredStatuses
         self.includeEffectFreeDetails = includeEffectFreeDetails
+        self.successBody = successBody
         requestCount = 0
+        lastRequestBody = ""
         lock.unlock()
     }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    private static func requestBody(_ request: URLRequest) -> String {
+        if let body = request.httpBody {
+            return String(decoding: body, as: UTF8.self)
+        }
+        guard let stream = request.httpBodyStream else { return "" }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 1024)
+        while true {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            if count <= 0 { break }
+            data.append(contentsOf: buffer.prefix(count))
+        }
+        return String(decoding: data, as: UTF8.self)
+    }
 
     override func startLoading() {
         Self.lock.lock()
@@ -31,6 +53,8 @@ private final class ReservationStubProtocol: URLProtocol, @unchecked Sendable {
         Self.requestCount += 1
         let status = index < Self.statuses.count ? Self.statuses[index] : 200
         let includeEffectFreeDetails = Self.includeEffectFreeDetails
+        let successBody = Self.successBody
+        Self.lastRequestBody = Self.requestBody(request)
         Self.lock.unlock()
 
         let body: Data
@@ -46,7 +70,7 @@ private final class ReservationStubProtocol: URLProtocol, @unchecked Sendable {
                 ).data(using: .utf8)!
             )
         } else {
-            body = Data(#"{"ok":true}"#.utf8)
+            body = Data(successBody.utf8)
         }
         let response = HTTPURLResponse(
             url: request.url!,
@@ -726,7 +750,8 @@ final class ClientBehaviorTests: XCTestCase {
 
     private func client(
         maxAttempts: Int,
-        jitterMilliseconds: ClosedRange<UInt64> = 0...0
+        jitterMilliseconds: ClosedRange<UInt64> = 0...0,
+        expectedGeneration: ArtifactGeneration? = nil
     ) -> SnapbackClient {
         let sessionConfiguration = URLSessionConfiguration.ephemeral
         sessionConfiguration.protocolClasses = [ReservationStubProtocol.self]
@@ -737,6 +762,7 @@ final class ClientBehaviorTests: XCTestCase {
         configuration.sessionBearer = "sbs_native_test"
         configuration.reservationRetryMaxAttempts = maxAttempts
         configuration.reservationRetryJitterMilliseconds = jitterMilliseconds
+        configuration.expectedGeneration = expectedGeneration
         return SnapbackClient(configuration: configuration, session: session)
     }
 
@@ -1375,6 +1401,35 @@ final class ClientBehaviorTests: XCTestCase {
         )
         XCTAssertEqual(result["ok"]?.boolValue, true)
         XCTAssertEqual(ReservationStubProtocol.requestCount, 3)
+    }
+
+    func testMutationCarriesWireVersionAndBuildArtifactGeneration() async throws {
+        let generation = ArtifactGeneration(
+            schemaVersion: "snapback.v1",
+            appId: "swift-test-app",
+            schemaHash: "schema-build-hash",
+            bundleHash: "bundle-build-hash",
+            inputsHash: "inputs-build-hash"
+        )
+        ReservationStubProtocol.configure(
+            [200],
+            successBody: #"{"version":1,"changed_count":1,"result":null,"receipt":{}}"#
+        )
+        _ = try await client(
+            maxAttempts: 1,
+            expectedGeneration: generation
+        ).mutate("write")
+
+        let body = try JSONValue.parse(ReservationStubProtocol.lastRequestBody)
+        XCTAssertEqual(body["wireVersion"]?.stringValue, "snapback.v1")
+        XCTAssertEqual(
+            body["expectedGeneration"]?["schemaHash"]?.stringValue,
+            generation.schemaHash
+        )
+        XCTAssertEqual(
+            body["expectedGeneration"]?["bundleHash"]?.stringValue,
+            generation.bundleHash
+        )
     }
 
     func testReservationStaleExhaustsConfiguredBudget() async {

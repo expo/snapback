@@ -444,6 +444,13 @@
     "settlementLane": {
       "$ref": "#/$defs/SettlementLane",
       "default": "replay-accept"
+    },
+    "wireVersion": {
+      "description": "Exact finite-mutation wire-version offer. A known token opts this\nrequest into the mutation identity requirements carried by that\nversion; an unknown token refuses, while absence preserves the legacy\noptional-identity envelope.\n\nUnlike connection-scoped calls, an ordinary mutation has no grant\nlineage from which it can inherit a negotiated version. The offer is\ntherefore carried on the mutation itself.\n\n@ref LLP 0093#mutation-wire-artifact-identity-amendment--2026-08-10 —\n  finite writes negotiate identity requiredness on their own carrier.",
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "title": "MutationRequest",

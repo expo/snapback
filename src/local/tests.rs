@@ -9029,6 +9029,174 @@ fn successor_only_publication_gates_stale_replay_baselines() {
     );
 }
 
+// @ref LLP 0093#mutation-wire-artifact-identity-amendment--2026-08-10 — a
+//   finite v1 mutation carrying no read baseline must identify the build-time
+//   schema generation before it can cross a successor-only migration floor.
+#[test]
+fn successor_only_publication_gates_blind_mutation_artifact_generation() {
+    fn stage_blind(
+        snapback: &mut LocalSnapback,
+        id: &str,
+        name: &str,
+        expected_generation: Option<&ArtifactGeneration>,
+        wire_version: Option<&str>,
+    ) -> SnapbackResult<(
+        crate::storage::AuthorizationCommitPreflight,
+        StagedRecordedMutation,
+    )> {
+        let input = HandlerInput {
+            args: json!({ "id": id, "name": name }),
+            ..HandlerInput::default()
+        };
+        let authority = InvocationGate::prepare_dev_input(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &input,
+        )?;
+        snapback.stage_recorded_authorization_mutation_with_wire_version(
+            "renameAuthor",
+            input,
+            None,
+            None,
+            &[],
+            "test",
+            authority,
+            expected_generation,
+            None,
+            MutationSettlement::default(),
+            wire_version,
+        )
+    }
+
+    let (schema, functions, _plan) = projection_fixture(5);
+    let mut snapback = LocalSnapback::memory().expect("memory blind-write fixture");
+    snapback.apply_schema(schema).expect("apply schema");
+    let diagnostics = snapback.load_functions(functions);
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "{diagnostics:?}"
+    );
+    snapback
+        .invoke_mutation(
+            "addAuthor",
+            HandlerInput {
+                args: json!({ "slug": "ada", "name": "Ada" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("seed author");
+    let row = snapback
+        .db
+        .query_reads_read()
+        .query(
+            &QueryPlan {
+                table: "authors".to_owned(),
+                filters: Vec::new(),
+                membership_filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                indexed_by: None,
+            },
+            &HandlerInput::default(),
+        )
+        .expect("read author")
+        .rows[0]
+        .clone();
+    let author_id = row["_id"].as_str().expect("author id").to_owned();
+    let predecessor_schema_hash = "predecessor-schema-hash".to_owned();
+    crate::storage::publish_schema_transition_for_test(
+        &mut snapback.db,
+        crate::migration::CompatibilityPosture::SuccessorOnly,
+        &predecessor_schema_hash,
+    );
+    let active_schema_hash = snapback
+        .db
+        .latest_schema_transition()
+        .expect("read transition")
+        .expect("published transition")
+        .body
+        .successor_schema_hash;
+    let generation = |schema_hash: String| ArtifactGeneration {
+        schema_version: "snapback.v1".to_owned(),
+        app_id: "migration-floor-test".to_owned(),
+        schema_hash,
+        bundle_hash: "bundle-build-hash".to_owned(),
+        inputs_hash: "inputs-build-hash".to_owned(),
+    };
+
+    let error = match stage_blind(
+        &mut snapback,
+        &author_id,
+        "missing identity",
+        None,
+        Some(crate::wire_version::WIRE_VERSION_V1),
+    ) {
+        Ok(_) => panic!("negotiated blind mutation must carry artifact identity"),
+        Err(error) => error,
+    };
+    assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_UPGRADE_REQUIRED");
+
+    let predecessor_generation = generation(predecessor_schema_hash);
+    let error = match stage_blind(
+        &mut snapback,
+        &author_id,
+        "predecessor identity",
+        Some(&predecessor_generation),
+        Some(crate::wire_version::WIRE_VERSION_V1),
+    ) {
+        Ok(_) => panic!("predecessor blind mutation must refuse at the floor"),
+        Err(error) => error,
+    };
+    assert_eq!(error.diagnostic.code, "SNAPBACK_MIGRATION_UPGRADE_REQUIRED");
+    assert_eq!(
+        snapback
+            .db
+            .query_reads_read()
+            .get("authors", &author_id)
+            .expect("read back")
+            .expect("author survives")["name"],
+        json!("Ada"),
+        "identity refusals happen before any write",
+    );
+
+    let successor_generation = generation(active_schema_hash);
+    let (preflight, staged) = stage_blind(
+        &mut snapback,
+        &author_id,
+        "successor identity",
+        Some(&successor_generation),
+        Some(crate::wire_version::WIRE_VERSION_V1),
+    )
+    .expect("active build identity stages");
+    snapback
+        .try_with_direct_authorization_write(preflight, move |snapback| {
+            snapback.commit_staged_recorded_authorization_mutation(staged)
+        })
+        .expect("reserve successor write")
+        .expect("record successor write")
+        .0
+        .expect("commit successor write");
+
+    let (preflight, staged) = stage_blind(
+        &mut snapback,
+        &author_id,
+        "legacy compatibility",
+        None,
+        None,
+    )
+    .expect("offerless legacy blind mutation remains compatible");
+    snapback
+        .try_with_direct_authorization_write(preflight, move |snapback| {
+            snapback.commit_staged_recorded_authorization_mutation(staged)
+        })
+        .expect("reserve legacy write")
+        .expect("record legacy write")
+        .0
+        .expect("commit legacy write");
+}
+
 // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
 //   quarantined offline mutation SETTLES through resync-before-replay:
 //   the stale-baseline replay is refused recording nothing (the id

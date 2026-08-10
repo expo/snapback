@@ -11035,6 +11035,45 @@ impl LocalSnapback {
             expected_generation,
             operation_issuance,
             settlement,
+            None,
+            false,
+        )
+    }
+
+    /// The finite HTTP mutation carrier has no connection lineage from which
+    /// to inherit LLP 0094's negotiated version, so it presents the exact
+    /// offer alongside the request. Internal and legacy callers continue
+    /// through the offerless wrapper above.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn stage_recorded_authorization_mutation_with_wire_version(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+        acknowledged_client_mutation_ids: &[String],
+        transport: &str,
+        authority: PreparedAuthority,
+        expected_generation: Option<&ArtifactGeneration>,
+        operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
+        settlement: MutationSettlement,
+        wire_version: Option<&str>,
+    ) -> SnapbackResult<(
+        crate::storage::AuthorizationCommitPreflight,
+        StagedRecordedMutation,
+    )> {
+        self.stage_recorded_authorization_mutation_with_generation_and_settlement_inner(
+            name,
+            input,
+            client_mutation_id,
+            authority_descriptor,
+            acknowledged_client_mutation_ids,
+            transport,
+            authority,
+            expected_generation,
+            operation_issuance,
+            settlement,
+            wire_version,
             false,
         )
     }
@@ -11052,11 +11091,27 @@ impl LocalSnapback {
         expected_generation: Option<&ArtifactGeneration>,
         operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
         settlement: MutationSettlement,
+        wire_version: Option<&str>,
         allow_host_issuance: bool,
     ) -> SnapbackResult<(
         crate::storage::AuthorizationCommitPreflight,
         StagedRecordedMutation,
     )> {
+        let negotiated_wire_version = match crate::wire_version::classify_open_offer(
+            wire_version,
+            crate::wire_version::SUPPORTED_WIRE_VERSIONS,
+        ) {
+            crate::wire_version::OpenWireVersionOffer::Absent => None,
+            crate::wire_version::OpenWireVersionOffer::Known(token) => Some(token),
+            crate::wire_version::OpenWireVersionOffer::Unknown => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
+                    "protocol",
+                    "the offered mutation wireVersion is not supported by this server; \
+                     supported versions: snapback.v1",
+                ));
+            }
+        };
         if operation_issuance.is_some() && client_mutation_id.is_none() {
             return Err(SnapbackError::error(
                 "SNAPBACK_OPERATION_IDENTITY_REQUIRES_CLIENT_MUTATION_ID",
@@ -11173,6 +11228,15 @@ impl LocalSnapback {
                 ));
             }
         }
+        // @ref LLP 0081#dated-amendment-mutation-wire-artifact-identity-2026-08-10 —
+        //   exact-settlement recovery stays first; a fresh blind write then
+        //   proves the active schema generation before selection, ACKs, or
+        //   handler effects can cross a successor-only retention floor.
+        self.validate_blind_mutation_generation_at_migration_floor(
+            &input,
+            expected_generation,
+            negotiated_wire_version,
+        )?;
         let function = self.function(name)?.clone();
         let settlement_time = admitted_settlement_time_policy(&function, &settlement);
         self.validate_expected_generation(&authority, expected_generation)?;
@@ -20623,6 +20687,65 @@ impl LocalSnapback {
         )
     }
 
+    fn validate_blind_mutation_generation_at_migration_floor(
+        &self,
+        input: &HandlerInput,
+        expected: Option<&ArtifactGeneration>,
+        negotiated_wire_version: Option<&str>,
+    ) -> SnapbackResult<()> {
+        // Baseline-bearing writes remain governed by storage's row-aware
+        // successor-only floor. This gate closes only the blind-write gap.
+        if !input.read_set.is_empty() {
+            return Ok(());
+        }
+        let Some(transition) = self.db.latest_schema_transition()? else {
+            return Ok(());
+        };
+        if !matches!(
+            transition.body.compatibility_posture,
+            crate::migration::CompatibilityPosture::SuccessorOnly
+        ) {
+            return Ok(());
+        }
+        let active_schema_hash = match transition.kind {
+            crate::storage::SchemaTransitionKind::SchemaResync => {
+                &transition.body.successor_schema_hash
+            }
+            crate::storage::SchemaTransitionKind::RollbackResync => {
+                &transition.body.predecessor_schema_hash
+            }
+        };
+        if expected
+            .is_some_and(|generation| generation.schema_hash == active_schema_hash.as_str())
+        {
+            return Ok(());
+        }
+        // Legacy mutation carriers did not negotiate identity requiredness.
+        // Preserve that envelope only when it supplies no claim to check;
+        // a present predecessor claim is useful advisory evidence and fails
+        // closed. A negotiated v1 carrier must always present the claim.
+        if expected.is_none() && negotiated_wire_version.is_none() {
+            return Ok(());
+        }
+        Err(SnapbackError::error(
+            "SNAPBACK_MIGRATION_UPGRADE_REQUIRED",
+            "runtime",
+            "this application published a successor-only migration; upgrade the client \
+             artifacts and resync before sending read-set-free writes",
+        )
+        .with_details(json!({
+            "reason": if expected.is_some() {
+                "mutation-artifact-schema-mismatch"
+            } else {
+                "mutation-artifact-identity-required"
+            },
+            "wireVersion": negotiated_wire_version,
+            "retentionFloor": transition.body.retention_floor,
+            "expectedSchemaHash": expected.map(|generation| generation.schema_hash.as_str()),
+            "activeSchemaHash": active_schema_hash,
+        })))
+    }
+
     pub(crate) fn function_is_authority_independent(&self, name: &str) -> bool {
         self.functions
             .function(name)
@@ -21380,6 +21503,7 @@ impl LocalSnapback {
             None,
             host_identity.and_then(|identity| identity.operation_issuance),
             MutationSettlement::default(),
+            None,
             true,
         )
     }

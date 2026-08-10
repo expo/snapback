@@ -1,6 +1,6 @@
 # Mutation-wire artifact identity (blind predecessor writes)
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 2
@@ -80,3 +80,21 @@ Verified facts that bound the implementation:
   (SNAPBACK_MIGRATION_UPGRADE_REQUIRED refusal family, 5e244bf9
   resync-before-replay, artifact privacy boundary in the JS Contract
   store).
+
+## Resolution (2026-08-10)
+
+Implemented the coherent protocol slice in Lane J. Finite mutation requests
+now carry an exact `wireVersion` offer; the JavaScript and Swift clients send
+`snapback.v1`, and generated JavaScript references supply the existing exact
+build-time `expectedGeneration`. At a successor-only migration floor, fresh
+read-set-free writes require the active schema hash when v1 is offered, while
+offerless legacy requests retain the documented compatibility envelope.
+Unknown offers and predecessor identities fail before handler effects.
+
+The Rust carrier, committed mutation schema, both clients, codegen provenance,
+focused Rust/HTTP/schema tests, Swift tests, JavaScript client/codegen tests,
+and dated LLP 0081/0093 amendments landed together in the uncommitted Lane J
+worktree. `ref-check` and focused verification pass; the full Rust library
+suite's remaining failures are the filed rehearsal fork-custody family plus
+unrelated pre-existing diagnostic/capability drift recorded in
+`LANE-J-NOTES.md`.

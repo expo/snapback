@@ -9322,6 +9322,24 @@ pub struct MutationRequest {
         skip_serializing_if = "Option::is_none"
     )]
     pub expected_generation: Option<ArtifactGeneration>,
+    /// Exact finite-mutation wire-version offer. A known token opts this
+    /// request into the mutation identity requirements carried by that
+    /// version; an unknown token refuses, while absence preserves the legacy
+    /// optional-identity envelope.
+    ///
+    /// Unlike connection-scoped calls, an ordinary mutation has no grant
+    /// lineage from which it can inherit a negotiated version. The offer is
+    /// therefore carried on the mutation itself.
+    ///
+    /// @ref LLP 0093#mutation-wire-artifact-identity-amendment--2026-08-10 —
+    ///   finite writes negotiate identity requiredness on their own carrier.
+    #[serde(
+        default,
+        rename = "wireVersion",
+        alias = "wire_version",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub wire_version: Option<String>,
     /// Durable client-generated identity for exactly-once reconnect replay.
     /// Reusing an id with another function or auth context is rejected.
     #[serde(

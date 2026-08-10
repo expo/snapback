@@ -778,6 +778,46 @@ public struct LiveSubscribeOutput: Sendable {
     }
 }
 
+/// Build-time identity of one coherent schema/function artifact pair. It is
+/// intentionally supplied by generated application code/configuration rather
+/// than learned from the target being called.
+public struct ArtifactGeneration: Equatable, Sendable {
+    public var schemaVersion: String
+    public var appId: String
+    public var schemaHash: String
+    public var bundleHash: String
+    public var inputsHash: String
+
+    public init(
+        schemaVersion: String,
+        appId: String,
+        schemaHash: String,
+        bundleHash: String,
+        inputsHash: String
+    ) {
+        self.schemaVersion = schemaVersion
+        self.appId = appId
+        self.schemaHash = schemaHash
+        self.bundleHash = bundleHash
+        self.inputsHash = inputsHash
+    }
+
+    var isComplete: Bool {
+        !schemaVersion.isEmpty && !appId.isEmpty && !schemaHash.isEmpty
+            && !bundleHash.isEmpty && !inputsHash.isEmpty
+    }
+
+    var jsonValue: JSONValue {
+        .object([
+            "schemaVersion": .string(schemaVersion),
+            "appId": .string(appId),
+            "schemaHash": .string(schemaHash),
+            "bundleHash": .string(bundleHash),
+            "inputsHash": .string(inputsHash),
+        ])
+    }
+}
+
 /// `POST /mutation/{name}` success response (`mutation.output.schema.json`).
 public struct MutationResponse: Sendable {
     public var version: UInt64

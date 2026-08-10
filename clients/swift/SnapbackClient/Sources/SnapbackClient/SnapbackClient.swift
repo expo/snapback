@@ -39,6 +39,13 @@ public actor SnapbackClient {
         /// When true, refuse instead of downgrading on legacy-server
         /// detection (LLP 0094 §0B.6 strict configuration).
         public var strictWireVersion = false
+        /// The artifact generation embedded by the application's build. This
+        /// must come from codegen or equivalent pinned build metadata, never
+        /// from a server handshake echo.
+        ///
+        /// @ref LLP 0093#mutation-wire-artifact-identity-amendment--2026-08-10 —
+        ///   blind writes prove which schema generation authored them.
+        public var expectedGeneration: ArtifactGeneration? = nil
 
         public init(baseURL: URL) {
             self.baseURL = baseURL
@@ -610,10 +617,21 @@ public actor SnapbackClient {
     }
 
     public func mutate(_ name: String, args: JSONValue = .null, userId: String? = nil) async throws -> MutationResponse {
+        var members = handlerInput(args: args, userId: userId).objectValue ?? [:]
+        // Finite mutations do not inherit the connection-open negotiation.
+        members["wireVersion"] = .string(Self.wireVersionToken)
+        if let generation = configuration.expectedGeneration {
+            guard generation.isComplete else {
+                throw ClientError.invalidState(
+                    "mutation expectedGeneration must contain a complete build artifact identity"
+                )
+            }
+            members["expectedGeneration"] = generation.jsonValue
+        }
         let json = try await request(
             method: "POST",
             path: "/mutation/\(name)",
-            body: handlerInput(args: args, userId: userId),
+            body: .object(members),
             connectionScoped: false,
             allowsReservationRetry: true
         )

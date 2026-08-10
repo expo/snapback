@@ -5,7 +5,10 @@
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-07 (ownership acceptance — LLP 0129 owner-landing
+**Revised:** 2026-08-10 (mutation-wire artifact identity amendment: the
+successor-only floor now gates read-set-free writes by their codegen-time
+schema generation after finite-carrier version negotiation; see the dated
+amendment below). 2026-08-07 (ownership acceptance — LLP 0129 owner-landing
 ledger row 3, schema-at-capture versus schema-at-settle skew
 ("schema/identity fencing"), assigned to this RFC by the 2026-08-07
 author gate packet ruling, item 7
@@ -982,3 +985,30 @@ versioned declaration becomes active again. A future migration/restore
 identity extension requires its own reviewed LLP. This amendment records
 the specified v2 binding and the v1 removal; it claims no
 `migration-plan-v2` implementation.
+
+## Dated amendment: mutation-wire artifact identity (2026-08-10)
+
+The successor-only migration floor now covers the read-set-free case that the
+row-baseline gate cannot observe. After an exact `snapback.v1` offer on the
+finite mutation carrier, a fresh blind write MUST carry the build-time
+`expectedGeneration` and its `schemaHash` MUST name the active schema side of
+the latest successor-only transition. A forward `schema-resync` admits the
+successor hash; a `rollback-resync` admits the predecessor hash. Missing or
+non-active identity refuses `SNAPBACK_MIGRATION_UPGRADE_REQUIRED` before
+function selection, ACK consumption, dry-run/execution, or any write.
+
+The compatibility bridge is explicit. Offerless legacy mutations that carry
+no identity retain their old admission behavior; a legacy request that does
+present a non-active generation can be refused from that evidence. Requests
+with read dependencies continue through the existing row-aware floor, where
+an unchanged baseline remains safe and a changed pre-floor baseline requires
+resync. This amendment therefore closes the blind predecessor-write hole
+without replacing the stronger conflict evidence available to baseline-bearing
+work.
+
+The gate applies only to fresh work. Exact-settlement lookup remains earlier
+than the identity floor, so a retry of an already committed mutation returns
+the durable original result even after publication. The identity source is
+codegen/build configuration, never the active deployment identity learned
+from the server; otherwise a predecessor client could echo the successor and
+defeat the fence.

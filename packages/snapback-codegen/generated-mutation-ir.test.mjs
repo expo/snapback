@@ -34,6 +34,7 @@ export const createCard = defineMutation({
 });
 export const editCard = defineMutation({
   args: { cardId: v.id('cards'), title: v.string() },
+  refusals: ['CARD_NOT_FOUND', 'CARD_LOCKED'],
   plan: [
     get('cards', arg('cardId'), 'card', { elseError: 'CARD_NOT_FOUND' }),
     guard(eqv(field(bindingRef('card'), 'locked'), lit(false)), 'CARD_LOCKED'),
@@ -67,6 +68,11 @@ export const authoritativeValue = defineMutation({
   assert.deepEqual(create.localReadRequirements, []);
   assert.equal(create.sourceIdentity.implementationHash, api.api.createCard.implementationHash);
   assert.deepEqual(create.sourceIdentity.activation, api.api.createCard.expectedGeneration);
+  assert.equal(
+    create.sourceIdentity.activation.schemaHash,
+    generated.schemaManifest.schemaHash,
+    'mutation references carry the codegen-time schema identity used at migration floors',
+  );
   assert.equal(Object.isFrozen(create.plan), true);
 
   const edit = api.api.editCard.mutationIr;

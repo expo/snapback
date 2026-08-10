@@ -4666,6 +4666,9 @@ async function generateInProcessLocked({
     schemaContentItems,
     bundleContentItems,
   });
+  // @ref LLP 0093#mutation-wire-artifact-identity-amendment--2026-08-10 —
+  // generated references, rather than a server handshake echo, are the
+  // mutation client's proof of the build-time artifact generation.
   const expectedGeneration = {
     schemaVersion: artifactVersion,
     appId,

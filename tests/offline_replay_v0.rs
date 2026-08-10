@@ -207,6 +207,7 @@ async fn synthetic_lane_l_wire_submission_rederives_before_commit() {
             bounded_skew: None,
         },
         expected_generation: None,
+        wire_version: None,
         client_mutation_id: Some("cm_llp0133_wire_lane_l".to_owned()),
         operation_issuance: None,
         authority_descriptor: None,
@@ -242,6 +243,28 @@ async fn synthetic_lane_l_wire_submission_rederives_before_commit() {
         response["result"]
     );
     assert_eq!(response["receipt"]["idMap"][0]["disposition"], "mapped");
+}
+
+#[tokio::test]
+async fn finite_mutation_wire_version_offer_is_must_understand() {
+    let app = snapback::server::router(memory());
+    let request = MutationRequest {
+        input: create_input(USER),
+        wire_version: Some("snapback.v2".to_owned()),
+        ..MutationRequest::default()
+    };
+    let response = app
+        .oneshot(post_json(
+            "/mutation/createTodo",
+            serde_json::to_value(request).unwrap(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response_json(response).await["diagnostic"]["code"],
+        "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
+    );
 }
 
 #[test]
@@ -429,6 +452,7 @@ async fn current_mutation_id_cannot_be_acknowledged_by_its_own_request() {
         input: create_input(USER),
         settlement: Default::default(),
         expected_generation: None,
+        wire_version: None,
         client_mutation_id: Some(mutation_id.clone()),
         operation_issuance: None,
         authority_descriptor: None,
@@ -484,6 +508,7 @@ async fn standalone_ack_reclaims_a_final_result_and_is_auth_bound() {
         input: create_input(USER),
         settlement: Default::default(),
         expected_generation: None,
+        wire_version: None,
         client_mutation_id: Some(mutation_id.clone()),
         operation_issuance: None,
         authority_descriptor: None,
@@ -568,6 +593,7 @@ async fn admin_purge_is_gated_explicit_and_auth_selective() {
         input: create_input(USER),
         settlement: Default::default(),
         expected_generation: None,
+        wire_version: None,
         client_mutation_id: Some(user_id.clone()),
         operation_issuance: None,
         authority_descriptor: None,
@@ -577,6 +603,7 @@ async fn admin_purge_is_gated_explicit_and_auth_selective() {
         input: create_input("another_user"),
         settlement: Default::default(),
         expected_generation: None,
+        wire_version: None,
         client_mutation_id: Some(other_id),
         operation_issuance: None,
         authority_descriptor: None,

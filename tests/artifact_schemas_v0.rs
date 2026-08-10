@@ -74,11 +74,12 @@ use snapback::local::{
     LiveUnsubscribeInput, LiveWatermarkStats, MaintenanceDiagnostics, PublicInspect,
 };
 use snapback::manifest::{
-    AuthInput, AuthorityDescriptor, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS,
-    CapabilityManifest, ConfigEntryDefinition, CronJobDefinition, CronSchedule, FunctionManifest,
-    HandlerInput, MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationPlan,
-    MutationRequest, REPLAY_OPAQUE_ID_MAX_BYTES, REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION,
-    SchemaManifest, SettlementLane, SourceSpan, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    ArtifactGeneration, AuthInput, AuthorityDescriptor, CLIENT_MUTATION_ACK_MAX_IDS,
+    CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, ConfigEntryDefinition, CronJobDefinition,
+    CronSchedule, FunctionManifest, HandlerInput, MutationAcknowledgementRequest,
+    MutationAcknowledgementResponse, MutationPlan, MutationRequest, REPLAY_OPAQUE_ID_MAX_BYTES,
+    REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION, SchemaManifest, SettlementLane, SourceSpan,
+    TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
 use snapback::result_transform::{
     RESULT_TRANSFORM_V1_CASE_SCHEMA_FILE, RESULT_TRANSFORM_V1_CORPUS,
@@ -535,6 +536,10 @@ fn mutation_replay_bounds_match_the_public_data_tier_profile() {
     let client_id = &schema["properties"]["clientMutationId"];
     let acknowledged_ids = &schema["properties"]["acknowledgedClientMutationIds"];
     let ledger_ids = &schema["$defs"]["CtxAnswerLedger"]["properties"]["ids"];
+    assert_eq!(
+        schema["properties"]["wireVersion"]["type"],
+        json!(["string", "null"])
+    );
 
     assert_eq!(client_id["minLength"], json!(1));
     assert_eq!(client_id["maxLength"], json!(REPLAY_OPAQUE_ID_MAX_BYTES));
@@ -567,6 +572,7 @@ fn mutation_replay_bounds_match_the_public_data_tier_profile() {
         input: HandlerInput::default(),
         settlement: Default::default(),
         expected_generation: None,
+        wire_version: Some("snapback.v1".to_owned()),
         client_mutation_id: Some("cm_valid".to_owned()),
         operation_issuance: None,
         authority_descriptor: Some(AuthorityDescriptor {
@@ -3275,7 +3281,14 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         &serde_json::to_value(MutationRequest {
             input: input.clone(),
             settlement: Default::default(),
-            expected_generation: None,
+            expected_generation: Some(ArtifactGeneration {
+                schema_version: "snapback.v1".to_owned(),
+                app_id: "schema-roundtrip-app".to_owned(),
+                schema_hash: "schema-build-hash".to_owned(),
+                bundle_hash: "bundle-build-hash".to_owned(),
+                inputs_hash: "inputs-build-hash".to_owned(),
+            }),
+            wire_version: Some("snapback.v1".to_owned()),
             client_mutation_id: Some("cm_schema_roundtrip".to_owned()),
             operation_issuance: None,
             authority_descriptor: Some(AuthorityDescriptor {

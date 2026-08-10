@@ -379,6 +379,12 @@ unregisterExternalMaterialization();
       Array(6).fill(generation),
       'every generated call family, including liveQuery, carries the exact artifact generation',
     );
+    const mutationCall = generatedCalls.find(({ path }) => path === '/mutation/generationBound');
+    assert.equal(
+      mutationCall.body.wireVersion,
+      'snapback.v1',
+      'finite mutations offer the version that makes build identity required at migration floors',
+    );
     assert.throws(
       () => generationClient.query({
         ...generatedRef,

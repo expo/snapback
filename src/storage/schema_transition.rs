@@ -252,6 +252,11 @@ pub(crate) fn publish_schema_transition_for_test(
     posture: crate::migration::CompatibilityPosture,
     predecessor_schema_hash: &str,
 ) -> u64 {
+    let successor_schema_hash = db
+        .schema()
+        .schema_hash
+        .clone()
+        .unwrap_or_else(|| "s".repeat(64));
     let tx = db
         .conn
         .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -265,7 +270,7 @@ pub(crate) fn publish_schema_transition_for_test(
             operation_id: "operation-v1:posture-test".to_owned(),
             plan_id: "migration-v1:posture-test".to_owned(),
             predecessor_schema_hash: predecessor_schema_hash.to_owned(),
-            successor_schema_hash: "s".repeat(64),
+            successor_schema_hash,
             predecessor_generation: 1,
             successor_generation: 2,
             retention_floor: version,

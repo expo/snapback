@@ -7525,7 +7525,16 @@ export class SnapbackClient {
       }
       if (clientMutationId === null) clientMutationId = createClientMutationId();
     }
-    const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
+    // @ref LLP 0093#mutation-wire-artifact-identity-amendment--2026-08-10 —
+    // finite mutations cannot inherit a connection's negotiated version, so
+    // the exact offer travels with the generated build identity on every
+    // online and replay dispatch.
+    const body = {
+      args,
+      auth: SnapbackClient.auth(userId),
+      read_set: readSet,
+      wireVersion: WIRE_VERSION_TOKEN,
+    };
     if (generation !== null) body.expectedGeneration = generation;
     // Opaque adapter correlation (LLP 0034 §3.2): sent verbatim, echoed on
     // the receipt; the provider never interprets it.
