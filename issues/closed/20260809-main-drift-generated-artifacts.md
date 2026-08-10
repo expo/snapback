@@ -1,6 +1,6 @@
 # main drift: generated-artifacts has a stale committed record
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -44,3 +44,17 @@ scripts/check-generated-artifacts
 
 Commit the reconciled record with the measured change, verify the gate, record
 the resolution here, and move this ticket to `issues/closed/`.
+
+## Resolution
+
+Resolved on 2026-08-09 against `origin/main` revision
+`fc75acf24290725f78bf31a32cc88f7dd144901b`. Repository-wide regeneration
+identified four stale composition-backed projections: Triage Graph, Fleet
+Observatory, Latency Kanban, and Contention Calendar. Their trusted activations
+were re-minted with the exact qualified Snapback binary and their committed
+review surfaces were regenerated; the Contention Calendar content-addressed
+descriptor and binding rotated as required. No other committed generated root
+changed.
+
+After committing those deterministic outputs, `scripts/check-generated-artifacts`
+passes over every job in `scripts/generated-artifact-policy.mjs`.

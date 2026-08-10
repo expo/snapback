@@ -2,27 +2,27 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v1",
-    "databaseId": "019fe5ba-fae5-7a03-9141-3ba5ae02aa97",
+    "databaseId": "019fea22-b320-7ca1-88c6-dbf630491736",
     "deploymentId": "fleet-observatory-move1-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
     "expectedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "fleet-observatory-move1",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:3db2d9a1cc001249ecdfa3ad4aa01169fcdd8fa0c5b4e95ba6639cdd29303a57",
-      "bundleHash": "snapback.v1:sessions:function:sha256:582c249b08ea7e02deb3b97c632a6c0273f289c9742a800b63f2bdec550cd55c",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:ee8bb1a8fee9cf539a9cec8f34fa4ae088d6892c987c162b6623db217d120441"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:21bca18616e329c23e5266d1c88abfada989a6f862674aaa6ae327c726f9447c",
+      "bundleHash": "snapback.v1:sessions:function:sha256:7e2ca390739a8851fc33769c07e66f1bf477c81fca242324000bc8b53ed67f6e",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:754d9d75b7039db852555dc6910d0e4b3fbd8bdfff7c368ab4d29c76685fd7ad"
     },
-    "proofKeyManifestDigest": "sha256:6bc8fa580cb87e8082ba8043dde38906a49ab8333f3bf1666917df92166d07ca"
+    "proofKeyManifestDigest": "sha256:6d19144ac172e4c38fcec7b52c9fc9bb83cbd05c308e1ac1c49ede2cbce16e90"
   },
-  "activationHash": "sha256:1830e677b4d9a3f5325e7d507a805ab38e8ca376bc9b9a7d82f2b3ffc1481420",
+  "activationHash": "sha256:c6585e572754c620faf0885f819636fd835e36ace8e745883a47dcc3e349ca4f",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.uNVa1ZVitkO2MyLL_BZRWw",
+        "proofKeyId": "sbpk1.8tvz_kyVtN4fcm7pROu8iA",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "qmjOuX92UMAMPQxSStS-Xt_qMsV2YG73eCgYh-f9ZiQ"
+        "publicKeyBase64url": "57nngYnYfIaMzmZGdPLXoIxlmF4mHjSMy-U8QMVkUIk"
       }
     ]
   }

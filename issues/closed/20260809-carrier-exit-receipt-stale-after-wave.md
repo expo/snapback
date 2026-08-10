@@ -1,5 +1,6 @@
 # local-store carrier-exit receipt stale after the S4/replication waves
 
+**Status:** Closed
 **Opened:** 2026-08-09
 
 `node tests/acceptance/local-store-carrier-exit-v1.mjs` fails a digest
@@ -15,3 +16,12 @@ Requalification needs the standards-real runner (Chrome/CDP owner +
 SIGKILL-first process-death leg per LLP 0155/0166) — the rotating session
 owns it. The pre-push drift tier reports it as ALLOWED-pre-existing for
 unrelated pushes; the 0199 slice-14 bypass verification surfaced it.
+
+## Resolution
+
+Resolved on 2026-08-09 against `origin/main` revision
+`fc75acf24290725f78bf31a32cc88f7dd144901b`. The standards-real runner passed
+Triage Graph 8/8, Fleet Observatory 8/8, and local persistent-store carrier
+17 PASS / 0 GAP / 0 SKIPPED. The publication finalizer refreshed all three
+carrier chains and passed the focused `p2_` capability projection tests and
+publication conformance validators.

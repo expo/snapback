@@ -1,6 +1,6 @@
 # main drift: local-store-carrier-receipt has a stale committed record
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -45,3 +45,16 @@ node tests/acceptance/local-store-carrier-exit-v1.mjs
 
 Commit the reconciled record with the measured change, verify the gate, record
 the resolution here, and move this ticket to `issues/closed/`.
+
+## Resolution
+
+Resolved on 2026-08-09 against `origin/main` revision
+`fc75acf24290725f78bf31a32cc88f7dd144901b`. The latest complete dated carrier
+pair is the 2026-08-06 pair, so that pair—not the historical 2026-08-04 files
+named by the original stale-record report—was requalified and retained.
+
+The controlled evidence run passed Triage Graph 8/8, Fleet Observatory 8/8,
+and the local persistent-store carrier 17 PASS / 0 GAP / 0 SKIPPED. The
+publication finalizer refreshed the relation-activity, sequence-allocation,
+and persistent-store carriers, then passed all three focused `p2_` capability
+tests and the persistent-store publication conformance check.

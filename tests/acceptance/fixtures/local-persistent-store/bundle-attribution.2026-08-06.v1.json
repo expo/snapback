@@ -2,20 +2,40 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-06",
   "source": {
-    "revision": "6915f2fe318f40ca06e4c4ce73b9b1e82abd98f3",
+    "revision": "c6162230643b8e84f467df94a8beacc360b8efb4",
     "dirty": true,
     "dirtyPaths": [
       "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
       "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
+      "demos/latency-kanban/snapback/generated/artifacts.json",
+      "demos/latency-kanban/snapback/trusted-composition-activation.json",
       "demos/triage-graph/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/trusted-composition-activation.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.377937e3730cb91605a709166e3288975f7fdf47947604a33e445ff7c2b87948.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.44c7307c03e3276356a0f01291e93fc4b2b40a852a6960b5fd739a72dd769f80.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/artifacts.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/capability.manifest.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/contract-data.manifest.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/functions.manifest.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-bindings.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-introspection.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/schema.manifest.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/trusted-composition-activation.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/trusted-composition-activation.json",
       "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
       "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
       "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
-      "tests/acceptance/triage-graph-move1-v1-evidence.md"
+      "tests/acceptance/triage-graph-move1-v1-evidence.md",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.bec26ea45b7395d2ca23bb0568cf0861758e1dde4ff51c6541d8d4ee97fe41c4.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.cd0297742a1407f613fe19110e5b75cb3bea7005a1fe1b1a0fabcb4bea736e46.json",
+      "target"
     ],
     "files": [
       {
@@ -72,7 +92,7 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "7090ed1beecf08942c4b5caf6bf477180db1edc8f951f66c394331c7329f8183"
+        "sha256": "3f3a2e55e2f9280b9b83a2a534d51fc310b09f546d11e451e1ca8b1bd8d234c2"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
@@ -108,19 +128,19 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-        "sha256": "dec195e72147c61ee6dd430f4e7468f1cbebf9793c194c60ef7e6813a2d7baec"
+        "sha256": "9127b354ab4dc1aa25821f91de98eb328f789a443e179aa0796fd55b1c9e823d"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-        "sha256": "7ba56fcf41daa68b301bd95080c73ccc1193b3c347d889755900d1910daf1132"
+        "sha256": "e2b0358cfe870b0d0768f0cd46eeed480e3508f8496fcfa89871258cd1eed4ad"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "d02eaff2fddfac656b06d3dad28925350b709498fae8a4ea1e3192eb2cc439cc"
+        "sha256": "ac0277cd1c66a893f799a261dc92638ea139aaf40afa44d7fbe42a244886aed1"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "f0cb63ea25ef0e5280f885b8fe6f6621e62f3f8d43c40ba3918fb19edbcadd59"
+        "sha256": "19e4a54a3ed95c01d96cd66be024175d6827ba44d47dc971fa635d098d38be2e"
       }
     ]
   },
@@ -144,10 +164,10 @@
     "external": []
   },
   "output": {
-    "minifiedBytes": 711616,
-    "gzipBytes": 196272,
-    "brotliBytes": 158047,
-    "sha256": "ede9d0ddfe2e3f59671dd5e61c35791eae611a6696010edc364370f6c812b221"
+    "minifiedBytes": 720892,
+    "gzipBytes": 198879,
+    "brotliBytes": 160296,
+    "sha256": "acd4a44457e431e518bbd59d37e811d82532658583f3b738c341589bcdb44d11"
   },
   "modules": [
     {
