@@ -23,3 +23,15 @@ the offline page documents the `binding.source === 'persisted-receipt'`
 cold-boot branch and tells apps to render offline presentation rather than
 reject it. The scaffold/dev-start env auto-write half remains open (in
 flight on a parallel lane).
+
+## Resolution — 2026-08-10 (second half)
+
+Env auto-write landed: `runExpoDev` writes the credential-free
+`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` to `.env.local` before Metro starts
+(new `packages/snapback-cli/expo-client-environment.mjs`) — preserves
+unrelated entries, replaces stale owned assignments, supports loopback and
+the Android emulator alias, emits `client-environment-written`; templates
+ignore `.env*.local`; session material stays in the transient no-store
+exchange. Full supervised `expo-dev-loop.test.mjs` (real runtime binary)
+passes with the new assertions. The mint-docs half landed earlier today
+(see the 2026-08-10 dated note above). Both halves done — closing.

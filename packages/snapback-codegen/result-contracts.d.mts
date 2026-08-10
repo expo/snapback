@@ -134,6 +134,11 @@ export function validatorResultValue(
   }>,
 ): ResultValueContract;
 
+/** Closed recursive descriptor persisted by StoredStructuredContractV1. */
+export function storedStructuredContractDescriptor(
+  validator: Validator,
+): ResultValueContract;
+
 /** Table shapes as the effective-contract derivation observes them. */
 export interface ResultContractTableField {
   readonly name: string;

@@ -129,6 +129,7 @@ function fixture(name, { sessions }) {
     appJson: join(expoRoot, 'app.json'),
     easJson: join(expoRoot, 'eas.json'),
     committedEnv: join(expoRoot, '.env'),
+    localEnv: join(expoRoot, '.env.local'),
   };
   writeFileSync(publicConfig.appJson, `${JSON.stringify({ expo: { plugins: ['@expo/snapback-expo'] } }, null, 2)}\n`);
   writeFileSync(publicConfig.easJson, `${JSON.stringify({ build: { development: {} } }, null, 2)}\n`);
@@ -176,6 +177,15 @@ async function startFixture(target, options = {}) {
     onEvent(event) { events.push(event); },
   });
   supervisors.push(supervisor);
+  assert.equal(
+    readFileSync(target.publicConfig.localEnv, 'utf8'),
+    `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN=${supervisor.exchangeOrigin}\n`,
+  );
+  assert(
+    events.some((event) => event.state === 'client-environment-written'
+      && event.clientEnvironment.path === target.publicConfig.localEnv),
+    'startup must report the generated local client environment',
+  );
   return { supervisor, events };
 }
 

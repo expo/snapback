@@ -3296,7 +3296,7 @@ records expose the canonical `digest`, `digestAlgorithm`, and
   terminal row.** Use [`assets.upload()`](#upload-when-you-only-need-the-ready-asset-id)
   for settle-or-reject behavior, or branch on all four raw terminal statuses.
 - **Do not add a second recipient-readable reference to view-once media.** Keep
-  the [per-recipient grant row](#compose-view-once-access-with-per-recipient-grant-rows)
+  the [per-recipient grant row](#portable-fallback-app-owned-grant-rows)
   as the sole authority edge and retain a typed reverse reference until open
   or cancellation.
 - **Do not call the designed grant operations yet.** LLP 0210 D5(b) is a

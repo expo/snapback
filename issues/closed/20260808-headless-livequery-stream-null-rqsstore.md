@@ -5,3 +5,12 @@
 `liveQuery({transport:'stream'})` on a headless client constructed with `rqsStore: null` refuses `SNAPBACK_QUERY_OFFLINE_UNAVAILABLE` even though the server is reachable (B-native lane; switched to polling `client.query` as workaround).
 
 **Ask:** either support the stream transport without a resume store, or refuse with a code that names the actual constraint (resume store required for stream transport), not an offline claim.
+
+## Resolution — 2026-08-10
+
+Root cause: streaming already works with `rqsStore: null`; the misleading
+`SNAPBACK_QUERY_OFFLINE_UNAVAILABLE` came from a missing `connectionId` whose
+plain `TypeError` was classified as a transport outage. The connection grant
+now refuses with `SNAPBACK_CONNECTION_ID_REQUIRED` (not offline-eligible), and
+regressions prove both the reachable null-store stream and the corrected
+refusal (answer-classes suite, 42/42 with local-read-admission).

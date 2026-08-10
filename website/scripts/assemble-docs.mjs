@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 // Assemble the published documentation projection into website/public/:
-//   public/guide/**      — the generated docs-site artifact, links rebased
-//                          from "/" to "/guide/"
+//   public/guide/**      — the generated docs-site artifact, emitted for
+//                          the "/guide/" base path
 //   public/docs/index.html — redirect to /guide/ (docs and guide share one
 //                          projection today; split when warranted)
-//   public/llms.txt      — root copy for agents probing the convention,
-//                          paths rewritten into /guide/
+//   public/llms.txt      — root copy for agents probing the convention
 // The generator itself stays authoritative for content and link checking
-// (scripts/generate-docs-site.mjs at the repo root); this script only
-// mounts its output under a base path. Follow-on: first-class --base
-// support in the generator (see issues/).
+// (scripts/generate-docs-site.mjs at the repo root), including the mounted
+// URL base. This script only places its already-valid output.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -22,7 +20,11 @@ const dist = path.join(repoRoot, "docs-site-dist");
 const pub = path.join(websiteRoot, "public");
 const guideDir = path.join(pub, "guide");
 
-execFileSync("node", [path.join(repoRoot, "scripts/generate-docs-site.mjs")], {
+execFileSync(process.execPath, [
+  path.join(repoRoot, "scripts/generate-docs-site.mjs"),
+  "--base",
+  "/guide/",
+], {
   cwd: repoRoot,
   stdio: "inherit",
 });
@@ -30,32 +32,7 @@ execFileSync("node", [path.join(repoRoot, "scripts/generate-docs-site.mjs")], {
 fs.rmSync(guideDir, { recursive: true, force: true });
 fs.cpSync(dist, guideDir, { recursive: true });
 
-// Rebase root-relative links in every emitted text file.
-const exts = new Set([".html", ".txt", ".json", ".css", ".svg", ".xml"]);
-const rebase = (s) =>
-  s
-    .replace(/(href|src)="\//g, '$1="/guide/')
-    .replace(/(href|src)='\//g, "$1='/guide/")
-    .replace(/url\(\//g, "url(/guide/");
-const walk = (dir) => {
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    const p = path.join(dir, e.name);
-    if (e.isDirectory()) walk(p);
-    else if (exts.has(path.extname(e.name))) {
-      const before = fs.readFileSync(p, "utf8");
-      const after = rebase(before);
-      if (after !== before) fs.writeFileSync(p, after);
-    }
-  }
-};
-walk(guideDir);
-
-// Root llms.txt: rewrite absolute and root-relative paths into /guide/.
-const llms = fs
-  .readFileSync(path.join(guideDir, "llms.txt"), "utf8")
-  .replace(/\]\(\/(?!guide\/)/g, "](/guide/")
-  .replace(/^(\s*)\/(?!guide\/)/gm, "$1/guide/");
-fs.writeFileSync(path.join(pub, "llms.txt"), llms);
+fs.copyFileSync(path.join(guideDir, "llms.txt"), path.join(pub, "llms.txt"));
 
 fs.mkdirSync(path.join(pub, "docs"), { recursive: true });
 fs.writeFileSync(

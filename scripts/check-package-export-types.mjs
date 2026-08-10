@@ -20,7 +20,9 @@
 //      package carries a conditions object with `types` FIRST (TypeScript
 //      honors condition order), the declaration and runtime files exist, and
 //      the publish `files` allowlist covers both (a tarball that drops the
-//      .d.mts re-opens the defect for installed consumers).
+//      .d.mts re-opens the defect for installed consumers). A declaration-only
+//      subpath is admitted when the TypeScript checker proves that it exports
+//      no runtime values.
 //   2. Consumer-fixture compile: a generated fixture importing every swept
 //      subpath by its public specifier, compiled with the locked TypeScript
 //      under `--module nodenext --strict` against a synthetic node_modules of
@@ -47,6 +49,12 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import {
+  declarationCompilerOptions,
+  declarationValueExportNames,
+  inspectDeclarationValueExports,
+} from './package-export-types-lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGES_DIR = path.join(ROOT, 'packages');
@@ -141,22 +149,41 @@ for (const { dirName, dir, manifest } of packages) {
     if (conditions[0] !== 'types') {
       fail(`${manifest.name} ${subpath}: \`types\` must be the FIRST condition (TypeScript honors condition order); found order ${conditions.join(', ')}`);
     }
-    if (!isDeclarationFile(typesTarget)) {
+    const typesIsDeclaration = isDeclarationFile(typesTarget);
+    if (!typesIsDeclaration) {
       fail(`${manifest.name} ${subpath}: types condition ${typesTarget} is not a declaration file`);
     }
-    if (!existsSync(path.join(dir, typesTarget))) {
+    const typesFile = path.join(dir, typesTarget);
+    if (!existsSync(typesFile)) {
       fail(`${manifest.name} ${subpath}: types file ${typesTarget} does not exist`);
       continue;
     }
+    const relativeTypesTarget = typesTarget.replace(/^\.\//, '');
+    const typesCovered = coveredByFiles(manifest.files, relativeTypesTarget);
+    if (!typesCovered) {
+      fail(`${manifest.name} ${subpath}: ${relativeTypesTarget} is missing from the publish \`files\` allowlist — the published tarball would drop it`);
+    }
     if (runtimeTarget === null) {
-      fail(`${manifest.name} ${subpath}: no runtime condition (${RUNTIME_CONDITIONS.join('/')})`);
+      if (!typesIsDeclaration || !typesCovered) continue;
+      let valueExports;
+      try {
+        valueExports = inspectDeclarationValueExports(ts, typesFile);
+      } catch (error) {
+        fail(`${manifest.name} ${subpath}: could not inspect the declaration exports: ${error.message}`);
+        continue;
+      }
+      if (valueExports.length > 0) {
+        fail(`${manifest.name} ${subpath}: types-only subpath declaration exports runtime values: ${valueExports.join(', ')}`);
+        continue;
+      }
+      console.log(`${LABEL} admit ${manifest.name} ${subpath} (type-only declaration ${typesTarget})`);
       continue;
     }
     if (!existsSync(path.join(dir, runtimeTarget))) {
       fail(`${manifest.name} ${subpath}: runtime target ${runtimeTarget} does not exist`);
       continue;
     }
-    for (const relative of [typesTarget, runtimeTarget]) {
+    for (const relative of [runtimeTarget]) {
       const relativeTarget = relative.replace(/^\.\//, '');
       if (!coveredByFiles(manifest.files, relativeTarget)) {
         fail(`${manifest.name} ${subpath}: ${relativeTarget} is missing from the publish \`files\` allowlist — the published tarball would drop it`);
@@ -167,7 +194,7 @@ for (const { dirName, dir, manifest } of packages) {
       dirName,
       subpath,
       specifier: subpath === '.' ? manifest.name : `${manifest.name}/${subpath.slice(2)}`,
-      typesFile: path.join(dir, typesTarget),
+      typesFile,
       runtimeFile: path.join(dir, runtimeTarget),
     });
   }
@@ -211,13 +238,7 @@ if (failures.length === 0) {
 if (failures.length === 0) {
   const program = ts.createProgram(
     sweep.map(({ typesFile }) => typesFile),
-    {
-      noEmit: true,
-      strict: true,
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.NodeNext,
-      moduleResolution: ts.ModuleResolutionKind.NodeNext,
-    },
+    declarationCompilerOptions(ts),
   );
   const checker = program.getTypeChecker();
   for (const { packageName, subpath, typesFile, runtimeFile } of sweep) {
@@ -227,11 +248,7 @@ if (failures.length === 0) {
       fail(`${packageName} ${subpath}: could not load ${path.relative(ROOT, typesFile)} as a module`);
       continue;
     }
-    const declaredValues = new Set();
-    for (const symbol of checker.getExportsOfModule(moduleSymbol)) {
-      const resolved = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
-      if (resolved.flags & ts.SymbolFlags.Value) declaredValues.add(symbol.name);
-    }
+    const declaredValues = new Set(declarationValueExportNames(ts, checker, sourceFile));
     const runtime = await import(pathToFileURL(runtimeFile).href);
     const runtimeNames = new Set(Object.keys(runtime));
     const missing = [...runtimeNames].filter((name) => !declaredValues.has(name)).sort();

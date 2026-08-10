@@ -1,6 +1,6 @@
 # `check-package-export-types` rejects the sanctioned type-only `./ctx` subpath
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 4
@@ -109,3 +109,15 @@ publication. Re-deriving it from the five points above is a short job.
   rejected.
 - The remaining `package-export-types` failure is only the one tracked by
   `20260806-export-types-nodejs-namespace-expo-dev-dmts.md`.
+
+## Resolution — 2026-08-10
+
+Phase 1 now admits declaration-only `types` subpaths from TypeScript symbol
+facts (new `scripts/package-export-types-lib.mjs`): admission requires an
+existing declaration covered by the package `files` allowlist, rejects
+value-space exports (including explicit default and `export =`), logs the
+admission, and phase 2's runtime parity sweep skips admitted type-only
+subpaths. `@expo/snapback-codegen ./ctx` admits cleanly; bidirectional
+regression coverage in `scripts/check-package-export-types.test.mjs`
+(3/3 pass) registered in the local proof. Gate green together with the
+20260806 declaration fixes.

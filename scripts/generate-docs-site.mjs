@@ -3,8 +3,8 @@
 // LLP 0195. This generator deliberately binds its public identity to the
 // qualified published-closure record plus the Guide content digest, never to
 // the repository commit at which the projection happened to run.
-// @ref LLP 0195#proposal — public Guide projection identity, /llms.txt, and
-// closure-fenced reference inclusion.
+// @ref LLP 0195#proposal — public Guide projection identity, base-aware links,
+// /llms.txt, and closure-fenced reference inclusion are generator-owned.
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import {
@@ -95,8 +95,28 @@ function headingSlug(value, seen) {
   return count === 0 ? stem : `${stem}-${count}`;
 }
 
+function normalizeBasePath(raw) {
+  if (!raw.startsWith('/')) fail('--base must be an absolute URL path beginning with /');
+  if (raw.includes('?') || raw.includes('#') || raw.includes('\\')) {
+    fail('--base must be a URL path without a query, fragment, or backslash');
+  }
+  const segments = raw.split('/').filter(Boolean);
+  if (segments.some((segment) => segment === '.' || segment === '..')) {
+    fail('--base must not contain . or .. path segments');
+  }
+  if (segments.some((segment) => !/^[A-Za-z0-9._~-]+$/u.test(segment))) {
+    fail('--base path segments may contain only URL-safe unescaped characters');
+  }
+  return segments.length === 0 ? '/' : `/${segments.join('/')}/`;
+}
+
+function atBase(basePath, target) {
+  if (!target.startsWith('/')) fail(`cannot apply base path to non-root target ${target}`);
+  return basePath === '/' ? target : `${basePath.slice(0, -1)}${target}`;
+}
+
 function parseArgs(argv) {
-  const options = { check: false, serve: false, port: DEFAULT_PORT };
+  const options = { check: false, serve: false, port: DEFAULT_PORT, basePath: '/' };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--check') {
@@ -109,8 +129,13 @@ function parseArgs(argv) {
       options.port = Number(raw);
       if (options.port > 65535) fail('--port requires an integer from 0 through 65535');
       i += 1;
+    } else if (arg === '--base') {
+      const raw = argv[i + 1];
+      if (raw === undefined) fail('--base requires an absolute URL path');
+      options.basePath = normalizeBasePath(raw);
+      i += 1;
     } else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: node scripts/generate-docs-site.mjs [--check] [--serve] [--port N]');
+      console.log('Usage: node scripts/generate-docs-site.mjs [--check] [--serve] [--port N] [--base /path/]');
       process.exit(0);
     } else {
       fail(`unknown argument: ${arg}`);
@@ -148,18 +173,20 @@ function loadProjectionCorpus(root) {
   return { errors, pagePaths, pageInfo, pageBodies };
 }
 
-function pageRoute(sourcePath) {
+function pageRoute(sourcePath, basePath) {
   const guideRelative = sourcePath.replace(/^guide\//u, '');
-  if (guideRelative === 'index.md') return '/';
+  if (guideRelative === 'index.md') return basePath;
   if (guideRelative.endsWith('/index.md')) {
-    return `/${guideRelative.slice(0, -'index.md'.length)}`;
+    return atBase(basePath, `/${guideRelative.slice(0, -'index.md'.length)}`);
   }
-  return `/${guideRelative.slice(0, -'.md'.length)}/`;
+  return atBase(basePath, `/${guideRelative.slice(0, -'.md'.length)}/`);
 }
 
-function routeOutputPath(route) {
+function routeOutputPath(route, basePath) {
   if (!route.startsWith('/') || !route.endsWith('/')) fail(`invalid page route ${route}`);
-  return route === '/' ? 'index.html' : `${route.slice(1)}index.html`;
+  if (!route.startsWith(basePath)) fail(`page route ${route} is outside base path ${basePath}`);
+  const relativeRoute = route.slice(basePath.length);
+  return relativeRoute === '' ? 'index.html' : `${relativeRoute}index.html`;
 }
 
 function splitTarget(value) {
@@ -174,7 +201,7 @@ function repoPathForRelativeTarget(sourcePath, rawTarget) {
   return normalize(join(dirname(sourcePath), path)).split(sep).join('/');
 }
 
-function makeLinkResolver({ routesBySource, sourcePath }) {
+function makeLinkResolver({ routesBySource, sourcePath, basePath }) {
   return (rawTarget, { asset = false } = {}) => {
     const target = rawTarget.trim();
     if (/^(?:https?:|mailto:|tel:)/u.test(target)) {
@@ -184,7 +211,7 @@ function makeLinkResolver({ routesBySource, sourcePath }) {
       return { kind: 'source-only', label: target };
     }
     if (target.startsWith('#')) return { kind: 'internal', href: target };
-    if (target.startsWith('/')) return { kind: 'internal', href: target };
+    if (target.startsWith('/')) return { kind: 'internal', href: atBase(basePath, target) };
 
     const { fragment } = splitTarget(target);
     const repoPath = repoPathForRelativeTarget(sourcePath, target);
@@ -195,7 +222,10 @@ function makeLinkResolver({ routesBySource, sourcePath }) {
     }
     const staticRoute = INTERNAL_STATIC_TARGETS.get(repoPath);
     if (staticRoute) {
-      return { kind: 'internal', href: `${staticRoute}${fragment ? `#${fragment}` : ''}` };
+      return {
+        kind: 'internal',
+        href: `${atBase(basePath, staticRoute)}${fragment ? `#${fragment}` : ''}`,
+      };
     }
     return { kind: 'source-only', label: repoPath };
   };
@@ -360,9 +390,9 @@ function isBlockStart(lines, index) {
     || (line.trim().startsWith('|') && next.trim().startsWith('|') && isTableSeparator(next));
 }
 
-function renderMarkdown(body, { sourcePath, routesBySource, closureVersion }) {
+function renderMarkdown(body, { sourcePath, routesBySource, closureVersion, basePath }) {
   const lines = body.replaceAll('\r\n', '\n').split('\n');
-  const resolveLink = makeLinkResolver({ routesBySource, sourcePath });
+  const resolveLink = makeLinkResolver({ routesBySource, sourcePath, basePath });
   const seenHeadings = new Map();
   const html = [];
   const anchors = new Set();
@@ -474,6 +504,7 @@ function renderMarkdown(body, { sourcePath, routesBySource, closureVersion }) {
         sourcePath,
         routesBySource,
         closureVersion,
+        basePath,
       });
       html.push(`<blockquote${className}>${renderedQuote.html}</blockquote>`);
       for (const id of renderedQuote.anchors) {
@@ -538,11 +569,13 @@ function renderPage({
   routesBySource,
   routesById,
   binding,
+  basePath,
 }) {
   const rendered = renderMarkdown(body, {
     sourcePath,
     routesBySource,
     closureVersion: binding.closure.version,
+    basePath,
   });
   const pageLabels = [];
   if (page.since) {
@@ -572,19 +605,19 @@ function renderPage({
   <meta name="snapback-published-closure" content="${escapeAttribute(binding.closure.version)}">
   <meta name="snapback-guide-content-sha256" content="${escapeAttribute(binding.guide.contentDigest)}">
   <title>${escapeHtml(page.title)} · Snapback Guide</title>
-  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/assets/site.css">
+  <link rel="icon" href="${atBase(basePath, '/assets/favicon.svg')}" type="image/svg+xml">
+  <link rel="stylesheet" href="${atBase(basePath, '/assets/site.css')}">
 </head>
 <body>
   <a class="skip-link" href="#content">Skip to content</a>
   <header class="topbar">
-    <a class="wordmark" href="/"><img src="/assets/snapback-mark.svg" alt="" width="30" height="30">Snapback Guide</a>
+    <a class="wordmark" href="${basePath}"><img src="${atBase(basePath, '/assets/snapback-mark.svg')}" alt="" width="30" height="30">Snapback Guide</a>
     <span class="closure-chip">Closure ${escapeHtml(binding.closure.version)}</span>
   </header>
   <div class="layout">
     <nav class="sidebar" aria-label="Guide navigation">
-      <a class="nav-primary" href="/capabilities/">Capability index</a>
-      <a class="nav-primary" href="/reference/">API reference</a>
+      <a class="nav-primary" href="${atBase(basePath, '/capabilities/')}">Capability index</a>
+      <a class="nav-primary" href="${atBase(basePath, '/reference/')}">API reference</a>
       ${navigation}
     </nav>
     <main id="content" data-guide-id="${escapeAttribute(page.id)}" data-source-path="${escapeAttribute(sourcePath)}">
@@ -598,7 +631,7 @@ function renderPage({
     <span>Published closure ${escapeHtml(binding.closure.version)}</span>
     <span>Guide content <code>${escapeHtml(binding.guide.contentDigest)}</code></span>
     <span>Package qualification marker ${escapeHtml(binding.closure.newestQualified ?? 'not recorded')}</span>
-    <a href="/site-manifest.json">site-manifest.json</a>
+    <a href="${atBase(basePath, '/site-manifest.json')}">site-manifest.json</a>
   </footer>
 </body>
 </html>
@@ -680,7 +713,7 @@ footer code { word-break: break-all; }
 `;
 }
 
-function buildLlmsTxt({ pages, binding }) {
+function buildLlmsTxt({ pages, binding, basePath }) {
   const ordered = [...pages].sort((left, right) => {
     if (left.page.id === 'meta.capabilities') return -1;
     if (right.page.id === 'meta.capabilities') return 1;
@@ -707,10 +740,10 @@ function buildLlmsTxt({ pages, binding }) {
     '',
     '## Machine-readable identities',
     '',
-    '- [Site manifest](/site-manifest.json)',
-    '- [Published closure record](/published-closure.json)',
-    '- [Generated API symbol registry](/reference/registry.json)',
-    '- [Diagnostic code registry](/reference/diagnostics-registry.json)',
+    `- [Site manifest](${atBase(basePath, '/site-manifest.json')})`,
+    `- [Published closure record](${atBase(basePath, '/published-closure.json')})`,
+    `- [Generated API symbol registry](${atBase(basePath, '/reference/registry.json')})`,
+    `- [Diagnostic code registry](${atBase(basePath, '/reference/diagnostics-registry.json')})`,
     '',
   );
   return lines.join('\n');
@@ -871,7 +904,7 @@ function loadInputs(root) {
   return { closure, closureBytes, corpus, manifest, registry, registryBytes, diagnosticsBytes, binding };
 }
 
-function buildSite(root) {
+function buildSite(root, basePath) {
   const inputs = loadInputs(root);
   const { closure, closureBytes, corpus, manifest, registry, registryBytes, diagnosticsBytes, binding } = inputs;
   const files = new Map();
@@ -880,8 +913,8 @@ function buildSite(root) {
   const pages = [];
 
   for (const [id, page] of Object.entries(manifest.pages)) {
-    const route = pageRoute(page.path);
-    const outputPath = routeOutputPath(route);
+    const route = pageRoute(page.path, basePath);
+    const outputPath = routeOutputPath(route, basePath);
     if (routesBySource.has(page.path)) fail(`duplicate source page ${page.path}`);
     if ([...routesBySource.values()].includes(route)) fail(`duplicate site route ${route}`);
     routesBySource.set(page.path, route);
@@ -900,6 +933,7 @@ function buildSite(root) {
       routesBySource,
       routesById,
       binding,
+      basePath,
     });
     files.set(entry.outputPath, rendered.html);
     renderedFenceLabels.push(...rendered.fenceLabels.map((label) => ({ ...label, page: entry.page.id })));
@@ -912,7 +946,7 @@ function buildSite(root) {
   files.set('published-closure.json', closureBytes);
   files.set('reference/registry.json', registryBytes);
   files.set('reference/diagnostics-registry.json', diagnosticsBytes);
-  files.set('llms.txt', buildLlmsTxt({ pages, binding }));
+  files.set('llms.txt', buildLlmsTxt({ pages, binding, basePath }));
 
   const expectedFenceLabels = [];
   for (const entry of pages) {
@@ -967,25 +1001,32 @@ function buildSite(root) {
       capabilityIndex: routesById.get('meta.capabilities'),
       referenceIndex: routesById.get('reference.index'),
       referenceSymbols: registry.symbols?.length ?? 0,
-      llms: '/llms.txt',
+      llms: atBase(basePath, '/llms.txt'),
     },
     site: {
+      basePath,
       contentDigest: siteDigest,
       digestExcludes: [`/${SITE_MANIFEST_PATH}`],
       files: fileInventory(files),
     },
   };
   files.set(SITE_MANIFEST_PATH, canonicalJson(siteManifest));
-  return { files, pages, routesBySource, siteManifest, closure, manifest, registry };
+  return { files, pages, routesBySource, siteManifest, closure, manifest, registry, basePath };
 }
 
-function pathFromInternalUrl(rawUrl, fromPath) {
+function pathFromInternalUrl(rawUrl, fromPath, basePath) {
   const withoutQuery = rawUrl.split('?')[0];
   const { path: targetPath, fragment } = splitTarget(withoutQuery);
   if (targetPath === '') return { path: fromPath, fragment };
-  const absolute = targetPath.startsWith('/')
-    ? targetPath.slice(1)
-    : normalize(join(dirname(fromPath), targetPath)).split(sep).join('/');
+  let absolute;
+  if (targetPath.startsWith('/')) {
+    if (!targetPath.startsWith(basePath)) {
+      return { path: null, fragment, outsideBase: true };
+    }
+    absolute = targetPath.slice(basePath.length);
+  } else {
+    absolute = normalize(join(dirname(fromPath), targetPath)).split(sep).join('/');
+  }
   if (absolute === '' || absolute.endsWith('/')) return { path: `${absolute}index.html`, fragment };
   if (!extname(absolute)) return { path: `${absolute}/index.html`, fragment };
   return { path: absolute, fragment };
@@ -1011,8 +1052,12 @@ function validateSite(build) {
         continue;
       }
       if (target.startsWith('data:')) continue;
-      const resolved = pathFromInternalUrl(target, path);
+      const resolved = pathFromInternalUrl(target, path, build.basePath);
       linksChecked += 1;
+      if (resolved.outsideBase) {
+        errors.push(`/${path}: ${target} is outside configured base path ${build.basePath}`);
+        continue;
+      }
       if (!build.files.has(resolved.path)) {
         errors.push(`/${path}: ${target} resolves to missing /${resolved.path}`);
         continue;
@@ -1052,7 +1097,7 @@ function validateSite(build) {
       errors.push(`symbol ${symbol.identity} points to unrendered ${sourcePage}`);
       continue;
     }
-    const outputPath = routeOutputPath(route);
+    const outputPath = routeOutputPath(route, build.basePath);
     if (!htmlAnchors.has(outputPath)) {
       const targetHtml = build.files.get(outputPath)?.toString() ?? '';
       htmlAnchors.set(outputPath, new Set([...targetHtml.matchAll(/\sid="([^"]+)"/gu)].map((entry) => entry[1])));
@@ -1100,12 +1145,18 @@ function writeBuild(root, build) {
   return outputRoot;
 }
 
-function serve(root, outputRoot, port) {
+function serve(root, outputRoot, port, basePath) {
   const server = createServer((request, response) => {
     try {
       const url = new URL(request.url ?? '/', 'http://127.0.0.1');
       let pathname = decodeURIComponent(url.pathname);
       if (pathname.includes('\0')) throw new Error('invalid path');
+      if (!pathname.startsWith(basePath)) {
+        response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+        response.end('Not found\n');
+        return;
+      }
+      pathname = `/${pathname.slice(basePath.length)}`;
       if (pathname.endsWith('/')) pathname += 'index.html';
       const candidate = resolve(outputRoot, `.${pathname}`);
       const outputPrefix = `${resolve(outputRoot)}${sep}`;
@@ -1130,7 +1181,7 @@ function serve(root, outputRoot, port) {
   server.on('error', (error) => {
     if (error.code === 'EACCES' || error.code === 'EPERM') {
       console.log('[docs-site] loopback binding is unavailable in this sandbox; preview was skipped.');
-      console.log(`[docs-site] run from the orchestrator: node scripts/generate-docs-site.mjs --serve --port ${port || DEFAULT_PORT}`);
+      console.log(`[docs-site] run from the orchestrator: node scripts/generate-docs-site.mjs --serve --port ${port || DEFAULT_PORT} --base ${basePath}`);
       process.exit(0);
     }
     throw error;
@@ -1138,7 +1189,7 @@ function serve(root, outputRoot, port) {
   server.listen(port, '127.0.0.1', () => {
     const address = server.address();
     const actualPort = typeof address === 'object' && address ? address.port : port;
-    console.log(`[docs-site] serving ${relative(root, outputRoot)}/ at http://127.0.0.1:${actualPort}/`);
+    console.log(`[docs-site] serving ${relative(root, outputRoot)}/ at http://127.0.0.1:${actualPort}${basePath}`);
     console.log('[docs-site] publication authorized (D1 ruled 2026-08-08); deploy per issues/20260808-llp0195-docs-site-staging-execution.md.');
   });
 }
@@ -1153,22 +1204,23 @@ function printBuildSummary(build, validation, action) {
     `Guide content sha256:${build.manifest.contentHash}, HEAD excluded`,
   );
   console.log(`[docs-site] site content ${build.siteManifest.site.contentDigest}`);
+  console.log(`[docs-site] base path ${build.basePath}`);
 }
 
 const options = parseArgs(process.argv.slice(2));
 const root = repoRoot();
 try {
-  const first = buildSite(root);
+  const first = buildSite(root, options.basePath);
   const validation = validateSite(first);
   if (options.check) {
-    const second = buildSite(root);
+    const second = buildSite(root, options.basePath);
     compareBuilds(first, second);
     validateSite(second);
     printBuildSummary(first, validation, 'check ok (two deterministic builds)');
   } else {
     const outputRoot = writeBuild(root, first);
     printBuildSummary(first, validation, `wrote ${OUTPUT_DIRECTORY}/`);
-    if (options.serve) serve(root, outputRoot, options.port);
+    if (options.serve) serve(root, outputRoot, options.port, options.basePath);
   }
 } catch (error) {
   console.error(`[docs-site] FAILED: ${error.stack ?? error.message}`);

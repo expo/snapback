@@ -1,4 +1,5 @@
 .expo/
+.env*.local
 .snapback/
 *.snapback.restore.lock
 dist/

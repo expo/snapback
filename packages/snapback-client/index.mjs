@@ -3712,7 +3712,12 @@ export class SnapbackClient {
   // @ref LLP 0031#connection-capability-grants — the client half of the handshake.
   connectionGrant(connectionId, externalBearerTransitionPermit = null) {
     if (!connectionId) {
-      return Promise.reject(new TypeError('Snapback connectionId is required for connection-scoped operations'));
+      return Promise.reject(clientCodedError(
+        new TypeError(
+          'SNAPBACK_CONNECTION_ID_REQUIRED: Snapback connectionId is required for connection-scoped operations',
+        ),
+        'SNAPBACK_CONNECTION_ID_REQUIRED',
+      ));
     }
     const externalBearerTransition = this.__externalBearerTransition;
     if (

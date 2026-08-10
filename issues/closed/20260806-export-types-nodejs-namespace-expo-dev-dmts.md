@@ -1,6 +1,6 @@
 # `check-package-export-types` is red: public runtime exports are missing declarations
 
-**Status:** Open
+**Status:** Resolved 2026-08-10
 **Filed:** 2026-08-06
 **Area:** packages/snapback-cli (type surface), tooling/check-package-export-types
 
@@ -72,3 +72,14 @@ description as history rather than the current repair target.
 Revised acceptance: `node scripts/check-package-export-types.mjs` passes both
 consumer compilation and declared-vs-runtime export parity for all 95 public
 subpaths.
+
+## Resolution — 2026-08-10
+
+Runtime/declaration parity restored: `packages/snapback-cli/expo-dev.d.mts`
+declares the two shipped helpers (`admittedBrowserExchangeOrigin`,
+`startBootstrapExchange`), and the parity sweep exposed and fixed three
+additional undeclared structured-stored-value codegen exports
+(`packages/snapback-codegen/index.d.mts`, `result-contracts.d.mts`).
+`node scripts/check-package-export-types.mjs` → PASS (95 subpaths across 12
+packages, declaration/runtime surfaces matched). The earlier `NodeJS`
+namespace half was already resolved by the closed 20260806 sibling.

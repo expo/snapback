@@ -330,3 +330,72 @@ test('S2 shipped liveQuery exposes labeled-retained then authoritative without a
   assert.equal(handle.freshness, 'current');
   await handle.dispose();
 });
+
+test('headless stream liveQuery works with rqsStore disabled against a reachable server', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const requests = [];
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    requests.push(path);
+    if (path === '/connection/open') {
+      return Response.json({ connectionId: 'headless-stream', connectionToken: 'token-1' });
+    }
+    if (path === '/live/listTodos/subscribe') {
+      return Response.json({
+        subscription_id: 'sub-stream-1',
+        snapshot: { rows: [{ _id: 'todo-1', title: 'reachable' }], version: 1 },
+      });
+    }
+    if (path === '/live/listTodos/unsubscribe') return Response.json({ disposed: true });
+    throw new Error(`unexpected request ${path}`);
+  };
+  const stateListeners = new Set();
+  const streamManager = {
+    onState(listener) {
+      stateListeners.add(listener);
+      return () => stateListeners.delete(listener);
+    },
+    isOpen: () => true,
+  };
+  const client = new SnapbackClient('https://headless-stream.test', {
+    rqsStore: null,
+    offlineQueue: false,
+  });
+  client.liveStreamManager = () => streamManager;
+
+  const handle = await client.liveQuery('listTodos', {
+    connectionId: 'headless-stream',
+    transport: 'stream',
+  });
+  assert.equal(client.rqsStore, null);
+  assert.equal(handle.connection, 'live');
+  assert.equal(handle.answerClass, 'authoritative');
+  assert.equal(handle.freshness, 'current');
+  assert.deepEqual(handle.rows, [{ _id: 'todo-1', title: 'reachable' }]);
+  assert.deepEqual(requests.slice(0, 2), [
+    '/connection/open',
+    '/live/listTodos/subscribe',
+  ]);
+  await handle.dispose();
+});
+
+test('missing liveQuery connectionId is not mislabeled as offline', async () => {
+  const client = new SnapbackClient('https://headless-stream.test', {
+    rqsStore: null,
+    offlineQueue: false,
+  });
+  client.liveStreamManager = () => ({
+    onState: () => () => {},
+    isOpen: () => false,
+  });
+  await assert.rejects(
+    () => client.liveQuery('listTodos', { transport: 'stream' }),
+    (error) => {
+      assert.equal(error.code, 'SNAPBACK_CONNECTION_ID_REQUIRED');
+      assert.equal(error.diagnostic?.code, error.code);
+      assert.notEqual(error.code, 'SNAPBACK_QUERY_OFFLINE_UNAVAILABLE');
+      return true;
+    },
+  );
+});

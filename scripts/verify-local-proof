@@ -261,6 +261,7 @@ run hermes-intrinsics -- node scripts/check-hermes-intrinsics.mjs
 # must resolve declarations under the `types` condition, compile for an
 # external nodenext consumer, and match its module's runtime export surface.
 run package-export-types -- node scripts/check-package-export-types.mjs
+run package-export-types-fixtures -- node --test scripts/check-package-export-types.test.mjs
 run package-readme-funnel -- node --test scripts/package-readme-funnel.test.mjs
 run relation-activity-publication -- node tests/conformance/relation-activity-publication-v1.mjs
 run sequence-allocation-publication -- node tests/conformance/sequence-allocation-publication-v1.mjs

@@ -10,6 +10,7 @@ import type {
 } from './provider-introspection.mjs';
 import type { ReviewManifest } from './review-surface.mjs';
 import type { CodegenSummary } from './codegen-summary.mjs';
+import type { ResultValueContract } from './result-contracts.mjs';
 
 export { formatCodegenSummary } from './codegen-summary.mjs';
 
@@ -18,6 +19,20 @@ export const SURFACE_MAX_MEMBERS: 24;
 export const SURFACE_MAX_MEMBER_BINDINGS: 32;
 export const SURFACE_MAX_SCOPE_RECORD_FIELDS: 8;
 export const SURFACE_MAX_PER_APP: 32;
+
+// @ref LLP 0211#representation-and-write-path — the public declaration
+// carries the exact versioned encoding identity hashed by codegen.
+export const STORED_STRUCTURED_ENCODING_V1: 'canonical-json-text.v1';
+
+export interface StoredStructuredContractV1 {
+  readonly version: 1;
+  readonly descriptor: ResultValueContract;
+  readonly encoding: typeof STORED_STRUCTURED_ENCODING_V1;
+}
+
+export function storedStructuredContractHash(
+  contract: StoredStructuredContractV1,
+): `sha256:${string}`;
 
 /** Canonical sorted projection of Rust's registry-owned experimental ids. */
 export function experimentalTargetCapabilityIdsCanonicalJson(): string;

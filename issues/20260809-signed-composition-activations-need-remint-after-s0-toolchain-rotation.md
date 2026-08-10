@@ -71,3 +71,18 @@ committed tree keeps its pre-rotation generation bit-identical. Re-run
 `tests/acceptance/contention-calendar-rung2-v1.mjs` on a quiet machine to
 finish this ticket. The toolchain-stable-identity design question for
 LLP 0087's owner remains open.
+
+## Dated note — 2026-08-10 (post-ceremony rotation re-blocks; third bypass landing)
+
+The c45e5215b ceremony's activations are invalid again at current main:
+`triage-graph`, `fleet-observatory-move1`, and `latency-kanban` codegen all
+refuse `TRUSTED_COMPOSITION_ACTIVATION_INVALID` (a post-ceremony landing
+rotated codegen inputs once more). The lane C+A landing of 2026-08-10
+(client fixes: pre-witness search refusal + connection-id refusal) rotates
+`packages/snapback-client/index.mjs`, which the triage/fleet Move-1 and
+local-store carrier-exit receipts pin; those re-mints are activation-blocked,
+so the landing used the documented loud bypass per this ticket's S0
+precedent. The resolution ceremony now owes: fresh activations for all four
+demos at the current toolchain, then triage → fleet → carrier-exit re-mints
+picking up the new client pin, then
+`scripts/finalize-local-persistent-store-publication`.

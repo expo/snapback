@@ -1,11 +1,71 @@
 import assert from 'node:assert/strict';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
+import {
+  EXPO_SUPERVISOR_ORIGIN_ENV,
+  writeExpoClientEnvironment,
+} from './expo-client-environment.mjs';
 import {
   SUPERVISED_CONTROL_PATH,
   SUPERVISED_EXCHANGE_PATH,
   admittedBrowserExchangeOrigin,
   startBootstrapExchange,
 } from './expo-dev.mjs';
+
+assert.ok(
+  JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
+    .files.includes('expo-client-environment.mjs'),
+  'the packed CLI must carry the internal environment writer imported by expo-dev',
+);
+
+const envFixture = mkdtempSync(join(tmpdir(), 'snapback-expo-client-env-'));
+try {
+  const environmentPath = join(envFixture, '.env.local');
+  writeFileSync(
+    environmentPath,
+    `KEEP_ME=yes\nexport ${EXPO_SUPERVISOR_ORIGIN_ENV}=http://127.0.0.1:4100\n${EXPO_SUPERVISOR_ORIGIN_ENV}=http://127.0.0.1:4101\n`,
+  );
+  assert.deepEqual(
+    writeExpoClientEnvironment(envFixture, 'http://127.0.0.1:4287'),
+    {
+      formatVersion: 1,
+      path: environmentPath,
+      key: EXPO_SUPERVISOR_ORIGIN_ENV,
+      origin: 'http://127.0.0.1:4287',
+      state: 'updated',
+    },
+  );
+  assert.equal(
+    readFileSync(environmentPath, 'utf8'),
+    `KEEP_ME=yes\n${EXPO_SUPERVISOR_ORIGIN_ENV}=http://127.0.0.1:4287\n`,
+  );
+  assert.equal(
+    writeExpoClientEnvironment(envFixture, 'http://127.0.0.1:4287').state,
+    'unchanged',
+  );
+  const fresh = join(envFixture, 'fresh');
+  mkdirSync(fresh);
+  assert.equal(
+    writeExpoClientEnvironment(fresh, 'http://10.0.2.2:4287').state,
+    'created',
+  );
+  assert.equal(existsSync(join(fresh, '.env.local')), true);
+  assert.throws(
+    () => writeExpoClientEnvironment(fresh, 'https://example.com'),
+    (error) => error.code === 'SNAPBACK_EXPO_ROUTE_INVALID',
+  );
+  for (const template of ['expo-chat', 'media-feed']) {
+    assert.match(
+      readFileSync(new URL(`./templates/${template}/gitignore.template`, import.meta.url), 'utf8'),
+      /^\.env\*\.local$/mu,
+      `${template} must ignore the generated local client environment`,
+    );
+  }
+} finally {
+  rmSync(envFixture, { recursive: true, force: true });
+}
 
 const admittedOrigins = [
   'http://127.0.0.1:8081',
@@ -119,7 +179,7 @@ try {
     code: 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND',
   });
 
-  console.log('expo-bootstrap-exchange.test.mjs: scoped loopback CORS, preflight, payload, refusal, and route handling pass');
+  console.log('expo-bootstrap-exchange.test.mjs: env autowrite, scoped loopback CORS, preflight, payload, refusal, and route handling pass');
 } finally {
   await exchange.close();
 }

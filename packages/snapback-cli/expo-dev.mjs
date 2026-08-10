@@ -21,6 +21,10 @@ import {
   runDev,
   scrubDynamicLoaderEnvironment,
 } from './index.mjs';
+import {
+  isLoopbackHost,
+  writeExpoClientEnvironment,
+} from './expo-client-environment.mjs';
 import { stopProcessGroup } from './process-teardown.mjs';
 
 export const EXPO_DEV_EVENT_FORMAT = 'snapback.expo-dev.v1';
@@ -121,13 +125,6 @@ function constantTimeTokenEqual(presented, expected) {
     && typeof expected === 'string'
     && expected.length > 0
     && hashesEqual;
-}
-
-function isLoopbackHost(host) {
-  const normalized = String(host).toLowerCase().replace(/^\[|\]$/gu, '');
-  return normalized === '::1'
-    || normalized === 'localhost'
-    || normalized.startsWith('127.');
 }
 
 function portFromOrigin(origin, label) {
@@ -1429,11 +1426,21 @@ export async function runExpoDev(options = {}) {
       now: options.now?.() ?? Date.now(),
       ttlMs: options.bindingTtlMs ?? DEFAULT_BINDING_TTL_MS,
     });
+    const clientBootstrapOrigin = appOrigin(route.appHost, bootstrap.port);
+    const clientEnvironment = writeExpoClientEnvironment(
+      expoDirectory,
+      clientBootstrapOrigin,
+    );
+    emit({
+      ok: true,
+      state: 'client-environment-written',
+      clientEnvironment,
+    });
     metro = startMetro({
       command: options.metroCommand,
       directory: expoDirectory,
       port: metroPort,
-      bootstrapOrigin: appOrigin(route.appHost, bootstrap.port),
+      bootstrapOrigin: clientBootstrapOrigin,
       env: options.env ?? process.env,
       emit,
       onExit(code, signal, cause) {

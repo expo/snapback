@@ -17,6 +17,33 @@ export function assessMetroWatchInertness(options?: Readonly<{
 }>): readonly MetroWatchAdvisory[];
 export const SUPERVISED_CONTROL_PATH: '/_snapback/expo/v1/control';
 
+export function admittedBrowserExchangeOrigin(originHeader: unknown): string | null;
+
+export interface BootstrapExchangeControlRequest {
+  readonly operatorToken: string | readonly string[] | undefined;
+  readonly body: Readonly<Record<string, unknown>>;
+}
+
+export interface BootstrapExchangeControlResult {
+  readonly statusCode: number;
+  readonly body: Readonly<Record<string, unknown>>;
+}
+
+export interface BootstrapExchangeHandle {
+  readonly origin: string;
+  readonly port: number;
+  close(): Promise<void>;
+}
+
+export function startBootstrapExchange(
+  getPayload: () => unknown | null,
+  options?: Readonly<{
+    onControl?: (
+      request: BootstrapExchangeControlRequest,
+    ) => BootstrapExchangeControlResult | Promise<BootstrapExchangeControlResult>;
+  }>,
+): Promise<BootstrapExchangeHandle>;
+
 export type ExpoDevicePlatform = 'ios' | 'android';
 export type AndroidExpoTransport = 'adb-reverse' | 'emulator-host-alias';
 export type AndroidAdbDeviceClass = 'emulator' | 'usb' | 'tcpip';
