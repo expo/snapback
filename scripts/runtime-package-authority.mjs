@@ -30,7 +30,9 @@ export function installPackagedStoreQualificationReceipt({
   const source = explicit
     ? resolve(String(environment[receiptEnvironmentName] ?? ''))
     : sibling;
-  if (!explicit && !existsSync(source)) return null;
+  if (!explicit && !existsSync(source)) {
+    return { installed: false, reason: 'absent' };
+  }
 
   let bytes;
   try {
@@ -72,7 +74,7 @@ export function installPackagedStoreQualificationReceipt({
       `could not install qualification receipt at ${destination}: ${error.message}`,
     );
   }
-  return { source, destination };
+  return { installed: true, source, destination };
 }
 
 export function assertPublicPackageBuildIdentity(identity) {

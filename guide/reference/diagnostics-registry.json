@@ -2,16 +2,16 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "0279598e969469344a21b0069563080345917999",
-    "sourceDigest": "sha256:8b8bcdc670b4b0883090e8d800adccad9e2d7cd32402196c94105d32a8009b2a"
+    "commit": "04c954480634299d49898f04a96d41edc45f3e67",
+    "sourceDigest": "sha256:fc4c736f6f1fc1be5b5ce693002eaa474a55de54c726d392fd2d7ed98b28576f"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 2781,
+    "codes": 2782,
     "sourceFiles": 381,
-    "emittingSites": 9349,
+    "emittingSites": 9351,
     "httpClassified": 830,
     "guideAnchored": 321
   },
@@ -4478,6 +4478,26 @@
           "file": "packages/snapback-cli/agent-setup.mjs",
           "line": 358,
           "column": 12
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS": {
+      "code": "SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS",
+      "subsystem": "runtime-darwin-arm64",
+      "sites": [
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
+          "line": 134,
+          "column": 22
+        },
+        {
+          "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
+          "line": 198,
+          "column": 22
         }
       ],
       "httpStatus": null,
@@ -55341,12 +55361,12 @@
       "sites": [
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 135,
+          "line": 141,
           "column": 21
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 199,
+          "line": 205,
           "column": 21
         }
       ],
@@ -65232,12 +65252,12 @@
         },
         {
           "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
-          "line": 154,
+          "line": 160,
           "column": 21
         },
         {
           "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
-          "line": 221,
+          "line": 227,
           "column": 21
         }
       ],

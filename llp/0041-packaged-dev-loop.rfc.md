@@ -6,10 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
-**Revised:** 2026-08-09 (managed sessions restart now recognizes only the
-native structured complete-pair pin refusal, invokes LLP 0058's explicit
-pre-bind successor activation, reports database/from/to identities, and leaves
-invalid successors fail-closed)
+**Revised:** 2026-08-09 (the fast path becomes a gated two-pass script: the
+packaged-store qualification receipt is minted and restaged by
+`scripts/snapback-fastpath-release.mjs`, a fail-closed staged-tarball gate
+refuses to publish a runtime package without it, and `latest` moves only after
+a post-publish smoke boots an app built from the published bytes)
 
 **Revised (promotion closure reconciled):** 2026-08-07 (the leased-promotion
 vector now equals the full eleven-package publishable closure, including
@@ -1306,3 +1307,93 @@ work is treated as a liability (the run-6 series measured 0.1.15 for a
 full day while its biggest papercut fix sat landed-but-unpublished on
 main). Standing until users with stability expectations exist; revisit
 then.
+
+## Amendment (2026-08-09): the fast path is a script, and it is gated
+
+The 0.1.16 cut published a closure in which no generated app could start.
+Both runtime packages omitted `bin/packaged-store-qualification.receipt.json`,
+so the `public-package` runtime kept `single_table_v1` as a GAP and every
+generated backend exited 5 with `SNAPBACK_CAPABILITY_UNSUPPORTED`. Every gate
+the lane ran was green, and the retained ledger's byte-verification claim was
+true — of bytes that could not run.
+
+The attribution is a process shape this document created. The fast-path
+posture recorded above (2026-08-01) legitimately drops qualified staging, the
+staged platform proofs, and the candidate-tag ceremony; what it did not say is
+that the packaged-store qualification receipt is **not** part of that ceremony.
+It is a generated artifact each runtime package must carry, minted by a
+two-pass stage/qualify/restage procedure. `scripts/qualified-staging-assemble`
+automates it for the qualified lane. The fast path performed it **by hand** for
+0.1.12 through 0.1.15 — the registry receipts for those versions each bind
+their own release revision and closure, so they were genuinely minted, not
+inherited — and the 0.1.16 operator simply did not perform it.
+
+An unenforced manual step in the only lane that cuts releases is not a
+procedure. It is a coin flip. This amendment replaces it.
+
+### The fast path is now `scripts/snapback-fastpath-release.mjs`
+
+Two subcommands, replacing the hand-run
+`snapback-publish.mjs` + loop-of-`npm publish` recipe described under
+"Fast-path pre-consumer release (2026-08-01)":
+
+- **`stage`** performs pass one into `<out>-pass1` with
+  `SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS=1`, mints the **host** platform's
+  receipt from that exact staged closure via
+  `scripts/qualified-staging-store-qualification.mjs`, and emits the other
+  platform's mint command together with the pass-1 tarball digest vector, so
+  the remote mint can be proved to have consumed identical bytes.
+- **`release`** requires one `--receipt <platform>=<path>` per runtime
+  platform, restages with both receipts wired into package preparation, runs
+  the gate below, retains the ledger **before** any publish, publishes under an
+  immutable `fastpath-<version>-<sha12>` holding tag, re-downloads and
+  byte-verifies every registry tarball, runs the post-publish smoke, and only
+  then moves `latest`.
+
+`latest` is no longer the tag a fast-path publish writes. It is a promotion
+that a passing smoke earns.
+
+### The gate: `scripts/publication-store-qualification-gate.mjs`
+
+Fail-closed over staged tarball **bytes**, not over ledger metadata. For every
+`@expo/snapback-runtime-*` row it opens the tarball and requires
+`package/bin/packaged-store-qualification.receipt.json` with the v1 schema and
+`single_table_v1`, a `binaryIdentity` matching the ledger revision and the
+clean `release`/`public-package` build, and a `packageClosure` at the ledger's
+own version. Codes:
+`SNAPBACK_PUBLICATION_STORE_RECEIPT_MISSING`, `..._INVALID`,
+`..._IDENTITY_DRIFTED`, `..._CLOSURE_DRIFTED`, `..._PLATFORM_INCOMPLETE`.
+There is no environment opt-out; pass-one staging avoids the gate by not
+invoking it. The same assertion now also guards
+`scripts/snapback-publish.mjs --publish`, so the qualified lane and the fast
+path refuse on identical grounds.
+
+### The smoke: `scripts/published-closure-boot-smoke.mjs`
+
+A byte-identity ledger cannot detect this class of failure; only running the
+thing can. The smoke installs the **exact published versions** from the
+registry into a temporary directory outside the repository, asserts the
+installed runtime package carries a qualifying receipt, writes a minimal
+backend whose generated artifact acknowledges `single_table_v1`, boots it
+through the installed CLI — the CLI's `runtimeSpawnEnvironment` is what points
+the runtime at its sibling receipt, so a bare-binary boot would not discriminate
+— waits for readiness, and then requires the served capability manifest to
+advertise `single_table_v1` before `ensureApp` and one live query. Codes:
+`SNAPBACK_PUBLISHED_SMOKE_INSTALL_FAILED`, `..._RECEIPT_ABSENT`,
+`..._CODEGEN_FAILED`, `..._CAPABILITY_NOT_EXERCISED`, `..._BOOT_FAILED`,
+`..._CAPABILITY_UNADVERTISED`.
+
+`..._CAPABILITY_NOT_EXERCISED` is the one worth naming: if the generated
+artifact stops requiring `single_table_v1`, the smoke fails rather than passing
+vacuously. A green smoke that no longer tests anything is the failure mode that
+would let this recur.
+
+### Defence in depth
+
+`installPackagedStoreQualificationReceipt` no longer returns a bare `null` when
+it finds no receipt. It returns a discriminated result, and both
+`packages/snapback-runtime-*/prepare-runtime.mjs` print a visible line naming
+the package and saying it will not advertise `single_table_v1`. It is
+deliberately **not** fatal: many in-repo gates stage receiptless closures on
+purpose, and the authoritative refusal belongs at publish time, over the bytes
+that are about to leave the machine.

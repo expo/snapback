@@ -39,6 +39,7 @@ import {
 } from './snapback-publish-core.mjs';
 import { sha256TarEntry } from './snapback-tar-entry.mjs';
 import { enforceTelemetryCurrentGate } from './telemetry-release-gate.mjs';
+import { assertStagedRuntimeStoreQualification } from './publication-store-qualification-gate.mjs';
 import { verifyRuntimePackageSeal } from '../packages/snapback-cli/runtime-readiness.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -572,6 +573,14 @@ if (options.publish && resolve(ledgerPath) === resolve(options.qualifiedLedger))
 }
 
 if (options.publish) {
+  try {
+    assertStagedRuntimeStoreQualification({
+      stagedDir: qualifiedRoot,
+      ledger: qualifiedLedger,
+    });
+  } catch (error) {
+    fail(error.message, 1, error.code);
+  }
   const who = run('npm', ['whoami', '--registry', publicRegistry]);
   if (who.status !== 0) fail(`npm authentication required:\n${who.stderr}`);
   for (const row of rows) {

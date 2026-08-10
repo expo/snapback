@@ -1,9 +1,18 @@
 import assert from 'node:assert/strict';
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
   PUBLIC_PACKAGE_BUILD_DISTRIBUTION,
   assertPublicPackageBuildIdentity,
+  installPackagedStoreQualificationReceipt,
 } from './runtime-package-authority.mjs';
 
 const valid = {
@@ -39,3 +48,44 @@ for (const [name, mutate] of [
     );
   });
 }
+
+test('store receipt installation returns a discriminated result', () => {
+  const root = mkdtempSync(join(tmpdir(), 'runtime-package-authority-test-'));
+  try {
+    const sourceRoot = join(root, 'source');
+    const binDirectory = join(root, 'package', 'bin');
+    const sourceBinary = join(sourceRoot, 'snapback');
+    const receiptPath = join(root, 'receipt.json');
+    mkdirSync(sourceRoot, { recursive: true });
+    mkdirSync(binDirectory, { recursive: true });
+    writeFileSync(sourceBinary, 'fixture binary');
+
+    assert.deepEqual(
+      installPackagedStoreQualificationReceipt({
+        sourceBinary,
+        binDirectory,
+        receiptEnvironmentName: 'SNAPBACK_FIXTURE_RECEIPT',
+        environment: {},
+      }),
+      { installed: false, reason: 'absent' },
+    );
+
+    writeFileSync(receiptPath, `${JSON.stringify({
+      schemaVersion: 'snapback.packaged-store-qualification.v1',
+    })}\n`);
+    const installed = installPackagedStoreQualificationReceipt({
+      sourceBinary,
+      binDirectory,
+      receiptEnvironmentName: 'SNAPBACK_FIXTURE_RECEIPT',
+      environment: { SNAPBACK_FIXTURE_RECEIPT: receiptPath },
+    });
+    assert.equal(installed.installed, true);
+    assert.equal(installed.source, receiptPath);
+    assert.equal(
+      installed.destination,
+      join(binDirectory, 'packaged-store-qualification.receipt.json'),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

@@ -188,12 +188,18 @@ cpSync(sourceHermes, join(libDirectory, 'libhermesvm.so'));
 chmodSync(join(libDirectory, 'libhermesvm.so'), 0o755);
 cpSync(sourceHermesHeader, join(includeDirectory, 'hermes', 'hermes.h.artifact'));
 try {
-  installPackagedStoreQualificationReceipt({
+  const receiptInstall = installPackagedStoreQualificationReceipt({
     sourceBinary,
     binDirectory,
     receiptEnvironmentName:
       'SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT',
   });
+  if (!receiptInstall.installed
+      && process.env.SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS !== '1') {
+    console.error(
+      '@expo/snapback-runtime-linux-x64: packaged-store qualification receipt is absent; the package will not advertise single_table_v1',
+    );
+  }
 } catch (error) {
   fail(
     error?.code ?? 'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID',

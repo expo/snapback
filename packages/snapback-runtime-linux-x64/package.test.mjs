@@ -93,14 +93,14 @@ try {
 
   rmSync(installedReceipt);
   rmSync(siblingReceipt);
-  assert.equal(
+  assert.deepEqual(
     installPackagedStoreQualificationReceipt({
       sourceBinary,
       binDirectory,
       receiptEnvironmentName,
       environment: {},
     }),
-    null,
+    { installed: false, reason: 'absent' },
   );
   assert.equal(existsSync(installedReceipt), false);
 
