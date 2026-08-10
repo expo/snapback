@@ -309,7 +309,8 @@ trains wrong behavior:
    merged command inventory, or is a permanent two-registry state (Rust
    enums + `PACKAGED_CLI_COMMANDS`) acceptable with a parity gate?
 3. **OQ3 — How much of P7 lands in the Rust binary now** versus riding the
-   LLP 0199 core-modularization boundary? Adopting the exit taxonomy is
+   LLP 0225 core-modularization boundary (0225 superseded LLP 0199 as the
+   governing ownership record on 2026-08-10)? Adopting the exit taxonomy is
    cheap; envelope-izing every native failure path may be better done
    behind the new module seams.
 4. **OQ4 — Flat projection disposition** (strip item 2): demote-and-keep,
