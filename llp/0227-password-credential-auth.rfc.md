@@ -15,6 +15,7 @@ the one authorized transition; independent-loop topology)
 Revision history)
 **Revised:** 2026-08-10 (f — round-3 revision under the author's extended
 budget; see Revision history)
+**Revised:** 2026-08-10 (g — round-4 revision; see Revision history)
 **Related:** LLP 0057 (auth catalog and provider protocol — the substrate this
 extends), LLP 0151 (first-party identity integrations — tier-1
 username+password sketch and the identities-vs-credentials rule), LLP 0039
@@ -94,12 +95,10 @@ CREATE TABLE "_auth_password_attempts" (      -- the single accounting authority
                                               -- custody class as
                                               -- _auth_identities.subject
   window_start_ms INTEGER NOT NULL,
-  admitted_count INTEGER NOT NULL DEFAULT 0,  -- windowed budget counter:
-                                              -- every admitted attempt,
-                                              -- NOT reset on success
   failed_count INTEGER NOT NULL DEFAULT 0,    -- consecutive-failure lockout
-                                              -- counter: reset on success
-  locked_until_ms INTEGER
+                                              -- counter: reset on success;
+                                              -- INTERNAL state only
+  locked_until_ms INTEGER                     -- INTERNAL state only
 );
 ```
 
@@ -107,11 +106,10 @@ CREATE TABLE "_auth_password_attempts" (      -- the single accounting authority
 credential selector, and import's attach mode refuses when one exists. All
 password-path accounting lives **only** in `_auth_password_attempts` — the
 credential row carries none, so there are not two accounting authorities —
-and the two counters have distinct semantics: `admitted_count` is the
-half-open-window budget substrate (every admitted attempt counts, success
-does not reset it — this is what `SNAPBACK_AUTH_THROTTLED` meters), while
-`failed_count` is the consecutive-failure lockout counter that success
-resets. The ledger stores the **canonical address** and is a protected
+and the ledger holds exactly one job: `failed_count` is the
+consecutive-failure lockout counter that success resets, and it is
+internal state (§Lockout). Rate metering is **not** this relation's job —
+`SNAPBACK_AUTH_THROTTLED` is driven by LLP 0215's named budgets. The ledger stores the **canonical address** and is a protected
 catalog relation in the same custody class as `_auth_identities.subject`
 (LLP 0057's canonical-address custody list gains this row — an explicit
 custody amendment, not a drive-by). **There is no source axis in this
@@ -148,7 +146,15 @@ equivalent carrier for displacement's identity-retirement semantics),
 (iii) displacement-by-retirement vs 0214's `revoked_at_ms` lifecycle, and
 (iv) the attempt-ledger's place in the catalog descriptor. 0214's no-silent-migration rule is adopted
 (the earlier automatic-upgrade language is withdrawn); backup-manifest,
-reset, restore, and crash consequences ride 0214's ticket. Unchanged either
+reset, restore, and crash consequences ride 0214's ticket.
+**Implementation gate:** no code lands until the 0214 reconciliation has
+produced **one exact composed catalog descriptor and marker** — activation,
+v1/v2 behavior, backup/restore/reset, readiness refusal,
+identity-to-credential linkage, and the displacement lifecycle included.
+This RFC contributes requirements to that descriptor; it does not mint it,
+because today's binary rejects unknown markers and treats extra `_auth_*`
+tables as corruption, so there is no unilateral marker this slice could
+legally occupy. Unchanged either
 way: an older binary refuses an unknown catalog per 0057's recognition
 discipline, and password routes on a catalog without these tables refuse
 with a stable readiness code surfaced through `authProgramReadiness`.
@@ -183,14 +189,20 @@ generation, and lock state — never the hash.
 
 All request/response DTOs follow LLP 0037: camelCase, `deny_unknown_fields`,
 committed generated schemas, `Cache-Control: no-store` on credential
-responses. Every route below is public-path (no bearer) except change, and all
+responses. Each route registers a complete LLP 0031 policy tuple — path
+policy, credential resolution (reset/step-up proofs may need a new closed
+resolution case), invocation authority, legacy-body policy, effect policy,
+response sensitivity (credential-bearing → sensitive, body-capture
+disabled), and session overlay — following LLP 0057's exact tuples for the
+predecessor auth routes; an unregistered handler is unreachable by
+construction. Every route below is public-path (no bearer) except change, and all
 are callable non-interactively — the benchmark's core demand.
 
 | Route | Body | Success |
 |---|---|---|
 | `POST /auth/password/signup` | `{ email, password }` | 200, composed credential response |
 | `POST /auth/password/signin` | `{ email, password }` | 200, composed credential response |
-| `POST /auth/password/change` | `{ currentPassword, newPassword }` + bearer | 200, composed credential response (rotated bearer; see below) |
+| `POST /auth/password/change` | closed union: `{ currentPassword, newPassword }` (rotate) **or** `{ currentPassword: null, newPassword, stepUp: { challengeId, code, identityId } }` (set) + bearer | 200, composed credential response (rotated bearer; see below) |
 | `POST /auth/password/reset` | `{ challengeId, code, newPassword }` | 200, composed credential response |
 
 The success payload of signup, signin, and reset is **byte-shape-identical to
@@ -220,7 +232,8 @@ product front door, not an operator impersonation path.
 
 Client methods: `client.authPasswordSignup({ email, password })`,
 `client.authPasswordSignIn({ email, password })`,
-`client.authPasswordChange({ currentPassword, newPassword })`,
+`client.authPasswordChange({ currentPassword, newPassword })` /
+`client.authPasswordSet({ newPassword, stepUp })`,
 `client.authPasswordReset({ challengeId, code, newPassword })`. Adoption
 splits by predecessor state: signup/signin/reset adopt as **anonymous
 issuance** (the `authExchange` path, which requires an anonymous
@@ -361,17 +374,28 @@ assertable-refusal discipline as the rest of the auth surface:
 | Code | Trigger | Declared v1 threshold |
 |---|---|---|
 | `SNAPBACK_AUTH_PASSWORD_INVALID` | wrong password **or** no such account (uniform) | — |
-| `SNAPBACK_AUTH_PASSWORD_LOCKED` | credential lockout | 10 consecutive failures → locked 15 minutes |
+| `SNAPBACK_AUTH_PASSWORD_LOCKED` | credential lockout — **internal + authenticated observability only, never on the public wire** (a locked credential answers `PASSWORD_INVALID`, byte- and timing-identical) | 10 consecutive failures → locked 15 minutes |
 | `SNAPBACK_AUTH_PASSWORD_EXISTS` | signup on an address that already resolves to an account (local profiles; see §Threat notes) | — |
 | `SNAPBACK_AUTH_PASSWORD_WEAK` | screening refusal at signup/change | length < 8, > 1024 bytes, or blocklist hit |
 | `SNAPBACK_AUTH_THROTTLED` | windowed budget or KDF-concurrency cap | reuses LLP 0057's budget machinery |
 
-**Failure accounting is address-keyed and account-existence-blind.** The
-attempt ledger (§Credential storage) records attempts whether or not an
-account exists; the lockout threshold and `PASSWORD_LOCKED` fire
-identically for existing and missing addresses, so the lockout state
-discloses nothing the uniform `PASSWORD_INVALID` didn't (LLP 0151's
-non-oracular rule). The address-level lockout-DoS tradeoff is stated in
+**Failure accounting is address-keyed and account-existence-blind; budgets
+are LLP 0215's.** The attempt ledger (§Credential storage) holds **lockout
+state only**. Windowed rate budgets — per-address and global signup/signin
+meters, KDF-concurrency, and any future axes — bind to **LLP 0215's effect
+budgets** (named budget rules with its exact rolling windows,
+charge-on-denial, and idempotent retry accounting): this RFC declares the
+named password budgets there and does not mint a parallel budget
+authority (LLP 0214 forbids a second endpoint counter). The ledger records
+attempts whether or not an account exists; lock state is **internal**: the public wire answers the uniform
+`PASSWORD_INVALID` for wrong-password, no-account, and locked alike —
+identical code, shape, headers, and timing envelope — because a *visible*
+lock is itself an oracle (a real account's counter resets when its owner
+signs in; a missing address's never does, so visible lock behavior would
+diverge across allowed histories and disclose successful-authentication
+activity). Lock state surfaces only through the authenticated admin
+projection and `authProgramReadiness`-class observability (LLP 0151's
+non-oracular rule; LLP 0214's uniform password-result contract). The address-level lockout-DoS tradeoff is stated in
 §Credential storage. Accounting is transactional; admission (budget + lock
 check) happens **before** KDF work is spent — note the boundary case: the
 10th attempt admits (only 9 failures exist at admission), spends its KDF,
@@ -464,11 +488,14 @@ the auth milestone **without hand-rolled hashing and without shelling out to
    then email-code login on that address yields a *different* principal, and
    the email-proved principal's set path displaces the squatter's credential.
 3. **Declared lockout contract, non-oracular:** drive failures on an
-   existing and a missing address in parallel — identical codes and
-   thresholds through and past lockout (`PASSWORD_INVALID` ×9,
-   `PASSWORD_LOCKED` on the 10th, reopening after the window, both
-   addresses); assert `SNAPBACK_AUTH_THROTTLED` at a deliberately lowered
-   test-profile budget — proving configurability.
+   existing and a missing address in parallel — the public wire answers
+   `PASSWORD_INVALID` uniformly through and past the threshold for both,
+   within the declared timing envelope, including the history with a
+   successful owner sign-in interposed between attacker failures; the
+   lock's existence, threshold, and expiry are asserted through the
+   authenticated admin projection; assert `SNAPBACK_AUTH_THROTTLED` at a
+   deliberately lowered LLP 0215 test-profile budget — proving
+   configurability.
 4. **Change consequences and the fence:** other sessions of the user are
    revoked after change/reset (only that user's — a bystander session on the
    instance survives); the acting session's bearer is rotated; old bearer
@@ -509,12 +536,22 @@ the auth milestone **without hand-rolled hashing and without shelling out to
 
 ## Status
 
-Review (f). Commissioned 2026-08-10 from
+Review (g). Commissioned 2026-08-10 from
 `issues/20260809-password-credential-auth.md`. No implementation has begun.
 
 ## Revision history
 
 - **(a)** initial draft. **(b)** Draft → Review at loop start.
+- **(g)** round-4 revision: lock state made internal with a uniform public
+  `PASSWORD_INVALID` (a visible lock is an oracle across
+  owner-sign-in histories — LLP 0214's uniform-result contract; acceptance
+  asserts via the admin projection); rate budgets rebound to LLP 0215's
+  named effect budgets (no parallel counter — `admitted_count` removed;
+  the ledger is lockout state only); implementation gated on the 0214
+  reconciliation minting the one exact composed catalog descriptor and
+  marker; the change route becomes a closed union carrying the set form's
+  `stepUp` proof (client gains `authPasswordSet`); LLP 0031 route-registry
+  policy tuples made an explicit obligation.
 - **(f)** round-3 revision under the author's extended budget: the attempt
   ledger drops the source axis (LLP 0215 owns effective-source; the
   address-level lockout-DoS tradeoff stated honestly), stores the canonical
