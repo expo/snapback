@@ -12,6 +12,7 @@ consolidates LLP 0199 with the shipped ownership manifest, the promoted
 pre-push gate, and the landed first slice)
 **Revised:** 2026-08-10 (b — Draft → Review at llp-super-refine loop start,
 the one authorized transition; independent-loop topology)
+**Revised:** 2026-08-10 (c — round-1 revision; see Revision history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -53,7 +54,7 @@ This document consolidates all three into one governing record:
   (`src/generation_activation.rs`, with the OQ3 composite-commit follow-up of
   2026-08-09 recorded in 0199's revision history).
 
-While this document is Draft, LLP 0199 remains the governing record. On
+Until this document is Accepted, LLP 0199 remains the governing record. On
 acceptance, this Decision becomes the **single amendment point** for the
 ownership map and dependency direction (§6), and the author disposes of 0199
 — the recommended disposition is Superseded-with-pointer, keeping 0199 as the
@@ -111,8 +112,16 @@ Two manifest refinements are part of this map, not workarounds of it:
   gate.
 
 The declared `godFiles` are `src/local.rs`, `src/server.rs`, `src/storage.rs`
-— the modules whose *drainage* is the program's purpose. New code must not
-grow them; §5's per-domain rule applies.
+— the modules whose *drainage* is the program's purpose. The no-growth rule,
+operationally: once a domain has an extracted owner module (a "chosen"
+domain — generation activation today; each §4 slice adds more), new feature
+logic for that domain lands behind its owner, not in a god file; what may
+still land in a god file is composition/adapter glue that invokes the owner,
+mechanical relocations, and edits to code not yet claimed by any slice. The
+gate cannot measure "growth" — review does, recorded the way baseline growth
+already is: a landing that adds substantive domain logic to a god file for a
+chosen domain names that choice in the ratchet worklist, where it is visible
+for burn-down rather than silently accreted.
 
 ## 2. Dependency direction
 
@@ -133,9 +142,13 @@ rank):
 - **Adapters** (5, 6) may depend on any domain service, the kernel, and the
   leaf.
 - **Domain services** (1, 3, 4) may depend only on the kernel and the leaf —
-  **not on each other**. Cross-service composition happens above them (in an
-  adapter) or below them (as a typed kernel operation or a leaf shape), never
-  sideways.
+  **not on each other**. Cross-service *orchestration* happens above them: an
+  adapter (or a future explicitly-declared higher-layer coordinator) invokes
+  each service. What sits below them is inert: the leaf may hold shared
+  input/event *shapes*, and a kernel operation may atomically persist
+  already-composed typed intent — but neither the leaf nor the kernel owns
+  domain policy or invokes service behavior. A service that needs another
+  service's behavior goes up, never sideways or down.
 - **The kernel** (2) may depend only on the leaf. The kernel never calls up
   into a domain service; where today's code does (the `with_auth_*`
   escape-hatch shape), callers pass typed inputs down instead.
@@ -149,6 +162,18 @@ edges, and `issues/20260809-0199-ownership-ratchet-worklist.md` is the
 standing burn-down of the grandfathered upward edges (kernel→background job
 helpers, kernel→sync auth call-ups, leaf residues, and their recorded
 growth). Inversions ride the owner slices that touch the same code.
+
+**Baseline updates are monotonic.** A baseline re-freeze may *remove*
+forbidden-edge exceptions, and may re-key a proven pre-existing edge whose
+module relocated; it may **add** a forbidden edge only when the landing
+carries an explicit reviewed frozen-edge record — a worklist entry naming the
+edge and why it is being frozen rather than fixed. The gate is required to
+enforce this by comparing the candidate baseline's forbidden-exception set
+against its predecessor and refusing silent growth
+(`issues/20260810-ownership-gate-analyzer-gaps.md` tracks the implementation;
+today `--update-baseline` overwrites unconditionally, which is a defect of
+the arm, not a license). An unrecorded baseline growth is a violation of this
+Decision even where the tooling fails to catch it.
 
 ## 3. Transaction and commit boundaries — who may commit what
 
@@ -269,9 +294,10 @@ pre-push promotion both predate this document), not after it.
    as drained modules stop needing crate-wide visibility.
 
 Each slice lands incrementally on a fast-moving `main` (no long-lived
-restructuring branch), carries its characterization envelope, re-baselines
-the ownership graph, and records any newly-frozen edges in the worklist
-ticket.
+restructuring branch), carries its characterization envelope, and
+re-baselines the ownership graph under §2's monotonic rule — removed
+exceptions and relocation re-keys are routine; any newly-frozen edge
+requires its named worklist record in the same landing.
 
 ## 5. Enforcement — the structural check is the arm of this Decision
 
@@ -285,9 +311,26 @@ ticket.
   pre-push selection regardless of path selection, and a member of
   `driftFailClosedCoreGates`. It also runs in the local-proof selection
   (LLP 0175 D2.3) and the drift backstop.
-- It blocks exactly two failure shapes: a new Rust module with no manifest
-  assignment, and a new dependency edge that violates §2 (including new
-  edges into an unassigned god-file).
+- It blocks three failure shapes: a new Rust module with no manifest
+  assignment; a new dependency edge that violates §2 (including new edges
+  into an unassigned god-file); and manifest/baseline self-consistency
+  defects (entries naming absent modules, unsorted buckets, ordinal drift,
+  invalid baselines) — which is what makes a naive god-file rename a gate
+  red (§6).
+- **Known analyzer gap, and the requirement that closes it.** The current
+  extractor observes only `crate::`-prefixed textual references; `use
+  super::…`, `use self::…`, grouped imports, aliases, and re-exports are
+  invisible to it, so its "blocking" claim is today scoped to `crate::`-form
+  edges (a live counterexample — `src/auth/provider.rs`'s `super::lifecycle`
+  / `super::mailbox` sideways edges — is recorded in
+  `issues/20260810-ownership-gate-analyzer-gaps.md`). This Decision requires
+  the extractor to resolve at least `crate`/`super`/`self`, grouped imports,
+  aliases, and re-exports relative to each module, with an adversarial
+  fixture per supported form; when the upgrade lands, the baseline and
+  worklist are re-derived from the complete graph, and newly *visible*
+  pre-existing edges are frozen with attribution — they are not new
+  violations. Until then, review carries the difference: a non-`crate::`
+  cross-owner import is a §2 violation whether or not the gate sees it.
 
 Normative rules bound to this Decision:
 
@@ -295,17 +338,19 @@ Normative rules bound to this Decision:
   The owner set, ranks/layers, and `allowedDependencies` in
   `ownership.manifest.json` are the machine-readable projection of §§1–2; an
   edit that adds an owner, changes a rank, or widens `allowedDependencies`
-  requires a `Revised` entry here first (while this document is Draft, an
+  requires a `Revised` entry here first (until this document is Accepted, an
   amendment to LLP 0199). Module *assignments*, `mixedModuleScopes`,
   `uncertainAssignments`, and baseline re-freezes are operational and do not
-  require amendment — but every baseline growth event is recorded in the
-  ratchet worklist, as is current practice.
+  require amendment — but they are bound by §2's monotonic-baseline rule,
+  and every baseline growth event is recorded in the ratchet worklist, as is
+  current practice.
 - **New modules are assigned at landing.** The gate makes an unassigned
   module a hard red on push; `unassigned` is reserved for the pre-existing
   god-file residue, which only shrinks.
 - **Bypass is exceptional and loud** (`SNAPBACK_DRIFT_GATES_BYPASS=1`, per
-  CLAUDE.md); a bypassed red is fixed forward at the next landing, as the
-  four recorded occurrences were.
+  CLAUDE.md); a gate red on main is fixed forward at the next landing, as
+  the four recorded occurrences were (one deliberate bypass; three selection
+  gaps predating the always-run promotion, which that promotion closed).
 
 ## 6. Semantic extraction versus cosmetic splitting
 
@@ -354,6 +399,12 @@ These are different activities and this Decision keeps them distinct:
   manifest edits require a prose amendment *first* — or relax to
   same-landing co-amendment.
 
+Whichever way OQ-A/OQ-B are ruled, acceptance carries a same-landing
+handoff: `ownership.manifest.json`'s `governedBy` gains this document, the
+stale `mixedModuleScopes` prose (e.g. `local.rs`'s activation scope still
+described as "targeted" though extracted) is refreshed, and LLP 0199
+`@ref`s that name superseded sections are repointed.
+
 ## Confidence
 
 High that this record matches the shipped state (manifest, gate tier, and
@@ -370,3 +421,13 @@ so slices can follow product priorities.
   pre-push gate ruling, and the landed generation-activation first slice;
   adds the amendment-only rule for dependency direction and the OQ-A/OQ-B
   disposition questions.
+- **2026-08-10 (b).** Draft → Review at llp-super-refine loop start.
+- **2026-08-10 (c).** Round-1 revision from dual-family review: monotonic
+  baseline policy (§2, §4, §5) and the analyzer-gap disclosure + extractor
+  requirement (§5), both tracked in
+  `issues/20260810-ownership-gate-analyzer-gaps.md`; cross-service
+  composition clarified to orchestration-above / inert-below (§2); god-file
+  no-growth rule made operational (§1); gate failure shapes corrected to
+  three (§5); bypass-history wording corrected (one bypass, three selection
+  gaps); "while Draft" → "until Accepted"; acceptance handoff note added to
+  the OQ section.

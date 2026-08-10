@@ -9,6 +9,7 @@
 in `issues/20260809-password-credential-auth.md`)
 **Revised:** 2026-08-10 (b — Draft → Review at llp-super-refine loop start,
 the one authorized transition; independent-loop topology)
+**Revised:** 2026-08-10 (c — round-1 revision; see Revision history)
 **Related:** LLP 0057 (auth catalog and provider protocol — the substrate this
 extends), LLP 0151 (first-party identity integrations — tier-1
 username+password sketch and the identities-vs-credentials rule), LLP 0039
@@ -33,13 +34,24 @@ non-interactively, server-side hashing, standard rate limiting, and token
 issuance.
 
 This RFC adds a **password credential class to the existing sessions surface**.
-A password is a second way to prove control of a canonical email address; a
-successful signin runs the same session-creation core as an email-code
-exchange and returns the identical LLP 0057 composed credential response. There
-is **no parallel identity system, no parallel token, and no new session
-shape** — one principal, multiple credentials. Storage is server-side argon2id
-with upgrade-on-verify migration; the lockout/rate posture is a declared,
-testable contract with stable refusal codes.
+A password proves control of *the account whose login name is this
+email-shaped string* — deliberately **not** proof of control of the email
+address itself; only an email-code exchange proves that, and the two claims
+get two distinct identity rows (§Principal binding). A successful signin runs
+the same session-creation core as an email-code exchange and returns the
+identical LLP 0057 composed credential response. There is **no parallel
+identity system, no parallel token, and no new session shape** — one
+principal, multiple credentials. Storage is server-side argon2id with
+upgrade-on-verify migration; the lockout/rate posture is a declared, testable,
+non-oracular contract with stable refusal codes.
+
+**Scope declaration.** This is a **local-target benchmark-closure slice**: it
+implements the password portion of LLP 0151's tier-1 package on the local
+target, and does not claim tier-1 completion (recovery codes, hosted
+admission, sender-constrained issuance, and the full witness matrix stay with
+LLP 0151). Production-profile behaviors named here (blind-accept signup,
+mail-delivered reset) are annotated external prerequisites, not shipped
+claims.
 
 **Scope fence (author ruling 2026-08-10):** exactly email+password on the
 sessions surface. This is not a general OAuth/identity-provider program — that
@@ -74,7 +86,22 @@ CREATE UNIQUE INDEX "_auth_password_credentials_identity_uq"
 
 At most one password credential per identity; the identity row (and therefore
 the canonical address, canonicalized exactly per LLP 0057 §Canonical address)
-is the join point back to the principal.
+is the join point back to the principal. Implementation adds the catalog's
+usual CHECK discipline (positive JS-safe generation, nonnegative counters,
+timestamp domains, PHC length bound) and the address-keyed attempt ledger
+(§Lockout) as a second bounded relation.
+
+**This is auth catalog v3.** The current implementation recognizes exactly
+v1 and v2, and an extra protected `_auth_*` table under either marker is
+catalog corruption — so this RFC is a catalog version, not a mechanical
+number: fresh activation creates v3; v2→v3 upgrades **automatically at
+activation** (additive `CREATE TABLE`s, no data rewrite, one transaction
+under LLP 0057's catalog rules with its crash/rollback discipline); v1
+behavior is unchanged from 0057 (v1→v2 remains deferred, and v1→v3 composes
+that deferral); an older binary encountering v3 refuses per 0057's
+recognition discipline rather than serving unknown tables; password routes on
+a pre-v3 catalog refuse with a stable readiness code and
+`authProgramReadiness` exposes the fact.
 
 **KDF: argon2id, pinned v1 parameters** (OWASP-aligned): memory 19 456 KiB,
 iterations 2, parallelism 1, 16-byte random salt, 32-byte tag. Stored as a PHC
@@ -139,62 +166,101 @@ product front door, not an operator impersonation path.
 
 Client methods: `client.authPasswordSignup({ email, password })`,
 `client.authPasswordSignIn({ email, password })`,
-`client.authPasswordChange({ currentPassword, newPassword })`. Each adopts the
-credential into `AuthCoordinator` exactly as `authExchange` does; custody,
-refresh, and the logout barrier are untouched.
+`client.authPasswordChange({ currentPassword, newPassword })`,
+`client.authPasswordReset({ challengeId, code, newPassword })`. Adoption
+splits by predecessor state: signup/signin/reset adopt as **anonymous
+issuance** (the `authExchange` path, which requires an anonymous
+coordinator), while change is an **authenticated same-authority rotation**
+(the `withCredentialRotation` path refresh already uses: verify same
+authority descriptor, replace the credential within it, refuse on authority
+mismatch or stale response). Custody, refresh, and the logout barrier are
+untouched.
 
 ## Principal binding: same sessions, no parallel identity
 
+**The password login identifier is its own identity row.** A password
+signup/set writes an `_auth_identities` row with `provider = 'password'` and
+`subject =` the canonical address. It is a *login identifier*, never proof of
+address control: it can never satisfy an email-code lookup (which resolves
+`provider = 'email-code'` only, unchanged), and the email-code exchange path
+is not modified by this RFC. `verified_at_ms` on a `'password'` identity is
+its creation time and carries **no** email-verified meaning — verified-email
+semantics live exclusively in the `'email-code'` provider namespace, so no
+catalog column changes meaning. Because sessions already record
+`identity_id`, `session.provider` reports `'password'` at mint **and** on
+every later refresh with no new column and no DTO change.
+
 - **Signup** canonicalizes the address, then in one `IMMEDIATE` transaction
   (address-stripe-locked, same 256-stripe discipline as request-code):
-  refuse if the canonical address **already resolves to any existing
-  identity** — not merely an existing password credential (§Threat notes for
-  the enumeration posture) — otherwise create the `_auth_users` row,
-  canonical-address identity, and credential, enforce the session cap, and
-  mint one session. The refusal is load-bearing: an unauthenticated signup
-  that attached a credential to an existing email-code principal would hand
-  out sessions on someone else's account without any proof of address
-  control. Attaching a password to an existing account instead goes through
-  the authenticated **set** form of change (below) or reset.
-  `verified_at_ms` semantics: a password-signup-created identity records
-  creation time but is **not** email-verified; verification happens only when
-  an email-code exchange later succeeds for the same address. Verified status
-  gates nothing in v1 except reset delivery in production profiles.
-- **Signin** resolves the canonical address to the credential, verifies
-  (KDF outside the lock), then runs the **same session-creation core** as a
-  successful email-code exchange. `ctx.auth.userId` is the same principal the
-  email-code path yields for that address.
-- **Change** requires an authenticated session **and** the current password
-  (a step-up-equivalent proof; a stolen bearer alone cannot rotate the
-  credential). `currentPassword: null` is accepted **only** when the
-  principal has no password credential yet — the authenticated **set** path
-  by which an email-code account gains a password. Both forms write the hash,
-  increment `credential_generation`, rotate the acting session's bearer, and
-  **revoke the user's other sessions** via LLP 0057's bulk-revocation
-  transaction scoped to the user — LLP 0151's sessions-consequences rule.
-- **Reset** reuses LLP 0057's email-code challenge machinery unchanged:
-  request a code via the existing `POST /auth/request-code`, then
-  `POST /auth/password/reset` consumes the challenge in one transaction that
-  verifies the code for the credential's address, replaces the hash, revokes
-  the user's other sessions, and mints a fresh session. On the local target
-  the code arrives through the capture mailbox (admin- and
+  refuse if the canonical address already resolves to **any** existing
+  identity (either provider — §Threat notes for the enumeration posture);
+  otherwise create the `_auth_users` row, the `'password'` identity, and the
+  credential, enforce the session cap, and mint one session.
+  **Pre-hijack containment is structural:** because a password-created
+  principal is joined only through its `'password'` identity, a later
+  email-code exchange for the same address misses it and mints a *separate*
+  principal — an attacker who squats a victim's address gains an account of
+  their own, never the victim's logins or data. The squatted `'password'`
+  identity is displaced by the rule below.
+- **Signin** resolves the canonical address to the `'password'` identity and
+  credential, verifies (two-phase fence below), then runs the **same
+  session-creation core** as a successful exchange.
+- **Change** requires an authenticated session **and** the current password.
+  The **set** form (`currentPassword: null`, principal has no password
+  credential) additionally requires a **fresh operation-bound email-code
+  challenge** consumed in the same transaction (LLP 0151's step-up rule): a
+  stolen bearer alone can neither rotate nor create the credential. Set on an
+  address whose `'password'` identity belongs to a *different* principal
+  **displaces** that identity and its credential when the acting principal
+  holds the address's `'email-code'` identity — email proof outranks an
+  unverified squat; the displaced principal keeps its sessions and data but
+  loses password login. Both change forms write the hash, increment
+  `credential_generation`, rotate the acting session's bearer, and revoke the
+  user's other sessions (revocation operation below).
+- **Reset** reuses LLP 0057's challenge machinery: request a code via the
+  existing `POST /auth/request-code`, then `POST /auth/password/reset`
+  consumes the challenge in one transaction that verifies the code for the
+  credential's address, replaces the hash, revokes the user's other sessions,
+  and mints a fresh session. Note 0057's one-active-challenge-per-address
+  invariant applies: a reset code and a sign-in code are the same spendable
+  proof (either is consumable at `/auth/exchange`), and a new request
+  supersedes the outstanding challenge — security-equivalent, and stated so
+  suites don't trip on it. Local target: capture mailbox (admin- and
   impersonation-gated, test material); production reset carries LLP 0045's
-  mail adapter as its external prerequisite, exactly like email-code sign-in
-  itself. Preissued recovery codes (LLP 0151) are deliberately **not** in
-  scope; they belong to the commissioned lifecycle spec.
+  mail adapter as its external prerequisite. Preissued recovery codes stay
+  with the 0151 lifecycle spec.
 
-**Composition and precedence.** An address may simultaneously carry an
-email-code sign-in path, a password credential, and broker-minted sessions
-(LLP 0058 seam invoking `auth.mintSession`). All resolve to the **same
-principal** through the canonical-address identity; there is no precedence to
-arbitrate because no path shadows another — each independently proves control
-and mints an ordinary session. Custody rules compose unchanged: the broker
-seam remains a gated non-production host operation per LLP 0057/0058; the
-password routes never accept a caller-asserted `userId` (LLP 0039); and
-credential material never crosses the redaction boundary. Removing/unlinking a
-password credential is **deferred** to the 0151 lifecycle spec, where the
-last-authenticator rule is computed jointly across credential classes — v1
-ships set and change only, so the rule cannot yet be violated.
+**Two-phase verification fence.** Verification reads the exact predecessor —
+`(credential id, credential_generation, phc_string, lock state)` — computes
+the KDF outside the writer lock (LLP 0011), then the issuing/accounting
+transaction **requires that exact `(id, generation)` predecessor** before any
+failure accounting, upgrade-on-verify swap, or session mint; on mismatch (a
+concurrent change/reset landed) it refuses or restarts — a stale proof never
+authorizes, mirroring LLP 0059's exact-predecessor discipline.
+
+**User-scoped revocation operation.** Change and reset use a **new**
+user-scoped revocation (LLP 0057's bulk-revocation transaction is
+deliberately instance-wide and is *not* reused): in the credential-mutating
+transaction, revoke exactly the user's live sessions minus the acting session
+(change) or minus the newly minted session (reset), preserving 0057's
+revocation invariants — generation bump, no row deletion, revocation clock
+floor — and settling projections per LLP 0059 for exactly the affected
+session set.
+
+**Composition and precedence.** One principal may carry both an
+`'email-code'` and a `'password'` identity for the same address (the
+authenticated set path creates exactly this), and broker-minted sessions
+(LLP 0058 seam) compose unchanged; each path independently proves its own
+claim and mints an ordinary session — no path shadows another. Two
+*different* principals may transiently hold the address's two identity rows
+(unverified password signup followed by the address owner's email-code
+login); the set-displacement rule above is the sanctioned unification, always
+in favor of email proof. Custody rules compose unchanged: the broker seam
+remains a gated non-production host operation per LLP 0057/0058; the password
+routes never accept a caller-asserted `userId` (LLP 0039); credential
+material never crosses the redaction boundary. Unlinking a password
+credential is **deferred** to the 0151 lifecycle spec — v1 ships set,
+change, and displacement only.
 
 ## Lockout and rate posture: a declared, testable contract
 
@@ -209,12 +275,21 @@ assertable-refusal discipline as the rest of the auth surface:
 | `SNAPBACK_AUTH_PASSWORD_WEAK` | screening refusal at signup/change | length < 8, > 1024 bytes, or blocklist hit |
 | `SNAPBACK_AUTH_THROTTLED` | windowed budget or KDF-concurrency cap | reuses LLP 0057's budget machinery |
 
-Failure accounting is transactional exactly like 0057's challenge attempts:
-each failed verify commits `failed_attempts + 1` under the address stripe; the
-tenth sets `locked_until_ms`; success resets the counter; expiry of the lock
-window reopens the credential without operator action. Signup and signin also
+**Failure accounting is address-keyed and account-existence-blind.** A
+bounded attempt ledger keyed by canonical address (not by credential row)
+records failed attempts whether or not an account exists; the lockout
+threshold and `PASSWORD_LOCKED` fire identically for existing and missing
+addresses, so the lockout state discloses nothing the uniform
+`PASSWORD_INVALID` didn't (LLP 0151's non-oracular rule). Anti-lockout-DoS:
+the lock is scoped to (address, source class) with a global budget backstop,
+so a third party cannot cheaply deny a known address; ledger retention is
+bounded and GC'd. Accounting is transactional; admission (budget + lock
+check) happens **before** KDF work is spent; success resets the address's
+counter; lock expiry reopens without operator action. Signup and signin also
 count against per-address and global rolling windows via 0057's existing
-budget transaction shape.
+budget transaction shape — but note 0057's current budget substrate counts
+retained challenge rows, which password signin does not create, so the
+attempt ledger above is the declared substrate for password-path budgets.
 
 **Every threshold is a declared profile parameter, not a fixed constant.** The
 pilot's Supabase lane lost ≈2.6 h of an envelope run to GoTrue's
@@ -228,14 +303,21 @@ the exact declared threshold — no tarpits, no adaptive black boxes.
 
 **Admitted, not deferred.** A host operation `auth.importPasswordCredential`
 (AdminWrite + ImpersonationCapability, non-production profiles — the same gate
-class as `auth.mintSession`) accepts `{ email, phcString }` where the PHC
-algorithm is one of `argon2id`, `scrypt`, or `bcrypt`. It provisions the
-principal/identity as signup does and stores the foreign hash verbatim; the
-first successful signin verifies under the stored algorithm and
-**upgrades-on-verify to current argon2id policy**. This directly absorbs the
-pilot's hand-rolled scrypt gateway data. Plaintext-password import does not
-exist. Hosted-production import ceremony is out of scope until a hosted auth
-target exists.
+class as `auth.mintSession`) has two explicit modes:
+**create** (`{ email, phcString }`, address must resolve to no identity —
+provisions principal + `'password'` identity + credential as signup does) and
+**attach** (`{ email, phcString, expectedUserId }` — attaches the credential
+and `'password'` identity to exactly that existing principal, refusing on any
+mismatch or identity collision). The pilot's data absorbs via **attach**: its
+principals were minted through the sanctioned session-mint seam and already
+exist. Foreign hashes are bounded, not just allowlisted: encoded length,
+algorithm/version, salt and tag sizes, and every cost parameter (memory,
+iterations, parallelism / N, r, p / bcrypt cost) validate against declared
+caps before storage, so an imported PHC string cannot demand pathological
+KDF work. First successful signin verifies under the stored algorithm and
+**upgrades-on-verify to current argon2id policy**. Plaintext-password import
+does not exist. Hosted-production import ceremony is out of scope until a
+hosted auth target exists.
 
 ## Threat notes
 
@@ -273,32 +355,49 @@ the auth milestone **without hand-rolled hashing and without shelling out to
    → authenticated call → change → re-signin using only documented HTTP
    routes (and again using only `client.authPassword*` methods), receiving
    the LLP 0057 composed credential response each time.
-2. **Same-principal composition:** an acceptance witness mints a persona via
-   email-code, asserts password signup on that address refuses with
-   `PASSWORD_EXISTS`, attaches a password through the authenticated set path,
-   signs in with it, and asserts one stable `userId` across both credential
-   paths and that email-code exchange still works afterward.
-3. **Declared lockout contract:** drive 9 failures (`PASSWORD_INVALID` each),
-   assert `PASSWORD_LOCKED` on the 10th, assert reopening after the window,
-   and assert `SNAPBACK_AUTH_THROTTLED` at the declared budget in a test
-   profile with the budget deliberately lowered — proving configurability.
-4. **Change consequences:** other sessions of the user are revoked after
-   change/reset; the acting session's bearer is rotated; old bearer follows
-   the 0057 credential-resolution matrix.
+2. **Same-principal composition and containment:** an acceptance witness
+   mints a persona via email-code, asserts password signup on that address
+   refuses with `PASSWORD_EXISTS`, attaches a password through the
+   authenticated set path (consuming the step-up challenge), signs in with
+   it, and asserts one stable `userId` across both paths with
+   `session.provider` reporting each mint's class consistently on refresh.
+   A second witness proves containment: password-signup on a fresh address,
+   then email-code login on that address yields a *different* principal, and
+   the email-proved principal's set path displaces the squatter's credential.
+3. **Declared lockout contract, non-oracular:** drive failures on an
+   existing and a missing address in parallel — identical codes and
+   thresholds through and past lockout (`PASSWORD_INVALID` ×9,
+   `PASSWORD_LOCKED` on the 10th, reopening after the window, both
+   addresses); assert `SNAPBACK_AUTH_THROTTLED` at a deliberately lowered
+   test-profile budget — proving configurability.
+4. **Change consequences and the fence:** other sessions of the user are
+   revoked after change/reset (only that user's — a bystander session on the
+   instance survives); the acting session's bearer is rotated; old bearer
+   follows the 0057 credential-resolution matrix; a signin racing a
+   change/reset (KDF completed against the predecessor hash) refuses rather
+   than minting, and a bearer alone cannot set a first password (step-up
+   challenge required).
 5. **Import:** an imported scrypt PHC credential signs in successfully and is
    observed (admin projection: generation + algorithm class only) to have
    upgraded to argon2id.
 6. **Uniformity smoke:** no-account vs wrong-password signin are
    code-identical and within a declared timing envelope.
 7. **Guide + capability index:** a `guide/auth/passwords.md` page with
-   CI-verified snippets; the capability row flips from GAP with route
-   witnesses; `authProgramReadiness` gains a password-provider facet.
+   CI-verified snippets; a **new** `auth.passwords` capability row is added
+   with route witnesses (none exists today — the index gains the row rather
+   than flipping one); `authProgramReadiness` gains a password-provider
+   facet including catalog-v3 readiness.
 
 ## Open questions
 
-1. **Production signup enumeration posture** — is blind-accept (uniform shape,
-   no session, email notice) the ruled production default, or is a disclosed
-   `PASSWORD_EXISTS` oracle acceptable there too? (Local-profile oracle is
+1. **Production signup enumeration posture** — is blind-accept (uniform
+   accepted shape, **no session**, email notice) the ruled production
+   default, or is a disclosed `PASSWORD_EXISTS` oracle acceptable there too?
+   Note the DTO consequence either way: a uniform blind-accept shape must
+   apply to new *and* existing addresses in production, so the routes
+   table's "200, composed credential response" is the local/dev/test
+   contract and production signup is a different declared shape — the
+   acceptance script targets the local contract. (Local-profile oracle is
    pinned above; only the production default needs a ruling.)
 2. **Operator unlock** — should v1 ship an admin verb to clear a lockout
    before `locked_until_ms`, or is waiting out the window acceptable until
@@ -308,7 +407,24 @@ the auth milestone **without hand-rolled hashing and without shelling out to
 
 ## Status
 
-Draft (a). Commissioned 2026-08-10 from
-`issues/20260809-password-credential-auth.md`. No implementation has begun;
-the catalog migration number and route registry rows bind at implementation
-time under LLP 0057's catalog rules.
+Review (c). Commissioned 2026-08-10 from
+`issues/20260809-password-credential-auth.md`. No implementation has begun.
+
+## Revision history
+
+- **(a)** initial draft. **(b)** Draft → Review at loop start.
+- **(c)** round-1 revision from dual-family review: password login
+  identifiers become their own `'password'` provider namespace (pre-hijack
+  containment structural; email-code path unmodified; `session.provider`
+  consistent at mint and refresh; no unverified-state column needed);
+  set-displacement collision rule; step-up challenge required for first
+  password set; two-phase exact-predecessor verification fence; address-keyed
+  account-existence-blind attempt ledger with (address, source-class) lock
+  scoping; new user-scoped revocation operation (0057's instance-wide helper
+  explicitly not reused); client adoption split anonymous-issuance vs
+  authenticated rotation + `authPasswordReset`; auth catalog v3 declared with
+  activation/upgrade/refusal semantics; import split into create/attach
+  modes with bounded PHC parameters; scope declared a local benchmark-closure
+  slice of 0151 tier-1; acceptance criteria extended (containment,
+  non-oracular lockout, fence race, step-up); capability-row and
+  one-active-challenge wording fixed.
