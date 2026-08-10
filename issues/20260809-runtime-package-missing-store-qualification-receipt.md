@@ -1,9 +1,8 @@
 # Published 0.1.16 runtime packages omit the packaged-store qualification receipt, so no generated app can start
 
-**Status:** Open — **MITIGATED on npm 2026-08-10T00:14Z** by rolling `latest`
-back to 0.1.15 on all eleven names (see "Mitigation" below); the underlying
-packaging defect is still open and closes only with a 0.1.17 successor
-closure, the publication gate, and the post-publish smoke
+**Status:** RESOLVED 2026-08-09 — 0.1.17 published, proven to boot, and
+promoted to `latest` on all eleven names; the cause is fixed, gated, and
+smoke-tested
 **Found by:** the LLP 0176 G4 external rerun against live 0.1.16
 **Impact:** 5
 **Urgency:** 5
@@ -261,3 +260,110 @@ checkout.
 - Rerun the LLP 0176 G4 ceremony from the retained quarry
   (`/Users/ccheever/projects/snapback-g4-external-0116`, archived at
   `~/snapback-release-ledgers/g4-external-0116-quarry-20260809.tar.gz`).
+
+## Resolution — 0.1.17, 2026-08-09/10
+
+### What shipped
+
+`0.1.17` is live on npm `latest` for all eleven names, cut fast-path from clean
+`main` revision `0e6bf1842ab291f2e68416fbf40bd2e6debb4290` — the revision that
+carries the gate and the smoke, so the release that fixes the defect is the
+first release the new machinery guarded.
+
+Both runtime packages carry `bin/packaged-store-qualification.receipt.json`,
+each minted against the exact pass-1 staged closure by running that platform's
+own packaged binary:
+
+| Platform | receipt sha256 | suite | binds |
+| --- | --- | --- | --- |
+| darwin-arm64 | `dfe52e478bde4869c3df0af33d43735e18e19147bc514727949c97ba2f72c059` | 3 pass / 0 fail / 0 skip | `0e6bf1842ab2`, clean, `release`, `public-package` |
+| linux-x64 | `999304f08899d55809151ec72f31049d834b73703f0745906157d68a7d893432` | 3 pass / 0 fail / 0 skip | `0e6bf1842ab2`, clean, `release`, `public-package` |
+
+darwin-arm64 was built locally; linux-x64 was built and attested on
+`expo-build-1000` and transported with all four artifact digests re-verified on
+the assembling host. The linux receipt was minted **on the builder** from a copy
+of the pass-1 closure whose eleven tarball digests were confirmed identical to
+the local vector — the step the 0.1.16 lane omitted. Its
+`~/snapback-staging/qual16b-linux` directory holds only build artifacts, while
+`qual15-linux` holds the ten-tarball pass-1 closure that the 0.1.15 mint
+consumed: the omission is visible in the artifacts the two lanes left behind.
+
+Retained ledger:
+`~/snapback-release-ledgers/fastpath-ledger-0.1.17-0e6bf1842a.json`, written
+before the first `npm publish`. Byte verification: **11/11 registry tarballs
+byte-identical to the ledger, 0 mismatched.**
+
+### The smoke, and what it proved
+
+`scripts/published-closure-boot-smoke.mjs` against published `0.1.17`:
+`ok: true`, all eight checks green in 6.9 s — installed, receiptPresent,
+codegen, capabilityAcknowledged, ready, capabilityAdvertised, ensureApp,
+liveQuery. The installed receipt digest matches the gate summary exactly.
+
+The smoke was discrimination-tested against the registry before the cut:
+
+| Vector | Result |
+| --- | --- |
+| published `0.1.15` | `ok: true`, 8/8 checks, 5.6 s |
+| published `0.1.16` | `ok: false`, `SNAPBACK_PUBLISHED_SMOKE_RECEIPT_ABSENT`, 5.6 s |
+| published `0.1.17` | `ok: true`, 8/8 checks, 6.9 s |
+
+It reproduces this exact defect from published bytes alone, which is the
+property the acceptance criteria asked for.
+
+### The gate fired in anger on its first real cut
+
+The 0.1.17 ceremony published all eleven under the immutable holding tag
+`fastpath-0-1-17-0e6bf1842ab2`, byte-verified 11/11 — and then **refused to
+move `latest`**, because the post-publish smoke failed. That refusal was
+correct behaviour on a false alarm: the smoke ran roughly eight seconds after
+`@expo/snapback-cli@0.1.17` was published and npm's read replicas still answered
+`ETARGET` for the exact version, so the install failed against bytes that were
+in fact fine. `latest` stayed on 0.1.15 throughout, which is exactly what should
+happen when the ceremony cannot prove the new closure runs.
+
+Two real ceremony defects follow from that, both fixed in the same landing as
+this resolution:
+
+1. **Registry propagation race.** `snapback-fastpath-release.mjs` now waits for
+   every published name to resolve by exact version before starting the smoke,
+   bounded at 300 s, failing closed with
+   `SNAPBACK_FASTPATH_REGISTRY_PROPAGATION_TIMEOUT` if a version is genuinely
+   absent. Byte verification passes against tarball URLs while the packument is
+   still stale, so byte verification alone could not have caught this.
+2. **Not resumable after a publish.** Pass-2 staging ends in
+   `npm publish --dry-run`, which npm refuses once the version exists, so a
+   ceremony interrupted *after* publishing could never be re-run to promote
+   `latest`. The release pass now reuses an existing pass-2 closure that binds
+   the same exact version and source revision, and still runs the gate over the
+   reused bytes.
+
+Because those fixes could not be landed without dirtying the release tree — and
+the ceremony rightly refuses a dirty tree — the 0.1.17 `latest` promotion itself
+was performed directly, at 2026-08-10T01:41:04Z–01:41:25Z UTC, on the evidence
+the ceremony had already produced: the gate summary above, 11/11 byte
+verification, and a green smoke against the published bytes. All eleven names
+were then re-read and confirmed at `latest` = `0.1.17`. The next cut runs the
+promotion through the script.
+
+### Against the acceptance list
+
+| Acceptance bullet | Result |
+| --- | --- |
+| Successor closure whose runtime packages carry a valid receipt on every platform | **DONE** — 0.1.17, both platforms, digests above |
+| Fast-path gate refusing a runtime package without a qualifying receipt | **DONE** — `scripts/publication-store-qualification-gate.mjs`, fail-closed, no env opt-out, also wired into `snapback-publish.mjs --publish` |
+| Post-publication smoke that scaffolds and starts the published template | **DONE** — `scripts/published-closure-boot-smoke.mjs`, discrimination-tested on 0.1.15/0.1.16/0.1.17 |
+| Confirm or refute the inherited-receipt hypothesis for 0.1.12–0.1.15 | **REFUTED** — see the table above; each receipt binds its own release revision and closure |
+| Public-guide destination for the refusal; stop emitting monorepo paths | **NOT DONE** — carried forward, see below |
+| Rerun the LLP 0176 G4 ceremony from the retained quarry | **NOT DONE** — unblocked, but a separate two-host lane |
+
+### Carried forward, not closed by this lane
+
+- The consumer-diagnosability arm of this ticket (a public-guide destination
+  that names the packaged-runtime cause, and suppressing monorepo source paths
+  such as `src/manifest.rs:13440:18` in diagnostics shown to external
+  consumers). Nothing in the published guide still explains this failure to
+  someone who hits it.
+- The G4 external rerun against `0.1.17` from the retained quarry
+  (`~/snapback-release-ledgers/g4-external-0116-quarry-20260809.tar.gz`). The
+  blocker is gone; the ceremony itself has not been re-run.

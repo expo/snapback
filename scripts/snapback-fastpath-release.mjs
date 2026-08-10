@@ -228,6 +228,13 @@ function assertCleanTree() {
   }
 }
 
+function headRevision() {
+  return runOrThrow('git', ['rev-parse', 'HEAD'], {
+    code: 'SNAPBACK_FASTPATH_LEDGER_INVALID',
+    message: 'could not resolve the source revision',
+  }).stdout.trim();
+}
+
 function readBoundedJson(path, label) {
   const metadata = statSync(path);
   if (!metadata.isFile() || metadata.size > MAX_LEDGER_BYTES) {
@@ -353,6 +360,47 @@ function registryVersionExists(name, version) {
   );
 }
 
+export const EXACT_VERSION_PROPAGATION_WALL_BOUND_MS = 300_000;
+export const EXACT_VERSION_PROPAGATION_POLL_MS = 5_000;
+
+const sleep = (milliseconds) => new Promise((settle) => setTimeout(settle, milliseconds));
+
+// @ref LLP 0041#amendment-2026-08-09-the-fast-path-is-a-script-and-it-is-gated
+// — the post-publish smoke installs by exact version, so it must not start
+// before the registry's read path can serve those versions.
+export async function awaitExactVersionPropagation(packages, {
+  deadlineMs = EXACT_VERSION_PROPAGATION_WALL_BOUND_MS,
+  pollMs = EXACT_VERSION_PROPAGATION_POLL_MS,
+  exists = registryVersionExists,
+  now = () => Date.now(),
+  wait = sleep,
+} = {}) {
+  const startedAt = now();
+  const deadline = startedAt + deadlineMs;
+  const pending = new Map(packages.map((row) => [row.name, row.version]));
+  const resolved = [];
+  for (;;) {
+    for (const [name, version] of [...pending]) {
+      if (exists(name, version)) {
+        pending.delete(name);
+        resolved.push({ name, version, resolvedAfterMs: now() - startedAt });
+      }
+    }
+    if (pending.size === 0) {
+      return { ok: true, waitedMs: now() - startedAt, resolved };
+    }
+    if (now() >= deadline) {
+      throw codedError(
+        'SNAPBACK_FASTPATH_REGISTRY_PROPAGATION_TIMEOUT',
+        `published versions were still unresolvable after ${deadlineMs}ms: `
+          + [...pending].map(([name, version]) => `${name}@${version}`).join(', '),
+        { pending: [...pending].map(([name, version]) => ({ name, version })) },
+      );
+    }
+    await wait(pollMs);
+  }
+}
+
 function npmArgsWithOtp(args, otp) {
   return otp ? [...args, '--otp', otp] : args;
 }
@@ -457,18 +505,34 @@ async function releasePass(options) {
     }
   }
   mkdirSync(options.out, { recursive: true });
-  runOrThrow(process.execPath, [
-    join(ROOT, 'scripts', 'snapback-publish.mjs'),
-    '--version', options.version,
-    '--runtime-platforms', 'all',
-    '--out', options.out,
-  ], {
-    code: 'SNAPBACK_FASTPATH_PASS2_FAILED',
-    message: 'receipt-bearing pass-2 staging failed',
-    env: publicationEnvironment(options.receipts),
-    timeout: 900_000,
-  });
   const ledgerPath = join(options.out, 'publish-ledger.json');
+  // Resumability. Pass-2 staging ends in `npm publish --dry-run`, which npm
+  // refuses once the version exists ("cannot publish over the previously
+  // published versions"). A ceremony interrupted after publishing — the
+  // 0.1.17 cut was, by its own smoke gate — could therefore never be resumed
+  // to promote `latest`. Reuse an existing pass-2 closure that already binds
+  // this exact version and source revision instead of restaging it. The gate
+  // below still runs over the reused bytes, so reuse never skips the check.
+  const reusable = existsSync(ledgerPath)
+    && (() => {
+      const existing = readBoundedJson(ledgerPath, 'existing pass-2 publish ledger');
+      return existing.version === options.version
+        && existing.revision === headRevision()
+        && existing.sourceDirty === false;
+    })();
+  if (!reusable) {
+    runOrThrow(process.execPath, [
+      join(ROOT, 'scripts', 'snapback-publish.mjs'),
+      '--version', options.version,
+      '--runtime-platforms', 'all',
+      '--out', options.out,
+    ], {
+      code: 'SNAPBACK_FASTPATH_PASS2_FAILED',
+      message: 'receipt-bearing pass-2 staging failed',
+      env: publicationEnvironment(options.receipts),
+      timeout: 900_000,
+    });
+  }
   const ledger = readBoundedJson(ledgerPath, 'pass-2 publish ledger');
   if (ledger.version !== options.version
       || ledger.sourceDirty !== false
@@ -557,6 +621,16 @@ async function releasePass(options) {
     for (const row of ledger.packages) {
       ceremony.byteVerification.push(await downloadAndVerify(row, options.out));
     }
+    // The registry's read replicas lag its write path by seconds. Byte
+    // verification passes against the tarball URL while `npm install
+    // <name>@<version>` still answers ETARGET from a stale packument, so an
+    // immediate smoke reports a false INSTALL_FAILED for a closure that is
+    // fine. Wait for every name to resolve by exact version before running it,
+    // and keep the wait bounded so a genuinely absent version still fails.
+    ceremony.propagation = await awaitExactVersionPropagation(
+      ledger.packages,
+      { deadlineMs: EXACT_VERSION_PROPAGATION_WALL_BOUND_MS },
+    );
     const smoke = run(process.execPath, [
       join(ROOT, 'scripts', 'published-closure-boot-smoke.mjs'),
       '--version', options.version,

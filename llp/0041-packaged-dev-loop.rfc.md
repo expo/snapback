@@ -9,8 +9,9 @@
 **Revised:** 2026-08-09 (the fast path becomes a gated two-pass script: the
 packaged-store qualification receipt is minted and restaged by
 `scripts/snapback-fastpath-release.mjs`, a fail-closed staged-tarball gate
-refuses to publish a runtime package without it, and `latest` moves only after
-a post-publish smoke boots an app built from the published bytes)
+refuses to publish a runtime package without it, `latest` moves only after a
+post-publish smoke boots an app built from the published bytes, and 0.1.17 is
+recorded as the first cut under that gate)
 
 **Revised (promotion closure reconciled):** 2026-08-07 (the leased-promotion
 vector now equals the full eleven-package publishable closure, including
@@ -1397,3 +1398,43 @@ the package and saying it will not advertise `single_table_v1`. It is
 deliberately **not** fatal: many in-repo gates stage receiptless closures on
 purpose, and the authoritative refusal belongs at publish time, over the bytes
 that are about to leave the machine.
+
+### 0.1.17 (2026-08-09) — the first cut under the gate, and what it caught
+
+The eleven-package closure published fast-path from clean `main`
+`0e6bf1842ab291f2e68416fbf40bd2e6debb4290` — the revision that introduced the
+gate and the smoke, so the release repairing the 0.1.16 defect was itself the
+first release the new machinery guarded. Retained ledger
+`~/snapback-release-ledgers/fastpath-ledger-0.1.17-0e6bf1842a.json`, written
+before the first `npm publish`; all eleven registry tarballs re-downloaded and
+byte-identical to it. Both runtimes carry a receipt minted against the exact
+pass-1 closure by running that platform's own packaged binary (darwin-arm64
+locally, linux-x64 on `expo-build-1000` from a digest-verified copy of the same
+closure), each suite 3 pass / 0 fail / 0 skip and each bound to
+`0e6bf1842ab2` / clean / `release` / `public-package`.
+
+**The ceremony refused to promote `latest` on its first run, and it was right
+to.** All eleven published under the holding tag
+`fastpath-0-1-17-0e6bf1842ab2` and byte-verified 11/11, then the post-publish
+smoke failed and `latest` stayed on 0.1.15. The failure was a false alarm — npm's
+read replicas still answered `ETARGET` for `@expo/snapback-cli@0.1.17` about
+eight seconds after it was published — but the shape is exactly the intended
+one: a closure that cannot be proved to run does not get the default tag.
+
+Two ceremony defects follow, both fixed in the same landing:
+
+1. The smoke installs by exact version, so it must wait for the registry read
+   path to serve those versions. There is now a bounded propagation wait
+   (`SNAPBACK_FASTPATH_REGISTRY_PROPAGATION_TIMEOUT`). Byte verification hits
+   tarball URLs directly and passes while the packument is stale, so it cannot
+   substitute for this wait.
+2. Pass-2 staging ends in `npm publish --dry-run`, which npm refuses once the
+   version exists — so a ceremony interrupted *after* publishing could never be
+   resumed to promote `latest`. The release pass now reuses a pass-2 closure
+   that binds the same exact version and source revision, and still runs the
+   gate over the reused bytes.
+
+Because landing those fixes dirties the tree and the ceremony refuses a dirty
+tree, 0.1.17's own `latest` promotion was performed directly on the evidence the
+ceremony had already produced. That is a one-time exception recorded here rather
+than a precedent; the next cut promotes through the script.

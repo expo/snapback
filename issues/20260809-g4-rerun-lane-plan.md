@@ -334,3 +334,40 @@ ledger exist, the guide boundary and fences are updated, and the fresh-quarry
 Air/mini receipts record the full G4 verdict. Publication alone does not close
 the external rerun; source-level repair evidence alone does not close either
 claim.
+
+## Rerun vector update — 2026-08-09/10: the vector is now 0.1.17
+
+Lane 3's FAIL above was caused by the lane-2 cut, not by lane 3. That cause is
+fixed and a successor closure is live.
+
+**The G4 rerun vector is `0.1.17` at revision
+`0e6bf1842ab291f2e68416fbf40bd2e6debb4290`.** All eleven names resolve `latest`
+= `0.1.17`; both runtime packages carry a valid
+`bin/packaged-store-qualification.receipt.json` minted for that exact binary
+identity, and a published-bytes boot smoke starts a generated backend and sees
+`single_table_v1` advertised. Retained ledger
+`~/snapback-release-ledgers/fastpath-ledger-0.1.17-0e6bf1842a.json`; 11/11
+registry tarballs byte-identical to it.
+
+**Do not rerun against 0.1.16.** Those versions remain published for forensics
+but `latest` no longer selects them and no app generated against them starts.
+
+What lane 3 should know before consuming the new vector:
+
+- The install-time blocker is gone, so the rerun can proceed from the retained
+  quarry (`~/snapback-release-ledgers/g4-external-0116-quarry-20260809.tar.gz`)
+  with its `package.json`/lockfile repointed from 0.1.16 to 0.1.17.
+- The two pre-existing defects the earlier note listed are **still unfixed** by
+  this cut: the published closure still cannot serve the admin console
+  (`20260809-published-runtime-omits-admin-console-bundle.md`) and the Linux
+  runtime still carries the ICU-78 soname dependency
+  (`20260808-linux-runtime-icu-dynamic-link-portability.md`).
+- The consumer-diagnosability arm of the receipt ticket is also still open: an
+  external author who hits a capability refusal still gets no public-guide
+  destination and still sees monorepo source paths.
+- The cheap N=1 skill-web sanity re-run remains unclaimed.
+
+Everything else in the fresh-rerun acceptance list stands as written. The three
+arms lane 3 could not reach — raw Android supervisor with no adb wrapper, cold
+retained relaunch, and `m1`/`m2` — are the arms a 0.1.17 rerun exists to
+reclaim.

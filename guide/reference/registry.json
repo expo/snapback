@@ -2,15 +2,15 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "commit": "0c4922dad20b5efc6526d78bf7782e1881d7889d",
-    "sourceDigest": "sha256:c51db58a2bc0d833c1ceaa8da113b55ef8d00c648526e146d2b3297d1acc1584",
-    "publishedClosureVersion": "0.1.16",
+    "commit": "cf95a7d10bf830a9cdb63b66a779a1635128c8ae",
+    "sourceDigest": "sha256:9101281518d202c3ebb718570025171ca87cd6d51d6ffe35dfafda8ad9e1ee55",
+    "publishedClosureVersion": "0.1.17",
     "packageVersions": {
-      "@expo/snapback-cli": "0.1.16",
-      "@expo/snapback-client": "0.1.16",
-      "@expo/snapback-codegen": "0.1.16",
-      "@expo/snapback-expo": "0.1.16",
-      "@expo/snapback-react": "0.1.16"
+      "@expo/snapback-cli": "0.1.17",
+      "@expo/snapback-client": "0.1.17",
+      "@expo/snapback-codegen": "0.1.17",
+      "@expo/snapback-expo": "0.1.17",
+      "@expo/snapback-react": "0.1.17"
     },
     "sourceManifestVersions": {
       "@expo/snapback-cli": "0.1.0",
