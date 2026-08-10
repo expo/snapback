@@ -5,7 +5,10 @@
 **Systems:** Diagnostics, Error handling, Guide, Agent experience, CI
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-10 (amendment: accepts ownership of the `snapback
+**Revised:** 2026-08-10 (amendment: grading unit for shared codes tightened
+per LLP 0223 ticket 4 — per emitting context, (code, operation) under
+fan-out; first entry `SNAPBACK_AUTH_REQUEST_INVALID` recorded ahead of the
+Phase 1 ledger.) 2026-08-10 (amendment: accepts ownership of the `snapback
 feedback` verb per the 2026-08-10 author ruling on
 `issues/20260809-snapback-feedback-verb-proposal.md` — design added as a
 dated amendment under Phase 4; explicit invocation only, the
@@ -266,6 +269,45 @@ endpoint's static→server flip of the docs site versus going straight
 to the `cloudflare/` Worker fallback; (3) final wording sign-off on
 the consent copy. Everything else in this amendment is designed, not
 open.
+
+### Dated amendment — 2026-08-10: grading unit for shared codes (LLP 0223 ticket 4)
+
+Shared codes are graded and repaired **per emitting context, not per
+code**: the unit is **(code, operation)** where an operation is in scope at
+the emitting site, and per-site where sites do not fan out. A single grade
+for a code with fan-out sites would either misroute every non-matching
+context (one generic anchor) or under-repair the shared site (a per-site
+anchor cannot separate the operation families a shared parser serves).
+Wrong-shape refusals get an inline expected contract or an exact reference;
+no-refusal behavioral surprises stay with LLP 0061's diary/retrieval loop.
+No new wire member: emission-time `details` carry the routing (message
+text, structured details, and build-bound relative anchors suffice for
+this tranche; LLP 0146 OQ6's structured-remediation carrier is not
+pre-decided here).
+
+First entry recorded under this rule — `SNAPBACK_AUTH_REQUEST_INVALID`
+(five emitting sites, two behind the shared `auth_host_operation_input`
+parser in `src/server.rs`, which serves several host-ops operation
+families):
+
+- **(SNAPBACK_AUTH_REQUEST_INVALID, auth.mintSession): A** after
+  LLP 0223 ticket 2 — the refusal's `details` name
+  `operation: "auth.mintSession"`, the expected argument contract
+  (`args: { email }`, closed), and the resolving
+  `guide/operating/host-ops.md` mint-section anchor;
+  `tests/host_ops_v0.rs` pins the shape.
+- **The remaining contexts of the shared parser** (the rescue and
+  integration-operator families) and the non-fan-out sites
+  (`src/auth/provider.rs`, the `src/server.rs` mailbox path,
+  `src/server/api_error.rs`) stay ungraded-B/C pending their own
+  context repairs; they are unchanged by ticket 2 and keep the stable
+  code.
+
+Phase 1's checked-in graded ledger under `tests/acceptance/diagnostics/`
+has not landed yet; per LLP 0223 ticket 4, this amendment records the
+grading and the ledger entry follows with Phase 1. The generated
+diagnostics registry is not hand-annotated; any registry change rides
+ticket 2's generated fields.
 
 ## Exit criteria
 

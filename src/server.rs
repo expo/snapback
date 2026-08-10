@@ -19999,29 +19999,67 @@ async fn config_verify(
 /// through one gate and returns one `hostOpsResult` envelope. Transport is a
 /// projection — HTTP is always 200 once an envelope exists; `ok` and
 /// `diagnostics[]` carry the outcome (LLP 0024 §Result Envelope).
+struct AuthHostOperationRefusalContext {
+    operation: &'static str,
+    expected_argument_contract: fn() -> Value,
+    guide_anchor: &'static str,
+}
+
+fn mint_session_argument_contract() -> Value {
+    json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email"],
+        "properties": {
+            "email": {
+                "type": "string",
+                "minLength": 1,
+            },
+        },
+    })
+}
+
+const MINT_SESSION_REFUSAL_CONTEXT: AuthHostOperationRefusalContext =
+    AuthHostOperationRefusalContext {
+        operation: "auth.mintSession",
+        expected_argument_contract: mint_session_argument_contract,
+        guide_anchor: "/_snapback/guide/operating/host-ops.md#mint-a-session-over-http",
+    };
+
+fn invalid_auth_host_operation_request(
+    context: Option<&AuthHostOperationRefusalContext>,
+) -> SnapbackError {
+    let error = SnapbackError::error(
+        "SNAPBACK_AUTH_REQUEST_INVALID",
+        "auth",
+        "authentication request is invalid",
+    );
+    let Some(context) = context else {
+        return error;
+    };
+    // @ref LLP 0223#decision — shared codes are graded per (code, operation); emission-time details route the mint context to its exact contract and anchor.
+    error.with_details(json!({
+        "operation": context.operation,
+        "expectedArgumentContract": (context.expected_argument_contract)(),
+        "guideAnchor": context.guide_anchor,
+    }))
+}
+
 fn auth_host_operation_input<T: serde::de::DeserializeOwned>(
     request: &crate::host_ops::HostOpsRequest,
+    refusal_context: Option<&AuthHostOperationRefusalContext>,
 ) -> Result<T, SnapbackError> {
     let has_unrelated_fields = request.schema.is_some()
         || request.functions.is_some()
         || request.seed.is_some()
         || request.function.is_some()
         || request.user_id.is_some()
-        || request.kind.is_some();
+        || request.kind.is_some()
+        || (refusal_context.is_some() && request.input.is_some());
     let Some(args) = request.args.clone().filter(|_| !has_unrelated_fields) else {
-        return Err(SnapbackError::error(
-            "SNAPBACK_AUTH_REQUEST_INVALID",
-            "auth",
-            "authentication request is invalid",
-        ));
+        return Err(invalid_auth_host_operation_request(refusal_context));
     };
-    serde_json::from_value(args).map_err(|_| {
-        SnapbackError::error(
-            "SNAPBACK_AUTH_REQUEST_INVALID",
-            "auth",
-            "authentication request is invalid",
-        )
-    })
+    serde_json::from_value(args).map_err(|_| invalid_auth_host_operation_request(refusal_context))
 }
 
 fn telemetry_host_operation_input<T: serde::de::DeserializeOwned + Default>(
@@ -20851,7 +20889,10 @@ async fn execute_auth_host_operation(
             Ok(auth_host_result(runtime, request, server_url, outcome).await)
         }
         "auth.mintSession" => {
-            let args = match auth_host_operation_input::<MintSessionRequest>(&request) {
+            let args = match auth_host_operation_input::<MintSessionRequest>(
+                &request,
+                Some(&MINT_SESSION_REFUSAL_CONTEXT),
+            ) {
                 Ok(args) => args,
                 Err(error) => {
                     return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
@@ -20891,12 +20932,13 @@ async fn execute_auth_host_operation(
             Ok(auth_host_result(runtime, request, server_url, outcome).await)
         }
         "auth.rescueCollidingTable" => {
-            let args = match auth_host_operation_input::<RescueCollidingTableRequest>(&request) {
-                Ok(args) => args,
-                Err(error) => {
-                    return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
-                }
-            };
+            let args =
+                match auth_host_operation_input::<RescueCollidingTableRequest>(&request, None) {
+                    Ok(args) => args,
+                    Err(error) => {
+                        return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                    }
+                };
             let Some(provider) = runtime.auth_provider.clone() else {
                 return Ok(auth_host_result(
                     runtime,
@@ -20928,7 +20970,8 @@ async fn execute_auth_host_operation(
             Ok(outcome)
         }
         "auth.integrationRetire" => {
-            let args = match auth_host_operation_input::<IntegrationOperatorRequest>(&request) {
+            let args = match auth_host_operation_input::<IntegrationOperatorRequest>(&request, None)
+            {
                 Ok(args) => args,
                 Err(error) => {
                     return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
@@ -20959,7 +21002,8 @@ async fn execute_auth_host_operation(
         }
         "auth.integrationSuspend" | "auth.integrationResume" => {
             let suspended = request.operation == "auth.integrationSuspend";
-            let args = match auth_host_operation_input::<IntegrationOperatorRequest>(&request) {
+            let args = match auth_host_operation_input::<IntegrationOperatorRequest>(&request, None)
+            {
                 Ok(args) => args,
                 Err(error) => {
                     return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);

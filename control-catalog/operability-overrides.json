@@ -168,7 +168,23 @@
     },
     "auth.mintSession": {
       "operability": "direct",
-      "mcpDeferralReason": "Session credentials are returned only to the operator's CLI terminal; the ordinary MCP result channel must not carry them."
+      "mcpDeferralReason": "Session credentials are returned only to the operator's CLI terminal; the ordinary MCP result channel must not carry them.",
+      "guide": "operating/host-ops.md#mint-a-session-over-http",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Email address in the auth.mintSession args object."
+          }
+        },
+        "description": "Schema for the auth.mintSession args object."
+      }
     },
     "auth.rescueCollidingTable": {
       "operability": "direct"

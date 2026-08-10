@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:22a2f0772605698a711d61ad09840d0c9011fc2c39c6f4bd5cc08e54c5d3630a",
+  "catalogDigest": "sha256:81b36c22d9de6afd71f4502d95db82df26d96468b12ca535dfbf9a955e39b1be",
   "buildIdentity": {
-    "sourceCommit": "bbfb871f14c3cefbda2e1e143770b5c25eadb94f",
-    "dirty": true
+    "sourceCommit": "9ac739208692d57f85d46375bc2d1c55f84f839a",
+    "dirty": false
   },
-  "generatedAtCommit": "bbfb871f14c3cefbda2e1e143770b5c25eadb94f",
+  "generatedAtCommit": "9ac739208692d57f85d46375bc2d1c55f84f839a",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -1430,7 +1430,7 @@
         "adminClient": null,
         "console": null
       },
-      "guide": "operating/host-ops.md#served-request-operations",
+      "guide": "operating/host-ops.md#mint-a-session-over-http",
       "authorities": [
         "llp/0024-agent-operating-surface"
       ],
@@ -1439,6 +1439,21 @@
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "mcpDeferralReason": "Session credentials are returned only to the operator's CLI terminal; the ordinary MCP result channel must not carry them.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Email address in the auth.mintSession args object."
+          }
+        },
+        "description": "Schema for the auth.mintSession args object."
+      },
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
         "schemaVersion": "snapback.remediation-set.v1",

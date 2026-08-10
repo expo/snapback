@@ -18333,8 +18333,67 @@ async fn successful_finite_session_use_extends_the_projection_deadline() {
 /// named host-ops datum and records its administrative issue provenance;
 /// active Dev keeps the operation unavailable until item 4 activates
 /// Sessions.
+#[test]
+fn auth_mint_input_refusals_are_contextual_without_reflecting_args() {
+    let submitted_email = "mint-parser-secret@example.test";
+    for invalid in [
+        serde_json::json!({
+            "operation": "auth.mintSession",
+            "args": { "email": submitted_email, "role": "admin" },
+        }),
+        serde_json::json!({
+            "operation": "auth.mintSession",
+            "userId": "credential-substitution",
+        }),
+    ] {
+        let request: crate::host_ops::HostOpsRequest = serde_json::from_value(invalid).unwrap();
+        let refusal = super::auth_host_operation_input::<crate::auth::wire::MintSessionRequest>(
+            &request,
+            Some(&super::MINT_SESSION_REFUSAL_CONTEXT),
+        )
+        .err()
+        .expect("mint input refuses");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_AUTH_REQUEST_INVALID");
+        assert_eq!(refusal.diagnostic.subsystem, "auth");
+        assert_eq!(
+            refusal.diagnostic.details,
+            serde_json::json!({
+                "operation": "auth.mintSession",
+                "expectedArgumentContract": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["email"],
+                    "properties": {
+                        "email": {
+                            "type": "string",
+                            "minLength": 1,
+                        },
+                    },
+                },
+                "guideAnchor": "/_snapback/guide/operating/host-ops.md#mint-a-session-over-http",
+            })
+        );
+        assert!(
+            !serde_json::to_string(&refusal.diagnostic)
+                .unwrap()
+                .contains(submitted_email)
+        );
+    }
+
+    let rescue_request: crate::host_ops::HostOpsRequest =
+        serde_json::from_value(serde_json::json!({ "operation": "auth.rescueCollidingTable" }))
+            .unwrap();
+    let rescue_refusal = super::auth_host_operation_input::<
+        crate::auth::wire::RescueCollidingTableRequest,
+    >(&rescue_request, None)
+    .err()
+    .expect("rescue request refuses");
+    assert_eq!(rescue_refusal.diagnostic.details, serde_json::json!({}));
+}
+
 #[tokio::test]
 async fn auth_mint_host_op_has_exact_projection_and_sessions_only_activation() {
+    let admin_token = "auth-http-admin";
     let body = serde_json::to_vec(&serde_json::json!({
         "operation": "auth.mintSession",
         "requestId": "hop_auth_mint_exact",
@@ -18354,7 +18413,7 @@ async fn auth_mint_host_op_has_exact_projection_and_sessions_only_activation() {
             "/_snapback/api/host-ops",
             body.clone(),
             true,
-            Some("auth-http-admin"),
+            Some(admin_token),
             Some(&impersonation),
         ))
         .await
@@ -18365,12 +18424,14 @@ async fn auth_mint_host_op_has_exact_projection_and_sessions_only_activation() {
         "no-store, private"
     );
     let response = response_json(response).await;
+    let response_text = serde_json::to_string(&response).unwrap();
     assert_eq!(response["resultKind"], "hostOpsResult");
     assert_eq!(response["requestId"], "hop_auth_mint_exact");
     assert_eq!(response["operation"], "auth.mintSession");
     assert_eq!(response["ok"], true);
     assert_eq!(response["authority"]["mode"], "devAdminBypass");
     assert_eq!(response["authority"]["reason"], "issuedBy: admin");
+    assert_eq!(response["diagnostics"], serde_json::json!([]));
     assert_eq!(
         response["data"]
             .as_object()
@@ -18410,15 +18471,27 @@ async fn auth_mint_host_op_has_exact_projection_and_sessions_only_activation() {
             .unwrap()
             .starts_with("sbs_")
     );
+    let token = response["data"]["token"].as_str().unwrap();
+    let mut response_without_token = response.clone();
+    response_without_token["data"]["token"] = serde_json::Value::Null;
+    assert!(
+        !serde_json::to_string(&response_without_token)
+            .unwrap()
+            .contains(token),
+        "the session bearer must appear only at data.token"
+    );
+    assert!(!response_text.contains(admin_token));
+    assert!(!response_text.contains(&impersonation));
+    assert!(!response_text.contains("operator@example.com"));
 
+    let submitted_email = "mint-refusal-secret@example.test";
     for invalid in [
         serde_json::json!({
             "operation": "auth.mintSession",
-            "args": { "email": "operator@example.com", "role": "admin" },
+            "args": { "email": submitted_email, "role": "admin" },
         }),
         serde_json::json!({
             "operation": "auth.mintSession",
-            "args": { "email": "operator@example.com" },
             "userId": "credential-substitution",
         }),
     ] {
@@ -18429,18 +18502,45 @@ async fn auth_mint_host_op_has_exact_projection_and_sessions_only_activation() {
                 "/_snapback/api/host-ops",
                 serde_json::to_vec(&invalid).unwrap(),
                 true,
-                Some("auth-http-admin"),
+                Some(admin_token),
                 Some(&impersonation),
             ))
             .await
             .expect("closed mint args");
         assert_eq!(invalid.status(), StatusCode::OK);
+        assert_eq!(
+            invalid.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
         let invalid = response_json(invalid).await;
         assert_eq!(invalid["ok"], false);
         assert_eq!(
             invalid["diagnostics"][0]["code"],
             "SNAPBACK_AUTH_REQUEST_INVALID"
         );
+        assert_eq!(invalid["diagnostics"][0]["subsystem"], "auth");
+        assert_eq!(
+            invalid["diagnostics"][0]["details"],
+            serde_json::json!({
+                "operation": "auth.mintSession",
+                "expectedArgumentContract": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["email"],
+                    "properties": {
+                        "email": {
+                            "type": "string",
+                            "minLength": 1,
+                        },
+                    },
+                },
+                "guideAnchor": "/_snapback/guide/operating/host-ops.md#mint-a-session-over-http",
+            })
+        );
+        let invalid_text = serde_json::to_string(&invalid).unwrap();
+        assert!(!invalid_text.contains(submitted_email));
+        assert!(!invalid_text.contains(admin_token));
+        assert!(!invalid_text.contains(&impersonation));
     }
 
     let (injected_sessions_policy, injected_impersonation) =

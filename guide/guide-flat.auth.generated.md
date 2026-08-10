@@ -132,26 +132,14 @@ hosted-production auth claim.
 
 The paved local operation is
 `snapback session mint --email <address> --ready-file <path>`. A trusted broker
-that cannot invoke the CLI may call the same host operation over HTTP. It
-requires an already-settled sessions app, a non-production server profile,
-`AdminWrite`, and the impersonation capability:
-
-```sh
-curl --fail-with-body \
-  -H 'content-type: application/json' \
-  -H "x-snapback-admin-token: $SNAPBACK_ADMIN_TOKEN" \
-  -H "x-snapback-impersonation-capability: $SNAPBACK_IMPERSONATION_CAPABILITY" \
-  --data '{"operation":"auth.mintSession","requestId":"broker-login-01","args":{"email":"person@example.test"}}' \
-  "$SNAPBACK_ORIGIN/_snapback/api/host-ops"
-```
-
-The response is the ordinary host-ops envelope. Its
-`hostOpsResult.data` contains `token`, `tokenType`, `session`,
-`refreshAfter`, and `authorityDescriptor`; adopt the bearer through the
-first-party external-session custody path instead of inventing another auth
-carrier. Keep both header values and the returned token in trusted server
-custody. Never run this request in browser/native application code, bake its
-secrets into a bundle, or treat the non-production gate as hosted identity.
+that cannot invoke the CLI may call the same host operation over HTTP. The
+canonical [exact request, response, authority, and refusal contract](../operating/host-ops.md#mint-a-session-over-http)
+lives with the host-ops surface so its shapes have one home. Adopt the returned
+bearer through the first-party external-session custody path instead of
+inventing another auth carrier. Keep both header values and the returned token
+in trusted server custody. Never run this request in browser/native application
+code, bake its secrets into a bundle, or treat the non-production gate as
+hosted identity.
 
 Two more session routes are shipped and deliberately narrow.
 `POST /auth/step-up/request` mints a five-minute, operation-bound
@@ -846,6 +834,10 @@ From a terminal, the paved spelling of the same operation is
 `--url` plus the admin token, reading the impersonation capability from
 stdin): it attaches the same authorities from the readiness descriptor
 instead of you assembling the host-op request by hand.
+
+For a broker that must use HTTP, the canonical
+[exact `auth.mintSession` request, response, and refusal shape](../operating/host-ops.md#mint-a-session-over-http)
+lives in the host-ops guide.
 
 Never put the admin token, impersonation capability, ready-file, or mailbox
 reader in a browser or native bundle. Never expose a generic “mint for email”

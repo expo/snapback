@@ -98,6 +98,68 @@ The endpoint serves **41 request spellings**. This count and table are generated
 | `telemetry.stats` | Read aggregate telemetry health |
 <!-- END GENERATED CONTROL CATALOG: HOST OPS SERVED -->
 
+## Mint a session over HTTP
+
+`auth.mintSession` is the non-production host operation for a trusted
+server-side identity broker. Prefer the paved CLI projection,
+`snapback session mint --email <address> --ready-file <path>`, when the broker
+can invoke it. When the broker must use HTTP, the exact endpoint is
+`POST /_snapback/api/host-ops` with `content-type: application/json`, the
+AdminWrite token in `x-snapback-admin-token`, and the process-bound
+impersonation capability in `x-snapback-impersonation-capability`:
+
+```sh
+curl --fail-with-body \
+  -H 'content-type: application/json' \
+  -H "x-snapback-admin-token: $SNAPBACK_ADMIN_TOKEN" \
+  -H "x-snapback-impersonation-capability: $SNAPBACK_IMPERSONATION_CAPABILITY" \
+  --data '{"operation":"auth.mintSession","args":{"email":"person@example.test"}}' \
+  "$SNAPBACK_ORIGIN/_snapback/api/host-ops"
+```
+
+The body is closed: it contains `operation: "auth.mintSession"`, an optional
+string `requestId`, and `args` with exactly one required string member,
+`email`. Any extra member refuses, including `role` inside `args`, `input`, or
+a stray top-level `userId`. The stable refusal is
+`SNAPBACK_AUTH_REQUEST_INVALID`; its safe `details` name
+`operation: "auth.mintSession"`, carry the closed
+`expectedArgumentContract`, and point `guideAnchor` back to this section.
+They never echo the submitted email or request bytes.
+
+HTTP returns 200 once a `hostOpsResult` envelope exists. Read the outcome from
+the envelope's `ok` and `diagnostics[]`, not from the transport status. On
+success, `diagnostics` is empty and `data` has exactly these five members:
+
+```json fragment reason="Credential values, identifiers, and timestamps are runtime-owned per mint."
+{
+  "token": "sbs_…",
+  "tokenType": "Bearer",
+  "session": {
+    "id": "ses_…",
+    "userId": "usr_…",
+    "provider": "email-code",
+    "createdAt": 1786300000000,
+    "expiresAt": 1786303600000,
+    "absoluteExpiresAt": 1786904800000
+  },
+  "refreshAfter": 1786301800000,
+  "authorityDescriptor": {
+    "descriptorVersion": 1,
+    "authorityInstanceId": "aut_…",
+    "sessionGeneration": 1
+  }
+}
+```
+
+Minting is available only after Sessions mode is settled and active, on a
+non-production server profile, and when all three independent authorities are
+present: the AdminWrite token, the process-bound impersonation capability, and
+active sessions mode. It is for local dev, test, and demo identity brokerage,
+not hosted production identity. Responses are `cache-control: no-store,
+private`. Keep both request authorities and the returned `sbs_…` bearer in
+trusted server custody; never put them in a browser/native app bundle, logs, or
+an app-visible environment variable.
+
 `snapback session mint --email <address> --ready-file <path>` projects
 `auth.mintSession` through the same target and authority handling and prints only
 the resulting `hostOpsResult` JSON.

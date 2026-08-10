@@ -190,6 +190,65 @@ fn envelope(snapback: &mut LocalSnapback, body: Value) -> Value {
     serde_json::to_value(&result).expect("envelope serializes")
 }
 
+fn github_heading_slug(heading: &str) -> String {
+    let mut slug = String::new();
+    let mut separator_pending = false;
+    for character in heading.trim().chars() {
+        if character.is_ascii_alphanumeric() {
+            if separator_pending && !slug.is_empty() && !slug.ends_with('-') {
+                slug.push('-');
+            }
+            separator_pending = false;
+            slug.push(character.to_ascii_lowercase());
+        } else if character.is_ascii_whitespace() || character == '-' {
+            separator_pending = true;
+        }
+    }
+    slug
+}
+
+#[test]
+fn mint_session_catalog_contract_and_served_guide_anchor_stay_in_lockstep() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let overrides: Value = serde_json::from_str(
+        &fs::read_to_string(root.join("control-catalog/operability-overrides.json"))
+            .expect("read operability overrides"),
+    )
+    .expect("parse operability overrides");
+    let mint = &overrides["overrides"]["auth.mintSession"];
+    let guide = mint["guide"].as_str().expect("mint guide anchor");
+    assert_eq!(guide, "operating/host-ops.md#mint-a-session-over-http");
+
+    let (guide_path, expected_slug) = guide.split_once('#').expect("guide fragment");
+    let guide_source =
+        fs::read_to_string(root.join("guide").join(guide_path)).expect("read host-ops guide");
+    let mint_heading = guide_source
+        .lines()
+        .find_map(|line| {
+            line.strip_prefix("## ")
+                .filter(|heading| heading.contains("Mint a session") && heading.contains("HTTP"))
+        })
+        .expect("mint HTTP heading");
+    assert_eq!(github_heading_slug(mint_heading), expected_slug);
+    assert_eq!(
+        format!("/_snapback/guide/{guide}"),
+        "/_snapback/guide/operating/host-ops.md#mint-a-session-over-http"
+    );
+
+    let input = &mint["inputSchema"];
+    assert_eq!(input["type"], "object");
+    assert_eq!(input["additionalProperties"], false);
+    assert_eq!(input["required"], json!(["email"]));
+    assert_eq!(input["properties"].as_object().unwrap().len(), 1);
+    assert_eq!(input["properties"]["email"]["type"], "string");
+    assert_eq!(input["properties"]["email"]["minLength"], 1);
+    assert!(
+        input["description"]
+            .as_str()
+            .is_some_and(|description| description.contains("args object"))
+    );
+}
+
 #[test]
 fn cron_list_host_operation_is_a_narrow_read_only_projection() {
     let mut snapback = LocalSnapback::memory().expect("cron-list fixture");

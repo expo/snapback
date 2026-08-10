@@ -55,6 +55,10 @@ From a terminal, the paved spelling of the same operation is
 stdin): it attaches the same authorities from the readiness descriptor
 instead of you assembling the host-op request by hand.
 
+For a broker that must use HTTP, the canonical
+[exact `auth.mintSession` request, response, and refusal shape](../operating/host-ops.md#mint-a-session-over-http)
+lives in the host-ops guide.
+
 Never put the admin token, impersonation capability, ready-file, or mailbox
 reader in a browser or native bundle. Never expose a generic “mint for email”
 endpoint without the broker's own user authentication and abuse controls.

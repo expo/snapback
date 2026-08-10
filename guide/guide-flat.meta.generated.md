@@ -1462,6 +1462,25 @@ Case 40 absorbs the control-MCP cold-discovery miss recorded in
     Expected pages: `operating/agent-controls.md`.
     Route terms: "mcp-control", "control mcp", "agent setup", "control tools".
 
+Case 41 closes the retrieval regression recorded in
+`benchmarks/records/2026-08-09-social-messenger-p2-pilot.md` and executed by
+LLP 0223 ticket 3: the pilot's Snapback lane learned the `auth.mintSession`
+HTTP request shape by observation after every documented guess refused with
+`SNAPBACK_AUTH_REQUEST_INVALID`. It complements case 19 (which binds an app
+identity model to principals); this case is the session-issuing broker
+itself.
+
+41. **Session-mint identity broker:** "Implement a trusted server-side
+    identity broker: authenticate users at your own front door, invoke
+    `auth.mintSession` over HTTP, and hand each user their Snapback session
+    bearer." The run fails if the plan guesses request bodies until the
+    refusal stops, shells out to `snapback session mint` for every login,
+    omits an authority carrier (the AdminWrite token plus the impersonation
+    capability), or places operator credentials in an app bundle.
+    Expected pages: `operating/host-ops.md`, `auth/native-apps.md`.
+    Route terms: "auth.mintSession", "session mint HTTP",
+    "SNAPBACK_AUTH_REQUEST_INVALID", "identity broker".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

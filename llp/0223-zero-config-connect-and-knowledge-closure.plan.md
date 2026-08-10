@@ -1,10 +1,13 @@
 # LLP 0223: Zero-config connect DX and knowledge-gap closure
 
 **Type:** Plan
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Developer experience, Expo client, Auth, Diagnostics, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-10 (Accepted → Implemented — all four tickets executed;
+see the dated implementation-record amendment, including the resolved
+conflict with the parallel-lane `.env.local` auto-write of `4a19761fe`)
 **Revised:** 2026-08-10 (Review → Accepted — accepted to begin implementation (author direction in-session, 2026-08-10); Claude READY on (c), GPT verdicts bind (c), the (d) tail is unreviewed and disclosed)
 **Revised:** 2026-08-10 (a — initial draft, synthesized from the Clique P2
 pilot evidence and a GPT-5.6-sol design consultation)
@@ -256,3 +259,57 @@ questions.
 Evidence caveat: the B9 figure is one pilot lane, builder-self-scored
 (nulls-block-totals; graders unrun). This Plan treats it as a defect report
 with two named reproductions, not as a calibrated competitive claim.
+
+## Dated amendment — 2026-08-10: implementation record (tickets 1–4)
+
+**Pre-existing state found at execution start** (the tree moved between
+drafting and execution; deltas were verified before implementing):
+`guide/auth/sessions-and-principals.md` had already gained an exact-shape
+mint-over-HTTP section and `guide/auth/native-apps.md` already frames the
+trusted identity-broker seam (both from a parallel lane resolving the
+evidence ticket's mint-docs half); retrieval-eval case 25 and the
+persisted-receipt page content were on the tree as this Plan's Summary
+records. The ControlCatalog `auth.mintSession` entry still had no
+`inputSchema`, the registry's `SNAPBACK_AUTH_REQUEST_INVALID` entry had no
+guide anchors, and no acceptance proved the zero-config connect contract.
+
+**Conflict found and resolved.** Commit `4a19761fe` (landed ~2.5 h before
+this Plan's acceptance commit, same day) implemented the evidence ticket's
+env-write half literally: `runExpoDev` wrote the credential-free
+`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` into the app's `.env.local`
+(`expo-client-environment.mjs`). That is the configuration surface this
+Plan's accepted Decision explicitly rejects ("Auto-inject, do not
+auto-write"; "never an ambient `.env.local`"), and both super-refine review
+families affirmed the decision as binding. Execution followed the accepted
+Decision: the ambient write was reverted (module removed, injection and
+descriptor kept exactly as shipped), ticket 1's acceptance pins the
+no-`.env*` invariant, and the evidence ticket carries a dated supersession
+note. If the author instead wants the auto-write, it is one revert away —
+but it must then re-open this Plan's Decision, not land silently beside it.
+
+**Ticket outcomes.**
+1. Zero-config connect proven: `connectCarrier: "supervisor-rendezvous"`
+   readiness fact added; supervised loop test and a new
+   `zero-config-supervised-connect` check in the `expo-chat` acceptance
+   assert `ready` under settled Sessions, a live app-level round trip
+   through the supervised carrier with zero manual config, no `.env*`
+   created or modified, and descriptor transience (0o600, removed on
+   close).
+2. `auth.mintSession` self-describing: catalog `inputSchema` + `guide`
+   anchor authored through `control-catalog/operability-overrides.json`;
+   the canonical exact-HTTP mint section moved to
+   `guide/operating/host-ops.md` (sessions-and-principals now points at it;
+   native-apps links it); the mint-path `SNAPBACK_AUTH_REQUEST_INVALID`
+   refusal carries `operation`, the expected argument contract, and a
+   resolving anchor; HTTP cases pinned in `tests/host_ops_v0.rs`;
+   `snapback guide SNAPBACK_AUTH_REQUEST_INVALID` now lists every
+   registry anchor (reference-lookup prints the flat `guideAnchors`
+   array, not just the first).
+3. Retrieval regression closed: retrieval-eval case 41 (session-mint
+   identity broker; case 25 and all existing cases retained) green under
+   the static routing check, plus a retained cold-agent eval transcript
+   under `guide/eval-runs/2026-08-10/`.
+4. LLP 0193 carries the dated grading-unit amendment; the
+   `SNAPBACK_AUTH_REQUEST_INVALID` per-context grading is recorded there
+   ahead of the Phase 1 ledger (`tests/acceptance/diagnostics/` has not
+   landed), exactly as this Plan's ticket 4 provides.

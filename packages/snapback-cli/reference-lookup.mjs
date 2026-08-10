@@ -301,7 +301,13 @@ export function formatGuideReferenceLookup(result) {
   if (result.diagnostic) {
     const status = result.diagnostic.httpStatus ? ` · HTTP ${result.diagnostic.httpStatus}` : '';
     lines.push(`${result.diagnostic.subsystem}${status}`);
-    if (result.diagnostic.guideAnchor) lines.push(`Guide: ${result.diagnostic.guideAnchor}`);
+    // @ref LLP 0223#tickets — shared codes route per emitting context, so a
+    // code lookup must surface every associated anchor, not just the first.
+    const anchors = result.diagnostic.guideAnchors?.length
+      ? result.diagnostic.guideAnchors
+      : (result.diagnostic.guideAnchor ? [result.diagnostic.guideAnchor] : []);
+    if (anchors.length === 1) lines.push(`Guide: ${anchors[0]}`);
+    else if (anchors.length > 1) lines.push('Guide anchors:', ...anchors.map((anchor) => `- ${anchor}`));
     if (result.diagnostic.sites?.length) {
       lines.push('', 'Emitting sites:', ...result.diagnostic.sites.map((site) => `- ${site.file}:${site.line}:${site.column}`));
     }

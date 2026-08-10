@@ -25,3 +25,15 @@ issues/20260810-main-red-fork-custody-unclassified-rehearsal-provenance.md
 (different landings, same "new surface missed a reviewed inventory" shape —
 like the s5_d10 diagnostic-inventory case there, this is the route-table
 equivalent).
+
+## Dated note — 2026-08-10 (third failing test in the same family)
+
+At `45044929b` (pristine `src/`+`tests/`, proven by stash-cycling the
+LLP 0223 changes away and reproducing identically),
+`durable_watch_rows_pin_the_session_only_policy_tuples` also fails (6 != 5
+at tests/route_policy_v1.rs:608) alongside the two above; the extra actual
+tuple is `POST /watches/{id}/renew` (the D9.3 automations bundle,
+`4e71043c8`), the same surface-missed-a-pinned-inventory shape. Whoever
+fixes this ticket should pin all three: the `/effects` trio and the watches
+renew row. Observed during LLP 0223 execution, which touches no routes
+(`host_ops_v0` 13/13 and the mint lib tests are green on the same tree).
