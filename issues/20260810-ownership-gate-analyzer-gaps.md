@@ -54,3 +54,12 @@ new violations.
 **Claimed 2026-08-10** by the clique-defects ship session (llp-ship run
 `owngate-20260810`, branch `llp-ship/owngate-20260810/impl`): implementing
 items 1-4 against `scripts/check-module-ownership.mjs` per LLP 0225 §5.
+
+## Claim — 2026-08-10
+
+Claimed by the LLP 0198 benchmark-program session (orchestrator + codex
+gpt-5.6-sol xhigh implementation lane), per the author-sitting relay
+routing (free lane, wanted before other queue items). Scope: items 1-4
+against scripts/check-module-ownership.mjs per LLP 0225 §5, incl.
+baseline/worklist re-derivation with attribution after the extractor
+upgrade.
