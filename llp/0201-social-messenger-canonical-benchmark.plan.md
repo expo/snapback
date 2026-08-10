@@ -701,3 +701,20 @@ protocol; M7's relationship to LLP 0198 P3; 0197 citation repairs.
 Reviews:
 `llp/reviews/0201-social-messenger-canonical-benchmark.{claude,gpt-5}.md`.)
 **Revised:** 2026-08-08 (a — initial draft)
+
+## Dated amendments
+
+**2026-08-10 — F1 replay-posture ruling (author).** The pilot's F1
+finding (a hosted lane cannot complete the scale envelope's
+registration phase inside any reasonable cap: GoTrue's fixed
+30-signups/5min/IP meter consumed ~2.62 h for 1,000 users) is ruled:
+**registration carve-out**. The replay clock starts after identity
+seeding, which may use whatever fastest path the lane's posture
+allows; registration wall time is recorded separately as posture
+data, never on the replay clock or against the replay cap.
+Rationale: registration throughput measures a provider's abuse
+throttle, not the data-plane behavior the envelope exists to test.
+The brief's replay contract absorbs this at P3 freeze; the pilot
+record's Supabase figures are reinterpreted accordingly (its
+post-registration 18.56/s sustained rate becomes the comparable
+figure).
