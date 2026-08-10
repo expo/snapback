@@ -241,7 +241,9 @@ fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
     }
     left.iter()
         .zip(right)
-        .fold(0_u8, |difference, (left, right)| difference | (left ^ right))
+        .fold(0_u8, |difference, (left, right)| {
+            difference | (left ^ right)
+        })
         == 0
 }
 
@@ -277,8 +279,8 @@ fn row_for_id_on(conn: &Connection, id: &str) -> SnapbackResult<Option<Capabilit
     )
     .optional()?
     .map(|row| {
-        let caller_args = serde_json::from_str::<Vec<String>>(&row.8)
-            .map_err(|_| catalog_corrupt())?;
+        let caller_args =
+            serde_json::from_str::<Vec<String>>(&row.8).map_err(|_| catalog_corrupt())?;
         Ok(CapabilityLinkRecord {
             id: row.0,
             minter_principal_id: row.1,
@@ -301,11 +303,7 @@ fn row_for_id_on(conn: &Connection, id: &str) -> SnapbackResult<Option<Capabilit
     .transpose()
 }
 
-fn resolve_on(
-    conn: &Connection,
-    token: &str,
-    now_ms: u64,
-) -> SnapbackResult<CapabilityLinkRecord> {
+fn resolve_on(conn: &Connection, token: &str, now_ms: u64) -> SnapbackResult<CapabilityLinkRecord> {
     let hash = presented_hash(token).ok_or_else(unavailable)?;
     let lookup = &hash[..TOKEN_LOOKUP_BYTES];
     let candidate: Option<(String, Vec<u8>)> = conn
@@ -345,12 +343,16 @@ impl LocalDatabase {
             return Err(unavailable());
         }
         if request.pinned_args_json.len() > CAPABILITY_LINK_PINNED_ARGS_MAX_BYTES {
-            return Err(input_invalid("pinnedArgs exceeds the capability-link storage bound"));
+            return Err(input_invalid(
+                "pinnedArgs exceeds the capability-link storage bound",
+            ));
         }
         let caller_args_json = serde_json::to_string(&request.caller_args)
             .map_err(|_| input_invalid("callerArgs does not serialize"))?;
         if caller_args_json.len() > CAPABILITY_LINK_CALLER_ARGS_MAX_BYTES {
-            return Err(input_invalid("callerArgs exceeds the capability-link storage bound"));
+            return Err(input_invalid(
+                "callerArgs exceeds the capability-link storage bound",
+            ));
         }
         let token = generate_token()?;
         let hash = presented_hash(&token).expect("fresh token has the closed shape");
@@ -466,7 +468,11 @@ impl LocalDatabase {
         outcome: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
-        let outcome = if outcome.len() <= 128 { outcome } else { "failed" };
+        let outcome = if outcome.len() <= 128 {
+            outcome
+        } else {
+            "failed"
+        };
         self.with_auth_transaction(|tx| {
             tx.execute(
                 "UPDATE _snapback_capability_links
@@ -546,9 +552,15 @@ mod tests {
         let mut db = LocalDatabase::memory().expect("capability-link database");
         db.activate_current_auth_catalog()
             .expect("activate minter catalog");
-        db.conn.execute_batch(TABLE_SQL).expect("activate link table");
-        db.conn.execute_batch(MINTER_INDEX_SQL).expect("activate minter index");
-        db.conn.execute_batch(EXPIRY_INDEX_SQL).expect("activate expiry index");
+        db.conn
+            .execute_batch(TABLE_SQL)
+            .expect("activate link table");
+        db.conn
+            .execute_batch(MINTER_INDEX_SQL)
+            .expect("activate minter index");
+        db.conn
+            .execute_batch(EXPIRY_INDEX_SQL)
+            .expect("activate expiry index");
         db.conn
             .execute(
                 "INSERT INTO _auth_users(id, created_at_ms) VALUES('human-a', 1)",
@@ -603,9 +615,11 @@ mod tests {
         let mut db = ready();
         let minted = mint(&mut db, 1_000, Some(2));
         assert!(token_has_closed_shape(&minted.token));
-        assert!(!serde_json::to_string(&minted.record)
-            .unwrap()
-            .contains(&minted.token));
+        assert!(
+            !serde_json::to_string(&minted.record)
+                .unwrap()
+                .contains(&minted.token)
+        );
         let stored: (String, String, i64) = db
             .conn
             .query_row(
@@ -648,18 +662,22 @@ mod tests {
             .execute("DELETE FROM _auth_users WHERE id = 'human-a'", [])
             .unwrap();
         for error in [
-            db.resolve_capability_link(
-                "sbl_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                21,
-            )
-            .unwrap_err(),
+            db.resolve_capability_link("sbl_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 21)
+                .unwrap_err(),
             db.resolve_capability_link(&revoked.token, 21).unwrap_err(),
             db.resolve_capability_link(&expired.token, 21).unwrap_err(),
-            db.resolve_capability_link(&exhausted.token, 21).unwrap_err(),
+            db.resolve_capability_link(&exhausted.token, 21)
+                .unwrap_err(),
             db.resolve_capability_link(&dead.token, 21).unwrap_err(),
         ] {
-            assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_LINK_UNAVAILABLE");
-            assert_eq!(error.diagnostic.message, "the capability link is unavailable");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_CAPABILITY_LINK_UNAVAILABLE"
+            );
+            assert_eq!(
+                error.diagnostic.message,
+                "the capability link is unavailable"
+            );
             assert_eq!(error.diagnostic.details, serde_json::json!({}));
         }
     }
@@ -669,13 +687,7 @@ mod tests {
         let mut db = ready();
         let minted = mint(&mut db, 1_000, Some(1));
         let error = db
-            .revoke_capability_link(
-                &minted.record.id,
-                "human-a",
-                "session-b",
-                "authority-b",
-                20,
-            )
+            .revoke_capability_link(&minted.record.id, "human-a", "session-b", "authority-b", 20)
             .unwrap_err();
         assert_eq!(
             error.diagnostic.code,

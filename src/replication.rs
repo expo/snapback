@@ -2529,9 +2529,10 @@ mod tests {
         write_replication_key(&key_file);
 
         let mut db = LocalDatabase::open(&database).unwrap();
-        db.schema_seed().apply_schema(SchemaManifest {
-            schema_hash: Some("replication-sustained-writes-v1".to_owned()),
-            tables: vec![
+        db.schema_seed()
+            .apply_schema(SchemaManifest {
+                schema_hash: Some("replication-sustained-writes-v1".to_owned()),
+                tables: vec![
                 serde_json::from_value::<TableManifest>(serde_json::json!({
                     "name": "replication_rows",
                     "fields": [{ "name": "payload", "field_type": "String", "optional": false }],
@@ -2540,9 +2541,9 @@ mod tests {
                 }))
                 .unwrap(),
             ],
-            ..SchemaManifest::default()
-        })
-        .unwrap();
+                ..SchemaManifest::default()
+            })
+            .unwrap();
         AuthKeyringStore::file_for_database(&database)
             .load_or_mint_initial(1_000, &OsRandom)
             .unwrap();

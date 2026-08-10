@@ -103,8 +103,9 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
         // request secrets use one non-oracular not-found shape; caller input,
         // authority, throttle, and catalog failures retain distinct D10
         // families without ever echoing bearer material.
-        "SNAPBACK_CAPABILITY_LINK_UNAVAILABLE"
-        | "SNAPBACK_CAPABILITY_LINK_FUNCTION_INVALID" => StatusCode::NOT_FOUND,
+        "SNAPBACK_CAPABILITY_LINK_UNAVAILABLE" | "SNAPBACK_CAPABILITY_LINK_FUNCTION_INVALID" => {
+            StatusCode::NOT_FOUND
+        }
         "SNAPBACK_CAPABILITY_LINK_FUNCTION_NOT_ANONYMOUS"
         | "SNAPBACK_CAPABILITY_LINK_MINTER_INVALID"
         | "SNAPBACK_CAPABILITY_LINK_MUTATION_APPROVAL_REQUIRED"

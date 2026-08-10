@@ -2125,8 +2125,7 @@ fn validate_exact(
     // exact manifest-owned link companion; the frozen `_auth_*` catalog does
     // not absorb bearer-link state.
     if objects.iter().any(|object| {
-        object.kind == "table"
-            && object.name == super::capability_links::CAPABILITY_LINK_TABLE
+        object.kind == "table" && object.name == super::capability_links::CAPABILITY_LINK_TABLE
     }) {
         super::capability_links::validate_exact_schema(conn)?;
     }

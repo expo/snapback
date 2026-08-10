@@ -7146,9 +7146,7 @@ struct ExternalClientIdContext {
 /// @ref LLP 0031#capability-link-mint-and-serve-family — secret URL
 /// placeholders are normalized to the registered template at ingress.
 #[derive(Clone, Debug)]
-struct ResolvedCapabilityLink(
-    crate::storage::capability_links::CapabilityLinkRecord,
-);
+struct ResolvedCapabilityLink(crate::storage::capability_links::CapabilityLinkRecord);
 
 fn capability_link_token_from_path(spec: RouteSpec, path: &str) -> Option<&str> {
     match spec.path {
@@ -8169,9 +8167,7 @@ impl RouteSpec {
                 && self.path == "/capability-links/{token}/invoke"
                 && self.credential_resolution == CredentialResolution::CapabilityLinkBearer)
         {
-            return fail(
-                "external anonymous application data is closed to capability-link invoke",
-            );
+            return fail("external anonymous application data is closed to capability-link invoke");
         }
         if self.credential_resolution == CredentialResolution::AgentCredentialBody
             && (self.path_policy != RoutePolicy::Public
@@ -10501,8 +10497,7 @@ fn pasteable_capability_link_route(spec: RouteSpec) -> bool {
         && spec.credential_resolution == CredentialResolution::CapabilityLinkBearer
         && matches!(
             (spec.method, spec.path),
-            ("GET", "/capability-links/{token}")
-                | ("POST", "/capability-links/{token}/invoke")
+            ("GET", "/capability-links/{token}") | ("POST", "/capability-links/{token}/invoke")
         )
 }
 
@@ -12538,46 +12533,45 @@ async fn enforce_registered_route_policy_inner(
             return apply_registered_response_controls(effective, error.into_response());
         }
     };
-    let resolved_capability_link = if effective.credential_resolution
-        == CredentialResolution::CapabilityLinkBearer
-    {
-        let Some(token) = capability_link_token_from_path(spec, request.uri().path()) else {
-            return finish_registered_response(
-                effective,
-                capability_link_unavailable_error().into_response(),
-                route_admission.as_ref(),
-                None,
-            );
-        };
-        if !crate::storage::capability_links::token_has_closed_shape(token) {
-            return finish_registered_response(
-                effective,
-                capability_link_unavailable_error().into_response(),
-                route_admission.as_ref(),
-                None,
-            );
-        }
-        let token = token.to_owned();
-        let resolved = with_snapback(&runtime.snapback, move |snapback| {
-            snapback
-                .auth_database_mut()
-                .resolve_capability_link(&token, now_millis())
-        })
-        .await;
-        match resolved {
-            Ok(record) => Some(ResolvedCapabilityLink(record)),
-            Err(error) => {
+    let resolved_capability_link =
+        if effective.credential_resolution == CredentialResolution::CapabilityLinkBearer {
+            let Some(token) = capability_link_token_from_path(spec, request.uri().path()) else {
                 return finish_registered_response(
                     effective,
-                    ApiError::from(error).into_response(),
+                    capability_link_unavailable_error().into_response(),
+                    route_admission.as_ref(),
+                    None,
+                );
+            };
+            if !crate::storage::capability_links::token_has_closed_shape(token) {
+                return finish_registered_response(
+                    effective,
+                    capability_link_unavailable_error().into_response(),
                     route_admission.as_ref(),
                     None,
                 );
             }
-        }
-    } else {
-        None
-    };
+            let token = token.to_owned();
+            let resolved = with_snapback(&runtime.snapback, move |snapback| {
+                snapback
+                    .auth_database_mut()
+                    .resolve_capability_link(&token, now_millis())
+            })
+            .await;
+            match resolved {
+                Ok(record) => Some(ResolvedCapabilityLink(record)),
+                Err(error) => {
+                    return finish_registered_response(
+                        effective,
+                        ApiError::from(error).into_response(),
+                        route_admission.as_ref(),
+                        None,
+                    );
+                }
+            }
+        } else {
+            None
+        };
     let hosted_sender_admission = match admit_hosted_sender_request(
         spec,
         effective,
@@ -23279,9 +23273,7 @@ async fn admit_external_api_lane(
                     retry_after,
                 )
             })?;
-        return Ok(crate::telemetry::CallerAttributionV1::link(
-            link.id.clone(),
-        ));
+        return Ok(crate::telemetry::CallerAttributionV1::link(link.id.clone()));
     }
     if let ResolvedAppAuthority::ServicePrincipal {
         actor_user_id,

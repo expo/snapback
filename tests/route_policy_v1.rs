@@ -31,10 +31,7 @@ use tower::ServiceExt;
 fn materialize_path(path: &str) -> String {
     path.replace("{connection_id}", "policy_probe")
         .replace("{attempt_token}", "policy_probe")
-        .replace(
-            "{token}",
-            "sbl_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-        )
+        .replace("{token}", "sbl_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
         .replace("{table}", "missing_table")
         .replace("{name}", "missing_function")
         .replace("{*path}", "assets/policy-probe.js")
@@ -401,13 +398,8 @@ async fn registry_and_router_have_black_box_path_method_parity() {
                     sibling.path == route.path
                         || matches!(
                             (sibling.path, route.path),
-                            (
-                                "/capability-links/{token}",
-                                "/capability-links/{id}"
-                            ) | (
-                                "/capability-links/{id}",
-                                "/capability-links/{token}"
-                            )
+                            ("/capability-links/{token}", "/capability-links/{id}")
+                                | ("/capability-links/{id}", "/capability-links/{token}")
                         )
                 })
                 .any(|sibling| sibling.accepts_http_method(method));
@@ -532,9 +524,15 @@ fn capability_link_rows_pin_the_closed_policy_tuples() {
         mint.credential_resolution,
         CredentialResolution::RequiredSessionBearer
     );
-    assert_eq!(mint.invocation_authority, InvocationAuthority::ResolvedCaller);
+    assert_eq!(
+        mint.invocation_authority,
+        InvocationAuthority::ResolvedCaller
+    );
     assert_eq!(mint.legacy_body_policy, LegacyBodyPolicy::Rejected);
-    assert_eq!(mint.response_sensitivity, ResponseSensitivity::CredentialSecret);
+    assert_eq!(
+        mint.response_sensitivity,
+        ResponseSensitivity::CredentialSecret
+    );
 
     let landing = routes
         .iter()
@@ -546,13 +544,14 @@ fn capability_link_rows_pin_the_closed_policy_tuples() {
         CredentialResolution::CapabilityLinkBearer
     );
     assert_eq!(landing.invocation_authority, InvocationAuthority::None);
-    assert_eq!(landing.response_sensitivity, ResponseSensitivity::PublicNoStore);
+    assert_eq!(
+        landing.response_sensitivity,
+        ResponseSensitivity::PublicNoStore
+    );
 
     let invoke = routes
         .iter()
-        .find(|route| {
-            route.method == "POST" && route.path == "/capability-links/{token}/invoke"
-        })
+        .find(|route| route.method == "POST" && route.path == "/capability-links/{token}/invoke")
         .unwrap();
     assert_eq!(invoke.path_policy, RoutePolicy::Public);
     assert_eq!(
@@ -574,8 +573,14 @@ fn capability_link_rows_pin_the_closed_policy_tuples() {
         revoke.credential_resolution,
         CredentialResolution::RequiredSessionBearer
     );
-    assert_eq!(revoke.invocation_authority, InvocationAuthority::ResolvedCaller);
-    assert_eq!(revoke.response_sensitivity, ResponseSensitivity::PublicNoStore);
+    assert_eq!(
+        revoke.invocation_authority,
+        InvocationAuthority::ResolvedCaller
+    );
+    assert_eq!(
+        revoke.response_sensitivity,
+        ResponseSensitivity::PublicNoStore
+    );
 }
 
 #[test]

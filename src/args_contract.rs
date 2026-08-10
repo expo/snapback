@@ -258,9 +258,7 @@ pub(crate) fn validate_function_args_template(
             "callerArgs requires the function to publish an argsContract",
         ));
     };
-    if serde_json::to_vec(pinned_args)
-        .map_or(true, |bytes| bytes.len() > MAX_FUNCTION_ARGS_BYTES)
-    {
+    if serde_json::to_vec(pinned_args).map_or(true, |bytes| bytes.len() > MAX_FUNCTION_ARGS_BYTES) {
         return Err(violation(
             function,
             ArgsViolation {
@@ -317,11 +315,14 @@ pub(crate) fn validate_function_args_template(
     for field in &contract.fields {
         let path = vec![PointerSegment::Declared(field.name.clone())];
         match pinned.get(&field.name) {
-            Some(value) => validate_node(value, &field.value, &path, 0, &mut budget)
-                .map_err(|failure| match failure {
-                    ArgsFailure::Shape(shape) => violation(function, shape),
-                    ArgsFailure::Delegated(error) => *error,
-                })?,
+            Some(value) => {
+                validate_node(value, &field.value, &path, 0, &mut budget).map_err(|failure| {
+                    match failure {
+                        ArgsFailure::Shape(shape) => violation(function, shape),
+                        ArgsFailure::Delegated(error) => *error,
+                    }
+                })?
+            }
             None if field.required && !caller_args.contains(&field.name) => {
                 return Err(violation(
                     function,
