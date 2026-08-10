@@ -1,5 +1,6 @@
 .expo/
 .snapback/
+*.snapback.restore.lock
 dist/
 node_modules/
 snapback/generated/*

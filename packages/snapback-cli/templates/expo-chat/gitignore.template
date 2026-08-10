@@ -1,4 +1,5 @@
 .snapback/
+*.snapback.restore.lock
 .expo/
 dist/
 node_modules/

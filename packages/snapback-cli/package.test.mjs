@@ -118,6 +118,20 @@ try {
       [],
       `template ${templateName} must not ship literal .gitignore files — npm pack silently drops them`,
     );
+    // issues/20260809-expo-chat-template-gitignore-restore-lock: the restore
+    // lock is a SIBLING of the state directory, so `.snapback/` does not cover
+    // it, and it records an absolute host-pinned target-instance reservation.
+    // A copy, archive, or `git add` that carries it across a host boundary is
+    // what broke the first external 0.1.11 iOS run.
+    const ignoreRules = readFileSync(join(templatesRoot, templateName, 'gitignore.template'), 'utf8')
+      .split('\n')
+      .map((line) => line.trim());
+    for (const rule of ['.snapback/', '*.snapback.restore.lock']) {
+      assert.ok(
+        ignoreRules.includes(rule),
+        `template ${templateName} must ignore ${rule} — both local-state forms, per guide/clients/react-expo.md`,
+      );
+    }
   }
 
   const expectedSkillFiles = [

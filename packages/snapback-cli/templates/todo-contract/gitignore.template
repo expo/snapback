@@ -1,4 +1,5 @@
 .snapback/
+*.snapback.restore.lock
 node_modules/
 snapback/generated/*
 !snapback/generated/artifacts.json

@@ -1,7 +1,7 @@
 # expo-chat template `.gitignore` omits the sibling restore lock
 
-**Status:** Open — minor; found by the LLP 0176 G4 external rerun against live
-0.1.16
+**Status:** Closed 2026-08-09 — all five templates carry the rule and a package
+test pins it; ships to authors with the next closure
 **Impact:** 2
 **Urgency:** 2
 **Ease:** 5
@@ -79,3 +79,29 @@ G4 re-rerun's two host transports used explicit `rsync --exclude` lists and the
 EAS staging helper excluded the lock (verified again in the 0.1.17 stage-only
 inspection, 88 files / 0.69 MiB), so no lock crossed a host boundary. The
 exposure remains a hand-rolled copy or archive that does not use the helper.
+
+## Resolution — 2026-08-09
+
+`*.snapback.restore.lock` now sits directly beneath `.snapback/` in every
+scaffold template's `gitignore.template`, not just `expo-chat`:
+`crud-dashboard`, `expo-chat`, `media-feed`, `react`, and `todo-contract`. The
+acceptance asked for the other four to be checked and fixed together; all four
+had the same omission.
+
+The rule is pinned so it cannot silently drop out again.
+`packages/snapback-cli/package.test.mjs` already walked every template
+directory to enforce the `gitignore.template` carrier convention (npm-packlist
+strips literal `.gitignore` files from the tarball); that same loop now asserts
+each template ignores **both** local-state forms, `.snapback/` and
+`*.snapback.restore.lock`, with the reason stated inline — the lock is a
+*sibling* of the state directory, so `.snapback/` never covered it.
+
+`guide/clients/react-expo.md` gains one sentence next to the existing ignore
+rule saying the templates ship both, so an author scaffolding from
+`npm create snapback-app` knows the hand-edit is only for a retrofit.
+
+Nothing else in the repository embeds these bytes: the guide corpus states the
+rule as prose rather than transcluding the template, and no publication
+inventory or closure manifest digests template file contents. The change
+therefore reaches authors with the next published closure, exactly as the
+acceptance predicted, and needs no consumer action on an existing app.

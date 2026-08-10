@@ -3006,6 +3006,10 @@ is not portable between hosts:
 *.snapback.restore.lock
 ```
 
+Every scaffold template ships both rules, so an app started from
+`npm create snapback-app` already has them; add them by hand only when
+retrofitting an existing Expo app.
+
 Use `--expo-dir`, a positional backend directory, `--email`, or
 `--android-serial` only when the project layout or selected emulator requires
 it; the fixture README gives the full source-checkout commands
