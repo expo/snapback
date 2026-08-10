@@ -185,3 +185,38 @@ The cheap N=1 skill-web sanity re-run against 0.1.16 — the check that the
 expo-chat template web-deps loop is gone — was not run by this lane. It is
 carried forward in the lane-plan ticket. Publication alone does not prove
 the loop is fixed.
+
+## Reopened in effect — the 0.1.16 closure was withdrawn from `latest` on 2026-08-10
+
+This cut shipped a regression that none of its gates could see. The published
+`@expo/snapback-runtime-darwin-arm64@0.1.16` and
+`@expo/snapback-runtime-linux-x64@0.1.16` packages omit
+`bin/packaged-store-qualification.receipt.json`, which the public-package
+runtime requires before it will advertise `single_table_v1`. Codegen names that
+capability in effectively every generated app, so **no app generated against
+0.1.16 can start its backend** — it exits 5 with
+`SNAPBACK_CAPABILITY_UNSUPPORTED` before writing a ready file.
+
+The receipt is minted by a two-pass stage/qualify/restage procedure that the
+qualified-staging lane automates and that this fast-path lane only ever
+performed **manually**. This lane did not perform it, and no fast-path gate
+required it. The full attribution, including the refutation of the
+inherited-receipt hypothesis for 0.1.12–0.1.15, is in
+[`20260809-runtime-package-missing-store-qualification-receipt.md`](../20260809-runtime-package-missing-store-qualification-receipt.md).
+
+**Mitigation, 2026-08-10T00:14:33Z–00:14:44Z UTC.** The npm `latest` dist-tag
+was moved back from 0.1.16 to **0.1.15** on all eleven names in this closure —
+the two runtimes plus `@expo/snapback-contract`, `-client`, `-codegen`,
+`-react`, `-expo`, `-app-cli`, `-cli`, `-vite`, and `create-snapback-app` — and
+verified with `npm view <name> dist-tags.latest` at 11/11. Nothing was
+unpublished: the 0.1.16 versions stay resolvable by exact version, and this
+ticket's byte-verification claim above remains true of those bytes. The
+immutable bakeoff tags were not touched.
+
+**This does not retract the byte-verification or provenance claims recorded
+above.** They were accurate. What they could not establish is that the
+published closure runs, which is precisely the gap the successor lane closes:
+0.1.17 adds a fail-closed pre-publish assertion that every runtime tarball
+carries a qualifying receipt, and a post-publish smoke that scaffolds an app
+from the published bytes and requires its backend to reach readiness. `latest`
+returns to a Snapback closure at 0.1.17.

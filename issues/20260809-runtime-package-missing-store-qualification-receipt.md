@@ -1,7 +1,10 @@
 # Published 0.1.16 runtime packages omit the packaged-store qualification receipt, so no generated app can start
 
-**Status:** Open — blocking; found by the LLP 0176 G4 external rerun against
-live 0.1.16
+**Status:** Open — **MITIGATED on npm 2026-08-10T00:14Z** by rolling `latest`
+back to 0.1.15 on all eleven names (see "Mitigation" below); the underlying
+packaging defect is still open and closes only with a 0.1.17 successor
+closure, the publication gate, and the post-publish smoke
+**Found by:** the LLP 0176 G4 external rerun against live 0.1.16
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 2
@@ -38,6 +41,45 @@ This is not a corner case. Codegen names `single_table_v1` in the node plan of
 every ordinary live query, and in `capabilities.required` of the descriptor, so
 the refusal blocks effectively every Snapback app — including the one the
 guide's own `expo-chat` template produces.
+
+## Mitigation — npm `latest` rolled back to 0.1.15, 2026-08-10T00:14Z
+
+Before any diagnosis or repair, the release-repair session moved the npm
+`latest` dist-tag off the broken 0.1.16 closure and back onto 0.1.15 for **all
+eleven** package names, so that a fresh `npm create snapback-app` resolves a
+closure that actually starts.
+
+- **Started:** 2026-08-10T00:14:33Z · **Finished:** 2026-08-10T00:14:44Z (UTC)
+- **Command form:** `npm dist-tag add <name>@0.1.15 latest`, run once per name
+- **Verified:** `npm view <name> dist-tags.latest` returned `0.1.15` for
+  11/11 names immediately afterwards.
+
+| Package | `latest` before | `latest` after |
+| --- | --- | --- |
+| `@expo/snapback-runtime-darwin-arm64` | 0.1.16 | 0.1.15 |
+| `@expo/snapback-runtime-linux-x64` | 0.1.16 | 0.1.15 |
+| `@expo/snapback-contract` | 0.1.16 | 0.1.15 |
+| `@expo/snapback-client` | 0.1.16 | 0.1.15 |
+| `@expo/snapback-codegen` | 0.1.16 | 0.1.15 |
+| `@expo/snapback-react` | 0.1.16 | 0.1.15 |
+| `@expo/snapback-expo` | 0.1.16 | 0.1.15 |
+| `@expo/snapback-app-cli` | 0.1.16 | 0.1.15 |
+| `@expo/snapback-cli` | 0.1.16 | 0.1.15 |
+| `@expo/snapback-vite` | 0.1.16 | 0.1.15 |
+| `create-snapback-app` | 0.1.16 | 0.1.15 |
+
+The ladder was kept consistent: no mixed-version `latest` was left in place at
+any point beyond the eleven-second window of the loop itself.
+
+**Nothing was unpublished.** The 0.1.16 versions remain resolvable by exact
+version for forensics and for the retained ledger's byte-verification claim;
+only the mutable tag moved. The immutable `bakeoff-0-1-7-fdd49db8abf1` and
+`bakeoff-0-1-14-fc88615895cb` tags were not touched.
+
+`latest` returns to a Snapback closure at **0.1.17**, the successor cut that
+carries the receipt, the publication gate, and the post-publish boot smoke
+described under "Acceptance". Until then, 0.1.15 is the supported vector and
+0.1.16 must not be recommended to anyone.
 
 ## Exact reproduction
 
@@ -102,6 +144,83 @@ published a closure that cannot run anything — with every gate green.
 left in `packages/snapback-runtime-*/bin/` by an earlier staging run, which
 would make 0.1.12–0.1.15's success partly accidental. That should be confirmed
 rather than assumed.
+
+## Exact cause — 2026-08-09, confirmed; and the hypothesis refuted
+
+### The silent no-op
+
+`scripts/runtime-package-authority.mjs`
+(`installPackagedStoreQualificationReceipt`) is the single seam that places the
+receipt into a runtime package's `bin/`. It takes the receipt from one of two
+sources:
+
+1. an **explicit** per-platform environment path —
+   `SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE` for darwin,
+   `SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT` for linux; or
+2. the **sibling** file `packaged-store-qualification.receipt.json` sitting
+   next to the *source* runtime binary being staged.
+
+If neither variable is set and no sibling exists, it does this:
+
+```js
+if (!explicit && !existsSync(source)) return null;
+```
+
+It returns `null`. Both `packages/snapback-runtime-*/prepare-runtime.mjs`
+call it inside a `try` that only reacts to a thrown error, so `null` is
+indistinguishable from success. Preparation continues, `produceRuntimePackageSeal`
+seals a `bin/` that has a binary and no receipt, the package packs cleanly, and
+every downstream fast-path assertion passes because none of them looks for the
+file. Note also that `prepare-runtime.mjs` begins with
+`rmSync(binDirectory, { recursive: true, force: true })`, so a receipt cannot
+survive in the *package* `bin/` between cuts — only next to the source binary.
+
+### Why 0.1.16 hit it and 0.1.12–0.1.15 did not
+
+Minting the receipt is a genuinely two-pass operation: the receipt binds the
+staged package closure's own tarball digests, so pass one must stage a
+deliberately receiptless closure, the qualification suite runs the *packaged*
+binary against that closure and mints a receipt beside it, and pass two
+restages with the receipt wired in. The qualified-staging lane automates this
+(`scripts/qualified-staging-assemble` plus
+`scripts/qualified-staging-store-qualification.mjs`, added by
+`issues/20260807-qualified-staging-missing-store-receipts.md`).
+
+**The fast path never automated it.** As that earlier ticket records in its own
+words, the published closures "used the manual per-platform mint and restage
+path that the qualified-staging workflow lacked." The fast-path ceremony
+therefore depended on the operator remembering an undocumented, ungated manual
+step. The 0.1.16 lane — which rebuilt darwin locally and linux on
+`expo-build-1000` — did not perform it. Its execution record in
+`issues/closed/20260808-0116-rapid-publication.md` names every gate it ran and
+does not mention packaged-store qualification at all.
+
+So the cause is not a copy that dropped a sidecar, and not a rebuild that
+clobbered one. It is: **a required generated artifact was produced by an
+unenforced manual step, and the one lane that actually cuts releases had no
+gate that would notice its absence.**
+
+### The inherited-receipt hypothesis is REFUTED
+
+Every prior fast-path cut's receipt was minted for its own revision and its own
+closure, read straight from the published registry tarballs:
+
+| Package/version | receipt `binaryIdentity.gitCommit` | receipt `date` | closure versions |
+| --- | --- | --- | --- |
+| `runtime-darwin-arm64@0.1.12` | `fad3d53922e9` | 2026-08-07 | 0.1.12 |
+| `runtime-linux-x64@0.1.12` | `fad3d53922e9` | 2026-08-07 | 0.1.12 |
+| `runtime-darwin-arm64@0.1.13` | `b975f003bc7e` | 2026-08-07 | 0.1.13 |
+| `runtime-linux-x64@0.1.13` | `b975f003bc7e` | 2026-08-07 | 0.1.13 |
+| `runtime-darwin-arm64@0.1.15` | `d8d16068f00b` | 2026-08-08 | 0.1.15 |
+| `runtime-linux-x64@0.1.15` | `d8d16068f00b` | 2026-08-08 | 0.1.15 |
+
+Each `gitCommit` equals that release's own retained-ledger `revision`, and each
+`packageClosure` lists only that release's versions. A stale inherited receipt
+would carry an older commit and an older closure, and would in any case be
+rejected at runtime by the identity bind. 0.1.12–0.1.15 succeeded because their
+operators really did run the mint; they were not accidentally lucky. That makes
+the defect a pure process-enforcement gap, which is exactly the kind a gate
+fixes.
 
 ## Not a valid workaround
 
