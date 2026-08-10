@@ -1070,3 +1070,151 @@ wants one, with `guide-gap` in the title.
   that `take(n)` there is an honest cap rather than pagination — would close
   it. The grep vocabulary a reader would use is "list all rows", "full scan",
   "no eq", "catalog listing".
+
+## 2026-08-10 — slice 11: the catalog becomes writable
+
+### What the slice is
+
+Eight management mutations behind the dashboard's `/admin/*` routes, so the
+catalog is a product surface rather than a fixture: create/update/delete for
+products and entitlements, add/remove for the mapping edge. Plus three unique
+indexes, which turned out to be the interesting part.
+
+### What felt good
+
+**The guide sent me to a better design than the brief asked for.**
+`guide/backend/mutations.md` has a flat anti-pattern — "Do not scan to emulate
+a unique compound key. Declare a unique index; read sets are conflict
+detection, not a substitute for structural uniqueness." The brief said "unique
+productId/entitlementId on create", which reads as a handler scan. The index is
+strictly better and costs three lines of schema:
+
+    .index('by_product', ['productId'], { unique: true })
+    .index('by_product_entitlement', ['productId', 'entitlementId'], { unique: true })
+
+A duplicate create now loses at the write boundary with
+`SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION` and commits nothing, and the acceptance
+asserts that code rather than a message. The compound one is the one a scan
+could not have got right by accident: both directions of the mapping are
+legitimately many, so only the PAIR is unique, and a handler checking "does
+this product already have an entitlement" would have been wrong.
+
+Nothing about making an existing seeded index unique required a migration
+story. Codegen accepted it, the seed still loaded, and the 67 pre-existing
+checks stayed green.
+
+**Deleting in one commit made "don't orphan" trivial to state.** `deleteProduct`
+removes the product and its edges in one mutation, so there is no window where
+an edge points at a product that does not exist. On a REST-shaped backend this
+is the classic two-call cleanup with a compensating delete when the second
+fails; here it is a `for` loop and one commit.
+
+**Result contracts made the write surface self-describing.** Every mutation
+returns a typed object — `{ deleted, edgesRemoved }`, `{ changed }`,
+`{ grantsRemoved }` — so the dashboard could surface "revoked 1 active grant"
+without a follow-up read, and the acceptance asserts the counts directly.
+
+### What was harder, and one thing I nearly got wrong
+
+**The derived read model has no reverse index, and that shaped the feature.**
+`deleteEntitlement` should not leave grants behind: `applyProductEntitlements`
+walks mappings BY PRODUCT, so once an entitlement's edges are gone nothing will
+ever revisit its grants, and a perpetual grant would keep unlocking a deleted
+feature forever. The cron sweep cannot save it either — it only expires grants
+that carry a horizon.
+
+So the grants have to be deleted with the entitlement. But `entitlementGrants`
+is indexed `by_user` (the client's live query) and `by_active` (the sweep), and
+neither answers "who holds this entitlement". I scanned the active partition
+with a 500-row cap and returned the count. That is honest for a POC and wrong
+for a deployment, and the comment says so.
+
+The near-miss: my first instinct was to leave grants alone because they are
+derived state and derived state belongs to its derivation. That reasoning is
+right in general and wrong here, and only checking which index the derivation
+walks showed why.
+
+**Mapping edits do not recompute existing grants, and cannot cheaply.** Adding
+`bundle_year -> archive` does not grant `archive` to someone who already bought
+`bundle_year`; they get it on their next reconcile. Recomputing would mean
+finding every user with a transaction for a product, and `transactions` is
+indexed by user and by store id — not by product. Removal is the direction that
+bites: unmapping does not revoke. Both are documented at the mutation rather
+than fixed, because the fix is an index and a sweep, not a line of handler code.
+
+**`v.optional()` is not nullable, except when you patch.** Slice 7 taught me to
+omit rather than null on the way IN. Clearing a store id on the way OUT is the
+mirror problem, and the answer is different: patching `googleId: null` stores a
+present null, which is what the guide says and what the wire shows
+(`"googleId": null`). So the same field is "omit, never null" as an argument and
+"null to clear" as a patch. Both rules are right; having to hold both at once
+is the sharp edge.
+
+I settled the merge semantics by following the schema's own optionality, which
+gave one rule instead of a per-field convention: **required columns merge
+(omitting `kind` leaves it), optional columns replace (omitting `googleId`
+clears it)**. That makes "no longer sold on Google" expressible, which a
+merge-only update cannot say at all.
+
+### The authority gap, write side
+
+This is the third face of the same hole, and the worst one. The closed auth
+vocabulary is `public | optional-user | authenticated` (LLP 0058). There is no
+secret tier, so these mutations declare `auth: 'authenticated'` — the strongest
+requirement available — and are management-only because the devserver exposes
+them under `/admin/*`. Any authenticated end user could call `deleteProduct` if
+they could reach the function directly.
+
+For reads (slice 10) the gap leaks catalog metadata. For
+`reconcileTransaction` it means a store-notification write is callable for any
+user id. Here it means an authenticated user could rewrite what every other
+user's purchases mean — delete an entitlement and revoke access for everyone
+holding it. The devserver's `DASHBOARD_USER = 'dashboard'` constant is a
+stand-in for the project secret key a real deployment would use, and the fact
+that *any* identity would satisfy the engine is exactly the point. Decision 11
+splits this into two APIs with two keys in production; nothing in this demo
+should be read as the engine enforcing that split.
+
+### Compared to Convex / Supabase
+
+**Supabase would have been faster and would have hidden the interesting
+question.** Catalog CRUD there is table access plus RLS, and the
+delete-cascades-edges behavior is a foreign key with `ON DELETE CASCADE` —
+declarative, correct, and free. Snapback has no foreign keys, so the cascade is
+a `for` loop I had to write and justify. Postgres wins that exchange on
+ergonomics.
+
+What Postgres would not have given me is the moment where I had to ask what
+happens to the derived grants. A cascade on `productEntitlements` would have
+fired silently and `entitlementGrants` — which has no FK to the entitlement,
+because it is a derived projection — would have been left holding ghosts. The
+loop is worse code and it made me look at the derivation.
+
+**Convex is the closest comparison and lands about even.** Mutations with
+argument validators, a JS handler, and an atomic transaction is the same shape.
+Two differences: Convex has no unique-index primitive, so the duplicate-id check
+there really is a read-then-insert inside the transaction (safe, because the
+transaction is serializable — the guide's anti-pattern is specific to
+Snapback's OCC model). And Convex's `ctx.db.query().withIndex()` would have had
+the same "no reverse index" problem, so the design pressure would have been
+identical.
+
+### Guide gaps worth filing
+
+Neither filed: this session was scoped to `demos/eas-payments/` plus this diary,
+and `issues/` is outside it. Both want `guide-gap` in the title.
+
+- **Nothing says how to CLEAR an optional field.** `guide/backend/mutations.md`
+  mentions that writing `null` into a `v.optional(...)` field "stores it as a
+  present null", but only in passing while explaining `argOpt` defaults in
+  declarative plans. A JS-handler author asking "how do I unset this column"
+  will not find it, and the neighbouring `v.optional()`-is-not-nullable rule for
+  ARGUMENTS points the opposite way. One paragraph naming both directions
+  together would close it. Grep vocabulary: "clear a field", "unset", "remove a
+  value", "null vs absent".
+- **The unique-index page does not mention the ordinary CRUD case.** The
+  "Declare structural uniqueness" section is written for contention (two writers
+  racing), which is why I nearly skipped it — a hand-run dashboard has no
+  contention. The reason to use it here is different and simpler: it is the only
+  place the invariant is stated once. Worth a sentence, because the section's
+  current framing lets a reader conclude it does not apply to them.

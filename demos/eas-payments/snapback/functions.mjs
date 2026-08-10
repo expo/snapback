@@ -1706,3 +1706,398 @@ export const listDeliveries = defineQuery({
   order: [asc('seq')],
   index: 'by_seq',
 });
+
+// --- Catalog management (slice 11) ----------------------------------------------
+
+// The write side of the developer's catalog: the mutations behind the
+// dashboard's /admin/* routes. Until now the catalog arrived only through
+// `seed.json`, which made it a fixture rather than a product surface.
+//
+// PROTOTYPE AUTHORITY GAP, WRITE SIDE. The closed auth vocabulary is
+// public | optional-user | authenticated (LLP 0058), so a mutation that should
+// require a project secret key has no way to say so. These declare
+// `auth: 'authenticated'` — the strongest requirement available — and are
+// management-only because the devserver exposes them under /admin/*, exactly as
+// the catalog READS are. The boundary is a proxy, not the engine. That is the
+// same gap already recorded on `reconcileTransaction` for system authority and
+// on `listEntitlements`/`listProductEntitlements` for secret-tier reads; this is
+// its most consequential face, because these mutations can rewrite what every
+// user's purchases mean. In production the split is two APIs with two keys
+// (decision 11). Nothing here should be read as the engine fencing them.
+//
+// Uniqueness is STRUCTURAL, not scanned: `products.by_product`,
+// `entitlements.by_entitlement`, and the compound
+// `productEntitlements.by_product_entitlement` are unique indexes, so a
+// duplicate create loses at the write boundary with
+// SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION rather than racing a read-then-insert
+// check. A seeded catalog could pretend a handler scan was enough; a writable
+// one cannot.
+
+// The closed product vocabulary, spelled as a function declaration because
+// inline handlers capture same-file declarations but not outer consts.
+function isKnownProductKind(kind) {
+  return kind === 'subscription'
+    || kind === 'nonconsumable'
+    || kind === 'consumable';
+}
+
+// Trim to a non-empty string, or refuse. Catalog ids reach us from a dashboard
+// form, so " " is a plausible input and an id of one space is not.
+function requiredId(value, label) {
+  const text = String(value ?? '').trim();
+  if (!text) throw new Error(label + ' is required');
+  return text;
+}
+
+// An optional store id on the way IN. Absent means "no id for this store",
+// which is the ordinary case for a product sold on one platform only.
+//
+// The empty string is normalized to absent rather than stored: a dashboard form
+// submits '' for a field the developer cleared, and an appleId of '' would
+// otherwise be a present-but-meaningless value that reads as configured.
+function optionalStoreId(value) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  return text === '' ? null : text;
+}
+
+export const createProduct = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    productId: v.string(),
+    kind: v.string(),
+    // The schema requires a title; the dashboard does not force one. Defaulting
+    // to the id keeps the column honest without inventing prose.
+    title: v.optional(v.string()),
+    appleId: v.optional(v.string()),
+    googleId: v.optional(v.string()),
+    stripePriceId: v.optional(v.string()),
+  },
+  writes: ['products'],
+  result: results.value(v.object({
+    id: v.id('products'),
+    productId: v.string(),
+  })),
+  handler: async (ctx, args) => {
+    const productId = requiredId(args.productId, 'productId');
+    if (!isKnownProductKind(args.kind)) {
+      throw new Error('unknown product kind: ' + args.kind);
+    }
+    const title = String(args.title ?? '').trim() || productId;
+    const id = await ctx.db.insert('products', {
+      productId: productId,
+      title: title,
+      kind: args.kind,
+      appleId: optionalStoreId(args.appleId),
+      googleId: optionalStoreId(args.googleId),
+      stripePriceId: optionalStoreId(args.stripePriceId),
+    });
+    return { id: id, productId: productId };
+  },
+});
+
+// Editing a product, including its store ids.
+//
+// The merge rule follows the SCHEMA's own optionality, so there is one rule to
+// remember rather than a per-field convention:
+//
+//   required columns (title, kind)          omitted -> unchanged
+//   optional columns (the three store ids)  omitted -> CLEARED
+//
+// Store ids replace rather than merge because "this product is no longer sold
+// on Google" has to be expressible, and a merge-only update cannot say it. The
+// dashboard therefore submits all three fields, prefilled — an edit form, not a
+// patch.
+//
+// `productId` is identity and is deliberately not editable. Renaming it would
+// strand every transaction and edge that names the old string, which is a
+// migration rather than an edit; delete and re-create instead.
+export const updateProduct = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    productId: v.string(),
+    title: v.optional(v.string()),
+    kind: v.optional(v.string()),
+    appleId: v.optional(v.string()),
+    googleId: v.optional(v.string()),
+    stripePriceId: v.optional(v.string()),
+  },
+  reads: ['products'],
+  writes: ['products'],
+  result: results.value(v.object({ productId: v.string(), changed: v.boolean() })),
+  handler: async (ctx, args) => {
+    const productId = requiredId(args.productId, 'productId');
+    const rows = await ctx.db
+      .query('products')
+      .withIndex('by_product')
+      .eq('productId', productId)
+      .collect();
+    if (rows.length === 0) throw new Error('unknown productId: ' + productId);
+    const row = rows[0];
+
+    const kind = args.kind === undefined ? row.kind : args.kind;
+    if (!isKnownProductKind(kind)) {
+      throw new Error('unknown product kind: ' + kind);
+    }
+    const title = args.title === undefined
+      ? row.title
+      : (String(args.title).trim() || productId);
+    const next = {
+      title: title,
+      kind: kind,
+      appleId: optionalStoreId(args.appleId),
+      googleId: optionalStoreId(args.googleId),
+      stripePriceId: optionalStoreId(args.stripePriceId),
+    };
+
+    // Absent and present-null are the same fact here, so compare them as one.
+    // Without this a re-submitted unchanged form would report `changed: true`
+    // forever, and a dashboard would poll on a lie.
+    const same = row.title === next.title
+      && row.kind === next.kind
+      && (row.appleId ?? null) === next.appleId
+      && (row.googleId ?? null) === next.googleId
+      && (row.stripePriceId ?? null) === next.stripePriceId;
+    if (same) return { productId: productId, changed: false };
+
+    await ctx.db.patch('products', row._id, next);
+    return { productId: productId, changed: true };
+  },
+});
+
+// Delete a product and the mapping edges that named it.
+//
+// The edges go in the SAME commit, so there is no window in which an edge
+// points at a product that does not exist. That is the whole reason this is one
+// mutation and not two calls from the dashboard.
+//
+// TRANSACTIONS ARE LEFT ALONE, deliberately. A transaction records what a user
+// actually bought, and deleting a catalog row does not un-sell it — the purchase
+// audit must keep naming `coins_100` after `coins_100` is withdrawn from sale.
+// The catalog is what is FOR SALE; transactions are what WAS sold, and the
+// second is history we do not get to edit.
+export const deleteProduct = defineJsMutation({
+  auth: 'authenticated',
+  args: { productId: v.string() },
+  reads: ['products', 'productEntitlements'],
+  writes: ['products', 'productEntitlements'],
+  result: results.value(v.object({
+    productId: v.string(),
+    deleted: v.boolean(),
+    edgesRemoved: v.integer(),
+  })),
+  handler: async (ctx, args) => {
+    const productId = requiredId(args.productId, 'productId');
+    const rows = await ctx.db
+      .query('products')
+      .withIndex('by_product')
+      .eq('productId', productId)
+      .collect();
+    if (rows.length === 0) throw new Error('unknown productId: ' + productId);
+
+    const edges = await ctx.db
+      .query('productEntitlements')
+      .withIndex('by_product')
+      .eq('productId', productId)
+      .take(500)
+      .collect();
+    for (const edge of edges) {
+      await ctx.db.delete('productEntitlements', edge._id);
+    }
+    await ctx.db.delete('products', rows[0]._id);
+    return { productId: productId, deleted: true, edgesRemoved: edges.length };
+  },
+});
+
+export const createEntitlement = defineJsMutation({
+  auth: 'authenticated',
+  args: { entitlementId: v.string(), title: v.optional(v.string()) },
+  writes: ['entitlements'],
+  result: results.value(v.object({
+    id: v.id('entitlements'),
+    entitlementId: v.string(),
+  })),
+  handler: async (ctx, args) => {
+    const entitlementId = requiredId(args.entitlementId, 'entitlementId');
+    const title = String(args.title ?? '').trim() || entitlementId;
+    const id = await ctx.db.insert('entitlements', {
+      entitlementId: entitlementId,
+      title: title,
+    });
+    return { id: id, entitlementId: entitlementId };
+  },
+});
+
+// Rename an entitlement's human title. The id is identity — apps gate on that
+// string, so changing it is a migration, not an edit.
+export const updateEntitlement = defineJsMutation({
+  auth: 'authenticated',
+  args: { entitlementId: v.string(), title: v.string() },
+  reads: ['entitlements'],
+  writes: ['entitlements'],
+  result: results.value(v.object({ entitlementId: v.string(), changed: v.boolean() })),
+  handler: async (ctx, args) => {
+    const entitlementId = requiredId(args.entitlementId, 'entitlementId');
+    const title = requiredId(args.title, 'title');
+    const rows = await ctx.db
+      .query('entitlements')
+      .withIndex('by_entitlement')
+      .eq('entitlementId', entitlementId)
+      .collect();
+    if (rows.length === 0) throw new Error('unknown entitlementId: ' + entitlementId);
+    if (rows[0].title === title) return { entitlementId: entitlementId, changed: false };
+    await ctx.db.patch('entitlements', rows[0]._id, { title: title });
+    return { entitlementId: entitlementId, changed: true };
+  },
+});
+
+// Delete an entitlement, its mapping edges, AND the derived grants that named
+// it — all in one commit.
+//
+// The grants are the part worth arguing about. `entitlementGrants` is derived
+// state, and the honest instinct is to leave derived state to its derivation.
+// That instinct fails here: `applyProductEntitlements` walks mappings BY
+// PRODUCT, so once an entitlement's edges are gone nothing will ever revisit its
+// grants. A perpetual grant would then stay active forever, and the app would
+// keep unlocking a feature whose entitlement the developer deleted. The cron
+// sweep cannot save it either — it only expires grants that carry a horizon.
+//
+// So the choice is between deleting the grants and leaving an unreachable ghost
+// that grants real access. The grant rows go.
+//
+// POC BOUND: 500 grants and 500 edges per delete, because one mutation buffers
+// at most 1,024 writes. A deployment with more holders of one entitlement needs
+// the paged-with-checkpoint shape from guide/backend/mutations.md; the count is
+// returned rather than hidden so a caller can see it hit the cap.
+export const deleteEntitlement = defineJsMutation({
+  auth: 'authenticated',
+  args: { entitlementId: v.string() },
+  reads: ['entitlements', 'productEntitlements', 'entitlementGrants'],
+  writes: ['entitlements', 'productEntitlements', 'entitlementGrants'],
+  result: results.value(v.object({
+    entitlementId: v.string(),
+    deleted: v.boolean(),
+    edgesRemoved: v.integer(),
+    grantsRemoved: v.integer(),
+  })),
+  handler: async (ctx, args) => {
+    const entitlementId = requiredId(args.entitlementId, 'entitlementId');
+    const rows = await ctx.db
+      .query('entitlements')
+      .withIndex('by_entitlement')
+      .eq('entitlementId', entitlementId)
+      .collect();
+    if (rows.length === 0) throw new Error('unknown entitlementId: ' + entitlementId);
+
+    const edges = await ctx.db
+      .query('productEntitlements')
+      .withIndex('by_entitlement')
+      .eq('entitlementId', entitlementId)
+      .take(500)
+      .collect();
+    for (const edge of edges) {
+      await ctx.db.delete('productEntitlements', edge._id);
+    }
+
+    // No by_entitlement index on the derived read model — it is partitioned by
+    // user for the client's live query and by active for the sweep, and neither
+    // answers "who holds this entitlement". Scanning the active partition is
+    // what is available; an inactive grant for a deleted entitlement is inert,
+    // so leaving those is not the ghost this guards against.
+    const live = await ctx.db
+      .query('entitlementGrants')
+      .withIndex('by_active')
+      .eq('active', true)
+      .take(500)
+      .collect();
+    let grantsRemoved = 0;
+    for (const grant of live) {
+      if (grant.entitlementId !== entitlementId) continue;
+      await ctx.db.delete('entitlementGrants', grant._id);
+      grantsRemoved += 1;
+    }
+
+    await ctx.db.delete('entitlements', rows[0]._id);
+    return {
+      entitlementId: entitlementId,
+      deleted: true,
+      edgesRemoved: edges.length,
+      grantsRemoved: grantsRemoved,
+    };
+  },
+});
+
+// Record that a product grants an entitlement.
+//
+// Both endpoints must exist. An edge naming a missing product is exactly the
+// corruption the dashboard renders in red, and while the graph should keep
+// showing one if it ever appears, this surface should not be the thing that
+// mints it.
+//
+// DOES NOT RECOMPUTE EXISTING GRANTS, and cannot cheaply. A user who already
+// owns `pro_monthly` gains the newly mapped entitlement on their next
+// reconcile — a store notification, a fresh purchase, or an applyStoreState
+// re-fetch — not at the moment the edge is written. Recomputing here would mean
+// finding every user holding a transaction for this product, and `transactions`
+// is indexed by user and by store id, not by product. The same limitation
+// applies to removal, where it matters more: unmapping a product does not revoke
+// the access it already justified. Naming it is better than a surface that
+// silently half-applies.
+export const addProductEntitlement = defineJsMutation({
+  auth: 'authenticated',
+  args: { productId: v.string(), entitlementId: v.string() },
+  reads: ['products', 'entitlements'],
+  writes: ['productEntitlements'],
+  result: results.value(v.object({
+    id: v.id('productEntitlements'),
+    productId: v.string(),
+    entitlementId: v.string(),
+  })),
+  handler: async (ctx, args) => {
+    const productId = requiredId(args.productId, 'productId');
+    const entitlementId = requiredId(args.entitlementId, 'entitlementId');
+    const products = await ctx.db
+      .query('products')
+      .withIndex('by_product')
+      .eq('productId', productId)
+      .collect();
+    if (products.length === 0) throw new Error('unknown productId: ' + productId);
+    const entitlements = await ctx.db
+      .query('entitlements')
+      .withIndex('by_entitlement')
+      .eq('entitlementId', entitlementId)
+      .collect();
+    if (entitlements.length === 0) {
+      throw new Error('unknown entitlementId: ' + entitlementId);
+    }
+    // A duplicate edge loses at the unique compound index, not here.
+    const id = await ctx.db.insert('productEntitlements', {
+      productId: productId,
+      entitlementId: entitlementId,
+    });
+    return { id: id, productId: productId, entitlementId: entitlementId };
+  },
+});
+
+// Remove one edge. See the note on addProductEntitlement: this does not revoke
+// access already derived from the mapping.
+export const removeProductEntitlement = defineJsMutation({
+  auth: 'authenticated',
+  args: { productId: v.string(), entitlementId: v.string() },
+  reads: ['productEntitlements'],
+  writes: ['productEntitlements'],
+  result: results.value(v.object({ removed: v.boolean() })),
+  handler: async (ctx, args) => {
+    const productId = requiredId(args.productId, 'productId');
+    const entitlementId = requiredId(args.entitlementId, 'entitlementId');
+    const edges = await ctx.db
+      .query('productEntitlements')
+      .withIndex('by_product_entitlement')
+      .eq('productId', productId)
+      .eq('entitlementId', entitlementId)
+      .collect();
+    if (edges.length === 0) return { removed: false };
+    await ctx.db.delete('productEntitlements', edges[0]._id);
+    return { removed: true };
+  },
+});

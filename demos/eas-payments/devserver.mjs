@@ -94,6 +94,29 @@ console.log('[devserver] seeded      pro_monthly, pro_annual, plus_monthly, coin
 
 // --- HTTP proxy ---------------------------------------------------------------
 
+// Who the dashboard's writes are attributed to.
+//
+// The catalog mutations are `auth: 'authenticated'`, which is the strongest
+// requirement the closed vocabulary offers, so they need an identity — and
+// there is no secret tier to name a management one. This constant stands in for
+// the project secret key a real deployment would authenticate with. The engine
+// would accept any authenticated user here; what makes these management-only is
+// that they are reachable through /admin/* on this proxy and nowhere else.
+const DASHBOARD_USER = 'dashboard';
+
+// path -> the mutation it commits. Every route is a POST with a JSON body whose
+// keys are the mutation's own arguments, so there is nothing to translate.
+const CATALOG_WRITES = {
+  '/admin/products/create': api.createProduct,
+  '/admin/products/update': api.updateProduct,
+  '/admin/products/delete': api.deleteProduct,
+  '/admin/entitlements/create': api.createEntitlement,
+  '/admin/entitlements/update': api.updateEntitlement,
+  '/admin/entitlements/delete': api.deleteEntitlement,
+  '/admin/mappings/add': api.addProductEntitlement,
+  '/admin/mappings/remove': api.removeProductEntitlement,
+};
+
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, POST, OPTIONS',
@@ -220,6 +243,32 @@ const proxy = createServer(async (req, res) => {
       return;
     }
 
+    // The catalog write surface. One shape for all eight, because they differ
+    // only in which mutation they name — the interesting decisions all live in
+    // the handlers, not here.
+    //
+    // A refusal comes back as 400 with the stable diagnostic CODE, not prose:
+    // the dashboard distinguishes "that id is taken"
+    // (SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION) from a guard failure
+    // (SNAPBACK_HANDLER_FAILED), and a message string is not a contract.
+    if (req.method === 'POST' && CATALOG_WRITES[path]) {
+      const body = JSON.parse((await readBody(req)) || '{}');
+      try {
+        const out = await db.mutate(CATALOG_WRITES[path], {
+          args: body,
+          userId: DASHBOARD_USER,
+        });
+        send(res, 200, { ok: true, result: out.result });
+      } catch (error) {
+        send(res, 400, {
+          ok: false,
+          code: error?.diagnostic?.code ?? 'UNKNOWN',
+          message: String(error?.message ?? error),
+        });
+      }
+      return;
+    }
+
     // One customer's derived entitlements, read through the SAME query the app
     // uses. The dashboard must not get a second opinion: if a developer and
     // their user ever disagree about what is granted, the bug is real and this
@@ -290,6 +339,7 @@ console.log(`[devserver] ready on :${PORT}`);
 console.log('[devserver]   runtime    GET /products  POST /buy  GET /entitlements?userId=  GET /purchases?userId=');
 console.log('[devserver]   management GET /admin/changes?sinceSeq=  GET /admin/customers  GET /admin/purchases?userId=');
 console.log('[devserver]              GET /admin/catalog  GET /admin/customer?userId=');
+console.log(`[devserver]              POST ${Object.keys(CATALOG_WRITES).join('  ')}`);
 console.log('[devserver]   dashboard  GET /  (serves ~/projects/eas-payments-dashboard/index.html)');
 
 const shutdown = async () => {

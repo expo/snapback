@@ -70,6 +70,10 @@ const UMA = 'user_uma'; // pending, then clears
 const VIC = 'user_vic'; // pending, then canceled
 const WES = 'user_wes'; // two transactions: active alongside grace
 const ZOE = 'user_zoe'; // the control: buys once, must never move
+// Slice 11 — catalog management. ZED holds a throwaway entitlement so its
+// deletion has a derived grant to clean up; DASH is the dashboard's identity.
+const ZED = 'user_zed';
+const DASH = 'dashboard';
 // Slice 8 — acknowledgement. These buy on GOOGLE, the only adapter that carries a
 // server-side ack obligation, so every earlier check's apple/stripe purchases
 // stay outside this machinery entirely.
@@ -90,7 +94,7 @@ const STORE_KEY = 'fake-store-key-slice-2';
 const WRONG_STORE_KEY = 'not-the-store-key';
 const WEBHOOK_SECRET = 'developer-shared-secret-slice-5';
 
-const suite = createSuite('eas-payments / headless', { expectedChecks: 67 });
+const suite = createSuite('eas-payments / headless', { expectedChecks: 73 });
 const cleanups = [];
 let server = null;
 let db = null;
@@ -144,6 +148,16 @@ const drain = async (rounds = 1) => {
     receipts.push(await admin.drainJobs({ nowMs: virtualNowMs, maxWaves: 1 }));
   }
   return receipts;
+};
+
+// Slice 11. Catalog writes are `auth: 'authenticated'` — the strongest
+// requirement the closed vocabulary offers — so they need SOME identity, and
+// there is no secret tier to name a management one. `DASH` is a stand-in for the
+// project secret key a real deployment would authenticate with, and the fact
+// that any authenticated identity would do is precisely the gap.
+const catalogWrite = async (ref, args) => {
+  const res = await db.mutate(ref, { args, userId: DASH });
+  return res.result ?? res;
 };
 
 const activeEntitlementIds = async (userId) => {
@@ -2085,6 +2099,227 @@ await runAcceptance(suite, async () => {
       'expected a non-live rejection for the catalog query',
     );
     return { code: err.diagnostic.code };
+  });
+
+  // --- catalog management (slice 11) ------------------------------------------
+  //
+  // Deliberately last in the suite: these mutate the catalog every earlier
+  // check reads, so running them here keeps the lifecycle checks working
+  // against the seeded fixture they were written for.
+
+  await suite.check('createProduct + createEntitlement + addProductEntitlement round-trip', async () => {
+    const created = await catalogWrite(api.createProduct, {
+      productId: 'zz_bundle',
+      kind: 'subscription',
+      title: 'Test bundle',
+      appleId: 'com.example.app.zz.bundle',
+      googleId: 'zz_bundle',
+      // Left absent, not empty: this product is not sold on Stripe.
+      stripePriceId: '',
+    });
+    assertEqual(created.productId, 'zz_bundle', 'created productId echoed');
+    await catalogWrite(api.createEntitlement, { entitlementId: 'zz_archive', title: 'Archive access' });
+    await catalogWrite(api.addProductEntitlement, {
+      productId: 'zz_bundle',
+      entitlementId: 'zz_archive',
+    });
+
+    const products = (await db.query(api.listProducts, {})).rows;
+    const row = products.find((p) => p.productId === 'zz_bundle');
+    assert(row, 'the new product is in the catalog');
+    assertEqual(row.kind, 'subscription', 'kind');
+    assertEqual(row.appleId, 'com.example.app.zz.bundle', 'apple id');
+    // '' normalized to absent rather than stored as a present empty string,
+    // which would read as "configured on Stripe".
+    assert(!row.stripePriceId, 'an empty store id is absent, not empty');
+
+    const entitlements = (await db.query(api.listEntitlements, {})).rows;
+    assertEqual(
+      entitlements.find((e) => e.entitlementId === 'zz_archive').title,
+      'Archive access',
+      'entitlement title',
+    );
+    const edges = (await db.query(api.listProductEntitlements, {})).rows;
+    assertEqual(
+      edges.filter((m) => m.entitlementId === 'zz_archive').map((m) => m.productId),
+      ['zz_bundle'],
+      'the edge is readable through the graph query',
+    );
+    return { products: products.length, edges: edges.length };
+  });
+
+  await suite.check('duplicate catalog ids lose at the unique index, not at a handler scan', async () => {
+    // @ref LLP 0004#handler-api — structural uniqueness is the declared index,
+    // so the loser commits nothing rather than racing a read-then-insert check.
+    const dupProduct = await assertThrows(
+      () => catalogWrite(api.createProduct, { productId: 'zz_bundle', kind: 'consumable' }),
+      'SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION',
+      'a duplicate productId is refused',
+    );
+    await assertThrows(
+      () => catalogWrite(api.createEntitlement, { entitlementId: 'zz_archive' }),
+      'SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION',
+      'a duplicate entitlementId is refused',
+    );
+    // The edge's uniqueness is compound: both directions are legitimately many,
+    // so only (productId, entitlementId) together can be constrained.
+    await assertThrows(
+      () => catalogWrite(api.addProductEntitlement, {
+        productId: 'zz_bundle',
+        entitlementId: 'zz_archive',
+      }),
+      'SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION',
+      'a duplicate mapping edge is refused',
+    );
+    // Nothing was written by any of the three refusals.
+    const products = (await db.query(api.listProducts, {})).rows;
+    assertEqual(
+      products.filter((p) => p.productId === 'zz_bundle').length,
+      1,
+      'still exactly one zz_bundle',
+    );
+    return { code: dupProduct.diagnostic.code };
+  });
+
+  await suite.check('updateProduct replaces store ids, and re-submitting the same form is a no-op', async () => {
+    const changed = await catalogWrite(api.updateProduct, {
+      productId: 'zz_bundle',
+      title: 'Test bundle',
+      kind: 'subscription',
+      // googleId edited, appleId re-sent unchanged, stripePriceId still absent.
+      appleId: 'com.example.app.zz.bundle',
+      googleId: 'zz_bundle_v2',
+    });
+    assertEqual(changed.changed, true, 'the edit moved the row');
+    let row = (await db.query(api.listProducts, {})).rows.find((p) => p.productId === 'zz_bundle');
+    assertEqual(row.googleId, 'zz_bundle_v2', 'google id replaced');
+    assertEqual(row.appleId, 'com.example.app.zz.bundle', 're-sent apple id retained');
+
+    // Optional columns REPLACE: omitting googleId now clears it, which is how
+    // "no longer sold on Google" is expressible at all.
+    const cleared = await catalogWrite(api.updateProduct, {
+      productId: 'zz_bundle',
+      appleId: 'com.example.app.zz.bundle',
+    });
+    assertEqual(cleared.changed, true, 'clearing a store id is a change');
+    row = (await db.query(api.listProducts, {})).rows.find((p) => p.productId === 'zz_bundle');
+    assert(!row.googleId, 'an omitted store id is cleared');
+    // Required columns MERGE: title and kind survived an update that omitted
+    // them, because a product with no kind is not a legal row.
+    assertEqual(row.kind, 'subscription', 'omitted required column unchanged');
+    assertEqual(row.title, 'Test bundle', 'omitted title unchanged');
+
+    // Idempotent re-submit: a dashboard that polls on `changed` must not be
+    // told the row moved when it did not.
+    const again = await catalogWrite(api.updateProduct, {
+      productId: 'zz_bundle',
+      appleId: 'com.example.app.zz.bundle',
+    });
+    assertEqual(again.changed, false, 'an unchanged form reports no change');
+    return { googleId: row.googleId ?? null };
+  });
+
+  await suite.check('catalog writes refuse unknown kinds, unknown ids, and dangling edges', async () => {
+    await assertThrows(
+      () => catalogWrite(api.createProduct, { productId: 'zz_bad_kind', kind: 'subscriptions' }),
+      'SNAPBACK_HANDLER_FAILED',
+      'a typo in the closed kind vocabulary is refused',
+    );
+    await assertThrows(
+      () => catalogWrite(api.updateProduct, { productId: 'zz_missing', kind: 'consumable' }),
+      'SNAPBACK_HANDLER_FAILED',
+      'updating a product that does not exist is refused',
+    );
+    // An edge may not name an endpoint that does not exist. The dashboard still
+    // RENDERS orphan edges, because a seeded or migrated corpus can carry one —
+    // but this surface will not mint them.
+    await assertThrows(
+      () => catalogWrite(api.addProductEntitlement, {
+        productId: 'zz_bundle',
+        entitlementId: 'zz_nonexistent',
+      }),
+      'SNAPBACK_HANDLER_FAILED',
+      'an edge to a missing entitlement is refused',
+    );
+    await assertThrows(
+      () => catalogWrite(api.addProductEntitlement, {
+        productId: 'zz_nonexistent',
+        entitlementId: 'zz_archive',
+      }),
+      'SNAPBACK_HANDLER_FAILED',
+      'an edge from a missing product is refused',
+    );
+    const products = (await db.query(api.listProducts, {})).rows;
+    assertEqual(products.filter((p) => p.productId === 'zz_bad_kind'), [], 'nothing was written');
+    // Removing an edge that is not there is a no-op, not an error: the caller
+    // wanted it gone and it is gone.
+    const absent = await catalogWrite(api.removeProductEntitlement, {
+      productId: 'zz_bundle',
+      entitlementId: 'zz_nonexistent',
+    });
+    assertEqual(absent.removed, false, 'removing a missing edge is a silent no-op');
+    return { products: products.length };
+  });
+
+  await suite.check('deleteEntitlement removes its edges AND the derived grants that named it', async () => {
+    // Give the throwaway entitlement a real holder first, so the grant cleanup
+    // has something to clean. This is the case that matters: a perpetual grant
+    // for a deleted entitlement is unreachable by every derivation path, so
+    // nothing would ever turn it off.
+    const bought = await validate({
+      productId: 'zz_bundle',
+      store: 'apple',
+      receipt: 'receipt_zed_bundle',
+      environment: 'sandbox',
+    }, ZED);
+    assert(bought.ok, `zz_bundle purchase failed: ${JSON.stringify(bought.diagnostic)}`);
+    assertEqual(await activeEntitlementIds(ZED), ['zz_archive'], 'the new edge granted on purchase');
+
+    const removed = await catalogWrite(api.deleteEntitlement, { entitlementId: 'zz_archive' });
+    assertEqual(removed.deleted, true, 'entitlement deleted');
+    assertEqual(removed.edgesRemoved, 1, 'its mapping edge went with it');
+    assertEqual(removed.grantsRemoved, 1, 'and so did the derived grant');
+
+    assertEqual(await activeEntitlementIds(ZED), [], 'the holder no longer holds it');
+    const entitlements = (await db.query(api.listEntitlements, {})).rows;
+    assertEqual(entitlements.filter((e) => e.entitlementId === 'zz_archive'), [], 'gone from the catalog');
+    const edges = (await db.query(api.listProductEntitlements, {})).rows;
+    assertEqual(edges.filter((m) => m.entitlementId === 'zz_archive'), [], 'no orphan edge left behind');
+    // The purchase itself survives: the catalog says what is for sale, the
+    // transaction says what WAS sold, and deleting the first does not un-sell.
+    const audit = await purchases(ZED);
+    assertEqual(audit.map((p) => p.productId), ['zz_bundle'], 'the transaction is untouched history');
+    return removed;
+  });
+
+  await suite.check('deleteProduct removes the product and its mapping edges', async () => {
+    // Re-map zz_bundle to a seeded entitlement so the delete has an edge to
+    // clean up, then delete the product from under it.
+    await catalogWrite(api.createEntitlement, { entitlementId: 'zz_temp', title: 'Temp' });
+    await catalogWrite(api.addProductEntitlement, { productId: 'zz_bundle', entitlementId: 'zz_temp' });
+    const before = (await db.query(api.listProductEntitlements, {})).rows.length;
+
+    const removed = await catalogWrite(api.deleteProduct, { productId: 'zz_bundle' });
+    assertEqual(removed.deleted, true, 'product deleted');
+    assertEqual(removed.edgesRemoved, 1, 'its edge went with it, in the same commit');
+
+    const products = (await db.query(api.listProducts, {})).rows;
+    assertEqual(products.filter((p) => p.productId === 'zz_bundle'), [], 'gone from the catalog');
+    const edges = (await db.query(api.listProductEntitlements, {})).rows;
+    assertEqual(edges.length, before - 1, 'exactly one edge removed');
+    assertEqual(edges.filter((m) => m.productId === 'zz_bundle'), [], 'no edge names the deleted product');
+    // The seeded catalog is exactly as the earlier checks left it.
+    assertEqual(
+      products.map((p) => p.productId),
+      ['coins_100', 'plus_monthly', 'pro_annual', 'pro_monthly'],
+      'the seeded catalog is intact',
+    );
+    await assertThrows(
+      () => catalogWrite(api.deleteProduct, { productId: 'zz_bundle' }),
+      'SNAPBACK_HANDLER_FAILED',
+      'deleting it twice is refused',
+    );
+    return { products: products.length, edges: edges.length };
   });
 }, {
   cleanups,

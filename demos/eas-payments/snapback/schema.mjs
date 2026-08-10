@@ -27,6 +27,12 @@ export default defineSchema({
   // Catalog. One row per sellable product, carrying the per-platform ids the
   // store adapters will need. `kind` is a closed vocabulary the handlers
   // validate: 'subscription' | 'nonconsumable' | 'consumable'.
+  //
+  // by_product is UNIQUE (catalog CRUD). Two products sharing a productId would
+  // make `enqueueAcknowledgement`'s `kind` lookup and every mapping edge
+  // ambiguous, and the catalog is now writable at runtime rather than only
+  // seeded — so the invariant is declared structurally instead of scanned for in
+  // a handler, which is a race between the scan and the insert.
   products: defineTable({
     productId: v.string(),
     title: v.string(),
@@ -34,13 +40,13 @@ export default defineSchema({
     appleId: v.optional(v.string()),
     googleId: v.optional(v.string()),
     stripePriceId: v.optional(v.string()),
-  }).index('by_product', ['productId']),
+  }).index('by_product', ['productId'], { unique: true }),
 
   // What a purchase actually buys. Apps gate on these, never on products.
   entitlements: defineTable({
     entitlementId: v.string(),
     title: v.string(),
-  }).index('by_entitlement', ['entitlementId']),
+  }).index('by_entitlement', ['entitlementId'], { unique: true }),
 
   // The product -> entitlement mapping. Many-to-many by construction: a bundle
   // product can grant several entitlements, and several products can grant the
@@ -52,7 +58,11 @@ export default defineSchema({
     .index('by_product', ['productId'])
     // by_entitlement is the reverse direction the reconcile needs: given an
     // entitlement, which products can currently justify it.
-    .index('by_entitlement', ['entitlementId']),
+    .index('by_entitlement', ['entitlementId'])
+    // The edge itself is the unique thing, and it is compound: `pro_monthly
+    // grants pro` may be recorded once. Neither single-column index can say
+    // that, since both directions are legitimately many.
+    .index('by_product_entitlement', ['productId', 'entitlementId'], { unique: true }),
 
   // Raw store facts. `environment` ('sandbox' | 'production') rides every row
   // so metering can exclude test transactions later without a backfill.
