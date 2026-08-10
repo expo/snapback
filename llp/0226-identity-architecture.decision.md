@@ -1,11 +1,13 @@
 # LLP 0226: Identity architecture — namespaces, provenance, and conversion
 
 **Type:** Decision
-**Status:** Draft
+**Status:** Review
 **Systems:** Schema, Auth, Mutations, Storage, Client SDK, Effects
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-10
-**Revised:** 2026-08-10
+**Revised:** 2026-08-10 (a — initial draft)
+**Revised:** 2026-08-10 (b — Draft → Review at llp-super-refine loop start,
+the one authorized transition; independent-loop topology)
 **Related:** LLP 0004, LLP 0007, LLP 0043, LLP 0081, LLP 0110, LLP 0129,
 LLP 0135, LLP 0148, LLP 0151, LLP 0191,
 issues/20260808-identity-architecture-decision.md,

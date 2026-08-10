@@ -1,7 +1,7 @@
 # LLP 0225: Core modularization — the consolidated ownership map, commit boundaries, and enforcement arm
 
 **Type:** Decision
-**Status:** Draft
+**Status:** Review
 **Systems:** Rust core, Server, Storage, Migration, Live/realtime, Assets,
 Jobs, Auth, Transport, Embedding, Proof/gates, LLP governance
 **Author:** Claude (Fable 5), commissioned by Charlie Cheever (author ruling
@@ -10,6 +10,8 @@ Jobs, Auth, Transport, Embedding, Proof/gates, LLP governance
 **Revised:** 2026-08-10 (a — initial draft discharging the commission;
 consolidates LLP 0199 with the shipped ownership manifest, the promoted
 pre-push gate, and the landed first slice)
+**Revised:** 2026-08-10 (b — Draft → Review at llp-super-refine loop start,
+the one authorized transition; independent-loop topology)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059

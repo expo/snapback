@@ -1,12 +1,14 @@
 # LLP 0227: First-class email+password credential auth on the sessions surface
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Auth, Server, CLI, Client protocol, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
 **Revised:** 2026-08-10 (a — initial draft, commissioned by the author ruling
 in `issues/20260809-password-credential-auth.md`)
+**Revised:** 2026-08-10 (b — Draft → Review at llp-super-refine loop start,
+the one authorized transition; independent-loop topology)
 **Related:** LLP 0057 (auth catalog and provider protocol — the substrate this
 extends), LLP 0151 (first-party identity integrations — tier-1
 username+password sketch and the identities-vs-credentials rule), LLP 0039
