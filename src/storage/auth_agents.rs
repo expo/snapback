@@ -235,7 +235,9 @@ impl LocalDatabase {
                     mode == AgentsMode::Open,
                     now_ms,
                 )?;
-            } else if integration_facts != super::auth_integrations::IntegrationRegistrationFacts::default() {
+            } else if integration_facts
+                != super::auth_integrations::IntegrationRegistrationFacts::default()
+            {
                 return Err(super::auth_integrations::integration_facts_for_agent());
             }
             body_outcome = Some(issue_initial_agent_credential_on(

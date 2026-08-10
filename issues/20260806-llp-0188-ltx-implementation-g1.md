@@ -63,3 +63,67 @@ attach/succession runtime work; then the amendment-gated hosted lane.
   evidence for the orchestrator to collect; this ticket therefore stays open.
 - G2, G2f, G3, runtime/storage integration, and capability claims remain outside
   this increment and retain the follow-on scope above.
+
+## G2 progress — 2026-08-09
+
+- Added the off-by-default LLP 0188 self-hosted async lane using the
+  provenance-receipted `vendor/celld-ltx` path dependency. The replicator is the sole checkpoint
+  owner while enabled, attaches before readiness publication, and fences one
+  incarnation/one generation with a database-adjacent sidecar plus a
+  conditionally updated fixed head. Rewind, checksum divergence, foreign
+  sidecars, and stale-writer head-CAS loss refuse or halt with coded errors.
+- Added immutable, digest-addressed, XChaCha20-Poly1305 encrypted auth-keyring
+  snapshots and coverage records. Snapshot/coverage durability precedes any
+  dependent head advance, and the operator surface reports the conservative
+  minimum of database position and keyring coverage as the restorable frontier.
+- Added `snapback replicate status`, `checkpoint`, and the offline
+  database-plus-keyring `restore` command. Restore verifies celld output with
+  SQLite integrity and retained auth-key references, and explicitly remains
+  non-servable until the LLP 0057 declared-restore/bulk-revocation composition.
+- Added focused file-client tests and `scripts/g2-replication-drill`. The dated
+  receipt under `scripts/g2-receipts/` records the live MinIO SIGKILL/load,
+  exact lag/loss bound, paired restore, integrity result, lineage cut, and the
+  foreign-sidecar negative control.
+- Deliberately deferred LLP 0188 succession and epoch handover, generation
+  rotation, hosted supervisor custody, hosted checkpoint proof envelopes,
+  append/head credential separation, and store-enforced immutability
+  qualification beyond the MinIO CAS note. The G2 lane therefore makes no
+  hosted or multi-writer claim: status states that a compromised host or
+  same-generation clone can re-PUT history and seize/rewrite the head.
+  Provider-encrypted S3 segments and unencrypted `file://` segments are also
+  reported honestly there.
+
+## G2 wedge correction — 2026-08-09
+
+- The first G2 receipt was invalid: it accepted `loss <= observed lag` even
+  though the frontier stopped after its first shipment. Reproduction exposed
+  the hidden cause as `capture WAL as LTX: EOF`; the database itself remained
+  valid while celld-ltx's WAL shadow stopped advancing.
+- The pinned celld port had explicitly deferred Litestream v0.5.11's
+  `SQLITE_FCNTL_PERSIST_WAL` initialization. Continuous writer-process churn
+  disproved the port's premise that keeping the capture connection open was
+  sufficient. `vendor/celld-ltx/src/db.rs` now restores that lifecycle
+  operation on both capture connections and exposes it to Snapback's primary,
+  pooled-reader, registered-writer, and short-lived status-read connections.
+  SQLite's VFS bit is connection-local; covering only the capture handle still
+  allowed another Snapback connection to run a close-time checkpoint and leave
+  a retained WAL with a zeroed header. The source/test divergence is enumerated in
+  `vendor/celld-ltx/VENDOR-RECEIPT.md`.
+- Degraded sidecars and `replicate status` now preserve both the stable error
+  code and the underlying detail. The replacement G2 drill requires at least
+  five distinct head commits after the first shipment, zero-lag convergence
+  after load, lag and restored-version bounds below 100 commits, and an exact
+  ahead-of-head SIGKILL/restart/restore before it can issue a receipt. The
+  earlier vacuous receipt is retained only as an explicitly superseded record.
+- `tests/replication_sustained_v0.rs` drives 100 mutations through a real
+  `snapback start`/`snapback run` server with a `file://` replica while a second
+  Snapback-owned read/write connection opens and closes between batches. Its
+  negative-control run with only the primary connection's persistent-WAL setup
+  removed wedged after the second batch with
+  `SNAPBACK_REPLICATION_CAPTURE_FAILED` and the surfaced detail
+  `capture WAL as LTX: io error: No such file or directory (os error 2)`; the
+  restored implementation passes and restores the exact final source version.
+- The replacement live MinIO receipt records 27 frontier advances after the
+  first shipment, load-stop convergence at source version 151, a 25-version
+  ahead-of-head SIGKILL cut (below the 100-version bound), clean reattachment,
+  and an integrity-checked exact final restore at source version 176.

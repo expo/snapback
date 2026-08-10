@@ -52,7 +52,7 @@ assert.equal(carrier.maturity, 'experimental');
 assert.equal(carrier.qualificationReceiptSha256, sha256(receiptBytes));
 assert.equal(
   sha256(carrierBytes),
-  'sha256:793614c885152159311a89225678c4521470592efdd774ac2a3f4f4c8aef7d5a',
+  'sha256:235a9aadf48a5ed7dfac5febbcdc1dc42fa3ec45756914be9b834bbd4a4834e3',
 );
 for (const [source, expected] of Object.entries({
   ...carrier.executorSourceSha256,

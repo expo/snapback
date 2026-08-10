@@ -104,10 +104,10 @@ pub use schema_transition::{
     SchemaTransitionKind,
 };
 pub use settlement::{SettlementKernel, SettlementReadKernel};
-pub use versions::{VersionsKernel, VersionsReadKernel};
 pub(crate) use schema_transition::{
     prove_retained_work_posture, record_schema_transition_event, schema_transition_events_on,
 };
+pub use versions::{VersionsKernel, VersionsReadKernel};
 
 #[cfg(test)]
 mod tests;
@@ -1119,6 +1119,13 @@ pub struct LocalDatabase {
     // connections so queries do not queue behind writes. `None` for in-memory
     // databases, which cannot run WAL; those fall back to the serialized lane.
     reader_pool: Option<Arc<ReaderPool>>,
+    /// The LLP 0188 self-hosted replicator, when configured, is the only
+    /// authority allowed to checkpoint this WAL. Keeping the fact on the
+    /// database prevents a legacy shutdown path from truncating frames before
+    /// the replication thread has shipped and head-committed them.
+    // @ref LLP 0188#2-integration-point-the-whole-instance-database — the
+    // replicator owns every checkpoint while the lane is enabled.
+    replication_checkpoint_owner: bool,
     authorization_interlock: Option<Arc<dyn AuthorizationCommitInterlock>>,
     /// One process registry belongs to this database instance. Every AppState
     /// clone borrows this same registry, so constructing another router cannot
@@ -1676,6 +1683,7 @@ impl LocalDatabase {
             in_app_branch: None,
             schema: SchemaManifest::default(),
             reader_pool: None,
+            replication_checkpoint_owner: false,
             authorization_interlock: None,
             service_authority_fences:
                 crate::auth::service_fence::ServiceAuthorityFenceRegistry::default(),
@@ -1732,6 +1740,7 @@ impl LocalDatabase {
             in_app_branch,
             schema: SchemaManifest::default(),
             reader_pool: None,
+            replication_checkpoint_owner: crate::replication::configured_from_env(),
             authorization_interlock: None,
             service_authority_fences:
                 crate::auth::service_fence::ServiceAuthorityFenceRegistry::default(),
@@ -1776,7 +1785,10 @@ impl LocalDatabase {
         db.writer_authority.install(&db.conn)?;
         // The pool is created after configure/create_infra so readers open an
         // existing WAL database with the infra tables committed.
-        db.reader_pool = Some(Arc::new(ReaderPool::new(path)));
+        db.reader_pool = Some(Arc::new(ReaderPool::new(
+            path,
+            db.replication_checkpoint_owner,
+        )));
         Ok(db)
     }
 
@@ -1786,6 +1798,15 @@ impl LocalDatabase {
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
     pub fn reader_pool(&self) -> Option<Arc<ReaderPool>> {
         self.reader_pool.clone()
+    }
+
+    /// Drain every pooled reader before the replication owner performs its
+    /// final ship-and-TRUNCATE sequence. No direct checkpoint is performed
+    /// here; the celld-ltx `Db` still holds the checkpoint authority.
+    pub(crate) fn prepare_replication_shutdown(&self) -> Vec<String> {
+        self.reader_pool
+            .as_ref()
+            .map_or_else(Vec::new, |pool| pool.close_for_shutdown())
     }
 
     /// @ref LLP 0003#server-responsibilities — the server owes a checkpointed
@@ -1807,6 +1828,23 @@ impl LocalDatabase {
                 errors: Vec::new(),
             };
         };
+
+        if self.replication_checkpoint_owner {
+            return ShutdownCheckpointReport {
+                applicable: true,
+                complete: false,
+                busy_frames: None,
+                wal_frames: None,
+                checkpointed_frames: None,
+                residual_wal_bytes: None,
+                residual_shm_bytes: None,
+                reader_errors: Vec::new(),
+                errors: vec![
+                    "replication owns WAL checkpointing; finalize the replication runtime first"
+                        .to_owned(),
+                ],
+            };
+        }
 
         let reader_errors = self
             .reader_pool
@@ -1932,6 +1970,7 @@ impl LocalDatabase {
             in_app_branch: self.in_app_branch.clone(),
             schema: self.schema.clone(),
             reader_pool: None,
+            replication_checkpoint_owner: false,
             authorization_interlock: None,
             service_authority_fences:
                 crate::auth::service_fence::ServiceAuthorityFenceRegistry::default(),
@@ -4952,6 +4991,10 @@ impl LocalDatabase {
         )?;
         if file_backed {
             self.conn.execute_batch("PRAGMA journal_mode = WAL;")?;
+            if self.replication_checkpoint_owner {
+                crate::replication::configure_connection_wal_lifetime(&self.conn)?;
+                self.conn.execute_batch("PRAGMA wal_autocheckpoint = 0;")?;
+            }
         }
         Ok(())
     }

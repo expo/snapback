@@ -770,8 +770,10 @@ impl LocalDatabase {
                 let expected = body_outcome
                     .as_ref()
                     .ok_or_else(agent_lifecycle_commit_uncertain)?;
-                self.with_auth_read(|connection| reconcile_issued_scoped_token(connection, expected))
-                    .map_err(|_| agent_lifecycle_commit_uncertain())?;
+                self.with_auth_read(|connection| {
+                    reconcile_issued_scoped_token(connection, expected)
+                })
+                .map_err(|_| agent_lifecycle_commit_uncertain())?;
                 body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
             }
         }
@@ -1132,11 +1134,9 @@ impl LocalDatabase {
                 return Err(scoped_token_invalid(authority_disposition));
             };
             let scopes = current_grant_scopes_on(tx, &scopes_json)?;
-            let integration_status = super::auth_integrations::record_for_principal_on(
-                tx,
-                &actor_user_id,
-            )?
-            .map(|record| record.status);
+            let integration_status =
+                super::auth_integrations::record_for_principal_on(tx, &actor_user_id)?
+                    .map(|record| record.status);
             coalesce_credential_use(tx, &credential_id, now_ms)?;
             tx.execute(
                 "UPDATE _auth_grants SET last_used_at_ms = ?1
@@ -1386,12 +1386,15 @@ fn finish_integration_retirement_attempt(
         }
         ServiceAuthTransactionAttempt::RolledBack(error) => Err(error),
         ServiceAuthTransactionAttempt::CommitUncertain { error, terminal } => {
-            let expected = outcome.as_ref().ok_or_else(agent_lifecycle_commit_uncertain)?;
+            let expected = outcome
+                .as_ref()
+                .ok_or_else(agent_lifecycle_commit_uncertain)?;
             let successor = database.with_auth_read(|connection| {
                 let Some(user_id) = expected.user_id.as_deref() else {
                     return Ok(false);
                 };
-                let record = super::auth_integrations::record_for_principal_on(connection, user_id)?;
+                let record =
+                    super::auth_integrations::record_for_principal_on(connection, user_id)?;
                 let record_revoked = record.is_some_and(|record| {
                     record.status == super::auth_integrations::IntegrationStatus::Revoked
                 });

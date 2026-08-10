@@ -3518,6 +3518,10 @@ impl LocalSnapback {
         self.db.shutdown_checkpoint(bound)
     }
 
+    pub(crate) fn prepare_replication_shutdown(&self) -> Vec<String> {
+        self.db.prepare_replication_shutdown()
+    }
+
     /// Publish the exact local operation-coverage cut and invalidate the RQS
     /// generation cache in the same owner turn. The served capability
     /// manifest is a generation input, so retaining a digest minted while

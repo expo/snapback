@@ -318,7 +318,11 @@ pub(super) fn create_record_on(
             redirect_uris_json,
             now_ms as i64,
             provenance,
-            if provisional { "provisional" } else { "unclaimed" },
+            if provisional {
+                "provisional"
+            } else {
+                "unclaimed"
+            },
         ],
     )?;
     Ok(integration_id)
@@ -526,9 +530,20 @@ fn list_admin_records_on(conn: &Connection) -> SnapbackResult<Vec<IntegrationAdm
         .collect::<Result<Vec<_>, _>>()?;
     rows.into_iter()
         .map(
-            |(integration_id, principal_user_id, display_name, status, owner_claim_state, created_at_ms, updated_at_ms)| {
+            |(
+                integration_id,
+                principal_user_id,
+                display_name,
+                status,
+                owner_claim_state,
+                created_at_ms,
+                updated_at_ms,
+            )| {
                 let status = IntegrationStatus::parse(&status)?;
-                if !matches!(owner_claim_state.as_str(), "provisional" | "unclaimed" | "claimed") {
+                if !matches!(
+                    owner_claim_state.as_str(),
+                    "provisional" | "unclaimed" | "claimed"
+                ) {
                     return Err(integration_state_corrupt());
                 }
                 Ok(IntegrationAdminRecord {
@@ -618,13 +633,22 @@ pub(super) fn require_installation_grant_if_integration_on(
         )
         .optional()?;
     let Some((grant_actor, effective_user_id)) = grant else {
-        return Err(integration_installation_grant_required(actor_user_id, "grant_unknown"));
+        return Err(integration_installation_grant_required(
+            actor_user_id,
+            "grant_unknown",
+        ));
     };
     if grant_actor != actor_user_id {
-        return Err(integration_installation_grant_required(actor_user_id, "actor_mismatch"));
+        return Err(integration_installation_grant_required(
+            actor_user_id,
+            "actor_mismatch",
+        ));
     }
     let Some(effective_user_id) = effective_user_id else {
-        return Err(integration_installation_grant_required(actor_user_id, "autonomous"));
+        return Err(integration_installation_grant_required(
+            actor_user_id,
+            "autonomous",
+        ));
     };
     let exact_lineage = conn
         .query_row(
@@ -668,7 +692,8 @@ fn validate_pkce_challenge(challenge: &str) -> SnapbackResult<()> {
     let decoded = URL_SAFE_NO_PAD
         .decode(challenge)
         .map_err(|_| oauth_request_invalid())?;
-    if challenge.len() != 43 || decoded.len() != 32 || URL_SAFE_NO_PAD.encode(decoded) != challenge {
+    if challenge.len() != 43 || decoded.len() != 32 || URL_SAFE_NO_PAD.encode(decoded) != challenge
+    {
         return Err(oauth_request_invalid());
     }
     Ok(())
@@ -676,9 +701,9 @@ fn validate_pkce_challenge(challenge: &str) -> SnapbackResult<()> {
 
 fn validate_pkce_verifier(verifier: &str) -> SnapbackResult<()> {
     let valid = (43..=128).contains(&verifier.len())
-        && verifier.bytes().all(|byte| {
-            byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~')
-        });
+        && verifier
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~'));
     if valid {
         Ok(())
     } else {
@@ -746,7 +771,9 @@ pub(super) fn consume_oauth_authorization_code_on(
     if row.0 != client_id
         || row.2 != redirect_uri
         || row.4 != "approved"
-        || row.7.is_none_or(|expiry| expiry < 0 || expiry as u64 <= now_ms)
+        || row
+            .7
+            .is_none_or(|expiry| expiry < 0 || expiry as u64 <= now_ms)
         || !bool::from(row.3.as_bytes().ct_eq(verifier_challenge.as_bytes()))
     {
         return Err(oauth_grant_invalid());
@@ -834,17 +861,18 @@ impl LocalDatabase {
                 return Err(oauth_access_denied());
             }
             let client = oauth_client_on(tx, client_id)?;
-            if !client.redirect_uris.iter().any(|registered| registered == redirect_uri) {
+            if !client
+                .redirect_uris
+                .iter()
+                .any(|registered| registered == redirect_uri)
+            {
                 return Err(oauth_redirect_uri_invalid());
             }
-            let scopes = super::auth_grants::resolve_exact_function_names_on(
-                tx,
-                &app_id,
-                &requested,
-            )?;
+            let scopes =
+                super::auth_grants::resolve_exact_function_names_on(tx, &app_id, &requested)?;
             let scopes_json = super::auth_grants::canonical_scopes_json(&scopes)?;
-            let bundle_names_json = serde_json::to_string(bundle_names)
-                .map_err(|_| oauth_state_corrupt())?;
+            let bundle_names_json =
+                serde_json::to_string(bundle_names).map_err(|_| oauth_state_corrupt())?;
             tx.execute(
                 "INSERT INTO _auth_pairing_requests(
                    id, code_hash, minted_by_user_id, agent_user_id,
@@ -1061,13 +1089,11 @@ impl LocalDatabase {
         &self,
         grant_id: &str,
     ) -> SnapbackResult<bool> {
-        Ok(self
-            .conn
-            .query_row(
-                "SELECT revoked_at_ms IS NOT NULL FROM _auth_grants WHERE id = ?1",
-                params![grant_id],
-                |row| row.get(0),
-            )?)
+        Ok(self.conn.query_row(
+            "SELECT revoked_at_ms IS NOT NULL FROM _auth_grants WHERE id = ?1",
+            params![grant_id],
+            |row| row.get(0),
+        )?)
     }
 
     #[cfg(test)]
@@ -1075,12 +1101,14 @@ impl LocalDatabase {
         &self,
         client_id: &str,
     ) -> SnapbackResult<(String, String, String)> {
-        self.conn.query_row(
-            "SELECT principal_user_id, owner_claim_state, redirect_uris_json
+        self.conn
+            .query_row(
+                "SELECT principal_user_id, owner_claim_state, redirect_uris_json
              FROM _snapback_integration_records WHERE id = ?1",
-            params![client_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        ).map_err(Into::into)
+                params![client_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .map_err(Into::into)
     }
 }
 
@@ -1251,10 +1279,7 @@ pub(crate) fn integration_facts_for_agent() -> SnapbackError {
     )
 }
 
-fn integration_installation_grant_required(
-    principal_user_id: &str,
-    reason: &str,
-) -> SnapbackError {
+fn integration_installation_grant_required(principal_user_id: &str, reason: &str) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_AUTH_INTEGRATION_INSTALLATION_REQUIRED",
         "auth",
@@ -1378,8 +1403,7 @@ mod tests {
     }
 
     fn api_manifest() -> SchemaManifest {
-        let mut manifest: SchemaManifest =
-            serde_json::from_value(json!({ "tables": [] })).unwrap();
+        let mut manifest: SchemaManifest = serde_json::from_value(json!({ "tables": [] })).unwrap();
         manifest.api = Some(crate::contract_types::ApiManifest {
             enabled: true,
             ..Default::default()
@@ -1595,12 +1619,7 @@ mod tests {
             | crate::storage::auth_grants::GrantApproval::Existing(grant) => grant.grant_id,
         };
         let issued = db
-            .issue_oauth_authorization_code(
-                "user-oauth",
-                &begun.request_id,
-                1_003,
-                &random,
-            )
+            .issue_oauth_authorization_code("user-oauth", &begun.request_id, 1_003, &random)
             .expect("issue short authorization code");
         let raw_code = issued.code.expose_secret().to_owned();
 
@@ -1630,7 +1649,10 @@ mod tests {
         assert_eq!(token.actor_user_id, integration.user_id);
         assert_eq!(token.effective_user_id.as_deref(), Some("user-oauth"));
         assert_eq!(token.expires_at_ms - 1_005, OAUTH_BEARER_TOKEN_TTL_MS);
-        assert_eq!(db.oauth_bundle_names_for_grant(&grant_id).unwrap(), vec!["read"]);
+        assert_eq!(
+            db.oauth_bundle_names_for_grant(&grant_id).unwrap(),
+            vec!["read"]
+        );
 
         let reused = db
             .mint_scoped_token_for_oauth_code(
@@ -1666,12 +1688,7 @@ mod tests {
         )
         .expect("approve expiring authorization");
         let expired_code = db
-            .issue_oauth_authorization_code(
-                "user-oauth",
-                &expiring.request_id,
-                1_009,
-                &random,
-            )
+            .issue_oauth_authorization_code("user-oauth", &expiring.request_id, 1_009, &random)
             .expect("issue expiring authorization code")
             .code
             .expose_secret()
@@ -1763,12 +1780,7 @@ mod tests {
         )
         .unwrap();
         let code = db
-            .issue_oauth_authorization_code(
-                "user-oauth",
-                &begun.request_id,
-                1_006,
-                &random,
-            )
+            .issue_oauth_authorization_code("user-oauth", &begun.request_id, 1_006, &random)
             .unwrap()
             .code
             .expose_secret()
@@ -1882,7 +1894,10 @@ mod tests {
             .to_owned();
         db.retire_integration_credential_family(&integration.secret, 1_020)
             .unwrap();
-        assert!(db.resolve_scoped_token(&retire_token.secret, 1_021).is_err());
+        assert!(
+            db.resolve_scoped_token(&retire_token.secret, 1_021)
+                .is_err()
+        );
         let revoked_exchange = db
             .mint_scoped_token_for_oauth_code(
                 &revoked_code,
@@ -1918,7 +1933,10 @@ mod tests {
                 &random,
             )
             .unwrap_err();
-        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_INTEGRATION_UNAVAILABLE");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_INTEGRATION_UNAVAILABLE"
+        );
         let reactivation = db
             .with_auth_transaction(|tx| activate_manifest_in(tx, &api_manifest()))
             .unwrap_err();
@@ -1946,15 +1964,31 @@ mod tests {
             )
             .unwrap();
         assert_eq!(owner, None);
-        assert_eq!(serde_json::from_str::<serde_json::Value>(&provenance).unwrap()["class"], "integration");
-        let (integration_id, status, claim, origin, redirects):
-            (String, String, String, Option<String>, Option<String>) = db
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&provenance).unwrap()["class"],
+            "integration"
+        );
+        let (integration_id, status, claim, origin, redirects): (
+            String,
+            String,
+            String,
+            Option<String>,
+            Option<String>,
+        ) = db
             .conn
             .query_row(
                 "SELECT id, status, owner_claim_state, origin, redirect_uris_json
                  FROM _snapback_integration_records WHERE principal_user_id = ?1",
                 params![issued.user_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
             )
             .unwrap();
         assert!(integration_id.starts_with("intg_"));
@@ -1969,9 +2003,7 @@ mod tests {
         let random = CounterRandom::new();
         let mut db = ready_database();
         let declared_id = "example integration/ops@example.test";
-        let observed = db
-            .observe_declared_client(declared_id, 900, 1)
-            .unwrap();
+        let observed = db.observe_declared_client(declared_id, 900, 1).unwrap();
         assert!(matches!(
             observed,
             crate::storage::declared_clients::DeclaredClientObservation::Observed(_)
@@ -2076,7 +2108,14 @@ mod tests {
         )
         .unwrap();
 
-        seed_grant(&db, "grant-autonomous", &integration.user_id, None, None, 11);
+        seed_grant(
+            &db,
+            "grant-autonomous",
+            &integration.user_id,
+            None,
+            None,
+            11,
+        );
         let autonomous = db
             .mint_scoped_token(
                 &integration.secret,
@@ -2086,7 +2125,10 @@ mod tests {
                 &random,
             )
             .unwrap_err();
-        assert_eq!(autonomous.diagnostic.code, "SNAPBACK_AUTH_INTEGRATION_INSTALLATION_REQUIRED");
+        assert_eq!(
+            autonomous.diagnostic.code,
+            "SNAPBACK_AUTH_INTEGRATION_INSTALLATION_REQUIRED"
+        );
 
         seed_agent(&mut db, "agent-other");
         seed_grant(&db, "grant-wrong-actor", "agent-other", None, None, 12);
@@ -2099,10 +2141,15 @@ mod tests {
                 &random,
             )
             .unwrap_err();
-        assert_eq!(wrong_actor.diagnostic.code, "SNAPBACK_AUTH_INTEGRATION_INSTALLATION_REQUIRED");
+        assert_eq!(
+            wrong_actor.diagnostic.code,
+            "SNAPBACK_AUTH_INTEGRATION_INSTALLATION_REQUIRED"
+        );
         assert_eq!(wrong_actor.diagnostic.details["reason"], "actor_mismatch");
 
-        let plain = db.issue_initial_agent_credential("agent-other", 1_004, &random).unwrap();
+        let plain = db
+            .issue_initial_agent_credential("agent-other", 1_004, &random)
+            .unwrap();
         db.mint_scoped_token(
             &plain.secret,
             "grant-wrong-actor",
@@ -2141,9 +2188,12 @@ mod tests {
         assert_eq!(mint.diagnostic.code, "SNAPBACK_AUTH_INTEGRATION_SUSPENDED");
         assert!(mint.diagnostic.message.contains("suspended"));
         assert!(!mint.diagnostic.message.contains("revok"));
-        let ceremony = require_active_if_integration_on(&db.conn, &integration.user_id)
-            .unwrap_err();
-        assert_eq!(ceremony.diagnostic.details["operatorAction"], "auth.integrationResume");
+        let ceremony =
+            require_active_if_integration_on(&db.conn, &integration.user_id).unwrap_err();
+        assert_eq!(
+            ceremony.diagnostic.details["operatorAction"],
+            "auth.integrationResume"
+        );
         db.set_integration_suspended(&integration.user_id, false, 1_012)
             .unwrap();
         db.mint_scoped_token(
@@ -2183,7 +2233,10 @@ mod tests {
         let retired = db
             .retire_integration_credential_family(&integration.secret, 1_003)
             .unwrap();
-        assert_eq!(retired.user_id.as_deref(), Some(integration.user_id.as_str()));
+        assert_eq!(
+            retired.user_id.as_deref(),
+            Some(integration.user_id.as_str())
+        );
         assert!(retired.grant_ids.contains(&"grant-install".to_owned()));
         assert_eq!(
             db.integration_record_for_test(&integration.user_id)
@@ -2192,8 +2245,11 @@ mod tests {
                 .status,
             IntegrationStatus::Revoked
         );
-        let (credential_revoked, grant_revoked, token_revoked):
-            (Option<i64>, Option<i64>, Option<i64>) = db
+        let (credential_revoked, grant_revoked, token_revoked): (
+            Option<i64>,
+            Option<i64>,
+            Option<i64>,
+        ) = db
             .conn
             .query_row(
                 "SELECT c.revoked_at_ms, g.revoked_at_ms, t.revoked_at_ms
@@ -2205,7 +2261,10 @@ mod tests {
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .unwrap();
-        assert_eq!((credential_revoked, grant_revoked, token_revoked), (Some(1_003), Some(1_003), Some(1_003)));
+        assert_eq!(
+            (credential_revoked, grant_revoked, token_revoked),
+            (Some(1_003), Some(1_003), Some(1_003))
+        );
         assert!(db.resolve_scoped_token(&token.secret, 1_004).is_err());
         db.retire_integration_credential_family(&integration.secret, 1_005)
             .expect("terminal retry is idempotent");
@@ -2216,11 +2275,21 @@ mod tests {
         let random = CounterRandom::new();
         let mut db = ready_database();
         let integration = register_integration(&mut db, &random);
-        seed_grant(&db, "grant-autonomous", &integration.user_id, None, None, 40);
+        seed_grant(
+            &db,
+            "grant-autonomous",
+            &integration.user_id,
+            None,
+            None,
+            40,
+        );
         let error = db
             .with_auth_transaction(|tx| activate_manifest_in(tx, &api_manifest()))
             .unwrap_err();
-        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_INTEGRATION_CLASS_INVALID");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_INTEGRATION_CLASS_INVALID"
+        );
         assert_eq!(error.diagnostic.details["userId"], integration.user_id);
         assert_eq!(error.diagnostic.details["reason"], "autonomous_grant");
     }

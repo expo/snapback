@@ -378,6 +378,10 @@ pub(crate) fn open_registered_system_writer_v1(
             | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )?;
     conn.busy_timeout(std::time::Duration::from_secs(5))?;
+    if crate::replication::configured_from_env() {
+        crate::replication::configure_connection_wal_lifetime(&conn)?;
+        conn.execute_batch("PRAGMA wal_autocheckpoint = 0;")?;
+    }
     let authority = write_authority::WriterAuthorityV1::default();
     if let Some(schema) = active_schema_manifest_from_connection(&conn)? {
         authority.set_schema(&schema)?;
@@ -412,14 +416,16 @@ pub struct ReaderPool {
     path: PathBuf,
     idle: Mutex<Vec<Connection>>,
     closing: AtomicBool,
+    replication_checkpoint_owner: bool,
 }
 
 impl ReaderPool {
-    pub(super) fn new(path: PathBuf) -> Self {
+    pub(super) fn new(path: PathBuf, replication_checkpoint_owner: bool) -> Self {
         Self {
             path,
             idle: Mutex::new(Vec::new()),
             closing: AtomicBool::new(false),
+            replication_checkpoint_owner,
         }
     }
 
@@ -473,6 +479,10 @@ impl ReaderPool {
             PRAGMA busy_timeout = 5000;
             ",
         )?;
+        if self.replication_checkpoint_owner {
+            crate::replication::configure_connection_wal_lifetime(&conn)?;
+            conn.execute_batch("PRAGMA wal_autocheckpoint = 0;")?;
+        }
         Ok(conn)
     }
 

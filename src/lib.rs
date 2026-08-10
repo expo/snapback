@@ -143,6 +143,8 @@ pub mod proof_checkpoint;
 pub mod push;
 pub mod realtime;
 #[doc(hidden)]
+pub mod replication;
+#[doc(hidden)]
 pub mod result_contract;
 #[doc(hidden)]
 pub mod result_transform;

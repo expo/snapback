@@ -165,9 +165,7 @@ fn table_exists(conn: &Connection) -> SnapbackResult<bool> {
 }
 
 fn validate_id(normalized_id: &str) -> SnapbackResult<()> {
-    if normalized_id.chars().count() >= 16
-        && normalized_id.len() <= DECLARED_CLIENT_MAX_ID_BYTES
-    {
+    if normalized_id.chars().count() >= 16 && normalized_id.len() <= DECLARED_CLIENT_MAX_ID_BYTES {
         Ok(())
     } else {
         Err(SnapbackError::error(
@@ -384,10 +382,7 @@ impl LocalDatabase {
         })
     }
 
-    pub(crate) fn delete_declared_client(
-        &mut self,
-        normalized_id: &str,
-    ) -> SnapbackResult<()> {
+    pub(crate) fn delete_declared_client(&mut self, normalized_id: &str) -> SnapbackResult<()> {
         validate_id(normalized_id)?;
         if !table_exists(&self.conn)? {
             return Err(declared_clients_unavailable());
@@ -521,8 +516,7 @@ mod tests {
             9,
             10,
         )
-        .unwrap()
-        else {
+        .unwrap() else {
             panic!("aged caller remains in the declared lane")
         };
         assert_eq!(

@@ -871,10 +871,7 @@ impl LocalDatabase {
         // sessions catalog. Install the generation-fenced token-retirement
         // triggers after their auth tables exist, in this same activation cut.
         crate::push::activate_manifest_in(&tx, staged.schema_manifest.push_seam.as_ref())?;
-        crate::storage::auth_integrations::activate_manifest_in(
-            &tx,
-            &staged.schema_manifest,
-        )?;
+        crate::storage::auth_integrations::activate_manifest_in(&tx, &staged.schema_manifest)?;
         crate::storage::declared_clients::activate_manifest_in(&tx, &staged.schema_manifest)?;
         crate::storage::ask_spend::activate_manifest_in(&tx, &staged.schema_manifest)?;
         crate::storage::stream_transcripts::activate_manifests_in(

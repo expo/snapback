@@ -676,18 +676,15 @@ impl LocalDatabase {
             // declared keys are metadata, so enumerate only after the read
             // policy has authorized this caller.
             if validate_declared_variant {
-                let intent_json = assets::load_intent_artifact(
-                    tx,
-                    &asset.intent_id,
-                    asset.policy_generation,
-                )?
-                .ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_ASSET_RECORD_INVALID",
-                        "assets",
-                        "the asset's admitted upload-intent artifact is unavailable",
-                    )
-                })?;
+                let intent_json =
+                    assets::load_intent_artifact(tx, &asset.intent_id, asset.policy_generation)?
+                        .ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_ASSET_RECORD_INVALID",
+                                "assets",
+                                "the asset's admitted upload-intent artifact is unavailable",
+                            )
+                        })?;
                 let intent: crate::manifest::AssetUploadIntentDefinition =
                     serde_json::from_str(&intent_json).map_err(|_| {
                         SnapbackError::error(

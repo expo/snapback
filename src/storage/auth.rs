@@ -2110,16 +2110,14 @@ fn validate_exact(
 
     // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 — the manifest-owned integration companion is recognized and validated exactly without changing the frozen auth catalog version or `_auth_*` shapes.
     if objects.iter().any(|object| {
-        object.kind == "table"
-            && object.name == super::auth_integrations::INTEGRATION_RECORD_TABLE
+        object.kind == "table" && object.name == super::auth_integrations::INTEGRATION_RECORD_TABLE
     }) {
         super::auth_integrations::validate_exact_schema(conn)?;
     }
     // @ref LLP 0071#bounded-pre-auth-ledger — recognize only the exact
     // manifest-owned declared ledger without changing `_auth_*` catalog v2.
     if objects.iter().any(|object| {
-        object.kind == "table"
-            && object.name == super::declared_clients::DECLARED_CLIENT_TABLE
+        object.kind == "table" && object.name == super::declared_clients::DECLARED_CLIENT_TABLE
     }) {
         super::declared_clients::validate_exact_schema(conn)?;
     }

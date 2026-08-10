@@ -6,9 +6,9 @@
 **Pinned `crates/ltx` tree:** `fccd82ba10dd8008bfe6d48056920d2299636878`
 
 The 43 files in the pinned `crates/ltx` tree were copied from a Git archive of
-that commit. Source, tests, scripts, references, golden fixtures, `README.md`,
-and `LICENSE` are blob-identical to the pinned tree. `Cargo.toml` is the only
-upstream file changed, as enumerated below.
+that commit. The intentional local changes are enumerated below; unlisted
+scripts, references, golden fixtures, `README.md`, and `LICENSE` remain
+blob-identical to the pinned tree.
 
 ## Provenance verified from the pinned tree
 
@@ -121,6 +121,18 @@ integration scope; G1 does not claim it.
 2. An empty `[workspace]` table (plus its explanatory comment) was appended to
    `Cargo.toml` so this crate is a standalone workspace rather than joining a
    parent workspace.
+3. `src/db.rs` now calls
+   `sqlite3_file_control(SQLITE_FCNTL_PERSIST_WAL)` while initializing both
+   managed connections, exports that narrow initializer for Snapback's other
+   connections to the same WAL, and tests that the setting is enabled. The
+   pinned celld port explicitly deferred this Litestream v0.5.11 lifecycle
+   operation on the premise that its capture connection kept the WAL alive.
+   Snapback's G2 sustained-writer drill disproved that premise: an application
+   writer in a separate process could close or restart the WAL underneath the
+   long-lived capture reader, leaving capture halted at
+   `capture WAL as LTX: EOF`. The local divergence restores the behavior of the
+   claimed upstream semantic reference and keeps the capture frontier live
+   across writer churn.
 
-There are no source, test, fixture, script, reference, README, or license
-changes. No storage adapter was required.
+There are no fixture, script, reference, README, or license changes. No storage
+adapter was required.

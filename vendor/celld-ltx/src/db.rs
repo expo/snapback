@@ -39,9 +39,6 @@
 //!   `snapshot_to_writer`.
 //!
 //! ## Deferred (logged in OPEN_QUESTIONS.md — not on the functional path)
-//! - `setPersistWAL` (the `unsafe` `sqlite3_file_control(SQLITE_FCNTL_PERSIST_WAL)`
-//!   FFI, footgun F-10): only matters when *all* connections close and SQLite
-//!   would delete the WAL; the capture path keeps its own connection open.
 //! - The background monitor loop + backoff (footgun F-13), `Replica` integration
 //!   (`ensure_exists`/`sync_status`/`sync_and_wait`/retention/`syncReplicaWithRetry`):
 //!   these need T10's `Replica` handle and land with it.
@@ -63,6 +60,38 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 /// Maps a `rusqlite::Error` into the crate error type.
 fn sql_err(e: rusqlite::Error) -> Error {
     Error::Other(Box::new(e))
+}
+
+/// Keeps the WAL and shared-memory files stable across application connection
+/// churn. This is part of Litestream's DB initialization contract: capture may
+/// hold its own SQLite connections open, but another process closing the last
+/// writer can otherwise remove or restart the WAL underneath the reader.
+// @ref LLP 0188#2-integration-point-the-whole-instance-database — the LTX
+// owner must preserve one continuous WAL history across application writers.
+pub fn set_persist_wal(conn: &Connection) -> Result<()> {
+    let mut enabled = 1_i32;
+    persist_wal_file_control(conn, &mut enabled)
+}
+
+fn persist_wal_file_control(conn: &Connection, enabled: &mut i32) -> Result<()> {
+    // SAFETY: `conn.handle()` is valid for the duration of this call, `main` is
+    // a static NUL-terminated schema name, and SQLite specifies an `int *` for
+    // SQLITE_FCNTL_PERSIST_WAL. SQLite reads/writes the pointed-to integer only
+    // before returning.
+    let rc = unsafe {
+        rusqlite::ffi::sqlite3_file_control(
+            conn.handle(),
+            c"main".as_ptr(),
+            rusqlite::ffi::SQLITE_FCNTL_PERSIST_WAL,
+            std::ptr::from_mut(enabled).cast(),
+        )
+    };
+    if rc != rusqlite::ffi::SQLITE_OK {
+        return Err(Error::Other(
+            format!("enable persistent WAL failed, sqlite code={rc}").into(),
+        ));
+    }
+    Ok(())
 }
 
 /// SQLite checkpoint mode. Replaces Go's stringly-typed `mode` param; `Display`
@@ -186,6 +215,12 @@ impl Db {
 
         let conn = Connection::open(&path).map_err(sql_err)?;
 
+        // Match Litestream DB.init/setPersistWAL. Keeping only the capture
+        // connections open is insufficient when an application writer lives
+        // in another process: its close can otherwise invalidate the WAL file
+        // that the long-lived capture reader is following.
+        set_persist_wal(&conn)?;
+
         // DSN pragmas: busy_timeout + wal_autocheckpoint(0) (db.go:818).
         // autocheckpoint MUST be 0 — litestream owns checkpointing (footgun F-10).
         conn.busy_timeout(Self::DEFAULT_BUSY_TIMEOUT)
@@ -213,6 +248,7 @@ impl Db {
 
         // Dedicated read-lock connection (mirrors a second pooled connection).
         let rtx_conn = Connection::open(&path).map_err(sql_err)?;
+        set_persist_wal(&rtx_conn)?;
         rtx_conn
             .busy_timeout(Self::DEFAULT_BUSY_TIMEOUT)
             .map_err(sql_err)?;
@@ -1497,6 +1533,13 @@ mod tests {
             .query_row("PRAGMA wal_autocheckpoint", [], |r| r.get(0))
             .unwrap();
         assert_eq!(autockpt, 0, "auto-checkpoint disabled");
+
+        let mut persist_wal = -1_i32;
+        persist_wal_file_control(&db.conn, &mut persist_wal).unwrap();
+        assert_eq!(
+            persist_wal, 1,
+            "managed connection keeps the WAL stable across writer churn"
+        );
 
         // WAL sidecar exists (ensure_wal_exists forced a frame).
         let wal = std::fs::metadata(db.wal_path()).unwrap();

@@ -1,0 +1,425 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# @ref LLP 0188#7-honesty-and-qualification — G2 is a real MinIO crash/restore drill:
+# no mock store, no self-skip, and no success without the paired keyring.
+script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/$(basename "${BASH_SOURCE[0]}")"
+readonly script_path
+repo_root="$(cd "$(dirname "$script_path")/.." && pwd -P)"
+readonly repo_root
+minio_bin="${LTX_MINIO_BIN:-$(cd "$repo_root/.." && pwd -P)/tools/minio}"
+readonly minio_bin
+if [[ -x /usr/bin/sqlite3 ]]; then
+  default_sqlite_bin=/usr/bin/sqlite3
+else
+  default_sqlite_bin="$(command -v sqlite3 2>/dev/null || true)"
+fi
+sqlite_bin="${SQLITE3_BIN:-$default_sqlite_bin}"
+readonly sqlite_bin
+binary="${SNAPBACK_G2_BIN:-$repo_root/target/debug/snapback}"
+readonly binary
+max_source_version_lag=100
+readonly max_source_version_lag
+
+fail() {
+  printf '%s\n' "$*" >&2
+  exit 1
+}
+
+[[ -x "$minio_bin" ]] || fail "SNAPBACK_G2_MINIO_MISSING: set LTX_MINIO_BIN to an executable MinIO server"
+[[ -n "$sqlite_bin" && -x "$sqlite_bin" ]] || fail "SNAPBACK_G2_SQLITE_MISSING: sqlite3 is required"
+command -v curl >/dev/null 2>&1 || fail "SNAPBACK_G2_CURL_MISSING: curl with --aws-sigv4 is required"
+curl --help all | grep -q -- '--aws-sigv4' || fail "SNAPBACK_G2_CURL_SIGV4_MISSING: curl lacks --aws-sigv4"
+command -v ruby >/dev/null 2>&1 || fail "SNAPBACK_G2_RUBY_MISSING: ruby is required for bounded JSON inspection"
+
+if [[ ! -x "$binary" ]]; then
+  (cd "$repo_root" && cargo build --bin snapback)
+fi
+
+scratch="$(mktemp -d "${TMPDIR:-/tmp}/snapback-g2-replication.XXXXXX")"
+readonly scratch
+minio_pid=""
+server_pid=""
+writer_pid=""
+cleanup() {
+  if [[ -n "$writer_pid" ]]; then kill "$writer_pid" 2>/dev/null || true; fi
+  if [[ -n "$server_pid" ]]; then kill "$server_pid" 2>/dev/null || true; fi
+  if [[ -n "$minio_pid" ]]; then kill "$minio_pid" 2>/dev/null || true; fi
+  if [[ "${SNAPBACK_G2_KEEP_SCRATCH:-0}" == "1" ]]; then
+    printf 'SNAPBACK_G2_SCRATCH=%s\n' "$scratch" >&2
+  else
+    rm -rf "$scratch"
+  fi
+}
+trap cleanup EXIT
+
+port="$((20000 + RANDOM % 30000))"
+bucket="snapback-g2-$RANDOM-$RANDOM"
+access_key="snapbackg2access"
+secret_key="snapbackg2secret0123456789abcdef"
+endpoint="http://127.0.0.1:$port"
+database="$scratch/instance.sqlite3"
+ready_file="$scratch/instance.ready.json"
+key_file="$scratch/replication.key"
+minio_log="$scratch/minio.log"
+server_log="$scratch/server.log"
+counter_file="$scratch/acknowledged-writes"
+stop_file="$scratch/stop-writer"
+todo_schema="$repo_root/demos/todo/snapback/generated/schema.manifest.json"
+todo_functions="$repo_root/demos/todo/snapback/generated/functions.manifest.json"
+load_payload="$(ruby -e 'print "x" * 4096')"
+
+mkdir -p "$scratch/minio-data"
+MINIO_ROOT_USER="$access_key" MINIO_ROOT_PASSWORD="$secret_key" \
+  "$minio_bin" server --quiet --address "127.0.0.1:$port" "$scratch/minio-data" \
+  >"$minio_log" 2>&1 &
+minio_pid=$!
+for _ in $(seq 1 200); do
+  if curl --fail --silent "$endpoint/minio/health/ready" >/dev/null 2>&1; then break; fi
+  if ! kill -0 "$minio_pid" 2>/dev/null; then
+    fail "SNAPBACK_G2_MINIO_START_FAILED: $(tail -20 "$minio_log")"
+  fi
+  sleep 0.05
+done
+curl --fail --silent "$endpoint/minio/health/ready" >/dev/null \
+  || fail "SNAPBACK_G2_MINIO_START_TIMEOUT: MinIO did not become ready"
+# MinIO can report ready a moment before bucket creation is accepted on a
+# loaded host. Retry the signed PUT for approximately 30 seconds rather than
+# turning that harmless warm-up race into a G2 failure.
+bucket_created=0
+for _ in $(seq 1 300); do
+  if curl --fail --silent --show-error \
+    --aws-sigv4 "aws:amz:us-east-1:s3" --user "$access_key:$secret_key" \
+    -X PUT "$endpoint/$bucket" >/dev/null 2>"$scratch/bucket-put-error"; then
+    bucket_created=1
+    break
+  fi
+  kill -0 "$minio_pid" 2>/dev/null \
+    || fail "SNAPBACK_G2_MINIO_START_FAILED: $(tail -20 "$minio_log")"
+  sleep 0.1
+done
+[[ "$bucket_created" -eq 1 ]] \
+  || fail "SNAPBACK_G2_BUCKET_CREATE_TIMEOUT: $(cat "$scratch/bucket-put-error")"
+
+# Let the ordinary server create the exact current storage catalog before the
+# lane is enabled. The keyring is then provisioned externally, as the G2
+# self-hosted posture requires; an uninitialized dev auth catalog does not own
+# or mint it.
+env -u SNAPBACK_REPLICATION_TARGET -u SNAPBACK_REPLICATION_KEY_FILE \
+  "$binary" start --port 0 --ready-file "$ready_file" --db "$database" \
+  >"$scratch/bootstrap.log" 2>&1 &
+bootstrap_pid=$!
+for _ in $(seq 1 1200); do
+  [[ -f "$ready_file" ]] && break
+  kill -0 "$bootstrap_pid" 2>/dev/null || fail "SNAPBACK_G2_BOOTSTRAP_FAILED: $(tail -30 "$scratch/bootstrap.log")"
+  sleep 0.05
+done
+[[ -f "$ready_file" ]] || fail "SNAPBACK_G2_BOOTSTRAP_TIMEOUT: $(tail -30 "$scratch/bootstrap.log")"
+kill -TERM "$bootstrap_pid"
+wait "$bootstrap_pid" 2>/dev/null || true
+rm -f "$ready_file"
+foreign_seed="$scratch/foreign-seed.sqlite3"
+"$sqlite_bin" "$database" "VACUUM INTO '$foreign_seed';"
+
+key_id="sbak_$(openssl rand -base64 16 | tr '+/' '-_' | tr -d '=\n')"
+key_material="$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')"
+keyring_file="${database}.auth-keyring.json"
+printf '{"format_version":1,"active_key_id":"%s","keys":[{"id":"%s","algorithm":"hmac-sha256","created_at_ms":1,"retired_at_ms":null,"material":"%s"}]}' \
+  "$key_id" "$key_id" "$key_material" >"$keyring_file"
+chmod 600 "$keyring_file"
+openssl rand 32 >"$key_file"
+chmod 600 "$key_file"
+
+export SNAPBACK_REPLICATION_TARGET="s3://$bucket/g2"
+export SNAPBACK_REPLICATION_ENDPOINT="$endpoint"
+export SNAPBACK_REPLICATION_REGION="us-east-1"
+export SNAPBACK_REPLICATION_ACCESS_KEY_ID="$access_key"
+export SNAPBACK_REPLICATION_SECRET_ACCESS_KEY="$secret_key"
+export SNAPBACK_REPLICATION_KEY_FILE="$key_file"
+export SNAPBACK_REPLICATION_INTERVAL_MS=50
+
+"$binary" start --port 0 --ready-file "$ready_file" --db "$database" \
+  >"$server_log" 2>&1 &
+server_pid=$!
+for _ in $(seq 1 1200); do
+  [[ -f "$ready_file" ]] && break
+  kill -0 "$server_pid" 2>/dev/null || fail "SNAPBACK_G2_SERVER_START_FAILED: $(tail -50 "$server_log")"
+  sleep 0.05
+done
+[[ -f "$ready_file" ]] || fail "SNAPBACK_G2_SERVER_START_TIMEOUT: replicated server did not become ready"
+"$binary" load --ready-file "$ready_file" \
+  --schema "$todo_schema" --functions "$todo_functions" \
+  >"$scratch/load-artifacts.json"
+
+printf '0\n' >"$counter_file"
+start_writer() {
+  rm -f "$stop_file"
+  (
+    count="$(tr -d '[:space:]' <"$counter_file")"
+    while [[ ! -e "$stop_file" ]]; do
+      "$binary" run --ready-file "$ready_file" --user user_g2 \
+        --args "{\"title\":\"g2-$count-$load_payload\"}" createTodo \
+        >"$scratch/last-mutation.json"
+      count="$((count + 1))"
+      printf '%s\n' "$count" >"$counter_file"
+      # At most twenty acknowledged commits per second makes the lag bound
+      # below an operator-readable time bound while exercising the same
+      # server-owned mutation path as an application request.
+      sleep 0.05
+    done
+  ) &
+  writer_pid=$!
+}
+
+start_writer
+live_status="$scratch/live-status.json"
+first_live_frontier=0
+last_live_frontier=0
+frontier_advances_after_first=0
+for _ in $(seq 1 2400); do
+  "$binary" replicate status --db "$database" >"$live_status"
+  live_frontier="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("frontier").fetch("txid")' "$live_status")"
+  if [[ "$live_frontier" -gt 1 ]]; then
+    if [[ "$first_live_frontier" -eq 0 ]]; then
+      first_live_frontier="$live_frontier"
+      last_live_frontier="$live_frontier"
+    elif [[ "$live_frontier" -gt "$last_live_frontier" ]]; then
+      frontier_advances_after_first="$((frontier_advances_after_first + 1))"
+      last_live_frontier="$live_frontier"
+    fi
+  fi
+  acknowledged="$(tr -d '[:space:]' <"$counter_file")"
+  if [[ "$acknowledged" -ge 150 && "$frontier_advances_after_first" -ge 5 ]]; then
+    break
+  fi
+  kill -0 "$writer_pid" 2>/dev/null \
+    || fail "SNAPBACK_G2_WRITER_FAILED: sustained writer exited early"
+  sleep 0.025
+done
+acknowledged="$(tr -d '[:space:]' <"$counter_file")"
+[[ "$acknowledged" -ge 150 ]] \
+  || fail "SNAPBACK_G2_WRITE_TIMEOUT: fewer than 150 commits completed"
+[[ "$frontier_advances_after_first" -ge 5 ]] \
+  || fail "SNAPBACK_G2_FRONTIER_WEDGED: only $frontier_advances_after_first head commits after first shipment; status=$(cat "$live_status")"
+
+# Quiesce the sustained load and require the remote head to catch the final
+# source version. This rejects a frontier that merely moved several times and
+# then wedged before the end of the load.
+touch "$stop_file"
+wait "$writer_pid"
+writer_pid=""
+converged_status="$scratch/converged-after-load.json"
+load_converged=0
+for _ in $(seq 1 1200); do
+  "$binary" replicate status --db "$database" >"$converged_status"
+  converged_lag="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("observedLag").fetch("sourceVersions")' "$converged_status")"
+  converged_degraded="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("degraded")' "$converged_status")"
+  if [[ "$converged_lag" -eq 0 && "$converged_degraded" == "false" ]]; then
+    load_converged=1
+    break
+  fi
+  sleep 0.05
+done
+[[ "$load_converged" -eq 1 ]] \
+  || fail "SNAPBACK_G2_FINAL_FRONTIER_DID_NOT_CONVERGE: $(cat "$converged_status")"
+
+# End the first server cleanly only after convergence, then create a distinct
+# ahead-of-head crash cut. A 30-second interval guarantees the 25-write burst
+# remains local when the process is SIGKILLed, even on a heavily loaded host.
+# `snapback start` installs the Tokio Ctrl-C handler, so use SIGINT for the
+# graceful boundary rather than SIGTERM (which has no handler on Unix).
+kill -INT "$server_pid"
+wait "$server_pid"
+server_pid=""
+# Read the exact source version only after the replication owner has completed
+# its final ship/checkpoint and the server has closed. An out-of-process SQLite
+# connection while capture is live can reset the WAL on its own process exit.
+load_final_version="$($sqlite_bin "$database" 'SELECT version FROM _snapback_version WHERE id=1;')"
+rm -f "$ready_file"
+SNAPBACK_REPLICATION_INTERVAL_MS=30000 \
+  "$binary" start --port 0 --ready-file "$ready_file" --db "$database" \
+  >"$scratch/ahead-cut-server.log" 2>&1 &
+server_pid=$!
+for _ in $(seq 1 1200); do
+  [[ -f "$ready_file" ]] && break
+  kill -0 "$server_pid" 2>/dev/null \
+    || fail "SNAPBACK_G2_AHEAD_CUT_START_FAILED: $(tail -50 "$scratch/ahead-cut-server.log")"
+  sleep 0.05
+done
+[[ -f "$ready_file" ]] \
+  || fail "SNAPBACK_G2_AHEAD_CUT_START_TIMEOUT: server did not become ready"
+"$binary" load --ready-file "$ready_file" \
+  --schema "$todo_schema" --functions "$todo_functions" \
+  >"$scratch/reload-artifacts.json"
+
+phase_two_start="$(tr -d '[:space:]' <"$counter_file")"
+start_writer
+for _ in $(seq 1 1200); do
+  acknowledged="$(tr -d '[:space:]' <"$counter_file")"
+  [[ "$((acknowledged - phase_two_start))" -ge 25 ]] && break
+  kill -0 "$writer_pid" 2>/dev/null \
+    || fail "SNAPBACK_G2_WRITER_FAILED: ahead-of-head writer exited early"
+  sleep 0.025
+done
+acknowledged="$(tr -d '[:space:]' <"$counter_file")"
+[[ "$((acknowledged - phase_two_start))" -ge 25 ]] \
+  || fail "SNAPBACK_G2_AHEAD_CUT_TIMEOUT: fewer than 25 local-only commits completed"
+
+touch "$stop_file"
+wait "$writer_pid"
+writer_pid=""
+kill -9 "$server_pid"
+wait "$server_pid" 2>/dev/null || true
+server_pid=""
+acknowledged="$(tr -d '[:space:]' <"$counter_file")"
+bytes_written="$((acknowledged * 4096))"
+
+status_file="$scratch/status-at-kill.json"
+"$binary" replicate status --db "$database" >"$status_file"
+frontier_position="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("frontier").fetch("txid")' "$status_file")"
+lag_at_kill="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("observedLag").fetch("sourceVersions")' "$status_file")"
+segment_encryption="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("segmentEncryption")' "$status_file")"
+degraded="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("degraded")' "$status_file")"
+status_error="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts(j["error"] || "none")' "$status_file")"
+status_error_detail="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts(j["errorDetail"] || "none")' "$status_file")"
+[[ "$segment_encryption" == "provider" ]] || fail "SNAPBACK_G2_POSTURE_INVALID: MinIO status did not report provider segment encryption"
+[[ "$degraded" == "false" ]] \
+  || fail "SNAPBACK_G2_REPLICATION_DEGRADED_AT_KILL: $(cat "$status_file")"
+[[ "$lag_at_kill" -gt 0 ]] \
+  || fail "SNAPBACK_G2_AHEAD_CUT_MISSING: source was not ahead of the remote head"
+[[ "$lag_at_kill" -lt "$max_source_version_lag" ]] \
+  || fail "SNAPBACK_G2_LAG_BOUND_FAILED: lag $lag_at_kill is not < $max_source_version_lag"
+
+restore_dir="$scratch/clean-machine-restore"
+restore_result="$scratch/restore-result.json"
+"$binary" replicate restore --output "$restore_dir" >"$restore_result"
+restored_position="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("position").fetch("txid")' "$restore_result")"
+restored_version="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("sourceVersion")' "$restore_result")"
+# The status lag is the exact local-source minus fixed-head source-version
+# difference. Derive the crash-cut source version without opening the live WAL
+# with a foreign sqlite3 process before the ahead-of-head reattach.
+kill_version="$((restored_version + lag_at_kill))"
+integrity="$($sqlite_bin "$restore_dir/database.sqlite3" 'PRAGMA integrity_check;')"
+[[ "$integrity" == "ok" ]] || fail "SNAPBACK_G2_RESTORE_INTEGRITY_FAILED: $integrity"
+[[ -f "$restore_dir/database.sqlite3.auth-keyring.json" ]] || fail "SNAPBACK_G2_RESTORE_KEYRING_MISSING"
+[[ -f "$restore_dir/restore-declaration.json" ]] || fail "SNAPBACK_G2_RESTORE_QUARANTINE_MISSING"
+[[ "$restored_position" -eq "$frontier_position" ]] || fail "SNAPBACK_G2_LINEAGE_FAILED: restore $restored_position != frontier $frontier_position"
+loss="$((kill_version - restored_version))"
+[[ "$loss" -ge 0 && "$loss" -le "$lag_at_kill" ]] \
+  || fail "SNAPBACK_G2_LOSS_BOUND_FAILED: loss $loss exceeds observed lag $lag_at_kill"
+[[ "$loss" -lt "$max_source_version_lag" ]] \
+  || fail "SNAPBACK_G2_RESTORE_VERSION_BOUND_FAILED: restored version is $loss commits behind, not < $max_source_version_lag"
+
+# Reattach the killed database while it is provably ahead of the head, then
+# require the resumed process to capture and publish every local commit. This
+# is the regression for the former malformed-shadow-state restart failure.
+rm -f "$ready_file"
+SNAPBACK_REPLICATION_INTERVAL_MS=50 \
+  "$binary" start --port 0 --ready-file "$ready_file" --db "$database" \
+  >"$scratch/resumed-server.log" 2>&1 &
+server_pid=$!
+for _ in $(seq 1 1200); do
+  [[ -f "$ready_file" ]] && break
+  kill -0 "$server_pid" 2>/dev/null \
+    || fail "SNAPBACK_G2_AHEAD_RESUME_FAILED: $(tail -50 "$scratch/resumed-server.log")"
+  sleep 0.05
+done
+[[ -f "$ready_file" ]] \
+  || fail "SNAPBACK_G2_AHEAD_RESUME_TIMEOUT: killed server did not reattach"
+
+resumed_status="$scratch/resumed-status.json"
+resume_converged=0
+for _ in $(seq 1 1200); do
+  "$binary" replicate status --db "$database" >"$resumed_status"
+  resumed_lag="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("observedLag").fetch("sourceVersions")' "$resumed_status")"
+  resumed_degraded="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("degraded")' "$resumed_status")"
+  if [[ "$resumed_lag" -eq 0 && "$resumed_degraded" == "false" ]]; then
+    resume_converged=1
+    break
+  fi
+  sleep 0.05
+done
+[[ "$resume_converged" -eq 1 ]] \
+  || fail "SNAPBACK_G2_AHEAD_RESUME_DID_NOT_CONVERGE: $(cat "$resumed_status")"
+kill -INT "$server_pid"
+wait "$server_pid"
+server_pid=""
+
+final_status="$scratch/final-status.json"
+"$binary" replicate status --db "$database" >"$final_status"
+final_frontier_position="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("frontier").fetch("txid")' "$final_status")"
+final_degraded="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("degraded")' "$final_status")"
+[[ "$final_degraded" == "false" ]] \
+  || fail "SNAPBACK_G2_FINAL_STATUS_DEGRADED: $(cat "$final_status")"
+
+final_restore_dir="$scratch/final-clean-machine-restore"
+final_restore_result="$scratch/final-restore-result.json"
+"$binary" replicate restore --output "$final_restore_dir" >"$final_restore_result"
+final_restored_position="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("position").fetch("txid")' "$final_restore_result")"
+final_restored_version="$(ruby -rjson -e 'j=JSON.parse(File.read(ARGV[0])); puts j.fetch("sourceVersion")' "$final_restore_result")"
+final_integrity="$($sqlite_bin "$final_restore_dir/database.sqlite3" 'PRAGMA integrity_check;')"
+[[ "$final_integrity" == "ok" ]] \
+  || fail "SNAPBACK_G2_FINAL_RESTORE_INTEGRITY_FAILED: $final_integrity"
+[[ "$final_restored_position" -eq "$final_frontier_position" ]] \
+  || fail "SNAPBACK_G2_FINAL_LINEAGE_FAILED: restore $final_restored_position != frontier $final_frontier_position"
+[[ "$final_restored_version" -eq "$kill_version" ]] \
+  || fail "SNAPBACK_G2_AHEAD_RESUME_LOST_WRITES: restore version $final_restored_version != source $kill_version"
+
+# Demonstrate one refusal branch with a foreign incarnation sidecar. Attach
+# validates this before opening celld state, so no succession is inferred.
+foreign_db="$scratch/foreign.sqlite3"
+cp "$foreign_seed" "$foreign_db"
+cp "$keyring_file" "${foreign_db}.auth-keyring.json"
+cp "${database}.replication.json" "${foreign_db}.replication.json"
+ruby -rjson -rsecurerandom -e 'p=ARGV[0]; j=JSON.parse(File.read(p)); j["incarnation"]=SecureRandom.uuid; File.write(p, JSON.generate(j))' \
+  "${foreign_db}.replication.json"
+chmod 600 "${foreign_db}.auth-keyring.json" "${foreign_db}.replication.json"
+if "$binary" start --port 0 --ready-file "$scratch/foreign.ready.json" --db "$foreign_db" \
+  >"$scratch/foreign.log" 2>&1; then
+  fail "SNAPBACK_G2_FOREIGN_SIDECAR_ACCEPTED: foreign sidecar unexpectedly reached serving"
+fi
+grep -q 'SNAPBACK_REPLICATION_ATTACH_REFUSED' "$scratch/foreign.log" \
+  || fail "SNAPBACK_G2_FOREIGN_REFUSAL_MISSING: $(tail -30 "$scratch/foreign.log")"
+
+receipt_dir="$repo_root/scripts/g2-receipts"
+receipt="$receipt_dir/20260809-self-hosted-async-minio-sustained.md"
+mkdir -p "$receipt_dir"
+minio_version="$($minio_bin --version | sed -n '1p')"
+commit="$(git -C "$repo_root" rev-parse HEAD)"
+temporary_receipt="$scratch/G2-RECEIPT.md"
+printf '%s\n' \
+  '# LLP 0188 G2 self-hosted async replication receipt' \
+  '' \
+  '> **Supersedes `20260809-self-hosted-async-minio.md`.** That earlier receipt was vacuous: its frontier wedged after the first shipment while its lag/loss comparison still passed.' \
+  '' \
+  "- Date: 2026-08-09" \
+  "- Source commit: \`$commit\` (working tree implementation under test)" \
+  "- Store: \`$minio_version\`, random loopback port, SigV4 path-style S3" \
+  "- Segment encryption posture: \`$segment_encryption\` (provider only; keyring snapshots were client-side XChaCha20-Poly1305 encrypted)" \
+  "- Weaker custody consequence: a compromised host or same-generation clone can re-PUT history and seize/rewrite the head; stale-writer harmlessness is not claimed" \
+  "- Acknowledged write transactions: $acknowledged" \
+  "- Minimum payload bytes written: $bytes_written (the per-write title prefix is additional)" \
+  "- Sustained-load proof: frontier advanced $frontier_advances_after_first times after the first shipment (required at least 5)" \
+  "- Load-stop convergence: source version $load_final_version reached zero observed lag before the crash-cut phase" \
+  "- SIGKILL cut: local source version $kill_version after the one in-flight writer commit quiesced" \
+  "- Restorable frontier at kill: LTX position $frontier_position" \
+  "- Observed source-version lag at kill: $lag_at_kill (< configured bound $max_source_version_lag)" \
+  "- Restored LTX position: $restored_position" \
+  "- Restored source version: $restored_version" \
+  "- Bounded loss: $loss <= observed lag $lag_at_kill and $loss < configured bound $max_source_version_lag" \
+  "- Status at kill: degraded=\`$degraded\`, error=\`$status_error\`, errorDetail=\`$status_error_detail\`" \
+  "- Integrity: \`PRAGMA integrity_check\` returned \`ok\`" \
+  "- Pairing: exact governing \`database.sqlite3.auth-keyring.json\` was decrypted and validated against retained auth key ids" \
+  "- Restore quarantine: LLP 0057 \`restore-declaration.json\` was present; the image was non-servable without bulk revocation" \
+  "- Lineage: restored position equaled the fixed-head frontier" \
+  "- Ahead-of-head restart: killed database reattached without a malformed-image error, converged to LTX position $final_frontier_position, and restored source version $final_restored_version exactly matched kill version $kill_version" \
+  "- Final restore integrity: \`$final_integrity\`" \
+  "- Negative control: foreign-incarnation sidecar refused with \`SNAPBACK_REPLICATION_ATTACH_REFUSED\`" \
+  '' \
+  'This receipt qualifies only the LLP 0188 self-hosted, single-incarnation, single-generation G2 lane on MinIO. Succession/epoch handover, hosted supervisor custody, per-credential store immutability, and non-MinIO providers remain unqualified.' \
+  >"$temporary_receipt"
+mv "$temporary_receipt" "$receipt"
+
+printf 'SNAPBACK_G2_REPLICATION_OK receipt=%s bytes=%s frontierAdvancesAfterFirst=%s loadFinalVersion=%s killVersion=%s frontierAtKill=%s lag=%s restoredPosition=%s restoredVersion=%s loss=%s finalFrontier=%s finalRestoredVersion=%s integrity=%s foreignRefusal=SNAPBACK_REPLICATION_ATTACH_REFUSED\n' \
+  "$receipt" "$bytes_written" "$frontier_advances_after_first" "$load_final_version" "$kill_version" "$frontier_position" "$lag_at_kill" "$restored_position" "$restored_version" "$loss" "$final_frontier_position" "$final_restored_version" "$final_integrity"

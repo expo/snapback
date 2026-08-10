@@ -848,7 +848,7 @@ impl Default for Args {
     name = "snapback",
     about = "Snapback local server, host operations, and embedded Guide",
     version = env!("CARGO_PKG_VERSION"),
-    after_help = "Documentation:\n  snapback guide [QUERY]  Browse or search the build-bound Snapback Guide\n  snapback mcp            Serve the same Guide as read-only MCP resources\n\nOperate it:\n  snapback mcp serves read-only Guide resources; snapback mcp-control adds typed control tools with local admin authority.\n  Preview with: snapback agent setup --print <client> --server mcp-control\n\nServer environment:\n  SNAPBACK_NETWORK_PROFILE=<profile>\n  SNAPBACK_CRON_DISABLED=1\n  SNAPBACK_JOBS_DISABLED=1\n  SNAPBACK_ASSET_RUNNER_DISABLED=1\n  SNAPBACK_LIVE_COALESCE_DISABLED=1\n  SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS=<ms>"
+    after_help = "Documentation:\n  snapback guide [QUERY]  Browse or search the build-bound Snapback Guide\n  snapback mcp            Serve the same Guide as read-only MCP resources\n\nOperate it:\n  snapback mcp serves read-only Guide resources; snapback mcp-control adds typed control tools with local admin authority.\n  Preview with: snapback agent setup --print <client> --server mcp-control\n\nServer environment:\n  SNAPBACK_NETWORK_PROFILE=<profile>\n  SNAPBACK_CRON_DISABLED=1\n  SNAPBACK_JOBS_DISABLED=1\n  SNAPBACK_ASSET_RUNNER_DISABLED=1\n  SNAPBACK_LIVE_COALESCE_DISABLED=1\n  SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS=<ms>\n\nSelf-hosted replication (off by default):\n  SNAPBACK_REPLICATION_TARGET=file:///path or s3://bucket/prefix\n  SNAPBACK_REPLICATION_KEY_FILE=/owner-only/file-containing-32-raw-bytes\n  Losing that key makes encrypted keyring snapshots unrecoverable. Segment objects use only the reported provider/none posture."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -1013,6 +1013,12 @@ pub enum HostCommand {
     Auth {
         #[command(subcommand)]
         command: AuthCommand,
+    },
+    /// Self-hosted async replication status, forced checkpoint, and offline
+    /// database-plus-keyring restore (LLP 0188 gate G2).
+    Replicate {
+        #[command(subcommand)]
+        command: ReplicateCommand,
     },
     /// Inspect or atomically export the complete file-backed store state.
     Store {
@@ -1839,6 +1845,34 @@ pub enum AuthRehearseCommand {
         input: PathBuf,
         #[arg(long, requires = "url", conflicts_with = "ready_file")]
         rehearsal_capability_stdin: bool,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum ReplicateCommand {
+    /// Inspect the fixed authoritative head, restorable frontier, lag, and
+    /// encryption posture. Disabled configuration is reported as JSON.
+    Status {
+        #[arg(long, default_value = ".snapback/dev.sqlite3")]
+        db: PathBuf,
+    },
+    /// Force WAL capture, durable keyring coverage, remote verification, and
+    /// a final checkpoint. This is a self-hosted G2 proof envelope only;
+    /// hosted restore/DR scope is not claimed.
+    Checkpoint {
+        #[arg(long, default_value = ".snapback/dev.sqlite3")]
+        db: PathBuf,
+    },
+    /// Restore a database and its exact governing auth-keyring snapshot into
+    /// a new directory. The output remains non-servable until it completes the
+    /// declared auth-restore composition.
+    Restore {
+        #[arg(long)]
+        output: PathBuf,
+        /// Optional replicated LTX transaction id, bounded by the advertised
+        /// database/keyring restorable frontier.
+        #[arg(long)]
+        position: Option<u64>,
     },
 }
 
@@ -2717,6 +2751,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
             AuthCommand::Rehearse { command } => auth_rehearse_command(command),
         },
+        Some(HostCommand::Replicate { command }) => replication_command(command).await,
         Some(HostCommand::Store { command }) => match command {
             StoreCommand::Describe { db } => store_describe(&db),
             StoreCommand::Export { db, output } => store_export(&db, &output).await,
@@ -2974,6 +3009,74 @@ async fn auth_backup_inner(
         )
         .map_err(anyhow::Error::new)
     })
+}
+
+// @ref LLP 0188#7-honesty-and-qualification — the offline CLI reports the two-member
+// restore frontier and never presents a celld database image alone as a
+// servable Snapback instance.
+async fn replication_command(command: ReplicateCommand) -> anyhow::Result<()> {
+    let config = crate::replication::ReplicationConfig::from_env()?;
+    match command {
+        ReplicateCommand::Status { db } => {
+            if config.is_none() {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(
+                        &crate::replication::ReplicationStatus::disabled()
+                    )?
+                );
+                return Ok(());
+            }
+            let database = resolve_database_path(&db)?;
+            let status = crate::replication::inspect_status(&database, config).await?;
+            println!("{}", serde_json::to_string_pretty(&status)?);
+            Ok(())
+        }
+        ReplicateCommand::Checkpoint { db } => {
+            let config = config.context(
+                "SNAPBACK_REPLICATION_DISABLED: checkpoint requires SNAPBACK_REPLICATION_TARGET and SNAPBACK_REPLICATION_KEY_FILE",
+            )?;
+            let database = resolve_database_path(&db)?;
+            anyhow::ensure!(
+                database.is_file(),
+                "SNAPBACK_REPLICATION_DATABASE_UNAVAILABLE: source database does not exist"
+            );
+            let _instance_lock = DatabaseInstanceLock::acquire(&database)?;
+            let status = crate::replication::checkpoint_once(database, config).await?;
+            println!("{}", serde_json::to_string_pretty(&status)?);
+            Ok(())
+        }
+        ReplicateCommand::Restore { output, position } => {
+            let config = config.context(
+                "SNAPBACK_REPLICATION_DISABLED: restore requires SNAPBACK_REPLICATION_TARGET and SNAPBACK_REPLICATION_KEY_FILE",
+            )?;
+            let output = if output.is_absolute() {
+                output
+            } else {
+                std::env::current_dir()?.join(output)
+            };
+            let (restored_position, source_version, restore_declaration_id) =
+                crate::replication::restore_to_directory(&output, position, config).await?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "schemaVersion": "snapback.replication-restore-result.v1",
+                    "ok": true,
+                    "output": output,
+                    "database": output.join("database.sqlite3"),
+                    "keyring": crate::auth::keyring::AuthKeyringStore::keyring_path(
+                        &output.join("database.sqlite3")
+                    ),
+                    "position": restored_position,
+                    "sourceVersion": source_version,
+                    "restoreDeclarationId": restore_declaration_id.clone(),
+                    "servable": false,
+                    "next": format!("Treat this as an offline restore image. To run LLP 0057 bulk revocation before binding, start with --db {} --restored-from-backup {}; replication restore alone never admits serving.", output.join("database.sqlite3").display(), restore_declaration_id),
+                }))?
+            );
+            Ok(())
+        }
+    }
 }
 
 fn store_describe(database_path: &Path) -> anyhow::Result<()> {
@@ -6646,6 +6749,11 @@ async fn run_composed(
         !(args.memory && args.restored_from_backup.is_some()),
         "SNAPBACK_AUTH_BACKUP_INVALID: in-memory startup cannot consume a restore declaration"
     );
+    let replication_config = crate::replication::ReplicationConfig::from_env()?;
+    anyhow::ensure!(
+        !(args.memory && replication_config.is_some()),
+        "SNAPBACK_REPLICATION_CONFIG_INVALID: replication requires a file-backed database"
+    );
     // Resolve once, before auth composition, and bind the exact same address.
     // This keeps profile/capture posture identical for numeric hosts and DNS
     // aliases without opening a listener early.
@@ -7357,6 +7465,21 @@ async fn run_composed(
             return Err(error.into());
         }
     };
+    // @ref LLP 0188#2-integration-point-the-whole-instance-database — attach and validate the local
+    // sidecar, fixed head, and remote LTX prefix before the listener can be
+    // published or serve. The dedicated runtime owns every later checkpoint.
+    let mut replication_runtime = match (database_path.clone(), replication_config) {
+        (Some(database), Some(config)) => {
+            match crate::replication::ReplicationRuntime::start(database, config).await {
+                Ok(runtime) => Some(runtime),
+                Err(error) => {
+                    auth_expiry_worker.abort();
+                    return Err(anyhow::Error::new(error));
+                }
+            }
+        }
+        _ => None,
+    };
 
     // @ref LLP 0017#serving-model — capture the bound address so the admin API
     // reports host/port/uptime and gates by loopback vs non-loopback.
@@ -7638,24 +7761,52 @@ async fn run_composed(
         .and_then(|value| value.parse::<u64>().ok())
         .filter(|value| *value > 0)
         .map_or_else(|| Duration::from_millis(30_000), Duration::from_millis);
-    // A task aborted a moment ago can still hold the writer mutex until its
-    // future is dropped, so bound the acquisition too: a shutdown that cannot
-    // reach the connection must say so, never hang holding SIGTERM open.
-    match tokio::time::timeout(checkpoint_bound, state.lock()).await {
-        Ok(snapback) => {
-            let report = startup_blocking(|| snapback.shutdown_checkpoint(checkpoint_bound));
-            if report.applicable && !report.complete {
-                eprintln!(
-                    "SNAPBACK_SHUTDOWN_WAL_CHECKPOINT_INCOMPLETE: {}",
-                    report.summary()
-                );
+    if let Some(runtime) = replication_runtime.take() {
+        // @ref LLP 0188#2-integration-point-the-whole-instance-database —
+        // reader-pool drain precedes the replication owner's final ship and
+        // checkpoint; the ordinary storage checkpoint is forbidden here.
+        match tokio::time::timeout(checkpoint_bound, state.lock()).await {
+            Ok(snapback) => {
+                for problem in snapback.prepare_replication_shutdown() {
+                    eprintln!("SNAPBACK_SHUTDOWN_WAL_CHECKPOINT_INCOMPLETE: {problem}");
+                }
             }
+            Err(_) => eprintln!(
+                "SNAPBACK_SHUTDOWN_WAL_CHECKPOINT_INCOMPLETE: the writer connection stayed locked for {}ms before replication shutdown",
+                checkpoint_bound.as_millis()
+            ),
         }
-        Err(_) => eprintln!(
-            "SNAPBACK_SHUTDOWN_WAL_CHECKPOINT_INCOMPLETE: the writer connection stayed locked for \
-             {}ms; the store keeps its WAL sidecar",
-            checkpoint_bound.as_millis()
-        ),
+        match tokio::time::timeout(checkpoint_bound, runtime.shutdown()).await {
+            Ok(Ok(_)) => {}
+            Ok(Err(error)) => eprintln!(
+                "SNAPBACK_REPLICATION_SHUTDOWN_FAILED: {}: {}",
+                error.diagnostic.code, error.diagnostic.message
+            ),
+            Err(_) => eprintln!(
+                "SNAPBACK_REPLICATION_SHUTDOWN_FAILED: final ship/checkpoint exceeded {}ms",
+                checkpoint_bound.as_millis()
+            ),
+        }
+    } else {
+        // A task aborted a moment ago can still hold the writer mutex until its
+        // future is dropped, so bound the acquisition too: a shutdown that cannot
+        // reach the connection must say so, never hang holding SIGTERM open.
+        match tokio::time::timeout(checkpoint_bound, state.lock()).await {
+            Ok(snapback) => {
+                let report = startup_blocking(|| snapback.shutdown_checkpoint(checkpoint_bound));
+                if report.applicable && !report.complete {
+                    eprintln!(
+                        "SNAPBACK_SHUTDOWN_WAL_CHECKPOINT_INCOMPLETE: {}",
+                        report.summary()
+                    );
+                }
+            }
+            Err(_) => eprintln!(
+                "SNAPBACK_SHUTDOWN_WAL_CHECKPOINT_INCOMPLETE: the writer connection stayed locked for \
+                 {}ms; the store keeps its WAL sidecar",
+                checkpoint_bound.as_millis()
+            ),
+        }
     }
     drop(database_lock);
     if let Some(target) = ready_target.as_ref() {
