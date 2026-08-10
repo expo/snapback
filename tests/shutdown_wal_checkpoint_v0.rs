@@ -52,7 +52,7 @@ fn pooled_readers_no_longer_strand_the_wal_on_shutdown() {
     let wal = sidecar(&path, "-wal");
     let shm = sidecar(&path, "-shm");
     let mut db = LocalDatabase::open(&path).expect("open file-backed database");
-    db.apply_schema(test_schema()).expect("apply test schema");
+    db.schema_seed().apply_schema(test_schema()).expect("apply test schema");
     db.execute_mutation(
         &MutationPlan {
             steps: vec![MutationStep::Insert {

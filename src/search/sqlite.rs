@@ -2336,9 +2336,9 @@ mod tests {
 
     fn seeded(visibility: SearchVisibilityV1) -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(search_schema(visibility))
+        db.schema_seed().apply_schema(search_schema(visibility))
             .expect("apply search schema");
-        db.seed(fixture_seed("Checkout outage"))
+        db.schema_seed().seed(fixture_seed("Checkout outage"))
             .expect("seed indexed rows");
         db
     }
@@ -2350,9 +2350,9 @@ mod tests {
         let directory = tempfile::tempdir().expect("search file fixture");
         let path = directory.path().join("search.sqlite3");
         let mut db = LocalDatabase::open(&path).expect("open file search database");
-        db.apply_schema(search_schema(visibility))
+        db.schema_seed().apply_schema(search_schema(visibility))
             .expect("apply search schema");
-        db.seed(fixture_seed(bob_title)).expect("seed indexed rows");
+        db.schema_seed().seed(fixture_seed(bob_title)).expect("seed indexed rows");
         (directory, path, db)
     }
 
@@ -2799,7 +2799,7 @@ mod tests {
             .field_classifications
             .remove("status");
         let error = db
-            .apply_schema(invalid)
+            .schema_seed().apply_schema(invalid)
             .expect_err("unclassified participating field");
         assert_eq!(
             error.diagnostic.code,
@@ -2812,7 +2812,7 @@ mod tests {
         changed.tables[0].search_indexes[0]
             .field_classifications
             .insert("status".to_owned(), SearchFieldClassV1::Public);
-        db.apply_schema(changed)
+        db.schema_seed().apply_schema(changed)
             .expect("classification-only manifest change rebuilds");
         drop(db);
 
@@ -3226,7 +3226,7 @@ mod tests {
                 .unwrap()
                 .weight = 5;
             writer
-                .apply_schema(replacement)
+                .schema_seed().apply_schema(replacement)
                 .expect("atomic rebuild and switch");
             switched_tx.send(()).expect("release pinned reader");
             handle
@@ -3253,7 +3253,7 @@ mod tests {
         const BUILD_BUDGET: Duration = Duration::from_secs(5);
         const QUERY_BUDGET: Duration = Duration::from_secs(1);
         let mut db = LocalDatabase::memory().expect("large corpus database");
-        db.apply_schema(search_schema(SearchVisibilityV1::PublicRead))
+        db.schema_seed().apply_schema(search_schema(SearchVisibilityV1::PublicRead))
             .expect("large corpus schema");
         let rows = (0..CORPUS_ROWS)
             .map(|index| {
@@ -3271,7 +3271,7 @@ mod tests {
             })
             .collect();
         let build_started = Instant::now();
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([("incidents".to_owned(), rows)]),
         })
         .expect("bounded large corpus build");
@@ -3387,9 +3387,9 @@ mod tests {
         // integral value in a Real field must not read as index corruption at
         // authoritative release.
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(real_field_schema())
+        db.schema_seed().apply_schema(real_field_schema())
             .expect("apply real-field search schema");
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "incidents".to_owned(),
                 vec![
@@ -3449,9 +3449,9 @@ mod tests {
         let directory = tempfile::tempdir().expect("legacy spelling fixture");
         let path = directory.path().join("search.sqlite3");
         let mut db = LocalDatabase::open(&path).expect("open file search database");
-        db.apply_schema(real_field_schema())
+        db.schema_seed().apply_schema(real_field_schema())
             .expect("apply real-field search schema");
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "incidents".to_owned(),
                 vec![

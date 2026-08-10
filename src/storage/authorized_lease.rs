@@ -665,7 +665,7 @@ mod tests {
         let mut row = Map::new();
         row.insert("_id".to_owned(), serde_json::json!("item_1"));
         row.insert("owner".to_owned(), serde_json::json!("user_2"));
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([("items".to_owned(), vec![row])]),
         })
         .unwrap();
@@ -950,7 +950,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(db.authorized_lease_reservation_count().unwrap(), 1);
-        db.reset().unwrap();
+        db.schema_seed().reset().unwrap();
         assert_eq!(db.authorized_lease_reservation_count().unwrap(), 0);
 
         let mut db = sessions_database(None);

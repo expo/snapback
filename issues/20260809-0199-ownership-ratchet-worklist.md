@@ -68,3 +68,10 @@ fork_promotion, -> instance_fork — the branch lifecycle calls domain
 promotion/fork logic; invert by passing typed plans down). Fourth
 unmanifested-module catch: storage/stream_transcripts.rs assigned to the
 kernel at this landing (reinforces 20260809-ownership-gate-prepush-tier.md).
+
+**Growth 2026-08-09 (slice-12 landing):** relocating schema/seed made four
+pre-existing kernel upward edges explicit (schema_seed -> assets, -> push
+[kernel->background: seeding invokes domain fixture/registry logic], ->
+auth/coordinator + session_projection [kernel->sync, relocated from
+storage.rs], -> seed_identity [kernel->generation]). Inversions ride the
+same moves as items 1/3.

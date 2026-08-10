@@ -905,7 +905,7 @@ mod tests {
             inputs_hash: Some(format!("sha256:{}", "2".repeat(64))),
             ..Default::default()
         };
-        database.apply_schema(schema).expect("schema");
+        database.schema_seed().apply_schema(schema).expect("schema");
         let artifact = artifact();
         let request = InstallSeedRequestV1 {
             format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
@@ -915,7 +915,7 @@ mod tests {
             asset_fixtures: None,
         };
         let installed = database
-            .ensure_versioned_seed(request.clone())
+            .schema_seed().ensure_versioned_seed(request.clone())
             .expect("install");
         let receipt = match installed {
             SeedEnsureResultV1::Installed { receipt } => receipt,
@@ -924,14 +924,14 @@ mod tests {
         assert_eq!(receipt.outcome, SeedOutcomeV1::Installed);
         assert_eq!(
             database
-                .ensure_versioned_seed(request)
+                .schema_seed().ensure_versioned_seed(request)
                 .expect("response-loss replay"),
             SeedEnsureResultV1::Installed {
                 receipt: receipt.clone()
             }
         );
         let matched = database
-            .ensure_versioned_seed(InstallSeedRequestV1 {
+            .schema_seed().ensure_versioned_seed(InstallSeedRequestV1 {
                 format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
                 operation_id: "01983c8d-9f87-7ec1-bc02-7e81290debc3".to_owned(),
                 artifact,
@@ -984,11 +984,11 @@ mod tests {
     fn versioned_seed_conformance_effect_boundaries_and_migration_refusal() {
         let mut bounded = crate::storage::LocalDatabase::memory().expect("memory database");
         bounded
-            .apply_schema(todo_schema())
+            .schema_seed().apply_schema(todo_schema())
             .expect("apply todo schema");
         let artifact = todo_artifact("bound-1024", VERSIONED_SEED_MAX_EFFECTS_V1);
         let installed = bounded
-            .ensure_versioned_seed(InstallSeedRequestV1 {
+            .schema_seed().ensure_versioned_seed(InstallSeedRequestV1 {
                 format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
                 operation_id: "01982c7a-7c00-7000-8000-000000000101".to_owned(),
                 artifact,
@@ -1010,10 +1010,10 @@ mod tests {
 
         let mut migration = crate::storage::LocalDatabase::memory().expect("migration database");
         migration
-            .apply_schema(todo_schema())
+            .schema_seed().apply_schema(todo_schema())
             .expect("apply todo schema");
         migration
-            .ensure_versioned_seed(InstallSeedRequestV1 {
+            .schema_seed().ensure_versioned_seed(InstallSeedRequestV1 {
                 format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
                 operation_id: "01982c7a-7c00-7000-8000-000000000102".to_owned(),
                 artifact: todo_artifact("migration-v1", 1),
@@ -1022,7 +1022,7 @@ mod tests {
             })
             .expect("initial migration identity");
         let refused = migration
-            .ensure_versioned_seed(InstallSeedRequestV1 {
+            .schema_seed().ensure_versioned_seed(InstallSeedRequestV1 {
                 format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
                 operation_id: "01982c7a-7c00-7000-8000-000000000103".to_owned(),
                 artifact: todo_artifact("migration-v2", 1),
@@ -1037,10 +1037,10 @@ mod tests {
     fn versioned_seed_conformance_empty_target_and_sessions_membership_lane() {
         let mut occupied = crate::storage::LocalDatabase::memory().expect("occupied database");
         occupied
-            .apply_schema(todo_schema())
+            .schema_seed().apply_schema(todo_schema())
             .expect("apply todo schema");
         occupied
-            .seed(crate::manifest::SeedData {
+            .schema_seed().seed(crate::manifest::SeedData {
                 tables: std::collections::BTreeMap::from([(
                     "todos".to_owned(),
                     todo_artifact("legacy", 1)
@@ -1052,7 +1052,7 @@ mod tests {
             })
             .expect("untracked predecessor row");
         let refused = occupied
-            .ensure_versioned_seed(InstallSeedRequestV1 {
+            .schema_seed().ensure_versioned_seed(InstallSeedRequestV1 {
                 format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
                 operation_id: "01982c7a-7c00-7000-8000-000000000104".to_owned(),
                 artifact: todo_artifact("empty-named-target", 0),
@@ -1082,7 +1082,7 @@ mod tests {
         };
         membership_artifact.seed_digest =
             artifact_digest(&membership_artifact).expect("membership digest");
-        crate::storage::validate_versioned_seed_request(
+        crate::storage::SchemaSeedKernel::validate_versioned_seed_request(
             &sessions,
             crate::manifest::AuthMode::Sessions,
             Some(&membership_artifact),
@@ -1099,7 +1099,7 @@ mod tests {
             tables: std::collections::BTreeMap::from([("nope".to_owned(), Vec::new())]),
         };
         unknown_artifact.seed_digest = artifact_digest(&unknown_artifact).expect("unknown digest");
-        crate::storage::validate_versioned_seed_request(
+        crate::storage::SchemaSeedKernel::validate_versioned_seed_request(
             &sessions,
             crate::manifest::AuthMode::Sessions,
             Some(&unknown_artifact),

@@ -5673,14 +5673,14 @@ mod membership_bridge_tests {
     fn ready_db() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog().expect("auth catalog");
-        db.apply_schema(schema()).expect("membership schema");
+        db.schema_seed().apply_schema(schema()).expect("membership schema");
         db
     }
 
     fn ready_file_db(path: &Path) -> LocalDatabase {
         let mut db = LocalDatabase::open(path).expect("open shared handler sequence database");
         db.activate_current_auth_catalog().expect("auth catalog");
-        db.apply_schema(schema()).expect("shared handler schema");
+        db.schema_seed().apply_schema(schema()).expect("shared handler schema");
         db
     }
 
@@ -5748,7 +5748,7 @@ mod membership_bridge_tests {
     #[test]
     fn sequence_host_bridge_is_declared_scoped_and_commits_with_the_mutation() {
         let mut db = ready_db();
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "scopes".to_owned(),
                 vec![Map::from_iter([
@@ -5920,7 +5920,7 @@ globalThis.__snapbackHandlers = {
             export: "disclose".to_owned(),
         };
         let seed_scope = |db: &mut LocalDatabase| {
-            db.seed(SeedData {
+            db.schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "scopes".to_owned(),
                     vec![Map::from_iter([
@@ -6078,7 +6078,7 @@ globalThis.__snapbackHandlers = {
                 )
                 .expect("enroll public sequence scope");
             setup
-                .seed(SeedData {
+                .schema_seed().seed(SeedData {
                     tables: BTreeMap::from([(
                         "scopes".to_owned(),
                         vec![Map::from_iter([
@@ -6373,7 +6373,7 @@ globalThis.__snapbackHandlers = {
             .activate_current_auth_catalog()
             .expect("auth catalog");
         creation_only_db
-            .apply_schema(creation_only_schema)
+            .schema_seed().apply_schema(creation_only_schema)
             .expect("creation-only membership schema");
         let mut creation_only = service_context(&creation_only_db, true);
         let error = creation_only

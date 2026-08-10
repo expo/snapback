@@ -768,7 +768,7 @@ fn measure_current_reads(
     config: &BenchConfig,
 ) -> crate::diagnostic::SnapbackResult<CurrentReadBench> {
     let mut database = LocalDatabase::memory()?;
-    database.apply_schema(schema())?;
+    database.schema_seed().apply_schema(schema())?;
     let writes = (0..512)
         .map(|index| BufferedWrite::Insert {
             table: "todos".to_owned(),
@@ -833,7 +833,7 @@ fn measure_write_bytes() -> crate::diagnostic::SnapbackResult<WriteBytesBench> {
     let path = directory.join("fixture.sqlite3");
     let result = (|| {
         let mut database = LocalDatabase::open(&path)?;
-        database.apply_schema(schema())?;
+        database.schema_seed().apply_schema(schema())?;
         drop(database);
         let before = file_family_bytes(&path)?;
 
@@ -916,7 +916,7 @@ pub fn measure_idle(duration: Duration) -> crate::diagnostic::SnapbackResult<Idl
     let path = directory.join("fixture.sqlite3");
     let result = (|| {
         let mut database = LocalDatabase::open(&path)?;
-        database.apply_schema(schema())?;
+        database.schema_seed().apply_schema(schema())?;
         let database_family_bytes_before = file_family_bytes(&path)?;
         let resident_kb_before = resident_kb();
         let usage_before = process_usage()?;
@@ -1317,7 +1317,7 @@ fn measure_spurious_conflict(config: &BenchConfig) -> crate::diagnostic::Snapbac
     let mut conflicts = 0usize;
     for trial in 0..config.conflict_trials {
         let mut db = LocalDatabase::memory()?;
-        db.apply_schema(schema())?;
+        db.schema_seed().apply_schema(schema())?;
         commit_insert(&mut db, "todos", json!({ "title": "match", "done": true }))?;
 
         let captured_version = db.versions_read().table_change_version("todos")?;

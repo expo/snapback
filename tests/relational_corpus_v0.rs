@@ -96,9 +96,9 @@ fn storage_lane(
     input: &HandlerInput,
 ) -> Result<Vec<Value>, String> {
     let mut db = LocalDatabase::memory().expect("memory storage lane");
-    db.apply_schema(schema.clone())
+    db.schema_seed().apply_schema(schema.clone())
         .expect("apply corpus schema");
-    db.seed(SeedData {
+    db.schema_seed().seed(SeedData {
         tables: tables.clone(),
     })
     .expect("seed corpus rows");
@@ -451,8 +451,8 @@ fn large_sparse_and_duplicate_key_fixtures_stay_correct_and_stable() {
         ..HandlerInput::default()
     };
     let mut db = LocalDatabase::memory().expect("sparse fixture");
-    db.apply_schema(schema).expect("apply sparse schema");
-    db.seed(SeedData {
+    db.schema_seed().apply_schema(schema).expect("apply sparse schema");
+    db.schema_seed().seed(SeedData {
         tables: tables.clone(),
     })
     .expect("seed sparse rows");
@@ -501,7 +501,7 @@ fn declared_unique_index_refuses_duplicates_at_seed() {
     let corpus = load_corpus();
     let schema = corpus_schema(&corpus);
     let mut db = LocalDatabase::memory().expect("unique fixture");
-    db.apply_schema(schema).expect("apply unique schema");
+    db.schema_seed().apply_schema(schema).expect("apply unique schema");
     let tables: BTreeMap<String, Vec<Map<String, Value>>> = serde_json::from_value(json!({
         "books": [],
         "authors": [
@@ -512,7 +512,7 @@ fn declared_unique_index_refuses_duplicates_at_seed() {
     }))
     .expect("unique tables");
     let error = db
-        .seed(SeedData { tables })
+        .schema_seed().seed(SeedData { tables })
         .expect_err("duplicate slug must refuse under the unique index");
     assert!(
         error.diagnostic.code.starts_with("SNAPBACK_"),

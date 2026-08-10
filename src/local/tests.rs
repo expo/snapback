@@ -2736,7 +2736,7 @@ globalThis.__snapbackHandlers = {
         let mut snapback = asset_test_snapback();
         snapback
             .db
-            .apply_schema(asset_reference_schema())
+            .schema_seed().apply_schema(asset_reference_schema())
             .expect("schema");
         snapback
     }
@@ -2803,7 +2803,7 @@ globalThis.__snapbackHandlers = {
         schema.assets = Some(crate::manifest::SchemaAssetsPolicyV1 {
             reference_gc: Some(crate::manifest::AssetReferenceGcPolicyV1 { grace_ms }),
         });
-        snapback.db.apply_schema(schema).expect("schema");
+        snapback.db.schema_seed().apply_schema(schema).expect("schema");
         snapback
     }
 
@@ -3060,7 +3060,7 @@ globalThis.__snapbackHandlers = {
         );
         snapback
             .db
-            .apply_schema(asset_reference_schema())
+            .schema_seed().apply_schema(asset_reference_schema())
             .expect("schema");
         let asset_id = asset_ready(&mut snapback, "alice", b"staged-attach-bytes");
 
@@ -3314,7 +3314,7 @@ globalThis.__snapbackHandlers = {
         };
         snapback
             .db
-            .apply_schema(SchemaManifest {
+            .schema_seed().apply_schema(SchemaManifest {
                 tables: vec![log_table],
                 ..SchemaManifest::default()
             })
@@ -3711,7 +3711,7 @@ globalThis.__snapbackHandlers = {
         // authority: the restricted field admits, the unrestricted refuses.
         snapback
             .db
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "posts".to_owned(),
                     vec![serde_json::Map::from_iter([
@@ -3723,7 +3723,7 @@ globalThis.__snapbackHandlers = {
             .expect("seed with restriction commits");
         let error = snapback
             .db
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "drafts".to_owned(),
                     vec![serde_json::Map::from_iter([(
@@ -4187,7 +4187,7 @@ globalThis.__snapbackHandlers = {
         };
         snapback
             .db
-            .apply_schema(schema_patch)
+            .schema_seed().apply_schema(schema_patch)
             .expect("apply removal opt-in");
         let mut function = FunctionDefinition::new(
             "ownerRemove",
@@ -4309,7 +4309,7 @@ globalThis.__snapbackHandlers = {
             ],
             ..SchemaManifest::default()
         };
-        snapback.db.apply_schema(schema).expect("membership schema");
+        snapback.db.schema_seed().apply_schema(schema).expect("membership schema");
         snapback
     }
 
@@ -5211,7 +5211,7 @@ globalThis.__snapbackHandlers = {
         let mut schema = asset_reference_schema();
         schema.app_id = "app".to_owned();
         schema.schema_hash = Some("sha256:test-schema".to_owned());
-        snapback.db.apply_schema(schema).expect("schema");
+        snapback.db.schema_seed().apply_schema(schema).expect("schema");
 
         let bytes = b"seeded-photo";
         let ingested = snapback
@@ -5344,7 +5344,7 @@ globalThis.__snapbackHandlers = {
                 .unwrap_or(0)
         };
         assert!(blob_files() > 0, "published blob exists on disk");
-        snapback.db.reset_and_seed(None).expect("reset");
+        snapback.db.schema_seed().reset_and_seed(None).expect("reset");
         // Table clearing rides the reset transaction itself.
         let remaining = snapback
             .db
@@ -5821,7 +5821,7 @@ globalThis.__snapbackHandlers = {
         let mut snapback = asset_test_snapback();
         snapback
             .db
-            .apply_schema(asset_profiles_schema())
+            .schema_seed().apply_schema(asset_profiles_schema())
             .expect("schema");
         let created = asset_upload(&mut snapback, "user_a", b"churned", true);
         asset_plant_missing_row_witness(&mut snapback, &created.task.attempt_id);
@@ -5839,7 +5839,7 @@ globalThis.__snapbackHandlers = {
         let mut snapback = asset_test_snapback();
         snapback
             .db
-            .apply_schema(asset_profiles_schema())
+            .schema_seed().apply_schema(asset_profiles_schema())
             .expect("schema");
         let created = asset_upload(&mut snapback, "user_a", b"revoked-bytes", true);
         asset_plant_missing_row_witness(&mut snapback, &created.task.attempt_id);
@@ -5876,7 +5876,7 @@ globalThis.__snapbackHandlers = {
         let mut snapback = asset_test_snapback();
         snapback
             .db
-            .apply_schema(asset_profiles_schema())
+            .schema_seed().apply_schema(asset_profiles_schema())
             .expect("schema");
         let created = asset_upload(&mut snapback, "user_a", b"stale-bytes", true);
         asset_plant_missing_row_witness(&mut snapback, &created.task.attempt_id);
@@ -5899,7 +5899,7 @@ globalThis.__snapbackHandlers = {
         let mut snapback = asset_test_snapback();
         snapback
             .db
-            .apply_schema(asset_profiles_schema())
+            .schema_seed().apply_schema(asset_profiles_schema())
             .expect("schema");
         let created = asset_upload(&mut snapback, "user_a", b"missing-artifact", true);
         asset_plant_missing_row_witness(&mut snapback, &created.task.attempt_id);
@@ -6075,7 +6075,7 @@ globalThis.__snapbackHandlers = {
             let mut snapback = LocalSnapback::memory().expect("memory snapback");
             snapback
                 .db
-                .apply_schema(asset_profiles_schema())
+                .schema_seed().apply_schema(asset_profiles_schema())
                 .expect("schema");
             snapback.load_functions(FunctionManifest {
                 asset_upload_intents: vec![base.clone(), unrelated.clone()],
@@ -6191,7 +6191,7 @@ globalThis.__snapbackHandlers = {
         let mut snapback = asset_test_snapback();
         snapback
             .db
-            .apply_schema(asset_profiles_schema())
+            .schema_seed().apply_schema(asset_profiles_schema())
             .expect("schema");
 
         // Like `asset_upload`, but presenting a generated reference that
@@ -8222,7 +8222,7 @@ globalThis.__snapbackHandlers = {
             let mut writer = LocalSnapback::open(writer_path).expect("open sibling writer");
             writer
                 .db
-                .seed_with_authorization(SeedData {
+                .schema_seed().seed_with_authorization(SeedData {
                     tables: BTreeMap::from([(
                         "permissions".to_owned(),
                         vec![Map::from_iter([

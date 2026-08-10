@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v1",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 206,
-  "edgeCount": 1215,
+  "moduleCount": 207,
+  "edgeCount": 1222,
   "edges": [
     {
       "from": "src/admin_agent_destroy.rs",
@@ -5353,6 +5353,12 @@
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/schema_export.rs",
+      "toOwner": "generation-activation-coordinator"
+    },
+    {
+      "from": "src/server/tests.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/secure_file.rs",
       "toOwner": "storage-migration-kernel"
     },
@@ -5479,12 +5485,6 @@
     {
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
-      "to": "src/auth/coordinator.rs",
-      "toOwner": "sync-realtime-engine"
-    },
-    {
-      "from": "src/storage.rs",
-      "fromOwner": "storage-migration-kernel",
       "to": "src/auth/invocation.rs",
       "toOwner": "sync-realtime-engine"
     },
@@ -5492,12 +5492,6 @@
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/service_fence.rs",
-      "toOwner": "sync-realtime-engine"
-    },
-    {
-      "from": "src/storage.rs",
-      "fromOwner": "storage-migration-kernel",
-      "to": "src/auth/session_projection.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
@@ -6554,6 +6548,54 @@
       "from": "src/storage/push_registry.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/storage/auth.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/schema_seed.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/assets.rs",
+      "toOwner": "background-services"
+    },
+    {
+      "from": "src/storage/schema_seed.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/auth/coordinator.rs",
+      "toOwner": "sync-realtime-engine"
+    },
+    {
+      "from": "src/storage/schema_seed.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/auth/session_projection.rs",
+      "toOwner": "sync-realtime-engine"
+    },
+    {
+      "from": "src/storage/schema_seed.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/manifest.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/schema_seed.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/push.rs",
+      "toOwner": "background-services"
+    },
+    {
+      "from": "src/storage/schema_seed.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/search/sqlite.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/schema_seed.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/seed_identity.rs",
+      "toOwner": "generation-activation-coordinator"
+    },
+    {
+      "from": "src/storage/schema_seed.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/vector/sqlite.rs",
       "toOwner": "storage-migration-kernel"
     },
     {

@@ -169,7 +169,7 @@ fn derived_value() -> ValueExpr {
 }
 
 fn seed_existing(db: &mut LocalDatabase, corpus: &Corpus) {
-    db.seed(snapback::manifest::SeedData {
+    db.schema_seed().seed(snapback::manifest::SeedData {
         tables: BTreeMap::from([(corpus.schema.table.clone(), vec![corpus.valid_row.clone()])]),
     })
     .expect("valid corpus row seeds");
@@ -218,7 +218,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
 
     for case in &corpus.cases {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema(&corpus))
+        db.schema_seed().apply_schema(schema(&corpus))
             .expect("apply corpus schema");
         if matches!(case.operation.as_str(), "patch" | "derivedPatch") {
             seed_existing(&mut db, &corpus);
@@ -227,7 +227,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
 
         let outcome = match case.operation.as_str() {
             "seed" => db
-                .seed(snapback::manifest::SeedData {
+                .schema_seed().seed(snapback::manifest::SeedData {
                     tables: BTreeMap::from([(
                         corpus.schema.table.clone(),
                         vec![case.values.clone()],
@@ -341,7 +341,7 @@ fn local_missing_rows_still_validate_the_shared_patch_corpus() {
         .filter(|case| matches!(case.operation.as_str(), "patch" | "derivedPatch"))
     {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema(&corpus))
+        db.schema_seed().apply_schema(schema(&corpus))
             .expect("apply corpus schema");
         let version_before = db.versions_read().current_version().expect("version before case");
         let values = if case.operation == "patch" {
@@ -393,7 +393,7 @@ fn local_declared_field_types_consume_the_shared_boundary_corpus() {
     let corpus = corpus();
     for case in &corpus.type_cases {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(SchemaManifest {
+        db.schema_seed().apply_schema(SchemaManifest {
             schema_hash: Some(format!("structural-type-{}", case.name)),
             tables: vec![TableManifest {
                 name: "typeRecords".to_owned(),
@@ -461,13 +461,13 @@ fn local_declared_field_types_consume_the_shared_boundary_corpus() {
 #[test]
 fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
     let mut db = LocalDatabase::memory().expect("memory database");
-    db.apply_schema(edge_schema()).expect("apply edge schema");
+    db.schema_seed().apply_schema(edge_schema()).expect("apply edge schema");
     let valid = json!({
         "_id": "edge-existing",
         "payload": { "valid": true },
         "__proto__": { "polluted": true }
     });
-    db.seed(snapback::manifest::SeedData {
+    db.schema_seed().seed(snapback::manifest::SeedData {
         tables: BTreeMap::from([(
             "edgeRecords".to_owned(),
             vec![valid.as_object().expect("valid edge row").clone()],
@@ -522,11 +522,11 @@ fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
 
     let mut seed_db = LocalDatabase::memory().expect("seed memory database");
     seed_db
-        .apply_schema(edge_schema())
+        .schema_seed().apply_schema(edge_schema())
         .expect("apply seed edge schema");
     let invalid_seed = json!({ "_id": "edge-invalid", "payload": null });
     let seed_error = seed_db
-        .seed(snapback::manifest::SeedData {
+        .schema_seed().seed(snapback::manifest::SeedData {
             tables: BTreeMap::from([(
                 "edgeRecords".to_owned(),
                 vec![

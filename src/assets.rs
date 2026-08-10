@@ -4614,7 +4614,7 @@ mod tests {
         for reserved in ASSET_SYSTEM_TABLES {
             let mut db = crate::storage::LocalDatabase::memory().expect("memory database");
             let error = db
-                .apply_schema(SchemaManifest {
+                .schema_seed().apply_schema(SchemaManifest {
                     tables: vec![TableManifest {
                         name: reserved.to_owned(),
                         fields: vec![FieldManifest {

@@ -1688,7 +1688,7 @@ fn reset_and_seed_are_deterministic_handler_bypass_paths() {
 #[test]
 fn reset_clears_removed_physical_tables_before_they_can_be_readded() {
     let mut db = LocalDatabase::memory().expect("memory database");
-    db.apply_schema(todo_schema()).expect("initial schema");
+    db.schema_seed().apply_schema(todo_schema()).expect("initial schema");
     insert_schema_test_row(
         &mut db,
         "removed-before-reset",
@@ -1698,11 +1698,11 @@ fn reset_clears_removed_physical_tables_before_they_can_be_readded() {
             "userId": "u"
         }),
     );
-    db.apply_schema(SchemaManifest::default())
+    db.schema_seed().apply_schema(SchemaManifest::default())
         .expect("logical table removal preserves its physical table");
-    db.reset()
+    db.schema_seed().reset()
         .expect("reset clears current and removed physical user tables");
-    db.apply_schema(todo_schema()).expect("re-add table schema");
+    db.schema_seed().apply_schema(todo_schema()).expect("re-add table schema");
     assert_eq!(
         db.scan_table("todos", 10, 0)
             .expect("scan re-added table")
@@ -4309,7 +4309,7 @@ fn whole_manifest_rejects_unbounded_or_invalid_actions_before_atomic_install() {
 #[test]
 fn query_filter_bind_budget_counts_every_filter_operand() {
     let mut db = LocalDatabase::memory().expect("memory db");
-    db.apply_schema(todo_schema()).expect("schema");
+    db.schema_seed().apply_schema(todo_schema()).expect("schema");
 
     let plan = |in_value: ValueExpr| QueryPlan {
         table: "todos".to_owned(),
@@ -4369,7 +4369,7 @@ fn query_filter_values_match_declared_and_system_field_types() {
         optional: false,
     });
     let mut db = LocalDatabase::memory().expect("memory db");
-    db.apply_schema(schema).expect("schema");
+    db.schema_seed().apply_schema(schema).expect("schema");
 
     let plan = |field: &str, op: FilterOp, value: Value| QueryPlan {
         table: "todos".to_owned(),
@@ -4461,7 +4461,7 @@ globalThis.__snapbackHandlers = {
 #[test]
 fn query_without_take_uses_the_portable_default_result_cap() {
     let mut db = LocalDatabase::memory().expect("memory db");
-    db.apply_schema(todo_schema()).expect("schema");
+    db.schema_seed().apply_schema(todo_schema()).expect("schema");
     let rows = (0..1_025)
         .map(|index| {
             json!({
@@ -4475,7 +4475,7 @@ fn query_without_take_uses_the_portable_default_result_cap() {
             .unwrap()
         })
         .collect();
-    db.seed(SeedData {
+    db.schema_seed().seed(SeedData {
         tables: BTreeMap::from([("todos".to_owned(), rows)]),
     })
     .expect("seed over-cap table");
@@ -5104,7 +5104,7 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
         history: None,
     });
     let mut db = LocalDatabase::memory().unwrap();
-    db.apply_schema(schema).unwrap();
+    db.schema_seed().apply_schema(schema).unwrap();
 
     let insert = |db: &mut LocalDatabase, table: &str, id: &str, values: Value| {
         db.commit_buffered_writes(
@@ -5266,7 +5266,7 @@ fn e4_query_validation_is_predicate_granular() {
     // Non-matching concurrent write → no conflict (the E4 win).
     {
         let mut db = LocalDatabase::memory().unwrap();
-        db.apply_schema(todo_schema()).unwrap();
+        db.schema_seed().apply_schema(todo_schema()).unwrap();
         let captured = db.versions_read().table_change_version("todos").unwrap();
         commit_todo(&mut db, "not-completed", false);
         let mut dep = filtered_query();
@@ -5293,7 +5293,7 @@ fn e4_query_validation_is_predicate_granular() {
     // Matching concurrent write → conflict (correctness preserved).
     {
         let mut db = LocalDatabase::memory().unwrap();
-        db.apply_schema(todo_schema()).unwrap();
+        db.schema_seed().apply_schema(todo_schema()).unwrap();
         let captured = db.versions_read().table_change_version("todos").unwrap();
         commit_todo(&mut db, "completed", true);
         let mut dep = filtered_query();
@@ -5328,7 +5328,7 @@ const REVIEWED_MIGRATION_NEXT_STEP: &str =
 #[test]
 fn apply_schema_rejects_field_type_change_on_existing_column() {
     let mut db = LocalDatabase::memory().unwrap();
-    db.apply_schema(todo_schema()).expect("initial schema");
+    db.schema_seed().apply_schema(todo_schema()).expect("initial schema");
     db.commit_buffered_writes(
         &input(json!({}), "u"),
         vec![BufferedWrite::Insert {
@@ -5353,7 +5353,7 @@ fn apply_schema_rejects_field_type_change_on_existing_column() {
         .expect("rank field declared")
         .field_type = FieldType::String;
     let error = db
-        .apply_schema(retyped)
+        .schema_seed().apply_schema(retyped)
         .expect_err("retyping an existing field must fail schema apply");
     assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
     assert_eq!(error.diagnostic.details["table"], "todos");
@@ -5379,7 +5379,7 @@ fn apply_schema_rejects_field_type_change_on_existing_column() {
         .expect("title field declared")
         .field_type = FieldType::Json;
     let error = db
-        .apply_schema(same_affinity)
+        .schema_seed().apply_schema(same_affinity)
         .expect_err("same-affinity retype must fail schema apply");
     assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
     assert_eq!(
@@ -5398,7 +5398,7 @@ fn apply_schema_rejects_field_type_change_on_existing_column() {
             .field_type,
         FieldType::Integer
     );
-    db.apply_schema(todo_schema())
+    db.schema_seed().apply_schema(todo_schema())
         .expect("matching schema re-apply still succeeds");
 }
 
@@ -5409,7 +5409,7 @@ fn apply_schema_rejects_field_type_change_on_existing_column() {
 #[test]
 fn apply_schema_rejects_affinity_mismatch_with_surviving_physical_column() {
     let mut db = LocalDatabase::memory().unwrap();
-    db.apply_schema(todo_schema()).expect("initial schema");
+    db.schema_seed().apply_schema(todo_schema()).expect("initial schema");
 
     // Drop the table from the manifest; the physical table survives (the
     // migrator preserves removed tables and columns).
@@ -5417,7 +5417,7 @@ fn apply_schema_rejects_affinity_mismatch_with_surviving_physical_column() {
         schema_hash: Some("todo-v1".to_owned()),
         ..SchemaManifest::default()
     };
-    db.apply_schema(empty).expect("table removal is additive");
+    db.schema_seed().apply_schema(empty).expect("table removal is additive");
 
     // Re-add the table with rank retyped integer -> string: the manifest diff
     // has nothing to compare against, but PRAGMA table_info still knows the
@@ -5430,7 +5430,7 @@ fn apply_schema_rejects_affinity_mismatch_with_surviving_physical_column() {
         .expect("rank field declared")
         .field_type = FieldType::String;
     let error = db
-        .apply_schema(readded)
+        .schema_seed().apply_schema(readded)
         .expect_err("affinity mismatch with the physical column must fail");
     assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
     assert_eq!(error.diagnostic.details["existingType"], "INTEGER");
@@ -5493,7 +5493,7 @@ fn required_field_tightening_rebuilds_empty_and_populated_nonnull_tables() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join(format!("required-{populated}.db"));
         let mut db = LocalDatabase::open(&path).expect("open db");
-        db.apply_schema(todo_schema()).expect("optional schema");
+        db.schema_seed().apply_schema(todo_schema()).expect("optional schema");
         if populated {
             insert_schema_test_row(
                 &mut db,
@@ -5506,7 +5506,7 @@ fn required_field_tightening_rebuilds_empty_and_populated_nonnull_tables() {
                 }),
             );
         }
-        db.apply_schema(rank_required(todo_schema()))
+        db.schema_seed().apply_schema(rank_required(todo_schema()))
             .expect("zero-null tightening is safe");
         assert!(physical_column_not_null(&path, "todos", "rank"));
         if populated {
@@ -5524,14 +5524,14 @@ fn required_field_tightening_with_nulls_rolls_back_manifest_and_rows() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("required-null.db");
     let mut db = LocalDatabase::open(&path).expect("open db");
-    db.apply_schema(todo_schema()).expect("optional schema");
+    db.schema_seed().apply_schema(todo_schema()).expect("optional schema");
     insert_schema_test_row(
         &mut db,
         "null-rank",
         json!({ "title": "preserved", "completed": false, "userId": "u" }),
     );
     let error = db
-        .apply_schema(rank_required(todo_schema()))
+        .schema_seed().apply_schema(rank_required(todo_schema()))
         .expect_err("null rows require an explicit backfill");
     assert_eq!(
         error.diagnostic.code,
@@ -5559,7 +5559,7 @@ fn required_field_removal_or_optionalization_preserves_prior_schema_and_data() {
     let path = dir.path().join("required-removal.db");
     let required = rank_required(todo_schema());
     let mut db = LocalDatabase::open(&path).expect("open db");
-    db.apply_schema(todo_schema()).expect("optional schema");
+    db.schema_seed().apply_schema(todo_schema()).expect("optional schema");
     insert_schema_test_row(
         &mut db,
         "preserved",
@@ -5570,7 +5570,7 @@ fn required_field_removal_or_optionalization_preserves_prior_schema_and_data() {
             "userId": "u"
         }),
     );
-    db.apply_schema(required.clone())
+    db.schema_seed().apply_schema(required.clone())
         .expect("tighten populated non-null field");
     assert!(physical_column_not_null(&path, "todos", "rank"));
 
@@ -5579,7 +5579,7 @@ fn required_field_removal_or_optionalization_preserves_prior_schema_and_data() {
         .fields
         .retain(|field| field.name != "rank");
     let removal = db
-        .apply_schema(removed)
+        .schema_seed().apply_schema(removed)
         .expect_err("additive migration cannot hide a preserved NOT NULL column");
     assert_eq!(
         removal.diagnostic.code,
@@ -5602,7 +5602,7 @@ fn required_field_removal_or_optionalization_preserves_prior_schema_and_data() {
         .expect("rank")
         .optional = true;
     let loosening = db
-        .apply_schema(optional)
+        .schema_seed().apply_schema(optional)
         .expect_err("logical optional cannot contradict physical NOT NULL");
     assert_eq!(
         loosening.diagnostic.code,
@@ -5647,7 +5647,7 @@ fn schema_reapply_repairs_legacy_required_but_nullable_column() {
     let required = rank_required(todo_schema());
     {
         let mut db = LocalDatabase::open(&path).expect("open db");
-        db.apply_schema(todo_schema())
+        db.schema_seed().apply_schema(todo_schema())
             .expect("legacy optional physical schema");
         insert_schema_test_row(
             &mut db,
@@ -5672,7 +5672,7 @@ fn schema_reapply_repairs_legacy_required_but_nullable_column() {
     assert!(!physical_column_not_null(&path, "todos", "rank"));
     let mut reopened = LocalDatabase::open(&path).expect("reopen legacy db");
     reopened
-        .apply_schema(required)
+        .schema_seed().apply_schema(required)
         .expect("reapply repairs the physical invariant");
     assert!(physical_column_not_null(&path, "todos", "rank"));
     assert_eq!(
@@ -5695,9 +5695,9 @@ fn new_required_field_is_allowed_only_on_an_empty_table() {
     let empty_dir = tempfile::tempdir().unwrap();
     let empty_path = empty_dir.path().join("required-add-empty.db");
     let mut empty = LocalDatabase::open(&empty_path).unwrap();
-    empty.apply_schema(todo_schema()).unwrap();
+    empty.schema_seed().apply_schema(todo_schema()).unwrap();
     empty
-        .apply_schema(add_required(todo_schema()))
+        .schema_seed().apply_schema(add_required(todo_schema()))
         .expect("empty table needs no backfill");
     assert!(physical_column_not_null(
         &empty_path,
@@ -5708,14 +5708,14 @@ fn new_required_field_is_allowed_only_on_an_empty_table() {
     let populated_dir = tempfile::tempdir().unwrap();
     let populated_path = populated_dir.path().join("required-add-populated.db");
     let mut populated = LocalDatabase::open(&populated_path).unwrap();
-    populated.apply_schema(todo_schema()).unwrap();
+    populated.schema_seed().apply_schema(todo_schema()).unwrap();
     insert_schema_test_row(
         &mut populated,
         "existing",
         json!({ "title": "existing", "completed": false, "userId": "u" }),
     );
     let error = populated
-        .apply_schema(add_required(todo_schema()))
+        .schema_seed().apply_schema(add_required(todo_schema()))
         .expect_err("populated table requires a backfill");
     assert_eq!(
         error.diagnostic.code,
@@ -5743,7 +5743,7 @@ fn new_required_field_is_allowed_only_on_an_empty_table() {
 #[test]
 fn readded_table_cannot_hide_a_preserved_required_physical_column() {
     let mut db = LocalDatabase::memory().unwrap();
-    db.apply_schema(todo_schema())
+    db.schema_seed().apply_schema(todo_schema())
         .expect("optional predecessor");
     insert_schema_test_row(
         &mut db,
@@ -5755,10 +5755,10 @@ fn readded_table_cannot_hide_a_preserved_required_physical_column() {
             "userId": "u"
         }),
     );
-    db.apply_schema(rank_required(todo_schema()))
+    db.schema_seed().apply_schema(rank_required(todo_schema()))
         .expect("tighten the populated non-null field");
 
-    db.apply_schema(SchemaManifest {
+    db.schema_seed().apply_schema(SchemaManifest {
         schema_hash: Some("without-todos".to_owned()),
         ..SchemaManifest::default()
     })
@@ -5769,7 +5769,7 @@ fn readded_table_cannot_hide_a_preserved_required_physical_column() {
         .fields
         .retain(|field| field.name != "rank");
     let error = db
-        .apply_schema(readded)
+        .schema_seed().apply_schema(readded)
         .expect_err("the physical NOT NULL backstop must refuse the hidden column");
     assert_eq!(
         error.diagnostic.code,
@@ -5853,7 +5853,7 @@ fn apply_schema_rejects_cross_table_physical_index_name_collision() {
         .tables
         .extend(single_index_schema("collision-v0", "foo_bar", "a", "baz").tables);
     let error = db
-        .apply_schema(manifest)
+        .schema_seed().apply_schema(manifest)
         .expect_err("colliding physical index names must fail validation");
     assert_eq!(
         error.diagnostic.code,
@@ -5871,7 +5871,7 @@ fn apply_schema_rebuilds_index_when_declared_fields_change() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("index-rebuild.db");
     let mut db = LocalDatabase::open(&path).expect("open db");
-    db.apply_schema(todo_schema()).expect("initial schema");
+    db.schema_seed().apply_schema(todo_schema()).expect("initial schema");
     assert_eq!(
         physical_index_definition(&path, "todos_by_user"),
         Some((
@@ -5881,12 +5881,12 @@ fn apply_schema_rebuilds_index_when_declared_fields_change() {
     );
 
     // Re-applying the same manifest keeps the index (the redeploy no-op path).
-    db.apply_schema(todo_schema()).expect("matching re-apply");
+    db.schema_seed().apply_schema(todo_schema()).expect("matching re-apply");
 
     // Widen by_user to (userId, completed): the physical index must follow.
     let mut widened = todo_schema();
     widened.tables[0].indexes[0].fields = vec!["userId".to_owned(), "completed".to_owned()];
-    db.apply_schema(widened)
+    db.schema_seed().apply_schema(widened)
         .expect("index definition change applies");
     assert_eq!(
         physical_index_definition(&path, "todos_by_user"),
@@ -5912,7 +5912,7 @@ fn apply_schema_reclaims_stale_physical_index_from_removed_table() {
     let path = dir.path().join("index-reclaim.db");
     let mut db = LocalDatabase::open(&path).expect("open db");
 
-    db.apply_schema(single_index_schema("epoch-1", "foo_bar", "a", "baz"))
+    db.schema_seed().apply_schema(single_index_schema("epoch-1", "foo_bar", "a", "baz"))
         .expect("epoch one");
     assert_eq!(
         physical_index_definition(&path, "foo_bar_baz"),
@@ -5921,7 +5921,7 @@ fn apply_schema_reclaims_stale_physical_index_from_removed_table() {
 
     // Epoch two drops foo_bar from the manifest and declares table foo with
     // index bar_baz — the same physical name, now owned by a different table.
-    db.apply_schema(single_index_schema("epoch-2", "foo", "b", "bar_baz"))
+    db.schema_seed().apply_schema(single_index_schema("epoch-2", "foo", "b", "bar_baz"))
         .expect("epoch two");
     assert_eq!(
         physical_index_definition(&path, "foo_bar_baz"),

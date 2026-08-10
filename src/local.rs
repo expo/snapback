@@ -4263,7 +4263,7 @@ impl LocalSnapback {
                     //   predecessor-generation rows.
                     snapback.telemetry.begin_generation_transition();
                 }
-                let mut diagnostics = match snapback.db.apply_schema(manifest) {
+                let mut diagnostics = match snapback.db.schema_seed().apply_schema(manifest) {
                     Ok(diagnostics) => diagnostics,
                     Err(error) => {
                         if telemetry_identity_changes {
@@ -4635,7 +4635,7 @@ impl LocalSnapback {
         self.telemetry.begin_generation_transition();
         match self
             .db
-            .attempt_reset_and_seed_with_authorization_stream(seed, predecessor, successor)
+            .schema_seed().attempt_reset_and_seed_with_authorization_stream(seed, predecessor, successor)
         {
             AuthTransactionAttempt::Committed(seeded) => {
                 if let Err(error) = self.finish_telemetry_generation_transition(successor.as_str())
@@ -4683,14 +4683,14 @@ impl LocalSnapback {
         &mut self,
         request: crate::seed_identity::InstallSeedRequestV1,
     ) -> SnapbackResult<crate::seed_identity::SeedEnsureResultV1> {
-        self.db.ensure_versioned_seed(request)
+        self.db.schema_seed().ensure_versioned_seed(request)
     }
 
     pub(crate) fn preview_versioned_seed(
         &mut self,
         request: crate::seed_identity::SeedPreviewRequestV1,
     ) -> SnapbackResult<crate::seed_identity::SeedPreviewResultV1> {
-        self.db.preview_versioned_seed(request)
+        self.db.schema_seed().preview_versioned_seed(request)
     }
 
     pub(crate) fn replay_versioned_seed_operation(
@@ -4699,7 +4699,7 @@ impl LocalSnapback {
         request_digest: &str,
     ) -> SnapbackResult<Option<crate::seed_identity::SeedInstallReceiptV1>> {
         self.db
-            .replay_versioned_seed_operation(operation_id, request_digest)
+            .schema_seed().replay_versioned_seed_operation(operation_id, request_digest)
     }
 
     pub(crate) fn attempt_versioned_seed_reset_with_authorization_stream(
@@ -4723,7 +4723,7 @@ impl LocalSnapback {
         self.telemetry.begin_generation_transition();
         match self
             .db
-            .attempt_versioned_seed_reset_with_authorization_stream(request, predecessor, successor)
+            .schema_seed().attempt_versioned_seed_reset_with_authorization_stream(request, predecessor, successor)
         {
             AuthTransactionAttempt::Committed((seeded, receipt)) => {
                 if let Err(error) = self.finish_telemetry_generation_transition(successor.as_str())
@@ -5874,7 +5874,7 @@ impl LocalSnapback {
     pub fn seed(&mut self, seed: SeedData) -> SnapbackResult<MutationOutput> {
         let preflight = self.authorization_commit_preflight_for_seed(&seed)?;
         self.try_with_direct_authorization_write(preflight, move |snapback| {
-            let output = snapback.db.seed(seed)?;
+            let output = snapback.db.schema_seed().seed(seed)?;
             snapback.notify_live_subscriptions(&[]);
             Ok(output)
         })?
@@ -16270,7 +16270,7 @@ impl LocalSnapback {
         &mut self,
         seed: &SeedData,
     ) -> SnapbackResult<crate::storage::AuthorizationCommitPreflight> {
-        let changes = self.db.preview_seed_changes(seed.clone())?;
+        let changes = self.db.schema_seed().preview_seed_changes(seed.clone())?;
         Ok(self.authorization_commit_preflight_for_changes(changes))
     }
 

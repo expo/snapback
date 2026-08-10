@@ -221,7 +221,7 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
     )
     .expect("Todo schema manifest");
     let mut parent = LocalDatabase::open(&source).expect("parent database");
-    parent.apply_schema(schema).expect("apply parent schema");
+    parent.schema_seed().apply_schema(schema).expect("apply parent schema");
     drop(parent);
 
     let fork_root = directory.path().join("forks");
@@ -897,7 +897,7 @@ fn parent_with_schema(directory: &Path) -> PathBuf {
     )
     .expect("Todo schema manifest");
     let mut parent = LocalDatabase::open(&source).expect("parent database");
-    parent.apply_schema(schema).expect("apply parent schema");
+    parent.schema_seed().apply_schema(schema).expect("apply parent schema");
     drop(parent);
     source
 }
@@ -1312,7 +1312,7 @@ fn live_parent_writes_after_fork_point_never_appear_in_the_fork() {
     )
     .expect("Todo schema manifest");
     let mut parent_db = LocalDatabase::open(&source).expect("parent database");
-    parent_db.apply_schema(schema).expect("apply parent schema");
+    parent_db.schema_seed().apply_schema(schema).expect("apply parent schema");
     drop(parent_db);
 
     let parent = ParentServer::start(&source, directory.path());

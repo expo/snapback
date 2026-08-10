@@ -119,7 +119,7 @@ fn app_schema(membership: MembershipManifest) -> SchemaManifest {
 
 fn apply_err(membership: MembershipManifest) -> String {
     let mut db = LocalDatabase::memory().expect("memory db");
-    db.apply_schema(app_schema(membership))
+    db.schema_seed().apply_schema(app_schema(membership))
         .expect_err("declaration must be refused")
         .diagnostic
         .code
@@ -161,7 +161,7 @@ fn row_count(db: &LocalDatabase, table: &str) -> usize {
 /// Seed an `events` row with a caller-chosen `_id` so a membership's `eventId`
 /// axis can reference it exactly (row `_id`s are otherwise host-generated).
 fn seed_event(db: &mut LocalDatabase, id: &str) {
-    db.seed(snapback::manifest::SeedData {
+    db.schema_seed().seed(snapback::manifest::SeedData {
         tables: BTreeMap::from([(
             "events".to_owned(),
             vec![serde_json::Map::from_iter([
@@ -180,7 +180,7 @@ fn seed_event(db: &mut LocalDatabase, id: &str) {
 #[test]
 fn a_well_formed_declaration_applies() {
     let mut db = LocalDatabase::memory().expect("memory db");
-    db.apply_schema(app_schema(base_membership()))
+    db.schema_seed().apply_schema(app_schema(base_membership()))
         .expect("a conforming membership declaration applies cleanly");
 }
 
@@ -198,7 +198,7 @@ fn optional_key_axis_is_refused() {
     members.fields[0] = field("userId", FieldType::Principal, true); // userId optional
     let code = {
         let mut db = LocalDatabase::memory().expect("memory db");
-        db.apply_schema(schema(vec![events_table(), members]))
+        db.schema_seed().apply_schema(schema(vec![events_table(), members]))
             .expect_err("optional principal axis must be refused")
             .diagnostic
             .code
@@ -214,7 +214,7 @@ fn principal_axis_must_be_v_principal() {
     members.fields[0] = field("userId", FieldType::String, false); // not Principal
     let code = {
         let mut db = LocalDatabase::memory().expect("memory db");
-        db.apply_schema(schema(vec![events_table(), members]))
+        db.schema_seed().apply_schema(schema(vec![events_table(), members]))
             .expect_err("principal axis must be v.principal()")
             .diagnostic
             .code
@@ -230,7 +230,7 @@ fn resource_axis_must_be_v_id() {
     members.fields[1] = field("eventId", FieldType::String, false);
     let code = {
         let mut db = LocalDatabase::memory().expect("memory db");
-        db.apply_schema(schema(vec![events_table(), members]))
+        db.schema_seed().apply_schema(schema(vec![events_table(), members]))
             .expect_err("resource axis must be v.id(resourceTable)")
             .diagnostic
             .code
@@ -250,7 +250,7 @@ fn resource_axis_v_id_target_must_match_resource_table() {
     );
     let code = {
         let mut db = LocalDatabase::memory().expect("memory db");
-        db.apply_schema(schema(vec![events_table(), members]))
+        db.schema_seed().apply_schema(schema(vec![events_table(), members]))
             .expect_err("resource v.id target must match resourceTable")
             .diagnostic
             .code
@@ -328,7 +328,7 @@ fn membership_plus_permission_backing_is_refused() {
     members.permission_backing = true;
     let code = {
         let mut db = LocalDatabase::memory().expect("memory db");
-        db.apply_schema(schema(vec![events_table(), members]))
+        db.schema_seed().apply_schema(schema(vec![events_table(), members]))
             .expect_err(".membership() + permissionBacking must be refused")
             .diagnostic
             .code
@@ -360,7 +360,7 @@ fn two_declarations_sharing_a_stable_id_collide() {
     };
     let mut db = LocalDatabase::memory().expect("memory db");
     let code = db
-        .apply_schema(schema(vec![events_table(), members_a, members_b]))
+        .schema_seed().apply_schema(schema(vec![events_table(), members_a, members_b]))
         .expect_err("two tables sharing a declaration id must be refused")
         .diagnostic
         .code;
@@ -446,7 +446,7 @@ fn concurrent_same_pair_inserts_yield_one_row_and_one_typed_conflict() {
         fields: None,
     }];
     let mut db = LocalDatabase::memory().expect("memory db");
-    db.apply_schema(app_schema(membership))
+    db.schema_seed().apply_schema(app_schema(membership))
         .expect("apply membership schema");
     seed_event(&mut db, "event_1");
 
@@ -518,10 +518,10 @@ fn adopt_over_existing(
     let mut db = LocalDatabase::memory().expect("memory db");
     // The plain shape carries identical columns (so adopting the declaration is
     // not a field retype) but no `.membership()` metadata yet.
-    db.apply_schema(schema(vec![events_table(), members_table(None)]))
+    db.schema_seed().apply_schema(schema(vec![events_table(), members_table(None)]))
         .expect("apply plain schema");
     seed(&mut db);
-    db.apply_schema(app_schema(membership))
+    db.schema_seed().apply_schema(app_schema(membership))
         .map(|_| ())
         .map_err(|error| error.diagnostic.code)
 }

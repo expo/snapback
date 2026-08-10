@@ -65,7 +65,7 @@ mod vector_storage_carrier_tests {
     #[test]
     fn direct_vector_schema_lowers_and_round_trips_canonical_bytes() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(SchemaManifest {
+        db.schema_seed().apply_schema(SchemaManifest {
             required_capabilities: vec![crate::vector::VECTOR_CAPABILITY.to_owned()],
             tables: vec![TableManifest {
                 name: "embeddings".to_owned(),
@@ -99,7 +99,7 @@ mod vector_storage_carrier_tests {
             .expect("vector column declaration");
         assert_eq!(declared, "BLOB");
 
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "embeddings".to_owned(),
                 vec![Map::from_iter([
@@ -198,7 +198,7 @@ mod stored_enum_tests {
         for values in invalid_domains {
             let mut db = LocalDatabase::memory().expect("memory database");
             let error = db
-                .apply_schema(schema(vec![field(
+                .schema_seed().apply_schema(schema(vec![field(
                     "role",
                     FieldType::Enum { values },
                     false,
@@ -221,7 +221,7 @@ mod stored_enum_tests {
     #[test]
     fn enum_lowers_to_text_and_central_writes_enforce_the_domain() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema(vec![
+        db.schema_seed().apply_schema(schema(vec![
             field("role", domain(&["admin", "member"]), false),
             field("visibility", domain(&["internal", "public"]), true),
         ]))
@@ -345,14 +345,14 @@ mod stored_enum_tests {
     fn optional_enum_field_addition_admits_on_a_nonempty_table() {
         let base = schema(vec![field("title", FieldType::String, false)]);
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(base).expect("apply base schema");
+        db.schema_seed().apply_schema(base).expect("apply base schema");
         insert(
             &mut db,
             "nonempty",
             Map::from_iter([("title".to_owned(), json!("hello"))]),
         )
         .expect("seed nonempty table");
-        db.apply_schema(schema(vec![
+        db.schema_seed().apply_schema(schema(vec![
             field("title", FieldType::String, false),
             field("state", domain(&["open", "closed"]), true),
         ]))
@@ -372,16 +372,16 @@ mod stored_enum_tests {
     fn required_enum_field_addition_admits_only_on_an_empty_table() {
         let base = schema(vec![field("title", FieldType::String, false)]);
         let mut empty = LocalDatabase::memory().expect("memory database");
-        empty.apply_schema(base.clone()).expect("apply base schema");
+        empty.schema_seed().apply_schema(base.clone()).expect("apply base schema");
         empty
-            .apply_schema(schema(vec![
+            .schema_seed().apply_schema(schema(vec![
                 field("title", FieldType::String, false),
                 field("state", domain(&["open", "closed"]), false),
             ]))
             .expect("required enum field can be added to empty table");
 
         let mut nonempty = LocalDatabase::memory().expect("memory database");
-        nonempty.apply_schema(base).expect("apply base schema");
+        nonempty.schema_seed().apply_schema(base).expect("apply base schema");
         insert(
             &mut nonempty,
             "nonempty",
@@ -389,7 +389,7 @@ mod stored_enum_tests {
         )
         .expect("seed nonempty table");
         let error = nonempty
-            .apply_schema(schema(vec![
+            .schema_seed().apply_schema(schema(vec![
                 field("title", FieldType::String, false),
                 field("state", domain(&["open", "closed"]), false),
             ]))
@@ -421,7 +421,7 @@ mod stored_enum_tests {
     #[test]
     fn enum_domain_widening_admits_without_touching_rows() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema(vec![field(
+        db.schema_seed().apply_schema(schema(vec![field(
             "state",
             domain(&["open", "closed"]),
             false,
@@ -433,7 +433,7 @@ mod stored_enum_tests {
             Map::from_iter([("state".to_owned(), json!("open"))]),
         )
         .expect("seed admitted value");
-        db.apply_schema(schema(vec![field(
+        db.schema_seed().apply_schema(schema(vec![field(
             "state",
             domain(&["closed", "open", "archived"]),
             false,
@@ -449,7 +449,7 @@ mod stored_enum_tests {
     fn enum_domain_narrowing_scans_existing_rows_in_the_activation_transaction() {
         let mut conforming = LocalDatabase::memory().expect("memory database");
         conforming
-            .apply_schema(schema(vec![field(
+            .schema_seed().apply_schema(schema(vec![field(
                 "state",
                 domain(&["open", "closed", "archived"]),
                 false,
@@ -462,7 +462,7 @@ mod stored_enum_tests {
         )
         .expect("seed conforming value");
         conforming
-            .apply_schema(schema(vec![field(
+            .schema_seed().apply_schema(schema(vec![field(
                 "state",
                 domain(&["open", "closed"]),
                 false,
@@ -471,7 +471,7 @@ mod stored_enum_tests {
 
         let mut refusing = LocalDatabase::memory().expect("memory database");
         refusing
-            .apply_schema(schema(vec![field(
+            .schema_seed().apply_schema(schema(vec![field(
                 "state",
                 domain(&["open", "closed", "archived"]),
                 false,
@@ -484,7 +484,7 @@ mod stored_enum_tests {
         )
         .expect("seed soon-to-be excluded value");
         let error = refusing
-            .apply_schema(schema(vec![
+            .schema_seed().apply_schema(schema(vec![
                 field("state", domain(&["open", "closed"]), false),
                 field("note", FieldType::String, true),
             ]))
@@ -532,7 +532,7 @@ mod stored_enum_tests {
     fn string_to_enum_scans_existing_rows_in_the_activation_transaction() {
         let mut conforming = LocalDatabase::memory().expect("memory database");
         conforming
-            .apply_schema(schema(vec![field("state", FieldType::String, false)]))
+            .schema_seed().apply_schema(schema(vec![field("state", FieldType::String, false)]))
             .expect("apply string schema");
         insert(
             &mut conforming,
@@ -541,7 +541,7 @@ mod stored_enum_tests {
         )
         .expect("seed conforming string");
         conforming
-            .apply_schema(schema(vec![field(
+            .schema_seed().apply_schema(schema(vec![field(
                 "state",
                 domain(&["open", "closed"]),
                 false,
@@ -550,7 +550,7 @@ mod stored_enum_tests {
 
         let mut refusing = LocalDatabase::memory().expect("memory database");
         refusing
-            .apply_schema(schema(vec![field("state", FieldType::String, false)]))
+            .schema_seed().apply_schema(schema(vec![field("state", FieldType::String, false)]))
             .expect("apply string schema");
         insert(
             &mut refusing,
@@ -559,7 +559,7 @@ mod stored_enum_tests {
         )
         .expect("seed nonconforming string");
         let error = refusing
-            .apply_schema(schema(vec![
+            .schema_seed().apply_schema(schema(vec![
                 field("state", domain(&["open", "closed"]), false),
                 field("note", FieldType::String, true),
             ]))
@@ -593,7 +593,7 @@ mod stored_enum_tests {
     #[test]
     fn enum_to_string_admits_without_touching_rows() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema(vec![field(
+        db.schema_seed().apply_schema(schema(vec![field(
             "state",
             domain(&["open", "closed"]),
             false,
@@ -605,7 +605,7 @@ mod stored_enum_tests {
             Map::from_iter([("state".to_owned(), json!("open"))]),
         )
         .expect("seed enum row");
-        db.apply_schema(schema(vec![field("state", FieldType::String, false)]))
+        db.schema_seed().apply_schema(schema(vec![field("state", FieldType::String, false)]))
             .expect("enum to string is declaration-only");
         assert_eq!(
             db.schema()
@@ -625,10 +625,10 @@ mod stored_enum_tests {
     #[test]
     fn non_string_scalar_to_enum_remains_a_logical_retype() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema(vec![field("state", FieldType::Integer, false)]))
+        db.schema_seed().apply_schema(schema(vec![field("state", FieldType::Integer, false)]))
             .expect("apply integer schema");
         let error = db
-            .apply_schema(schema(vec![field(
+            .schema_seed().apply_schema(schema(vec![field(
                 "state",
                 domain(&["open", "closed"]),
                 false,
@@ -666,7 +666,7 @@ mod guarded_commit_tests {
     fn migration_scan_database() -> LocalDatabase {
         use crate::manifest::IndexManifest;
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(SchemaManifest {
+        db.schema_seed().apply_schema(SchemaManifest {
             tables: vec![TableManifest {
                 name: "scanned".to_owned(),
                 fields: vec![
@@ -708,7 +708,7 @@ mod guarded_commit_tests {
             }
             object
         };
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "scanned".to_owned(),
                 vec![
@@ -1077,12 +1077,12 @@ mod guarded_commit_tests {
 
     fn database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema()).expect("apply test schema");
+        db.schema_seed().apply_schema(schema()).expect("apply test schema");
         db
     }
 
     fn apply_typed_decode_fixture(db: &mut LocalDatabase) {
-        db.apply_schema(SchemaManifest {
+        db.schema_seed().apply_schema(SchemaManifest {
             tables: vec![TableManifest {
                 name: "typed_items".to_owned(),
                 fields: vec![
@@ -1131,7 +1131,7 @@ mod guarded_commit_tests {
             ..SchemaManifest::default()
         })
         .expect("apply typed decode schema");
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "typed_items".to_owned(),
                 vec![Map::from_iter([
@@ -1218,7 +1218,7 @@ mod guarded_commit_tests {
     #[test]
     fn sequence_allocation_is_gapless_atomic_replay_safe_and_incarnation_scoped() {
         let mut db = database();
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "items".to_owned(),
                 vec![Map::from_iter([
@@ -1371,7 +1371,7 @@ mod guarded_commit_tests {
     #[test]
     fn malformed_sequence_fact_cannot_commit_before_durable_replay_validation() {
         let mut db = database();
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "items".to_owned(),
                 vec![Map::from_iter([
@@ -1433,7 +1433,7 @@ mod guarded_commit_tests {
     #[test]
     fn noncanonical_sequence_scope_id_cannot_commit_or_burn() {
         let mut db = database();
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "items".to_owned(),
                 vec![Map::from_iter([
@@ -1493,7 +1493,7 @@ mod guarded_commit_tests {
         db.install_sequence_declarations(item_sequence_declarations(), false)
             .expect("empty table enrolls as a sequence scope");
         let failure = db
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![Map::from_iter([
@@ -1523,7 +1523,7 @@ mod guarded_commit_tests {
     #[test]
     fn order_field_utf8_bound_refuses_brownfield_and_all_central_writes() {
         let mut db = database();
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "items".to_owned(),
                 vec![Map::from_iter([
@@ -1748,7 +1748,7 @@ mod guarded_commit_tests {
 
     fn relation_database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory relation database");
-        db.apply_schema(relation_schema())
+        db.schema_seed().apply_schema(relation_schema())
             .expect("apply relation schema");
         db
     }
@@ -1785,7 +1785,7 @@ mod guarded_commit_tests {
 
     fn generated_sequence_file_database(path: &Path) -> LocalDatabase {
         let mut db = LocalDatabase::open(path).expect("open shared sequence database");
-        db.apply_schema(relation_schema())
+        db.schema_seed().apply_schema(relation_schema())
             .expect("apply shared relation schema");
         db.install_sequence_declarations(generated_sequence_declarations(), false)
             .expect("install shared sequence declarations");
@@ -2352,7 +2352,7 @@ mod guarded_commit_tests {
             .indexes[0]
             .unique = true;
         let mut db = LocalDatabase::memory().expect("incarnation unique database");
-        db.apply_schema(schema)
+        db.schema_seed().apply_schema(schema)
             .expect("apply unique relation schema");
         db.install_sequence_declarations(generated_sequence_declarations(), false)
             .expect("install sequence declarations");
@@ -2545,7 +2545,7 @@ mod guarded_commit_tests {
     #[test]
     fn oq3_failed_function_generation_composite_rolls_back_pins_enrollments_and_record() {
         let mut db = database();
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "items".to_owned(),
                 vec![object(&[("_id", json!("bad/id")), ("title", json!("brownfield"))])],
@@ -2590,7 +2590,7 @@ mod guarded_commit_tests {
             .install_sequence_declarations(item_sequence_declarations(), false)
             .expect("functions-before-seed enrolls an empty scope");
         fresh
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![object(&[
@@ -2603,7 +2603,7 @@ mod guarded_commit_tests {
 
         let mut brownfield = database();
         brownfield
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![object(&[("_id", json!("scope")), ("title", json!("old"))])],
@@ -2626,7 +2626,7 @@ mod guarded_commit_tests {
 
         let mut simultaneous = database();
         simultaneous
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![object(&[("_id", json!("scope")), ("title", json!("old"))])],
@@ -2685,7 +2685,7 @@ mod guarded_commit_tests {
         let mut db = database();
         db.install_sequence_declarations(item_sequence_declarations(), false)
             .unwrap();
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "items".to_owned(),
                 vec![object(&[
@@ -2743,7 +2743,7 @@ mod guarded_commit_tests {
             .install_sequence_declarations(item_sequence_declarations(), false)
             .unwrap();
         retirement
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![object(&[
@@ -2782,7 +2782,7 @@ mod guarded_commit_tests {
             .install_sequence_declarations(item_sequence_declarations(), false)
             .unwrap();
         restart
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![object(&[
@@ -2852,7 +2852,7 @@ mod guarded_commit_tests {
         let mut db = database();
         db.install_sequence_declarations(item_sequence_declarations(), false)
             .unwrap();
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "items".to_owned(),
                 vec![object(&[
@@ -3273,7 +3273,7 @@ mod guarded_commit_tests {
             ]),
         };
         let mut db = relation_database();
-        db.seed(seed.clone())
+        db.schema_seed().seed(seed.clone())
             .expect("seed stamps relation children");
         let seed_stamp: String = db
             .conn
@@ -3452,7 +3452,7 @@ mod guarded_commit_tests {
             tx.rollback().unwrap();
         }
 
-        db.reset_and_seed(Some(seed))
+        db.schema_seed().reset_and_seed(Some(seed))
             .expect("reset seed recreates and restamps the relation cut");
         let reset_stamp: String = db
             .conn
@@ -4158,7 +4158,7 @@ mod guarded_commit_tests {
             unique: true,
         }];
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(unique_schema).expect("apply unique index");
+        db.schema_seed().apply_schema(unique_schema).expect("apply unique index");
 
         let insert = |id: &str| BufferedWrite::Insert {
             table: "items".to_owned(),
@@ -4197,7 +4197,7 @@ mod guarded_commit_tests {
         }];
         let mut db = LocalDatabase::memory().expect("memory database");
         let error = db
-            .apply_schema(unsafe_schema)
+            .schema_seed().apply_schema(unsafe_schema)
             .expect_err("nullable unique key would not be total");
         assert_eq!(
             error.diagnostic.code,
@@ -4317,14 +4317,14 @@ mod guarded_commit_tests {
 
     fn relational_database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(relational_schema())
+        db.schema_seed().apply_schema(relational_schema())
             .expect("apply relational schema");
         let row = |id: &str, fields: Value| {
             let mut object = fields.as_object().cloned().expect("row object");
             object.insert("_id".to_owned(), json!(id));
             object
         };
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([
                 (
                     "books".to_owned(),
@@ -4468,10 +4468,10 @@ mod guarded_commit_tests {
         // claimed-unique joined key is a storage-invariant refusal.
         let mut corrupted = LocalDatabase::memory().expect("memory database");
         corrupted
-            .apply_schema(relational_schema())
+            .schema_seed().apply_schema(relational_schema())
             .expect("apply relational schema");
         corrupted
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([
                     (
                         "books".to_owned(),
@@ -4617,7 +4617,7 @@ mod guarded_commit_tests {
     fn relational_root_window_is_index_served_on_sparse_fixture() {
         use crate::manifest::JoinKind;
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(relational_schema()).expect("apply schema");
+        db.schema_seed().apply_schema(relational_schema()).expect("apply schema");
         // 3,000 roots; only every 300th belongs to user-a (10 visible),
         // interleaved so a scan would walk the whole table.
         let books: Vec<Map<String, Value>> = (0..3_000)
@@ -4640,7 +4640,7 @@ mod guarded_commit_tests {
                 .cloned()
                 .expect("seed row"),
         ];
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([("books".to_owned(), books), ("authors".to_owned(), authors)]),
         })
         .expect("seed sparse fixture");
@@ -4694,8 +4694,8 @@ mod guarded_commit_tests {
             .expect("seed row");
         let seed = |books: Vec<Map<String, Value>>| {
             let mut db = LocalDatabase::memory().expect("memory database");
-            db.apply_schema(relational_schema()).expect("apply schema");
-            db.seed(SeedData {
+            db.schema_seed().apply_schema(relational_schema()).expect("apply schema");
+            db.schema_seed().seed(SeedData {
                 tables: BTreeMap::from([
                     ("books".to_owned(), books),
                     ("authors".to_owned(), vec![author.clone()]),
@@ -4891,7 +4891,7 @@ mod guarded_commit_tests {
             .expect("handwritten owner transfer");
         };
         let seed = |db: &mut LocalDatabase| {
-            db.seed(SeedData {
+            db.schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![
@@ -4971,7 +4971,7 @@ mod guarded_commit_tests {
             },
         ];
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(suffix_schema).expect("apply index schema");
+        db.schema_seed().apply_schema(suffix_schema).expect("apply index schema");
 
         let index_columns = |db: &LocalDatabase, physical: &str| -> Vec<String> {
             let mut statement = db
@@ -5014,7 +5014,7 @@ mod guarded_commit_tests {
                 .expect("seed row"),
             );
         }
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([("items".to_owned(), rows)]),
         })
         .expect("seed duplicate order keys");
@@ -5093,7 +5093,7 @@ mod guarded_commit_tests {
         };
         let mut query_db = database();
         query_db
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![
@@ -5267,7 +5267,7 @@ mod guarded_commit_tests {
 
     fn permission_database(permission_fields: Option<Vec<&str>>) -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(permission_schema(permission_fields))
+        db.schema_seed().apply_schema(permission_schema(permission_fields))
             .expect("apply permission schema");
         db
     }
@@ -5276,7 +5276,7 @@ mod guarded_commit_tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("guarded.sqlite3");
         let mut db = LocalDatabase::open(&path).expect("file database");
-        db.apply_schema(schema()).expect("apply test schema");
+        db.schema_seed().apply_schema(schema()).expect("apply test schema");
         (dir, path, db)
     }
 
@@ -5285,7 +5285,7 @@ mod guarded_commit_tests {
         for surface in ["get", "query", "scan"] {
             let (_dir, path, mut setup) = file_database();
             setup
-                .seed(seed_data("item", "before"))
+                .schema_seed().seed(seed_data("item", "before"))
                 .expect("seed baseline row");
             drop(setup);
 
@@ -5433,7 +5433,7 @@ mod guarded_commit_tests {
     fn reopen_accepts_a_valid_sibling_commit_after_its_initial_preflight() {
         let (_dir, path, mut writer) = file_database();
         let baseline = writer
-            .seed(seed_data("baseline", "before-open"))
+            .schema_seed().seed(seed_data("baseline", "before-open"))
             .expect("seed the initial open cut");
         let (reached_tx, reached_rx) = mpsc::channel();
         let (release_tx, release_rx) = mpsc::channel();
@@ -5447,7 +5447,7 @@ mod guarded_commit_tests {
         assert_eq!(inspected, baseline.version);
 
         let sibling = writer
-            .seed(seed_data("sibling", "during-open"))
+            .schema_seed().seed(seed_data("sibling", "during-open"))
             .expect("a sibling writer may commit while the opener validates its old snapshot");
         assert_eq!(sibling.version, baseline.version + 1);
         release_tx.send(()).expect("release the opening snapshot");
@@ -5606,8 +5606,8 @@ mod guarded_commit_tests {
         hot_table.name = "hot_items".to_owned();
         manifest.tables.push(hot_table);
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(manifest).expect("apply two-table schema");
-        db.seed(SeedData {
+        db.schema_seed().apply_schema(manifest).expect("apply two-table schema");
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "hot_items".to_owned(),
                 vec![Map::from_iter([
@@ -5695,7 +5695,7 @@ mod guarded_commit_tests {
     #[test]
     fn promotion_head_reservation_defers_real_host_plan_and_buffered_writers_on_current_stream() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema()).expect("apply schema");
+        db.schema_seed().apply_schema(schema()).expect("apply schema");
         let tx = db.conn.transaction().expect("stream transaction");
         let stream = auth_invalidation::ensure_data_version_stream_in(&tx)
             .expect("initialize nonliteral data-version stream");
@@ -5829,7 +5829,7 @@ mod guarded_commit_tests {
             max_versions_per_record: 32,
         });
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(history_schema)
+        db.schema_seed().apply_schema(history_schema)
             .expect("schema-declared finite history policy");
         let tx = db.conn.transaction().expect("stream authority tx");
         let stream = auth_invalidation::ensure_data_version_stream_in(&tx)
@@ -6580,7 +6580,7 @@ mod guarded_commit_tests {
 
         fn database_with_lanes(lanes: &[&str]) -> LocalDatabase {
             let mut db = LocalDatabase::memory().expect("memory database");
-            db.apply_schema(schema())
+            db.schema_seed().apply_schema(schema())
                 .expect("apply writer fixture schema");
             let mut covered_lanes = lanes
                 .iter()
@@ -6838,7 +6838,7 @@ mod guarded_commit_tests {
         };
 
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema())
+        db.schema_seed().apply_schema(schema())
             .expect("apply writer fixture schema");
         db.install_operation_coverage_for_test(
             vec![crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned()],
@@ -7030,7 +7030,7 @@ mod guarded_commit_tests {
         }
 
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema())
+        db.schema_seed().apply_schema(schema())
             .expect("apply writer fixture schema");
         db.conn
             .execute_batch(
@@ -7233,7 +7233,7 @@ mod guarded_commit_tests {
         }
 
         let mut db = LocalDatabase::memory().expect("armed adversarial database");
-        db.apply_schema(schema()).expect("apply adversarial schema");
+        db.schema_seed().apply_schema(schema()).expect("apply adversarial schema");
         db.conn
             .execute_batch("CREATE TABLE prearmed_escape(value TEXT)")
             .expect("create unknown pre-arm table fixture");
@@ -7352,7 +7352,7 @@ mod guarded_commit_tests {
         let directory = tempfile::tempdir().expect("registered writer fixture");
         let path = directory.path().join("armed.sqlite3");
         let mut db = LocalDatabase::open(&path).expect("file database");
-        db.apply_schema(schema())
+        db.schema_seed().apply_schema(schema())
             .expect("apply registered writer schema");
         db.activate_local_target_operation_coverage(1)
             .expect("arm registered writer database");
@@ -7441,7 +7441,7 @@ mod guarded_commit_tests {
     #[test]
     fn llp0162_local_target_activation_names_only_envelope_writers_and_blocks_exclusions() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema())
+        db.schema_seed().apply_schema(schema())
             .expect("apply writer fixture schema");
         db.activate_local_target_operation_coverage(1)
             .expect("activate closed local target manifest");
@@ -7487,14 +7487,14 @@ mod guarded_commit_tests {
         }
 
         let schema_error = db
-            .apply_schema(schema())
+            .schema_seed().apply_schema(schema())
             .expect_err("schema activation must use its excluded generated authority");
         assert_eq!(
             schema_error.diagnostic.code,
             "SNAPBACK_OPERATION_WRITER_EXCLUDED"
         );
         let reset_error = db
-            .reset()
+            .schema_seed().reset()
             .expect_err("reset must use its excluded generated authority");
         assert_eq!(
             reset_error.diagnostic.code,
@@ -7529,7 +7529,7 @@ mod guarded_commit_tests {
             .collect::<Vec<_>>();
 
         let mut subset = LocalDatabase::memory().expect("subset database");
-        subset.apply_schema(schema()).expect("subset schema");
+        subset.schema_seed().apply_schema(schema()).expect("subset schema");
         subset
             .install_operation_coverage_for_test(
                 vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
@@ -7542,7 +7542,7 @@ mod guarded_commit_tests {
         assert!(!subset.agent_safe_exact_operation_coverage_active().unwrap());
 
         let mut superset = LocalDatabase::memory().expect("superset database");
-        superset.apply_schema(schema()).expect("superset schema");
+        superset.schema_seed().apply_schema(schema()).expect("superset schema");
         let mut extra_writers = exact_writers.clone();
         extra_writers.push("forged::unregistered-writer".to_owned());
         superset
@@ -7555,7 +7555,7 @@ mod guarded_commit_tests {
         );
 
         let mut removed = LocalDatabase::memory().expect("removed database");
-        removed.apply_schema(schema()).expect("removed schema");
+        removed.schema_seed().apply_schema(schema()).expect("removed schema");
         removed
             .install_operation_coverage_for_test(exact_lanes, exact_writers)
             .expect("install exact manifest");
@@ -7602,7 +7602,7 @@ mod guarded_commit_tests {
         let dir = tempfile::tempdir().expect("writer authority tempdir");
         let path = dir.path().join("writer-authority.sqlite");
         let mut db = LocalDatabase::open(&path).expect("create file database");
-        db.apply_schema(schema())
+        db.schema_seed().apply_schema(schema())
             .expect("apply writer fixture schema");
         assert_eq!(
             db.conn
@@ -7695,7 +7695,7 @@ mod guarded_commit_tests {
     #[test]
     fn llp0162_writer_authority_installs_only_at_the_active_coverage_cut() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema())
+        db.schema_seed().apply_schema(schema())
             .expect("apply writer fixture schema");
 
         // A dormant connection must preserve SQLite's normal statement-cache
@@ -7858,7 +7858,7 @@ mod guarded_commit_tests {
     fn managed_version_scale_database(rows: usize) -> LocalDatabase {
         assert!(rows > 0);
         let mut db = database();
-        db.seed(seed_data("scale-0", "seed"))
+        db.schema_seed().seed(seed_data("scale-0", "seed"))
             .expect("seed scale baseline and storage head");
         if rows > 1 {
             db.conn
@@ -7972,7 +7972,7 @@ mod guarded_commit_tests {
             .unwrap();
 
         let error = db
-            .seed_with_authorization(seed_data("exhausted", "must-not-land"))
+            .schema_seed().seed_with_authorization(seed_data("exhausted", "must-not-land"))
             .expect_err("seed cannot wrap the global storage version");
         assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
         assert_exhaustion_preserved(&db, &authorization, change_rows);
@@ -8032,7 +8032,7 @@ mod guarded_commit_tests {
             .unwrap();
 
         let committed = db
-            .seed_with_authorization(seed_data("last", "portable-final"))
+            .schema_seed().seed_with_authorization(seed_data("last", "portable-final"))
             .expect("max-1 may commit the final exact JavaScript version");
         assert_eq!(committed.output.version, PORTABLE_STORAGE_VERSION_MAX);
         assert_eq!(db.current_version().unwrap(), PORTABLE_STORAGE_VERSION_MAX);
@@ -8045,7 +8045,7 @@ mod guarded_commit_tests {
             .unwrap();
 
         let error = db
-            .seed_with_authorization(seed_data("past", "must-not-land"))
+            .schema_seed().seed_with_authorization(seed_data("past", "must-not-land"))
             .expect_err("the portable final version has no successor");
         assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
         assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 1);
@@ -8277,7 +8277,7 @@ mod guarded_commit_tests {
     fn reopen_requires_the_exact_retained_journal_high_water() {
         for mismatch in ["ahead", "behind"] {
             let (_dir, path, mut db) = file_database();
-            db.seed(seed_data("first", "first")).unwrap();
+            db.schema_seed().seed(seed_data("first", "first")).unwrap();
             if mismatch == "ahead" {
                 db.conn
                     .execute(
@@ -8289,7 +8289,7 @@ mod guarded_commit_tests {
                     )
                     .unwrap();
             } else {
-                db.seed(seed_data("second", "second")).unwrap();
+                db.schema_seed().seed(seed_data("second", "second")).unwrap();
                 db.conn
                     .execute("DELETE FROM _snapback_changes WHERE version = 2", [])
                     .unwrap();
@@ -8310,7 +8310,7 @@ mod guarded_commit_tests {
     #[test]
     fn reopen_refuses_a_managed_row_ahead_of_head_even_after_journal_pruning() {
         let (_dir, path, mut db) = file_database();
-        db.seed(seed_data("future-row", "future")).unwrap();
+        db.schema_seed().seed(seed_data("future-row", "future")).unwrap();
         db.conn
             .execute("DELETE FROM _snapback_changes", [])
             .unwrap();
@@ -8664,7 +8664,7 @@ mod guarded_commit_tests {
             ("non-integer-blob", SqlValue::Blob(vec![0x01, 0x02])),
         ] {
             let mut db = database();
-            db.seed(seed_data("corrupt-row", "must-not-publish"))
+            db.schema_seed().seed(seed_data("corrupt-row", "must-not-publish"))
                 .expect("seed managed row");
             db.conn
                 .execute(
@@ -8718,7 +8718,7 @@ mod guarded_commit_tests {
             ),
         ] {
             let mut db = database();
-            db.seed(seed_data("corrupt-row", "must-survive"))
+            db.schema_seed().seed(seed_data("corrupt-row", "must-survive"))
                 .expect("seed managed row");
             assert_eq!(
                 managed_version_integrity_index_state(&db.conn, "items").unwrap(),
@@ -8860,7 +8860,7 @@ mod guarded_commit_tests {
     #[test]
     fn reopen_rebuilds_managed_version_indexes_after_upgrade_and_predicate_drift() {
         let (_dir, path, mut db) = file_database();
-        db.seed(seed_data("healthy-on-reopen", "healthy"))
+        db.schema_seed().seed(seed_data("healthy-on-reopen", "healthy"))
             .expect("seed managed row");
         let (domain_name, head_name) = managed_version_integrity_index_names("items");
         db.conn
@@ -8927,7 +8927,7 @@ mod guarded_commit_tests {
     #[test]
     fn reopen_refuses_corrupt_managed_versions_before_index_upgrade() {
         let (_dir, path, mut db) = file_database();
-        db.seed(seed_data("corrupt-on-reopen", "corrupt"))
+        db.schema_seed().seed(seed_data("corrupt-on-reopen", "corrupt"))
             .expect("seed managed row");
         let (domain_name, head_name) = managed_version_integrity_index_names("items");
         for name in [&domain_name, &head_name] {
@@ -8966,7 +8966,7 @@ mod guarded_commit_tests {
     #[test]
     fn missing_managed_version_indexes_fall_back_to_fail_closed_scan() {
         let mut db = database();
-        db.seed(seed_data("corrupt-row", "must-survive"))
+        db.schema_seed().seed(seed_data("corrupt-row", "must-survive"))
             .expect("seed managed row");
         let (domain_name, head_name) = managed_version_integrity_index_names("items");
         for name in [&domain_name, &head_name] {
@@ -9010,7 +9010,7 @@ mod guarded_commit_tests {
     #[test]
     fn optional_to_required_rebuild_restores_managed_version_indexes() {
         let mut db = database();
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "items".to_owned(),
                 vec![Map::from_iter([
@@ -9028,7 +9028,7 @@ mod guarded_commit_tests {
             .find(|field| field.name == "rank")
             .expect("rank field")
             .optional = false;
-        db.apply_schema(required)
+        db.schema_seed().apply_schema(required)
             .expect("safe optional-to-required rebuild");
 
         assert_eq!(
@@ -9062,7 +9062,7 @@ mod guarded_commit_tests {
     #[test]
     fn corrupt_managed_row_versions_cannot_hide_in_version_selection() {
         let mut db = database();
-        db.seed(seed_data("corrupt-row", "must-not-publish"))
+        db.schema_seed().seed(seed_data("corrupt-row", "must-not-publish"))
             .expect("seed managed row");
         db.conn
             .execute(
@@ -9111,7 +9111,7 @@ mod guarded_commit_tests {
     #[test]
     fn delete_where_cannot_hide_a_corrupt_row_version_in_its_filter() {
         let mut db = database();
-        db.seed(seed_data("corrupt-row", "must-survive"))
+        db.schema_seed().seed(seed_data("corrupt-row", "must-survive"))
             .expect("seed managed row");
         db.conn
             .execute(
@@ -9149,7 +9149,7 @@ mod guarded_commit_tests {
     #[test]
     fn corrupt_non_high_water_journal_version_cannot_validate_a_stale_query() {
         let mut db = database();
-        db.seed(seed_data("baseline", "disjoint"))
+        db.schema_seed().seed(seed_data("baseline", "disjoint"))
             .expect("seed query baseline");
         let query = QueryPlan {
             table: "items".to_owned(),
@@ -9176,9 +9176,9 @@ mod guarded_commit_tests {
         .find(|dependency| dependency.kind == CapturedReadKind::Query)
         .expect("table query dependency");
 
-        db.seed(seed_data("matching", "matching"))
+        db.schema_seed().seed(seed_data("matching", "matching"))
             .expect("matching intervening change");
-        db.seed(seed_data("newer-disjoint", "disjoint"))
+        db.schema_seed().seed(seed_data("newer-disjoint", "disjoint"))
             .expect("newer disjoint high-water");
         db.conn
             .execute(
@@ -9234,7 +9234,7 @@ mod guarded_commit_tests {
 
         for (name, op, snapshot) in corruptions {
             let mut db = database();
-            db.seed(seed_data("baseline", "baseline"))
+            db.schema_seed().seed(seed_data("baseline", "baseline"))
                 .expect("seed query baseline");
             let query = QueryPlan {
                 table: "items".to_owned(),
@@ -9260,7 +9260,7 @@ mod guarded_commit_tests {
             .into_iter()
             .find(|dependency| dependency.kind == CapturedReadKind::Query)
             .expect("table query dependency");
-            db.seed(seed_data("intervening", "matching"))
+            db.schema_seed().seed(seed_data("intervening", "matching"))
                 .expect("intervening change");
             db.conn
                 .execute(
@@ -9294,7 +9294,7 @@ mod guarded_commit_tests {
     #[test]
     fn reopen_migrates_a_stale_journal_sentinel_only_after_healthy_preflight() {
         let (_dir, path, mut db) = file_database();
-        db.seed(seed_data("healthy-on-reopen", "healthy"))
+        db.schema_seed().seed(seed_data("healthy-on-reopen", "healthy"))
             .expect("seed journal row");
         db.conn
             .execute("DROP INDEX _snapback_changes_invalid_committed_version", [])
@@ -9326,7 +9326,7 @@ mod guarded_commit_tests {
     #[test]
     fn reopen_refuses_corrupt_journal_before_sentinel_migration() {
         let (_dir, path, mut db) = file_database();
-        db.seed(seed_data("corrupt-on-reopen", "corrupt"))
+        db.schema_seed().seed(seed_data("corrupt-on-reopen", "corrupt"))
             .expect("seed journal row");
         db.conn
             .execute("DROP INDEX _snapback_changes_invalid_committed_version", [])
@@ -9363,11 +9363,11 @@ mod guarded_commit_tests {
     #[test]
     fn corrupt_change_journal_versions_fail_closed_without_pruning() {
         let mut db = database();
-        db.seed(seed_data("oldest", "oldest"))
+        db.schema_seed().seed(seed_data("oldest", "oldest"))
             .expect("seed oldest journal row");
-        db.seed(seed_data("middle", "middle"))
+        db.schema_seed().seed(seed_data("middle", "middle"))
             .expect("seed valid prunable high-water");
-        db.seed(seed_data("newest", "newest"))
+        db.schema_seed().seed(seed_data("newest", "newest"))
             .expect("seed preserved table high-water");
         db.conn
             .execute(
@@ -9395,7 +9395,7 @@ mod guarded_commit_tests {
             ),
         ] {
             let mut db = database();
-            db.seed(seed_data("only", "only"))
+            db.schema_seed().seed(seed_data("only", "only"))
                 .expect("seed table high-water");
             db.conn
                 .execute(
@@ -9444,7 +9444,7 @@ mod guarded_commit_tests {
     #[test]
     fn prune_rejects_a_nonportable_time_floor_without_touching_the_journal() {
         let mut db = database();
-        db.seed(seed_data("only", "only"))
+        db.schema_seed().seed(seed_data("only", "only"))
             .expect("seed journal row");
         let before = db.change_journal_len().unwrap();
         let error = db
@@ -9464,11 +9464,11 @@ mod guarded_commit_tests {
         let missing_predecessor_observed =
             missing_predecessor.diagnostic.code == "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT";
         assert!(missing_predecessor_observed);
-        db.apply_schema(schema()).expect("initial activation");
+        db.schema_seed().apply_schema(schema()).expect("initial activation");
         let activated = db.authorization_version().expect("activation version");
         assert_eq!(activated.epoch, 1);
 
-        db.apply_schema(schema())
+        db.schema_seed().apply_schema(schema())
             .expect("idempotent schema application");
         let after_idempotent = db.authorization_version().unwrap();
         assert_eq!(after_idempotent, activated);
@@ -9515,7 +9515,7 @@ mod guarded_commit_tests {
         let mut without_backing = schema();
         without_backing.tables[0].permission_fields = Some(vec!["rank".to_owned()]);
         let error = db
-            .apply_schema(without_backing)
+            .schema_seed().apply_schema(without_backing)
             .expect_err("permissionFields requires permissionBacking");
         assert_eq!(
             error.diagnostic.code,
@@ -9524,7 +9524,7 @@ mod guarded_commit_tests {
 
         let mut unknown = permission_schema(Some(vec!["missing"]));
         let error = db
-            .apply_schema(unknown.clone())
+            .schema_seed().apply_schema(unknown.clone())
             .expect_err("unknown permission field");
         assert_eq!(
             error.diagnostic.code,
@@ -9533,7 +9533,7 @@ mod guarded_commit_tests {
 
         unknown.tables[0].permission_fields = Some(vec!["rank".to_owned(), "rank".to_owned()]);
         let error = db
-            .apply_schema(unknown)
+            .schema_seed().apply_schema(unknown)
             .expect_err("duplicate permission field");
         assert_eq!(
             error.diagnostic.code,
@@ -9619,7 +9619,7 @@ mod guarded_commit_tests {
             ("text", SqlValue::Text("not-a-version".to_owned())),
         ] {
             let mut db = LocalDatabase::memory().expect("database");
-            db.apply_schema(SchemaManifest {
+            db.schema_seed().apply_schema(SchemaManifest {
                 tables: vec![TableManifest {
                     name: "memberships".to_owned(),
                     fields: vec![
@@ -9648,7 +9648,7 @@ mod guarded_commit_tests {
                 ..SchemaManifest::default()
             })
             .unwrap();
-            db.seed(SeedData {
+            db.schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "memberships".to_owned(),
                     vec![Map::from_iter([
@@ -9792,7 +9792,7 @@ mod guarded_commit_tests {
         let mut db = permission_database(Some(vec!["rank"]));
         let baseline = db.authorization_version().unwrap();
         let seed = db
-            .seed_with_authorization(seed_data("old", "old data"))
+            .schema_seed().seed_with_authorization(seed_data("old", "old data"))
             .expect("permission seed");
         assert!(seed.authorization.event);
         assert_eq!(seed.authorization.version.epoch, baseline.epoch + 1);
@@ -9802,7 +9802,7 @@ mod guarded_commit_tests {
         );
 
         let reset = db
-            .reset_and_seed_with_authorization(Some(seed_data("new", "new data")))
+            .schema_seed().reset_and_seed_with_authorization(Some(seed_data("new", "new data")))
             .expect("reset with seed");
         assert!(reset.authorization.event);
         assert!(reset.authorization.incarnation_rotated);
@@ -9817,7 +9817,7 @@ mod guarded_commit_tests {
         );
 
         let post_reset = db
-            .seed_with_authorization(seed_data("again", "again"))
+            .schema_seed().seed_with_authorization(seed_data("again", "again"))
             .expect("post-reset permission seed");
         assert_eq!(post_reset.authorization.version.epoch, baseline.epoch);
         assert_ne!(
@@ -9832,7 +9832,7 @@ mod guarded_commit_tests {
         let path = dir.path().join("authorization-version.sqlite3");
         let committed = {
             let mut db = LocalDatabase::open(&path).expect("database");
-            db.apply_schema(permission_schema(None))
+            db.schema_seed().apply_schema(permission_schema(None))
                 .expect("permission schema");
             db.execute_mutation(&insert_plan(), &HandlerInput::default())
                 .expect("permission commit");
@@ -9848,7 +9848,7 @@ mod guarded_commit_tests {
         let path = dir.path().join("sender-replay-epoch.sqlite3");
         let predecessor = {
             let mut db = LocalDatabase::open(&path).expect("database");
-            db.apply_schema(permission_schema(None))
+            db.schema_seed().apply_schema(permission_schema(None))
                 .expect("permission schema");
             db.activate_current_auth_catalog()
                 .expect("activate auth catalog");
@@ -9878,7 +9878,7 @@ mod guarded_commit_tests {
 
         let mut reopened = LocalDatabase::open(&path).expect("reopen database");
         reopened
-            .apply_schema(permission_schema(None))
+            .schema_seed().apply_schema(permission_schema(None))
             .expect("reload permission schema");
         assert_eq!(
             crate::auth::sender_proof::sender_replay_epoch(&reopened.conn)
@@ -9889,7 +9889,7 @@ mod guarded_commit_tests {
 
         let before_stream = reopened.authorization_version().unwrap();
         reopened
-            .reset_and_seed_with_authorization(None)
+            .schema_seed().reset_and_seed_with_authorization(None)
             .expect("stream reset");
         let after_stream = reopened.authorization_version().unwrap();
         assert_ne!(after_stream.incarnation, before_stream.incarnation);
@@ -9944,7 +9944,7 @@ mod guarded_commit_tests {
     #[test]
     fn reset_seed_rolls_back_insert_and_precommit_failures() {
         let mut db = database();
-        db.seed(seed_data("old", "old data")).expect("initial seed");
+        db.schema_seed().seed(seed_data("old", "old data")).expect("initial seed");
         let predecessor_incarnation = db
             .ensure_authorization_stream_incarnation()
             .expect("initialize authorization stream");
@@ -9965,7 +9965,7 @@ mod guarded_commit_tests {
                 ],
             )]),
         };
-        db.reset_and_seed(Some(duplicate_seed))
+        db.schema_seed().reset_and_seed(Some(duplicate_seed))
             .expect_err("duplicate insert must roll back the reset transaction");
         let scan = db
             .scan_table("items", 10, 0)
@@ -9988,7 +9988,7 @@ mod guarded_commit_tests {
                 ))
             }));
         });
-        db.reset_and_seed(Some(seed_data("new", "new data")))
+        db.schema_seed().reset_and_seed(Some(seed_data("new", "new data")))
             .expect_err("precommit injection must roll back the reset transaction");
         let scan = db
             .scan_table("items", 10, 0)
@@ -10002,7 +10002,7 @@ mod guarded_commit_tests {
         );
         assert_eq!(db.authorization_version().unwrap(), predecessor_version);
 
-        db.reset_and_seed(Some(seed_data("new", "new data")))
+        db.schema_seed().reset_and_seed(Some(seed_data("new", "new data")))
             .expect("successful reset");
         assert_ne!(
             db.authorization_stream_incarnation().unwrap(),
@@ -11107,7 +11107,7 @@ mod guarded_commit_tests {
         .into_iter()
         .map(|row| row.as_object().cloned().expect("seed row"))
         .collect();
-        db.seed(SeedData {
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([("items".to_owned(), rows)]),
         })
         .expect("seed ordering fixture");
@@ -11355,7 +11355,7 @@ mod membership_write_tests {
     fn ready_db_with_schema(schema: SchemaManifest) -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog().expect("auth catalog");
-        db.apply_schema(schema).expect("apply schema");
+        db.schema_seed().apply_schema(schema).expect("apply schema");
         db
     }
 
@@ -11442,14 +11442,14 @@ mod membership_write_tests {
             };
 
             let preview_error = db
-                .preview_seed_changes(seed.clone())
+                .schema_seed().preview_seed_changes(seed.clone())
                 .expect_err("preview must preflight every activation source");
             assert_eq!(
                 preview_error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
                 "{source} preview"
             );
             let commit_error = db
-                .seed(seed)
+                .schema_seed().seed(seed)
                 .expect_err("commit must not let an unrelated seed advance over corruption");
             assert_eq!(
                 commit_error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -11856,7 +11856,7 @@ mod membership_write_tests {
 
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog().expect("auth catalog");
-        db.apply_schema(schema).expect("apply unprotected schema");
+        db.schema_seed().apply_schema(schema).expect("apply unprotected schema");
         let event_id = "event-empty";
         db.commit_buffered_writes(
             &HandlerInput::default(),
@@ -12085,7 +12085,7 @@ mod membership_write_tests {
             change(membership);
             let mut db = LocalDatabase::memory().expect("memory database");
             db.activate_current_auth_catalog().expect("auth catalog");
-            db.apply_schema(schema).map(|_| ())
+            db.schema_seed().apply_schema(schema).map(|_| ())
         };
 
         // The valid fixture activates.
@@ -12431,7 +12431,7 @@ mod membership_write_tests {
             vec![seat("alice", "host"), seat("carol", "guest")],
         );
         let installed = db
-            .ensure_versioned_seed(InstallSeedRequestV1 {
+            .schema_seed().ensure_versioned_seed(InstallSeedRequestV1 {
                 format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
                 operation_id: "01982c7a-7c00-7000-8000-000000000301".to_owned(),
                 artifact: artifact.clone(),
@@ -12484,7 +12484,7 @@ mod membership_write_tests {
         let carrier = coordinator
             .premark_stream_reset_if_drained()
             .expect("reset carrier");
-        let attempt = db.attempt_versioned_seed_reset_with_authorization_stream(
+        let attempt = db.schema_seed().attempt_versioned_seed_reset_with_authorization_stream(
             ResetSeedRequestV1 {
                 format_version: SEED_RESET_REQUEST_FORMAT_V1.to_owned(),
                 operation_id: "01982c7a-7c00-7000-8000-000000000302".to_owned(),
@@ -12585,7 +12585,7 @@ mod membership_write_tests {
                 ]),
             };
             artifact.seed_digest = artifact_digest(&artifact).expect("digest");
-            db.ensure_versioned_seed(InstallSeedRequestV1 {
+            db.schema_seed().ensure_versioned_seed(InstallSeedRequestV1 {
                 format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
                 operation_id: operation_id.to_owned(),
                 artifact,
@@ -12960,7 +12960,7 @@ mod membership_write_tests {
             });
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog().expect("auth catalog");
-        db.apply_schema(schema).expect("self-seating schema");
+        db.schema_seed().apply_schema(schema).expect("self-seating schema");
         db.conn
             .execute(
                 "INSERT INTO _auth_users(
@@ -13056,7 +13056,7 @@ mod membership_write_tests {
         let (host_id, bob_id) = {
             let mut db = LocalDatabase::open(&path).expect("file database");
             db.activate_current_auth_catalog().expect("auth catalog");
-            db.apply_schema(membership_schema())
+            db.schema_seed().apply_schema(membership_schema())
                 .expect("membership schema");
             let (event_id, host_id) = create_event(&mut db, "alice");
             invite(&mut db, "alice", &event_id, "bob");
@@ -13145,7 +13145,7 @@ mod membership_write_tests {
     #[test]
     fn global_roles_seed_real_rows_and_import_preserves_creation_provenance() {
         let mut db = LocalDatabase::memory().expect("memory db");
-        db.apply_schema(global_role_schema(Some(MembershipProvenance::Creation)))
+        db.schema_seed().apply_schema(global_role_schema(Some(MembershipProvenance::Creation)))
             .expect("global role schema");
 
         let seed = MembershipWriter::Seed;
@@ -13264,7 +13264,7 @@ mod membership_write_tests {
         let mut db = LocalDatabase::memory().expect("memory db");
         let mut plain = global_role_schema(None);
         plain.tables[0].membership = None;
-        db.apply_schema(plain).expect("pre-membership shape");
+        db.schema_seed().apply_schema(plain).expect("pre-membership shape");
         db.execute_mutation(
             &MutationPlan {
                 steps: vec![MutationStep::Insert {
@@ -13300,7 +13300,7 @@ mod membership_write_tests {
             .as_str()
             .unwrap()
             .to_owned();
-        db.apply_schema(global_role_schema(Some(MembershipProvenance::Full)))
+        db.schema_seed().apply_schema(global_role_schema(Some(MembershipProvenance::Full)))
             .expect("brownfield provenance adoption");
         assert_eq!(
             db.membership_creation_provenance("app_roles", &legacy_id)
@@ -13543,7 +13543,7 @@ mod membership_write_tests {
             .from = Some(vec!["guest".to_owned()]);
         let mut restricted = LocalDatabase::memory().unwrap();
         restricted.activate_current_auth_catalog().unwrap();
-        restricted.apply_schema(restricted_schema).unwrap();
+        restricted.schema_seed().apply_schema(restricted_schema).unwrap();
         let (event_id, _) = create_event(&mut restricted, "alice");
         invite(&mut restricted, "alice", &event_id, "bob");
         let bob = member_id(&restricted, &event_id, "bob");
@@ -14207,7 +14207,7 @@ mod membership_write_tests {
             });
         let mut db = LocalDatabase::memory().unwrap();
         db.activate_current_auth_catalog().unwrap();
-        db.apply_schema(schema).unwrap();
+        db.schema_seed().apply_schema(schema).unwrap();
         let (event_id, _) = create_event(&mut db, "alice");
         let stale = db
             .membership_plans().plan_membership_insert(
@@ -14814,7 +14814,7 @@ mod membership_write_tests {
         membership.last_holder = None;
         let mut app = LocalDatabase::memory().unwrap();
         app.activate_current_auth_catalog().unwrap();
-        app.apply_schema(app_schema).unwrap();
+        app.schema_seed().apply_schema(app_schema).unwrap();
         let mut statement = app
             .conn
             .prepare("PRAGMA index_info('event_members__membership_reverse')")
@@ -14844,7 +14844,7 @@ mod membership_write_tests {
         ))
         .expect("todo generated schema");
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(manifest).expect("apply schema");
+        db.schema_seed().apply_schema(manifest).expect("apply schema");
         let make_artifact = |version: &str, id: &str| {
             let mut artifact = SeedArtifactV1 {
                 format_version: SEED_ARTIFACT_FORMAT_V1.to_owned(),
@@ -14866,7 +14866,7 @@ mod membership_write_tests {
         };
         let predecessor_artifact = make_artifact("predecessor", "old");
         let predecessor = db
-            .ensure_versioned_seed(InstallSeedRequestV1 {
+            .schema_seed().ensure_versioned_seed(InstallSeedRequestV1 {
                 format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
                 operation_id: "01982c7a-7c00-7000-8000-000000000201".to_owned(),
                 artifact: predecessor_artifact.clone(),
@@ -14913,7 +14913,7 @@ mod membership_write_tests {
         };
         let request_digest = request.request_digest().expect("request digest");
         inject_reset_commit_failure_for_test();
-        let attempt = db.attempt_versioned_seed_reset_with_authorization_stream(
+        let attempt = db.schema_seed().attempt_versioned_seed_reset_with_authorization_stream(
             request,
             carrier.predecessor(),
             carrier.successor(),
@@ -14926,7 +14926,7 @@ mod membership_write_tests {
         assert_eq!(scan.total, 1);
         assert_eq!(scan.rows[0]["_id"], "old");
         assert!(
-            db.replay_versioned_seed_operation(
+            db.schema_seed().replay_versioned_seed_operation(
                 "01982c7a-7c00-7000-8000-000000000202",
                 &request_digest,
             )
@@ -14934,7 +14934,7 @@ mod membership_write_tests {
             .is_none()
         );
         let matched = db
-            .ensure_versioned_seed(InstallSeedRequestV1 {
+            .schema_seed().ensure_versioned_seed(InstallSeedRequestV1 {
                 format_version: SEED_INSTALL_REQUEST_FORMAT_V1.to_owned(),
                 operation_id: "01982c7a-7c00-7000-8000-000000000203".to_owned(),
                 artifact: predecessor_artifact,

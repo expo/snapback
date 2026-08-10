@@ -201,14 +201,14 @@ fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
             .unwrap_or_else(|| panic!("{}: exact input ctx ledger missing", case.name));
 
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(SchemaManifest {
+        db.schema_seed().apply_schema(SchemaManifest {
             schema_hash: Some(format!("data-tier-corpus-{}", case.name)),
             tables: case.schema.tables.clone(),
             ..SchemaManifest::default()
         })
         .expect("apply schema");
         if !case.seed.is_empty() {
-            db.seed(SeedData {
+            db.schema_seed().seed(SeedData {
                 tables: case.seed.clone(),
             })
             .expect("seed");
@@ -354,7 +354,7 @@ fn get_reads_are_captured_server_side() {
     use snapback::storage::CapturedReadKind;
 
     let mut db = LocalDatabase::memory().expect("memory database");
-    db.apply_schema(SchemaManifest {
+    db.schema_seed().apply_schema(SchemaManifest {
         schema_hash: Some("read-capture".to_owned()),
         tables: vec![
             serde_json::from_value::<TableManifest>(serde_json::json!({
@@ -372,7 +372,7 @@ fn get_reads_are_captured_server_side() {
     let mut seed_row = Map::new();
     seed_row.insert("_id".to_owned(), Value::String("present".to_owned()));
     seed_row.insert("value".to_owned(), serde_json::json!(1));
-    db.seed(SeedData {
+    db.schema_seed().seed(SeedData {
         tables: BTreeMap::from([("rows".to_owned(), vec![seed_row])]),
     })
     .expect("seed");

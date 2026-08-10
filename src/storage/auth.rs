@@ -3686,7 +3686,7 @@ mod tests {
             Ok(())
         })
         .expect("seed reset row");
-        db.reset().expect("reset app and auth");
+        db.schema_seed().reset().expect("reset app and auth");
         assert_eq!(row_count(&db, "_auth_users"), 0);
         assert_eq!(
             db.inspect_auth_catalog().expect("catalog survives reset"),
@@ -3806,7 +3806,7 @@ mod tests {
         ] {
             let mut db = LocalDatabase::memory().expect("memory database");
             let error = db
-                .apply_schema(manifest.clone())
+                .schema_seed().apply_schema(manifest.clone())
                 .expect_err("reserved manifest apply must fail");
             assert_eq!(
                 error.diagnostic.code, "SNAPBACK_INVALID_IDENTIFIER",

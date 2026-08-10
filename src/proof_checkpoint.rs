@@ -3465,9 +3465,9 @@ mod tests {
 
     fn seeded_file_database(path: &Path) -> LocalDatabase {
         let mut database = LocalDatabase::open(path).expect("open database");
-        database.apply_schema(schema()).expect("apply schema");
+        database.schema_seed().apply_schema(schema()).expect("apply schema");
         database
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![Map::from_iter([
@@ -3844,7 +3844,7 @@ mod tests {
         let temp = tempfile::tempdir().expect("tempdir");
         let database_path = temp.path().join("history.sqlite");
         let mut database = LocalDatabase::open(&database_path).expect("open database");
-        database.apply_schema(schema()).expect("apply schema");
+        database.schema_seed().apply_schema(schema()).expect("apply schema");
         let projected: (u64, u64) = Connection::open(&database_path)
             .expect("open projected policy reader")
             .query_row(
@@ -3858,7 +3858,7 @@ mod tests {
             .expect("schema publication projects its finite policy");
         assert_eq!(projected, (10_000, 10));
         database
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![Map::from_iter([
@@ -3992,9 +3992,9 @@ mod tests {
             .expect("history declaration")
             .max_versions_per_record = 2;
         let mut database = LocalDatabase::open(&database_path).expect("open database");
-        database.apply_schema(finite.clone()).expect("apply schema");
+        database.schema_seed().apply_schema(finite.clone()).expect("apply schema");
         database
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![
@@ -4065,7 +4065,7 @@ mod tests {
         removed.schema_hash = Some("sha256:proof-checkpoint-history-removed".to_owned());
         removed.tables[0].history = None;
         database
-            .apply_schema(removed)
+            .schema_seed().apply_schema(removed)
             .expect("publish schema without history");
         let retained_after_removal: u64 = Connection::open(&database_path)
             .expect("open removed-policy reader")
@@ -4108,14 +4108,14 @@ mod tests {
         legacy_schema.tables[0].history = None;
         let mut database = LocalDatabase::open(&database_path).expect("open database");
         database
-            .apply_schema(legacy_schema)
+            .schema_seed().apply_schema(legacy_schema)
             .expect("apply legacy schema");
         database
             .versions_read()
             .configure_history_policy(&decoded)
             .expect("configure legacy policy");
         database
-            .seed(SeedData {
+            .schema_seed().seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
                     vec![

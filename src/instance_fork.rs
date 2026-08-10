@@ -1839,7 +1839,7 @@ pub fn arm_derived_fork_app_row_coverage(
 ) -> SnapbackResult<ForkAppRowCoverageReceiptV1> {
     let mut database = crate::storage::LocalDatabase::open(database_path)?;
     if let Some(schema) = schema {
-        database.apply_schema(schema)?;
+        database.schema_seed().apply_schema(schema)?;
     }
     arm_open_derived_fork_app_row_coverage(&mut database, activated_at_ms)
 }
@@ -5472,7 +5472,7 @@ mod tests {
     fn app_row_source_database(directory: &Path) -> PathBuf {
         let path = directory.join("app.sqlite3");
         let mut db = crate::storage::LocalDatabase::open(&path).unwrap();
-        db.apply_schema(app_row_schema()).unwrap();
+        db.schema_seed().apply_schema(app_row_schema()).unwrap();
         db.commit_buffered_writes(
             &crate::manifest::HandlerInput::default(),
             vec![

@@ -2619,7 +2619,7 @@ mod tests {
     fn raw_schema_loader_rejects_sessions_half_on_fresh_dev() {
         let mut database = LocalDatabase::memory().unwrap();
         let (_, manifest) = sessions_pair(Some("must_not_exist"));
-        let error = database.apply_schema(manifest).unwrap_err();
+        let error = database.schema_seed().apply_schema(manifest).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
         let exists: i64 = database
             .conn
@@ -2780,7 +2780,7 @@ mod tests {
                 ])],
             )]),
         };
-        database.seed(seed.clone()).unwrap();
+        database.schema_seed().seed(seed.clone()).unwrap();
         let head = database.current_version().unwrap();
         database
             .conn
@@ -2937,8 +2937,8 @@ mod tests {
         let mut base = full.clone();
         base.tables.truncate(1);
         let mut db = LocalDatabase::memory().unwrap();
-        db.apply_schema(base).unwrap();
-        db.seed(SeedData {
+        db.schema_seed().apply_schema(base).unwrap();
+        db.schema_seed().seed(SeedData {
             tables: BTreeMap::from([(
                 "events".to_owned(),
                 vec![Map::from_iter([
@@ -2949,7 +2949,7 @@ mod tests {
         })
         .unwrap();
         let error = db
-            .apply_schema(full)
+            .schema_seed().apply_schema(full)
             .expect_err("new empty roster must not silently protect existing resources");
         assert_eq!(
             error.diagnostic.code,
