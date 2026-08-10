@@ -1752,6 +1752,56 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/package.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.outbox-drain-controller.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'llp-0218-outbox-drain-controller.2026-08-10.v1',
+    profileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-rqs-registered',
+      'public-subpath-rqs-store',
+      'public-subpath-rqs-store-default',
+      'public-subpath-rqs-store-file',
+      'react-external',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.react-optimistic-create.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'react-external',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.lease-custody-and-remediation.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-rqs-registered',
+          'public-subpath-rqs-store',
+          'public-subpath-rqs-store-default',
+          'public-subpath-rqs-store-file',
+        ]),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0218#43-the-platform-owned-drain',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-10',
+      summary: 'Advance exactly the six closures grown by LLP 0218 P2\'s '
+        + 'platform-owned startOutboxDrain controller, including barrier '
+        + 'establishment and capped backoff, plus the writer-lock notification '
+        + 'seams in rqs-store.mjs and rqs-store-memory.mjs; LLP 0218 §4.3 is '
+        + 'the accepted authority for these intentional correctness and feature bytes.',
+    }),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/outbox-drain.test.mjs']],
+      ['node', ['packages/snapback-client/outbox-store.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/offline.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {

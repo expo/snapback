@@ -194,6 +194,25 @@ const isUpgradeRequiredRefusal = (error) => {
 
 const STREAM_RESET_RETRY_DELAY_MS = 250;
 
+const OUTBOX_DRAIN_RETRY_BASE_MS = 250;
+const OUTBOX_DRAIN_RETRY_MAX_MS = 30_000;
+const OUTBOX_DRAIN_WRITER_POLL_MS = 1_000;
+const OUTBOX_DRAIN_BARRIER_TIMEOUT_MS = 15_000;
+const OUTBOX_DRAIN_REGISTRY_KEY = Symbol.for(
+  'expo.snapback-client.outbox-drain-registry.v1',
+);
+// @ref LLP 0218#43-the-platform-owned-drain — a realm-global weak registry
+//   makes Strict-Mode/HMR starts over one store merge into the live controller;
+//   the durable store, not a component or client instance, is the dedupe key.
+const outboxDrainControllersByStore = (() => {
+  const existing = globalThis[OUTBOX_DRAIN_REGISTRY_KEY];
+  if (existing instanceof WeakMap) return existing;
+  const created = new WeakMap();
+  try { globalThis[OUTBOX_DRAIN_REGISTRY_KEY] = created; } catch { /* module-local fallback */ }
+  return created;
+})();
+let outboxDrainControllerCounter = 0;
+
 const isRetryableStreamResetRefusal = (error) => (
   error?.status === 401
   && error?.diagnostic?.code === 'SNAPBACK_AUTH_STREAM_RESET'
@@ -2145,6 +2164,9 @@ export class SnapbackClient {
     this.__operationIdentityProtocol = operationIdentityProtocol;
     this.__outboxReplayTask = null;
     this.__outboxReplayScheduled = false;
+    this.__outboxDrainController = null;
+    this.__outboxBarrierProviders = new Set();
+    this.__outboxLastReplayStop = null;
     this.__outboxDiagnostics = [];
     this.__outboxListeners = new Set();
     this.__optimisticMutationViews = new Set();
@@ -5406,6 +5428,7 @@ export class SnapbackClient {
 
   async closeAuth() {
     let firstError = null;
+    try { this.__outboxDrainController?.handle?.stop(); } catch (error) { firstError ??= error; }
     for (const entry of [...this.__optimisticMutationViews]) {
       try { entry.engine.close(); } catch (error) { firstError ??= error; }
       this.__optimisticMutationViews.delete(entry);
@@ -6280,19 +6303,27 @@ export class SnapbackClient {
         replaying: false,
         oldestPendingAtMs: null,
         drainPhase: 'idle',
+        lastAttemptAtMs: null,
         nextRetryAtMs: null,
         blockedReason: null,
       });
     }
+    const registeredController = outboxDrainControllersByStore.get(store) ?? null;
+    if (registeredController?.running === true) this.__outboxDrainController = registeredController;
+    const controllerStatus = registeredController?.running === true
+      ? registeredController.status()
+      : null;
     let pending = 0;
     let failed = 0;
     let stranded = 0;
     let quarantined = 0;
     let resultGone = 0;
     let oldestPendingAtMs = null;
-    let blockedReason = typeof store.isWriter === 'function' && store.isWriter() !== true
-      ? 'not-writer'
-      : null;
+    let blockedReason = controllerStatus?.blockedReason ?? (
+      typeof store.isWriter === 'function' && store.isWriter() !== true
+        ? 'not-writer'
+        : null
+    );
     try {
       const custody = await this.#reconcileQueueCustody(store);
       if (!custody.settled && blockedReason === null) blockedReason = 'custody-unsettled';
@@ -6321,10 +6352,13 @@ export class SnapbackClient {
       stranded,
       quarantined,
       resultGone,
-      replaying: this.__outboxReplayTask !== null,
+      replaying: controllerStatus?.drainPhase === 'replaying'
+        || this.__outboxReplayTask !== null,
       oldestPendingAtMs,
-      drainPhase: this.__outboxReplayTask !== null ? 'replaying' : 'idle',
-      nextRetryAtMs: null,
+      drainPhase: controllerStatus?.drainPhase
+        ?? (this.__outboxReplayTask !== null ? 'replaying' : 'idle'),
+      lastAttemptAtMs: controllerStatus?.lastAttemptAtMs ?? null,
+      nextRetryAtMs: controllerStatus?.nextRetryAtMs ?? null,
       blockedReason,
     });
   }
@@ -6769,9 +6803,14 @@ export class SnapbackClient {
   }
 
   #clearAuthTerminalFact() {
-    if (this.__authTerminalFact === null) return;
-    this.__authTerminalFact = null;
-    this.#notifyAuthTerminalListeners();
+    if (this.__authTerminalFact !== null) {
+      this.__authTerminalFact = null;
+      this.#notifyAuthTerminalListeners();
+    }
+    // @ref LLP 0218#43-the-platform-owned-drain — successor custody can bind
+    //   without enqueue/connectivity edges (and without a prior terminal fact),
+    //   so the existing outbox observation seam also carries this level wake.
+    this.#notifyOutboxListeners();
   }
 
   #notifyAuthTerminalListeners() {
@@ -6873,11 +6912,492 @@ export class SnapbackClient {
     }
   }
 
+  /// Start (or join) the lifecycle owner for one durable store's replay lane.
+  /// The returned handle is deliberately headless; React attaches it later.
+  startOutboxDrain(options = {}) {
+    if (options === null || typeof options !== 'object' || Array.isArray(options)) {
+      throw new TypeError('startOutboxDrain options must be an object');
+    }
+    const store = this.#offlineQueueStore(true);
+    const existing = outboxDrainControllersByStore.get(store) ?? null;
+    if (existing?.running === true) {
+      this.__outboxDrainController = existing;
+      return existing.handle;
+    }
+
+    if (options.automatic !== undefined && typeof options.automatic !== 'boolean') {
+      throw new TypeError('startOutboxDrain automatic must be boolean');
+    }
+    const automatic = options.automatic !== false;
+    const timer = options.timer ?? {};
+    if (timer === null || typeof timer !== 'object' || Array.isArray(timer)) {
+      throw new TypeError('startOutboxDrain timer must be an object');
+    }
+    const schedule = typeof timer.setTimeout === 'function'
+      ? timer.setTimeout.bind(timer)
+      : (callback, delay) => setTimeout(callback, delay);
+    const cancel = typeof timer.clearTimeout === 'function'
+      ? timer.clearTimeout.bind(timer)
+      : (scheduled) => clearTimeout(scheduled);
+    const now = typeof timer.now === 'function' ? timer.now.bind(timer) : () => Date.now();
+    const random = typeof timer.random === 'function' ? timer.random.bind(timer) : () => Math.random();
+    if (
+      typeof schedule !== 'function'
+      || typeof cancel !== 'function'
+      || typeof now !== 'function'
+      || typeof random !== 'function'
+    ) {
+      throw new TypeError('startOutboxDrain timer requires function-valued timer hooks');
+    }
+    const defaultEventTarget = (
+      typeof globalThis.addEventListener === 'function'
+      && typeof globalThis.removeEventListener === 'function'
+    ) ? globalThis : null;
+    const eventTarget = options.eventTarget === undefined ? defaultEventTarget : options.eventTarget;
+    if (
+      eventTarget !== null
+      && (
+        typeof eventTarget?.addEventListener !== 'function'
+        || typeof eventTarget?.removeEventListener !== 'function'
+      )
+    ) {
+      throw new TypeError('startOutboxDrain eventTarget must provide add/removeEventListener');
+    }
+
+    outboxDrainControllerCounter += 1;
+    const connectionId = `snapback-outbox-drain-${outboxDrainControllerCounter}`;
+    let running = true;
+    let requested = false;
+    let pumpTask = null;
+    let retryTimer = null;
+    let writerPollTimer = null;
+    let retryAttempt = 0;
+    let freshBarrierAvailable = false;
+    let drainPhase = 'idle';
+    let lastAttemptAtMs = null;
+    let nextRetryAtMs = null;
+    let blockedReason = null;
+    let publishing = false;
+    let resolveStopped;
+    const stoppedTask = new Promise((resolve) => { resolveStopped = resolve; });
+    const ownedTimers = new Set();
+    const barrierWaitCancelers = new Set();
+    let lastOutcome = Object.freeze({
+      replayed: 0, failed: 0, stranded: 0, quarantined: 0, remaining: 0,
+    });
+    const cleanups = [];
+    let handle;
+
+    const controller = {
+      client: this,
+      store,
+      connectionId,
+      get running() { return running; },
+      get handle() { return handle; },
+      status: () => Object.freeze({
+        running,
+        automatic,
+        drainPhase,
+        lastAttemptAtMs,
+        nextRetryAtMs,
+        blockedReason,
+      }),
+      takeFreshBarrier: () => {
+        if (!freshBarrierAvailable) return false;
+        freshBarrierAvailable = false;
+        return true;
+      },
+      noteFreshBarrier: () => {
+        if (!running) return;
+        freshBarrierAvailable = true;
+        // A cycle already waiting for its provider consumes this evidence in
+        // place; scheduling a sibling cycle would merely repeat the barrier.
+        if (drainPhase !== 'waiting-barrier' && automatic) requestCycle('fresh-barrier');
+      },
+    };
+
+    const publish = (phase, reason = null, retryAt = null) => {
+      if (!running) return;
+      drainPhase = phase;
+      blockedReason = reason;
+      nextRetryAtMs = retryAt;
+      publishing = true;
+      try { this.#notifyOutboxListeners(); } finally { publishing = false; }
+    };
+
+    const clearRetryTimer = () => {
+      if (retryTimer === null) return;
+      cancel(retryTimer);
+      ownedTimers.delete(retryTimer);
+      retryTimer = null;
+      nextRetryAtMs = null;
+    };
+
+    const clearWriterPollTimer = () => {
+      if (writerPollTimer === null) return;
+      cancel(writerPollTimer);
+      ownedTimers.delete(writerPollTimer);
+      writerPollTimer = null;
+    };
+
+    const timerHandle = (callback, delay) => {
+      let scheduled;
+      scheduled = schedule(() => {
+        ownedTimers.delete(scheduled);
+        return callback();
+      }, delay);
+      ownedTimers.add(scheduled);
+      scheduled?.unref?.();
+      return scheduled;
+    };
+
+    const replayStopReason = (fallback) => {
+      const reason = this.__outboxLastReplayStop?.reason;
+      return typeof reason === 'string' && reason.length > 0 ? reason : fallback;
+    };
+
+    const withBarrierDeadline = (operation) => new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (settle, value) => {
+        if (settled) return;
+        settled = true;
+        cancel(deadline);
+        ownedTimers.delete(deadline);
+        barrierWaitCancelers.delete(cancelWait);
+        settle(value);
+      };
+      const cancelWait = () => {
+        const error = new Error(
+          'SNAPBACK_OUTBOX_DRAIN_STOPPED: the drain controller stopped during its resync barrier',
+        );
+        error.code = 'SNAPBACK_OUTBOX_DRAIN_STOPPED';
+        finish(reject, error);
+      };
+      const deadline = timerHandle(() => {
+        const error = new Error(
+          'SNAPBACK_OUTBOX_DRAIN_BARRIER_TIMEOUT: no authoritative resync cut arrived within the bounded barrier window',
+        );
+        error.code = 'SNAPBACK_OUTBOX_DRAIN_BARRIER_TIMEOUT';
+        finish(reject, error);
+      }, OUTBOX_DRAIN_BARRIER_TIMEOUT_MS);
+      barrierWaitCancelers.add(cancelWait);
+      Promise.resolve(operation).then(
+        (value) => finish(resolve, value),
+        (error) => finish(reject, error),
+      );
+    });
+
+    const scheduleBackoff = (reason) => {
+      if (!running) return;
+      requested = false;
+      clearRetryTimer();
+      clearWriterPollTimer();
+      for (const cancelWait of [...barrierWaitCancelers]) cancelWait();
+      for (const scheduled of [...ownedTimers]) {
+        cancel(scheduled);
+        ownedTimers.delete(scheduled);
+      }
+      freshBarrierAvailable = false;
+      const exponent = Math.min(retryAttempt, 30);
+      const ceiling = Math.min(
+        OUTBOX_DRAIN_RETRY_MAX_MS,
+        OUTBOX_DRAIN_RETRY_BASE_MS * 2 ** exponent,
+      );
+      const sample = Number(random());
+      const jitter = Number.isFinite(sample) ? Math.max(0, Math.min(1, sample)) : 0.5;
+      const delay = Math.max(1, Math.min(
+        OUTBOX_DRAIN_RETRY_MAX_MS,
+        Math.floor(ceiling * (0.75 + jitter * 0.25)),
+      ));
+      retryAttempt += 1;
+      const retryAt = now() + delay;
+      publish('backoff', reason, retryAt);
+      retryTimer = timerHandle(() => {
+        retryTimer = null;
+        nextRetryAtMs = null;
+        requestCycle('backoff-expired');
+      }, delay);
+    };
+
+    const scheduleWriterPoll = () => {
+      if (
+        !running
+        || writerPollTimer !== null
+        || typeof store.subscribeWriterLock === 'function'
+      ) return;
+      writerPollTimer = timerHandle(async () => {
+        writerPollTimer = null;
+        if (!running) return;
+        // File/Expo carriers have no native cross-process lock event. Re-read
+        // the level before every bounded poll so a writer that already settled
+        // the durable intent makes this reader go idle instead of polling an
+        // empty queue forever.
+        // @ref LLP 0218#43-the-platform-owned-drain — fallback lock polling is
+        //   permitted only while pending work exists in a non-writer context.
+        try {
+          if ((await scanPending()).length === 0) {
+            publish('idle', null, null);
+            return;
+          }
+        } catch {
+          // Keep the observable not-writer pause and retry at the same bounded
+          // cadence; unreadable storage is not proof that intent disappeared.
+        }
+        if (!running) return;
+        try { await store.whenLockSettled?.(); } catch { /* next bounded poll retries */ }
+        if (!running) return;
+        if (store.isWriter?.() === true) requestCycle('writer-lock-acquired');
+        else scheduleWriterPoll();
+      }, OUTBOX_DRAIN_WRITER_POLL_MS);
+    };
+
+    const pause = (reason, { pollWriter = false } = {}) => {
+      requested = false;
+      clearRetryTimer();
+      if (!pollWriter) clearWriterPollTimer();
+      publish('paused', reason, null);
+      if (pollWriter) scheduleWriterPoll();
+    };
+
+    const barrierFailure = (error) => {
+      const code = error?.diagnostic?.code ?? error?.code ?? 'unavailable';
+      if (
+        isConnectivityFailureError(error)
+        || code === 'SNAPBACK_OUTBOX_DRAIN_BARRIER_TIMEOUT'
+        || error?.status === 408
+        || error?.status === 429
+        || (Number.isInteger(error?.status) && error.status >= 500)
+      ) {
+        scheduleBackoff(`barrier-transient:${code}`);
+        return;
+      }
+      if (isAuthorityFenceUnsettledError(error) || this.authTerminalStatus().terminated === true) {
+        pause(`authority-unavailable:${code}`);
+        return;
+      }
+      pause(`barrier-refused:${code}`);
+    };
+
+    const scanPending = async () => {
+      const records = typeof store.outboxRecords === 'function'
+        ? await store.outboxRecords()
+        : await store.outboxPending();
+      return records.filter((record) => record?.status === 'pending');
+    };
+
+    const runCycle = async () => {
+      let pending;
+      try {
+        pending = await scanPending();
+      } catch (error) {
+        scheduleBackoff(`store-transient:${error?.code ?? 'unavailable'}`);
+        return lastOutcome;
+      }
+      if (!running) return lastOutcome;
+      if (pending.length === 0) {
+        retryAttempt = 0;
+        clearRetryTimer();
+        clearWriterPollTimer();
+        freshBarrierAvailable = false;
+        publish('idle', null, null);
+        return lastOutcome;
+      }
+
+      if (typeof store.isWriter === 'function' && store.isWriter() !== true) {
+        void Promise.resolve(store.whenLockSettled?.()).then(() => {
+          if (running && store.isWriter?.() === true) requestCycle('writer-lock-acquired');
+        }, () => { /* role remains paused; another level wake retries */ });
+        pause('not-writer', { pollWriter: true });
+        return lastOutcome;
+      }
+      clearWriterPollTimer();
+
+      const custody = await this.#reconcileQueueCustody(store);
+      if (!running) return lastOutcome;
+      if (!custody.settled) {
+        const code = custody.error?.diagnostic?.code ?? custody.error?.code ?? 'unsettled';
+        pause(`custody-unavailable:${code}`);
+        return lastOutcome;
+      }
+
+      lastAttemptAtMs = now();
+      publish('waiting-barrier', null, null);
+      try {
+        if (!controller.takeFreshBarrier()) {
+          await withBarrierDeadline(this.#establishOutboxDrainBarrier(store, controller));
+        }
+        // A controller-owned live query reports the same snapshot through
+        // #scheduleOutboxReplay; consume that evidence before replay so it
+        // cannot accidentally license a later retry cycle.
+        controller.takeFreshBarrier();
+      } catch (error) {
+        if (running) barrierFailure(error);
+        return lastOutcome;
+      }
+      if (!running) return lastOutcome;
+
+      publish('replaying', null, null);
+      this.__outboxLastReplayStop = null;
+      try {
+        lastOutcome = Object.freeze(await this.#replayQueuedMutationsWithOptions());
+      } catch (error) {
+        if (running) {
+          scheduleBackoff(`replay-transient:${error?.diagnostic?.code ?? error?.code ?? 'unavailable'}`);
+        }
+        return lastOutcome;
+      }
+      if (!running) return lastOutcome;
+      const disposition = this.__outboxLastReplayStop;
+      if (disposition?.kind === 'transient') {
+        scheduleBackoff(replayStopReason('replay-transient'));
+        return lastOutcome;
+      }
+      if (disposition?.kind === 'paused') {
+        pause(replayStopReason('replay-paused'));
+        return lastOutcome;
+      }
+      if (disposition?.kind === 'terminal') {
+        retryAttempt = 0;
+        pause(replayStopReason('terminal-disposition'));
+        return lastOutcome;
+      }
+      if (lastOutcome.stopped === true && lastOutcome.remaining > 0) {
+        pause(replayStopReason('replay-refused'));
+        return lastOutcome;
+      }
+      retryAttempt = 0;
+      clearRetryTimer();
+      publish('idle', null, null);
+      return lastOutcome;
+    };
+
+    const pump = async () => {
+      while (running && requested) {
+        requested = false;
+        await runCycle();
+      }
+      return lastOutcome;
+    };
+
+    function requestCycle(reason, { manual = false } = {}) {
+      if (!running || (!automatic && !manual)) return Promise.resolve(lastOutcome);
+      if (retryTimer !== null) clearRetryTimer();
+      if (reason !== 'writer-lock-poll') clearWriterPollTimer();
+      requested = true;
+      if (pumpTask === null) {
+        pumpTask = pump().finally(() => {
+          pumpTask = null;
+        });
+      }
+      return Promise.race([pumpTask, stoppedTask]);
+    }
+
+    const stop = () => {
+      if (!running) return;
+      running = false;
+      requested = false;
+      clearRetryTimer();
+      clearWriterPollTimer();
+      for (const scheduled of [...ownedTimers]) {
+        cancel(scheduled);
+        ownedTimers.delete(scheduled);
+      }
+      freshBarrierAvailable = false;
+      drainPhase = 'idle';
+      blockedReason = null;
+      nextRetryAtMs = null;
+      for (const cleanup of cleanups.splice(0)) {
+        try { cleanup(); } catch { /* deterministic best-effort observation teardown */ }
+      }
+      if (outboxDrainControllersByStore.get(store) === controller) {
+        outboxDrainControllersByStore.delete(store);
+      }
+      if (this.__outboxDrainController === controller) this.__outboxDrainController = null;
+      this.#notifyOutboxListeners();
+      resolveStopped(lastOutcome);
+    };
+
+    handle = Object.freeze({
+      drainNow: () => requestCycle('manual', { manual: true }),
+      stop,
+      status: controller.status,
+    });
+    outboxDrainControllersByStore.set(store, controller);
+    this.__outboxDrainController = controller;
+
+    cleanups.push(this.subscribeOutbox(() => {
+      if (!publishing) requestCycle('outbox-transition');
+    }));
+    cleanups.push(this.subscribeAuthTerminal(() => requestCycle('authority-transition')));
+    if (typeof store.subscribeWriterLock === 'function') {
+      cleanups.push(store.subscribeWriterLock((writer) => {
+        if (writer === true) requestCycle('writer-lock-acquired');
+      }));
+    }
+    if (eventTarget !== null) {
+      const onOnline = () => requestCycle('online');
+      eventTarget.addEventListener('online', onOnline);
+      cleanups.push(() => eventTarget.removeEventListener('online', onOnline));
+    }
+    if (automatic) requestCycle('start');
+    return handle;
+  }
+
+  async #establishOutboxDrainBarrier(store, controller) {
+    // Mounted query lifecycles already own the exact fresh-subscribe protocol.
+    // Asking one to resubscribe keeps the resync cut in that existing owner.
+    for (const provider of [...this.__outboxBarrierProviders]) {
+      if (controller.takeFreshBarrier()) return;
+      const landed = await provider();
+      if (landed === true || controller.takeFreshBarrier()) return;
+    }
+
+    const meta = typeof store.readStoreMeta === 'function'
+      ? await store.readStoreMeta()
+      : null;
+    const registrations = Object.values(meta?.durableRegistrations ?? {})
+      .flatMap((byId) => Object.values(byId ?? {}))
+      .filter((registration) => (
+        registration
+        && typeof registration === 'object'
+        && typeof registration.functionReference?.name === 'string'
+      ));
+    if (registrations.length > 0) {
+      const handles = [];
+      try {
+        // @ref LLP 0218#43-the-platform-owned-drain — with no mounted owner,
+        //   replay is gated by fresh-subscribe cuts over every durable retained
+        //   registration; this reuses liveQuery instead of a second resync wire.
+        for (const registration of registrations) {
+          handles.push(await this.liveQuery(registration.functionReference, {
+            connectionId: controller.connectionId,
+            args: structuredClone(registration.canonicalArgs ?? {}),
+            transport: 'poll',
+            persistResume: registration.retentionRequest === 'durable',
+          }));
+        }
+      } finally {
+        await Promise.allSettled(handles.map((candidate) => candidate.dispose()));
+      }
+      if (!controller.takeFreshBarrier()) {
+        const error = new Error(
+          'SNAPBACK_OUTBOX_DRAIN_BARRIER_REFUSED: retained-query resync produced no fresh snapshot',
+        );
+        error.code = 'SNAPBACK_OUTBOX_DRAIN_BARRIER_REFUSED';
+        throw error;
+      }
+      return;
+    }
+
+    // No retained local replica exists to resync. A fresh connection grant is
+    // the existing readiness handshake and therefore the complete empty-set cut.
+    await this.refreshConnectionGrant(controller.connectionId);
+  }
+
   /// Deferred single-flight replay trigger, scheduled by every successful
   /// fresh-subscribe snapshot (the full-resync barrier of LLP 0008
   /// §Mutation Replay: resync first, then replay in sequence order).
   #scheduleOutboxReplay() {
-    if (this.__outboxReplayScheduled) return;
     let store = null;
     try {
       store = this.#offlineQueueStore();
@@ -6885,6 +7405,13 @@ export class SnapbackClient {
       store = null;
     }
     if (!store) return;
+    const controller = outboxDrainControllersByStore.get(store) ?? null;
+    if (controller?.running === true) {
+      this.__outboxDrainController = controller;
+      controller.noteFreshBarrier();
+      return;
+    }
+    if (this.__outboxReplayScheduled) return;
     this.__outboxReplayScheduled = true;
     const timer = setTimeout(() => {
       this.__outboxReplayScheduled = false;
@@ -6902,6 +7429,16 @@ export class SnapbackClient {
   /// explicit successor re-entry; a connectivity failure stops the drain with
   /// the record still pending. Single-flight: concurrent calls share one drain.
   async replayQueuedMutations() {
+    let store = null;
+    try { store = this.#offlineQueueStore(); } catch { store = null; }
+    const controller = store ? outboxDrainControllersByStore.get(store) ?? null : null;
+    if (controller?.running === true) {
+      // @ref LLP 0218#43-the-platform-owned-drain — once a controller owns
+      //   this store, the legacy public replay entry requests its safe cycle;
+      //   only the private replay core may run without controller orchestration.
+      this.__outboxDrainController = controller;
+      return controller.handle.drainNow();
+    }
     return this.#replayQueuedMutationsWithOptions();
   }
 
@@ -6917,6 +7454,7 @@ export class SnapbackClient {
   }
 
   async #replayOutboxOnce({ preserveTerminalFailures = false } = {}) {
+    this.__outboxLastReplayStop = null;
     let store = null;
     try {
       store = this.#offlineQueueStore();
@@ -6932,6 +7470,7 @@ export class SnapbackClient {
       // a non-writer may inspect the shared durable domain but may not mutate
       // it. Never turn that custody refusal into a misleading empty queue.
       const remaining = (await store.outboxRecords()).filter(isUnresolvedOutboxRecord).length;
+      this.__outboxLastReplayStop = Object.freeze({ kind: 'paused', reason: 'not-writer' });
       return {
         replayed: 0, failed: 0, stranded: 0, quarantined: 0, remaining, stopped: true,
       };
@@ -6939,6 +7478,11 @@ export class SnapbackClient {
     const headCustody = await this.#reconcileQueueCustody(store);
     if (!headCustody.settled) {
       const remaining = (await store.outboxRecords()).filter(isUnresolvedOutboxRecord).length;
+      const code = headCustody.error?.diagnostic?.code ?? headCustody.error?.code ?? 'unsettled';
+      this.__outboxLastReplayStop = Object.freeze({
+        kind: 'paused',
+        reason: `custody-unavailable:${code}`,
+      });
       return {
         replayed: 0, failed: 0, stranded: 0, quarantined: 0, remaining, stopped: true,
       };
@@ -6946,7 +7490,11 @@ export class SnapbackClient {
     let pending;
     try {
       pending = await store.outboxPending();
-    } catch {
+    } catch (error) {
+      this.__outboxLastReplayStop = Object.freeze({
+        kind: 'transient',
+        reason: `store-transient:${error?.code ?? 'unavailable'}`,
+      });
       return { replayed: 0, failed: 0, stranded: 0, quarantined: 0, remaining: 0 };
     }
     let replayed = 0;
@@ -6964,6 +7512,10 @@ export class SnapbackClient {
       //   fence, and cascade is checked again immediately before transport.
       const prepared = await store.outboxPrepareSubmission(record.id);
       if (prepared?.status === 'blocked') {
+        this.__outboxLastReplayStop = Object.freeze({
+          kind: 'terminal',
+          reason: 'terminal-disposition:sequence-blocked',
+        });
         stopped = true;
         break;
       }
@@ -6978,6 +7530,10 @@ export class SnapbackClient {
         continue;
       }
       if (prepared?.status === 'quarantined') {
+        this.__outboxLastReplayStop = Object.freeze({
+          kind: 'terminal',
+          reason: 'terminal-disposition:quarantined',
+        });
         stopped = true;
         break;
       }
@@ -6992,6 +7548,11 @@ export class SnapbackClient {
         //   record under an authority other than its enqueue authority.
         const custody = await this.#reconcileQueueCustody(store);
         if (!custody.settled || custody.authority === null) {
+          const code = custody.error?.diagnostic?.code ?? custody.error?.code ?? 'unsettled';
+          this.__outboxLastReplayStop = Object.freeze({
+            kind: 'paused',
+            reason: `custody-unavailable:${code}`,
+          });
           stopped = true;
           break;
         }
@@ -7136,6 +7697,10 @@ export class SnapbackClient {
         });
       } catch (error) {
         if (error?.outboxSettlementPersistenceFailure === true) {
+          this.__outboxLastReplayStop = Object.freeze({
+            kind: 'transient',
+            reason: `settlement-store-transient:${error.code ?? 'unavailable'}`,
+          });
           stopped = true;
           this.#recordOutboxDiagnostic({
             code: error.code ?? 'SNAPBACK_OUTBOX_SETTLEMENT_NOT_DURABLE',
@@ -7172,6 +7737,10 @@ export class SnapbackClient {
             break;
           }
           stopped = true;
+          this.__outboxLastReplayStop = Object.freeze({
+            kind: 'terminal',
+            reason: 'terminal-disposition:result-expired',
+          });
           this.#recordOutboxDiagnostic({
             code: 'SNAPBACK_OFFLINE_MUTATION_RESULT_EXPIRED',
             mutation: record.function,
@@ -7183,6 +7752,10 @@ export class SnapbackClient {
         }
         if (isOperationOutcomeUnknownError(error)) {
           stopped = true;
+          this.__outboxLastReplayStop = Object.freeze({
+            kind: 'terminal',
+            reason: 'terminal-disposition:identity-horizon-passed',
+          });
           this.#recordOutboxDiagnostic({
             code: 'SNAPBACK_OFFLINE_MUTATION_OUTCOME_UNKNOWN',
             mutation: record.function,
@@ -7193,6 +7766,12 @@ export class SnapbackClient {
         }
         if (isOperationRangeRecoveryBlockedError(error)) {
           stopped = true;
+          this.__outboxLastReplayStop = Object.freeze({
+            kind: 'paused',
+            reason: isOperationRangeCapacityError(error)
+              ? 'authority-unavailable:uncovered-range-exhausted'
+              : 'authority-unavailable:uncovered-reauth-required',
+          });
           this.#recordOutboxDiagnostic({
             code: 'SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED',
             mutation: record.function,
@@ -7205,6 +7784,10 @@ export class SnapbackClient {
         }
         if (isConnectivityFailureError(error)) {
           // Still offline: keep the record pending and preserve order.
+          this.__outboxLastReplayStop = Object.freeze({
+            kind: 'transient',
+            reason: 'replay-transient:connectivity',
+          });
           stopped = true;
           break;
         }
@@ -7212,6 +7795,11 @@ export class SnapbackClient {
           // A local transition racing an admitted submission cannot become a
           // content failure. Leave the record pending for the next settled
           // authority reconciliation.
+          const code = error?.diagnostic?.code ?? error?.code ?? 'unsettled';
+          this.__outboxLastReplayStop = Object.freeze({
+            kind: 'paused',
+            reason: `authority-unavailable:${code}`,
+          });
           stopped = true;
           break;
         }
@@ -7231,6 +7819,10 @@ export class SnapbackClient {
             break;
           }
           stranded += 1;
+          this.__outboxLastReplayStop = Object.freeze({
+            kind: 'terminal',
+            reason: 'terminal-disposition:stranded',
+          });
           await this.#refreshOptimisticMutationViews('authority-stale-stranded');
           this.#recordOutboxDiagnostic({
             code: 'SNAPBACK_OFFLINE_MUTATION_STRANDED',
@@ -7262,6 +7854,10 @@ export class SnapbackClient {
           }
           quarantined += held.count;
           stopped = true;
+          this.__outboxLastReplayStop = Object.freeze({
+            kind: 'terminal',
+            reason: `terminal-disposition:${refusalCode}`,
+          });
           await this.#refreshOptimisticMutationViews('upgrade-required-quarantine');
           this.#recordOutboxDiagnostic({
             code: 'SNAPBACK_OFFLINE_MUTATIONS_QUARANTINED',
@@ -7289,6 +7885,10 @@ export class SnapbackClient {
             reason: error?.diagnostic?.code ?? error?.code ?? error?.message,
           });
           stopped = true;
+          this.__outboxLastReplayStop = Object.freeze({
+            kind: 'paused',
+            reason: 'replay-paused:adoption-refused',
+          });
           break;
         }
         // LLP 0008: a mutation the server refused on replay is dropped and
@@ -7306,6 +7906,11 @@ export class SnapbackClient {
         }
         await this.#refreshOptimisticMutationViews('settlement-refused');
         failed += 1;
+        const refusalCode = error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_OUTBOX_REPLAY_FAILED';
+        this.__outboxLastReplayStop = Object.freeze({
+          kind: 'terminal',
+          reason: `terminal-disposition:${refusalCode}`,
+        });
         this.#recordOutboxDiagnostic({
           code: 'SNAPBACK_OFFLINE_MUTATION_REPLAY_FAILED',
           mutation: record.function,
@@ -9425,6 +10030,7 @@ export class SnapbackClient {
     let currentSubscriptionId = null;
     let knownRetiredSubscriptionId = null;
     let disposalTask = null;
+    let unregisterOutboxBarrierProvider = () => {};
 
     const handle = {
       get subscriptionId() {
@@ -12129,6 +12735,7 @@ export class SnapbackClient {
         });
         attempt(unregisterAuthMaterialization);
         attempt(unregisterExternalBearerHandle);
+        attempt(unregisterOutboxBarrierProvider);
         attempt(() => detachStream?.());
         detachStream = null;
         attempt(() => setConnection('disconnected'));
@@ -12172,6 +12779,11 @@ export class SnapbackClient {
     );
     try {
       await establish();
+      const outboxBarrierProvider = () => resubscribe('outbox-drain-barrier');
+      client.__outboxBarrierProviders.add(outboxBarrierProvider);
+      unregisterOutboxBarrierProvider = () => {
+        client.__outboxBarrierProviders.delete(outboxBarrierProvider);
+      };
     } catch (error) {
       activeRegistration.release();
       if (isConnectivityFailureError(error)) {

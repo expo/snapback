@@ -299,6 +299,12 @@ export function createIndexedDbRqsResumeStore({
   let releaseLock = null;
   let pendingReactBindingReceipt = null;
   let initialMeta = createInitialStoreMeta({ clientStoreId, randomBytes });
+  const writerLockListeners = new Set();
+  const notifyWriterLock = (value) => {
+    for (const listener of [...writerLockListeners]) {
+      try { listener(value); } catch { /* observation cannot own the lock */ }
+    }
+  };
 
   async function flushPendingReactBindingReceipt() {
     const pending = pendingReactBindingReceipt;
@@ -358,6 +364,7 @@ export function createIndexedDbRqsResumeStore({
       }
       writer = true;
       adjudicateLock();
+      notifyWriterLock(true);
       void flushPendingReactBindingReceipt().catch((error) => {
         warnReactBindingReceiptNotPersisted({ error });
       });
@@ -459,6 +466,16 @@ export function createIndexedDbRqsResumeStore({
     /// granted writer's Web Locks request promise resolves only at close).
     whenLockSettled() {
       return lockAdjudicated;
+    },
+
+    // @ref LLP 0218#43-the-platform-owned-drain — a queued Web Lock grant
+    //   wakes the durable drain after this context transitions reader→writer.
+    subscribeWriterLock(listener) {
+      if (typeof listener !== 'function') {
+        throw new TypeError('subscribeWriterLock requires a listener function');
+      }
+      writerLockListeners.add(listener);
+      return () => writerLockListeners.delete(listener);
     },
 
     /// Degradation-mode capability fact (DK-9: capability reports name the
@@ -931,6 +948,8 @@ export function createIndexedDbRqsResumeStore({
       releaseLock?.();
       releaseLock = null;
       writer = false;
+      notifyWriterLock(false);
+      writerLockListeners.clear();
       if (wasWriter) await lockReleased;
       else lockAbort?.abort();
       if (databasePromise) {

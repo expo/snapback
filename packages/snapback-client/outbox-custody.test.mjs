@@ -556,6 +556,7 @@ test('principal switch deletes every predecessor disposition before successor ob
     replaying: false,
     oldestPendingAtMs: null,
     drainPhase: 'idle',
+    lastAttemptAtMs: null,
     nextRetryAtMs: null,
     blockedReason: null,
   });
