@@ -282,6 +282,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'mixed-route-v2.test.mjs',
       'omission-defaults.test.mjs',
       'operation-schemas.test.mjs',
+      'plain-join-advisory.test.mjs',
       'provider-introspection.test.mjs',
       'protected-query-profile.test.mjs',
       'refusal-tracking-authoring.test.mjs',
@@ -455,7 +456,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 244,
+  expectedTotal = 245,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -764,6 +765,9 @@ export function checkPackageTestInventories(options = {}) {
 // 243 -> 244 (2026-08-10, LLP 0146 OQ6 option B): @expo/snapback-client gains
 // the shared remediation-set v1 decoder's version, unknown-member,
 // unknown-kind, and exact artifact-hash binding suite.
+// 244 -> 245 (2026-08-10, LLP 0178/0187 plain-join advisory):
+// @expo/snapback-codegen gains the positive equivalence fixture, rejected-
+// construct matrix, and retained demo/Guide zero-false-positive corpus scan.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

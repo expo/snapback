@@ -2555,6 +2555,7 @@ async function generateInProcessLocked({
         exportName: name,
         handlerForm: 'inline',
         inlineAst: extracted.ast,
+        plainJoinCandidate: extracted.plainJoinCandidate,
         inlineHelpers: (extracted.helpers ?? []).map(
           ({ name: helperName, contentHash }) => ({ name: helperName, contentHash }),
         ),
@@ -3269,6 +3270,64 @@ async function generateInProcessLocked({
             column: problem.column,
           });
         }
+      }
+      const plainJoin = provePlainJoinAdvisory({
+        candidate: resolvedHandler?.plainJoinCandidate,
+        def,
+        name,
+        tables,
+      });
+      if (plainJoin) {
+        const precondition = {
+          function: name,
+          handlerToken: inlineExtraction.handlers.get(name)?.token,
+          root: plainJoin.root,
+          rootIndex: plainJoin.rootIndex,
+          joined: plainJoin.joined,
+          joinedIndex: plainJoin.joinedIndex,
+        };
+        diagnostics.push({
+          code: 'SNAPBACK_AUTHORING_PLAIN_JOIN_RELATIONAL_QUERY',
+          severity: 'warning',
+          subsystem: 'codegen',
+          message: `${name}: this inline defineJsLiveQuery is provably equivalent to the shipped defineRelationalQuery left-join profile; use the relational declaration so codegen can preserve and explain the bounded join (guide/backend/relational-queries.md#recognize-the-messaging-shape).`,
+          function: name,
+          sourceSpan: resolvedHandler.sourceSpan,
+          details: {
+            proof: 'defineRelationalQuery.left.public.v1',
+            root: plainJoin.root,
+            rootIndex: plainJoin.rootIndex,
+            joined: plainJoin.joined,
+            joinedIndex: plainJoin.joinedIndex,
+            join: plainJoin.join,
+            kind: 'left',
+            take: plainJoin.take,
+            projection: plainJoin.projection,
+            visibility: {
+              root: { kind: 'public-read' },
+              joined: { kind: 'public-read' },
+              output: 'public-read',
+            },
+            remediations: [
+              // @ref LLP 0178#2-diagnostic-shape — the advisory routes to
+              // the governing page while leaving source rewriting to the
+              // author; the proof facts above make the conversion mechanical.
+              {
+                kind: 'guidePointer',
+                pageId: 'backend.relational-queries',
+                path: 'guide/backend/relational-queries.md',
+                anchor: 'recognize-the-messaging-shape',
+                reason: 'Replace the proved plain join with the closed relational declaration.',
+                riskClass: 'mechanical',
+                machineApplicable: false,
+                requiresApproval: false,
+                authorityEffect: 'none',
+                precondition,
+                description: 'Use the relational-query guide to spell the equivalent bounded left join.',
+              },
+            ],
+          },
+        });
       }
       functions.push({
         name,
@@ -5642,6 +5701,155 @@ function serializeOrderExpr(order) {
     ...(order.maxEncodedBytes !== undefined
       ? { maxEncodedBytes: order.maxEncodedBytes }
       : {}),
+  };
+}
+
+function relationalJoinKeyClassFromManifest(field) {
+  const type = field?.field_type;
+  if (type === 'String' || type === 'Principal' || type === 'Integer' || type === 'Boolean') {
+    return type;
+  }
+  if (type?.Id?.table && typeof type.Id.table === 'string') return `Id<${type.Id.table}>`;
+  if (Array.isArray(type?.Enum?.values)) return `Enum<${canonicalResultJson(type.Enum.values)}>`;
+  return null;
+}
+
+function relationalProjectionScalarFromManifest(field) {
+  const type = field?.field_type;
+  return type === 'String'
+    || type === 'Principal'
+    || type === 'Boolean'
+    || type === 'Integer'
+    || type === 'Real'
+    || Boolean(type?.Enum || type?.Id || type?.AssetRef);
+}
+
+// @ref LLP 0178#3-initial-checks — authoring advisories never change
+// admission; this proof returns null on every incomplete fact.
+// @ref LLP 0187#t2--diagnostics-as-the-router-delegated-to-llp-0178 — the
+// plain-join router pays the high precision bar before it spends author trust.
+// @ref LLP 0080#1-closed-relational-plan — AST facts are insufficient until
+// joined with exact schema indexes, key types, projection types, and the
+// index-served root window. This first slice admits only all-public left joins,
+// so no source or output visibility is inferred from relation metadata.
+function provePlainJoinAdvisory({ candidate, def, name, tables }) {
+  if (!candidate || def.__kind !== 'LiveQuery' || def.auth !== 'public') return null;
+  if (
+    Object.keys(def.args ?? {}).length !== 0
+    || def.js?.authScopeField !== null
+    || def.authorityIndependent !== undefined
+    || def.retainable !== undefined
+    || def.defaultLive !== undefined
+    || def.authorizationDependence !== undefined
+    || def.refusals !== undefined
+    || def.trackedRefusals !== undefined
+  ) return null;
+  if (candidate.root === candidate.joined) return null;
+  const reads = def.js?.reads;
+  if (
+    !Array.isArray(reads)
+    || reads.length !== 2
+    || new Set(reads).size !== 2
+    || !reads.includes(candidate.root)
+    || !reads.includes(candidate.joined)
+  ) return null;
+  const root = tables[candidate.root];
+  const joined = tables[candidate.joined];
+  if (!root || !joined) return null;
+  const rootIndex = root.indexes.find((index) => index.name === candidate.rootIndex);
+  const joinedIndex = joined.indexes.find((index) => index.name === candidate.joinedIndex);
+  if (!rootIndex || !joinedIndex?.unique) return null;
+  if (
+    joinedIndex.fields.length !== candidate.joinOn.length
+    || !joinedIndex.fields.every(
+      (field, index) => field === candidate.joinOn[index].joinedField,
+    )
+  ) return null;
+  const rootFields = new Map(root.fields.map((field) => [field.name, field]));
+  const joinedFields = new Map(joined.fields.map((field) => [field.name, field]));
+  for (const pair of candidate.joinOn) {
+    const rootField = rootFields.get(pair.rootField);
+    const joinedField = joinedFields.get(pair.joinedField);
+    const rootClass = relationalJoinKeyClassFromManifest(rootField);
+    if (
+      rootClass === null
+      || rootClass !== relationalJoinKeyClassFromManifest(joinedField)
+      || rootField?.optional === true
+      || joinedField?.optional === true
+    ) return null;
+  }
+  const projection = [];
+  for (const leaf of candidate.projection) {
+    if (leaf.source.kind === 'literal') {
+      projection.push({ name: leaf.name, source: { Literal: leaf.source.value } });
+      continue;
+    }
+    const fields = leaf.source.kind === 'root' ? rootFields : joinedFields;
+    const field = fields.get(leaf.source.field);
+    // Optional stored fields have omission semantics in an opaque JS row,
+    // while the relational result materializes them as null. Staying on
+    // required scalar leaves keeps the returned JSON image byte-equivalent.
+    if (!field || field.optional === true || !relationalProjectionScalarFromManifest(field)) {
+      return null;
+    }
+    projection.push({
+      name: leaf.name,
+      source: leaf.source.kind === 'root'
+        ? { RootField: leaf.source.field }
+        : { JoinedField: leaf.source.field },
+    });
+  }
+  const plan = {
+    root: candidate.root,
+    rootAlias: candidate.root,
+    joined: candidate.joined,
+    joinedAlias: candidate.joined,
+    joinKind: 'Left',
+    joinOn: candidate.joinOn,
+    rootFilters: [],
+    rootVisibility: [],
+    joinedVisibility: [],
+    projection,
+    order: rootIndex.fields.map((field) => ({ field, direction: 'Asc' })),
+    take: candidate.take,
+    rootIndex: candidate.rootIndex,
+    joinedIndex: candidate.joinedIndex,
+  };
+  try {
+    const authoredContract = effectiveResultContract({
+      def,
+      functionKind: 'LiveQuery',
+      runtime: { IbexModule: {} },
+      tables,
+    });
+    const relationalContract = effectiveResultContract({
+      def: {},
+      functionKind: 'LiveQuery',
+      runtime: { HostPlan: { RelationalQuery: plan } },
+      tables,
+    });
+    if (canonicalResultJson(authoredContract) !== canonicalResultJson(relationalContract)) {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+  return {
+    root: candidate.root,
+    rootIndex: candidate.rootIndex,
+    joined: candidate.joined,
+    joinedIndex: candidate.joinedIndex,
+    join: candidate.joinOn.map(({ rootField, joinedField }) => ({
+      root: rootField,
+      joined: joinedField,
+    })),
+    take: candidate.take,
+    projection: candidate.projection.map((leaf) => ({
+      name: leaf.name,
+      [leaf.source.kind]: leaf.source.kind === 'literal'
+        ? leaf.source.value
+        : leaf.source.field,
+    })),
   };
 }
 

@@ -575,6 +575,257 @@ function freeIdentifierHints(free, freeTopLevel) {
   return hints.length > 0 ? ` (${hints.join('; ')})` : '';
 }
 
+const PLAIN_JOIN_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/u;
+
+function unwrapParentheses(node) {
+  let current = node;
+  while (ts.isParenthesizedExpression(current)) current = current.expression;
+  return current;
+}
+
+function directMethodCall(node, method, argumentCount) {
+  const current = unwrapParentheses(node);
+  if (
+    !ts.isCallExpression(current)
+    || !ts.isPropertyAccessExpression(current.expression)
+    || current.expression.questionDotToken
+    || current.expression.name.text !== method
+    || current.arguments.length !== argumentCount
+  ) return null;
+  return {
+    receiver: unwrapParentheses(current.expression.expression),
+    arguments: [...current.arguments],
+  };
+}
+
+function directStringLiteral(node) {
+  const current = unwrapParentheses(node);
+  return ts.isStringLiteral(current) || ts.isNoSubstitutionTemplateLiteral(current)
+    ? current.text
+    : null;
+}
+
+function directJsonScalar(node) {
+  const current = unwrapParentheses(node);
+  if (current.kind === ts.SyntaxKind.NullKeyword) return { matched: true, value: null };
+  if (current.kind === ts.SyntaxKind.TrueKeyword) return { matched: true, value: true };
+  if (current.kind === ts.SyntaxKind.FalseKeyword) return { matched: true, value: false };
+  if (ts.isStringLiteral(current) || ts.isNoSubstitutionTemplateLiteral(current)) {
+    return { matched: true, value: current.text };
+  }
+  if (ts.isNumericLiteral(current)) {
+    const value = Number(current.text.replaceAll('_', ''));
+    if (Number.isFinite(value)) return { matched: true, value };
+  }
+  return { matched: false, value: null };
+}
+
+function directIdentifier(node, expected = null) {
+  const current = unwrapParentheses(node);
+  if (!ts.isIdentifier(current)) return null;
+  return expected === null || current.text === expected ? current.text : null;
+}
+
+function directMember(node, receiver) {
+  const current = unwrapParentheses(node);
+  if (
+    !ts.isPropertyAccessExpression(current)
+    || current.questionDotToken
+    || !ts.isIdentifier(current.expression)
+    || current.expression.text !== receiver
+  ) return null;
+  return current.name.text;
+}
+
+function directCtxQuery(node, ctxName) {
+  const query = directMethodCall(node, 'query', 1);
+  if (!query) return null;
+  const db = query.receiver;
+  if (
+    !ts.isPropertyAccessExpression(db)
+    || db.questionDotToken
+    || db.name.text !== 'db'
+    || !ts.isIdentifier(db.expression)
+    || db.expression.text !== ctxName
+  ) return null;
+  const table = directStringLiteral(query.arguments[0]);
+  return table === null ? null : table;
+}
+
+function plainJoinRootRead(initializer, ctxName) {
+  const awaited = unwrapParentheses(initializer);
+  if (!ts.isAwaitExpression(awaited)) return null;
+  const collect = directMethodCall(awaited.expression, 'collect', 0);
+  const take = collect && directMethodCall(collect.receiver, 'take', 1);
+  const withIndex = take && directMethodCall(take.receiver, 'withIndex', 1);
+  if (!collect || !take || !withIndex) return null;
+  const table = directCtxQuery(withIndex.receiver, ctxName);
+  const index = directStringLiteral(withIndex.arguments[0]);
+  const takeNode = unwrapParentheses(take.arguments[0]);
+  if (table === null || index === null || !ts.isNumericLiteral(takeNode)) return null;
+  const takeValue = Number(takeNode.text.replaceAll('_', ''));
+  if (!Number.isSafeInteger(takeValue) || takeValue < 0 || takeValue > 1_024) return null;
+  return { table, index, take: takeValue };
+}
+
+function plainJoinJoinedRead(initializer, ctxName, rootName) {
+  const awaited = unwrapParentheses(initializer);
+  if (!ts.isAwaitExpression(awaited)) return null;
+  const first = directMethodCall(awaited.expression, 'first', 0);
+  if (!first) return null;
+  let cursor = first.receiver;
+  const reversedJoin = [];
+  let withIndex = null;
+  for (;;) {
+    withIndex = directMethodCall(cursor, 'withIndex', 1);
+    if (withIndex) break;
+    const equality = directMethodCall(cursor, 'eq', 2);
+    if (!equality) return null;
+    const joinedField = directStringLiteral(equality.arguments[0]);
+    const rootField = directMember(equality.arguments[1], rootName);
+    if (joinedField === null || rootField === null) return null;
+    reversedJoin.push({ rootField, joinedField });
+    cursor = equality.receiver;
+  }
+  if (reversedJoin.length < 1 || reversedJoin.length > 4) return null;
+  const table = directCtxQuery(withIndex.receiver, ctxName);
+  const index = directStringLiteral(withIndex.arguments[0]);
+  if (table === null || index === null) return null;
+  return { table, index, joinOn: reversedJoin.reverse() };
+}
+
+function plainJoinProjection(node, rootName, joinedName) {
+  const object = unwrapParentheses(node);
+  if (!ts.isObjectLiteralExpression(object) || object.properties.length === 0) return null;
+  const projection = [];
+  const names = new Set();
+  let joinedLeaves = 0;
+  for (const property of object.properties) {
+    if (
+      !ts.isPropertyAssignment(property)
+      || ts.isComputedPropertyName(property.name)
+    ) return null;
+    const name = propertyName(property.name);
+    if (name === null || !PLAIN_JOIN_IDENT.test(name) || names.has(name)) return null;
+    names.add(name);
+    const rootField = directMember(property.initializer, rootName);
+    if (rootField !== null) {
+      projection.push({ name, source: { kind: 'root', field: rootField } });
+      continue;
+    }
+    const value = unwrapParentheses(property.initializer);
+    if (
+      ts.isBinaryExpression(value)
+      && value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
+      && unwrapParentheses(value.right).kind === ts.SyntaxKind.NullKeyword
+    ) {
+      const left = unwrapParentheses(value.left);
+      if (
+        ts.isPropertyAccessExpression(left)
+        && left.questionDotToken
+        && ts.isIdentifier(left.expression)
+        && left.expression.text === joinedName
+      ) {
+        projection.push({ name, source: { kind: 'joined', field: left.name.text } });
+        joinedLeaves += 1;
+        continue;
+      }
+    }
+    const literal = directJsonScalar(value);
+    if (!literal.matched) return null;
+    projection.push({ name, source: { kind: 'literal', value: literal.value } });
+  }
+  return joinedLeaves > 0 ? projection : null;
+}
+
+function plainJoinCandidate(expression) {
+  if (
+    !expression.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword)
+    || expression.parameters.length !== 1
+    || !ts.isIdentifier(expression.parameters[0].name)
+    || expression.parameters[0].dotDotDotToken
+    || expression.parameters[0].initializer
+    || !ts.isBlock(expression.body)
+    || expression.body.statements.length !== 4
+  ) return null;
+  const ctxName = expression.parameters[0].name.text;
+  const [rootStatement, outputStatement, loop, returned] = expression.body.statements;
+  if (
+    !ts.isVariableStatement(rootStatement)
+    || (rootStatement.declarationList.flags & ts.NodeFlags.Const) === 0
+    || rootStatement.declarationList.declarations.length !== 1
+  ) return null;
+  const rootDeclaration = rootStatement.declarationList.declarations[0];
+  if (!ts.isIdentifier(rootDeclaration.name) || !rootDeclaration.initializer) return null;
+  const rootRead = plainJoinRootRead(rootDeclaration.initializer, ctxName);
+  if (!rootRead) return null;
+  const rootsName = rootDeclaration.name.text;
+
+  if (
+    !ts.isVariableStatement(outputStatement)
+    || (outputStatement.declarationList.flags & ts.NodeFlags.Const) === 0
+    || outputStatement.declarationList.declarations.length !== 1
+  ) return null;
+  const outputDeclaration = outputStatement.declarationList.declarations[0];
+  if (
+    !ts.isIdentifier(outputDeclaration.name)
+    || !outputDeclaration.initializer
+    || !ts.isArrayLiteralExpression(unwrapParentheses(outputDeclaration.initializer))
+    || unwrapParentheses(outputDeclaration.initializer).elements.length !== 0
+  ) return null;
+  const outputName = outputDeclaration.name.text;
+
+  if (
+    !ts.isForOfStatement(loop)
+    || loop.awaitModifier
+    || !ts.isVariableDeclarationList(loop.initializer)
+    || (loop.initializer.flags & ts.NodeFlags.Const) === 0
+    || loop.initializer.declarations.length !== 1
+    || directIdentifier(loop.expression, rootsName) === null
+    || !ts.isBlock(loop.statement)
+    || loop.statement.statements.length !== 2
+  ) return null;
+  const loopDeclaration = loop.initializer.declarations[0];
+  if (!ts.isIdentifier(loopDeclaration.name) || loopDeclaration.initializer) return null;
+  const rootName = loopDeclaration.name.text;
+  const [joinedStatement, pushStatement] = loop.statement.statements;
+  if (
+    !ts.isVariableStatement(joinedStatement)
+    || (joinedStatement.declarationList.flags & ts.NodeFlags.Const) === 0
+    || joinedStatement.declarationList.declarations.length !== 1
+  ) return null;
+  const joinedDeclaration = joinedStatement.declarationList.declarations[0];
+  if (!ts.isIdentifier(joinedDeclaration.name) || !joinedDeclaration.initializer) return null;
+  const joinedName = joinedDeclaration.name.text;
+  const joinedRead = plainJoinJoinedRead(
+    joinedDeclaration.initializer,
+    ctxName,
+    rootName,
+  );
+  if (!joinedRead) return null;
+
+  if (!ts.isExpressionStatement(pushStatement)) return null;
+  const push = directMethodCall(pushStatement.expression, 'push', 1);
+  if (!push || directIdentifier(push.receiver, outputName) === null) return null;
+  const projection = plainJoinProjection(push.arguments[0], rootName, joinedName);
+  if (!projection) return null;
+  if (
+    !ts.isReturnStatement(returned)
+    || !returned.expression
+    || directIdentifier(returned.expression, outputName) === null
+  ) return null;
+  return {
+    root: rootRead.table,
+    rootIndex: rootRead.index,
+    take: rootRead.take,
+    joined: joinedRead.table,
+    joinedIndex: joinedRead.index,
+    joinOn: joinedRead.joinOn,
+    joinKind: 'Left',
+    projection,
+  };
+}
+
 export function extractInlineHandlers(source, {
   path = 'functions.mjs',
 } = {}) {
@@ -901,6 +1152,9 @@ export function extractInlineHandlers(source, {
         expressionSource,
         ast,
         helpers,
+        ...(call.expression.text === 'defineJsLiveQuery'
+          ? { plainJoinCandidate: plainJoinCandidate(expression) }
+          : {}),
         sourceSpan: {
           file: path,
           line: start.line + 1,

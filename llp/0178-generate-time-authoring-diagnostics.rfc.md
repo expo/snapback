@@ -6,7 +6,10 @@
 authoring, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (b) — Accepted by author ruling (Charlie), in the
+**Revised:** 2026-08-10 (c) — The first relational-query advisory landed with
+an AST-plus-schema equivalence proof, a purpose-built positive fixture, a
+closed negative matrix, and a zero-candidate demo/guide-source corpus scan.
+2026-08-06 (b) — Accepted by author ruling (Charlie), in the
 LLP 0187 T2 sequencing context: V1 (the optional-arg contradiction slice)
 plus the first `guidePointer` advisory batch are unblocked as
 implementation work. 2026-08-06 — V1's policy remediations now name the admitted
@@ -390,6 +393,18 @@ converting them into Expo-specific strings or automatic edits.
 existing codegen-local `details.remediations[]` carrier, first wires it beside
 the policy options for V1 and `SNAPBACK_AUTH_REQUIREMENT_IMPLICIT`, and guards
 its manifest page ids, paths, and section anchors in the codegen test suite.
+
+**2026-08-10.** `SNAPBACK_AUTHORING_PLAIN_JOIN_RELATIONAL_QUERY` adds the first
+relational-query advisory. It is emitted only when the inline handler AST and
+the admitted schema jointly prove an argument-free, explicitly public,
+two-table left join whose root scan, exact unique joined lookup, key types,
+required scalar projection, missing-row behavior, and result contract are
+byte-equivalent to `defineRelationalQuery`. Branches, helpers, writes,
+aggregation, self-joins, extra reads, transforms, wider indexes, optional
+join keys, and contract differences remain silent. The finding is warning-only,
+does not alter generation admission, and points to the relational-query guide.
+The proof is covered by an equivalent relational builder fixture, paired
+negative fixtures, and the full demo plus guide-JavaScript corpus scan.
 
 ## Status
 

@@ -12,11 +12,14 @@ both policy diagnostics with a manifest-anchor integrity test, and
 orientation READMEs for the five remaining bare published packages with the
 funnel test in the local proof; the plain-join advisory was ticketed rather
 than shipped after a 112-source falsification pass met OQ3's fear —
-`issues/20260806-plain-join-advisory-detector.md`. The T4 funnel trio for
+`issues/closed/20260806-plain-join-advisory-detector.md`. The T4 funnel trio for
 the CLI itself had landed earlier at `11fe8342c`.) 2026-08-06 (e — Accepted by author ruling at revision (d); the super-refine run record in llp/reviews/0186-agent-authoring-efficiency-program.run.md holds the verdict history, incl. that revision (d) was unreviewed)
-**Revised:** 2026-08-09 (g — OQ4 resolved by LLP 0061's tiered-projection
-amendment: bounded entry artifacts, per-section flats, and a labeled roughly
-2.5 MiB whole-corpus bulk export.)
+**Revised:** 2026-08-10 (h — T2's plain-join advisory landed after the
+ticketed AST-plus-schema proof supplied the missing positive fixture while
+retaining the 112-source zero-candidate corpus boundary; OQ3 is resolved.)
+2026-08-09 (g — OQ4 resolved by LLP 0061's tiered-projection amendment:
+bounded entry artifacts, per-section flats, and a labeled roughly 2.5 MiB
+whole-corpus bulk export.)
 **Related:** LLP 0016, LLP 0061, LLP 0146, LLP 0176, LLP 0177, LLP 0178, LLP
 0179, LLP 0184, LLP 0186
 
@@ -258,10 +261,11 @@ yet in the capability index's alias row.
 
 ### T2 — Diagnostics as the router (delegated to LLP 0178)
 
-*Owner: LLP 0178 (Accepted 2026-08-06, `0f61dfb0f`). First slice landed:
-V1 plus the guidePointer wiring on both policy diagnostics (`f9b38422e`);
-the plain-join advisory is ticketed, not shipped — see OQ3's disposition
-in the Revised header.*
+*Owner: LLP 0178 (Accepted 2026-08-06, `0f61dfb0f`). V1 plus the guidePointer
+wiring on both policy diagnostics landed first (`f9b38422e`). The plain-join
+advisory landed 2026-08-10 after the strict equivalence proof requested by
+`issues/closed/20260806-plain-join-advisory-detector.md`; see OQ3's resolved
+disposition below.*
 
 The bakeoffs contain a natural experiment: concept-naming diagnostics taught
 three fixes for free; symptom-naming diagnostics caused three source-reading
@@ -424,10 +428,16 @@ Once T4's external fixture exists, each seed runs in both fixtures
    the guide manifest** rather than hand-authored, so it cannot drift from
    the corpus it points into? Raised here because drift-proofing is this
    RFC's concern; the skill itself is 0186's.
-3. **Advisory precision bar for T2's join detector.** How conservative must
-   the "this JS handler is a plain join" heuristic be before it ships as an
-   advisory? (LLP 0178's lanes bound the blast radius — advisories never
-   change admission — but a noisy advisory burns trust.)
+3. **Advisory precision bar for T2's join detector. Resolved 2026-08-10:**
+   require a complete equivalence proof across both the inline handler AST and
+   admitted schema facts. The shipped rule recognizes only an argument-free,
+   explicitly public, two-table left join with an admitted root index, one
+   exact unique joined-index lookup, compatible required key types, a closed
+   required-scalar/literal projection, relational missing-row behavior, and an
+   identical result contract. Any branch, helper, write, aggregation,
+   self-join, extra access, transform, optional join key, wider index, or
+   contract difference stays silent. The advisory remains warning-only and
+   cannot change admission.
 4. **Does `guide-flat.generated.md` need a diet or a tier? Resolved
    2026-08-09: tier.** It had already outgrown LLP 0061's one-request premise
    on 2026-08-06 and is now roughly 2.5 MiB. LLP 0061 makes the capability

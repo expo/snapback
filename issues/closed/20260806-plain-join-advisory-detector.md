@@ -1,6 +1,6 @@
 # Prove plain-join equivalence before emitting the codegen advisory
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 2
@@ -87,3 +87,18 @@ construct above, and retain the entire demo/guide-source scan as a zero-false-
 positive regression. The resulting LLP 0178 advisory must remain a warning,
 never change generation admission, and carry a `guidePointer` to
 `backend.relational-queries`.
+
+## Resolution (2026-08-10)
+
+Implemented `SNAPBACK_AUTHORING_PLAIN_JOIN_RELATIONAL_QUERY` at the inline
+handler AST seam and joined its candidate facts to the admitted schema before
+emission. The detector accepts only the closed two-table left-join profile
+described above, proves the authored result contract identical to the derived
+relational contract, remains warning-only, and carries the relational-query
+guide pointer.
+
+The codegen package test first compiles an equivalent purpose-built
+`defineRelationalQuery`, then verifies the advisory for the matching JS live
+query. It also covers the rejected AST and schema constructs individually and
+rescans every demo function source plus every JavaScript guide-manifest source;
+the checked-in corpus still contains zero AST candidates.
