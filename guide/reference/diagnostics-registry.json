@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "9ac739208692d57f85d46375bc2d1c55f84f839a",
-    "sourceDigest": "sha256:1f85ee188e52750da6c18d375d7db812d8405ea2f6c91e0344e9b9c30ee24df9"
+    "commit": "859557564cae52fbcce0b70c7af7bd305c9143cb",
+    "sourceDigest": "sha256:44a439c496e2aa55df614dbf38a2f45d850bad4b78cf75d4d4c11657124e8fb6"
   },
   "limits": {
     "lookupBytes": 16384
@@ -11,7 +11,7 @@
   "counts": {
     "codes": 2947,
     "sourceFiles": 406,
-    "emittingSites": 10014,
+    "emittingSites": 10015,
     "httpClassified": 922,
     "guideAnchored": 339
   },
@@ -14544,42 +14544,42 @@
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 2513,
+          "line": 2525,
           "column": 27
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 2700,
+          "line": 2754,
           "column": 14
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 2713,
+          "line": 2767,
           "column": 14
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 3119,
+          "line": 3173,
           "column": 48
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 3444,
+          "line": 3498,
           "column": 44
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 3456,
+          "line": 3510,
           "column": 44
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 3465,
+          "line": 3519,
           "column": 44
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 3502,
+          "line": 3556,
           "column": 44
         }
       ],
@@ -14629,7 +14629,7 @@
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 3324,
+          "line": 3378,
           "column": 14
         }
       ],
@@ -14659,7 +14659,7 @@
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 3427,
+          "line": 3481,
           "column": 14
         }
       ],
@@ -22542,12 +22542,12 @@
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 3305,
+          "line": 3359,
           "column": 44
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 3517,
+          "line": 3571,
           "column": 44
         }
       ],
@@ -28227,17 +28227,17 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6316,
+          "line": 6422,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7215,
+          "line": 7321,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7265,
+          "line": 7371,
           "column": 14
         },
         {
@@ -47383,17 +47383,17 @@
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 3830,
+          "line": 3884,
           "column": 41
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 3861,
+          "line": 3915,
           "column": 41
         },
         {
           "file": "src/storage/auth.rs",
-          "line": 3871,
+          "line": 3925,
           "column": 44
         }
       ],
@@ -53241,12 +53241,12 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6586,
+          "line": 6692,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6601,
+          "line": 6707,
           "column": 14
         }
       ],
@@ -53273,12 +53273,12 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6646,
+          "line": 6752,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6666,
+          "line": 6772,
           "column": 19
         }
       ],
@@ -53325,7 +53325,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6754,
+          "line": 6860,
           "column": 44
         }
       ],
@@ -53358,7 +53358,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6158,
+          "line": 6264,
           "column": 48
         }
       ],
@@ -53400,12 +53400,12 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 5244,
+          "line": 5250,
           "column": 18
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6748,
+          "line": 6854,
           "column": 14
         }
       ],
@@ -53427,12 +53427,12 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 3921,
+          "line": 3927,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7791,
+          "line": 7897,
           "column": 14
         }
       ],
@@ -53459,17 +53459,17 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6085,
+          "line": 6191,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6102,
+          "line": 6208,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6118,
+          "line": 6224,
           "column": 44
         }
       ],
@@ -53496,7 +53496,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6499,
+          "line": 6605,
           "column": 44
         }
       ],
@@ -53588,7 +53588,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 4971,
+          "line": 4977,
           "column": 14
         },
         {
@@ -53635,22 +53635,22 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6031,
+          "line": 6137,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6244,
+          "line": 6350,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6631,
+          "line": 6737,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 8328,
+          "line": 8434,
           "column": 44
         }
       ],
@@ -53682,22 +53682,22 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6449,
+          "line": 6555,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6524,
+          "line": 6630,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6537,
+          "line": 6643,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6559,
+          "line": 6665,
           "column": 14
         },
         {
@@ -53739,7 +53739,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6419,
+          "line": 6525,
           "column": 14
         }
       ],
@@ -53774,7 +53774,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 4910,
+          "line": 4916,
           "column": 10
         }
       ],
@@ -53964,12 +53964,12 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6880,
+          "line": 6986,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 8258,
+          "line": 8364,
           "column": 14
         }
       ],
@@ -53992,22 +53992,22 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 3897,
+          "line": 3903,
           "column": 22
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 4902,
+          "line": 4908,
           "column": 10
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 5506,
+          "line": 5512,
           "column": 46
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6184,
+          "line": 6290,
           "column": 44
         }
       ],
@@ -54029,12 +54029,12 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 4922,
+          "line": 4928,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 6572,
+          "line": 6678,
           "column": 44
         }
       ],
@@ -54094,27 +54094,27 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 4575,
+          "line": 4581,
           "column": 18
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 4627,
+          "line": 4633,
           "column": 18
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 5282,
+          "line": 5288,
           "column": 18
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7982,
+          "line": 8088,
           "column": 14
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 8008,
+          "line": 8114,
           "column": 14
         }
       ],
@@ -55710,27 +55710,27 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 5177,
+          "line": 5183,
           "column": 22
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 5224,
+          "line": 5230,
           "column": 22
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7186,
+          "line": 7292,
           "column": 18
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7399,
+          "line": 7505,
           "column": 44
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7417,
+          "line": 7523,
           "column": 44
         },
         {
@@ -55765,7 +55765,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 7203,
+          "line": 7309,
           "column": 14
         }
       ],
@@ -73715,6 +73715,11 @@
       "subsystem": "server",
       "sites": [
         {
+          "file": "src/branches.rs",
+          "line": 1396,
+          "column": 14
+        },
+        {
           "file": "src/proof_checkpoint.rs",
           "line": 2827,
           "column": 18
@@ -74677,7 +74682,7 @@
         },
         {
           "file": "src/storage/migration_executor.rs",
-          "line": 5509,
+          "line": 5515,
           "column": 14
         }
       ],

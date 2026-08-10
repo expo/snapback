@@ -2931,6 +2931,7 @@ impl LocalDatabase {
                     // destination row sharing its id; a destination row with
                     // no source counterpart keeps its value.
                     return self.run_cross_table_copy_batches(
+                        &operation_id,
                         source_table,
                         source_field,
                         table,
@@ -3728,6 +3729,7 @@ impl LocalDatabase {
     #[allow(clippy::too_many_arguments)]
     fn run_cross_table_copy_batches(
         &mut self,
+        operation_id: &str,
         source_table: &str,
         source_field: &str,
         table: &str,
@@ -3745,7 +3747,11 @@ impl LocalDatabase {
             base: Box::new(crate::manifest::ValueExpr::Binding("row".to_owned())),
             key: source_field.to_owned(),
         });
-        let mut after: Option<String> = None;
+        // @ref LLP 0081#4-execution-journaling-and-crash-recovery — resume at
+        // the last committed keyset boundary; cross-table copies obey the same
+        // batch-atomic cursor contract as backfills and staged table copies.
+        let mut after: Option<String> =
+            resume_backfill_boundary(&self.conn, operation_id, step_id)?;
         let mut batch: u64 = 0;
         let mut rows_written: u64 = 0;
         let input = HandlerInput {
@@ -5547,6 +5553,106 @@ mod tests {
     }
 
     const PUBLICATION_TS: u64 = 1_900_000_000_000;
+
+    #[test]
+    fn cross_table_copy_resumes_after_the_committed_keyset_boundary() {
+        let schema = SchemaManifest {
+            tables: vec![
+                table("source_rows", vec![("value", false)]),
+                table("dest_rows", vec![("copied", true)]),
+            ],
+            ..SchemaManifest::default()
+        };
+        let mut db = LocalDatabase::memory().expect("memory db");
+        db.apply_schema(schema.clone()).expect("schema");
+        db.conn
+            .execute_batch(
+                "INSERT INTO source_rows(_id,_version,_createdAt,_updatedAt,value)
+                   VALUES('a',1,1,1,'first'),('b',1,1,1,'second');
+                 INSERT INTO dest_rows(_id,_version,_createdAt,_updatedAt,copied)
+                   VALUES('a',1,1,1,NULL),('b',1,1,1,NULL);
+                 CREATE TABLE _snapback_migration_journal(
+                   seq INTEGER PRIMARY KEY AUTOINCREMENT,
+                   operation_id TEXT NOT NULL,
+                   entry_json TEXT NOT NULL
+                 );",
+            )
+            .expect("fixture rows");
+        let entry = MigrationJournalEntryV1 {
+            version: MIGRATION_JOURNAL_SCHEMA_VERSION.to_owned(),
+            operation_id: "resume-op".to_owned(),
+            plan_id: "resume-plan".to_owned(),
+            host_operation_identity: None,
+            step_id: Some("copy-step".to_owned()),
+            attempt: 0,
+            state: MigrationExecState::Executing {
+                step: "copy-step".to_owned(),
+                batch: 0,
+            },
+            input_version: 1,
+            output_version: None,
+            cursor: None,
+            backfill_after_id: Some("a".to_owned()),
+            verification: None,
+            error_code: None,
+            lease_epoch: 1,
+            at_ms: 1,
+            barrier_elapsed_ms: None,
+        };
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_migration_journal(operation_id,entry_json)
+                 VALUES(?1,?2)",
+                params![
+                    entry.operation_id,
+                    serde_json::to_string(&entry).expect("journal JSON")
+                ],
+            )
+            .expect("journal boundary");
+        let constants = MigrationConstants {
+            publication_timestamp_ms: 2,
+            rollback_timestamp_ms: None,
+            values: BTreeMap::new(),
+        };
+        let no_op_journal = |_tx: &Transaction<'_>,
+                             _batch: u64,
+                             _cursor: Option<&MigrationKeysetScanCheckpointV1>,
+                             _after: Option<&str>,
+                             _verification: Option<&Value>| { Ok(()) };
+        let result = db
+            .run_cross_table_copy_batches(
+                "resume-op",
+                "source_rows",
+                "value",
+                "dest_rows",
+                "copied",
+                None,
+                &schema,
+                &constants,
+                2,
+                "copy-step",
+                &no_op_journal,
+            )
+            .expect("resume copy");
+        assert_eq!(result["rowsWritten"], 1);
+        let copied = db
+            .conn
+            .prepare("SELECT _id,copied FROM dest_rows ORDER BY _id")
+            .expect("query")
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
+            })
+            .expect("rows")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("collect");
+        assert_eq!(
+            copied,
+            vec![
+                ("a".to_owned(), None),
+                ("b".to_owned(), Some("second".to_owned()))
+            ]
+        );
+    }
 
     fn fixture_plan(
         predecessor: &SchemaManifest,

@@ -10,7 +10,7 @@
 
 use std::path::{Path, PathBuf};
 
-use rusqlite::{Connection, OptionalExtension, Row, params};
+use rusqlite::{Connection, OptionalExtension, Row, Transaction, params};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -163,7 +163,7 @@ pub fn ensure_branch_registry(conn: &Connection) -> SnapbackResult<()> {
 /// unique) — a branch identity is never silently reused.
 #[allow(clippy::too_many_arguments)]
 pub fn create_branch(
-    conn: &Connection,
+    conn: &Transaction<'_>,
     branch_id: &BranchId,
     child_stream_id: &ChildStreamId,
     base_stream: &str,
@@ -269,20 +269,35 @@ pub fn child_current_version(
 /// independent of canonical. Fails closed if the branch has no version stream.
 pub fn allocate_child_version(conn: &Connection, branch_id: &BranchId) -> SnapbackResult<u64> {
     ensure_branch_registry(conn)?;
-    let current = child_current_version(conn, branch_id)?.ok_or_else(|| {
-        invalid(format!(
+    // @ref LLP 0097#1-the-branch-is-an-ephemeral-child-of-a-logical-app — the
+    // child stream is gap-free even when independent connections allocate at
+    // once. One SQLite statement both increments and returns the winning value.
+    let next: Option<i64> = conn
+        .query_row(
+            "UPDATE _snapback_branch_versions
+                SET current_version = current_version + 1
+              WHERE branch_id = ?1 AND current_version < ?2
+              RETURNING current_version",
+            params![
+                branch_id.0,
+                crate::manifest::PORTABLE_STORAGE_VERSION_MAX as i64
+            ],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if let Some(next) = next {
+        return Ok(next as u64);
+    }
+
+    // Distinguish a missing stream from portable-domain exhaustion without
+    // reintroducing a read/increment/write race on the successful path.
+    match child_current_version(conn, branch_id)? {
+        Some(current) => crate::storage::next_storage_version(current),
+        None => Err(invalid(format!(
             "no child version stream for branch {:?}",
             branch_id.0
-        ))
-    })?;
-    // Reuse the canonical portable-max guard so a branch stream can never
-    // advance past the durable ordering domain either.
-    let next = crate::storage::next_storage_version(current)?;
-    conn.execute(
-        "UPDATE _snapback_branch_versions SET current_version = ?2 WHERE branch_id = ?1",
-        params![branch_id.0, next as i64],
-    )?;
-    Ok(next)
+        ))),
+    }
 }
 
 /// The replay floor of a branch's child stream (the oldest version a consumer may
@@ -1164,6 +1179,60 @@ mod tests {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn create_branch(
+        conn: &Connection,
+        branch_id: &BranchId,
+        child_stream_id: &ChildStreamId,
+        base_stream: &str,
+        base_version: u64,
+        created_at_ms: i64,
+        ttl_ms: Option<i64>,
+    ) -> SnapbackResult<BranchRecord> {
+        let tx = conn.unchecked_transaction()?;
+        let record = super::create_branch(
+            &tx,
+            branch_id,
+            child_stream_id,
+            base_stream,
+            base_version,
+            created_at_ms,
+            ttl_ms,
+        )?;
+        tx.commit()?;
+        Ok(record)
+    }
+
+    #[test]
+    fn branch_registration_is_one_caller_owned_transaction() {
+        let c = conn();
+        ensure_branch_registry(&c).expect("registry");
+        let (bid, cs) = ids("atomic");
+        {
+            let tx = c.unchecked_transaction().expect("transaction");
+            super::create_branch(&tx, &bid, &cs, "canonical", 1, 1, None)
+                .expect("create in transaction");
+            // Dropping the caller-owned transaction rolls back both dependent
+            // inserts. There is no API shape that can commit only the registry
+            // row and strand the child version stream.
+        }
+        let branches: i64 = c
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_branches WHERE branch_id = ?1",
+                params![bid.0],
+                |row| row.get(0),
+            )
+            .expect("branch count");
+        let versions: i64 = c
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_branch_versions WHERE branch_id = ?1",
+                params![bid.0],
+                |row| row.get(0),
+            )
+            .expect("version count");
+        assert_eq!((branches, versions), (0, 0));
+    }
+
     #[test]
     fn create_then_get_round_trips() {
         let c = conn();
@@ -1273,6 +1342,59 @@ mod tests {
         allocate_child_version(&c, &b2).expect("b2 a1");
         assert_eq!(child_current_version(&c, &b1).expect("b1"), Some(2));
         assert_eq!(child_current_version(&c, &b2).expect("b2"), Some(1));
+    }
+
+    #[test]
+    fn concurrent_child_allocations_are_unique_and_gap_free() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("branches.sqlite3");
+        let setup = Connection::open(&path).expect("setup connection");
+        let (bid, cs) = ids("concurrent");
+        create_branch(&setup, &bid, &cs, "canonical", 1, 1, None).expect("branch");
+        drop(setup);
+
+        let workers = 8;
+        let allocations_per_worker = 16;
+        let mut handles = Vec::new();
+        for _ in 0..workers {
+            let path = path.clone();
+            let bid = bid.clone();
+            handles.push(std::thread::spawn(move || {
+                let connection = Connection::open(path).expect("worker connection");
+                connection
+                    .busy_timeout(std::time::Duration::from_secs(5))
+                    .expect("busy timeout");
+                (0..allocations_per_worker)
+                    .map(|_| allocate_child_version(&connection, &bid).expect("allocate"))
+                    .collect::<Vec<_>>()
+            }));
+        }
+        let mut allocated = handles
+            .into_iter()
+            .flat_map(|handle| handle.join().expect("worker"))
+            .collect::<Vec<_>>();
+        allocated.sort_unstable();
+        let expected = (1..=(workers * allocations_per_worker) as u64).collect::<Vec<_>>();
+        assert_eq!(allocated, expected);
+    }
+
+    #[test]
+    fn child_allocation_refuses_past_the_portable_version_max() {
+        let c = conn();
+        let (bid, cs) = ids("max");
+        create_branch(&c, &bid, &cs, "canonical", 1, 1, None).expect("branch");
+        c.execute(
+            "UPDATE _snapback_branch_versions SET current_version = ?2 WHERE branch_id = ?1",
+            params![bid.0, crate::manifest::PORTABLE_STORAGE_VERSION_MAX as i64],
+        )
+        .expect("set max");
+        assert_eq!(
+            allocate_child_version(&c, &bid)
+                .expect_err("portable maximum must refuse")
+                .diagnostic
+                .code,
+            "SNAPBACK_STORAGE_VERSION_EXHAUSTED"
+        );
     }
 
     #[test]

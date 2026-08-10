@@ -2,6 +2,8 @@
 
 **Opened:** 2026-08-08 · **Severity:** P2 (checkpoint growth) + P3 (the rest) · **Area:** storage / branches
 
+**Status:** Resolved 2026-08-10
+
 Grouped storage findings below P1. The checkpoint growth is the P2; the rest are
 latent API-shape traps and consistency hardening.
 
@@ -61,3 +63,14 @@ but are exactly the API shapes that fail a future reviewer.
 
 ## Progress (2026-08-08)
 P2 checkpoint-retention item fixed on main (Lane A): operation checkpoint rows are deleted in the released/rolled-back cleanup transaction. The P3 branches.rs atomicity items (create_branch, allocate_child_version, cross-table copy resume, PRAGMA quoting) remain open for a later lane.
+
+## Resolution (2026-08-10)
+
+The four P3 remainders are implemented in the uncommitted Slice G1 worktree:
+
+- `create_branch` structurally requires a caller-owned `Transaction`, with a rollback test covering both dependent rows;
+- child-version allocation is one guarded `UPDATE ... RETURNING`, with independent-connection uniqueness/gap-free and portable-maximum tests;
+- cross-table copy resumes from the operation-and-step-scoped journal boundary, with a committed-boundary regression test; and
+- all four catalog PRAGMAs use the shared quote-doubling helper, with an embedded-double-quote schema test.
+
+All five targeted regressions pass and `cargo test --lib branches` passes 23/23. The required `cargo test --lib storage` filter runs 422 tests and has one unrelated suite-order/shared-state red (`auth_backup_excludes_push_registry_custody_rows`, which passes alone); the exact counts and diagnostic are recorded in `SLICE-G1-NOTES.md`. `ref-check` and scoped rustfmt checks pass.

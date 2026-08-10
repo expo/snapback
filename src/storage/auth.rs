@@ -2338,7 +2338,10 @@ fn catalog_shape(
 }
 
 fn table_columns(conn: &Connection, table: &str) -> SnapbackResult<Vec<ColumnShape>> {
-    let mut statement = conn.prepare(&format!("PRAGMA table_xinfo(\"{table}\")"))?;
+    let mut statement = conn.prepare(&format!(
+        "PRAGMA table_xinfo({})",
+        crate::auth::rescue::quote_identifier(table)
+    ))?;
     Ok(statement
         .query_map([], |row| {
             Ok(ColumnShape {
@@ -2355,7 +2358,10 @@ fn table_columns(conn: &Connection, table: &str) -> SnapbackResult<Vec<ColumnSha
 }
 
 fn table_foreign_keys(conn: &Connection, table: &str) -> SnapbackResult<Vec<ForeignKeyShape>> {
-    let mut statement = conn.prepare(&format!("PRAGMA foreign_key_list(\"{table}\")"))?;
+    let mut statement = conn.prepare(&format!(
+        "PRAGMA foreign_key_list({})",
+        crate::auth::rescue::quote_identifier(table)
+    ))?;
     let mut keys = statement
         .query_map([], |row| {
             Ok(ForeignKeyShape {
@@ -2385,7 +2391,10 @@ fn index_list_entry(
     table: &str,
     index: &str,
 ) -> SnapbackResult<Option<(bool, String, bool)>> {
-    let mut statement = conn.prepare(&format!("PRAGMA index_list(\"{table}\")"))?;
+    let mut statement = conn.prepare(&format!(
+        "PRAGMA index_list({})",
+        crate::auth::rescue::quote_identifier(table)
+    ))?;
     let mut rows = statement.query([])?;
     while let Some(row) = rows.next()? {
         let name: String = row.get(1)?;
@@ -2401,7 +2410,10 @@ fn index_list_entry(
 }
 
 fn index_columns(conn: &Connection, index: &str) -> SnapbackResult<Vec<IndexColumnShape>> {
-    let mut statement = conn.prepare(&format!("PRAGMA index_xinfo(\"{index}\")"))?;
+    let mut statement = conn.prepare(&format!(
+        "PRAGMA index_xinfo({})",
+        crate::auth::rescue::quote_identifier(index)
+    ))?;
     Ok(statement
         .query_map([], |row| {
             Ok(IndexColumnShape {
@@ -2544,6 +2556,48 @@ mod tests {
                 row.get(0)
             })
             .expect("count rows")
+    }
+
+    #[test]
+    fn catalog_pragma_helpers_quote_embedded_double_quotes() {
+        let conn = Connection::open_in_memory().expect("memory database");
+        let parent = "parent\"table";
+        let child = "child\"table";
+        let index = "child\"index";
+        conn.execute_batch(&format!(
+            "PRAGMA foreign_keys=ON;
+             CREATE TABLE {}(id TEXT PRIMARY KEY);
+             CREATE TABLE {}(
+               id TEXT PRIMARY KEY,
+               parent_id TEXT,
+               FOREIGN KEY(parent_id) REFERENCES {}(id)
+             );
+             CREATE INDEX {} ON {}(parent_id);",
+            crate::auth::rescue::quote_identifier(parent),
+            crate::auth::rescue::quote_identifier(child),
+            crate::auth::rescue::quote_identifier(parent),
+            crate::auth::rescue::quote_identifier(index),
+            crate::auth::rescue::quote_identifier(child),
+        ))
+        .expect("quoted schema");
+
+        assert_eq!(table_columns(&conn, child).expect("columns").len(), 2);
+        let foreign_keys = table_foreign_keys(&conn, child).expect("foreign keys");
+        assert_eq!(foreign_keys.len(), 1);
+        assert_eq!(foreign_keys[0].target_table, parent);
+        assert_eq!(
+            index_list_entry(&conn, child, index)
+                .expect("index list")
+                .expect("index present")
+                .0,
+            false
+        );
+        assert!(
+            index_columns(&conn, index)
+                .expect("index columns")
+                .iter()
+                .any(|column| column.name.as_deref() == Some("parent_id"))
+        );
     }
 
     #[test]
