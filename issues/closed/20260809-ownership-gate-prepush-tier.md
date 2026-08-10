@@ -50,3 +50,34 @@ fast fail-closed core tier unconditionally, landing via the normal review
 path as a deliberate frozen-record-policy change. This gate is also the
 enforcement arm of the commissioned core-modularization Decision
 (`issues/20260808-core-modularization-decision.md`).
+
+## Resolution verification — 2026-08-10 (Lane L3)
+
+The approved implementation was already present at this lane's starting
+revision in commit `29b32058c`: `module-ownership` is registered in both
+`driftAlwaysRunGates` and `driftFailClosedCoreGates`, and the selector begins
+every committed-push selection with the always-run set before adding
+path-triggered, fail-closed-core, or full-registry gates.
+
+A direct invocation of `.githooks/pre-push origin` (with a synthetic Git
+ref-update line on stdin; no push performed) selected only `module-ownership`
+for the 17 documentation paths in `bbfb871f14c3`. The gate found the two known
+main-baseline violations:
+
+- `src/local.rs (unassigned) -> src/auth/rehearsal.rs`
+- `src/storage/auth_rehearsal.rs -> src/auth/provider.rs`
+
+Attribution reran the gate at merge-base `ec96f04e55a2`, found the same two
+edges, printed `PRE-EXISTING STALE`, and allowed the simulated update. No open
+`module-ownership` drift ticket exists. The registered complete backstop runs
+this gate independently of selection and `runBackstop` files
+`issues/YYYYMMDD-main-drift-module-ownership.md` when the gate is stale, so the
+scheduled backstop will file the ticket; this lane did not duplicate it.
+
+No ownership record was rebaselined and neither forbidden edge was changed.
+The standalone gate's historical 30–50 ms estimate was not reproducible on
+the heavily loaded ruling machine: the first ambient run took 0.79 s wall,
+and four completed pinned-Node samples consumed about 0.66–0.69 s CPU each (wall time was
+5.40–7.12 s while the machine was under concurrent-lane load). The complete
+stale-baseline hook simulation took 25.22 s wall, including detached baseline
+attribution; the runner reported 16.508 s internally.
