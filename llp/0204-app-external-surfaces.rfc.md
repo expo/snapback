@@ -18,12 +18,17 @@ slice, watchAnchor grant issuance, and integration-owned watches.
 contract + LLP 0019 F8 audit log; the approval-gated-only audit scope may
 be the first landing). All four run in parallel; a qualified npm publish
 follows the 0.1.16 receipt-regression fix.)
+2026-08-10 (External-automations bundle completes D9.3: reusable signed
+outbound webhook delivery with DNS-pinned SSRF defense and LLP 0070
+retry/dead-letter evidence; atomic exact-scope watchAnchor grants with 365-day
+lifetime/renewal ceiling; integration-owned capturedGrant watches; webhook
+reactions; instant grant-revocation coupling; and fresh-session renewal.)
 2026-08-10 (Status → Implemented: every S0–S5 sequencing
 deliverable has landed on local targets with per-section dated
 implementation notes; commissioned remainders stay explicitly named —
 hosted gates run as the separate LLP 0039 + LLP 0019 F8 sibling program,
 granted-operation capability links, integration-owned watches, webhook
-reactions, the untrusted-code execution profile behind /api/v1/run, and
+reactions (closed by the external-automations bundle below), the untrusted-code execution profile behind /api/v1/run, and
 connection-grant streaming (OQ6 v2) each await their named amendments or
 evidence.)
 2026-08-10 (S5 Landing C implements D9.5 approval-gated effects
@@ -784,8 +789,8 @@ durable untrusted code and takes D6's gate. Reactions in v1:
 deliver a notification/webhook, or call one exposed function; a
 code-mode reaction follows D6's gates. Standing authority anchors per
 LLP 0070's contracts — `capturedGrant` for integration-owned watches
-(inheriting LLP 0055's ≤90-day grant lifetime, where renewal is fresh
-consent: the "IFTTT for free" pitch is honest about that recurring
+(using LLP 0055's exact-watch 365-day watchAnchor profile and 365-day renewal
+ceiling, where renewal is fresh consent: the "IFTTT for free" pitch is honest about that recurring
 ceremony — OQ11), `revalidatePrincipal` for user-owned watches, whose
 authority is session-shaped rather than grant-shaped; webhook reactions
 inherit 0070's SSRF/idempotency/retry contracts. Every firing is
@@ -814,21 +819,35 @@ The v1 predicate wire grammar is closed JSON. A leaf is
 predicate observes the serialized live-query result document. No executable
 predicate is accepted. Reactions are exactly
 `{"kind":"function","function":"...","args":{...}}` and may name an exposed
-finite query, mutation, or action. Webhook delivery remains unshipped because
-LLP 0070 has not shipped its commissioned webhook SSRF, idempotency, and retry
-machinery; accepting a webhook-shaped request is a typed input refusal.
+finite query, mutation, or action, or
+`{"kind":"webhook","url":"https://...","secret":"optional receiver secret"}`.
+When the secret is omitted Snapback generates it, stores it under LLP 0036
+custody, and returns it once in the creation response. Webhooks use LLP 0070's
+manifest-activated delivery/attempt ledger, stable firing idempotency key,
+HMAC signature, DNS-pinned public-address/HTTPS gate, bounded attempts,
+exponential job backoff, and terminal dead-letter evidence.
 
 User-owned watches use `revalidatePrincipal`: no session bearer or session
 secret is retained. Every evaluation constructs fresh credential-free owner
 authority and revalidates the principal, authority anchor, exact query and
 reaction identities, current scope bases, API exposure, and watch status
-before work. The v1 anchor lifetime is 365 days. Any future renewal may extend
-at most 365 days from that renewal's fresh admission instant; Landing B exposes
-no renewal operation, so it cannot silently extend a watch. Principal deletion
+before work. The v1 anchor lifetime is 365 days. Renewal may extend at most
+365 days from that renewal's fresh admission instant. The shipped
+`POST /watches/{id}/renew` route requires the effective user's fresh provider
+session and atomically replaces, rather than mutates, the anchor grant. Principal deletion
 or deactivation, function replacement, basis revocation, expiry, or deletion
-makes the watch terminally `dead`. Integration-owned `capturedGrant` creation
-remains a typed deferral until installation/watch-anchor grant issuance ships
-under LLP 0055.
+makes the watch terminally `dead`.
+
+**Implementation checkpoint (external-automations bundle, 2026-08-10).** An
+active integration scoped token may create and manage an integration-owned
+watch. Creation atomically mints a 365-day ordinary protected grant under the
+`watchAnchor.v1` profile and the watch record. It carries only the exact query
+and, for function reactions, exact reaction scope; its consent digest binds the
+watch id, installation grant, canonical argument/reaction digests, webhook
+target if present, and expiry. Each evaluation and pre-effect boundary reloads
+the active integration, live installation, anchor, current exact scope bases,
+digest, and watch state. User revocation of either retained grant kills the
+watch and clears pending firing state in the revocation transaction.
 
 Invalidations enter the same dependency matcher used by live subscriptions
 and enqueue the reserved `_snapback.watch.evaluate` action through LLP 0070's

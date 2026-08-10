@@ -1282,12 +1282,15 @@ impl PreparedAuthority {
     ) -> SnapbackResult<Self> {
         if self.source != InvocationSource::WatchManagement
             || !matches!(source, InvocationSource::WatchEvaluation | InvocationSource::WatchReaction)
-            || !matches!(self.resolved, ResolvedAppAuthority::Session { .. })
+            || !matches!(
+                self.resolved,
+                ResolvedAppAuthority::Session { .. } | ResolvedAppAuthority::ServicePrincipal { .. }
+            )
         {
             return Err(SnapbackError::error(
                 "SNAPBACK_INVOCATION_SOURCE_INVALID",
                 "auth",
-                "watch function authority requires a session-authorized watch management request",
+                "watch function authority requires an admitted session or scoped integration management request",
             ));
         }
         Ok(Self { source, ..self.clone() })

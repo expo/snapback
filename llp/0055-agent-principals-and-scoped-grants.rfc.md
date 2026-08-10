@@ -2388,10 +2388,11 @@ explicitly records the service actor and exact grant.
 **Commissioned by:** [LLP 0204](./0204-app-external-surfaces.rfc.md),
 especially D7, D8, D9.3, and the OQ11 ruling.
 
-**Status:** `S2 Landing A` (2026-08-09) makes the integration registration
+**Status:** `External-automations bundle` (2026-08-10) implements watchAnchor
+issuance, revocation coupling, and renewal. `S2 Landing A` (2026-08-09) makes the integration registration
 class, record, suspension, and `integration.retire` lifecycle verb reachable;
 `S2 Landing C` implements DCR and the local OAuth authorization-code facade.
-Watch anchors remain commissioned design. This
+The remaining amendment text records the governing design. This
 amendment does not widen scoped-token routing:
 scoped tokens still address exactly the app-data invocation gate and
 `POST /connection/open` pinned in [§Routes and credential classes](#routes-and-credential-classes),
@@ -2571,13 +2572,28 @@ query or reaction. Revocation, replacement, expiry, deletion, or principal
 deactivation makes the watch terminally `dead` and prevents retained work from
 acting.
 
-The renewal ceiling is 365 days from a future renewal's fresh-admission
-instant. No renewal operation ships in Landing B, so resumption cannot renew
-or extend authority. The integration-owned `capturedGrant` arm is refused with
-`SNAPBACK_WATCH_INTEGRATION_CREATION_DEFERRED` until installation consent and
-the immutable per-watch `watchAnchor` grant issuance path exist. That deferral
-does not weaken this section's exact-watch, exact-function, fresh-consent, or
-instant-revocation requirements.
+The renewal ceiling is 365 days from a renewal's fresh-admission instant.
+
+**Implementation checkpoint (external-automations bundle, 2026-08-10).** An
+active delegated integration may now create `capturedGrant` watches. The watch
+and its ordinary `_auth_grants` watchAnchor row are inserted in one SQLite
+transaction. The grant actor is the integration principal, the effective user
+is inherited from the live installation grant, `created_by` binds the immutable
+watch id, and the consent digest binds that id, installation grant, canonical
+query-argument digest, reaction digest, optional webhook URL, exact scopes, and
+expiry. Function reactions carry exactly the live-query and reaction scopes;
+webhook reactions carry exactly the live-query scope while the signed webhook
+target is bound in the same consent digest. There is no tier expansion.
+
+The watchAnchor lifetime and renewal ceiling are both 365 days. A fresh user
+session may renew only its own still-live integration watch through
+`POST /watches/{id}/renew`; the transaction revokes the predecessor grant,
+mints the equally narrow successor, and advances the watch anchor by no more
+than the ceiling. The installation grant, integration record, watchAnchor,
+scope bases, digest binding, and watch status are reloaded before every
+evaluation, reaction, and webhook network initiation. Revoking either the
+watchAnchor or its installation grant marks the watch dead in the revocation
+transaction and clears pending firing state.
 
 ### Pending-effect authority snapshots
 

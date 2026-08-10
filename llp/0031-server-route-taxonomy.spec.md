@@ -1410,22 +1410,23 @@ The v1 durable-watch management family is:
 
 | Route / operation | Effective policy | Response sensitivity |
 | --- | --- | --- |
-| `POST /watches` | AppData creation; `SessionAuth` with an exact `RequiredSessionBearer`; both named functions pass the ordinary invocation gate under the creating user | `SensitiveApplicationData`; returns the created owner-scoped record, always no-store |
-| `GET /watches` | AppData inspection; `SessionAuth` with an exact `RequiredSessionBearer`; lists only the resolved user owner's records | `SensitiveApplicationData`; includes bounded counters, notification, and recent firing outcomes, always no-store |
-| `DELETE /watches/{id}` | AppData management; `SessionAuth` with an exact `RequiredSessionBearer`; owner-only terminal transition | `PublicNoStore`; successful deletion returns no body |
-| `POST /watches/{id}/suspend` | AppData management; `SessionAuth` with an exact `RequiredSessionBearer`; owner-only reversible admission stop | `SensitiveApplicationData`; returns the updated owner-scoped record, always no-store |
-| `POST /watches/{id}/resume` | AppData management; `SessionAuth` with an exact `RequiredSessionBearer`; owner-only reactivation without renewal | `SensitiveApplicationData`; returns the updated owner-scoped record, always no-store |
+| `POST /watches` | AppData creation; `SessionAuth` with `RequiredSessionOrScopedToken`; sessions create user/revalidatePrincipal watches and active delegated integrations create integration/capturedGrant watches; every named function passes the ordinary invocation gate | `SensitiveApplicationData`; returns the created owner-scoped record and, only when generated, the webhook signing secret once; always no-store |
+| `GET /watches` | AppData inspection; `SessionAuth` with `RequiredSessionOrScopedToken`; lists only the resolved user or integration actor's records | `SensitiveApplicationData`; includes bounded counters, notification, and recent firing outcomes, always no-store |
+| `DELETE /watches/{id}` | AppData management; `SessionAuth` with `RequiredSessionOrScopedToken`; owner-only terminal transition | `PublicNoStore`; successful deletion returns no body |
+| `POST /watches/{id}/suspend` | AppData management; `SessionAuth` with `RequiredSessionOrScopedToken`; owner-only reversible admission stop | `SensitiveApplicationData`; returns the updated owner-scoped record, always no-store |
+| `POST /watches/{id}/resume` | AppData management; `SessionAuth` with `RequiredSessionOrScopedToken`; owner-only reactivation without renewal | `SensitiveApplicationData`; returns the updated owner-scoped record, always no-store |
+| `POST /watches/{id}/renew` | AppData consent; `SessionAuth` with exact `RequiredSessionBearer`; only the effective consenting user may replace a live watchAnchor, with `ttlMs` bounded to 365 days | `SensitiveApplicationData`; returns the renewed record without any secret, always no-store |
 
-**Implementation status (S5 Landing B, 2026-08-09):** all five rows are
-implemented for user-owned `revalidatePrincipal` watches when `api.enabled`.
+**Implementation status (external-automations bundle, 2026-08-10):** all six
+rows are implemented for user-owned `revalidatePrincipal` and
+integration-owned `capturedGrant` watches when `api.enabled`.
 The request body never selects an actor: legacy/body authority is forbidden,
 and the resolved provider session is the owner. Scheduled evaluation and
 reaction use internal source classes with credential-free, freshly revalidated
 owner authority; those classes are not reachable through a public route.
-Integration-owned `capturedGrant` creation is a typed deferral pending LLP
-0055's installation/watch-anchor grant issuance. Webhook reactions are not a
-route variant and remain deferred to LLP 0070's commissioned delivery
-machinery.
+Scoped-token management is confined to its integration actor; renewal remains
+fresh session consent. Function and webhook reactions share the same internal
+source, durable job, budget, storm-control, and bounded journal machinery.
 
 ### Capability-link mint and serve family
 

@@ -9,6 +9,15 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CreatedWatch {
+    #[serde(flatten)]
+    pub(crate) watch: crate::storage::watches::WatchRecord,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) webhook_secret: Option<String>,
+}
+
 /// Internal LLP 0070 job action. It is not an app function name and is
 /// intercepted by the server-owned job executor.
 pub(crate) const INTERNAL_EVALUATION_ACTION: &str = "_snapback.watch.evaluate";
@@ -34,10 +43,39 @@ pub(crate) struct CreateWatchSpec {
     pub query_function: String,
     pub query_args: Value,
     pub predicate: Value,
-    pub reaction_function: String,
-    pub reaction_args: Value,
+    pub reaction: WatchReactionSpec,
     pub debounce_ms: u64,
     pub daily_firing_budget: u32,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum WatchReactionSpec {
+    Function { function: String, args: Value },
+    Webhook { url: String, secret: Option<String> },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum WatchReactionKind {
+    Function,
+    Webhook,
+}
+
+impl WatchReactionKind {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Function => "function",
+            Self::Webhook => "webhook",
+        }
+    }
+
+    pub(crate) fn parse(value: &str) -> SnapbackResult<Self> {
+        match value {
+            "function" => Ok(Self::Function),
+            "webhook" => Ok(Self::Webhook),
+            _ => Err(catalog_corrupt()),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]

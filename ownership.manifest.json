@@ -221,6 +221,7 @@
       "src/storage/tests.rs",
       "src/storage/versions.rs",
       "src/storage/watches.rs",
+      "src/storage/webhooks.rs",
       "src/storage/write_authority.rs",
       "src/store_state.rs",
       "src/vector/acceptance.rs",
@@ -281,7 +282,8 @@
       "src/telemetry.rs",
       "src/telemetry_bench.rs",
       "src/telemetry_query.rs",
-      "src/warm_vm.rs"
+      "src/warm_vm.rs",
+      "src/webhooks.rs"
     ],
     "transport-adapters": [
       "src/admin.rs",

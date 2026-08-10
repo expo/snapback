@@ -405,7 +405,7 @@ queue declarations and capacity counters/admission (a saturated queue
 cannot yet refuse enqueue); per-key concurrency slots; cancellation (both
 cases); the `ambiguous` terminal state and domain reconciliation;
 deadlines; operator replay / successor jobs; retention windows and
-idempotency tombstones; webhook capture/delivery machinery; the
+idempotency tombstones; inbound webhook capture machinery; the
 `revalidatePrincipal` / `capturedGrant` authorization modes (v1 executes
 callees as the same system authority cron actions use); artifact-digest
 pinning and queue-admission epochs; restore fences; Postgres and every
@@ -687,6 +687,29 @@ include queue capacity, byte capacity, concurrency, rate limits, lease bounds,
 oldest age, ready depth, claimed depth, dead depth, and saturation counts.
 
 ## Webhook work
+
+**Implementation checkpoint (external-automations bundle, 2026-08-10).** The
+outbound slice is implemented as a reusable host delivery primitive with
+durable logical-delivery and attempt tables activated alongside the external
+API. Durable watches are its first consumer. The existing LLP 0070 job remains
+the sole scheduler, claim fence, exponential-backoff clock, attempt ceiling,
+and dead-letter driver. A watch firing reserves one immutable canonical JSON
+body and one bounded `watch:{watchId}:{ordinal}` idempotency key; every retry
+reuses both.
+
+The final effect boundary accepts HTTPS only, resolves all DNS answers, rejects
+loopback, private, link-local, metadata, documentation, multicast, reserved,
+and otherwise non-global IPs, then pins the validated address set into ureq's
+custom resolver so connect cannot perform a second DNS lookup. Environment
+proxies and redirects are disabled, and connect/read/write each have a
+15-second bound. Tests alone may admit HTTP when every pinned answer is
+loopback. The receiver gets `Idempotency-Key`, `X-Snapback-Delivery-Id`, and
+`X-Snapback-Signature: sha256=<HMAC>` over the exact canonical body. Signing
+material lives only in the owner-only LLP 0036 config store; protected rows and
+attempt diagnostics contain its opaque reference, never its value or an
+unrestricted response body. 2xx succeeds; 408/425/429/5xx and transport/DNS
+unavailability retry; other HTTP responses dead-letter immediately; exhaustion
+records `SNAPBACK_WEBHOOK_DEAD_LETTERED` on both ledgers.
 
 Inbound webhook routes authenticate and durably capture bounded immutable facts
 before acknowledging the sender, as their subsystem RFC specifies. Successful

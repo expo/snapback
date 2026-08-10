@@ -3666,6 +3666,54 @@ pub(crate) async fn execute_job_claim_detached(
                 })
                 .await
             }
+            Ok(crate::local::WatchJobExecution::Webhook(prepared)) => {
+                let recheck = prepared.clone();
+                let delivery = with_snapback(state, move |snapback| {
+                    snapback.revalidate_watch_webhook_delivery(&recheck, claim.drain_now_ms)
+                })
+                .await;
+                let outcome = match delivery {
+                    Ok(delivery) => tokio::task::spawn_blocking(move || {
+                        crate::webhooks::deliver(delivery)
+                    })
+                    .await
+                    .unwrap_or(crate::webhooks::DeliveryOutcome::Retryable {
+                        code: "SNAPBACK_WEBHOOK_DELIVERY_RETRYABLE",
+                        http_status: None,
+                    }),
+                    Err(error)
+                        if matches!(
+                            error.diagnostic.code.as_str(),
+                            "SNAPBACK_WEBHOOK_TARGET_UNAVAILABLE"
+                                | "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE"
+                        ) => crate::webhooks::DeliveryOutcome::Retryable {
+                        code: if error.diagnostic.code == "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE" {
+                            "SNAPBACK_WEBHOOK_SECRET_UNAVAILABLE"
+                        } else {
+                            "SNAPBACK_WEBHOOK_TARGET_UNAVAILABLE"
+                        },
+                        http_status: None,
+                    },
+                    Err(error) => crate::webhooks::DeliveryOutcome::Permanent {
+                        code: match error.diagnostic.code.as_str() {
+                            "SNAPBACK_WATCH_AUTHORITY_DEAD" => "SNAPBACK_WATCH_AUTHORITY_DEAD",
+                            "SNAPBACK_WEBHOOK_SSRF_REFUSED" => "SNAPBACK_WEBHOOK_SSRF_REFUSED",
+                            _ => "SNAPBACK_WEBHOOK_DELIVERY_INVALID",
+                        },
+                        http_status: None,
+                    },
+                };
+                with_snapback(state, move |snapback| {
+                    snapback.settle_watch_webhook(
+                        prepared,
+                        outcome,
+                        attempt,
+                        max_attempts,
+                        claim.drain_now_ms,
+                    )
+                })
+                .await
+            }
             Err(error) => Err(error),
         }
         .map_err(|error| error.diagnostic);
@@ -9289,16 +9337,17 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             ),
             post(effect_deny).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
-        // @ref LLP 0204#d93--durable-watches-end-user-automations — watch lifecycle is session
-        // authority only; standing executions reconstruct credential-free
-        // owner authority through their registered internal sources.
+        // @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08
+        // @ref LLP 0204#d93--durable-watches-end-user-automations — management
+        // admits sessions and scoped integrations; standing execution retains
+        // neither carrier and reconstructs its revalidated authority.
         RegisteredRoute::new(
             RouteSpec::new(
                 "POST",
                 "/watches",
                 RouteClass::AppData,
                 RoutePolicy::SessionAuth,
-                CredentialResolution::RequiredSessionBearer,
+                CredentialResolution::RequiredSessionOrScopedToken,
                 InvocationAuthority::ResolvedCaller,
                 LegacyBodyPolicy::Rejected,
                 ResponseSensitivity::SensitiveApplicationData,
@@ -9311,7 +9360,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 "/watches",
                 RouteClass::AppData,
                 RoutePolicy::SessionAuth,
-                CredentialResolution::RequiredSessionBearer,
+                CredentialResolution::RequiredSessionOrScopedToken,
                 InvocationAuthority::ResolvedCaller,
                 LegacyBodyPolicy::NotApplicable,
                 ResponseSensitivity::SensitiveApplicationData,
@@ -9324,7 +9373,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 "/watches/{id}",
                 RouteClass::AppData,
                 RoutePolicy::SessionAuth,
-                CredentialResolution::RequiredSessionBearer,
+                CredentialResolution::RequiredSessionOrScopedToken,
                 InvocationAuthority::ResolvedCaller,
                 LegacyBodyPolicy::Rejected,
                 ResponseSensitivity::PublicNoStore,
@@ -9337,7 +9386,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 "/watches/{id}/suspend",
                 RouteClass::AppData,
                 RoutePolicy::SessionAuth,
-                CredentialResolution::RequiredSessionBearer,
+                CredentialResolution::RequiredSessionOrScopedToken,
                 InvocationAuthority::ResolvedCaller,
                 LegacyBodyPolicy::Rejected,
                 ResponseSensitivity::SensitiveApplicationData,
@@ -9350,12 +9399,25 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 "/watches/{id}/resume",
                 RouteClass::AppData,
                 RoutePolicy::SessionAuth,
-                CredentialResolution::RequiredSessionBearer,
+                CredentialResolution::RequiredSessionOrScopedToken,
                 InvocationAuthority::ResolvedCaller,
                 LegacyBodyPolicy::Rejected,
                 ResponseSensitivity::SensitiveApplicationData,
             ),
             post(watch_resume).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/watches/{id}/renew",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(watch_renew).layer(DefaultBodyLimit::max(16 * 1024)),
         ),
         RegisteredRoute::new(
             app_function_route("POST", "/query/{name}"),
@@ -10843,7 +10905,8 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/watches"
         | "/watches/{id}"
         | "/watches/{id}/suspend"
-        | "/watches/{id}/resume" => Some(InvocationSource::WatchManagement),
+        | "/watches/{id}/resume"
+        | "/watches/{id}/renew" => Some(InvocationSource::WatchManagement),
         "/auth/session" => Some(InvocationSource::BootstrapHandshake),
         "/auth/refresh" => Some(InvocationSource::AuthRefresh),
         "/auth/logout" => Some(InvocationSource::AuthLogout),
@@ -24442,9 +24505,11 @@ struct WatchQueryRequest {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct WatchReactionRequest {
     kind: String,
-    function: String,
+    function: Option<String>,
     #[serde(default = "empty_json_object")]
     args: Value,
+    url: Option<String>,
+    secret: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -24469,33 +24534,64 @@ fn watch_default_daily_budget() -> u32 {
     crate::watches::DEFAULT_DAILY_FIRING_BUDGET
 }
 
+fn watch_default_renewal_ttl_ms() -> u64 {
+    crate::watches::ANCHOR_LIFETIME_MS
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct WatchRenewRequest {
+    #[serde(default = "watch_default_renewal_ttl_ms")]
+    ttl_ms: u64,
+}
+
 async fn watch_create(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
     input: Result<Json<WatchCreateRequest>, JsonRejection>,
-) -> Result<(StatusCode, Json<crate::storage::watches::WatchRecord>), ApiError> {
-    require_provider_session_authority(&authority, InvocationSource::WatchManagement)?;
+) -> Result<(StatusCode, Json<crate::watches::CreatedWatch>), ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
-    if request.owner_kind == "integration" || request.authority_mode == "capturedGrant" {
-        return Err(SnapbackError::error(
-            "SNAPBACK_WATCH_INTEGRATION_CREATION_DEFERRED",
+    let expected_profile = match authority.resolved() {
+        ResolvedAppAuthority::Session { .. } => ("user", "revalidatePrincipal"),
+        ResolvedAppAuthority::ServicePrincipal {
+            integration_status: Some(crate::storage::auth_integrations::IntegrationStatus::Active),
+            effective_user_id: Some(_),
+            ..
+        } => ("integration", "capturedGrant"),
+        _ => return Err(SnapbackError::error(
+            "SNAPBACK_WATCH_OWNER_DENIED",
             "watches",
-            "integration/capturedGrant watch creation is deferred until grant issuance ships; see LLP 0055's 2026-08-08 watch-anchor amendment",
-        )
-        .into());
-    }
-    if request.owner_kind != "user" || request.authority_mode != "revalidatePrincipal" {
+            "watch creation requires a session or active delegated integration",
+        ).into()),
+    };
+    if request.owner_kind != expected_profile.0 || request.authority_mode != expected_profile.1 {
         return Err(crate::watches::input_invalid(
-            "ownerKind must be user and authorityMode must be revalidatePrincipal in v1",
+            "ownerKind and authorityMode must match the resolved session or integration authority",
         )
         .into());
     }
-    if request.reaction.kind != "function" {
-        return Err(crate::watches::input_invalid(
-            "reaction.kind must be function; webhook delivery is not shipped",
-        )
-        .into());
-    }
+    let reaction = match request.reaction.kind.as_str() {
+        "function" if request.reaction.url.is_none() && request.reaction.secret.is_none() => {
+            crate::watches::WatchReactionSpec::Function {
+                function: request.reaction.function.ok_or_else(|| crate::watches::input_invalid(
+                    "function reactions require function",
+                ))?,
+                args: request.reaction.args,
+            }
+        }
+        "webhook" if request.reaction.function.is_none()
+            && request.reaction.args == empty_json_object() => {
+            crate::watches::WatchReactionSpec::Webhook {
+                url: request.reaction.url.ok_or_else(|| crate::watches::input_invalid(
+                    "webhook reactions require url",
+                ))?,
+                secret: request.reaction.secret,
+            }
+        }
+        _ => return Err(crate::watches::input_invalid(
+            "reaction must be exactly function {function,args} or webhook {url,secret?}",
+        ).into()),
+    };
     let record = with_snapback(&state, move |snapback| {
         snapback.create_watch(
             &authority,
@@ -24503,8 +24599,7 @@ async fn watch_create(
                 query_function: request.query.function,
                 query_args: request.query.args,
                 predicate: request.predicate,
-                reaction_function: request.reaction.function,
-                reaction_args: request.reaction.args,
+                reaction,
                 debounce_ms: request.debounce_ms,
                 daily_firing_budget: request.daily_firing_budget,
             },
@@ -24519,7 +24614,6 @@ async fn watch_list(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
 ) -> Result<Json<WatchListResponse>, ApiError> {
-    require_provider_session_authority(&authority, InvocationSource::WatchManagement)?;
     let watches = with_snapback(&state, move |snapback| snapback.list_watches(&authority)).await?;
     Ok(Json(WatchListResponse { watches }))
 }
@@ -24529,7 +24623,6 @@ async fn watch_delete(
     Extension(authority): Extension<PreparedAuthority>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
-    require_provider_session_authority(&authority, InvocationSource::WatchManagement)?;
     with_snapback(&state, move |snapback| {
         snapback.transition_watch(
             &authority,
@@ -24558,13 +24651,27 @@ async fn watch_resume(
     watch_transition(state, authority, id, crate::watches::WatchStatus::Active).await
 }
 
+async fn watch_renew(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+    input: Result<Json<WatchRenewRequest>, JsonRejection>,
+) -> Result<Json<crate::storage::watches::WatchRecord>, ApiError> {
+    require_provider_session_authority(&authority, InvocationSource::WatchManagement)?;
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    let record = with_snapback(&state, move |snapback| {
+        snapback.renew_watch(&authority, &id, request.ttl_ms, now_millis())
+    })
+    .await?;
+    Ok(Json(record))
+}
+
 async fn watch_transition(
     state: SharedSnapback,
     authority: PreparedAuthority,
     id: String,
     target: crate::watches::WatchStatus,
 ) -> Result<Json<crate::storage::watches::WatchRecord>, ApiError> {
-    require_provider_session_authority(&authority, InvocationSource::WatchManagement)?;
     let record = with_snapback(&state, move |snapback| {
         snapback.transition_watch(&authority, &id, target, now_millis())
     })
