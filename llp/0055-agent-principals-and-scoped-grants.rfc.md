@@ -5,7 +5,11 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-08-09 (LLP 0204 S2 Landing C implemented DCR and the local
+**Revised:** 2026-08-09 (LLP 0204 S5 Landing B implements user-owned durable
+watch anchors with credential-free `revalidatePrincipal` authority, a
+365-day finite lifetime, and immediate death on principal/basis/function
+revocation. Integration-owned `capturedGrant` issuance remains commissioned.)
+2026-08-09 (LLP 0204 S2 Landing C implemented DCR and the local
 OAuth grant facade; Landing A implemented the integration registration and
 lifecycle core; watch anchors remain commissioned — see the dated amendment).
 2026-08-04 (implemented the per-app `asset-callbacks` principal and exact grants). 2026-08-03 (per-app `asset-callbacks` service principal for
@@ -2551,6 +2555,25 @@ integration-owned watch, suspension of the integration admission record also
 stops evaluation immediately; resumption never substitutes for re-consent to a
 revoked/expired watch anchor. Every reaction remains separately admitted and
 journaled under LLP 0204 D9.3.
+
+**Implementation checkpoint (S5 Landing B, 2026-08-09).** The first shipped
+anchor profile is the user-owned `revalidatePrincipal` arm. Creation requires
+a live provider session, but stores no session credential; the record pins the
+user and authority-instance ids, exact query/reaction identities and scope
+bases, and expires 365 days after creation. Scheduled evaluation reconstructs
+credential-free owner authority and revalidates principal activity, both
+function identities and bases, exposure, expiry, and watch status before any
+query or reaction. Revocation, replacement, expiry, deletion, or principal
+deactivation makes the watch terminally `dead` and prevents retained work from
+acting.
+
+The renewal ceiling is 365 days from a future renewal's fresh-admission
+instant. No renewal operation ships in Landing B, so resumption cannot renew
+or extend authority. The integration-owned `capturedGrant` arm is refused with
+`SNAPBACK_WATCH_INTEGRATION_CREATION_DEFERRED` until installation consent and
+the immutable per-watch `watchAnchor` grant issuance path exist. That deferral
+does not weaken this section's exact-watch, exact-function, fresh-consent, or
+instant-revocation requirements.
 
 ### Suspension is not revocation
 

@@ -154,6 +154,10 @@ here (or listed here but gone from the code).
 | /capability-links/{id} | api.external-exposure |
 | /capability-links/{token} | api.external-exposure |
 | /capability-links/{token}/invoke | api.external-exposure |
+| /watches | api.external-exposure |
+| /watches/{id} | api.external-exposure |
+| /watches/{id}/resume | api.external-exposure |
+| /watches/{id}/suspend | api.external-exposure |
 | /client-mutations/acknowledge | sync.offline |
 | /client-mutations/identity-range | sync.offline |
 | /connection/open | realtime.durable-push |

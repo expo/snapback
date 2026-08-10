@@ -291,6 +291,17 @@ pub enum ResolvedAppAuthority {
         /// session's own lifetime.
         provider_not_after_ms: Option<u64>,
     },
+    /// Credential-free durable-watch authority. The worker reconstructs this
+    /// only after loading the protected watch record and revalidating the
+    /// current human principal. It deliberately has no session id, provider
+    /// assertion, bearer, or expiry copied from watch creation.
+    ///
+    /// @ref LLP 0055#dated-amendment-llp-0204-integration-registrations-and-watch-anchors-2026-08-08 —
+    /// user-owned watches use `revalidatePrincipal`, never a retained session.
+    RevalidatedPrincipal {
+        user_id: String,
+        authority_instance_id: String,
+    },
     DevImpersonation {
         user_id: String,
         roles: Vec<String>,
@@ -449,7 +460,10 @@ impl ResolvedAppAuthority {
     pub fn carries_user(&self) -> bool {
         matches!(
             self,
-            Self::Session { .. } | Self::DevImpersonation { .. } | Self::ServicePrincipal { .. }
+            Self::Session { .. }
+                | Self::RevalidatedPrincipal { .. }
+                | Self::DevImpersonation { .. }
+                | Self::ServicePrincipal { .. }
         )
     }
 
@@ -465,6 +479,16 @@ impl ResolvedAppAuthority {
                 ..
             } => format!(
                 "session:{}:{}:{generation}",
+                authority_instance_id.len(),
+                authority_instance_id
+            ),
+            Self::RevalidatedPrincipal {
+                user_id,
+                authority_instance_id,
+            } => format!(
+                "watch-principal:{}:{}:{}:{}",
+                user_id.len(),
+                user_id,
                 authority_instance_id.len(),
                 authority_instance_id
             ),
@@ -504,6 +528,13 @@ impl ResolvedAppAuthority {
                 session_id: session_id.clone(),
                 generation: *generation,
             },
+            Self::RevalidatedPrincipal {
+                user_id,
+                authority_instance_id,
+            } => AuthorityKey::RevalidatedPrincipal {
+                user_id: user_id.clone(),
+                authority_instance_id: authority_instance_id.clone(),
+            },
             Self::DevImpersonation { user_id, .. } => AuthorityKey::DevImpersonation {
                 user_id: user_id.clone(),
             },
@@ -533,6 +564,14 @@ impl ResolvedAppAuthority {
             } => AuthInput {
                 principal: None,
                 session_id: Some(session_id.clone()),
+                user_id: Some(user_id.clone()),
+                ..AuthInput::default()
+            }
+            .with_authorization_projection(Some("human"), None, false)
+            .with_activity_provenance(Some(user_id), Some("human"), None),
+            Self::RevalidatedPrincipal { user_id, .. } => AuthInput {
+                principal: None,
+                session_id: None,
                 user_id: Some(user_id.clone()),
                 ..AuthInput::default()
             }
@@ -583,6 +622,10 @@ pub enum AuthorityKey {
         user_id: String,
         session_id: String,
         generation: u64,
+    },
+    RevalidatedPrincipal {
+        user_id: String,
+        authority_instance_id: String,
     },
     DevImpersonation {
         user_id: String,
@@ -683,6 +726,16 @@ impl HandlerAuthProjection {
                 session_id: Some(session_id.clone()),
                 is_authenticated: true,
                 provider: Some(provider.clone()),
+                roles: Some(Vec::new()),
+                kind: Some("human".to_owned()),
+                actor: None,
+                actor_kind: None,
+            },
+            ResolvedAppAuthority::RevalidatedPrincipal { user_id, .. } => Self {
+                user_id: Some(user_id.clone()),
+                session_id: None,
+                is_authenticated: true,
+                provider: Some("snapback-watch".to_owned()),
                 roles: Some(Vec::new()),
                 kind: Some("human".to_owned()),
                 actor: None,
@@ -806,6 +859,14 @@ pub enum InvocationSource {
     /// Session-only capability-link mint/revoke management. This is an
     /// authority-only scoped-grant operation, never a function runner.
     CapabilityLinkManagement,
+    /// Session-only lifecycle management for durable watches.
+    WatchManagement,
+    /// One credential-free standing query evaluation after principal and
+    /// function-basis revalidation.
+    WatchEvaluation,
+    /// One exact declared reaction dispatch after an admitted false-to-true
+    /// edge. Query, mutation, and action reactions share this source.
+    WatchReaction,
     LocalQuery,
     LocalMutation,
     LocalAction,
@@ -871,7 +932,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 41] = [
+    pub const ALL: [Self; 44] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -885,6 +946,9 @@ impl InvocationSource {
         Self::HttpMcp,
         Self::HttpCapabilityLink,
         Self::CapabilityLinkManagement,
+        Self::WatchManagement,
+        Self::WatchEvaluation,
+        Self::WatchReaction,
         Self::LocalQuery,
         Self::LocalMutation,
         Self::LocalAction,
@@ -917,7 +981,11 @@ impl InvocationSource {
 
     pub const fn target(self) -> InvocationTarget {
         match self {
-            Self::HttpQuery | Self::LocalQuery | Self::LiveInitialQuery | Self::LiveRerun => {
+            Self::HttpQuery
+            | Self::LocalQuery
+            | Self::LiveInitialQuery
+            | Self::LiveRerun
+            | Self::WatchEvaluation => {
                 InvocationTarget::Function(FunctionKindConstraint::Query)
             }
             Self::HttpMutation
@@ -932,7 +1000,8 @@ impl InvocationSource {
             | Self::HttpCapabilityLink
             | Self::DirectAdminRunner
             | Self::HostOperationFunctionRun
-            | Self::BranchOperation => InvocationTarget::Function(FunctionKindConstraint::Any),
+            | Self::BranchOperation
+            | Self::WatchReaction => InvocationTarget::Function(FunctionKindConstraint::Any),
             Self::BootstrapHandshake
             | Self::AuthRefresh
             | Self::AuthLogout
@@ -941,6 +1010,7 @@ impl InvocationSource {
             | Self::HttpRun
             | Self::HttpAsk
             | Self::CapabilityLinkManagement
+            | Self::WatchManagement
             | Self::ProtectedRecordErasure
             | Self::OperationCoverageActivation
             | Self::MutationSettlementAcknowledgement
@@ -966,6 +1036,7 @@ impl InvocationSource {
 pub enum AuthorityAuditFact {
     Anonymous,
     Session,
+    RevalidatedPrincipal,
     ServicePrincipal,
     DevBodyAuthority,
     DirectRunnerBodyUser,
@@ -1132,6 +1203,27 @@ impl PreparedAuthority {
     ) -> Self {
         self.caller_attribution = Some(attribution);
         self
+    }
+
+    /// Reclassify a session-authorized management request only for the exact
+    /// query/reaction functions being captured into a watch. Later execution
+    /// does not retain this session authority; it reconstructs the dedicated
+    /// credential-free authority above.
+    pub(crate) fn watch_function_authority(
+        &self,
+        source: InvocationSource,
+    ) -> SnapbackResult<Self> {
+        if self.source != InvocationSource::WatchManagement
+            || !matches!(source, InvocationSource::WatchEvaluation | InvocationSource::WatchReaction)
+            || !matches!(self.resolved, ResolvedAppAuthority::Session { .. })
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "watch function authority requires a session-authorized watch management request",
+            ));
+        }
+        Ok(Self { source, ..self.clone() })
     }
 
     fn with_optional_caller_attribution(
@@ -1616,6 +1708,9 @@ impl InvocationGate {
         let audit = match (&resolved, source) {
             (ResolvedAppAuthority::Anonymous, _) => AuthorityAuditFact::Anonymous,
             (ResolvedAppAuthority::Session { .. }, _) => AuthorityAuditFact::Session,
+            (ResolvedAppAuthority::RevalidatedPrincipal { .. }, _) => {
+                AuthorityAuditFact::RevalidatedPrincipal
+            }
             (ResolvedAppAuthority::ServicePrincipal { .. }, _) => {
                 AuthorityAuditFact::ServicePrincipal
             }
@@ -1961,6 +2056,7 @@ fn source_allows_authority(
         | InvocationSource::AuthLogout
         | InvocationSource::AgentGrantManagement
         | InvocationSource::CapabilityLinkManagement
+        | InvocationSource::WatchManagement
         | InvocationSource::PushTokenRegistry => {
             mode == AuthMode::Sessions && matches!(resolved, ResolvedAppAuthority::Session { .. })
         }
@@ -1976,6 +2072,10 @@ fn source_allows_authority(
         }
         InvocationSource::HttpCapabilityLink => {
             matches!(resolved, ResolvedAppAuthority::Anonymous)
+        }
+        InvocationSource::WatchEvaluation | InvocationSource::WatchReaction => {
+            mode == AuthMode::Sessions
+                && matches!(resolved, ResolvedAppAuthority::RevalidatedPrincipal { .. })
         }
         InvocationSource::ConnectionOpen => {
             ordinary
@@ -2793,6 +2893,7 @@ mod tests {
         enum Kind {
             Anonymous,
             Session,
+            Watch,
             Service,
             Dev,
             Branch,
@@ -2809,6 +2910,10 @@ mod tests {
                 authority_instance_id: "authority".to_owned(),
                 session_not_after_ms: 10_000,
                 provider_not_after_ms: None,
+            },
+            Kind::Watch => ResolvedAppAuthority::RevalidatedPrincipal {
+                user_id: "user".to_owned(),
+                authority_instance_id: "watch-authority".to_owned(),
             },
             Kind::Service => ResolvedAppAuthority::ServicePrincipal {
                 actor_user_id: "agent".to_owned(),
@@ -2859,6 +2964,7 @@ mod tests {
                 | InvocationSource::AuthLogout
                 | InvocationSource::AgentGrantManagement
                 | InvocationSource::CapabilityLinkManagement
+                | InvocationSource::WatchManagement
                 | InvocationSource::PushTokenRegistry => {
                     mode == AuthMode::Sessions && matches!(kind, Kind::Session)
                 }
@@ -2871,6 +2977,9 @@ mod tests {
                     ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
                 }
                 InvocationSource::HttpCapabilityLink => matches!(kind, Kind::Anonymous),
+                InvocationSource::WatchEvaluation | InvocationSource::WatchReaction => {
+                    mode == AuthMode::Sessions && matches!(kind, Kind::Watch)
+                }
                 InvocationSource::ConnectionOpen => {
                     ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
                 }
@@ -2914,6 +3023,7 @@ mod tests {
                 for kind in [
                     Kind::Anonymous,
                     Kind::Session,
+                    Kind::Watch,
                     Kind::Service,
                     Kind::Dev,
                     Kind::Branch,

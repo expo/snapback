@@ -6,7 +6,13 @@
 Hosted platform, Developer experience, Docs
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-08
-**Revised:** 2026-08-09 (S5 Landing A implements D9.4 capability links for
+**Revised:** 2026-08-09 (S5 Landing B implements D9.3 durable watches for
+user-owned standing rules: session-only management, credential-free
+`revalidatePrincipal` evaluation, exposed-live-query predicates, function
+reactions, durable invalidation-driven jobs, edge/debounce/budget controls,
+and bounded firing inspection. Integration-owned `capturedGrant` watches and
+webhooks remain commissioned.)
+2026-08-09 (S5 Landing A implements D9.4 capability links for
 the external anonymous set: hashed request-secret storage, pinned/caller arg
 templates, 7-day default and 30-day maximum expiry, inert GET, composed
 network/link admission, atomic uses, principal-validity lineage, exact-minter
@@ -763,6 +769,57 @@ anchoring authority kills the watch. This gives every app an automation layer ("
 for free") with authorization and cost attribution built in. Storm
 control (debounce, coalescing, per-watch firing budgets) is part of the
 admission design, not an afterthought (OQ10).
+
+**Implementation checkpoint (S5 Landing B, 2026-08-09).** When `api.enabled`
+is true, the protected `_snapback_watches` catalog and bounded
+`_snapback_watch_firings` journal activate with the manifest. A user session
+may create and inspect its own `wtch_` records through `POST|GET /watches`,
+and may delete, suspend, or resume them through the exact session-only
+management routes recorded in LLP 0031. The durable record pins owner and
+authority-instance ids, exact query/reaction function ids and current scope
+bases, canonical bounded argument bytes and digests, read dependencies,
+predicate, status, budgets, debounce state, counters, timestamps,
+notification, and the last 16 firing outcomes.
+
+The v1 predicate wire grammar is closed JSON. A leaf is
+`{"path":"/RFC6901/pointer","op":"eq|ne|gt|gte|lt|lte|exists|absent|contains","value":...}`;
+`value` is required for comparison and `contains`, and forbidden for
+`exists`/`absent`. Internal nodes are exactly `{"and":[...]}` or
+`{"or":[...]}`, with at most eight total leaves and depth at most two. The
+predicate observes the serialized live-query result document. No executable
+predicate is accepted. Reactions are exactly
+`{"kind":"function","function":"...","args":{...}}` and may name an exposed
+finite query, mutation, or action. Webhook delivery remains unshipped because
+LLP 0070 has not shipped its commissioned webhook SSRF, idempotency, and retry
+machinery; accepting a webhook-shaped request is a typed input refusal.
+
+User-owned watches use `revalidatePrincipal`: no session bearer or session
+secret is retained. Every evaluation constructs fresh credential-free owner
+authority and revalidates the principal, authority anchor, exact query and
+reaction identities, current scope bases, API exposure, and watch status
+before work. The v1 anchor lifetime is 365 days. Any future renewal may extend
+at most 365 days from that renewal's fresh admission instant; Landing B exposes
+no renewal operation, so it cannot silently extend a watch. Principal deletion
+or deactivation, function replacement, basis revocation, expiry, or deletion
+makes the watch terminally `dead`. Integration-owned `capturedGrant` creation
+remains a typed deferral until installation/watch-anchor grant issuance ships
+under LLP 0055.
+
+Invalidations enter the same dependency matcher used by live subscriptions
+and enqueue the reserved `_snapback.watch.evaluate` action through LLP 0070's
+durable queue. One pending evaluation per watch coalesces further invalidations;
+the evaluator's own job-status changes are excluded to prevent recursive
+wakeups. Evaluations fire only on a false-to-true predicate edge, enforce a
+minimum/default five-second debounce, default to 100 firings per UTC day
+(with a 30-day debounce ceiling and a configurable firing budget from 1
+through 1,000), and admit at most four evaluations per owner concurrently.
+Exhausting the daily budget suspends the watch with a
+visible notification and journal outcome. The owner telemetry lane and firing
+journal retain outcomes and diagnostic codes without credential material.
+Evaluation or reaction failures retain the same firing ordinal through LLP
+0070's bounded retry attempts; final exhaustion journals the failed firing and
+lets the durable job settle `dead`. Tests drain the durable queue with an
+injected clock and no wall-clock sleeps.
 
 ### D9.4 — Shareable capability links
 

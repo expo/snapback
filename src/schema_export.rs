@@ -1286,6 +1286,15 @@ fn route_schema_refs(method: &str, path: &str) -> (Option<&'static str>, Option<
             | "/capability-links/{token}/invoke"
             | "/capability-links/{id}",
         ) => (None, None),
+        // LLP 0204 D9.3: v1 watch management uses closed handler-owned DTOs.
+        // No committed standalone artifact schema exists, so null is honest.
+        (
+            "POST" | "GET" | "DELETE",
+            "/watches"
+            | "/watches/{id}"
+            | "/watches/{id}/suspend"
+            | "/watches/{id}/resume",
+        ) => (None, None),
         ("GET", "/auth/session") => (None, Some("auth.session.output.schema.json")),
         ("POST", "/auth/request-code") => (
             Some("auth.request-code.input.schema.json"),

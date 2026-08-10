@@ -285,6 +285,18 @@ impl CallerAttributionV1 {
         }
     }
 
+    /// Durable watches attribute every standing query and reaction to the
+    /// owning principal, never to the scheduler wrapper.
+    ///
+    /// @ref LLP 0204#d93--durable-watches-end-user-automations — firing telemetry uses the
+    /// existing owner/caller attribution lane.
+    pub(crate) fn owner(caller_key: String) -> Self {
+        Self {
+            lane: "owner",
+            caller_key,
+        }
+    }
+
     pub(crate) fn first_party() -> Self {
         Self {
             lane: "first-party",

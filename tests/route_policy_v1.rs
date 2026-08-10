@@ -221,6 +221,11 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/capability-links/{token}"),
         ("POST", "/capability-links/{token}/invoke"),
         ("DELETE", "/capability-links/{id}"),
+        ("POST", "/watches"),
+        ("GET", "/watches"),
+        ("DELETE", "/watches/{id}"),
+        ("POST", "/watches/{id}/suspend"),
+        ("POST", "/watches/{id}/resume"),
         ("POST", "/auth/oauth/register"),
         ("GET", "/auth/oauth/authorize"),
         ("POST", "/auth/oauth/authorize"),
@@ -581,6 +586,28 @@ fn capability_link_rows_pin_the_closed_policy_tuples() {
         revoke.response_sensitivity,
         ResponseSensitivity::PublicNoStore
     );
+}
+
+#[test]
+fn durable_watch_rows_pin_the_session_only_policy_tuples() {
+    let routes = route_registry()
+        .into_iter()
+        .filter(|route| route.path.starts_with("/watches"))
+        .collect::<Vec<_>>();
+    assert_eq!(routes.len(), 5);
+    for route in routes {
+        assert_eq!(route.class, RouteClass::AppData);
+        assert_eq!(route.path_policy, RoutePolicy::SessionAuth);
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::RequiredSessionBearer
+        );
+        assert_eq!(route.invocation_authority, InvocationAuthority::ResolvedCaller);
+        assert!(matches!(
+            route.response_sensitivity,
+            ResponseSensitivity::SensitiveApplicationData | ResponseSensitivity::PublicNoStore
+        ));
+    }
 }
 
 #[test]
@@ -1598,6 +1625,10 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.app.seed.preview.v1",
             "host_ops.app.seed.reset-install.v1",
             "host_ops.auth.mintSession",
+        "host_ops.auth.rehearsal.exercise",
+        "host_ops.auth.rehearsal.mint",
+        "host_ops.auth.rehearsal.revoke",
+        "host_ops.auth.rehearsal.status",
             "host_ops.auth.rescueCollidingTable",
             "host_ops.auth.integrationRetire",
             "host_ops.auth.integrationSuspend",
@@ -2172,6 +2203,42 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             SessionBodyProbe {
                 uri: "/capability-links",
                 base: json!({ "function": "missing_function" }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/watches"),
+            SessionBodyProbe {
+                uri: "/watches",
+                base: json!({
+                    "query": { "function": "missing", "args": {} },
+                    "predicate": { "path": "/rows/0", "op": "exists" },
+                    "reaction": { "kind": "function", "function": "missing", "args": {} }
+                }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("DELETE", "/watches/{id}"),
+            SessionBodyProbe {
+                uri: "/watches/wtch_policy_probe",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/watches/{id}/suspend"),
+            SessionBodyProbe {
+                uri: "/watches/wtch_policy_probe/suspend",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/watches/{id}/resume"),
+            SessionBodyProbe {
+                uri: "/watches/wtch_policy_probe/resume",
+                base: json!({}),
                 forbidden_fields: handler_fields(),
             },
         ),

@@ -65,6 +65,11 @@
     },
     {
       "body": "timeOrdered",
+      "kind": "Watch",
+      "prefix": "wtch"
+    },
+    {
+      "body": "timeOrdered",
       "kind": "Mutation",
       "prefix": "mut"
     },

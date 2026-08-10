@@ -5,7 +5,10 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-09 (LLP 0204 S5 Landing A implements the anonymous-set
+**Revised:** 2026-08-09 (LLP 0204 S5 Landing B registers the user-owned durable
+watch create, list, delete, suspend, and resume rows as exact session-only
+AppData management operations; integration-owned creation remains deferred.)
+2026-08-09 (LLP 0204 S5 Landing A implements the anonymous-set
 capability-link mint, inert landing, invoke, and exact-minter revocation rows;
 the granted-operation extension and D9.5 approval gate remain commissioned.)
 2026-08-09 (LLP 0204 S4 Landing C registers read-only
@@ -1397,6 +1400,29 @@ URL and makes a conforming generic client miss it. Their root placement does
 not weaken [The invariant](#the-invariant): they are public AppData discovery
 operations, not system/control operations, and every non-metadata facade
 operation remains under the established root `/auth/*` family.
+
+### Durable-watch management family
+
+The v1 durable-watch management family is:
+
+| Route / operation | Effective policy | Response sensitivity |
+| --- | --- | --- |
+| `POST /watches` | AppData creation; `SessionAuth` with an exact `RequiredSessionBearer`; both named functions pass the ordinary invocation gate under the creating user | `SensitiveApplicationData`; returns the created owner-scoped record, always no-store |
+| `GET /watches` | AppData inspection; `SessionAuth` with an exact `RequiredSessionBearer`; lists only the resolved user owner's records | `SensitiveApplicationData`; includes bounded counters, notification, and recent firing outcomes, always no-store |
+| `DELETE /watches/{id}` | AppData management; `SessionAuth` with an exact `RequiredSessionBearer`; owner-only terminal transition | `PublicNoStore`; successful deletion returns no body |
+| `POST /watches/{id}/suspend` | AppData management; `SessionAuth` with an exact `RequiredSessionBearer`; owner-only reversible admission stop | `SensitiveApplicationData`; returns the updated owner-scoped record, always no-store |
+| `POST /watches/{id}/resume` | AppData management; `SessionAuth` with an exact `RequiredSessionBearer`; owner-only reactivation without renewal | `SensitiveApplicationData`; returns the updated owner-scoped record, always no-store |
+
+**Implementation status (S5 Landing B, 2026-08-09):** all five rows are
+implemented for user-owned `revalidatePrincipal` watches when `api.enabled`.
+The request body never selects an actor: legacy/body authority is forbidden,
+and the resolved provider session is the owner. Scheduled evaluation and
+reaction use internal source classes with credential-free, freshly revalidated
+owner authority; those classes are not reachable through a public route.
+Integration-owned `capturedGrant` creation is a typed deferral pending LLP
+0055's installation/watch-anchor grant issuance. Webhook reactions are not a
+route variant and remain deferred to LLP 0070's commissioned delivery
+machinery.
 
 ### Capability-link mint and serve family
 

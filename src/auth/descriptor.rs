@@ -46,6 +46,10 @@ pub fn descriptor_for_resolved_authority(
             generation,
             ..
         } => (authority_instance_id.clone(), *generation),
+        ResolvedAppAuthority::RevalidatedPrincipal {
+            authority_instance_id,
+            ..
+        } => (authority_instance_id.clone(), 0),
         ResolvedAppAuthority::ServicePrincipal {
             actor_user_id,
             credential_id,

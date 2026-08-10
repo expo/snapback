@@ -77,6 +77,9 @@ pub enum Kind {
     /// One durable shareable capability-link record. The bearer secret has a
     /// separate credential spelling and is never stored in this identifier.
     CapabilityLink,
+    /// One durable standing-query watch. Creation time is ordinary owner
+    /// operational metadata, so the body remains time ordered.
+    Watch,
     // --- runtime and protocol --------------------------------------------
     Mutation,
     Connection,
@@ -157,6 +160,9 @@ impl Kind {
             // @ref LLP 0204#d94--shareable-capability-links — the observable
             // link id is safe attribution; the raw URL token remains secret.
             Kind::CapabilityLink => ("cplk", TimeOrdered),
+            // @ref LLP 0204#d93--durable-watches-end-user-automations — watch ids are observable
+            // management handles; no standing authority is encoded in them.
+            Kind::Watch => ("wtch", TimeOrdered),
 
             // These five keep the spellings they already had in the tree, so
             // only the body encoding changes for them.
@@ -222,6 +228,7 @@ pub const ALL: &[Kind] = &[
     Kind::Grant,
     Kind::Integration,
     Kind::CapabilityLink,
+    Kind::Watch,
     Kind::Mutation,
     Kind::Connection,
     Kind::Subscription,

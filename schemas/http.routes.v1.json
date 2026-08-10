@@ -1558,6 +1558,51 @@
       "outputSchema": null,
       "path": "/streams/{attempt_token}/cancel",
       "path_policy": "AppAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "GET",
+      "outputSchema": null,
+      "path": "/watches",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/watches",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "DELETE",
+      "outputSchema": null,
+      "path": "/watches/{id}",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/watches/{id}/resume",
+      "path_policy": "SessionAuth"
+    },
+    {
+      "class": "AppData",
+      "credential_resolution": "RequiredSessionBearer",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
+      "path": "/watches/{id}/suspend",
+      "path_policy": "SessionAuth"
     }
   ]
 }

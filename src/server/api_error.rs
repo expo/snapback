@@ -99,6 +99,21 @@ pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
     //   the SNAPBACK_BUNDLE_* HTTP status mapping (codes authoritative,
     //   statuses advisory).
     match code {
+        // @ref LLP 0204#d93--durable-watches-end-user-automations — management input/ownership,
+        // lifecycle, quota, deferred integration, and catalog failures keep
+        // distinct retry postures. Internal job/catalog corruption stays 5xx.
+        "SNAPBACK_WATCH_INPUT_INVALID" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_WATCH_OWNER_DENIED" | "SNAPBACK_WATCH_AUTHORITY_DEAD" => {
+            StatusCode::FORBIDDEN
+        }
+        "SNAPBACK_WATCH_NOT_FOUND" => StatusCode::NOT_FOUND,
+        "SNAPBACK_WATCH_STATUS_INVALID" => StatusCode::CONFLICT,
+        "SNAPBACK_WATCH_BUDGET_EXHAUSTED"
+        | "SNAPBACK_WATCH_OWNER_EVALUATION_LIMIT" => StatusCode::TOO_MANY_REQUESTS,
+        "SNAPBACK_WATCH_INTEGRATION_CREATION_DEFERRED" => StatusCode::NOT_IMPLEMENTED,
+        "SNAPBACK_WATCH_CATALOG_CORRUPT" | "SNAPBACK_WATCH_JOB_INVALID" => {
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
         // @ref LLP 0031#capability-link-mint-and-serve-family — closed link
         // request secrets use one non-oracular not-found shape; caller input,
         // authority, throttle, and catalog failures retain distinct D10

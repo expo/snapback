@@ -170,6 +170,11 @@ pub(crate) mod declared_clients;
 #[path = "storage/capability_links.rs"]
 pub(crate) mod capability_links;
 
+// @ref LLP 0204#d93--durable-watches-end-user-automations — standing watch intent, bounded edge
+// state, and its firing journal are a manifest-activated protected companion.
+#[path = "storage/watches.rs"]
+pub(crate) mod watches;
+
 #[path = "storage/ask_spend.rs"]
 pub(crate) mod ask_spend;
 
@@ -11304,7 +11309,9 @@ impl MembershipWriter {
     ) -> Self {
         use crate::auth::invocation::ResolvedAppAuthority as Resolved;
         match resolved {
-            Resolved::Session { user_id, .. } | Resolved::DevImpersonation { user_id, .. } => {
+            Resolved::Session { user_id, .. }
+            | Resolved::RevalidatedPrincipal { user_id, .. }
+            | Resolved::DevImpersonation { user_id, .. } => {
                 Self::User {
                     effective_principal: user_id.clone(),
                 }

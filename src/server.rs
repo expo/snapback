@@ -3602,6 +3602,58 @@ pub(crate) async fn execute_job_claim_detached(
     state: &SharedSnapback,
     claim: crate::local::AdmittedJobClaim,
 ) -> SnapbackResult<crate::jobs::JobDrainRecord> {
+    if claim.action == crate::watches::INTERNAL_EVALUATION_ACTION {
+        let attempt = claim.attempt;
+        let max_attempts = claim.max_attempts;
+        let context = claim.watch_context();
+        let prepared = with_snapback(state, move |snapback| {
+            snapback.prepare_watch_job(context)
+        })
+        .await;
+        let result = match prepared {
+            Ok(crate::local::WatchJobExecution::Complete(value)) => Ok(value),
+            Ok(crate::local::WatchJobExecution::Action(prepared)) => {
+                let crate::local::PreparedWatchAction {
+                    watch_id,
+                    job_id,
+                    ordinal,
+                    owner_principal_id,
+                    action,
+                    input,
+                    metadata,
+                    staged,
+                } = prepared;
+                let reaction = match staged {
+                    StagedAction::Detached(action) => {
+                        run_detached_ibex_action(state, action, input, metadata).await
+                    }
+                    StagedAction::HostPlan(prepared) => {
+                        run_managed_host_plan_action(state, action, input, metadata, prepared).await
+                    }
+                };
+                let now_ms = claim.drain_now_ms;
+                with_snapback(state, move |snapback| {
+                    snapback.settle_watch_action(
+                        watch_id,
+                        job_id,
+                        ordinal,
+                        owner_principal_id,
+                        &reaction,
+                        attempt,
+                        max_attempts,
+                        now_ms,
+                    )
+                })
+                .await
+            }
+            Err(error) => Err(error),
+        }
+        .map_err(|error| error.diagnostic);
+        return with_snapback(state, move |snapback| {
+            snapback.finish_job_claim(claim, result)
+        })
+        .await;
+    }
     let input = LocalSnapback::job_claim_input(&claim);
     let metadata = LocalSnapback::job_claim_metadata(&claim);
     let action = claim.action.clone();
@@ -9172,6 +9224,74 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             ),
             delete(capability_link_revoke).layer(DefaultBodyLimit::max(0)),
         ),
+        // @ref LLP 0204#d93--durable-watches-end-user-automations — watch lifecycle is session
+        // authority only; standing executions reconstruct credential-free
+        // owner authority through their registered internal sources.
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/watches",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(watch_create).layer(DefaultBodyLimit::max(192 * 1024)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "GET",
+                "/watches",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::NotApplicable,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            get(watch_list).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "DELETE",
+                "/watches/{id}",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::PublicNoStore,
+            ),
+            delete(watch_delete).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/watches/{id}/suspend",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(watch_suspend).layer(DefaultBodyLimit::max(0)),
+        ),
+        RegisteredRoute::new(
+            RouteSpec::new(
+                "POST",
+                "/watches/{id}/resume",
+                RouteClass::AppData,
+                RoutePolicy::SessionAuth,
+                CredentialResolution::RequiredSessionBearer,
+                InvocationAuthority::ResolvedCaller,
+                LegacyBodyPolicy::Rejected,
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(watch_resume).layer(DefaultBodyLimit::max(0)),
+        ),
         RegisteredRoute::new(
             app_function_route("POST", "/query/{name}"),
             post(invoke_query),
@@ -10652,6 +10772,10 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
             Some(InvocationSource::CapabilityLinkManagement)
         }
         "/capability-links/{token}/invoke" => Some(InvocationSource::HttpCapabilityLink),
+        "/watches"
+        | "/watches/{id}"
+        | "/watches/{id}/suspend"
+        | "/watches/{id}/resume" => Some(InvocationSource::WatchManagement),
         "/auth/session" => Some(InvocationSource::BootstrapHandshake),
         "/auth/refresh" => Some(InvocationSource::AuthRefresh),
         "/auth/logout" => Some(InvocationSource::AuthLogout),
@@ -14853,7 +14977,8 @@ async fn auth_session(
         // BootstrapHandshake never admits dev body impersonation. Refuse if a
         // future route composition violates that invariant rather than
         // serializing a shape no closed handshake authority kind can express.
-        ResolvedAppAuthority::DevImpersonation { .. } => {
+        ResolvedAppAuthority::DevImpersonation { .. }
+        | ResolvedAppAuthority::RevalidatedPrincipal { .. } => {
             return Err(stale_prepared_authority(&authority, now_millis()).into());
         }
     };
@@ -23855,6 +23980,164 @@ async fn capability_link_revoke(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct WatchCreateRequest {
+    #[serde(default = "watch_user_owner")]
+    owner_kind: String,
+    #[serde(default = "watch_revalidate_principal")]
+    authority_mode: String,
+    query: WatchQueryRequest,
+    predicate: Value,
+    reaction: WatchReactionRequest,
+    #[serde(default = "watch_default_debounce_ms")]
+    debounce_ms: u64,
+    #[serde(default = "watch_default_daily_budget")]
+    daily_firing_budget: u32,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct WatchQueryRequest {
+    function: String,
+    #[serde(default = "empty_json_object")]
+    args: Value,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct WatchReactionRequest {
+    kind: String,
+    function: String,
+    #[serde(default = "empty_json_object")]
+    args: Value,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WatchListResponse {
+    watches: Vec<crate::storage::watches::WatchRecord>,
+}
+
+fn watch_user_owner() -> String {
+    "user".to_owned()
+}
+
+fn watch_revalidate_principal() -> String {
+    "revalidatePrincipal".to_owned()
+}
+
+fn watch_default_debounce_ms() -> u64 {
+    crate::watches::DEFAULT_DEBOUNCE_MS
+}
+
+fn watch_default_daily_budget() -> u32 {
+    crate::watches::DEFAULT_DAILY_FIRING_BUDGET
+}
+
+async fn watch_create(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    input: Result<Json<WatchCreateRequest>, JsonRejection>,
+) -> Result<(StatusCode, Json<crate::storage::watches::WatchRecord>), ApiError> {
+    require_provider_session_authority(&authority, InvocationSource::WatchManagement)?;
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    if request.owner_kind == "integration" || request.authority_mode == "capturedGrant" {
+        return Err(SnapbackError::error(
+            "SNAPBACK_WATCH_INTEGRATION_CREATION_DEFERRED",
+            "watches",
+            "integration/capturedGrant watch creation is deferred until grant issuance ships; see LLP 0055's 2026-08-08 watch-anchor amendment",
+        )
+        .into());
+    }
+    if request.owner_kind != "user" || request.authority_mode != "revalidatePrincipal" {
+        return Err(crate::watches::input_invalid(
+            "ownerKind must be user and authorityMode must be revalidatePrincipal in v1",
+        )
+        .into());
+    }
+    if request.reaction.kind != "function" {
+        return Err(crate::watches::input_invalid(
+            "reaction.kind must be function; webhook delivery is not shipped",
+        )
+        .into());
+    }
+    let record = with_snapback(&state, move |snapback| {
+        snapback.create_watch(
+            &authority,
+            crate::watches::CreateWatchSpec {
+                query_function: request.query.function,
+                query_args: request.query.args,
+                predicate: request.predicate,
+                reaction_function: request.reaction.function,
+                reaction_args: request.reaction.args,
+                debounce_ms: request.debounce_ms,
+                daily_firing_budget: request.daily_firing_budget,
+            },
+            now_millis(),
+        )
+    })
+    .await?;
+    Ok((StatusCode::CREATED, Json(record)))
+}
+
+async fn watch_list(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+) -> Result<Json<WatchListResponse>, ApiError> {
+    require_provider_session_authority(&authority, InvocationSource::WatchManagement)?;
+    let watches = with_snapback(&state, move |snapback| snapback.list_watches(&authority)).await?;
+    Ok(Json(WatchListResponse { watches }))
+}
+
+async fn watch_delete(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, ApiError> {
+    require_provider_session_authority(&authority, InvocationSource::WatchManagement)?;
+    with_snapback(&state, move |snapback| {
+        snapback.transition_watch(
+            &authority,
+            &id,
+            crate::watches::WatchStatus::Dead,
+            now_millis(),
+        )
+    })
+    .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn watch_suspend(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+) -> Result<Json<crate::storage::watches::WatchRecord>, ApiError> {
+    watch_transition(state, authority, id, crate::watches::WatchStatus::Suspended).await
+}
+
+async fn watch_resume(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    Path(id): Path<String>,
+) -> Result<Json<crate::storage::watches::WatchRecord>, ApiError> {
+    watch_transition(state, authority, id, crate::watches::WatchStatus::Active).await
+}
+
+async fn watch_transition(
+    state: SharedSnapback,
+    authority: PreparedAuthority,
+    id: String,
+    target: crate::watches::WatchStatus,
+) -> Result<Json<crate::storage::watches::WatchRecord>, ApiError> {
+    require_provider_session_authority(&authority, InvocationSource::WatchManagement)?;
+    let record = with_snapback(&state, move |snapback| {
+        snapback.transition_watch(&authority, &id, target, now_millis())
+    })
+    .await?;
+    Ok(Json(record))
+}
+
 /// `/query/{name}` runs on the lock-free read lane when the instance is
 /// file-backed: a pooled WAL reader inside a pinned read transaction, so
 /// queries proceed during long writes. In-memory instances (no WAL) keep the
@@ -23979,6 +24262,9 @@ fn bundle_authority_key(resolved: &ResolvedAppAuthority) -> String {
         ResolvedAppAuthority::Anonymous => "anonymous".to_owned(),
         ResolvedAppAuthority::DevImpersonation { user_id, .. } => format!("dev:{user_id}"),
         ResolvedAppAuthority::Session { user_id, .. } => format!("session:{user_id}"),
+        ResolvedAppAuthority::RevalidatedPrincipal { user_id, .. } => {
+            format!("watch:{user_id}")
+        }
         ResolvedAppAuthority::ServicePrincipal { actor_user_id, .. } => {
             format!("service:{actor_user_id}")
         }
@@ -24000,6 +24286,10 @@ fn bundle_sender_identity(resolved: &ResolvedAppAuthority) -> (String, u64) {
             format!("session:{authority_instance_id}:{session_id}"),
             *generation,
         ),
+        ResolvedAppAuthority::RevalidatedPrincipal {
+            authority_instance_id,
+            ..
+        } => (format!("watch:{authority_instance_id}"), 0),
         ResolvedAppAuthority::ServicePrincipal {
             credential_id,
             token_id,
@@ -27412,6 +27702,7 @@ fn ephemeral_auth_from_authority(authority: &ResolvedAppAuthority) -> AuthContex
             )),
             ..AuthContext::default()
         },
+        ResolvedAppAuthority::RevalidatedPrincipal { .. } => AuthContext::default(),
         ResolvedAppAuthority::Anonymous
         | ResolvedAppAuthority::AdminBypass { .. }
         | ResolvedAppAuthority::System => AuthContext::default(),

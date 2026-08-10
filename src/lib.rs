@@ -118,6 +118,7 @@ pub mod instance_fork;
 pub(crate) mod instance_lock;
 #[doc(hidden)]
 pub mod jobs;
+pub(crate) mod watches;
 pub mod live_coalesce;
 
 pub(crate) mod live_matcher;
