@@ -2643,12 +2643,32 @@ const canonicalHookInputKey = (value) => (
 
 export function useSnapbackQuery(reference, args) {
   const provider = useProvider();
+  const lease = useRef(null);
   const argsKey = canonicalHookInputKey(args);
+  if (
+    positiveDevelopmentEnvironment()
+    && args !== skip
+    && typeof args === 'object'
+    && args !== null
+  ) {
+    // Development-only diagnostics share the existing lazy failure/HMR
+    // runtime. The production entry allocates no detector state or hook; the
+    // existing lease ref supplies stable mounted-hook identity.
+    const site = new Error('Snapback live-hook args allocation site').stack ?? null;
+    void import('./react-runtime.mjs').then((module) => {
+      module.diagnoseLiveHookArgsIdentity({
+        hookRef: lease,
+        reference,
+        args,
+        argsKey,
+        site,
+      });
+    }).catch(() => {});
+  }
   const descriptor = useMemo(
     () => provider.registry.descriptor(reference, args),
     [provider, reference, argsKey],
   );
-  const lease = useRef(null);
   const subscribe = useCallback((listener) => {
     const next = provider.registry.subscribe(descriptor, listener, lease.current);
     lease.current = next;

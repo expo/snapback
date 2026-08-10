@@ -304,6 +304,22 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/browser-closure.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.remediation.v1.json',
+    profileFilename: 'remediation-profiles.v1.json',
+    profileIds: Object.freeze([
+      'public-subpath-remediation',
+      'resolved-public-subpath-remediation',
+    ]),
+    authorities: Object.freeze([
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0146#oq6-author-ruling--2026-08-10',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/remediation.test.mjs']],
+    ]),
+  }),
 ]);
 
 // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — a real
@@ -1551,6 +1567,101 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
       ['node', ['packages/snapback-client/rqs-store.test.mjs']],
       ['node', ['packages/snapback-client/package.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.lease-custody-and-remediation.v1.json',
+    profileFilename: 'sessions-custody-offline-queue-profiles.v1.json',
+    workloadVersion: 'lease-custody-and-remediation.2026-08-10.v1',
+    profileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-rqs-preload',
+      'public-subpath-rqs-registered',
+      'public-subpath-rqs-store',
+      'public-subpath-rqs-store-default',
+      'public-subpath-rqs-store-expo',
+      'public-subpath-rqs-store-file',
+      'react-external',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.search-prewitness-refusal.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'react-external',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.sessions-custody-offline-queue.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-rqs-preload',
+          'public-subpath-rqs-store',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.llp-0200-settlement-isolation.v1.json',
+        profileIds: Object.freeze(['public-subpath-rqs-registered']),
+      }),
+      Object.freeze({
+        filename: 'baseline.rqs-store-competing-writer.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-rqs-store-default',
+          'public-subpath-rqs-store-expo',
+          'public-subpath-rqs-store-file',
+        ]),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0043#m1--custody',
+      'LLP 0146#oq6-author-ruling--2026-08-10',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-10',
+      landing: '313c3ed508ce6f43a47b549462a2fa095819afc5',
+      fix: 'Two landed, receipted features compose here. (1) JS-arm '
+        + 'lease-bounded protected retention (LLP 0043 M1 custody): '
+        + 'protected-custody metadata slot, additive v3 store migration, '
+        + 'lease validation with equality expiry and delete-before-render, '
+        + 'plus the dev-only live-hook args-churn warning seam on the React '
+        + 'entries. (2) The LLP 0146 option-B remediation carrier landed on '
+        + 'main without advancing the React ceilings; its decoder import is '
+        + 'part of the React closure growth ratified here.',
+      ticket: 'issues/20260731-js-arm-lease-custody-and-sessions-outbox.md',
+      standingPolicy: 'LLP 0145 Phase A, 2026-08-10 author ruling: attributed '
+        + 'growth from a landed, receipted fix takes an automatic blessed rollover.',
+      byteDeltas: 'external-react-application min 104691->106237 (+1546), '
+        + 'gzip 32328->32708 (+380), brotli 28200->28545 (+345); '
+        + 'react-external min 104516->106062 (+1546), gzip 32275->32653 '
+        + '(+378), brotli 28138->28483 (+345); rqs-preload min 5549->5624 '
+        + '(+75); rqs-registered min 32144->32218 (+74); rqs-store min '
+        + '41447->41599 (+152); rqs-store-default min 63119->63271 (+152); '
+        + 'rqs-store-expo min 43152->43304 (+152); rqs-store-file min '
+        + '41690->41842 (+152); gzip/brotli deltas proportional per the '
+        + 'frozen receipt.',
+      summary: 'Advance the two React closures (lease custody seam, '
+        + 'args-churn dev guard, and the previously unratified remediation '
+        + 'decoder import) and the six RQS closures for the protected-'
+        + 'custody metadata slot; all other active ceilings and the four '
+        + 'predecessors remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-rqs-preload',
+      'public-subpath-rqs-registered',
+      'public-subpath-rqs-store',
+      'public-subpath-rqs-store-default',
+      'public-subpath-rqs-store-expo',
+      'public-subpath-rqs-store-file',
+      'react-external',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/remediation.test.mjs']],
     ]),
   }),
 ]);

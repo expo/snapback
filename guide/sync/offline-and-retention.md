@@ -3,8 +3,8 @@ title: Offline retention and mutation replay
 id: sync.offline-and-retention
 order: 1
 audience: agent-first
-capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.offline-js-arm-sessions, sync.local-persistent-store]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/assets.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, packages/snapback-expo/supervised-environment.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
+capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.offline-js-arm-protected, sync.offline-js-arm-sessions, sync.local-persistent-store]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, packages/snapback-client/protected-query-retention.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/assets.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/rqs-resume.test.mjs, packages/snapback-react/index.mjs, packages/snapback-expo/supervised-environment.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
 examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, demos/browser-local-first, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-client/rqs-resume.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
 status: current
 targets: [local]
@@ -33,9 +33,10 @@ required proof is present; otherwise the surface stays honestly `Online`.
 
 ## Route by workload shape: which retention mechanism is yours?
 
-This page covers three retention mechanisms with different survival rules —
-the resume channel (platform cold retention), programmatic registrations, and
-the materialization store. Pick by the shape of the query you want to
+This page covers four retention mechanisms with different survival rules —
+the resume channel (public platform cold retention), lease-bounded protected
+retention, programmatic registrations, and the materialization store. Pick by
+the shape of the query you want to
 survive, not by trying mechanisms until one stops refusing. The eligibility
 constraints come first because they decide the whole route.
 
@@ -71,7 +72,7 @@ layer refused.
 | --- | --- | --- |
 | Public single-table live query, args-less **or** filtered by explicit `arg(...)` | Platform retention: declare `auth: 'public'` + `authorityIndependent: true` ([opt-in section](#opt-a-live-query-into-cold-retention-rqseligible)) | Persisted per `(query, args)` in the client store; fresh client re-renders it `freshness: 'retained'`, backend unreachable included; subscribe demand is volatile (dispose releases it); a non-empty outbox withholds resume — retained pre-intent render, full resync first |
 | Public data queried through many argument values, one retained payload wanted | Client-side filter over an args-less (or coarser-keyed) retained query ([viewer-facts section](#retain-public-viewer-facts-by-argument-not-authority)) | Same as platform retention, with one entry instead of one per argument value; derive the per-key fact from canonical rows on the client |
-| Protected or auth-scoped rows — the natural private-chat shape under sessions | **Not cold-retainable on the JS arm** (`SNAPBACK_RETENTION_NOT_RETAINABLE`): use the Contract arm's `retainable: true` lease-backed path ([hidden hands](../recipes/hidden-hands.md)) or stay honestly online-only | Lease custody: rows render retained only under a valid `AuthorizedLease` and are deleted exactly at its deadline; never flip private rows to `public` just to gain JS-arm retention |
+| Protected generated live query — the natural private-chat shape under sessions | Declare `retainable: true`; the JS and Contract arms use lease-backed custody ([authorized leases](../auth/protecting-data.md#authorized-leases-bound-unreachable-honest-clients)) | Rows render retained only under a valid `AuthorizedLease`; equality with the client deadline is expired, and invalid/mismatched custody is transactionally deleted before exposure. The JS package proves a fresh-client cold handoff; the independent real-process restart witness remains a GAP |
 | Owner-scoped generated relational composite | LLP 0166 materialization store + hydration bridge ([store section](#render-retained-rows-proof-validated-after-relaunch-the-materialization-bridge)) | Proof-revalidated `authoritative`/`retained` relaunch answers; demand comes from registrations — a live handle is an `active` registration reaped at restart, `registerQuery` with `retentionRequest: 'durable'` survives restart |
 | Demand that must survive a restart with no mounted handle | `registerQuery` programmatic durable registration ([registration section](#keep-a-generated-query-registered-without-a-live-handle)) | Durable across restarts; owner-admitted — a non-retainable query refuses instead of silently dropping durability; release is idempotent |
 | Snapshot-batch composite (`snapshot-batch.v1`/`v2`) | None — deliberately volatile, retention `none` | Payload removed at the next writer maintenance pass; never infer renderability from stored bytes |
@@ -172,10 +173,13 @@ current), the durable outbox with full-resync-before-replay by event
 ordinals, ordered exactly-once settlement including an exact duplicate
 redelivery republishing the stored settlement with zero dispatch,
 independent-observer convergence, same-process full-page SPA reconstruction,
-bounded render/effect counts, and the protected refusal with nothing
-persisted (below). The authenticated/authorized retention-and-replay
-conjunction is NOT part of that witness — it remains the lease-custody
-ticket's (`issues/20260731-js-arm-lease-custody-and-sessions-outbox.md`).
+bounded render/effect counts, and the then-current protected refusal with
+nothing persisted. The authenticated/authorized retention-and-replay
+conjunction is not part of that historical browser witness. Package-level
+lease custody now proves a fresh client instance accepting retained protected
+rows while the endpoint is unreachable; a separate real-process restart
+witness remains on the lease-custody ticket
+(`issues/20260731-js-arm-lease-custody-and-sessions-outbox.md`).
 
 The retained
 `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` witness runs
@@ -193,15 +197,14 @@ proof of the same contracts. The headless witness proves:
   (LLP 0090 Channel B). Non-`rqsEligible` queries are NOT retainable: the
   handle's `retention` fact names the refusal
   (`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE`) instead of silently acting
-  local-first. The protected/auth-scoped and opaque refusal
-  (`SNAPBACK_RETENTION_NOT_RETAINABLE`) is asserted on both carriers: the
-  Node receipt in `packages/snapback-client/rqs-resume.test.mjs` (an
-  auth-scoped subscription over the real client names the refusal code and
-  persists zero entries) and the browser public witness's anonymous
-  sessions-mode phase (handle, hook, and DOM, with no IndexedDB entry ever
-  written for the protected query while the retained entry persists beside
-  it). LLP 0053's retainability invariant is the boundary both assert;
-  lease-bounded protected retention remains the Contract arm's.
+  local-first. Protected/auth-scoped and opaque queries still report
+  `SNAPBACK_RETENTION_NOT_RETAINABLE` when the generated lease shape or
+  negotiated sessions/lease protocols are absent. With those proofs present,
+  `packages/snapback-client/rqs-resume.test.mjs` establishes the exact live
+  namespace, performs a fresh full `authorizedLeaseQuery`, closes the first
+  client, and proves a fresh client instance renders the retained rows while
+  fetch is unreachable. The same suite pins valid display, equality expiry,
+  hash/binding mismatch refusal, and delete-before-read in the IndexedDB carrier.
 - **A durable LLP 0043 M2 outbox.** A mutation refused by connectivity is
   queued durably under a client-minted `clientMutationId` (protocol-lane
   identity) with a monotonic local sequence, and returns
@@ -639,10 +642,10 @@ This pattern is a data-layout technique, **not an authorization boundary**.
 The caller controls `handle`, so any caller can request any handle's rows. Use
 it only for facts that are genuinely public, such as likes and public
 reactions. Private viewer data must stay server-scoped (for example with
-`authUserId()`) and use the Contract arm's `retainable: true`,
+`authUserId()`) and use a generated query's `retainable: true`,
 `AuthorizedLease`-backed path described in
-[hidden hands](../recipes/hidden-hands.md); do not make private rows public to
-gain JS-arm cold retention.
+[protecting data](../auth/protecting-data.md#authorized-leases-bound-unreachable-honest-clients);
+do not make private rows public merely to avoid lease custody.
 
 Existing legacy RQS entries are not rewritten merely because the class is now
 active. LLP 0090 grandfathers those bytes. While connected, adoption either
@@ -680,11 +683,16 @@ handler, or a non-single-table plan), the class is volatile by design
 (snapshot batches, non-retainable composites), or the declaration is
 eligible but this target did not activate the class.
 
-The authority-scoped refusal is receipt-pinned on the Node carrier — the
-handle names the LLP 0053 boundary and the store stays empty:
+The authority-scoped refusal remains receipt-pinned when the generated lease
+shape or negotiated protocol is absent — the handle names the LLP 0053
+boundary and the store stays empty:
 
 ```js source=packages/snapback-client/rqs-resume.test.mjs
-  assert.equal(handle.retention?.retainable, false, 'auth-scoped rows are never retainable on this arm');
+  assert.equal(
+    handle.retention?.retainable,
+    false,
+    'auth-scoped rows without the lease protocol are not retainable',
+  );
   assert.equal(
     handle.retention?.code,
     'SNAPBACK_RETENTION_NOT_RETAINABLE',
@@ -692,8 +700,9 @@ handle names the LLP 0053 boundary and the store stays empty:
   );
 ```
 
-No browser-carrier test asserts the same refusal; that remains part of the
-evidence GAP tracked in the JS-arm section above.
+That test deliberately uses a string query reference and omits the authorized
+lease protocol. It proves fail-closed behavior, not a universal ban on
+protected JS retention.
 
 Two neighbors that are **not** this opt-in:
 
@@ -701,10 +710,11 @@ Two neighbors that are **not** this opt-in:
   handler cannot carry the closed-inputs proof, so JS live queries stay
   online-only on this arm regardless of `auth`.
 - `retainable: true` is the *lease-class* opt-in — AuthorizedLease-backed
-  retention of protected, user-scoped results under LLP 0053's custody
-  rules, shipped on the Contract arm (see
-  [hidden hands](../recipes/hidden-hands.md)). Declaring it does not make a
-  protected query cold-retain on the JS arm.
+  retention of protected, user-scoped generated results under LLP 0053's
+  custody rules (see
+  [protecting data](../auth/protecting-data.md#authorized-leases-bound-unreachable-honest-clients)).
+  It is not an override: missing generated activation identity, durable store
+  ownership, or sessions/lease protocol support still refuses retention.
 
 ## Enable the complete client-store contract
 
@@ -785,8 +795,14 @@ Retained data is never relabeled `live`.
 
 For sessions-mode private rows, ordinary retention is insufficient. The server
 must issue an authorized lease and the store must delete rows exactly at its
-deadline. That stricter subset is taught in
-[hidden hands](../recipes/hidden-hands.md).
+deadline. The JS arm durably reserves the request start before network I/O,
+reuses the live query's exact client-store/query/query-instance namespace,
+commits rows plus witness plus lease atomically after a fresh full query, and
+on cold read validates the structural lease bindings, exact-byte hash,
+activation, authority, and derived deadline. Equality with the deadline is
+expired; a mismatch or rollback deletes the record in the same transaction
+before returning no rows. That stricter subset is taught in
+[protecting data](../auth/protecting-data.md#authorized-leases-bound-unreachable-honest-clients).
 
 ## Queue one deterministic mutation identity
 

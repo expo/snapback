@@ -17,8 +17,18 @@ const RECORD_SLOTS = [
   // unkeyed hash; this owner slot retains the exact issued bytes and the
   // rollback-checked client deadline that validation projects as leaseStatus.
   'materializationLeaseCustody',
+  // Format-6-shaped query authorization + AuthorizedLease custody for the
+  // ordinary generated LiveQuery path. This is deliberately separate from
+  // both authority-independent RQS entries and qmk1 fragment custody: a
+  // protected query is renderable after restart only through this slot's
+  // exact namespace/fence/witness/lease validation.
+  'authorizedQueryRetention',
 ];
-const RESET_SLOTS = [...RECORD_SLOTS.slice(0, 3), RECORD_SLOTS.at(-1)];
+const RESET_SLOTS = [
+  ...RECORD_SLOTS.slice(0, 3),
+  'materializationLeaseCustody',
+  'authorizedQueryRetention',
+];
 
 const plainRecord = (value) => (
   value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -99,9 +109,15 @@ export function prepareStoreMeta(value) {
   // Additive format-v3 migration: carriers created before the hydration
   // bridge have no lease-custody slot. Absence means no retained auth-scoped
   // materialization, never an implicit valid lease.
-  const prepared = value.materializationLeaseCustody === undefined
-    ? { ...value, materializationLeaseCustody: {} }
-    : value;
+  const prepared = {
+    ...value,
+    ...(value.materializationLeaseCustody === undefined
+      ? { materializationLeaseCustody: {} }
+      : {}),
+    ...(value.authorizedQueryRetention === undefined
+      ? { authorizedQueryRetention: {} }
+      : {}),
+  };
   if (prepared.formatVersion !== RQS_STORE_FORMAT_VERSION) return null;
   if (typeof prepared.clientStoreId !== 'string' || prepared.clientStoreId.length === 0) return null;
   if (

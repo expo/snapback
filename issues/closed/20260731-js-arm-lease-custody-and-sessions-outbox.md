@@ -125,3 +125,14 @@ Both are LLP 0053/0043-governed custody protocol work, not composition chores:
 
 Next owner: leg 1 with its acceptance rows first; it unblocks the
 restart-witness conjunction.
+
+## Resolution — 2026-08-10 (leg 1 landed; ticket complete)
+
+Leg 1 (LLP 0043 M1 lease-bounded protected retention on the JS/React arm)
+landed: protected-custody metadata slot with atomic persistence and an
+additive v3 store migration, exact lease validation with equality expiry,
+delete-before-render, and authority-reset clearing; cold-process lease
+acceptance rows green (focused custody tests 2/2; full client + React
+suites green). Legs 2 and 3 were already done (leg 2 at 55564b1018eb).
+LLP 0043 updated; the restart-witness conjunction ticket is now unblocked
+and remains the separate open item.

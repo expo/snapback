@@ -658,6 +658,93 @@ await act(async () => {
 assert.equal(inlineCounts.queryReleases, 3);
 assert.equal(inlineCounts.presenceReleases, 3);
 
+// Development-only saturation diagnostic: one mounted hook site must observe
+// repeated identity churn before warning. A memoized/stable object and the
+// exact same churn in a production-identified runtime remain silent.
+{
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousWarn = console.warn;
+  const warnings = [];
+  console.warn = (...values) => warnings.push(values);
+  function LiveHookArgsProbe({ args, tick }) {
+    useSnapbackQuery(inlineQueryReference, args);
+    return React.createElement('output', { tick });
+  }
+  const renderArgsProbe = (args, tick) => React.createElement(
+    SnapbackProvider,
+    { provider: inlineProvider },
+    React.createElement(LiveHookArgsProbe, { args, tick }),
+  );
+  try {
+    process.env.NODE_ENV = 'development';
+    let churnRenderer;
+    await act(async () => {
+      churnRenderer = TestRenderer.create(renderArgsProbe({ filter: 'same' }, 0));
+      await flush();
+    });
+    for (let tick = 1; tick <= 5; tick += 1) {
+      await act(async () => {
+        churnRenderer.update(renderArgsProbe({ filter: 'same' }, tick));
+        await flush();
+      });
+    }
+    assert.equal(warnings.length, 1, 'identity churn warns once at the mounted hook site threshold');
+    assert.match(warnings[0][0], /useSnapbackQuery\(inline-query\).*5 consecutive renders/u);
+    assert.equal(warnings[0][1]?.code, 'SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN');
+    assert.match(String(warnings[0][1]?.site ?? ''), /useSnapbackQuery/u);
+    await act(async () => { churnRenderer.unmount(); await flush(); });
+
+    warnings.length = 0;
+    const stableArgs = Object.freeze({ filter: 'memoized' });
+    let stableRenderer;
+    await act(async () => {
+      stableRenderer = TestRenderer.create(renderArgsProbe(stableArgs, 0));
+      await flush();
+    });
+    for (let tick = 1; tick <= 7; tick += 1) {
+      await act(async () => {
+        stableRenderer.update(renderArgsProbe(stableArgs, tick));
+        await flush();
+      });
+    }
+    assert.equal(warnings.length, 0, 'memoized/stable args never warn');
+    await act(async () => { stableRenderer.unmount(); await flush(); });
+
+    let changingRenderer;
+    await act(async () => {
+      changingRenderer = TestRenderer.create(renderArgsProbe({ filter: 'changed-0' }, 0));
+      await flush();
+    });
+    for (let tick = 1; tick <= 7; tick += 1) {
+      await act(async () => {
+        changingRenderer.update(renderArgsProbe({ filter: `changed-${tick}` }, tick));
+        await flush();
+      });
+    }
+    assert.equal(warnings.length, 0, 'semantic argument changes reset the churn episode');
+    await act(async () => { changingRenderer.unmount(); await flush(); });
+
+    process.env.NODE_ENV = 'production';
+    let productionRenderer;
+    await act(async () => {
+      productionRenderer = TestRenderer.create(renderArgsProbe({ filter: 'same' }, 0));
+      await flush();
+    });
+    for (let tick = 1; tick <= 7; tick += 1) {
+      await act(async () => {
+        productionRenderer.update(renderArgsProbe({ filter: 'same' }, tick));
+        await flush();
+      });
+    }
+    assert.equal(warnings.length, 0, 'production-identified builds do not arm the detector');
+    await act(async () => { productionRenderer.unmount(); await flush(); });
+  } finally {
+    console.warn = previousWarn;
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+  }
+}
+
 const provider = createSnapbackReactProvider(binding, { connectionId: 'react-package-test' });
 const siblingProvider = createSnapbackReactProvider(binding, { connectionId: 'react-package-test-2' });
 assert.notEqual(provider.providerInstanceId, siblingProvider.providerInstanceId);

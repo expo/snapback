@@ -9293,12 +9293,41 @@ export class SnapbackClient {
     //   never-reused query identity and a synchronous publication fence.
     const authorizationProtocolEnabled = this.authProtocols.authInvalidation != null;
     const queryKey = retainedQueryKey(name, args);
+    // Ordinary generated LiveQueries use the same durable carrier domain as
+    // RQS, but protected bytes never become RQS entries. Prepare the
+    // never-reused namespace before subscribe_live; the optional Full-profile
+    // runtime performs every payload/lease mutation transactionally.
+    // @ref LLP 0043#milestone-1-retained-reads
+    let preparedProtectedRetention = null;
+    if (
+      preparedMaterialization === null
+      && persistResume === true
+      && authorizationNamespace === null
+      && this.authProtocols.authInvalidation === 1
+      && this.authProtocols.authorizedLease === 1
+      && this.rqsStoreInfo.durable === true
+      && expectedGeneration(ref) !== null
+    ) {
+      try {
+        preparedProtectedRetention = await this.__storeRuntimeInvoke(
+          'prepareProtectedQueryRetention',
+          { ref, args, name },
+        );
+      } catch {
+        // A store/runtime refusal cannot make an online query unusable. It
+        // leaves the handle honestly non-retainable and takes the volatile
+        // namespace path below.
+        preparedProtectedRetention = null;
+      }
+    }
     let queryNamespace = preparedMaterialization
       ? createLiveQueryNamespace({
           clientStoreId: preparedMaterialization.bridge.address[1],
           queryKey: preparedMaterialization.bridge.address[2],
           queryInstanceId: preparedMaterialization.record.queryInstanceId,
         })
+      : preparedProtectedRetention
+        ? createLiveQueryNamespace(preparedProtectedRetention.namespace)
       : authorizationProtocolEnabled
         ? authorizationNamespace === null
         ? createLiveQueryNamespace({
@@ -9550,6 +9579,7 @@ export class SnapbackClient {
     // witness: warm online reload over a retained IndexedDB entry).
     let seedFrameDelivered = false;
     let seededFromMaterialization = false;
+    let seededFromProtectedRetention = false;
     let legacyAdoptionCandidate = null;
 
     const chainStoreWrite = (write) => {
@@ -9737,6 +9767,20 @@ export class SnapbackClient {
       if (result?.seeded === true) seededFromMaterialization = true;
     };
 
+    const seedFromProtectedRetentionState = async () => {
+      if (!preparedProtectedRetention || disposed) return;
+      const result = await client.__storeRuntimeInvoke('seedProtectedQueryRetentionState', {
+        prepared: preparedProtectedRetention,
+        handle,
+        deliverAuthorityObservation,
+        onUpdate,
+      });
+      if (result?.seeded === true && !disposed) {
+        seededFromProtectedRetention = true;
+        seedFrameDelivered = true;
+      }
+    };
+
     const installMaterializationSnapshot = async (sub) => {
       if (!preparedMaterialization) return null;
       const result = await client.__storeRuntimeInvoke('installMaterializationSnapshot', {
@@ -9753,6 +9797,21 @@ export class SnapbackClient {
       });
       if (result?.adoptedLegacy === true) legacyAdoptionCandidate = null;
       return result;
+    };
+
+    const installProtectedRetentionSnapshot = async (sub) => {
+      if (!preparedProtectedRetention || !sub.authorizationScope || !sub.snapshot) return null;
+      return client.__storeRuntimeInvoke('installProtectedRetentionSnapshot', {
+        prepared: preparedProtectedRetention,
+        connection: sub[AUTHORIZATION_CONNECTION],
+        snapshot: sub.snapshot,
+        ref,
+        args,
+        userId,
+        queryNamespace,
+        deploymentIdentity: expectedGeneration(ref),
+        authorityCapture: sub[AUTHORITY_CAPTURE] ?? null,
+      });
     };
 
     const setConnection = (next) => {
@@ -9870,6 +9929,12 @@ export class SnapbackClient {
 
     const applyQueueObligation = async (value) => {
       if (value.maxDisposition === 'retain') return null;
+      if (preparedProtectedRetention) {
+        await client.__storeRuntimeInvoke(
+          'deleteProtectedQueryRetention',
+          preparedProtectedRetention,
+        );
+      }
       return authorizationQueue?.applyObligation?.(value) ?? null;
     };
 
@@ -9891,6 +9956,12 @@ export class SnapbackClient {
 
     const retireQueueScopes = async (retired, snapshotValue = null) => {
       if (retired.length === 0) return null;
+      if (preparedProtectedRetention) {
+        await client.__storeRuntimeInvoke(
+          'deleteProtectedQueryRetention',
+          preparedProtectedRetention,
+        );
+      }
       return authorizationQueue?.retireScopes?.(
         retired,
         snapshotValue === null ? null : authorizationSnapshot(snapshotValue),
@@ -11070,6 +11141,7 @@ export class SnapbackClient {
       assertSubscribeLifecycle(lifecycle);
       const responseCapture = sub[AUTHORITY_CAPTURE] ?? null;
       let materializedSnapshot = null;
+      let protectedRetentionSnapshot = null;
       try {
         if (preparedMaterialization) {
           // The proof commit is asynchronous, so admit its exact authority
@@ -11132,6 +11204,18 @@ export class SnapbackClient {
           durableAttempt,
           sub.subscription_id,
         );
+        if (sub.authorizationScope) {
+          await installAuthorizationSubscription(sub);
+          protectedRetentionSnapshot = await installProtectedRetentionSnapshot(sub);
+        } else if (preparedProtectedRetention) {
+          // Public/rqsEligible queries keep using their server-minted RQS
+          // token. Remove the metadata-only protected candidate so the two
+          // persistence grammars never both claim the same query key.
+          void client.__storeRuntimeInvoke(
+            'deleteProtectedQueryRetention',
+            preparedProtectedRetention,
+          ).catch(() => {});
+        }
         // Retainability classification (LLP 0129 Phase 0, refuse-with-
         // clarity). Only what LLP 0053 admits is retained: an auth-scoped
         // subscription's retained display is exclusively the LLP 0043/0053
@@ -11151,11 +11235,14 @@ export class SnapbackClient {
           });
         } else if (sub.authorizationScope) {
           handle.retention = Object.freeze({
-            retainable: false,
-            code: 'SNAPBACK_RETENTION_NOT_RETAINABLE',
-            reason: 'authority-scoped query: retained display requires the '
-              + 'LLP 0043/0053 lease machinery (Contract arm); protected '
-              + 'queries are never cold-retained on this arm',
+            retainable: protectedRetentionSnapshot?.retained === true,
+            code: protectedRetentionSnapshot?.retained === true
+              ? null
+              : 'SNAPBACK_RETENTION_NOT_RETAINABLE',
+            reason: protectedRetentionSnapshot?.retained === true
+              ? null
+              : protectedRetentionSnapshot?.reason
+                ?? 'authority-scoped query: no valid LLP 0043/0053 AuthorizedLease was installed',
             store: client.rqsStoreInfo,
           });
         } else if (sub.resume || (heldResume && !sub.snapshot)) {
@@ -11173,7 +11260,6 @@ export class SnapbackClient {
           });
         }
         if (sub.authorizationScope) {
-          await installAuthorizationSubscription(sub);
           // Eligibility gate at write time (LLP 0090 Authorization scope): an
           // auth-scoped subscription persists no RQS resume state, and any
           // stale persisted entry for it (a query whose declaration changed)
@@ -11746,6 +11832,9 @@ export class SnapbackClient {
       if (!adoptedRegistration && preparedMaterialization) {
         try { await seedFromMaterializationState(); } catch { /* invalid retained state stays unknown */ }
       }
+      if (!adoptedRegistration && !seededFromMaterialization && preparedProtectedRetention) {
+        try { await seedFromProtectedRetentionState(); } catch { /* delete/refusal stays unknown */ }
+      }
       // Channel B relaunch flow (LLP 0090 D3): load + verify the persisted
       // entry, render-first as retained, and let the fresh subscribe below
       // carry the seeded token. Seeding failures leave today's cold boot.
@@ -11754,6 +11843,7 @@ export class SnapbackClient {
       if (
         !adoptedRegistration
         && !seededFromMaterialization
+        && !seededFromProtectedRetention
         && ((resumeStore && resumeStoreKey) || preloadedResume)
       ) {
         try { await seedFromResumeState(); } catch { /* cold boot */ }
@@ -11803,7 +11893,11 @@ export class SnapbackClient {
         // protocol) keeps the LLP 0034 contract: fail loudly, run nothing.
         if (
           !disposed
-          && (seededFromResumeState || seededFromMaterialization)
+          && (
+            seededFromResumeState
+            || seededFromMaterialization
+            || seededFromProtectedRetention
+          )
           && handle.freshness === 'retained'
           && isConnectivityFailureError(error)
         ) {

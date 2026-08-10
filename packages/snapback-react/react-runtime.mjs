@@ -8,6 +8,48 @@ import {
   handoffPreparedReactBindingGeneration,
 } from '@expo/snapback-client';
 
+const LIVE_HOOK_ARGS_CHURN_WARNING_RENDERS = 5;
+let liveHookArgs = null;
+
+// Invoked only after index.mjs positively identifies a development runtime.
+// State is keyed by the hook's existing subscription-lease ref, so no extra
+// React hook is required and unmounted sites remain weakly held.
+export function diagnoseLiveHookArgsIdentity({
+  hookRef,
+  reference,
+  args,
+  argsKey,
+  site,
+}) {
+  liveHookArgs ??= new WeakMap();
+  const previous = liveHookArgs.get(hookRef) ?? null;
+  const changedIdentity = previous !== null && previous.args !== args;
+  const sameValue = previous !== null && previous.argsKey === argsKey;
+  const consecutiveRenders = changedIdentity && sameValue
+    ? previous.consecutiveRenders + 1
+    : 0;
+  const warned = changedIdentity && sameValue ? previous.warned : false;
+  if (consecutiveRenders >= LIVE_HOOK_ARGS_CHURN_WARNING_RENDERS && !warned) {
+    const functionName = reference?.name ?? reference?.id ?? String(reference ?? 'unknown');
+    console.warn(
+      `[Snapback] useSnapbackQuery(${functionName}) received a new args object with unchanged contents for ${LIVE_HOOK_ARGS_CHURN_WARNING_RENDERS} consecutive renders. Memoize the args object at this hook site.`,
+      Object.freeze({
+        code: 'SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN',
+        hook: 'useSnapbackQuery',
+        function: functionName,
+        consecutiveRenders,
+        site,
+      }),
+    );
+  }
+  liveHookArgs.set(hookRef, {
+    args,
+    argsKey,
+    consecutiveRenders,
+    warned: warned || consecutiveRenders >= LIVE_HOOK_ARGS_CHURN_WARNING_RENDERS,
+  });
+}
+
 export function triggerControlledDevelopmentReload(failure, developmentHmr) {
   console.error(
     `${failure.code}: ${failure.message} (reason: ${failure.details?.reason ?? 'unknown'}). `

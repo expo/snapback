@@ -93,3 +93,23 @@ extend the same harness run with the authenticated/authorized conjunction
 and close this ticket. Not started here: implementing any of those halves
 out of order would produce exactly the partial witnesses this ticket exists
 to reject.
+
+## Prerequisite update (2026-08-10)
+
+The first two implementation prerequisites now have repository evidence. The
+standards-real public browser witness landed under
+`demos/browser-local-first/tests/acceptance/browser-public-witness.mjs`, and
+the JS-arm M1 implementation leg now has an IndexedDB custody matrix plus a
+fresh-client offline handoff in
+`packages/snapback-client/rqs-resume.test.mjs`. Neither is the conjunction
+this ticket requires: the latter deliberately uses fresh wrappers in one JS
+process, and the former deliberately proves public rather than lease-bound
+rows.
+
+The remaining acceptance is therefore still exactly the Resolution witness
+above: extend the standards-real browser harness to authenticate, acquire and
+persist a server-issued lease for protected rows, terminate the whole browser
+process, restart the same profile with the backend unreachable, prove
+lease-valid retained render and equality/expiry deletion, then reconnect and
+prove the same run's resync-before-replay, ordered exactly-once settlement,
+independent-observer convergence, retained identities, and scoped cleanup.

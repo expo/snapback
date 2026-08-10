@@ -16,6 +16,12 @@ import {
   rowHash,
 } from './rqs.mjs';
 import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
+import {
+  beginProtectedQueryLease,
+  commitProtectedQueryLease,
+  prepareProtectedQueryRetention,
+  seedProtectedQueryRetention,
+} from './protected-query-retention.mjs';
 import { defineChannelBResumeSuite, tick } from './rqs-resume-suite.mjs';
 
 // --- Web Locks double (queued exclusive, AbortSignal-aware) -----------------
@@ -253,7 +259,11 @@ test('an auth-scoped subscription refuses retention with SNAPBACK_RETENTION_NOT_
     pollCadenceMs: 60_000,
   });
   assert.deepEqual(handle.rows, [{ _id: 'secret-1', owner: 'user_ret' }]);
-  assert.equal(handle.retention?.retainable, false, 'auth-scoped rows are never retainable on this arm');
+  assert.equal(
+    handle.retention?.retainable,
+    false,
+    'auth-scoped rows without the lease protocol are not retainable',
+  );
   assert.equal(
     handle.retention?.code,
     'SNAPBACK_RETENTION_NOT_RETAINABLE',
@@ -267,6 +277,386 @@ test('an auth-scoped subscription refuses retention with SNAPBACK_RETENTION_NOT_
   await handle.flushResumeState();
   assert.equal((await store.inspection()).entries, 0, 'nothing persisted for the auth-scoped subscription');
   handle.dispose();
+});
+
+// LLP 0043 M1 / LLP 0053 item 8 cold-carrier matrix. These are deliberately
+// not RQS-token tests: the same IndexedDB carrier holds a separate format-6-
+// disciplined query authorization + AuthorizedLease record, and a fresh store
+// instance models the next JS process/tab accepting those bytes.
+test('protected query custody renders only inside its lease and deletes before expiry/mismatch exposure', async () => {
+  const identity = {
+    schemaVersion: 'snapback.v1',
+    appId: 'protected-retention-test',
+    schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
+    bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
+    inputsHash: `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`,
+  };
+  const ref = Object.freeze({
+    artifactKind: 'functionReference',
+    kind: 'LiveQuery',
+    name: 'protectedRows',
+    expectedGeneration: identity,
+  });
+  const args = { boardId: 'board-1' };
+  const incarnation = '018f0d90-7b11-7a22-8c33-445566778899';
+  const principalId = '018f0d90-7b12-7a22-8c33-445566778899';
+  const sessionId = '018f0d90-7b13-7a22-8c33-445566778899';
+  const authorityInstanceId = '018f0d90-7b14-7a22-8c33-445566778899';
+  const issuerId = {
+    authorizationIncarnation: incarnation,
+    bootSequence: 1,
+    bootNonce: 'AAAAAAAAAAAAAAAAAAAAAA',
+  };
+  const authorization = { incarnation, epoch: 4 };
+  const rows = [{ _id: 'private-1', value: 'lease-bound' }];
+
+  const makeCommittedContext = async () => {
+    const indexedDB = new IDBFactory();
+    const lockManager = createLockManagerDouble();
+    const owner = createIndexedDbRqsResumeStore({ indexedDB, lockManager });
+    await tick();
+    const prepared = await prepareProtectedQueryRetention({
+      ref,
+      args,
+      name: ref.name,
+      storeHandle: owner,
+    });
+    const startedClientMs = 1_000;
+    const leaseRequestId = 'lease-request-protected-1';
+    const reserved = await beginProtectedQueryLease({
+      prepared,
+      storeHandle: owner,
+      leaseRequestId,
+      clientNowMs: startedClientMs,
+      principalId,
+      issuerId,
+      authorization,
+      versionStream: 'protected-stream-1',
+      authorityInstanceId,
+    });
+    assert.equal(reserved.retained, true, 'lease timer is durably reserved');
+    const committed = await commitProtectedQueryLease({
+      prepared,
+      storeHandle: owner,
+      rows,
+      version: 9,
+      clientNowMs: startedClientMs + 1,
+      lease: {
+        protocolVersion: 1,
+        leaseId: 'lease-protected-1',
+        leaseRequestId,
+        issuerId,
+        clientStoreId: prepared.namespace.clientStoreId,
+        queryKey: prepared.queryKey,
+        queryInstanceId: prepared.namespace.queryInstanceId,
+        principalId,
+        sessionIdAtIssue: sessionId,
+        providerKey: 'email-code',
+        authorization,
+        data: { versionStream: 'protected-stream-1', snapshotCommitVersion: 9 },
+        activationHash: prepared.activationHash,
+        issuedAtServerMs: 10_000,
+        authorizedUntilServerMs: 70_000,
+        sessionNotAfterMs: 70_000,
+        providerNotAfterMs: null,
+        authorityInstanceId,
+        keyId: 'lease-key-1',
+        mac: 'A'.repeat(43),
+      },
+    });
+    assert.equal(
+      committed.retained,
+      true,
+      `lease and protected rows commit together (${committed.reason ?? 'no refusal reason'})`,
+    );
+    await owner.close();
+    await tick();
+    const cold = createIndexedDbRqsResumeStore({ indexedDB, lockManager });
+    await tick();
+    const coldPrepared = await prepareProtectedQueryRetention({
+      ref,
+      args,
+      name: ref.name,
+      storeHandle: cold,
+    });
+    return { cold, prepared: coldPrepared, clientDeadlineMs: committed.clientDeadlineMs };
+  };
+
+  {
+    const { cold, prepared, clientDeadlineMs } = await makeCommittedContext();
+    try {
+      const valid = await seedProtectedQueryRetention({
+        prepared,
+        storeHandle: cold,
+        clientNowMs: clientDeadlineMs - 1,
+      });
+      assert.equal(valid.retained, true, 'lease-valid cold bytes are accepted');
+      assert.deepEqual(valid.rows, rows, 'lease-valid rows cross the cold boundary');
+      const equality = await seedProtectedQueryRetention({
+        prepared,
+        storeHandle: cold,
+        clientNowMs: clientDeadlineMs,
+      });
+      assert.equal(equality.retained, false, 'deadline equality is expired');
+      const afterExpiry = await cold.materializationTransaction('readonly', (view) => (
+        view.storeMeta.authorizedQueryRetention[prepared.queryKey] ?? null
+      ));
+      assert.equal(afterExpiry, null, 'expiry deletes custody and rows before returning');
+    } finally {
+      await cold.close();
+    }
+  }
+
+  {
+    const { cold, prepared } = await makeCommittedContext();
+    try {
+      await cold.materializationTransaction('readwrite', (view) => {
+        view.storeMeta.authorizedQueryRetention[prepared.queryKey]
+          .retained.authorizedLeaseHash = 'sha256:tampered';
+      });
+      const mismatch = await seedProtectedQueryRetention({
+        prepared,
+        storeHandle: cold,
+        clientNowMs: 1_002,
+      });
+      assert.equal(mismatch.retained, false, 'composite custody mismatch never renders');
+      const afterMismatch = await cold.materializationTransaction('readonly', (view) => (
+        view.storeMeta.authorizedQueryRetention[prepared.queryKey] ?? null
+      ));
+      assert.equal(afterMismatch, null, 'mismatch deletes custody and rows before returning');
+    } finally {
+      await cold.close();
+    }
+  }
+});
+
+test('SnapbackClient projects a lease-valid protected record on a cold offline handle', async (t) => {
+  const previousFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = previousFetch; });
+  const { SnapbackClient } = await import('./index.mjs');
+  const indexedDB = new IDBFactory();
+  const lockManager = createLockManagerDouble();
+  const identity = {
+    schemaVersion: 'snapback.v1',
+    appId: 'protected-live-client',
+    schemaHash: `snapback.v1:sessions:schema:sha256:${'4'.repeat(64)}`,
+    bundleHash: `snapback.v1:sessions:function:sha256:${'5'.repeat(64)}`,
+    inputsHash: `snapback.v1:sessions:inputs:sha256:${'6'.repeat(64)}`,
+  };
+  const ref = Object.freeze({
+    artifactKind: 'functionReference',
+    schemaVersion: 'snapback.v0',
+    appId: identity.appId,
+    id: `${identity.appId}:protectedRows`,
+    name: 'protectedRows',
+    kind: 'LiveQuery',
+    implementationHash: `sha256:${'7'.repeat(64)}`,
+    argsContractHash: `sha256:${'8'.repeat(64)}`,
+    resultContractHash: `sha256:${'9'.repeat(64)}`,
+    expectedGeneration: identity,
+    argumentSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: { boardId: { type: 'string' } },
+      required: ['boardId'],
+    },
+  });
+  const args = { boardId: 'board-1' };
+  const incarnation = '018f0d90-7b21-7a22-8c33-445566778899';
+  const principalId = '018f0d90-7b22-7a22-8c33-445566778899';
+  const sessionId = '018f0d90-7b23-7a22-8c33-445566778899';
+  const authorityInstanceId = '018f0d90-7b24-7a22-8c33-445566778899';
+  const issuerId = {
+    authorizationIncarnation: incarnation,
+    bootSequence: 2,
+    bootNonce: 'BBBBBBBBBBBBBBBBBBBBBB',
+  };
+  const authorization = { incarnation, epoch: 5 };
+  const rows = [{ _id: 'private-live-1', value: 'cold-render' }];
+  const handshake = {
+    protocolVersion: 1,
+    serverStartupNonce: 'startup-protected-live-client',
+    authorizationStreamIncarnation: incarnation,
+    transitionGeneration: 1,
+    activeMode: 'sessions',
+    desiredMode: 'sessions',
+    modeState: 'settled',
+    appDataAvailability: 'available',
+    quarantineCode: null,
+    clientProtocols: {
+      authClient: 1,
+      authInvalidation: 1,
+      authorityDescriptor: 1,
+      authorizedLease: 1,
+    },
+    availability: {
+      onlineRequestResponse: { available: true, reason: null },
+      authScopedLive: { available: true, minimumAuthInvalidationProtocol: 1, reason: null },
+      retainedReads: {
+        available: true,
+        minimumAuthInvalidationProtocol: 1,
+        minimumAuthorizedLeaseProtocol: 1,
+        reason: null,
+      },
+      queuedReplay: {
+        available: true,
+        minimumAuthorityDescriptorProtocol: 1,
+        reason: null,
+      },
+    },
+    provider: { key: 'email-code', available: true },
+    transports: ['bearer'],
+    authority: {
+      kind: 'humanSession',
+      userId: principalId,
+      sessionId,
+      isAuthenticated: true,
+    },
+    authorityDescriptor: {
+      descriptorVersion: 1,
+      authorityInstanceId,
+      sessionGeneration: 1,
+    },
+    deploymentIdentity: { ...identity, authMode: 'sessions' },
+    authorizedLease: {
+      protocolVersion: 1,
+      defaultMs: 86_400_000,
+      hardMaxMs: 86_400_000,
+      configuredMs: 60_000,
+      clamps: ['session', 'provider'],
+      renewal: 'full-revalidation',
+      timeBasis: 'server-absolute+client-request-elapsed',
+      clockRollback: 'delete-before-read',
+    },
+  };
+  let subscribedNamespace = null;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/auth/session') return Response.json(handshake);
+    if (path === '/connection/open') {
+      return Response.json({
+        connectionId: 'protected-live-connection',
+        connectionToken: 'sct_protected_live',
+        wireVersion: 'snapback.v1',
+        authorizationInvalidation: {
+          protocolVersion: 1,
+          issuerId,
+          connectionGeneration: 1,
+          authorization,
+          versionStream: 'protected-live-stream',
+        },
+      });
+    }
+    if (path === '/live/protectedRows/subscribe') {
+      const body = JSON.parse(init.body);
+      subscribedNamespace = body.authorizationNamespace;
+      return Response.json({
+        subscription_id: 'sub_protected_live',
+        snapshot: { version: 12, rows },
+        permission_epochs: {},
+        authorizationScope: {
+          kind: 'subscription',
+          issuerId,
+          namespace: subscribedNamespace,
+          scopeSequence: 1,
+          connectionGeneration: 1,
+          subscriptionId: 'sub_protected_live',
+        },
+      });
+    }
+    if (path === '/query/protectedRows/authorized-lease') {
+      const body = JSON.parse(init.body);
+      assert.deepEqual(
+        {
+          clientStoreId: body.clientStoreId,
+          queryKey: body.queryKey,
+          queryInstanceId: body.queryInstanceId,
+        },
+        subscribedNamespace,
+        'lease request reuses the exact live query namespace',
+      );
+      return Response.json({
+        version: 12,
+        rows,
+        authorizedLease: {
+          protocolVersion: 1,
+          leaseId: 'lease-protected-live',
+          leaseRequestId: body.leaseRequestId,
+          issuerId,
+          clientStoreId: body.clientStoreId,
+          queryKey: body.queryKey,
+          queryInstanceId: body.queryInstanceId,
+          principalId,
+          sessionIdAtIssue: sessionId,
+          providerKey: 'email-code',
+          authorization,
+          data: { versionStream: 'protected-live-stream', snapshotCommitVersion: 12 },
+          activationHash: (await import('@expo/snapback-contract/authorized-lease'))
+            .authorizedLeaseActivationHash({ ...identity, authMode: 'sessions' }),
+          issuedAtServerMs: Date.now(),
+          authorizedUntilServerMs: Date.now() + 60_000,
+          sessionNotAfterMs: Date.now() + 60_000,
+          providerNotAfterMs: null,
+          authorityInstanceId,
+          keyId: 'lease-key-live',
+          mac: 'A'.repeat(43),
+        },
+      });
+    }
+    if (path === '/live/protectedRows/unsubscribe') {
+      return Response.json({ subscription_id: 'sub_protected_live', disposed: true });
+    }
+    throw new Error(`unexpected protected-live request: ${path}`);
+  };
+
+  const ownerStore = createIndexedDbRqsResumeStore({ indexedDB, lockManager });
+  await tick();
+  const online = new SnapbackClient('http://protected-live.test', {
+    bearerToken: 'protected-live-bearer',
+    authClientProtocol: 1,
+    authInvalidationProtocol: 1,
+    authorizedLeaseProtocol: 1,
+    rqsStore: ownerStore,
+    offlineQueue: false,
+  });
+  const onlineHandle = await online.liveQuery(ref, {
+    connectionId: 'protected-live-connection',
+    args,
+  });
+  assert.equal(
+    onlineHandle.retention?.retainable,
+    true,
+    `fresh full query installs lease custody (${onlineHandle.retention?.reason ?? 'no reason'})`,
+  );
+  onlineHandle.dispose();
+  await onlineHandle.settled();
+  await ownerStore.close();
+  await tick();
+
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  const coldStore = createIndexedDbRqsResumeStore({ indexedDB, lockManager });
+  await tick();
+  const cold = new SnapbackClient('http://protected-live.test', {
+    bearerToken: 'protected-live-bearer',
+    authClientProtocol: 1,
+    authInvalidationProtocol: 1,
+    authorizedLeaseProtocol: 1,
+    rqsStore: coldStore,
+    offlineQueue: false,
+  });
+  const updates = [];
+  const coldHandle = await cold.liveQuery(ref, {
+    connectionId: 'protected-cold-connection',
+    args,
+    onUpdate: (nextRows, detail) => updates.push({ rows: nextRows, detail }),
+  });
+  assert.equal(updates[0]?.detail.kind, 'authorized_lease_retained');
+  assert.deepEqual(coldHandle.rows, rows, 'fresh client instance renders protected rows offline');
+  assert.equal(coldHandle.freshness, 'retained', 'protected cold rows are never current');
+  assert.equal(coldHandle.retention?.retainable, true);
+  coldHandle.dispose();
+  await coldHandle.settled();
+  await coldStore.close();
 });
 
 // --- Refuse-with-the-failed-rule (issues/20260807-arg-filtered-retention-

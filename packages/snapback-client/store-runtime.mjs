@@ -42,10 +42,18 @@ import { isConnectivityFailureError } from './outbox-shared.mjs';
 import { base64UrlNoPad, jcsBytes, sha256 } from './rqs.mjs';
 import { createOptimisticRebaseEngineV1 } from './optimistic-rebase.mjs';
 import {
+  beginProtectedQueryLease,
+  commitProtectedQueryLease,
+  deleteProtectedQueryRetention,
+  prepareProtectedQueryRetention,
+  seedProtectedQueryRetention,
+} from './protected-query-retention.mjs';
+import {
   generatedMutationIrCapability,
   prepareGeneratedMutationIrV1,
 } from './generated-mutation-ir.mjs';
 import { createClientMutationId, stableJson } from '@expo/snapback-contract/client-store';
+import { validateAuthorizationInvalidationConnection } from '@expo/snapback-contract/auth-invalidation';
 
 function materializationObservation(preparedMaterialization) {
   let observation = null;
@@ -247,6 +255,176 @@ export function initializeStoreRuntimeClient(client, configuration) {
 }
 
 export const storeRuntimeMethods = {
+  async prepareProtectedQueryRetention(options) {
+    await this.__registrationLedgerPromise;
+    return prepareProtectedQueryRetention({
+      ...options,
+      storeHandle: this.rqsStore,
+    });
+  },
+
+  seedProtectedQueryRetention(prepared, clientNowMs = Date.now()) {
+    return seedProtectedQueryRetention({
+      prepared,
+      storeHandle: this.rqsStore,
+      clientNowMs,
+    });
+  },
+
+  async seedProtectedQueryRetentionState({
+    prepared,
+    handle,
+    deliverAuthorityObservation,
+    onUpdate,
+  }) {
+    const result = await seedProtectedQueryRetention({
+      prepared,
+      storeHandle: this.rqsStore,
+      clientNowMs: Date.now(),
+    });
+    if (result?.retained !== true) return { seeded: false };
+    let pendingIntentsAtSeed = 0;
+    try {
+      if ((await this.rqsStore.outboxEmpty()) !== true) {
+        pendingIntentsAtSeed = Math.max(1, (await this.rqsStore.outboxPending()).length);
+      }
+    } catch {
+      pendingIntentsAtSeed = 1;
+    }
+    handle.rows = result.rows;
+    handle.version = result.version;
+    handle.freshness = 'retained';
+    handle.answerClass = 'authoritative';
+    handle.pendingIntentsAtSeed = pendingIntentsAtSeed;
+    handle.retention = Object.freeze({
+      retainable: true,
+      code: null,
+      reason: 'lease-validated protected retained query',
+      store: this.rqsStoreInfo,
+    });
+    deliverAuthorityObservation(() => {
+      onUpdate?.(handle.rows, {
+        version: handle.version,
+        kind: 'authorized_lease_retained',
+        freshness: 'retained',
+        answerClass: 'authoritative',
+        ...(pendingIntentsAtSeed > 0 ? { pendingIntents: pendingIntentsAtSeed } : {}),
+      });
+    });
+    return { seeded: true };
+  },
+
+  beginProtectedQueryLease(prepared, options) {
+    return beginProtectedQueryLease({
+      prepared,
+      storeHandle: this.rqsStore,
+      ...options,
+    });
+  },
+
+  commitProtectedQueryLease(prepared, options) {
+    return commitProtectedQueryLease({
+      prepared,
+      storeHandle: this.rqsStore,
+      ...options,
+    });
+  },
+
+  async installProtectedRetentionSnapshot({
+    prepared,
+    connection,
+    snapshot,
+    ref,
+    args,
+    userId,
+    queryNamespace,
+    deploymentIdentity,
+    authorityCapture,
+  }) {
+    let retained = false;
+    let reason = 'authorized lease was not installed';
+    try {
+      const session = await this.authSession();
+      const connectionValue = validateAuthorizationInvalidationConnection(connection);
+      const generationFields = ['schemaVersion', 'appId', 'schemaHash', 'bundleHash', 'inputsHash'];
+      if (
+        session.activeMode !== 'sessions'
+        || session.authority?.isAuthenticated !== true
+        || session.clientProtocols?.authInvalidation !== 1
+        || session.clientProtocols?.authorizedLease !== 1
+        || session.authorizedLease?.protocolVersion !== 1
+        || session.availability?.retainedReads?.available !== true
+        || generationFields.some(
+          (field) => session.deploymentIdentity?.[field] !== deploymentIdentity?.[field],
+        )
+      ) {
+        reason = 'server/session did not affirm protected retained-read capability';
+        throw new Error('SNAPBACK_AUTH_RETAINED_READS_UNAVAILABLE');
+      }
+      const startedClientMs = Date.now();
+      const leaseRequestId = createClientMutationId('lease');
+      const reservation = await beginProtectedQueryLease({
+        prepared,
+        storeHandle: this.rqsStore,
+        leaseRequestId,
+        clientNowMs: startedClientMs,
+        principalId: session.authority.userId,
+        issuerId: connectionValue.issuerId,
+        authorization: connectionValue.authorization,
+        versionStream: connectionValue.versionStream,
+        authorityInstanceId: session.authorityDescriptor.authorityInstanceId,
+      });
+      if (reservation?.retained !== true) {
+        reason = `protected query authority changed (${reservation?.reason ?? 'unknown'})`;
+        return Object.freeze({ retained: false, reason });
+      }
+      // The reservation above is durable before this full revalidation
+      // request starts. No heartbeat, delta, or session refresh renews it.
+      const leaseResponse = await this.authorizedLeaseQuery(ref, {
+        args,
+        userId,
+        leaseRequestId,
+        authorizationNamespace: queryNamespace,
+        authorityCapture,
+      });
+      if (
+        leaseResponse.version !== snapshot.version
+        || stableJson(leaseResponse.rows) !== stableJson(snapshot.rows)
+      ) {
+        reason = 'authorized lease response did not match the fresh live snapshot';
+        throw new Error('SNAPBACK_AUTHORIZED_LEASE_SNAPSHOT_MISMATCH');
+      }
+      const committed = await commitProtectedQueryLease({
+        prepared,
+        storeHandle: this.rqsStore,
+        lease: leaseResponse.authorizedLease,
+        rows: leaseResponse.rows,
+        version: leaseResponse.version,
+        clientNowMs: Date.now(),
+      });
+      retained = committed?.retained === true;
+      reason = retained
+        ? null
+        : `authorized lease commit refused (${committed?.reason ?? 'unknown'})`;
+    } catch (error) {
+      reason = error?.diagnostic?.message ?? error?.message ?? reason;
+      try {
+        await deleteProtectedQueryRetention({
+          prepared,
+          storeHandle: this.rqsStore,
+        });
+      } catch { /* the live snapshot remains current but non-retainable */ }
+    }
+    return Object.freeze({ retained, reason });
+  },
+
+  deleteProtectedQueryRetention(prepared) {
+    return deleteProtectedQueryRetention({
+      prepared,
+      storeHandle: this.rqsStore,
+    });
+  },
+
   async __currentAuthorityPartitionDigest(userId = null) {
     let digest;
     if (this.__authorityPartitionDigestResolver !== null) {

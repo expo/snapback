@@ -63,6 +63,7 @@
     "optimistic-rebase.mjs",
     "outbox-shared.d.mts",
     "outbox-shared.mjs",
+    "protected-query-retention.mjs",
     "push-installation-expo.d.mts",
     "push-installation-expo.mjs",
     "push-registry.d.mts",

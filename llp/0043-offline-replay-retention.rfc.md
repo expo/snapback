@@ -5,7 +5,13 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-08 (handler-visible settlement identity, Claude Fable 5 /
+**Revised:** 2026-08-10 (JS/React M1 lease-custody implementation leg:
+generated protected live queries now use an owned atomic RQS-v3 sibling
+record for never-reused query identity, authorization witness, exact
+AuthorizedLease bytes/hash, request-start-derived deadline, and retained
+rows; fresh-instance acceptance pins valid display, equality expiry, and
+mismatch delete-before-render. The independent real-process restart witness
+remains an explicit GAP, so the Guide capability is partial.) · 2026-08-08 (handler-visible settlement identity, Claude Fable 5 /
 Codex gpt-5.6-sol: mutation handlers read the durable settlement identity
 through `ctx.mutation.settlement()` instead of minting app-owned effect
 idempotency keys; queries and actions refuse it typed) · 2026-08-07
@@ -205,6 +211,52 @@ compare-and-set within a stream by version, so an older asynchronous completion
 cannot overwrite a newer authoritative snapshot. A surface without all four
 identity facts does not earn offline replay/retention; it reports
 `SNAPBACK_RETAINED_IDENTITY_INCOMPLETE` and stays Online.
+
+#### JS/React owned carrier composition (2026-08-10)
+
+The ordinary generated `LiveQuery` path does not import Contract's complete
+format-6 store. The JS arm already has one atomic carrier domain across
+IndexedDB, Node files, and memory, with its own never-reused query-instance
+allocator and authority-transition reset. Importing a second store owner
+would split those transitions. Instead, the durable RQS-v3 metadata owns a
+separate `authorizedQueryRetention` slot; protected bytes never become RQS
+entries and never consume an authority-independent resume token.
+
+This owned composition preserves the item-8 custody invariants that apply to
+the generated JS surface:
+
+- preparation allocates the exact `(clientStoreId, queryKey,
+  queryInstanceId)` before `subscribe_live`; the live subscription and lease
+  request reuse it;
+- only a generated `LiveQuery` with exact deployment identity, a durable
+  writer-owned store, and negotiated sessions/invalidation/lease v1 protocols
+  enters the path. The server-issued activation hash binds that generated
+  deployment and target capability; the JS reference has no independent
+  author-supplied `targetProfileId` that the client could safely invent;
+- request id, query generation, authority tuple, request-start time, and clock
+  high-water commit before the full `authorizedLeaseQuery`. The returned full
+  snapshot must equal the just-authorized live snapshot, then rows, cursor,
+  composite witness, exact lease bytes/hash, and derived deadline commit in
+  one transaction;
+- cold read is a read-write validation transaction. Structure, namespace,
+  principal, issuer, authorization pair, version stream, authority instance,
+  activation, witness, cursor/version, lease hash, deadline, and clock
+  high-water must all match. Equality is expiry. Any mismatch deletes the
+  query instance before returning no rows; and
+- a non-retain invalidation or authority transition deletes the protected
+  record before acknowledgement/successor observation. This stricter
+  delete-on-obligation rule does not mirror Contract's retained
+  `pendingByScope` map: once the JS record is deleted there is no local payload
+  for a pending disposition to guard, while the live authorization queue still
+  owns delivery and acknowledgement.
+
+Package acceptance in `packages/snapback-client/rqs-resume.test.mjs` proves
+the custody failure matrix and an online lease acquisition followed by a
+fresh client instance rendering while fetch is unreachable. It intentionally
+uses fresh wrappers over the same IndexedDB carrier, consistent with this
+RFC's dated `cold process` terminology. The independent real JS-runtime
+restart witness remains outside this implementation leg and gates promotion
+of `sync.offline-js-arm-protected` from partial to shipped.
 
 ### Milestone 2: queued mutation replay
 
@@ -687,12 +739,12 @@ point 4, ruled at sitting #3).
 
 **Interaction boundaries.**
 
-- **M1 lease custody (leg 1, unbuilt):** independent axes. This queue design
-  neither requires nor provides leases; protected retained display keeps
-  refusing on this arm (`SNAPBACK_RETENTION_NOT_RETAINABLE`) until leg 1
-  lands, and sessions-custody queueing v1 therefore ships without a
-  protected-retained optimistic baseline. Queue-before-lease is already this
-  arm's shipped shape under dev custody.
+- **M1 lease custody (implementation leg landed 2026-08-10):** independent
+  axes. This queue design neither requires nor provides leases. Generated
+  protected live queries may now retain through the JS-arm composition above;
+  unsupported references/protocols still report
+  `SNAPBACK_RETENTION_NOT_RETAINABLE`. Sessions-custody queueing remains
+  independent and queue-before-lease remains valid.
 - **LLP 0090 retained snapshots:** the D3 outbox rule is unchanged — token
   resume only over an empty outbox, fail-closed. Sessions-custody **pending**
   records hold that gate exactly like dev-custody ones; **stranded** records

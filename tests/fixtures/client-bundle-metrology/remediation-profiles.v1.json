@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "snapback.client-bundle-metrology-additive-profiles.v1",
+  "profiles": [
+    {
+      "id": "resolved-public-subpath-remediation",
+      "package": "@expo/snapback-client/remediation",
+      "namespace": true,
+      "resolveOptionalRuntimes": true
+    }
+  ]
+}
