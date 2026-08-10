@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "864bb953352cff61b374dcde4fe2e01dc5e69cae",
-    "sourceDigest": "sha256:4cd600726ff113381d3809bc3998b0db5fb828c0fa7a8486eb8ec471aaca76e9"
+    "commit": "eb8a2f1e06f1508cbddcac9d212d9166e1b7a193",
+    "sourceDigest": "sha256:560a97e988d9fb9cd456aae87fbbccea945639b90a38da99fde881ab644819c8"
   },
   "limits": {
     "lookupBytes": 16384
@@ -11,7 +11,7 @@
   "counts": {
     "codes": 2931,
     "sourceFiles": 401,
-    "emittingSites": 9944,
+    "emittingSites": 9947,
     "httpClassified": 918,
     "guideAnchored": 324
   },
@@ -52,12 +52,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2991,
+          "line": 3002,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 4744,
+          "line": 4793,
           "column": 12
         }
       ],
@@ -77,27 +77,27 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4745,
+          "line": 4794,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 5035,
+          "line": 5084,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 5102,
+          "line": 5151,
           "column": 48
         },
         {
           "file": "src/runtime.rs",
-          "line": 5280,
+          "line": 5329,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 5281,
+          "line": 5330,
           "column": 18
         },
         {
@@ -162,7 +162,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2395,
+          "line": 2406,
           "column": 22
         }
       ],
@@ -207,12 +207,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3184,
+          "line": 3198,
           "column": 42
         },
         {
           "file": "src/runtime.rs",
-          "line": 4757,
+          "line": 4806,
           "column": 12
         },
         {
@@ -260,7 +260,7 @@
       "sites": [
         {
           "file": "src/config.rs",
-          "line": 567,
+          "line": 584,
           "column": 46
         },
         {
@@ -330,7 +330,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3183,
+          "line": 3197,
           "column": 48
         }
       ],
@@ -357,7 +357,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4749,
+          "line": 4798,
           "column": 12
         },
         {
@@ -394,7 +394,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4750,
+          "line": 4799,
           "column": 12
         },
         {
@@ -442,37 +442,37 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2449,
+          "line": 2460,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 2466,
+          "line": 2477,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 2482,
+          "line": 2493,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 2508,
+          "line": 2519,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 2521,
+          "line": 2532,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 2539,
+          "line": 2550,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 4751,
+          "line": 4800,
           "column": 12
         },
         {
@@ -574,7 +574,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4752,
+          "line": 4801,
           "column": 12
         },
         {
@@ -622,7 +622,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4753,
+          "line": 4802,
           "column": 12
         },
         {
@@ -685,7 +685,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4754,
+          "line": 4803,
           "column": 12
         },
         {
@@ -712,7 +712,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4755,
+          "line": 4804,
           "column": 12
         },
         {
@@ -744,7 +744,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4756,
+          "line": 4805,
           "column": 12
         },
         {
@@ -832,7 +832,7 @@
         },
         {
           "file": "src/config.rs",
-          "line": 911,
+          "line": 928,
           "column": 39
         },
         {
@@ -842,32 +842,32 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3677,
+          "line": 3726,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 4190,
+          "line": 4239,
           "column": 29
         },
         {
           "file": "src/runtime.rs",
-          "line": 4192,
+          "line": 4241,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 4746,
+          "line": 4795,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 5276,
+          "line": 5325,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 5277,
+          "line": 5326,
           "column": 18
         },
         {
@@ -9250,37 +9250,37 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4004,
+          "line": 4053,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 4108,
+          "line": 4157,
           "column": 21
         },
         {
           "file": "src/runtime.rs",
-          "line": 4802,
+          "line": 4851,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 5132,
+          "line": 5181,
           "column": 62
         },
         {
           "file": "src/runtime.rs",
-          "line": 5141,
+          "line": 5190,
           "column": 47
         },
         {
           "file": "src/runtime.rs",
-          "line": 5163,
+          "line": 5212,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 5207,
+          "line": 5256,
           "column": 55
         },
         {
@@ -9332,7 +9332,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4380,
+          "line": 4429,
           "column": 25
         }
       ],
@@ -10187,12 +10187,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2135,
+          "line": 2146,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 2178,
+          "line": 2189,
           "column": 30
         },
         {
@@ -10232,7 +10232,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2113,
+          "line": 2124,
           "column": 30
         },
         {
@@ -14148,37 +14148,37 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2810,
+          "line": 2821,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 2825,
+          "line": 2836,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 2849,
+          "line": 2860,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 4743,
+          "line": 4792,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 6524,
+          "line": 6573,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 6554,
+          "line": 6603,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 6748,
+          "line": 6797,
           "column": 41
         },
         {
@@ -14671,12 +14671,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1569,
+          "line": 1580,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4741,
+          "line": 4790,
           "column": 12
         },
         {
@@ -18396,17 +18396,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1576,
+          "line": 1587,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 1588,
+          "line": 1599,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4742,
+          "line": 4791,
           "column": 12
         },
         {
@@ -18836,32 +18836,32 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1293,
+          "line": 1302,
           "column": 24
         },
         {
           "file": "src/runtime.rs",
-          "line": 1983,
+          "line": 1994,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 2587,
+          "line": 2598,
           "column": 37
         },
         {
           "file": "src/runtime.rs",
-          "line": 3194,
+          "line": 3208,
           "column": 38
         },
         {
           "file": "src/runtime.rs",
-          "line": 3549,
+          "line": 3598,
           "column": 40
         },
         {
           "file": "src/runtime.rs",
-          "line": 3566,
+          "line": 3615,
           "column": 49
         },
         {
@@ -20615,7 +20615,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4740,
+          "line": 4789,
           "column": 12
         },
         {
@@ -22670,7 +22670,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4381,
+          "line": 4430,
           "column": 25
         }
       ],
@@ -25080,12 +25080,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2978,
+          "line": 2989,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 4781,
+          "line": 4830,
           "column": 12
         },
         {
@@ -26347,7 +26347,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4688,
+          "line": 4737,
           "column": 14
         },
         {
@@ -26402,7 +26402,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3073,
+          "line": 3084,
           "column": 18
         }
       ],
@@ -31446,17 +31446,17 @@
       "sites": [
         {
           "file": "src/config.rs",
-          "line": 707,
+          "line": 724,
           "column": 14
         },
         {
           "file": "src/config.rs",
-          "line": 1113,
+          "line": 1131,
           "column": 14
         },
         {
           "file": "src/config.rs",
-          "line": 1120,
+          "line": 1138,
           "column": 14
         }
       ],
@@ -31486,17 +31486,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4207,
+          "line": 4256,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 4208,
+          "line": 4257,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 4736,
+          "line": 4785,
           "column": 12
         },
         {
@@ -31676,12 +31676,12 @@
       "sites": [
         {
           "file": "src/config.rs",
-          "line": 315,
+          "line": 332,
           "column": 26
         },
         {
           "file": "src/config.rs",
-          "line": 1226,
+          "line": 1244,
           "column": 44
         }
       ],
@@ -31696,27 +31696,27 @@
       "sites": [
         {
           "file": "src/config.rs",
-          "line": 686,
+          "line": 703,
           "column": 18
         },
         {
           "file": "src/config.rs",
-          "line": 741,
+          "line": 758,
           "column": 10
         },
         {
           "file": "src/config.rs",
-          "line": 785,
+          "line": 802,
           "column": 44
         },
         {
           "file": "src/config.rs",
-          "line": 810,
+          "line": 827,
           "column": 44
         },
         {
           "file": "src/config.rs",
-          "line": 852,
+          "line": 869,
           "column": 44
         }
       ],
@@ -31731,12 +31731,12 @@
       "sites": [
         {
           "file": "src/config.rs",
-          "line": 332,
+          "line": 349,
           "column": 26
         },
         {
           "file": "src/config.rs",
-          "line": 1276,
+          "line": 1294,
           "column": 18
         }
       ],
@@ -31798,17 +31798,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4202,
+          "line": 4251,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 4206,
+          "line": 4255,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 4735,
+          "line": 4784,
           "column": 12
         },
         {
@@ -31898,17 +31898,17 @@
         },
         {
           "file": "src/config.rs",
-          "line": 431,
+          "line": 448,
           "column": 18
         },
         {
           "file": "src/config.rs",
-          "line": 1146,
+          "line": 1164,
           "column": 44
         },
         {
           "file": "src/config.rs",
-          "line": 1150,
+          "line": 1168,
           "column": 44
         },
         {
@@ -31985,12 +31985,12 @@
       "sites": [
         {
           "file": "src/config.rs",
-          "line": 665,
+          "line": 682,
           "column": 22
         },
         {
           "file": "src/config.rs",
-          "line": 1214,
+          "line": 1232,
           "column": 44
         },
         {
@@ -33890,12 +33890,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1487,
+          "line": 1498,
           "column": 22
         },
         {
           "file": "src/runtime.rs",
-          "line": 4792,
+          "line": 4841,
           "column": 12
         },
         {
@@ -33945,7 +33945,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 1500,
+          "line": 1511,
           "column": 22
         }
       ],
@@ -33985,12 +33985,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1511,
+          "line": 1522,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 4793,
+          "line": 4842,
           "column": 12
         },
         {
@@ -34020,7 +34020,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1451,
+          "line": 1462,
           "column": 18
         },
         {
@@ -37441,7 +37441,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4385,
+          "line": 4434,
           "column": 25
         }
       ],
@@ -37926,7 +37926,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4379,
+          "line": 4428,
           "column": 25
         }
       ],
@@ -39961,7 +39961,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4780,
+          "line": 4829,
           "column": 12
         },
         {
@@ -42599,57 +42599,57 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2435,
+          "line": 2446,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 2703,
+          "line": 2714,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 2744,
+          "line": 2755,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4193,
+          "line": 4242,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 4484,
+          "line": 4533,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 4487,
+          "line": 4536,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 4571,
+          "line": 4620,
           "column": 429
         },
         {
           "file": "src/runtime.rs",
-          "line": 4571,
+          "line": 4620,
           "column": 692
         },
         {
           "file": "src/runtime.rs",
-          "line": 4603,
+          "line": 4652,
           "column": 374
         },
         {
           "file": "src/runtime.rs",
-          "line": 4606,
+          "line": 4655,
           "column": 368
         },
         {
           "file": "src/runtime.rs",
-          "line": 4730,
+          "line": 4779,
           "column": 10
         },
         {
@@ -42699,12 +42699,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4194,
+          "line": 4243,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 4730,
+          "line": 4779,
           "column": 58
         },
         {
@@ -42724,7 +42724,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2380,
+          "line": 2391,
           "column": 31
         }
       ],
@@ -42754,27 +42754,27 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4142,
+          "line": 4191,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 5306,
+          "line": 5355,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 5314,
+          "line": 5363,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 5328,
+          "line": 5377,
           "column": 22
         },
         {
           "file": "src/runtime.rs",
-          "line": 5344,
+          "line": 5393,
           "column": 22
         },
         {
@@ -42794,8 +42794,8 @@
         },
         {
           "file": "src/workerd_exec.rs",
-          "line": 886,
-          "column": 35
+          "line": 887,
+          "column": 39
         }
       ],
       "httpStatus": 400,
@@ -42819,12 +42819,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3113,
+          "line": 3124,
           "column": 43
         },
         {
           "file": "src/runtime.rs",
-          "line": 6202,
+          "line": 6251,
           "column": 48
         }
       ],
@@ -42849,27 +42849,27 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3637,
+          "line": 3686,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 3662,
+          "line": 3711,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 4195,
+          "line": 4244,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 4196,
+          "line": 4245,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 4732,
+          "line": 4781,
           "column": 12
         },
         {
@@ -42911,7 +42911,12 @@
         },
         {
           "file": "src/config.rs",
-          "line": 1012,
+          "line": 117,
+          "column": 42
+        },
+        {
+          "file": "src/config.rs",
+          "line": 1029,
           "column": 14
         },
         {
@@ -43011,77 +43016,87 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1298,
+          "line": 1307,
           "column": 13
         },
         {
           "file": "src/runtime.rs",
-          "line": 3306,
+          "line": 3318,
+          "column": 6
+        },
+        {
+          "file": "src/runtime.rs",
+          "line": 3326,
+          "column": 53
+        },
+        {
+          "file": "src/runtime.rs",
+          "line": 3355,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 3552,
+          "line": 3601,
           "column": 49
         },
         {
           "file": "src/runtime.rs",
-          "line": 4017,
+          "line": 4066,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 4099,
+          "line": 4148,
           "column": 25
         },
         {
           "file": "src/runtime.rs",
-          "line": 4215,
+          "line": 4264,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 4804,
+          "line": 4853,
           "column": 15
         },
         {
           "file": "src/runtime.rs",
-          "line": 5178,
+          "line": 5227,
           "column": 45
         },
         {
           "file": "src/runtime.rs",
-          "line": 5198,
+          "line": 5247,
           "column": 49
         },
         {
           "file": "src/runtime.rs",
-          "line": 5212,
+          "line": 5261,
           "column": 45
         },
         {
           "file": "src/runtime.rs",
-          "line": 5223,
+          "line": 5272,
           "column": 44
         },
         {
           "file": "src/runtime.rs",
-          "line": 5295,
+          "line": 5344,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 5402,
+          "line": 5451,
           "column": 44
         },
         {
           "file": "src/runtime.rs",
-          "line": 5428,
+          "line": 5477,
           "column": 50
         },
         {
           "file": "src/runtime.rs",
-          "line": 6211,
+          "line": 6260,
           "column": 50
         },
         {
@@ -43179,7 +43194,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4803,
+          "line": 4852,
           "column": 35
         }
       ],
@@ -43199,7 +43214,7 @@
         },
         {
           "file": "src/workerd_exec.rs",
-          "line": 1144,
+          "line": 1150,
           "column": 43
         }
       ],
@@ -43229,7 +43244,7 @@
       "sites": [
         {
           "file": "src/workerd_exec.rs",
-          "line": 1140,
+          "line": 1146,
           "column": 43
         }
       ],
@@ -43244,57 +43259,57 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 1611,
+          "line": 1622,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 2080,
+          "line": 2091,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4623,
+          "line": 4672,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 4635,
+          "line": 4684,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 4648,
+          "line": 4697,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 4662,
+          "line": 4711,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 4676,
+          "line": 4725,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6597,
+          "line": 6646,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6598,
+          "line": 6647,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 6599,
+          "line": 6648,
           "column": 28
         },
         {
           "file": "src/runtime.rs",
-          "line": 6633,
+          "line": 6682,
           "column": 44
         },
         {
@@ -43314,7 +43329,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4250,
+          "line": 4299,
           "column": 18
         },
         {
@@ -43324,12 +43339,12 @@
         },
         {
           "file": "src/workerd_exec.rs",
-          "line": 1204,
+          "line": 1210,
           "column": 26
         },
         {
           "file": "src/workerd_exec.rs",
-          "line": 1242,
+          "line": 1248,
           "column": 26
         }
       ],
@@ -43344,12 +43359,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4235,
+          "line": 4284,
           "column": 18
         },
         {
           "file": "src/runtime.rs",
-          "line": 4242,
+          "line": 4291,
           "column": 18
         },
         {
@@ -43359,17 +43374,17 @@
         },
         {
           "file": "src/workerd_exec.rs",
-          "line": 1148,
+          "line": 1154,
           "column": 43
         },
         {
           "file": "src/workerd_exec.rs",
-          "line": 1218,
+          "line": 1224,
           "column": 22
         },
         {
           "file": "src/workerd_exec.rs",
-          "line": 1225,
+          "line": 1231,
           "column": 22
         }
       ],
@@ -43384,7 +43399,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4288,
+          "line": 4337,
           "column": 41
         }
       ],
@@ -43399,7 +43414,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 1674,
+          "line": 1685,
           "column": 26
         }
       ],
@@ -43414,7 +43429,7 @@
       "sites": [
         {
           "file": "src/workerd_exec.rs",
-          "line": 1136,
+          "line": 1142,
           "column": 43
         }
       ],
@@ -43429,7 +43444,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2770,
+          "line": 2781,
           "column": 18
         },
         {
@@ -43449,12 +43464,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3524,
+          "line": 3573,
           "column": 38
         },
         {
           "file": "src/runtime.rs",
-          "line": 4261,
+          "line": 4310,
           "column": 22
         }
       ],
@@ -43469,7 +43484,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4913,
+          "line": 4962,
           "column": 10
         }
       ],
@@ -43514,7 +43529,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3724,
+          "line": 3773,
           "column": 22
         }
       ],
@@ -43529,7 +43544,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 3742,
+          "line": 3791,
           "column": 10
         }
       ],
@@ -43697,27 +43712,27 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4209,
+          "line": 4258,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 4213,
+          "line": 4262,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 4733,
+          "line": 4782,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 5251,
+          "line": 5300,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 5252,
+          "line": 5301,
           "column": 18
         },
         {
@@ -43744,22 +43759,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4197,
+          "line": 4246,
           "column": 32
         },
         {
           "file": "src/runtime.rs",
-          "line": 4201,
+          "line": 4250,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 4275,
+          "line": 4324,
           "column": 22
         },
         {
           "file": "src/runtime.rs",
-          "line": 4734,
+          "line": 4783,
           "column": 12
         },
         {
@@ -43769,7 +43784,7 @@
         },
         {
           "file": "src/workerd_exec.rs",
-          "line": 1232,
+          "line": 1238,
           "column": 22
         }
       ],
@@ -43844,12 +43859,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 3965,
+          "line": 4014,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 5484,
+          "line": 5533,
           "column": 14
         },
         {
@@ -43919,17 +43934,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2791,
+          "line": 2802,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 4731,
+          "line": 4780,
           "column": 10
         },
         {
           "file": "src/runtime.rs",
-          "line": 5083,
+          "line": 5132,
           "column": 48
         },
         {
@@ -45614,7 +45629,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2734,
+          "line": 2745,
           "column": 26
         },
         {
@@ -45644,7 +45659,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2717,
+          "line": 2728,
           "column": 30
         },
         {
@@ -45689,7 +45704,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4776,
+          "line": 4825,
           "column": 12
         },
         {
@@ -45721,7 +45736,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4775,
+          "line": 4824,
           "column": 12
         },
         {
@@ -46389,7 +46404,7 @@
         },
         {
           "file": "src/workerd_exec.rs",
-          "line": 1321,
+          "line": 1327,
           "column": 34
         }
       ],
@@ -46424,7 +46439,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4932,
+          "line": 4981,
           "column": 29
         }
       ],
@@ -46499,7 +46514,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4603,
+          "line": 4652,
           "column": 615
         }
       ],
@@ -47323,7 +47338,7 @@
         },
         {
           "file": "src/workerd_exec.rs",
-          "line": 1319,
+          "line": 1325,
           "column": 34
         }
       ],
@@ -47907,7 +47922,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1890,
+          "line": 1901,
           "column": 26
         },
         {
@@ -47962,7 +47977,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 1929,
+          "line": 1940,
           "column": 34
         },
         {
@@ -48006,12 +48021,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 1900,
+          "line": 1911,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 1908,
+          "line": 1919,
           "column": 26
         },
         {
@@ -48033,7 +48048,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 1875,
+          "line": 1886,
           "column": 26
         },
         {
@@ -48055,12 +48070,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 1860,
+          "line": 1871,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 1867,
+          "line": 1878,
           "column": 30
         },
         {
@@ -48097,12 +48112,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 1946,
+          "line": 1957,
           "column": 34
         },
         {
           "file": "src/runtime.rs",
-          "line": 1958,
+          "line": 1969,
           "column": 30
         },
         {
@@ -48236,7 +48251,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1976,
+          "line": 1987,
           "column": 34
         },
         {
@@ -50811,12 +50826,12 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2212,
+          "line": 2223,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6475,
+          "line": 6524,
           "column": 14
         },
         {
@@ -51508,7 +51523,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2332,
+          "line": 2343,
           "column": 30
         },
         {
@@ -51758,7 +51773,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 6455,
+          "line": 6504,
           "column": 14
         },
         {
@@ -52451,12 +52466,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2226,
+          "line": 2237,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 2616,
+          "line": 2627,
           "column": 34
         },
         {
@@ -52486,12 +52501,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2631,
+          "line": 2642,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 6600,
+          "line": 6649,
           "column": 33
         },
         {
@@ -53871,7 +53886,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4382,
+          "line": 4431,
           "column": 25
         }
       ],
@@ -53911,12 +53926,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 6163,
+          "line": 6212,
           "column": 47
         },
         {
           "file": "src/runtime.rs",
-          "line": 6331,
+          "line": 6380,
           "column": 69
         },
         {
@@ -53991,22 +54006,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2352,
+          "line": 2363,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 2359,
+          "line": 2370,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 4788,
+          "line": 4837,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 5265,
+          "line": 5314,
           "column": 14
         },
         {
@@ -57158,17 +57173,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2441,
+          "line": 2452,
           "column": 38
         },
         {
           "file": "src/runtime.rs",
-          "line": 2709,
+          "line": 2720,
           "column": 38
         },
         {
           "file": "src/runtime.rs",
-          "line": 4396,
+          "line": 4445,
           "column": 24
         }
       ],
@@ -57653,17 +57668,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4782,
+          "line": 4831,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 5255,
+          "line": 5304,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 5256,
+          "line": 5305,
           "column": 18
         },
         {
@@ -57878,7 +57893,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2596,
+          "line": 2607,
           "column": 26
         },
         {
@@ -61655,7 +61670,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 2763,
+          "line": 2774,
           "column": 26
         },
         {
@@ -61685,7 +61700,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2752,
+          "line": 2763,
           "column": 30
         },
         {
@@ -61877,17 +61892,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4794,
+          "line": 4843,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 5285,
+          "line": 5334,
           "column": 55
         },
         {
           "file": "src/runtime.rs",
-          "line": 5287,
+          "line": 5336,
           "column": 18
         },
         {
@@ -61959,17 +61974,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4795,
+          "line": 4844,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 5290,
+          "line": 5339,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 5291,
+          "line": 5340,
           "column": 18
         },
         {
@@ -62031,7 +62046,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4797,
+          "line": 4846,
           "column": 12
         },
         {
@@ -62068,7 +62083,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4796,
+          "line": 4845,
           "column": 12
         },
         {
@@ -62140,7 +62155,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4798,
+          "line": 4847,
           "column": 12
         },
         {
@@ -64510,12 +64525,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4789,
+          "line": 4838,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 5266,
+          "line": 5315,
           "column": 14
         },
         {
@@ -66721,7 +66736,7 @@
         },
         {
           "file": "src/workerd_exec.rs",
-          "line": 1323,
+          "line": 1329,
           "column": 34
         }
       ],
@@ -68899,7 +68914,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4383,
+          "line": 4432,
           "column": 25
         }
       ],
@@ -70508,7 +70523,7 @@
       "sites": [
         {
           "file": "src/runtime.rs",
-          "line": 4384,
+          "line": 4433,
           "column": 25
         }
       ],
@@ -71387,12 +71402,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1752,
+          "line": 1763,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 1805,
+          "line": 1816,
           "column": 30
         },
         {
@@ -71437,17 +71452,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1829,
+          "line": 1840,
           "column": 26
         },
         {
           "file": "src/runtime.rs",
-          "line": 4786,
+          "line": 4835,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 5263,
+          "line": 5312,
           "column": 14
         },
         {
@@ -71509,22 +71524,22 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 1766,
+          "line": 1777,
           "column": 30
         },
         {
           "file": "src/runtime.rs",
-          "line": 4787,
+          "line": 4836,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 5264,
+          "line": 5313,
           "column": 14
         },
         {
           "file": "src/runtime.rs",
-          "line": 5940,
+          "line": 5989,
           "column": 44
         },
         {
@@ -73529,7 +73544,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4761,
+          "line": 4810,
           "column": 12
         },
         {
@@ -73569,7 +73584,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4762,
+          "line": 4811,
           "column": 12
         },
         {
@@ -73614,7 +73629,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4763,
+          "line": 4812,
           "column": 12
         },
         {
@@ -73654,12 +73669,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 2551,
-          "column": 26
-        },
-        {
-          "file": "src/runtime.rs",
-          "line": 2564,
+          "line": 2562,
           "column": 26
         },
         {
@@ -73669,7 +73679,12 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4764,
+          "line": 2586,
+          "column": 26
+        },
+        {
+          "file": "src/runtime.rs",
+          "line": 4813,
           "column": 12
         },
         {
@@ -73709,7 +73724,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4765,
+          "line": 4814,
           "column": 12
         },
         {
@@ -73774,7 +73789,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4766,
+          "line": 4815,
           "column": 12
         },
         {
@@ -73824,7 +73839,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4767,
+          "line": 4816,
           "column": 12
         },
         {
@@ -73869,7 +73884,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4768,
+          "line": 4817,
           "column": 12
         },
         {
@@ -73909,7 +73924,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4769,
+          "line": 4818,
           "column": 12
         },
         {
@@ -73949,7 +73964,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4770,
+          "line": 4819,
           "column": 12
         },
         {
@@ -73994,7 +74009,7 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4771,
+          "line": 4820,
           "column": 12
         },
         {
@@ -76453,7 +76468,7 @@
       "sites": [
         {
           "file": "src/config.rs",
-          "line": 1251,
+          "line": 1269,
           "column": 44
         },
         {
@@ -77068,7 +77083,7 @@
       "sites": [
         {
           "file": "src/config.rs",
-          "line": 993,
+          "line": 1010,
           "column": 18
         },
         {
@@ -77721,7 +77736,7 @@
       "sites": [
         {
           "file": "src/workerd_exec.rs",
-          "line": 907,
+          "line": 913,
           "column": 14
         }
       ],
@@ -77861,7 +77876,7 @@
         },
         {
           "file": "src/workerd_exec.rs",
-          "line": 968,
+          "line": 974,
           "column": 10
         }
       ],
@@ -77951,17 +77966,17 @@
         },
         {
           "file": "src/runtime.rs",
-          "line": 4783,
+          "line": 4832,
           "column": 12
         },
         {
           "file": "src/runtime.rs",
-          "line": 5259,
+          "line": 5308,
           "column": 57
         },
         {
           "file": "src/runtime.rs",
-          "line": 5260,
+          "line": 5309,
           "column": 18
         },
         {

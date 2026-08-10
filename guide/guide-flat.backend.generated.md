@@ -632,7 +632,10 @@ code `SNAPBACK_HANDLER_FAILED`, and the message text is deliberately *not* a
 production or application contract. Direct native starts and production
 launchers default to the redacted message `JavaScript handler failed` with
 only the handler function in details; raw exception text remains on the
-private error-tracking carrier. That is why refusal-first is a habit rather
+private error-tracking carrier. If the invocation-lifetime secret redactor
+scrubs that private carrier, details may also contain the literal
+`[REDACTED]` as a value-free witness that scrubbing occurred; no exception
+text crosses the boundary. That is why refusal-first is a habit rather
 than a polish step: the Zerobugs control shipped every
 application-semantic refusal as a plain `throw` through ten receipted gate
 attempts, and only adopted the channel when a gate assertion caught that a
