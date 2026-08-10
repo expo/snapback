@@ -2,8 +2,8 @@
   "format": 2,
   "app": "notes",
   "schemaHash": "sha256:f2ef26e3ea0cab12a02c5fd467e5a43388af931ccaa5ad5837e01dd94b2602a2",
-  "bundleHash": "sha256:a02c0074646ad984402987cd3876a884f740ed6a53bfe34b3d8b7af235481ad3",
-  "inputsHash": "sha256:2f2974cb6139a047e0a1423fee1f77c39c9448f68e8caaf8c1747587793a2964",
+  "bundleHash": "sha256:c9d239f3d6ace08bf84fe790abfeb81f7ca7a58555013b0cb2ca187e611c67b5",
+  "inputsHash": "sha256:4001976530a572980917baaeebf97e2c46a0012c4c76749bd17c3688ca159887",
   "inputs": [
     "cloudflare/app/notes.app.js",
     "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json",
@@ -22,6 +22,7 @@
     "normalized:cloudflare/wrangler.handler.jsonc",
     "normalized:cloudflare/wrangler.jsonc",
     "normalized:packages/snapback-harness/compat.json",
+    "packages/snapback-client/remediation.mjs",
     "packages/snapback-client/rqs.mjs",
     "packages/snapback-contract/ids.mjs",
     "packages/snapback-harness/allowlist-install.js",
