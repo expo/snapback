@@ -22,6 +22,8 @@ import {
   CURRENT_LEASE_SCHEMA_VERSION,
   LEASE_ISSUED_AT_SKEW_ALLOWANCE_MS,
   LEASE_LIFETIME_MS,
+  LATEST_PROOF_COLLECTION_RESERVE_MS,
+  LATEST_PROOF_MIN_DISPATCH_GRANT_MS,
   MODELED_TAG_MOVE_PHASE_MS,
   PROMOTION_ROLLBACK_RESERVE_MS,
   leaseSha256,
@@ -141,21 +143,30 @@ function requireModeledPublicationLeaseBudget({
   ) {
     return;
   }
-  const totalMs =
-    dispatchTimeoutMs
-    + verifyTimeoutMs
-    + PROMOTION_ROLLBACK_RESERVE_MS
+  const modeledCeremonyMs =
+    MODELED_TAG_MOVE_PHASE_MS
     + BARRIER_STABILITY_RESERVE_MS
-    + MODELED_TAG_MOVE_PHASE_MS;
-  if (totalMs > LEASE_LIFETIME_MS) {
+    + LATEST_PROOF_MIN_DISPATCH_GRANT_MS
+    + LATEST_PROOF_COLLECTION_RESERVE_MS
+    + verifyTimeoutMs
+    + PROMOTION_ROLLBACK_RESERVE_MS;
+  if (modeledCeremonyMs > LEASE_LIFETIME_MS) {
     throw new Error(
       'latest-proof plan modeled publication lease budget cannot close: '
-        + `dispatchTimeoutMs=${dispatchTimeoutMs} + `
-        + `verifyTimeoutMs=${verifyTimeoutMs} + `
-        + `PROMOTION_ROLLBACK_RESERVE_MS=${PROMOTION_ROLLBACK_RESERVE_MS} + `
+        + `MODELED_TAG_MOVE_PHASE_MS=${MODELED_TAG_MOVE_PHASE_MS} + `
         + `BARRIER_STABILITY_RESERVE_MS=${BARRIER_STABILITY_RESERVE_MS} + `
-        + `MODELED_TAG_MOVE_PHASE_MS=${MODELED_TAG_MOVE_PHASE_MS} = `
-        + `${totalMs} > LEASE_LIFETIME_MS=${LEASE_LIFETIME_MS}`,
+        + `LATEST_PROOF_MIN_DISPATCH_GRANT_MS=${LATEST_PROOF_MIN_DISPATCH_GRANT_MS} + `
+        + `LATEST_PROOF_COLLECTION_RESERVE_MS=${LATEST_PROOF_COLLECTION_RESERVE_MS} + `
+        + `verifyTimeoutMs=${verifyTimeoutMs} + `
+        + `PROMOTION_ROLLBACK_RESERVE_MS=${PROMOTION_ROLLBACK_RESERVE_MS} = `
+        + `${modeledCeremonyMs} > LEASE_LIFETIME_MS=${LEASE_LIFETIME_MS}`,
+    );
+  }
+  if (dispatchTimeoutMs < LATEST_PROOF_MIN_DISPATCH_GRANT_MS) {
+    throw new Error(
+      'latest-proof plan dispatch ceiling cannot admit the minimum grantable '
+        + `window: dispatchTimeoutMs=${dispatchTimeoutMs} < `
+        + `LATEST_PROOF_MIN_DISPATCH_GRANT_MS=${LATEST_PROOF_MIN_DISPATCH_GRANT_MS}`,
     );
   }
 }

@@ -15,6 +15,8 @@ import { fileURLToPath } from 'node:url';
 
 import {
   CURRENT_LEASE_SCHEMA_VERSION,
+  LATEST_PROOF_COLLECTION_RESERVE_MS,
+  LATEST_PROOF_MIN_DISPATCH_GRANT_MS,
   LATEST_ROOT_PROBE_ATTEMPTS,
   LATEST_ROOT_PROBE_DELAY_MS,
   LATEST_ROOT_PROBE_TIMEOUT_MS,
@@ -22,6 +24,7 @@ import {
   PROMOTION_ROLLBACK_RESERVE_MS,
   buildPostPromotionLedger,
   canonicalJcs,
+  latestProofDispatchGrantMs,
   leaseSha256,
   publicationAuthorityTransition,
   promoteDefaultVector,
@@ -577,20 +580,24 @@ function executeLatestProofPlan(plan) {
     '--linux-receipt', linuxReceipt,
     '--collection', collectionPath,
   ];
-  for (const [mode, timeoutMs] of [
-    ['dispatch', plan.dispatchTimeoutMs],
-    ['verify-collection', plan.verifyTimeoutMs],
-  ]) {
-    requireLatestProofDispatchBudget(reopenedPlan, mode);
+  for (const mode of ['dispatch', 'verify-collection']) {
+    const grantedWaitMs = requireLatestProofDispatchBudget(reopenedPlan, mode);
+    // The dispatch helper's --timeout-ms bounds only the run wait; artifact
+    // collection then spends the separately reserved collection window, so
+    // the spawn bound is wait + collection and the verify/rollback reserves
+    // stay untouched even at full exhaustion.
+    const spawnTimeoutMs = mode === 'dispatch'
+      ? grantedWaitMs + LATEST_PROOF_COLLECTION_RESERVE_MS
+      : grantedWaitMs;
     const result = spawnSync(process.execPath, [
       latestProofHelper,
       mode,
       ...commonArgs,
-      '--timeout-ms', String(timeoutMs),
+      '--timeout-ms', String(grantedWaitMs),
     ], {
       encoding: 'utf8',
       maxBuffer: 8 * 1024 * 1024,
-      timeout: timeoutMs,
+      timeout: spawnTimeoutMs,
       cwd: repositoryRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -643,13 +650,17 @@ function requireLatestProofDispatchBudget(plan, mode) {
     publisherInstanceId: options.publisherInstanceId,
     priorDefaultClosureReceiptSha256: priorDefaultClosure.receiptSha256,
   });
-  const requiredRemainingMs =
-    (mode === 'dispatch' ? plan.dispatchTimeoutMs : 0)
-    + plan.verifyTimeoutMs
-    + PROMOTION_ROLLBACK_RESERVE_MS;
-  if (Date.parse(lease.expiresAt) - Date.now() < requiredRemainingMs) {
+  const remainingMs = Date.parse(lease.expiresAt) - Date.now();
+  if (mode === 'dispatch') {
+    // Reserves are counted once: collection + verify + rollback are held
+    // back from the lease and the wait window receives the remainder,
+    // clamped by the plan ceiling.
+    return latestProofDispatchGrantMs({ plan, remainingMs });
+  }
+  if (remainingMs < plan.verifyTimeoutMs + PROMOTION_ROLLBACK_RESERVE_MS) {
     throw new Error('publication lease lacks the reserved proof and rollback budget');
   }
+  return plan.verifyTimeoutMs;
 }
 
 async function setTag(name, version) {
@@ -740,8 +751,15 @@ try {
         delayMs: LATEST_ROOT_PROBE_DELAY_MS,
         probeBoundMs: LATEST_ROOT_PROBE_TIMEOUT_MS,
         requiredSuccessfulAttempts: LATEST_ROOT_REQUIRED_SUCCESSES,
+        // What must remain when the barrier completes: the minimum
+        // grantable dispatch window plus the post-wait reserves. The plan's
+        // dispatch ceiling is deliberately absent — it is clamped to the
+        // live lease at dispatch time, so reserving the full ceiling here
+        // double-reserved the wait and refused ceremonies that fit
+        // (release-0.1.18-20260810-r3/r4).
         requiredRemainingMs:
-          latestProofPlan.dispatchTimeoutMs
+          LATEST_PROOF_MIN_DISPATCH_GRANT_MS
+          + LATEST_PROOF_COLLECTION_RESERVE_MS
           + latestProofPlan.verifyTimeoutMs
           + PROMOTION_ROLLBACK_RESERVE_MS,
         record(evidence) {

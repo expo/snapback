@@ -46,6 +46,15 @@ export const BARRIER_STABILITY_RESERVE_MS =
 // reads, and one dist-tag add. The target phase is <=60 seconds; 120 seconds
 // keeps 2x headroom.
 export const MODELED_TAG_MOVE_PHASE_MS = 120_000;
+// Successful hosted public-package-proof runs complete in 163-280 seconds of
+// wall time (observed 2026-07-29 .. 2026-08-10). A dispatch wait window below
+// this floor cannot admit a real run, so the ceremony refuses before
+// dispatching rather than burning the lease on a hopeless wait.
+export const LATEST_PROOF_MIN_DISPATCH_GRANT_MS = 300_000;
+// Reserved once, at dispatch decision time, for post-run artifact collection
+// and the collection reopen (downloads are individually bounded at 60s in the
+// helper). The run-wait grant may never borrow from this reserve.
+export const LATEST_PROOF_COLLECTION_RESERVE_MS = 90_000;
 
 const POST_PROMOTION_LEDGER_KEYS = [
   'candidateTag',
@@ -460,6 +469,35 @@ export async function waitForPromotedInstallability({
     fail(error);
   }
   throw new Error('unreachable promoted installability barrier state');
+}
+
+/**
+ * Resolve the run-wait window actually granted to the hosted latest-root
+ * proof dispatch. plan.dispatchTimeoutMs is a ceiling, not a reservation:
+ * the grant is clamped to what the lease still holds after the post-wait
+ * needs (artifact collection, verify, rollback) are reserved exactly once.
+ * A grant below the minimum viable run window refuses before dispatch.
+ */
+export function latestProofDispatchGrantMs({ plan, remainingMs }) {
+  if (
+    !Number.isSafeInteger(remainingMs)
+    || !Number.isSafeInteger(plan?.dispatchTimeoutMs)
+    || !Number.isSafeInteger(plan?.verifyTimeoutMs)
+  ) {
+    throw new TypeError('latest-root dispatch grant inputs are invalid');
+  }
+  const reservedAfterWaitMs =
+    LATEST_PROOF_COLLECTION_RESERVE_MS
+    + plan.verifyTimeoutMs
+    + PROMOTION_ROLLBACK_RESERVE_MS;
+  const grantMs = Math.min(
+    plan.dispatchTimeoutMs,
+    remainingMs - reservedAfterWaitMs,
+  );
+  if (grantMs < LATEST_PROOF_MIN_DISPATCH_GRANT_MS) {
+    throw new Error('publication lease lacks the reserved proof and rollback budget');
+  }
+  return grantMs;
 }
 
 export function validateClosedLatestProofPlan({

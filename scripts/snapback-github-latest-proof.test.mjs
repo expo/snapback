@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 
 import {
+  isTransientGithubTransportError,
   parseArgs,
   validateExistingLatestReceipt,
   validateGithubLatestProofCollection,
@@ -80,6 +81,31 @@ test('helper arguments close the signed prior retry authority', () => {
     const index = argv.indexOf(omitted);
     argv.splice(index, 2);
     assert.throws(() => parseArgs(argv), /requires/u);
+  }
+});
+
+test('transient gh transport failures are retryable, judgments are not', () => {
+  assert.equal(
+    isTransientGithubTransportError(
+      new Error('snapback-github-latest-proof: gh api failed with 1: HTTP 502'),
+    ),
+    true,
+  );
+  assert.equal(
+    isTransientGithubTransportError(
+      new Error('snapback-github-latest-proof: gh run returned non-JSON output'),
+    ),
+    true,
+  );
+  for (const error of [
+    new Error('snapback-github-latest-proof: GitHub run identity/freshness does not match the closed dispatch'),
+    new Error('snapback-github-latest-proof: GitHub latest-root proof concluded failure'),
+    new Error('snapback-github-latest-proof: dispatched workflow run did not become observable'),
+    new Error('anything else'),
+    null,
+    {},
+  ]) {
+    assert.equal(isTransientGithubTransportError(error), false);
   }
 });
 

@@ -15,6 +15,8 @@ import {
   CURRENT_LEASE_SCHEMA_VERSION,
   LEASE_ISSUED_AT_SKEW_ALLOWANCE_MS,
   LEASE_LIFETIME_MS,
+  LATEST_PROOF_COLLECTION_RESERVE_MS,
+  LATEST_PROOF_MIN_DISPATCH_GRANT_MS,
   MODELED_TAG_MOVE_PHASE_MS,
   PROMOTION_ROLLBACK_RESERVE_MS,
   canonicalJcs,
@@ -131,52 +133,41 @@ test('generated latest proof plan round-trips through the promoter validator', (
 
 test('default latest proof plan closes its modeled 900-second lease budget', () => {
   const plan = buildLatestProofPlan(inputs());
-  const totalMs =
-    plan.dispatchTimeoutMs
-    + plan.verifyTimeoutMs
-    + PROMOTION_ROLLBACK_RESERVE_MS
-    + BARRIER_STABILITY_RESERVE_MS
-    + MODELED_TAG_MOVE_PHASE_MS;
   assert.equal(plan.dispatchTimeoutMs, 400_000);
+  const modeledCeremonyMs =
+    MODELED_TAG_MOVE_PHASE_MS
+    + BARRIER_STABILITY_RESERVE_MS
+    + LATEST_PROOF_MIN_DISPATCH_GRANT_MS
+    + LATEST_PROOF_COLLECTION_RESERVE_MS
+    + plan.verifyTimeoutMs
+    + PROMOTION_ROLLBACK_RESERVE_MS;
   assert.equal(BARRIER_STABILITY_RESERVE_MS, 120_000);
-  assert.equal(totalMs, 790_000);
-  assert.ok(totalMs <= LEASE_LIFETIME_MS);
+  assert.equal(modeledCeremonyMs, 780_000);
+  assert.ok(modeledCeremonyMs <= LEASE_LIFETIME_MS);
 });
 
-test('latest proof plan refuses the old 540-second dispatch default', () => {
-  assert.throws(
-    () => buildLatestProofPlan(inputs({ dispatchTimeoutMs: 540_000 })),
-    (error) => {
-      assert.match(error.message, /modeled publication lease budget cannot close/u);
-      assert.match(error.message, /dispatchTimeoutMs=540000/u);
-      assert.match(error.message, /verifyTimeoutMs=30000/u);
-      assert.match(error.message, /PROMOTION_ROLLBACK_RESERVE_MS=120000/u);
-      assert.match(error.message, /BARRIER_STABILITY_RESERVE_MS=120000/u);
-      assert.match(error.message, /MODELED_TAG_MOVE_PHASE_MS=120000/u);
-      assert.match(error.message, /= 930000 > LEASE_LIFETIME_MS=900000/u);
-      return true;
-    },
-  );
+test('latest proof plan treats the dispatch timeout as a ceiling, not a lease reservation', () => {
+  const r4Plan = buildLatestProofPlan(inputs({ dispatchTimeoutMs: 510_000 }));
+  assert.equal(r4Plan.dispatchTimeoutMs, 510_000);
+  const largeCeilingPlan = buildLatestProofPlan(inputs({ dispatchTimeoutMs: 540_000 }));
+  assert.equal(largeCeilingPlan.dispatchTimeoutMs, 540_000);
 });
 
-test('latest proof plan accepts the largest dispatch budget that still closes', () => {
-  const verifyTimeoutMs = 30_000;
-  const largestDispatchTimeoutMs =
-    LEASE_LIFETIME_MS
-    - verifyTimeoutMs
-    - PROMOTION_ROLLBACK_RESERVE_MS
-    - BARRIER_STABILITY_RESERVE_MS
-    - MODELED_TAG_MOVE_PHASE_MS;
-  const plan = buildLatestProofPlan(inputs({
-    dispatchTimeoutMs: largestDispatchTimeoutMs,
-    verifyTimeoutMs,
-  }));
-  assert.equal(plan.dispatchTimeoutMs, 510_000);
+test('latest proof plan refuses windows the model can never grant', () => {
   assert.throws(
     () => buildLatestProofPlan(inputs({
-      dispatchTimeoutMs: largestDispatchTimeoutMs + 1,
-      verifyTimeoutMs,
+      dispatchTimeoutMs: LATEST_PROOF_MIN_DISPATCH_GRANT_MS - 1,
     })),
+    /cannot admit the minimum grantable window/u,
+  );
+  assert.equal(
+    buildLatestProofPlan(inputs({
+      dispatchTimeoutMs: LATEST_PROOF_MIN_DISPATCH_GRANT_MS,
+    })).dispatchTimeoutMs,
+    LATEST_PROOF_MIN_DISPATCH_GRANT_MS,
+  );
+  assert.throws(
+    () => buildLatestProofPlan(inputs({ verifyTimeoutMs: 150_001 })),
     /modeled publication lease budget cannot close/u,
   );
 });
