@@ -133,9 +133,22 @@ Resolved 2026-08-10 on the claimed implementation branch:
    (`shared-contract-types-leaf` and `storage-migration-kernel`) rather than
    expanding that bucket.
 
-The v2 baseline was re-derived over 227 modules and 1,648 observed edges. It
-contains 400 admitted frozen-forbidden fingerprints and leaves the two
-separately ticketed rehearsal reds unadmitted. Exactly **38 newly visible
+The v2 baseline was first re-derived over 227 modules and 1,648 observed
+edges (400 admitted frozen-forbidden fingerprints; the two rehearsal reds
+then unadmitted and separately ticketed). Exactly **38 newly visible
 pre-existing forbidden edges** were frozen with analyzer-upgrade attribution
-in `issues/20260809-0199-ownership-ratchet-worklist.md` item 9; that set
-includes the provider pair above.
+in `issues/20260809-0199-ownership-ratchet-worklist.md` — originally item 9,
+renumbered to **item 12** at the merge-wave reconciliation; that set includes
+the provider pair above.
+
+**Merge-wave reconciliation (same day):** after merging the concurrent fleet
+landings (LLP 0214 catalog v3, LLP 0218 P2, ratchet slice 1,
+logical-transfer wave), the committed baseline stands at **232 modules /
+1,704 edges / 386 frozen fingerprints**. The rehearsal pair entered the
+fleet's item-9 time-bounded waivers (no longer unadmitted); twelve
+merge-wave analyzer discoveries and the item-11 waiver pair were recorded
+under worklist item 13; and the current unadmitted outstanding pair is the
+jobs-wave edges tracked by
+`issues/20260810-main-module-ownership-red-jobs-edges.md`. Waiver deadlines
+are escalation metadata: an expired deadline refuses only NEW admissions and
+never wedges parsing of committed snapshots.

@@ -8,6 +8,7 @@ import {
   edgeFingerprint,
   enforceMonotonicBaseline,
   enforceSnapshotProtocol,
+  formatExpiredWaiverEscalation,
 } from './check-module-ownership.mjs';
 
 // @ref LLP 0225#5 — adversarial fixtures prove the accepted analyzer and predecessor protocol.
@@ -164,16 +165,49 @@ test('monotonic baseline refuses silent growth and admits attributed analyzer di
   assert.deepEqual(enforceMonotonicBaseline(attributed, predecessor).growth, [fingerprint]);
 });
 
-test('a genuinely new forbidden edge needs a time-bounded waiver record', () => {
+test('new forbidden-edge growth is admitted by a current time-bounded waiver', () => {
   const predecessor = sourceSnapshot({ edge: false });
   const currentGraph = sourceSnapshot();
   const fingerprint = edgeFingerprint(currentGraph.analysis.edges[0]);
   const waiver = worklistRecord(fingerprint, 'time-bounded-waiver', {
-    deadline: '2099-12-31',
+    deadline: '2026-08-12',
     inversionOwner: 'sync-realtime-engine',
   });
   const current = sourceSnapshot({ issues: waiver.issues, frozen: [waiver.baseline] });
-  assert.deepEqual(enforceMonotonicBaseline(current, predecessor).growth, [fingerprint]);
+  assert.deepEqual(
+    enforceSnapshotProtocol(current, [predecessor], { today: '2026-08-12' }).reports[0].baseline.growth,
+    [fingerprint],
+  );
+});
+
+test('new forbidden-edge growth is refused by an expired time-bounded waiver', () => {
+  const predecessor = sourceSnapshot({ edge: false });
+  const currentGraph = sourceSnapshot();
+  const fingerprint = edgeFingerprint(currentGraph.analysis.edges[0]);
+  const waiver = worklistRecord(fingerprint, 'time-bounded-waiver', {
+    deadline: '2026-08-11',
+    inversionOwner: 'sync-realtime-engine',
+  });
+  const current = sourceSnapshot({ issues: waiver.issues, frozen: [waiver.baseline] });
+  assert.throws(
+    () => enforceSnapshotProtocol(current, [predecessor], { today: '2026-08-12' }),
+    /waiver expired 2026-08-11/u,
+  );
+});
+
+test('expired waivers in committed snapshots remain admitted and report escalation', () => {
+  const graph = sourceSnapshot();
+  const fingerprint = edgeFingerprint(graph.analysis.edges[0]);
+  const waiver = worklistRecord(fingerprint, 'time-bounded-waiver', {
+    deadline: '2026-08-11',
+    inversionOwner: 'sync-realtime-engine',
+  });
+  const predecessor = sourceSnapshot({ issues: waiver.issues, frozen: [waiver.baseline] });
+  const current = sourceSnapshot({ issues: waiver.issues, frozen: [waiver.baseline] });
+  const protocol = enforceSnapshotProtocol(current, [predecessor], { today: '2026-08-12' });
+
+  assert.deepEqual(protocol.expiredWaivers, [fingerprint]);
+  assert.equal(formatExpiredWaiverEscalation(protocol.expiredWaivers), '; 1 expired waivers (escalate)');
 });
 
 test('relocation re-keys a removed frozen edge only with retained attribution', () => {

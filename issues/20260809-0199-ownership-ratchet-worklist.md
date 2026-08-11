@@ -217,15 +217,19 @@ unassigned-module freezes that drain with the local.rs remainder.
     logical transfer or 2026-09-15, whichever comes first; if unmet,
     escalate to the author as a §2 violation.
 
-13. **Merge-wave reconciliation (15 edges, observed at `eefe4e446`).** The
-    2026-08-10 main landings (LLP 0214 catalog v3, LLP 0218 P2, ratchet
-    slice 1, logical-transfer wave) merged into the §5 enforcement landing.
-    Twelve edges in that landed code are visible only to the upgraded
-    analyzer and are frozen as attributed pre-existing discoveries; the two
-    item-11 logical-transfer edges carry item 11's time-bounded waiver as
-    machine records; `src/manifest.rs → src/storage/jobs.rs` was admitted by
-    the predecessor v1 baseline on main and is re-keyed into the v2 frozen
-    set unchanged. None of these grants permission for similar new coupling.
+13. **Merge-wave reconciliation (14 machine records, observed at
+    `eefe4e446`).** The 2026-08-10 main landings (LLP 0214 catalog v3,
+    LLP 0218 P2, ratchet slice 1, logical-transfer wave) merged into the §5
+    enforcement landing. Twelve edges in that landed code are visible only
+    to the upgraded analyzer and are frozen as attributed pre-existing
+    discoveries; the two item-11 logical-transfer edges carry item 11's
+    time-bounded waiver as machine records (two further records under this
+    block carry item 9's rehearsal waivers into the v2 frozen set). The
+    jobs-wave pair (`src/manifest.rs → src/storage/jobs.rs`,
+    `src/storage.rs → src/jobs.rs`) is NOT frozen — it is the current
+    unadmitted outstanding set, tracked by
+    `issues/20260810-main-module-ownership-red-jobs-edges.md`. None of these
+    grants permission for similar new coupling.
 
 <!-- module-ownership-frozen-edge: {"fingerprint":"src/live_wire.rs (shared-contract-types-leaf) → src/storage/jobs.rs (storage-migration-kernel)","disposition":"analyzer-upgrade","observationRevision":"eefe4e446","provenance":"Visible only to the upgraded module-relative and transitive re-export analyzer in the 2026-08-10 main landings merged at the LLP 0225 §5 enforcement landing."} -->
 <!-- module-ownership-frozen-edge: {"fingerprint":"src/local.rs (unassigned) → src/auth/handshake.rs (shared-contract-types-leaf)","disposition":"analyzer-upgrade","observationRevision":"eefe4e446","provenance":"Visible only to the upgraded module-relative and transitive re-export analyzer in the 2026-08-10 main landings merged at the LLP 0225 §5 enforcement landing."} -->

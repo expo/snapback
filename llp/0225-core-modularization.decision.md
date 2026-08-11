@@ -25,8 +25,8 @@ history)
 **Revised:** 2026-08-10 (j — Accepted: OQ-A superseded-with-pointer, OQ-B
 confirmed, OQ-C inert-until-reload (author rulings); same-landing handoff
 applied)
-**Revised:** 2026-08-10 (k — ownership analyzer upgrade and §5 enforcement
-completion; see Revision history)
+**Revised:** 2026-08-10 (l — merge-wave reconciliation of the §5 enforcement
+landing; see Revision history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -412,10 +412,12 @@ requires its named worklist record in the same landing.
   the exact outstanding fingerprints and their observation revision — if
   the tree being pushed carries untracked reds, the push blocks until the
   same push commits or refreshes that ticket. The hook never creates
-  uncommitted state. The re-derived revision-(k) baseline records the complete
-  1,648-edge graph and admits 400 frozen forbidden fingerprints; the two
-  unadmitted rehearsal fingerprints remain auditable through
-  `issues/20260810-main-module-ownership-red-rehearsal-edges.md` rather than
+  uncommitted state. After the revision-(l) merge-wave reconciliation the
+  committed baseline records the complete 1,704-edge graph over 232 modules
+  and admits 386 frozen forbidden fingerprints; the rehearsal pair is
+  admitted under the fleet's item-9 time-bounded waivers, and the two
+  unadmitted jobs-wave fingerprints remain auditable through
+  `issues/20260810-main-module-ownership-red-jobs-edges.md` rather than
   being laundered into the baseline.
 - **Analyzer coverage.** The extractor resolves `crate::`, `super::`, and
   `self::` roots relative to the lexical/file module (including `#[path]`
@@ -425,8 +427,9 @@ requires its named worklist record in the same landing.
   `scripts/check-module-ownership.test.mjs`. The re-derivation exposed 38
   pre-existing forbidden fingerprints — including
   `src/auth/provider.rs`'s `super::lifecycle` / `super::mailbox` sideways
-  edges — frozen with analyzer-upgrade attribution in worklist item 9. The
-  completed gap record is
+  edges — frozen with analyzer-upgrade attribution in worklist item 12
+  (renumbered from 9 at the merge-wave reconciliation), with twelve further
+  merge-wave discoveries recorded under item 13. The completed gap record is
   `issues/closed/20260810-ownership-gate-analyzer-gaps.md`.
 
 Normative rules bound to this Decision:
@@ -616,3 +619,15 @@ so slices can follow product priorities.
   ticket coverage. The baseline was re-derived at 227 modules / 1,648 edges,
   with 38 analyzer-upgrade discoveries frozen through ratchet-worklist item 9
   and the two pre-existing rehearsal reds left unadmitted and ticketed.
+- **2026-08-10 (l).** Merge-wave reconciliation over the same-day fleet
+  landings (LLP 0214 catalog v3, LLP 0218 P2, ratchet slice 1,
+  logical-transfer wave): the baseline stands at 232 modules / 1,704 edges /
+  386 frozen fingerprints. The rehearsal pair entered the fleet's item-9
+  time-bounded waivers (so revision (k)'s "unadmitted" state ended there);
+  the analyzer-discovery block was renumbered to worklist item 12, twelve
+  merge-wave discoveries were recorded under item 13, and the jobs-wave
+  edges (`src/manifest.rs → src/storage/jobs.rs`,
+  `src/storage.rs → src/jobs.rs`) are the current unadmitted pair, tracked
+  by `issues/20260810-main-module-ownership-red-jobs-edges.md`. Waiver
+  deadlines are escalation metadata: an expired deadline blocks only NEW
+  admissions and never wedges parsing of committed snapshots.

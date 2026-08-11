@@ -790,7 +790,7 @@ function normalizeIssueText(text) {
   return text.replace(/\s+/gu, ' ').trim();
 }
 
-export function parseFrozenEdgeRecords(issueSources, { today = new Date().toISOString().slice(0, 10) } = {}) {
+export function parseFrozenEdgeRecords(issueSources) {
   const records = new Map();
   const pattern = /<!--\s*module-ownership-frozen-edge:\s*(\{[^\r\n]*\})\s*-->/gu;
   for (const [path, source] of issueSources) {
@@ -816,9 +816,6 @@ export function parseFrozenEdgeRecords(issueSources, { today = new Date().toISOS
           : { predecessorFingerprint: record.predecessorFingerprint }),
       };
       validateAttribution(attribution, `${path}: ${fingerprint}`);
-      if (attribution.disposition === 'time-bounded-waiver') {
-        assert(attribution.deadline >= today, `${path} waiver expired ${attribution.deadline}: ${fingerprint}`);
-      }
       records.set(fingerprint, { fingerprint, attribution });
     }
   }
@@ -835,6 +832,20 @@ function waiverFingerprints(records) {
   return new Set([...records.values()]
     .filter((record) => record.attribution.disposition === 'time-bounded-waiver')
     .map((record) => record.fingerprint));
+}
+
+function expiredWaiverFingerprints(records, today) {
+  return [...records.values()]
+    .filter((record) => record.attribution.disposition === 'time-bounded-waiver'
+      && record.attribution.deadline < today)
+    .map((record) => record.fingerprint)
+    .sort();
+}
+
+export function formatExpiredWaiverEscalation(expiredWaivers) {
+  return expiredWaivers.length === 0
+    ? ''
+    : `; ${expiredWaivers.length} expired waivers (escalate)`;
 }
 
 export function outstandingFingerprints(snapshot) {
@@ -861,7 +872,11 @@ function attributedRecordMatches(candidate, worklistRecord) {
   return JSON.stringify(candidate) === JSON.stringify(worklistRecord);
 }
 
-export function enforceMonotonicBaseline(current, predecessor) {
+export function enforceMonotonicBaseline(
+  current,
+  predecessor,
+  { today = new Date().toISOString().slice(0, 10) } = {},
+) {
   const currentBaseline = validateBaseline(
     current.baseline,
     current.manifest,
@@ -892,6 +907,12 @@ export function enforceMonotonicBaseline(current, predecessor) {
       attributedRecordMatches(frozen, worklist),
       `baseline attribution does not match ${worklist.attribution.worklist}: ${fingerprint}`,
     );
+    if (frozen.attribution.disposition === 'time-bounded-waiver') {
+      assert(
+        frozen.attribution.deadline >= today,
+        `${worklist.attribution.worklist} waiver expired ${frozen.attribution.deadline}: ${fingerprint}`,
+      );
+    }
     if (frozen.attribution.disposition === 'analyzer-upgrade') {
       assert(
         predecessorForbidden.has(fingerprint),
@@ -937,13 +958,19 @@ function trackingTicketFor(fingerprints, issueSources) {
   return null;
 }
 
-export function enforceSnapshotProtocol(current, predecessors) {
+export function enforceSnapshotProtocol(
+  current,
+  predecessors,
+  { today = new Date().toISOString().slice(0, 10) } = {},
+) {
   assert(predecessors.length > 0, 'ownership protocol requires at least one predecessor revision');
+  const currentWorklistRecords = parseFrozenEdgeRecords(current.issues);
+  const expiredWaivers = expiredWaiverFingerprints(currentWorklistRecords, today);
   const currentOutstanding = outstandingFingerprints(current);
   const reports = [];
   for (const predecessor of predecessors) {
     enforceUnassignedShrinkOnly(current, predecessor);
-    const baseline = enforceMonotonicBaseline(current, predecessor);
+    const baseline = enforceMonotonicBaseline(current, predecessor, { today });
     const predecessorOutstanding = outstandingFingerprints(predecessor);
     const introduced = [...currentOutstanding]
       .filter((fingerprint) => !predecessorOutstanding.has(fingerprint))
@@ -960,7 +987,7 @@ export function enforceSnapshotProtocol(current, predecessors) {
     inherited.length === 0 || ticket,
     `inherited forbidden module edges need an open issues/ ticket naming every fingerprint and observation revision:\n- ${inherited.join('\n- ')}`,
   );
-  return { inherited, reports, ticket };
+  return { expiredWaivers, inherited, reports, ticket };
 }
 
 function baselineDocument(analysis, manifest, predecessor, issueSources) {
@@ -1055,7 +1082,8 @@ function main() {
       writeFileSync(BASELINE_PATH, `${JSON.stringify(candidate, null, 2)}\n`);
       process.stdout.write(
         `[module-ownership] UPDATED: ${analysis.moduleCount} modules; ${analysis.edges.length} current module edges; `
-          + `${candidate.frozenForbiddenEdgeCount} frozen forbidden; ${protocol.inherited.length} tracked outstanding\n`,
+          + `${candidate.frozenForbiddenEdgeCount} frozen forbidden; ${protocol.inherited.length} tracked outstanding`
+          + `${formatExpiredWaiverEscalation(protocol.expiredWaivers)}\n`,
       );
       return;
     }
@@ -1072,7 +1100,8 @@ function main() {
         + `${analysis.moduleCount - assignedCount} unassigned); ${analysis.edges.length} module edges; `
         + `${crossOwnerCount} cross-owner; ${result.newEdges.length} new allowed; `
         + `${result.staleBaselineEdgeCount} stale baseline; `
-        + `${protocol.inherited.length} inherited outstanding (${protocol.ticket ?? 'none'}); `
+        + `${protocol.inherited.length} inherited outstanding (${protocol.ticket ?? 'none'})`
+        + `${formatExpiredWaiverEscalation(protocol.expiredWaivers)}; `
         + `${analysis.unresolvedReferenceCount} unresolved module references\n`,
     );
   } catch (error) {
