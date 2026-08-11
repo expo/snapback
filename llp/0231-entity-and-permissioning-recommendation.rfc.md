@@ -168,6 +168,32 @@ with durable subscriptions, per-row evaluation is precisely the InstantDB failur
 we already documented. We can take the insight without the mechanism, because we
 already own the query compiler and the sync layer.
 
+### Counter-evidence: how much of this is no-op typing?
+
+The case above is one-sided unless we ask how many queries have no scoping story
+at all, because those gain a declaration that says nothing.
+
+Five demos carry no authorization concept whatsoever — `all-aboard` (8 queries),
+`public-dashboard` (4), `chat-matrix` (3), `latency-kanban` (3), and
+`pulse-monitor` (2). That is **20 of ~90 queries, roughly one in five**, that
+would acquire `visibility: public()` and be no better off for it.
+
+That is the honest cost of D2, and it is worth stating in the direction that
+weakens the proposal. It is also a *favourable* ratio: if 80% of queries were
+legitimately public, mandatory declaration would be mostly noise. At ~20%, four
+in five queries have a real scoping story that today is either undeclared or
+invisible.
+
+And an explicit `public()` is not worthless — LLP 0172 made the same trade for
+`optional-user`, on the reasoning that an intentional anonymous surface should be
+distinguishable from a forgotten one. A public dashboard *should* say it is
+public.
+
+*Method note: this is my own count at `5373238eb`, not a diary sweep. A
+delegated pass over all 85 diaries was attempted and produced no report, so the
+qualitative counter-evidence — authors reporting the current model as sufficient
+— remains ungathered. Open question 6.*
+
 ## Costs, stated plainly
 
 - **Expressiveness is capped** by what the matcher can compose. Policies needing
@@ -296,6 +322,13 @@ built around it. Retrofitting it here would fight both the matcher and LLP 0053.
    already in `filter:` — mechanical lift, or author review each one?
 5. **The write side.** Mutation authorization is unaddressed here and needs its
    own treatment.
+6. **Qualitative counter-evidence is ungathered.** §Counter-evidence measures
+   how many queries would gain a no-op declaration, but nobody has read the 85
+   diaries for authors reporting the function-level model as *sufficient*, or
+   for authorization incidents caught by review rather than by the system. A
+   delegated sweep produced no report. If that reading turns up authors
+   routing around memberships deliberately rather than by default, D2's scope
+   should narrow before it is ratified.
 
 ## Acceptance
 
