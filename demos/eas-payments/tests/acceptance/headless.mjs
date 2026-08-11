@@ -106,6 +106,9 @@ const ZED = 'user_zed';
 const DASH = 'dashboard';
 // Slice 12 — the store SKU as the atom.
 const NOVA = 'user_nova'; // holds the apple AND google SKUs of one entitlement
+// Slice 13 — purchase events, directory, fulfillment.
+const RAVI = 'user_ravi'; // a granting purchase: both event types
+const SASHA = 'user_sasha'; // consumable ONLY: invisible to the old feed-derived directory
 const ORSON = 'user_orson'; // buys a SKU no edge maps: a good record, no grant
 const PIA = 'user_pia'; // buys each of one package's three SKUs in turn
 // Slice 8 — acknowledgement. These buy on GOOGLE, the only adapter that carries a
@@ -128,7 +131,7 @@ const STORE_KEY = 'fake-store-key-slice-2';
 const WRONG_STORE_KEY = 'not-the-store-key';
 const WEBHOOK_SECRET = 'developer-shared-secret-slice-5';
 
-const suite = createSuite('eas-payments / headless', { expectedChecks: 79 });
+const suite = createSuite('eas-payments / headless', { expectedChecks: 84 });
 const cleanups = [];
 let server = null;
 let db = null;
@@ -771,7 +774,7 @@ await runAcceptance(suite, async () => {
 
   // --- Slice 4: the outbound change feed ---------------------------------------
 
-  await suite.check('a grant appends exactly one change the developer can poll', async () => {
+  await suite.check('a granting purchase appends a purchase event then its entitlement event', async () => {
     const cursor = await changeCursor();
     await validate({
       productId: SKU.stripe.plus_monthly,
@@ -780,23 +783,27 @@ await runAcceptance(suite, async () => {
       environment: 'sandbox',
     }, JO);
     const page = await pollChanges(cursor);
-    assertEqual(page.length, 1, 'exactly one change since the cursor');
-    assertEqual(page[0].userId, JO, 'the change names the user whose access moved');
+    // Two types, one sequence, causal order (slice 13): the purchase is what
+    // happened, the entitlement change is what it caused.
+    assertEqual(page.map((row) => row.type), ['purchase', 'entitlement'], 'both events, in causal order');
+    assert(page.every((row) => row.userId === JO), 'both name the user');
     assert(page[0].seq > cursor, 'seq advanced past the cursor');
+    assertEqual(page[1].seq, page[0].seq + 1, 'consecutive positions in ONE shared sequence');
 
-    // Polling again from the seq we were handed returns nothing.
-    assertEqual(await pollChanges(page[0].seq), [], 'the cursor drains the feed');
-    return { seq: page[0].seq };
+    // Polling again from the last seq we were handed returns nothing.
+    assertEqual(await pollChanges(page[1].seq), [], 'the cursor drains the feed');
+    return { seqs: page.map((row) => row.seq) };
   });
 
-  await suite.check('pollChanges carries no entitlement state', async () => {
-    // The whole point of decision 20: the developer learns WHO changed, then
-    // re-reads our authoritative answer. Anything more here would be state
-    // they could act on stale.
+  await suite.check('pollChanges carries a type and no entitlement state', async () => {
+    // The whole point of decision 20: the developer learns WHO changed and
+    // WHICH read to perform, then re-reads our authoritative answer. Anything
+    // more here would be state they could act on stale.
     const rows = await pollChanges(0);
     assert(rows.length > 0, 'feed is non-empty, so this check is not vacuous');
     for (const row of rows) {
-      assertEqual(Object.keys(row).sort(), ['seq', 'userId'], 'change row shape');
+      assertEqual(Object.keys(row).sort(), ['seq', 'type', 'userId'], 'change row shape');
+      assert(row.type === 'entitlement' || row.type === 'purchase', `unknown type ${row.type}`);
     }
     // And the read path they are pushed toward still works.
     assertEqual(await activeEntitlementIds(JO), ['plus'], 'developer re-reads authoritative state');
@@ -861,15 +868,17 @@ await runAcceptance(suite, async () => {
     });
     assertEqual(commit.result.grants, 1, 'the purchase moved a grant');
 
-    // The mutation receipt carries the enqueue: the feed row and the job
+    // The mutation receipt carries the enqueues: the feed rows and the jobs
     // landed in the same commit, so a rollback could not have left one behind.
+    // TWO of each since slice 13 — one doorbell per feed position, which is the
+    // invariant `idempotencyKey: 'change:' + seq` has always encoded.
     const enqueues = commit.enqueues ?? commit.receipt?.enqueues ?? [];
-    assertEqual(enqueues.length, 1, `expected one enqueue on the receipt, got ${JSON.stringify(commit)}`);
-    assertEqual(enqueues[0].action, 'notifyDeveloper', 'the enqueued action');
+    assertEqual(enqueues.length, 2, `expected two enqueues on the receipt, got ${JSON.stringify(commit)}`);
+    assert(enqueues.every((e) => e.action === 'notifyDeveloper'), 'the enqueued action');
 
     const page = await pollChanges(cursor);
-    assertEqual(page.length, 1, 'one feed row');
-    assertEqual(page[0].userId, MIA, 'for the right user');
+    assertEqual(page.map((row) => row.type), ['purchase', 'entitlement'], 'two feed rows');
+    assert(page.every((row) => row.userId === MIA), 'for the right user');
     // Still not delivered — the worker is inert until the suite drains.
     assertEqual(developer.received.length, 0, 'nothing sent before the drain');
     return { jobId: enqueues[0].jobId, seq: page[0].seq };
@@ -878,13 +887,22 @@ await runAcceptance(suite, async () => {
   await suite.check('draining delivers a ping carrying only userId and seq', async () => {
     const before = await changeCursor();
     await drain();
-    assertEqual(developer.received.length, 1, 'exactly one delivery');
-    const ping = developer.received[0];
-    assertEqual(ping.authorized, true, 'presented the shared secret');
-    assertEqual(ping.outcome, 200, 'endpoint accepted it');
-    assertEqual(Object.keys(ping.body).sort(), ['seq', 'userId'], 'ping body shape');
-    assertEqual(ping.body.userId, MIA, 'named the user whose access moved');
-    assertEqual(ping.body.seq, before, 'named the feed position');
+    // One doorbell per feed position, so Mia's purchase produced two.
+    assertEqual(developer.received.length, 2, 'one delivery per feed position');
+    for (const ping of developer.received) {
+      assertEqual(ping.authorized, true, 'presented the shared secret');
+      assertEqual(ping.outcome, 200, 'endpoint accepted it');
+      // The ping body deliberately did NOT gain the type: it is a doorbell, and
+      // the developer polls from their own cursor to learn what happened. Adding
+      // the type here would be the first piece of state on the wire.
+      assertEqual(Object.keys(ping.body).sort(), ['seq', 'userId'], 'ping body shape');
+      assertEqual(ping.body.userId, MIA, 'named the user whose access moved');
+    }
+    assertEqual(
+      developer.received.map((p) => p.body.seq).sort((a, b) => a - b),
+      [before - 1, before],
+      'named the two feed positions',
+    );
 
     const deliveries = await db.query(api.listDeliveries, {});
     const last = deliveries.rows[deliveries.rows.length - 1];
@@ -893,20 +911,24 @@ await runAcceptance(suite, async () => {
     assertEqual(last.status, 200, 'ledger records the status');
     // Delivering must not itself be a change.
     assertEqual(await pollChanges(before), [], 'the ping did not append to the feed');
-    return { body: ping.body };
+    return { pings: developer.received.length };
   });
 
   await suite.check('a failing endpoint is retried until it succeeds', async () => {
     developer.reset();
     developer.failNext(2);
+    // A CONSUMABLE purchase, deliberately: it emits exactly one feed event (the
+    // purchase), so exactly one delivery job exists and its retry ladder is
+    // deterministic. A granting purchase would enqueue two jobs and interleave
+    // two ladders through one global failNext budget. It also proves the
+    // slice-13 purchase event rides the same outbox as an entitlement change.
     await db.mutate(api.recordPurchase, {
       args: {
-        productId: SKU.stripe.pro_monthly,
+        productId: SKU.stripe.coins_100,
         store: 'stripe',
-        storeTxnId: 'stripe:receipt_nia_pro',
+        storeTxnId: 'stripe:receipt_nia_coins',
         status: 'active',
         environment: 'sandbox',
-        expiresAt: Date.now() + 86_400_000,
       },
       userId: NIA,
     });
@@ -948,15 +970,22 @@ await runAcceptance(suite, async () => {
       });
       await drain(10);
 
+      // Omar's granting purchase emits two events and therefore two delivery
+      // jobs, each with its OWN ladder. Scoping to one feed position is what
+      // keeps this a statement about maxAttempts rather than about how many
+      // events a purchase happens to produce.
+      const feed = (await pollChanges(0)).filter((row) => row.userId === OMAR);
+      assertEqual(feed.map((row) => row.type), ['purchase', 'entitlement'],
+        'both events are still pollable after delivery gave up');
+      const entitlementSeq = feed[1].seq;
       const ledger = (await db.query(api.listDeliveries, {})).rows
-        .filter((row) => row.userId === OMAR);
+        .filter((row) => row.userId === OMAR && row.seq === entitlementSeq);
       assertEqual(ledger.length, 5, 'stopped at the declared maxAttempts of 5');
       assert(ledger.every((row) => row.outcome === 'failed'), 'every attempt failed');
+      assertEqual(ledger.map((row) => row.attempt), [1, 2, 3, 4, 5], 'attempts are numbered');
 
       // The change itself survived the failed delivery: the feed is the
       // authoritative mechanism and the ping is only a hint.
-      const feed = (await pollChanges(0)).filter((row) => row.userId === OMAR);
-      assertEqual(feed.length, 1, 'the change is still pollable after delivery gave up');
       assertEqual(await activeEntitlementIds(OMAR), ['pro'], 'and the entitlement is real');
       return { attempts: ledger.length };
     } finally {
@@ -1099,7 +1128,7 @@ await runAcceptance(suite, async () => {
     return { purchases: after.length };
   });
 
-  await suite.check('a consumable purchase appends nothing to the change feed', async () => {
+  await suite.check('a consumable purchase emits a purchase event and no entitlement event', async () => {
     // No entitlement moved, so there is nothing for a developer to re-read.
     // A feed row here would be a false wake-up on every coin pack sold.
     const cursor = await changeCursor();
@@ -1110,11 +1139,14 @@ await runAcceptance(suite, async () => {
       environment: 'sandbox',
     }, GRACE);
     assert(res.ok, `validateReceipt failed: ${JSON.stringify(res.diagnostic)}`);
-    assertEqual(await pollChanges(cursor), [], 'the consumable buy is silent on the feed');
-    // The outbound ping is scheduled inside appendChange, so an empty page here
-    // is also the proof that no delivery was enqueued — there is one append
-    // site, and it was never reached. (Asserting on the delivery ledger instead
-    // would race the expiry sweep's still-queued jobs from the cron check.)
+    // Slice 13 changed exactly one thing here: a consumable is no longer SILENT.
+    // It emits one 'purchase' event and still no 'entitlement' event, because
+    // nothing about the user's access moved. Before this, a paying customer
+    // could produce no outbound signal at all and a developer polling the feed
+    // could not distinguish the purchase from nothing happening.
+    const page = await pollChanges(cursor);
+    assertEqual(page.map((row) => row.type), ['purchase'], 'exactly one purchase event');
+    assertEqual(page[0].userId, GRACE, 'naming the buyer');
     assertEqual(res.result.deduped, false, 'and it really was a new purchase, not a no-op');
   });
 
@@ -1167,8 +1199,8 @@ await runAcceptance(suite, async () => {
         [
           // Slice 8 added the two acknowledgement facts. Still store facts, so
           // the audit's "nothing derived" contract holds.
-          'ackState', 'createdAt', 'environment', 'productId', 'refundState',
-          'serverAckRequired', 'status', 'store', 'storeTxnId',
+          'ackState', 'createdAt', 'environment', 'fulfillmentState', 'productId',
+          'refundState', 'serverAckRequired', 'status', 'store', 'storeTxnId',
         ],
         'purchase row shape',
       );
@@ -1212,7 +1244,11 @@ await runAcceptance(suite, async () => {
     }, PAT);
     assert(res.ok, `validateReceipt failed: ${JSON.stringify(res.diagnostic)}`);
     const page = await pollChanges(cursor);
-    assertEqual(page.length, 1, 'exactly one change for the subscription');
+    // Two events now: the purchase, then the entitlement it moved. The point of
+    // this check is unchanged — the consumable path did not break the
+    // subscription path's signalling.
+    assertEqual(page.map((row) => row.type), ['purchase', 'entitlement'],
+      'the subscription emits both events');
     assertEqual(page[0].userId, PAT, 'named the buyer');
     assertEqual(await activeEntitlementIds(PAT), ['pro'], 'and pat really holds pro');
     return { seq: page[0].seq };
@@ -1412,8 +1448,10 @@ await runAcceptance(suite, async () => {
 
   await suite.check('pending grants nothing and says nothing, then resolves either way', async () => {
     // Reuses slice 6's consumable empty-path shape: a transaction that maps to
-    // no access derives no grant, and because appendChange is only reached when
-    // a grant moves, an empty feed page is also proof that no ping was queued.
+    // no access derives no grant, so no ENTITLEMENT event is appended. Since
+    // slice 13 the purchase itself is still announced — a pending purchase is a
+    // recorded purchase — which is exactly the distinction the two event types
+    // exist to draw.
     const cursor = await changeCursor();
     store.script('apple:receipt_uma_pro', 'pending->active', {
       productId: SKU.apple.pro_monthly,
@@ -1430,7 +1468,11 @@ await runAcceptance(suite, async () => {
     // A pending purchase has no window at all — not a zero-length one.
     assertEqual(pending.result.expiresAt ?? null, null, 'pending carries no expiry');
     assertEqual(await activeEntitlementIds(UMA), [], 'pending grants nothing');
-    assertEqual(await pollChanges(cursor), [], 'and appends nothing to the feed');
+    assertEqual(
+      (await pollChanges(cursor)).map((row) => row.type),
+      ['purchase'],
+      'the purchase is announced; no entitlement event, because access did not move',
+    );
     // The transaction itself IS recorded — silence is about access, not about
     // forgetting the purchase happened.
     assertEqual(
@@ -1444,11 +1486,13 @@ await runAcceptance(suite, async () => {
     await notify({ userId: UMA, store: 'apple', storeTxnId: 'apple:receipt_uma_pro' });
     assertEqual(await activeEntitlementIds(UMA), ['pro'], 'clearing grants access');
     assertEqual((await grantFor(UMA, 'pro')).state, 'active', 'as an active grant');
-    assertEqual(
-      (await pollChanges(cursor)).map((r) => r.userId),
-      [UMA],
-      'exactly one tick, for the clearing — not for the pending',
-    );
+    // From before the pending purchase: its own 'purchase' event, then the
+    // 'entitlement' event the CLEARING produced. Exactly one entitlement tick,
+    // and it belongs to the clearing — the pending purchase never moved access.
+    const umaFeed = await pollChanges(cursor);
+    assert(umaFeed.every((r) => r.userId === UMA), 'every event names uma');
+    assertEqual(umaFeed.map((r) => r.type), ['purchase', 'entitlement'],
+      'exactly one entitlement tick, for the clearing — not for the pending');
 
     // The other resolution: canceled before it ever cleared.
     const vicCursor = await changeCursor();
@@ -1468,7 +1512,13 @@ await runAcceptance(suite, async () => {
     // have a window close on it.
     assertEqual(canceled.result.status, 'revoked', 'a canceled pending purchase is revoked');
     assertEqual(await activeEntitlementIds(VIC), [], 'no grant was ever created');
-    assertEqual(await pollChanges(vicCursor), [], 'and the whole pending->canceled path is silent');
+    // The purchase is announced once, when it is recorded. Nothing after it
+    // ticks: the pending->canceled path never moved access, so across the whole
+    // path there is not one entitlement event.
+    const vicFeed = await pollChanges(vicCursor);
+    assertEqual(vicFeed.map((r) => r.type), ['purchase'],
+      'the purchase is announced; the whole pending->canceled path moves no access');
+    assertEqual(vicFeed[0].userId, VIC, 'naming the buyer');
     return { uma: 'active', vic: 'revoked' };
   });
 
@@ -2189,6 +2239,160 @@ await runAcceptance(suite, async () => {
       'expected a non-live rejection for the catalog query',
     );
     return { code: err.diagnostic.code };
+  });
+
+  // --- purchase events, directory, fulfillment (slice 13) ----------------------
+
+  await suite.check('a subscription purchase emits both a purchase event and its entitlement event', async () => {
+    const cursor = await changeCursor();
+    const res = await validate({
+      productId: SKU.apple.pro_monthly,
+      store: 'apple',
+      receipt: 'receipt_ravi_pro',
+      environment: 'sandbox',
+    }, RAVI);
+    assert(res.ok, `validateReceipt failed: ${JSON.stringify(res.diagnostic)}`);
+    const page = await pollChanges(cursor);
+    assertEqual(page.map((row) => row.type), ['purchase', 'entitlement'], 'both types');
+    assert(page.every((row) => row.userId === RAVI), 'both name the buyer');
+    // One shared sequence: the two events are consecutive positions, not two
+    // independent counters a developer would need two cursors to walk.
+    assertEqual(page[1].seq, page[0].seq + 1, 'consecutive in one sequence');
+    assertEqual(await activeEntitlementIds(RAVI), ['pro'], 'and the access is real');
+    return { seqs: page.map((r) => r.seq) };
+  });
+
+  await suite.check('the customer directory is derived from transactions, so a consumable-only buyer appears', async () => {
+    // SASHA buys ONLY a consumable. Under the old feed-derived directory this
+    // customer was invisible: a consumable grants nothing, so it never ticked
+    // the entitlement feed, and someone who had paid us did not exist.
+    const res = await validate({
+      productId: SKU.apple.coins_100,
+      store: 'apple',
+      receipt: 'receipt_sasha_coins',
+      environment: 'sandbox',
+    }, SASHA);
+    assert(res.ok, `validateReceipt failed: ${JSON.stringify(res.diagnostic)}`);
+    assertEqual(await activeEntitlementIds(SASHA), [], 'they hold no entitlement at all');
+
+    const directory = (await db.query(api.listCustomers, {})).rows;
+    const entry = directory.find((row) => row.userId === SASHA);
+    assert(entry, `consumable-only buyer missing from the directory: ${JSON.stringify(directory.map((r) => r.userId))}`);
+    assertEqual(entry.transactions, 1, 'and their purchase is counted');
+    assert(entry.firstPurchaseAt > 0 && entry.lastPurchaseAt >= entry.firstPurchaseAt, 'with server-stamped times');
+    // The directory is the transaction set, so every buyer so far is in it.
+    for (const userId of [ADA, GRACE, RAVI]) {
+      assert(directory.some((row) => row.userId === userId), `${userId} missing from the directory`);
+    }
+    assertEqual(
+      Object.keys(entry).sort(),
+      ['firstPurchaseAt', 'lastPurchaseAt', 'transactions', 'userId'],
+      'projected shape carries no entitlement state',
+    );
+    return { customers: directory.length };
+  });
+
+  await suite.check('acknowledgeConsumption records fulfillment WITHOUT touching ackState', async () => {
+    const storeTxnId = 'apple:receipt_sasha_coins';
+    const before = await purchaseOf(SASHA, storeTxnId);
+    assertEqual(before.fulfillmentState, 'unfulfilled', 'a fresh purchase is unfulfilled');
+    assertEqual(before.ackState, 'pending', 'and unacknowledged to the store');
+
+    const out = await db.mutate(api.acknowledgeConsumption, {
+      args: {
+        storeTxnId: storeTxnId,
+        consumptionStatus: 'fully_consumed',
+        deliveryStatus: 'delivered',
+        refundPreference: 'decline',
+      },
+      userId: SASHA,
+    });
+    assertEqual(out.result.changed, true, 'the fulfillment state moved');
+    assertEqual(out.result.fulfillmentState, 'fulfilled', 'and it moved to fulfilled');
+    assertEqual(out.result.requestUpdated, false, 'no consumption request is open yet');
+
+    const after = await purchaseOf(SASHA, storeTxnId);
+    assertEqual(after.fulfillmentState, 'fulfilled', 'recorded on the transaction');
+    // The two axes are independent, and this is the assertion that proves it:
+    // the developer fulfilled, and our obligation to the STORE is untouched.
+    // Apple owes no server-side ack at all, so it must stay exactly as it was.
+    assertEqual(after.ackState, 'pending', 'ackState is a DIFFERENT axis and did not move');
+    assertEqual(after.serverAckRequired, false, 'and no store ack was ever owed here');
+
+    // Idempotent, like ackState: re-reporting a delivery is not news.
+    const again = await db.mutate(api.acknowledgeConsumption, {
+      args: { storeTxnId: storeTxnId },
+      userId: SASHA,
+    });
+    assertEqual(again.result.changed, false, 're-acknowledging changes nothing');
+    return { fulfillmentState: after.fulfillmentState, ackState: after.ackState };
+  });
+
+  await suite.check('fulfillment data reaches the consumption-request path, before any request exists', async () => {
+    // The point of holding the developer's answer on the TRANSACTION: they
+    // fulfil at purchase time, and Apple asks weeks later if at all. Slice 9's
+    // setConsumptionData refuses without an open request, so without this the
+    // answer would be lost and every request would resolve to the deadline
+    // default even though the developer knew all along.
+    const storeTxnId = 'apple:receipt_sasha_coins';
+    const opened = await db.mutate(api.openConsumptionRequest, {
+      args: { storeTxnId: storeTxnId, windowMs: 3_600_000, alarmDelayMs: 0 },
+      userId: SASHA,
+    });
+    assertEqual(opened.result.deduped, false, 'a fresh request');
+
+    const plan = await db.mutate(api.settleConsumptionRequest, {
+      args: { storeTxnId: storeTxnId, phase: 'resolve' },
+      userId: SASHA,
+    });
+    assertEqual(plan.result.respond, true, 'we have something to say');
+    assertEqual(plan.result.reason, 'fulfillment-data', 'sourced from the recorded fulfillment');
+    assertEqual(plan.result.outcome, 'reported', 'reported, NOT the deadline default');
+    assertEqual(plan.result.consumptionStatus, 'fully_consumed', 'the developer’s own facts');
+    assertEqual(plan.result.deliveryStatus, 'delivered', 'including delivery');
+    assertEqual(plan.result.refundPreference, 'decline', 'and their stated preference');
+
+    // Answering an already-open request writes through to it as well, which is
+    // the setConsumptionData path reached without the developer noticing a
+    // request exists.
+    const wrote = await db.mutate(api.acknowledgeConsumption, {
+      args: { storeTxnId: storeTxnId, consumptionStatus: 'partially_consumed' },
+      userId: SASHA,
+    });
+    assertEqual(wrote.result.requestUpdated, true, 'the open request was updated in the same commit');
+    const ledger = (await db.query(api.listConsumptionRequests, {})).rows
+      .find((row) => row.storeTxnId === storeTxnId);
+    assertEqual(ledger.consumptionStatus, 'partially_consumed', 'the request carries the refined fact');
+    return { reason: plan.result.reason };
+  });
+
+  await suite.check('the delivery ledger exposes per-attempt rows, which is what /admin/deliveries serves', async () => {
+    // The engine has had this query since slice 5; slice 13 put a devserver
+    // route in front of it so the dashboard can render real delivery state
+    // instead of a placeholder. Pinning the row shape here is what stops that
+    // route from quietly changing under the dashboard.
+    const rows = (await db.query(api.listDeliveries, {})).rows;
+    assert(rows.length > 0, 'deliveries were attempted earlier in this suite');
+    for (const row of rows) {
+      // A declarative defineQuery returns whole documents, so the server-owned
+      // system fields ride along; the contract asserted here is the application
+      // shape the dashboard reads.
+      assertEqual(
+        Object.keys(row).filter((k) => !k.startsWith('_')).sort(),
+        ['attempt', 'attemptedAt', 'endpoint', 'outcome', 'seq', 'status', 'userId'],
+        'delivery row shape',
+      );
+      assert(row.outcome === 'delivered' || row.outcome === 'failed', `unknown outcome ${row.outcome}`);
+      assert(row.attempt >= 1, 'attempts are 1-based');
+    }
+    // One row per ATTEMPT, not per change: the ladder is visible after the fact.
+    const failed = rows.filter((row) => row.outcome === 'failed');
+    assert(failed.length > 0, 'the ledger retains failed attempts, not just the successful one');
+    // Ordered by seq, which is the join key the dashboard uses to attach a
+    // delivery to its feed row.
+    const seqs = rows.map((row) => row.seq);
+    assertEqual(seqs.slice().sort((a, b) => a - b), seqs, 'ordered by seq');
+    return { rows: rows.length, failed: failed.length };
   });
 
   // --- the store SKU is the atom (slice 12) -----------------------------------

@@ -107,6 +107,10 @@ const DASHBOARD_USER = 'dashboard';
 // path -> the mutation it commits. Every route is a POST with a JSON body whose
 // keys are the mutation's own arguments, so there is nothing to translate.
 const CATALOG_WRITES = {
+  // Not catalog, but the same shape: a management POST whose JSON body is the
+  // mutation's own arguments. The developer calls this when they have given the
+  // user what they bought (slice 13).
+  '/admin/fulfillment/acknowledge': api.acknowledgeConsumption,
   '/admin/packages/create': api.createPackage,
   '/admin/packages/update': api.updatePackage,
   '/admin/packages/delete': api.deletePackage,
@@ -308,16 +312,25 @@ const proxy = createServer(async (req, res) => {
       return;
     }
 
+    // The customer directory (slice 13). Derived from `transactions`, not from
+    // the change feed: a consumable-only buyer used to be invisible here,
+    // because a consumable grants nothing and therefore never ticked the
+    // entitlement feed. They had paid us and did not appear.
     if (req.method === 'GET' && path === '/admin/customers') {
-      // Cheap "customers we have seen", derived from the change feed rather
-      // than a new backend query — the feed already names every user whose
-      // access ever moved.
-      const { rows } = await db.query(api.pollChanges, { args: { sinceSeq: 0 } });
-      const seen = [];
-      for (const row of rows) {
-        if (!seen.includes(row.userId)) seen.push(row.userId);
-      }
-      send(res, 200, seen.map((userId) => ({ userId })));
+      const { rows } = await db.query(api.listCustomers, {});
+      send(res, 200, rows);
+      return;
+    }
+
+    // The delivery ledger — one row per webhook ATTEMPT, so the retry ladder is
+    // visible after the fact rather than only in the job's own state.
+    //
+    // The engine has had this query since slice 5; the devserver simply never
+    // exposed it, which is why the dashboard's Delivery column carried a
+    // "no endpoint" marker until slice 13.
+    if (req.method === 'GET' && path === '/admin/deliveries') {
+      const { rows } = await db.query(api.listDeliveries, {});
+      send(res, 200, rows);
       return;
     }
 
@@ -362,6 +375,7 @@ await new Promise((resolve, reject) => {
 console.log(`[devserver] ready on :${PORT}`);
 console.log('[devserver]   runtime    GET /products (packages+skus)  POST /buy {userId,store,productId}  GET /entitlements?userId=  GET /purchases?userId=');
 console.log('[devserver]   management GET /admin/changes?sinceSeq=  GET /admin/customers  GET /admin/purchases?userId=');
+console.log('[devserver]              GET /admin/deliveries');
 console.log('[devserver]              GET /admin/catalog  GET /admin/customer?userId=');
 for (const route of Object.keys(CATALOG_WRITES)) console.log(`[devserver]              POST ${route}`);
 console.log('[devserver]   dashboard  GET /  (serves ~/projects/eas-payments-dashboard/index.html)');

@@ -201,6 +201,39 @@ export default defineSchema({
     // We MIRROR this from the store and never compute it. Adjudicating refunds
     // is the store's job; ours is to react to their verdict.
     refundState: v.string(),
+
+    // DEVELOPER fulfillment (slice 13). Deliberately a separate axis from
+    // `ackState`, and the distinction is the entire point:
+    //
+    //   ackState          did WE tell the STORE we accepted the purchase
+    //                     (Google's server-side consume/acknowledge)
+    //   fulfillmentState  did the DEVELOPER give the user what they bought
+    //
+    // Those are different parties answering different questions, and they fail
+    // independently: a purchase can be consumed at Google while the developer's
+    // coin grant crashed, or fulfilled in-app while our ack job is still
+    // retrying. Overloading `ackState` with a 'fulfilled' value would make each
+    // of those states unrepresentable and would let one party's success mask
+    // the other's failure.
+    //
+    // 'unfulfilled' -> 'fulfilled'. One-way and idempotent, like ackState: a
+    // developer re-reporting a delivery they already reported changes nothing.
+    fulfillmentState: v.string(),
+    fulfilledAt: v.optional(v.integer()),
+
+    // The consumption facts the developer supplied WITH the fulfillment, held
+    // here rather than only on a consumptionRequests row.
+    //
+    // Slice 9's setConsumptionData deliberately requires an open request — you
+    // answer a question that was asked. But a developer fulfils a consumable at
+    // purchase time, which is typically long BEFORE Apple asks anything. With
+    // nowhere to put that answer early, every CONSUMPTION_REQUEST would resolve
+    // to the deadline default even though the developer knew the answer all
+    // along. These columns are that missing memory; settleConsumptionRequest
+    // reads them before falling back.
+    consumptionStatus: v.optional(v.string()),
+    deliveryStatus: v.optional(v.string()),
+    refundPreference: v.optional(v.string()),
   })
     .index('by_user', ['userId'])
     // by_storeTxn is what makes recordPurchase idempotent: a re-delivered
@@ -235,14 +268,34 @@ export default defineSchema({
     // Declared syncable so getEntitlements can be a real live query.
     .sync(),
 
-  // The outbound change feed (decision 20). One row per reconcile that moved a
-  // user's active set — and nothing else. Deliberately carries NO entitlement
-  // state: a developer polling this learns only that something changed for a
-  // user, then re-reads our authoritative answer. That keeps the feed useless
-  // to an eavesdropper and impossible to act on stale.
-  entitlementChanges: defineTable({
+  // The outbound event feed (decision 20, typed in slice 13). One row per thing
+  // a developer needs to hear about, and nothing else. Deliberately carries NO
+  // entitlement state: a developer polling this learns only that something
+  // happened for a user, then re-reads our authoritative answer. That keeps the
+  // feed useless to an eavesdropper and impossible to act on stale.
+  //
+  // Renamed from `entitlementChanges` in slice 13, because it stopped being
+  // only about entitlements. Two types share one sequence:
+  //
+  //   'entitlement'  a reconcile moved this user's active set
+  //   'purchase'     a purchase was recorded for this user
+  //
+  // ONE shared seq rather than a sequence per type, so a single cursor still
+  // totally orders everything a developer must react to. Two sequences would
+  // mean two cursors and no defined order between them — and "the purchase
+  // event that granted this entitlement" would become unorderable against the
+  // entitlement event it caused.
+  //
+  // `type` is the one piece of classification the feed carries, and it is not
+  // state: it says WHICH authoritative read to go and perform, not what that
+  // read will say. A consumable emits only a 'purchase' event, which is the
+  // whole reason the type exists — without it a consumable purchase would be
+  // indistinguishable from silence.
+  changeEvents: defineTable({
     userId: v.string(),
     seq: v.integer(),
+    // 'entitlement' | 'purchase'. Validated by isKnownEventType in the handlers.
+    type: v.string(),
     changedAt: v.integer(),
   })
     // by_seq is the keyset cursor a poller walks.

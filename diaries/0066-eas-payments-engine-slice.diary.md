@@ -1369,3 +1369,165 @@ Not filed: this session was scoped to `demos/eas-payments/` plus this diary, and
   halves of the answer are on two pages that never point at each other. Grep
   vocabulary: "compound key", "composite primary key", "two-column identity",
   "eq eq".
+
+## 2026-08-11 — slice 13: purchase events, a real customer directory, fulfillment
+
+### What the slice is
+
+Four threads, and three of them turned out to be the same bug seen from
+different angles: **a consumable purchase produced no evidence anywhere.**
+
+- The outbound feed gained a `type` — `entitlement | purchase` — over one
+  shared sequence. Every recorded purchase now emits a purchase event;
+  consumables still emit no entitlement event, because nothing about access
+  moved.
+- The customer directory moved off the change feed and onto `transactions`.
+- `acknowledgeConsumption` records developer fulfillment on its own axis.
+- `/admin/deliveries` finally exposes the ledger the engine has had since
+  slice 5.
+
+`entitlementChanges` was renamed to `changeEvents`. Not asked for, and worth
+saying out loud: a table called `entitlementChanges` that stores purchase events
+is exactly the vocabulary drift this diary has complained about twice, and the
+rename is mechanical enough that the suite proves it.
+
+### The bug three threads were circling
+
+Before this slice, a customer who bought only a consumable:
+
+- appeared in no change feed row (a consumable grants nothing, and the feed only
+  carried entitlement changes),
+- therefore appeared in no customer list (the dashboard derived it from the
+  feed),
+- and had no record of whether the developer had actually given them anything.
+
+They had paid us and they did not exist. Each thread of this slice closes one
+face of that, and the fix for each is different: emit an event, read the
+directory from the table that owns it, add a fulfillment axis.
+
+The directory one is worth stating precisely, because purchase events alone
+would have papered over it. Once purchases tick the feed, a consumable-only
+buyer *does* appear in it — so I could have left the dashboard reading the feed
+and the symptom would have gone away. That would have been wrong. A feed is a
+**cursor**: bounded, walked forward from a position, and correct to truncate. A
+directory is a **set**. Deriving a set from a cursor means a customer appears
+because an event about them is still in the window, which is not a property
+anyone wants. The directory reads `transactions` because that is the table that
+owns the answer.
+
+### Two axes, again
+
+`fulfillmentState` is deliberately not a value on `ackState`, and this is the
+third time this demo has made that argument (slice 7's `state` vs `active`,
+slice 8's `serverAckRequired` vs `ackState`, now this). The shape is always the
+same: two facts that look adjacent are owned by different parties and fail
+independently.
+
+    ackState          did WE tell the STORE we accepted the purchase
+    fulfillmentState  did the DEVELOPER give the user what they bought
+
+A purchase can be consumed at Google while the developer's coin grant crashed,
+or fulfilled in-app while our ack job is still retrying. One enum could not hold
+both, and the failure mode of trying is that one party's success masks the
+other's failure. The acceptance asserts it directly: after
+`acknowledgeConsumption`, `ackState` is still `pending`.
+
+The genuinely new idea here is smaller and better: the developer's consumption
+facts are held on the **transaction**, not only on a `consumptionRequests` row.
+Slice 9's `setConsumptionData` requires an open request — you answer a question
+that was asked — but a developer fulfils a consumable at purchase time and Apple
+asks weeks later if ever. With nowhere to keep the answer early, every
+CONSUMPTION_REQUEST would resolve to the deadline default while the developer
+had known the answer all along. `settleConsumptionRequest` now reads the
+transaction before falling back, and returns `reason: 'fulfillment-data'`.
+Missing fields fall back individually rather than discarding the whole report:
+"delivered, consumption unknown" is a better answer than "unknown, unknown".
+
+### What the ripple cost, and why I did not dodge it
+
+Making purchases ring the doorbell meant a granting purchase now enqueues **two**
+pings, because `appendChange` has always been "append one feed position, ring
+one doorbell" with `idempotencyKey: 'change:' + seq`. Three delivery checks
+broke on counts.
+
+The tempting fix was to coalesce — one ping per commit naming the highest seq.
+It would have left every existing check green. I did not, because "one delivery
+per feed position" is an invariant already written into the code and the
+idempotency key, and quietly changing it to make tests pass is how an invariant
+becomes a comment that lies. So the checks were reshaped instead, and two of
+them needed real thought:
+
+- The retry-ladder check now drives its ladder with a **consumable** purchase,
+  which emits exactly one event and therefore one job. With a granting purchase,
+  two jobs interleave through one global `failNext` budget and the ladder stops
+  being deterministic. It also happens to prove purchase events ride the same
+  outbox.
+- The exhausted-ladder check keeps its granting purchase but scopes the ledger
+  to **one seq**, so it stays a statement about `maxAttempts` rather than about
+  how many events a purchase happens to produce.
+
+Neither is weaker than what it replaced. Both are more specific.
+
+### Snapback notes
+
+**Codegen refused computed member access, and was right to.** My first
+`listCustomers` grouped with a lookup object (`index[row.userId]`), which
+`SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN` rejected. The rewrite groups with
+plain locals over the ordered `by_user` scan — fewer allocations, no hash, and
+it made me notice the scan was already ordered by the key I was grouping on. A
+constraint that produced better code rather than a workaround.
+
+**`take(2000)` is not a thing.** `SNAPBACK_QUERY_LIMIT_INVALID` at runtime; the
+ceiling is 1,024 and `guide/backend/queries.md` says so. Refusing rather than
+truncating is the right call — a silently truncated directory is a customer list
+that is quietly wrong.
+
+**The projected-read contract caught a real question.** Adding
+`fulfillmentState` to `listPurchases` broke the key-set assertion, which forced
+the question "is this a store fact?" It is not — it is a developer fact. I added
+it anyway and changed the contract comment to say so, because "was this purchase
+honoured" is the question the audit exists to answer for a consumable. The point
+is that the contract made me decide deliberately instead of drifting.
+
+### On not faking the Delivery column
+
+The devserver registers no webhook endpoint and runs with jobs disabled, so
+`/admin/deliveries` returns `[]` — truthfully. The dashboard renders "—" and a
+note saying why, rather than inventing "✓ delivered" to make the column look
+alive. That left the interesting branches unexercised, so I verified them by
+putting a proxy in front of the devserver serving a ledger-shaped non-empty
+response: delivered, mid-ladder (`↻ retrying (2/5)`), and exhausted
+(`✕ gave up after 5`), with the real HTTP status surfaced. Testing a renderer
+against realistic rows is not the same as showing a user a number nobody
+computed.
+
+### Compared to Convex / Supabase
+
+The typed-feed change is where a relational stack would have been plainly
+better: `ALTER TABLE ... ADD COLUMN type text NOT NULL DEFAULT 'entitlement'`
+backfills every existing row in one statement, and a partial index keeps the
+cursor scan tight. Here the table is rebuilt from the manifest on `reset()`, so
+there was no backfill to write — which is convenient exactly as long as you have
+no production data, and this demo does not. I would rather have the migration
+and the answer to "what happens to rows written before the column existed."
+
+The doorbell-per-position decision would have been identical anywhere; nothing
+about it is Snapback-specific. What Snapback gave was that the invariant lived
+next to the enqueue as an idempotency key, so "should this coalesce" was a
+question I could answer by reading eleven lines rather than by tracing a worker.
+
+### Guide gap worth filing
+
+Not filed: this session was scoped to `demos/eas-payments/` plus this diary, and
+`issues/` is outside it. Wants `guide-gap` in the title.
+
+- **The inline-handler subset is discoverable only by hitting it.**
+  `SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN: dynamic computed member access is
+  outside inline_handler_v1` is a good diagnostic, but no guide page enumerates
+  what `inline_handler_v1` admits. `guide/backend/mutations.md` says an inline
+  handler "captures no imports or top-level const bindings" and stops there. An
+  author writing an ordinary group-by reaches for `index[key]` and only finds
+  out at codegen. A short list — no computed member access, no imports, no outer
+  consts, same-file declarations spliced — with the one-line workaround for
+  grouping would have saved a cycle. Grep vocabulary: "inline_handler_v1",
+  "computed member access", "group by in a handler", "object as a map".

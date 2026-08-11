@@ -163,6 +163,87 @@ export const listEntitlements = defineJsQuery({
   },
 });
 
+// The customer directory (slice 13). Derived from TRANSACTIONS, which is the
+// only table that records every customer we have ever heard of.
+//
+// It replaces deriving the list from the change feed, and the bug that fixes is
+// specific: before slice 13 the feed only carried entitlement events, so a
+// customer who had only ever bought a consumable produced no feed row and was
+// invisible to the dashboard. They had paid us money and did not exist.
+//
+// Purchase events (thread A) would now put them in the feed too, but the feed
+// is still the wrong source: it is a CURSOR, bounded and meant to be walked
+// forward from a position, while a directory is a set. Reading the set from the
+// table that owns it means a customer appears because they transacted, not
+// because an event about them happened to still be in the window.
+//
+// Projected, and deliberately narrow: who they are and how much they have
+// bought. Entitlements are a separate read — that answer belongs to
+// getEntitlements, and duplicating it here would be a second answer that could
+// disagree with the one the app gates on.
+//
+// POC BOUND: 1,024 transactions scanned, which is the query ceiling — a bigger
+// `take` is refused with SNAPBACK_QUERY_LIMIT_INVALID rather than silently
+// truncated. `transactions` has no by-customer aggregate index, so this is an
+// ordered scan over by_user; a real directory wants pagination over a customers
+// table that this demo does not have.
+export const listCustomers = defineJsQuery({
+  args: {},
+  reads: ['transactions'],
+  result: results.records(v.object({
+    userId: v.string(),
+    transactions: v.integer(),
+    firstPurchaseAt: v.integer(),
+    lastPurchaseAt: v.integer(),
+  })),
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query('transactions')
+      .withIndex('by_user')
+      .order('userId', 'asc')
+      .take(1024)
+      .collect();
+    // Grouped with plain locals rather than a lookup object: the inline-handler
+    // surface forbids computed member access (`index[row.userId]`), and it does
+    // not need one here — the by_user scan is ordered, so a customer's rows are
+    // adjacent and one pass closes each group when the id changes.
+    const out = [];
+    let currentUser = null;
+    let count = 0;
+    let firstAt = 0;
+    let lastAt = 0;
+    for (const row of rows) {
+      if (currentUser !== null && row.userId !== currentUser) {
+        out.push({
+          userId: currentUser,
+          transactions: count,
+          firstPurchaseAt: firstAt,
+          lastPurchaseAt: lastAt,
+        });
+        currentUser = null;
+      }
+      if (currentUser === null) {
+        currentUser = row.userId;
+        count = 0;
+        firstAt = row._createdAt;
+        lastAt = row._createdAt;
+      }
+      count += 1;
+      if (row._createdAt < firstAt) firstAt = row._createdAt;
+      if (row._createdAt > lastAt) lastAt = row._createdAt;
+    }
+    if (currentUser !== null) {
+      out.push({
+        userId: currentUser,
+        transactions: count,
+        firstPurchaseAt: firstAt,
+        lastPurchaseAt: lastAt,
+      });
+    }
+    return out;
+  },
+});
+
 // The join table itself, unaggregated. The dashboard renders one entitlement
 // with its granting SKUs, and a developer debugging a mis-sold bundle
 // wants the raw edges — so this hands back edges and lets the reader group
@@ -203,7 +284,10 @@ export const listProductEntitlements = defineJsQuery({
 // would make us the authority on a number no store could reconcile us against.
 //
 // Projected rather than `results.documents`, so the shape is a contract: this
-// read returns store facts, never anything derived from them.
+// read returns facts that were REPORTED to us — by the store, and since slice 13
+// by the developer via acknowledgeConsumption — and never anything derived from
+// them. No entitlement field will ever appear here; that answer is
+// getEntitlements' alone.
 export const listPurchases = defineJsQuery({
   args: {},
   reads: ['transactions'],
@@ -223,6 +307,12 @@ export const listPurchases = defineJsQuery({
     // rather than on the grant is deliberate: access derives from `status`, so a
     // refund's paper trail must not be somewhere an app might gate on it.
     refundState: v.string(),
+    // Slice 13. The one field here that is NOT a store fact: whether the
+    // developer says they gave the user what they bought. It belongs in the
+    // audit anyway — "was this purchase honoured" is the question the audit
+    // exists to answer for a consumable, and the alternative is a second read
+    // that would have to be joined to this one at every call site.
+    fulfillmentState: v.string(),
   })),
   handler: async (ctx) => {
     const rows = await ctx.db
@@ -242,6 +332,7 @@ export const listPurchases = defineJsQuery({
       ackState: row.ackState,
       serverAckRequired: row.serverAckRequired,
       refundState: row.refundState,
+      fulfillmentState: row.fulfillmentState,
     }));
   },
 });
@@ -324,6 +415,34 @@ function defaultConsumptionAnswer() {
     deliveryStatus: 'unknown',
     refundPreference: 'no_preference',
   };
+}
+
+// The three closed vocabularies a developer may report. Factored out in slice 13
+// because two surfaces now accept them — setConsumptionData (answering an open
+// request) and acknowledgeConsumption (reporting fulfillment, usually long
+// before any request exists) — and two copies of a vocabulary is how the two
+// surfaces drift.
+//
+// 'unknown' is deliberately NOT admitted here even though
+// defaultConsumptionAnswer emits it: that value is OUR abstention when the
+// developer never answered, and a developer explicitly reporting "unknown"
+// would be a different fact wearing the same word.
+function isKnownConsumptionStatus(status) {
+  return status === 'not_consumed'
+    || status === 'partially_consumed'
+    || status === 'fully_consumed';
+}
+
+function isKnownDeliveryStatus(status) {
+  return status === 'delivered' || status === 'not_delivered';
+}
+
+// We never adjudicate, but the developer may state a preference and the store
+// decides. 'no_preference' is the abstention.
+function isKnownRefundPreference(preference) {
+  return preference === 'no_preference'
+    || preference === 'grant'
+    || preference === 'decline';
 }
 
 // Which adapters owe the store a server-side acknowledgement (slice 8).
@@ -513,12 +632,17 @@ async function applyDerivedGrant(ctx, userId, entitlementId) {
 // hand-roll further than this.
 async function readMaxChangeSeq(ctx) {
   const last = await ctx.db
-    .query('entitlementChanges')
+    .query('changeEvents')
     .withIndex('by_seq')
     .order('seq', 'desc')
     .take(1)
     .collect();
   return last.length === 0 ? 0 : last[0].seq;
+}
+
+// The closed event vocabulary (slice 13). Two types, one sequence.
+function isKnownEventType(type) {
+  return type === 'entitlement' || type === 'purchase';
 }
 
 // Append one feed row and, if a developer has registered an endpoint, schedule
@@ -533,10 +657,14 @@ async function readMaxChangeSeq(ctx) {
 // is why `mayEnqueue` can be false: one sweep may move more users than the
 // paved queue's 16-enqueues-per-mutation limit allows, and dropping a hint is
 // harmless when the poller still sees every seq.
-async function appendChange(ctx, userId, seq, now, mayEnqueue) {
-  await ctx.db.insert('entitlementChanges', {
+async function appendChange(ctx, userId, seq, now, mayEnqueue, type) {
+  if (!isKnownEventType(type)) {
+    throw new Error('unknown event type: ' + type);
+  }
+  await ctx.db.insert('changeEvents', {
     userId: userId,
     seq: seq,
+    type: type,
     changedAt: now,
   });
   if (!mayEnqueue) return false;
@@ -662,8 +790,8 @@ export const recordPurchase = defineJsMutation({
     resumesAt: v.optional(v.integer()),
     refundState: v.optional(v.string()),
   },
-  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints', 'products', 'packages'],
-  writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
+  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'changeEvents', 'webhookEndpoints', 'products', 'packages'],
+  writes: ['transactions', 'entitlementGrants', 'changeEvents'],
   result: results.value(v.object({
     transactionId: v.string(),
     deduped: v.boolean(),
@@ -725,13 +853,33 @@ export const recordPurchase = defineJsMutation({
       ackState: 'pending',
       serverAckRequired: ackRequired,
       refundState: refundState,
+      // Nobody has fulfilled anything yet, and the developer has told us
+      // nothing about consumption. Both are their axis, not ours.
+      fulfillmentState: 'unfulfilled',
     });
 
     // Derive, never assign: the new transaction is now one input among the
     // user's transactions, and the grant is recomputed from all of them.
     const granted = await applyProductEntitlements(ctx, userId, args.store, args.productId);
+
+    // Two event types, one sequence, causal order (slice 13). The seq base is
+    // read ONCE — a mutation's writes are buffered, so re-reading the max after
+    // the first append would not observe it — and advanced locally.
+    //
+    // The purchase event is unconditional. That is the change: a consumable
+    // grants nothing, so before slice 13 a consumable purchase produced no
+    // outbound signal at all and a developer polling the feed could not tell it
+    // from silence. It now emits exactly one event, and that event is the only
+    // one it emits — there is still no entitlement event, because nothing about
+    // the user's access moved.
+    const now = ctx.runtime.now();
+    let nextSeq = (await readMaxChangeSeq(ctx)) + 1;
+    await appendChange(ctx, userId, nextSeq, now, true, 'purchase');
+    nextSeq += 1;
+    // The entitlement event keeps its exact old meaning and its old condition:
+    // emitted only when the active set actually moved.
     if (granted > 0) {
-      await appendChange(ctx, userId, (await readMaxChangeSeq(ctx)) + 1, ctx.runtime.now(), true);
+      await appendChange(ctx, userId, nextSeq, now, true, 'entitlement');
     }
     // Enqueued after the grant is written, and unconditionally on the grant
     // having moved: the obligation is owed for the PURCHASE, not for the
@@ -762,7 +910,7 @@ export const validateReceipt = defineAction({
     storeBaseUrl: v.optional(v.string()),
   },
   uses: ['storeValidation'],
-  writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
+  writes: ['transactions', 'entitlementGrants', 'changeEvents'],
   // expiresAt is optional now: a `pending` purchase has not bought a window
   // yet, and a `paused` one has no active window to report. Forcing an integer
   // here would have meant inventing one.
@@ -888,8 +1036,8 @@ export const reconcileTransaction = defineJsMutation({
     resumesAt: v.optional(v.integer()),
     refundState: v.optional(v.string()),
   },
-  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints', 'products', 'packages'],
-  writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
+  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'changeEvents', 'webhookEndpoints', 'products', 'packages'],
+  writes: ['transactions', 'entitlementGrants', 'changeEvents'],
   result: results.value(v.object({
     changed: v.boolean(),
     entitlementsChanged: v.integer(),
@@ -930,6 +1078,10 @@ export const reconcileTransaction = defineJsMutation({
     // `store` field re-point the reconcile at a different SKU's entitlements.
     let store = args.store;
     let transactionChanged = false;
+    // Distinct from transactionChanged: that is true whenever any stored field
+    // moved, while this is true only when the row did not exist before. Only
+    // the second is a PURCHASE, and only it emits a purchase event.
+    let recordedPurchase = false;
     if (seen.length === 0) {
       // A notification may be the first time we hear about a transaction.
       await ctx.db.insert('transactions', {
@@ -945,6 +1097,7 @@ export const reconcileTransaction = defineJsMutation({
         ackState: 'pending',
         serverAckRequired: serverAckRequiredFor(args.store),
         refundState: nextRefundState,
+        fulfillmentState: 'unfulfilled',
       });
       // A notification can be the first time we hear about a purchase, and that
       // purchase owes the store an acknowledgement exactly like one we recorded
@@ -953,6 +1106,7 @@ export const reconcileTransaction = defineJsMutation({
       // auto-refunded three days later.
       await enqueueAcknowledgement(ctx, args.store, productId, storeTxnId);
       transactionChanged = true;
+      recordedPurchase = true;
     } else {
       const row = seen[0];
       // The stored row owns the identity, not the notification. A payload
@@ -993,10 +1147,21 @@ export const reconcileTransaction = defineJsMutation({
     }
 
     const entitlementsChanged = await applyProductEntitlements(ctx, userId, store, productId);
+
+    // Same two-type, one-sequence shape as recordPurchase. The purchase event
+    // is emitted only when this notification RECORDED a purchase — the
+    // insert branch above — because a notification about a transaction we
+    // already knew is not a new purchase however much of its state moved.
+    const now = ctx.runtime.now();
+    let nextSeq = (await readMaxChangeSeq(ctx)) + 1;
+    if (recordedPurchase) {
+      await appendChange(ctx, userId, nextSeq, now, true, 'purchase');
+      nextSeq += 1;
+    }
     // Only an actual move in the active set reaches the feed. A redundant
     // notification updates nothing and says nothing.
     if (entitlementsChanged > 0) {
-      await appendChange(ctx, userId, (await readMaxChangeSeq(ctx)) + 1, ctx.runtime.now(), true);
+      await appendChange(ctx, userId, nextSeq, now, true, 'entitlement');
     }
     return {
       changed: entitlementsChanged > 0,
@@ -1022,7 +1187,7 @@ export const applyStoreState = defineAction({
     storeBaseUrl: v.optional(v.string()),
   },
   uses: ['storeValidation'],
-  writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
+  writes: ['transactions', 'entitlementGrants', 'changeEvents'],
   result: results.value(v.object({
     storeTxnId: v.string(),
     status: v.string(),
@@ -1121,8 +1286,8 @@ export const applyStoreState = defineAction({
 // than expired on a horizon nobody promised.
 export const applyGrantExpiry = defineJsMutation({
   args: {},
-  reads: ['entitlementGrants', 'entitlementChanges', 'webhookEndpoints'],
-  writes: ['entitlementGrants', 'entitlementChanges'],
+  reads: ['entitlementGrants', 'changeEvents', 'webhookEndpoints'],
+  writes: ['entitlementGrants', 'changeEvents'],
   result: results.value(v.object({ expired: v.integer(), now: v.integer() })),
   handler: async (ctx) => {
     const now = ctx.runtime.now();
@@ -1155,7 +1320,8 @@ export const applyGrantExpiry = defineJsMutation({
           notified.push(grant.userId);
           // The paved queue admits 16 enqueues per mutation. Past that the
           // feed still records every user; only the courtesy ping is dropped.
-          await appendChange(ctx, grant.userId, nextSeq, now, notified.length <= 16);
+          // Expiry moves access, never a purchase: always 'entitlement'.
+          await appendChange(ctx, grant.userId, nextSeq, now, notified.length <= 16, 'entitlement');
           nextSeq += 1;
         }
       }
@@ -1167,7 +1333,7 @@ export const applyGrantExpiry = defineJsMutation({
 // Cron targets an action, never a mutation; the action owns the commit call.
 export const expireGrantsSweep = defineAction({
   args: {},
-  writes: ['entitlementGrants', 'entitlementChanges'],
+  writes: ['entitlementGrants', 'changeEvents'],
   result: results.value(v.object({ expired: v.integer() })),
   handler: async (ctx) => {
     const commit = await ctx.runMutation('applyGrantExpiry', {});
@@ -1193,26 +1359,38 @@ export const paymentsCron = defineCron({
 // answer themselves through getEntitlements.
 //
 // The result contract is the enforcement, not a convention: `records` of
-// exactly { userId, seq } means adding entitlement state here would fail
+// exactly { userId, seq, type } means adding entitlement state here would fail
 // validation rather than quietly leaking.
+//
+// `type` joined the contract in slice 13 and is the one thing here that is not
+// pure routing: it tells a developer WHICH authoritative read to perform —
+// getEntitlements for 'entitlement', listPurchases for 'purchase' — without
+// telling them what that read will return. A consumable emits only a 'purchase'
+// event, so without the type a developer would have to re-read entitlements,
+// find them unchanged, and conclude nothing happened.
 //
 // Cursor semantics are keyset, not "jump to the global max": resume from the
 // last seq you received. With a bounded page, advancing to a global head
-// instead would silently skip everything the page truncated.
+// instead would silently skip everything the page truncated. The cursor is
+// still one integer over one sequence — adding a type did not add a cursor.
 export const pollChanges = defineJsQuery({
   args: { sinceSeq: v.integer() },
-  reads: ['entitlementChanges'],
-  result: results.records(v.object({ userId: v.string(), seq: v.integer() })),
+  reads: ['changeEvents'],
+  result: results.records(v.object({
+    userId: v.string(),
+    seq: v.integer(),
+    type: v.string(),
+  })),
   handler: async (ctx, args) => {
     const since = typeof args.sinceSeq === 'number' ? args.sinceSeq : 0;
     const rows = await ctx.db
-      .query('entitlementChanges')
+      .query('changeEvents')
       .withIndex('by_seq')
       .gt('seq', since)
       .order('seq', 'asc')
       .take(100)
       .collect();
-    return rows.map((row) => ({ userId: row.userId, seq: row.seq }));
+    return rows.map((row) => ({ userId: row.userId, seq: row.seq, type: row.type }));
   },
 });
 
@@ -1564,19 +1742,13 @@ export const setConsumptionData = defineJsMutation({
   writes: ['consumptionRequests'],
   result: results.value(v.object({ accepted: v.boolean() })),
   handler: async (ctx, args) => {
-    if (args.consumptionStatus !== 'not_consumed'
-      && args.consumptionStatus !== 'partially_consumed'
-      && args.consumptionStatus !== 'fully_consumed') {
+    if (!isKnownConsumptionStatus(args.consumptionStatus)) {
       throw new Error('unknown consumptionStatus: ' + args.consumptionStatus);
     }
-    if (args.deliveryStatus !== 'delivered' && args.deliveryStatus !== 'not_delivered') {
+    if (!isKnownDeliveryStatus(args.deliveryStatus)) {
       throw new Error('unknown deliveryStatus: ' + args.deliveryStatus);
     }
-    // We never adjudicate, but the developer may state a preference and the store
-    // decides. 'no_preference' is the abstention.
-    if (args.refundPreference !== 'no_preference'
-      && args.refundPreference !== 'grant'
-      && args.refundPreference !== 'decline') {
+    if (!isKnownRefundPreference(args.refundPreference)) {
       throw new Error('unknown refundPreference: ' + args.refundPreference);
     }
     const rows = await ctx.db
@@ -1591,6 +1763,123 @@ export const setConsumptionData = defineJsMutation({
       refundPreference: args.refundPreference,
     });
     return { accepted: true };
+  },
+});
+
+// The developer tells US they have fulfilled a purchase (slice 13).
+//
+// This is the missing half of the consumable story. `acknowledgePurchase` tells
+// the STORE we accepted the sale; nothing until now recorded whether the
+// DEVELOPER actually gave the user their coins. Those are different parties
+// answering different questions and they fail independently, so this writes a
+// separate `fulfillmentState` and never touches `ackState`.
+//
+// It does two things in one commit:
+//
+//   1. Records fulfillment on the transaction, with whatever consumption facts
+//      the developer supplied.
+//   2. If a CONSUMPTION_REQUEST is already open and unanswered for that
+//      transaction, writes the same facts onto it — the setConsumptionData
+//      path, reached without the developer having to notice a request exists.
+//
+// The transaction copy is the load-bearing one. Slice 9's setConsumptionData
+// requires an open request, and rightly: you answer a question that was asked.
+// But fulfillment happens at purchase time and Apple asks weeks later, if ever.
+// Without somewhere to keep the answer early, every request would resolve to
+// the deadline default even though the developer knew the answer all along.
+// settleConsumptionRequest now reads these columns before falling back.
+export const acknowledgeConsumption = defineJsMutation({
+  args: {
+    storeTxnId: v.string(),
+    // All optional: the minimal call is "I fulfilled this", and that alone is
+    // worth recording. Supplying facts is how the developer improves what we
+    // will tell Apple if a refund is ever considered.
+    consumptionStatus: v.optional(v.string()),
+    deliveryStatus: v.optional(v.string()),
+    refundPreference: v.optional(v.string()),
+  },
+  reads: ['transactions', 'consumptionRequests'],
+  writes: ['transactions', 'consumptionRequests'],
+  result: results.value(v.object({
+    storeTxnId: v.string(),
+    fulfillmentState: v.string(),
+    changed: v.boolean(),
+    requestUpdated: v.boolean(),
+  })),
+  handler: async (ctx, args) => {
+    const storeTxnId = String(args.storeTxnId ?? '').trim();
+    if (!storeTxnId) throw new Error('storeTxnId is required');
+    if (args.consumptionStatus !== undefined
+      && !isKnownConsumptionStatus(args.consumptionStatus)) {
+      throw new Error('unknown consumptionStatus: ' + args.consumptionStatus);
+    }
+    if (args.deliveryStatus !== undefined && !isKnownDeliveryStatus(args.deliveryStatus)) {
+      throw new Error('unknown deliveryStatus: ' + args.deliveryStatus);
+    }
+    if (args.refundPreference !== undefined
+      && !isKnownRefundPreference(args.refundPreference)) {
+      throw new Error('unknown refundPreference: ' + args.refundPreference);
+    }
+
+    const rows = await ctx.db
+      .query('transactions')
+      .withIndex('by_storeTxn')
+      .eq('storeTxnId', storeTxnId)
+      .collect();
+    if (rows.length === 0) throw new Error('unknown storeTxnId: ' + storeTxnId);
+    const txn = rows[0];
+
+    // Acknowledging fulfillment IS reporting a delivery, so the default is
+    // 'delivered' rather than absent. The other two stay absent unless supplied:
+    // only the developer knows whether the user has spent the coins, and
+    // guessing 'fully_consumed' on their behalf would be inventing evidence
+    // Apple might act on.
+    const deliveryStatus = args.deliveryStatus === undefined
+      ? 'delivered'
+      : args.deliveryStatus;
+    const patch = { deliveryStatus: deliveryStatus };
+    if (args.consumptionStatus !== undefined) patch.consumptionStatus = args.consumptionStatus;
+    if (args.refundPreference !== undefined) patch.refundPreference = args.refundPreference;
+
+    // One-way and idempotent, exactly like ackState: fulfillment is a fact
+    // about the past. A repeat call may still refine the consumption facts —
+    // 'partially_consumed' becoming 'fully_consumed' is real news — but it
+    // never moves fulfilledAt, so an early fulfillment cannot be back-dated.
+    const alreadyFulfilled = txn.fulfillmentState === 'fulfilled';
+    if (!alreadyFulfilled) {
+      patch.fulfillmentState = 'fulfilled';
+      patch.fulfilledAt = ctx.runtime.now();
+    }
+    await ctx.db.patch('transactions', txn._id, patch);
+
+    // If Apple has already asked, answer the open request too. Only while it is
+    // unanswered: a response we have already sent is not revisable.
+    let requestUpdated = false;
+    const requests = await ctx.db
+      .query('consumptionRequests')
+      .withIndex('by_txn')
+      .eq('storeTxnId', storeTxnId)
+      .collect();
+    if (requests.length > 0) {
+      const request = requests[0];
+      const answered = request.respondedAt !== undefined && request.respondedAt !== null;
+      if (!answered) {
+        const fallback = defaultConsumptionAnswer();
+        await ctx.db.patch('consumptionRequests', request._id, {
+          consumptionStatus: patch.consumptionStatus ?? fallback.consumptionStatus,
+          deliveryStatus: deliveryStatus,
+          refundPreference: patch.refundPreference ?? fallback.refundPreference,
+        });
+        requestUpdated = true;
+      }
+    }
+
+    return {
+      storeTxnId: storeTxnId,
+      fulfillmentState: 'fulfilled',
+      changed: !alreadyFulfilled,
+      requestUpdated: requestUpdated,
+    };
   },
 });
 
@@ -1615,7 +1904,7 @@ export const settleConsumptionRequest = defineJsMutation({
     atDeadline: v.optional(v.boolean()),
     outcome: v.optional(v.string()),
   },
-  reads: ['consumptionRequests'],
+  reads: ['consumptionRequests', 'transactions'],
   writes: ['consumptionRequests'],
   result: results.value(v.object({
     respond: v.boolean(),
@@ -1683,6 +1972,34 @@ export const settleConsumptionRequest = defineJsMutation({
         refundPreference: row.refundPreference,
       };
     }
+
+    // Nothing on the request — but the developer may have told us at FULFILLMENT
+    // time, before Apple asked (slice 13). That answer lives on the transaction,
+    // and using it is the difference between reporting what we actually know and
+    // abstaining because the developer answered a question we had not yet been
+    // asked.
+    //
+    // Missing fields fall back individually rather than discarding the whole
+    // report: "delivered, consumption unknown" is a better answer than "unknown,
+    // unknown", and it is the honest one when a developer acknowledged
+    // fulfillment without claiming the user spent anything.
+    const txns = await ctx.db
+      .query('transactions')
+      .withIndex('by_storeTxn')
+      .eq('storeTxnId', args.storeTxnId)
+      .collect();
+    const txn = txns.length === 0 ? null : txns[0];
+    if (txn !== null && txn.fulfillmentState === 'fulfilled') {
+      return {
+        respond: true,
+        reason: 'fulfillment-data',
+        outcome: 'reported',
+        consumptionStatus: txn.consumptionStatus ?? fallback.consumptionStatus,
+        deliveryStatus: txn.deliveryStatus ?? fallback.deliveryStatus,
+        refundPreference: txn.refundPreference ?? fallback.refundPreference,
+      };
+    }
+
     if (args.atDeadline === true) {
       // The window is closing and nobody answered. Send the documented default
       // rather than miss the deadline.
