@@ -774,9 +774,14 @@ export async function createSnapbackContractSurface({
         const configured = new Set(liveQueries.map((entry) => (
           typeof entry === 'string' ? entry : entry?.name
         )));
-        const missingRequired = (requiredQueries ?? [])
-          .map((entry) => typeof entry === 'string' ? entry : entry?.name)
-          .filter((name) => !configured.has(name));
+        const requiredQueryNames = (requiredQueries ?? [])
+          .map((entry) => typeof entry === 'string' ? entry : entry?.name);
+        const requiredEphemeralNames = requiredQueryNames.filter((name) => (
+          manifest?.queries?.[name]?.ephemeral === true
+        ));
+        const missingRequired = requiredQueryNames.filter((name) => (
+          manifest?.queries?.[name]?.ephemeral !== true && !configured.has(name)
+        ));
         if (missingRequired.length > 0) {
           const diagnostic = contractDiagnostic(
             'SNAPBACK_CONTRACT_QUERY_UNCONFIGURED',
@@ -789,88 +794,349 @@ export async function createSnapbackContractSurface({
           throw error;
         }
         let disposed = false;
+        let barrierPaused = false;
+        let lifecycleTerminalError = null;
         let unregisterKeyedParticipant = null;
         let keyedDisposeTask = null;
-        const keyed = createKeyedSnapbackContractProvider({
-          runtime,
+        let keyed = null;
+        let currentCapture = authorityCapture;
+        let activeUserId = effectiveContractUserId(coordinator, null, userId);
+        let resumeGeneration = lifecycleGenerationSeeds.resume ?? 0;
+        let resumeTimer = null;
+        let resumeTimerResolve = null;
+        let resumeTask = Promise.resolve();
+        const sharedConnectionId = connectionId ?? surfaceRootId;
+        const surfaceDiagnostics = [...diagnostics];
+        const cancelResumeTimer = () => {
+          const settle = resumeTimerResolve;
+          if (resumeTimer !== null) clearTimeout(resumeTimer);
+          resumeTimer = null;
+          resumeTimerResolve = null;
+          settle?.();
+        };
+        const recordLifecycleDiagnostic = (error) => {
+          const diagnostic = error?.diagnostic;
+          if (!diagnostic) return;
+          if (!surfaceDiagnostics.some((entry) => (
+            entry.code === diagnostic.code
+            && entry.details?.axis === diagnostic.details?.axis
+          ))) surfaceDiagnostics.push(diagnostic);
+        };
+        const terminalizeKeyedSurfaceLifecycle = (error) => {
+          if (lifecycleTerminalError) return;
+          lifecycleTerminalError = error;
+          barrierPaused = true;
+          cancelResumeTimer();
+          detachReceiptListener?.();
+          detachReceiptListener = null;
+          try {
+            if (keyed && !keyed.authorityPaused) keyed.quiesceAuthority();
+          } catch { /* the terminal error remains the surface refusal */ }
+          try { ephemeralWiring?.blank?.(); } catch { /* fail closed */ }
+          try { ephemeralWiring?.dispose?.(); } catch { /* fail closed */ }
+          recordLifecycleDiagnostic(error);
+        };
+        const assertKeyedSurfaceActive = () => {
+          if (lifecycleTerminalError) throw lifecycleTerminalError;
+          if (disposed) throw new Error('Snapback Contract surface was used after dispose().');
+          if (barrierPaused || (coordinator && !coordinator.isCurrent(currentCapture))) {
+            throw staleContractAuthorityError();
+          }
+        };
+        const operationCapture = () => {
+          if (!coordinator) return null;
+          if (barrierPaused) throw staleContractAuthorityError();
+          return clientOwnsAuthorityFence(client, coordinator) && typeof client?.captureAuthority === 'function'
+            ? client.captureAuthority()
+            : coordinator.capture();
+        };
+        const commitCurrent = async (capture, commit) => {
+          const outcome = await compareContractCommit(client, coordinator, capture, commit);
+          if (!outcome.committed) {
+            await confirmDurableAuthority();
+            throw staleContractAuthorityError();
+          }
+          return outcome.value;
+        };
+        const preflightDurable = async (capture) => {
+          if (!coordinator) return;
+          await confirmDurableAuthority();
+          const outcome = await compareContractCommit(
+            client,
+            coordinator,
+            capture,
+            () => undefined,
+          );
+          if (!outcome.committed) throw staleContractAuthorityError();
+        };
+        const buildKeyedEphemeralWiring = (capture, effectiveUserId) => buildEphemeralWiring({
           client,
           manifest,
-          userId: effectiveContractUserId(coordinator, null, userId),
-          initialAuthorityCapture: authorityCapture,
-          keyedQueries: liveQueries,
-          livePush,
-          liveFallbackToPoll,
-          connectionId,
-          liveStreamOptions,
-          onConnectionChange,
-          onSubscriptionEvent,
-          rootId: surfaceRootId,
+          connectionId: sharedConnectionId,
+          userId: effectiveUserId,
+          ephemeralPermissions,
+          ephemeralIdleLingerMs,
+          authorityCapture: capture,
+          commitAuthorityPublication: coordinator
+            ? (candidate, commit) => compareContractCommit(client, coordinator, candidate, commit)
+            : null,
+          preflightAuthorityDispatch: coordinator
+            ? (candidate) => preflightDurable(candidate)
+            : null,
+          onAuthorityRefused: () => {
+            void confirmDurableAuthority().catch(() => {});
+          },
+          socketLossGenerationSeed: lifecycleGenerationSeeds.socketLoss ?? 0,
+          onLifecycleTerminal: recordLifecycleDiagnostic,
         });
-        if (coordinator) {
-          unregisterKeyedParticipant = registerContractParticipant(client, coordinator, {
-            name: `snapback-contract-keyed-surface:${surfaceRootId}`,
-            quiesce() {
-              keyed.quiesceAuthority();
-              detachReceiptListener?.();
-              detachReceiptListener = null;
+
+        try {
+          // @ref LLP 0034#1011-keyed-contract-surfaces-serve-the-ephemeral-link-family-2026-08-10 — the keyed allowlist selects durable scopes; ephemeral bindings retain their separate generated read/publish family and barrier lifecycle.
+          ephemeralWiring = createSwappableEphemeralWiring(
+            buildKeyedEphemeralWiring(currentCapture, activeUserId),
+            {
+              generationSeed: lifecycleGenerationSeeds.ephemeralWiring ?? 0,
+              onLifecycleTerminal: terminalizeKeyedSurfaceLifecycle,
             },
-            blank() {},
-            clearMemory() {},
-            async commitDurable() {},
-            async resume(context) {
-              if (disposed) return;
-              if (client?.authCoordinator === coordinator) await coordinator.synchronize();
+          );
+          const manifestEphemeralNames = ephemeralWiring.descriptors.map(([name]) => name);
+          const ephemeralsToServe = requiredEphemeralNames.length > 0
+            ? requiredEphemeralNames
+            : manifestEphemeralNames;
+          if (ephemeralsToServe.length > 0 && !ephemeralWiring.supportsEphemeral) {
+            const missingLinks = ephemeralsToServe.flatMap((name) => [name, `${name}Publish`]);
+            const diagnostic = contractDiagnostic(
+              'SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED',
+              `Keyed Contract surface cannot serve ephemeral collections: ${ephemeralsToServe.join(', ')}. Missing generated link family: ${missingLinks.join(', ')}. The client must provide subscribeEphemeral() and liveStreamManager().`,
+              {
+                collections: ephemeralsToServe,
+                missingLinks,
+                missingClientCapabilities: ['subscribeEphemeral', 'liveStreamManager'],
+              },
+            );
+            const error = new Error(diagnostic.message);
+            error.code = diagnostic.code;
+            error.diagnostic = diagnostic;
+            throw error;
+          }
+
+          await ephemeralWiring.prewarm();
+          keyed = createKeyedSnapbackContractProvider({
+            runtime,
+            client,
+            manifest,
+            userId: activeUserId,
+            initialAuthorityCapture: currentCapture,
+            keyedQueries: liveQueries,
+            livePush,
+            liveFallbackToPoll,
+            connectionId: sharedConnectionId,
+            liveStreamOptions,
+            onConnectionChange,
+            onSubscriptionEvent,
+            ephemerals: ephemeralWiring.sources,
+            rootId: surfaceRootId,
+          });
+          surfaceDiagnostics.push(...keyed.diagnostics);
+
+          const links = {};
+          for (const [name, link] of Object.entries(keyed.links)) {
+            links[name] = (args) => {
+              assertKeyedSurfaceActive();
+              return link(args);
+            };
+          }
+          const ephemeralLinks = ephemeralWiring.buildLinks(keyed.provider, runtime);
+          for (const [name, link] of Object.entries(ephemeralLinks)) {
+            if (!name.endsWith('Publish')) {
+              links[name] = (args) => {
+                assertKeyedSurfaceActive();
+                return link(args);
+              };
+              continue;
+            }
+            links[name] = (args) => {
+              assertKeyedSurfaceActive();
+              const capture = operationCapture();
+              const result = link(args);
+              if (!coordinator) return result;
+              return Promise.resolve(result).then(async (value) => {
+                const resultCapture = captureForTransportValue(client, capture, value);
+                return commitCurrent(resultCapture, () => value);
+              });
+            };
+          }
+
+          const advanceResumeGeneration = () => {
+            try {
+              resumeGeneration = nextContractLifecycleGeneration(
+                resumeGeneration,
+                'keyed-surface-resume',
+              );
+              return true;
+            } catch (error) {
+              terminalizeKeyedSurfaceLifecycle(error);
+              return false;
+            }
+          };
+          const scheduleAuthorityRefresh = (context) => {
+            if (disposed || lifecycleTerminalError) return;
+            const generation = resumeGeneration;
+            resumeTask = new Promise((resolve) => {
+              const settle = () => {
+                if (resumeTimerResolve === settle) {
+                  resumeTimer = null;
+                  resumeTimerResolve = null;
+                }
+                resolve();
+              };
+              resumeTimerResolve = settle;
+              resumeTimer = setTimeout(settle, 0);
+            }).then(async () => {
+              if (generation !== resumeGeneration || disposed || lifecycleTerminalError) return;
+              currentCapture = context.capture;
               const authSession = context.authority?.kind === 'servicePrincipal'
                 && typeof client.authSession === 'function'
                 ? await client.authSession()
                 : null;
-              keyed.resumeAuthority({
-                userId: effectiveContractUserId(coordinator, authSession, userId),
-                authorityCapture: context.capture,
-              });
-              attachReceiptListener();
+              const successorUserId = effectiveContractUserId(
+                coordinator,
+                authSession,
+                userId,
+              );
+              const ephemeralMayResume = ephemeralWiringMayResume(
+                ephemeralWiring,
+                context.authority,
+              );
+              if (ephemeralMayResume) {
+                ephemeralWiring.prepare(buildKeyedEphemeralWiring(
+                  context.capture,
+                  successorUserId,
+                ));
+                await ephemeralWiring.prewarm();
+              }
+              if (
+                generation !== resumeGeneration
+                || disposed
+                || lifecycleTerminalError
+                || !coordinator.isCurrent(context.capture)
+              ) return;
+              const exposed = await compareContractCommit(
+                client,
+                coordinator,
+                context.capture,
+                () => {
+                  if (
+                    disposed
+                    || lifecycleTerminalError
+                    || generation !== resumeGeneration
+                  ) return;
+                  activeUserId = successorUserId;
+                  keyed.resumeAuthority({
+                    userId: activeUserId,
+                    authorityCapture: context.capture,
+                  });
+                  if (ephemeralMayResume) ephemeralWiring.expose();
+                  attachReceiptListener();
+                  barrierPaused = false;
+                },
+              );
+              if (!exposed.committed) throw staleContractAuthorityError();
+            }).catch(() => {
+              // Remain blank and paused until a later authority transition.
+            });
+          };
+
+          if (coordinator) {
+            unregisterKeyedParticipant = registerContractParticipant(client, coordinator, {
+              name: `snapback-contract-keyed-surface:${surfaceRootId}`,
+              quiesce() {
+                barrierPaused = true;
+                if (!advanceResumeGeneration()) return;
+                cancelResumeTimer();
+                detachReceiptListener?.();
+                detachReceiptListener = null;
+                try {
+                  keyed.quiesceAuthority();
+                } finally {
+                  ephemeralWiring?.quiesce?.();
+                }
+              },
+              blank() {
+                if (disposed) return;
+                ephemeralWiring?.blank?.();
+              },
+              clearMemory() {},
+              async commitDurable() {},
+              async resume(context) {
+                currentCapture = context.capture;
+                if (lifecycleTerminalError || disposed) return;
+                if (client?.authCoordinator === coordinator) await coordinator.synchronize();
+                scheduleAuthorityRefresh(context);
+              },
+            });
+            const current = await compareContractCommit(
+              client,
+              coordinator,
+              currentCapture,
+              () => undefined,
+            );
+            if (!current.committed) throw staleContractAuthorityError();
+          }
+
+          return {
+            adapterVersion: SNAPBACK_CONTRACT_ADAPTER_VERSION,
+            capabilityClass: SNAPBACK_CONTRACT_CAPABILITY_CLASS,
+            links,
+            provider: keyed.provider,
+            diagnostics: surfaceDiagnostics,
+            pendingCount: () => 0,
+            declaredQueries: Object.keys(manifest?.queries ?? {}),
+            declaredMutations: Object.keys(manifest?.mutations ?? {}),
+            livePush: true,
+            liveQueries: [...configured],
+            rootId: surfaceRootId,
+            receipts: () => typeof client.receipts === 'function' ? client.receipts() : [],
+            ephemeralSourceStarts: ephemeralWiring.sourceStarts,
+            prewarmEphemeral: ephemeralWiring.prewarmScope,
+            connection: () => null,
+            connections: () => ({}),
+            rotateAuthority: (next) => keyed.rotateAuthority(next),
+            mount: (component, options = {}) => {
+              void confirmDurableAuthority().catch(() => {});
+              assertKeyedSurfaceActive();
+              const handle = mountSnapbackContractHeadless(runtime, component, options);
+              return rememberMountHandle(mountedHandles, handle);
             },
-          });
-          const current = await compareContractCommit(client, coordinator, authorityCapture, () => undefined);
-          if (!current.committed) throw staleContractAuthorityError();
+            flush: async () => {
+              await resumeTask;
+            },
+            dispose: () => {
+              if (keyedDisposeTask) return keyedDisposeTask;
+              disposed = true;
+              barrierPaused = true;
+              cancelResumeTimer();
+              ephemeralWiring.dispose();
+              keyed.dispose();
+              detachReceiptListener?.();
+              detachReceiptListener = null;
+              for (const handle of [...mountedHandles]) handle.dispose();
+              mountedHandles.clear();
+              const unregister = unregisterKeyedParticipant?.();
+              unregisterKeyedParticipant = null;
+              const releaseStore = releaseDurableStoreRegistration?.();
+              releaseDurableStoreRegistration = null;
+              keyedDisposeTask = Promise.all([unregister, releaseStore].filter(Boolean));
+              return keyedDisposeTask;
+            },
+          };
+        } catch (error) {
+          try { keyed?.dispose?.(); } catch { /* preserve construction error */ }
+          try { ephemeralWiring?.dispose?.(); } catch { /* preserve construction error */ }
+          try { await unregisterKeyedParticipant?.(); } catch { /* preserve construction error */ }
+          unregisterKeyedParticipant = null;
+          throw error;
         }
-        return {
-          adapterVersion: SNAPBACK_CONTRACT_ADAPTER_VERSION,
-          capabilityClass: SNAPBACK_CONTRACT_CAPABILITY_CLASS,
-          links: keyed.links,
-          provider: keyed.provider,
-          diagnostics: [...diagnostics, ...keyed.diagnostics],
-          pendingCount: () => 0,
-          declaredQueries: Object.keys(manifest?.queries ?? {}),
-          declaredMutations: Object.keys(manifest?.mutations ?? {}),
-          livePush: true,
-          liveQueries: [...configured],
-          rootId: surfaceRootId,
-          receipts: () => typeof client.receipts === 'function' ? client.receipts() : [],
-          connection: () => null,
-          connections: () => ({}),
-          rotateAuthority: (next) => keyed.rotateAuthority(next),
-          mount: (component, options = {}) => {
-            const handle = mountSnapbackContractHeadless(runtime, component, options);
-            return rememberMountHandle(mountedHandles, handle);
-          },
-          flush: async () => {},
-          dispose: () => {
-            if (keyedDisposeTask) return keyedDisposeTask;
-            disposed = true;
-            keyed.dispose();
-            detachReceiptListener?.();
-            detachReceiptListener = null;
-            for (const handle of [...mountedHandles]) handle.dispose();
-            mountedHandles.clear();
-            const unregister = unregisterKeyedParticipant?.();
-            unregisterKeyedParticipant = null;
-            const releaseStore = releaseDurableStoreRegistration?.();
-            releaseDurableStoreRegistration = null;
-            keyedDisposeTask = Promise.all([unregister, releaseStore].filter(Boolean));
-            return keyedDisposeTask;
-          },
-        };
       }
       return await createMultiLiveContractSurface({
         runtime,
@@ -2781,10 +3047,10 @@ export async function createSnapbackContractSurface({
       // Item 5 does not resume auth-scoped live/ephemeral state in sessions
       // mode. Dev/authority-independent surfaces rebuild only after the fresh
       // durable snapshot above has established their successor boundary.
-      const ephemeralMayResume = context.authority?.authMode !== 'sessions'
-        || ephemeralWiring.descriptors.every(([, descriptor]) => (
-          descriptor?.authorityIndependent === true
-        ));
+      const ephemeralMayResume = ephemeralWiringMayResume(
+        ephemeralWiring,
+        context.authority,
+      );
       if (ephemeralMayResume) {
         const successorEphemeral = buildEphemeralWiring({
           client,
@@ -3323,6 +3589,13 @@ export async function createSnapbackContractSurface({
 // on expiry the overlay is torn down and the server registration is
 // best-effort unsubscribed. Overridable per surface (ephemeralIdleLingerMs).
 export const EPHEMERAL_IDLE_LINGER_MS = 30_000;
+
+function ephemeralWiringMayResume(wiring, authority) {
+  return authority?.authMode !== 'sessions'
+    || wiring.descriptors.every(([, descriptor]) => (
+      descriptor?.authorityIndependent === true
+    ));
+}
 
 function buildEphemeralWiring({
   client,
@@ -3923,6 +4196,7 @@ function buildEphemeralWiring({
   return {
     descriptors,
     sources,
+    supportsEphemeral,
     sourceStarts: (name) => sourceStarts[name] ?? 0,
     prewarm: async () => {
       if (!supportsEphemeral) return;
@@ -4077,6 +4351,7 @@ function createSwappableEphemeralWiring(initialWiring, {
   return {
     descriptors: initialWiring.descriptors,
     sources,
+    supportsEphemeral: initialWiring.supportsEphemeral === true,
     sourceStarts: (name) => sourceStarts.get(name) ?? 0,
     prewarm: () => current?.prewarm?.() ?? Promise.resolve(),
     prewarmScope: (name, args) => current?.prewarmScope?.(name, args) ?? Promise.resolve(),
@@ -4276,9 +4551,10 @@ async function createMultiLiveContractSurface({
         error.diagnostic = diagnostic;
         throw error;
       }
-      const missingRequired = requiredQueryNames.filter((name) =>
-        !configuredQueryNames.has(name)
-      );
+      const missingRequired = requiredQueryNames.filter((name) => (
+        manifest?.queries?.[name]?.ephemeral !== true
+        && !configuredQueryNames.has(name)
+      ));
       if (missingRequired.length > 0) {
         const diagnostic = contractDiagnostic(
           'SNAPBACK_CONTRACT_QUERY_UNCONFIGURED',
@@ -4956,10 +5232,10 @@ async function createMultiLiveContractSurface({
           throw error;
         }
 
-        const ephemeralMayResume = context.authority?.authMode !== 'sessions'
-          || ephemeralWiring.descriptors.every(([, descriptor]) => (
-            descriptor?.authorityIndependent === true
-          ));
+        const ephemeralMayResume = ephemeralWiringMayResume(
+          ephemeralWiring,
+          context.authority,
+        );
         if (ephemeralMayResume) {
           const successorEphemeral = buildEphemeralWiring({
             client,

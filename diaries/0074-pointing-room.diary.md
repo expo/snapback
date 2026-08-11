@@ -73,7 +73,7 @@ surface's missing ephemeral links found in Slice 2:
 - `issues/20260810-guide-gap-browser-sessions-mailbox-relay-for-contract.md`
 - `issues/20260810-guide-gap-contract-native-presence-publishing.md`
 - `issues/20260810-guide-gap-contract-invariant-grammar-limits.md`
-- `issues/20260810-guide-gap-keyed-contract-surface-omits-ephemeral-links.md`
+- `issues/closed/20260810-guide-gap-keyed-contract-surface-omits-ephemeral-links.md`
 
 Browser verification had the ugliest infrastructure loop. Direct headless
 Chrome aborted in macOS application registration on the primary Mac; its
@@ -159,3 +159,23 @@ launches also repeated the explicit prebuilt identity warning from Slice 1;
 that remains provenance noise forced by the charter's no-rebuild constraint,
 not a passing-test substitution. The remote demo copy was moved intact to a
 temporary recovery directory after the pass.
+
+## Slice 3 — one keyed surface owns presence too
+
+The product fix removed the one piece of host composition left by Slice 2.
+`createSnapbackContractSurface({ keyedQueryScopes: true })` now builds the same
+swappable ephemeral wiring as the multi-live surface, returns the generated
+`roomPresence` and `roomPresencePublish` links beside `liveRound` and
+`liveTally`, and refuses during boot when the client cannot serve a declared
+ephemeral collection. Pointing Room consequently boots one surface, prewarms
+the Planning room on it, and configures the generated registry from that one
+link object.
+
+This is the shape the guide had led the build to expect: keyed durable scopes
+and ephemeral presence are independent binding kinds, not independent provider
+boots. Compared with React plus Convex or Supabase, the important gain is less
+about fewer lines than about one authority lifecycle: quiesce blanks the
+mounted presence map, successor wiring prewarms behind the barrier, and only a
+fenced commit exposes it. The remaining deliberate limitation is provider-side
+`forceEphemeralState` for keyed mode; ordinary read/publish operation and
+authority swapping no longer need a companion surface.

@@ -1,6 +1,6 @@
 # guide-gap: keyed Contract surface returns no generated ephemeral links
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-10 · **Severity:** P2 · **Area:** Contract/Exact adapter · realtime
 **Related:** LLP 0034, LLP 0052, Diary 0074, `demos/pointing-room`
 
@@ -40,3 +40,14 @@ Decide which of these the product intends, then make the guide say it:
 Either way a refusal would help: booting a keyed surface whose Contract manifest
 declares an ephemeral collection should diagnose the missing link family by name
 rather than failing at first use.
+
+## Resolution (2026-08-10)
+
+Implemented the product fix. Keyed surfaces now reuse the ordinary swappable
+ephemeral wiring, return generated read/publish links, prewarm and dispose that
+wiring, and swap it through the authority barrier. Construction refuses with
+`SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED` when the client cannot serve the
+required link family. Pointing Room now boots one keyed surface and configures
+the generated registry from that surface alone. The implementation note is LLP
+0034 §10.11; focused coverage lives in
+`packages/snapback-contract/keyed-ephemeral-links.test.mjs`.

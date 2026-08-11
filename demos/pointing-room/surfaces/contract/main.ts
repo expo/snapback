@@ -75,19 +75,7 @@ async function boot() {
 
   status('Opening live Contract bindings…');
   const runtime = await import('@exact/contract/runtime');
-  const presenceSurface = await createSnapbackContractSurface({
-    runtime,
-    client,
-    manifest: contractDataManifest,
-    artifactIndex,
-    schemaManifest,
-    functionManifest: functionsManifest,
-    liveQueries: [],
-    requiredQueries: [],
-    liveFallbackToPoll: false,
-    ephemeralIdleLingerMs: 0,
-  });
-  const keyedSurface = await createSnapbackContractSurface({
+  const surface = await createSnapbackContractSurface({
     runtime,
     client,
     manifest: contractDataManifest,
@@ -95,16 +83,14 @@ async function boot() {
     schemaManifest,
     functionManifest: functionsManifest,
     liveQueries: ['liveRound', 'liveTally'],
-    requiredQueries: ['liveRound', 'liveTally'],
+    requiredQueries: ['liveRound', 'liveTally', 'roomPresence'],
     keyedQueryScopes: true,
     liveFallbackToPoll: false,
+    ephemeralIdleLingerMs: 0,
   });
-  activeSurfaces = [keyedSurface, presenceSurface];
-  await presenceSurface.prewarmEphemeral('roomPresence', { roomId: INITIAL_ROOM_ID });
-  configureSnapbackContractLinks({
-    ...presenceSurface.links,
-    ...keyedSurface.links,
-  } as never);
+  activeSurfaces = [surface];
+  await surface.prewarmEphemeral('roomPresence', { roomId: INITIAL_ROOM_ID });
+  configureSnapbackContractLinks(surface.links as never);
 
   installContractWebHost();
   mount(app, {
@@ -116,8 +102,7 @@ async function boot() {
   });
   status('Ready', 'ready');
   const facts = {
-    surface: keyedSurface,
-    presenceSurface,
+    surface,
     userId: credential.session.userId,
     initialRoomId: INITIAL_ROOM_ID,
     email: identity.email,

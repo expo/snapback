@@ -44,6 +44,17 @@ export interface ContractSubscriptionHandle {
   dispose(): void;
 }
 
+export type ContractEphemeralCell = {
+  status: 'pending' | 'ready' | 'error';
+  entries: unknown[];
+  connection?: Exclude<ContractConnectionState, null>;
+};
+
+export type KeyedBoundaryEphemeralSource = (
+  args: Record<string, unknown>,
+  emit: (cell: ContractEphemeralCell) => void,
+) => ContractSubscriptionHandle | (() => void) | void;
+
 /** The transport provider consumed by Exact's keyed-query runtime. */
 export interface KeyedSnapbackContractProviderTransport {
   readonly manifest: SnapbackContractDataManifest;
@@ -57,6 +68,11 @@ export interface KeyedSnapbackContractProviderTransport {
     queryName: string,
     state: unknown,
     options?: { scope?: unknown },
+  ): ContractSubscriptionHandle;
+  subscribeEphemeral?(
+    name: string,
+    args: Record<string, unknown>,
+    observer: (cell: ContractEphemeralCell) => void,
   ): ContractSubscriptionHandle;
   mutate(
     mutationName: string,
@@ -130,6 +146,7 @@ export function createKeyedSnapbackContractProvider(options: {
     | ((connection: ContractConnectionState, detail: Readonly<Record<string, unknown>>) => void)
     | null;
   onSubscriptionEvent?: ((event: Readonly<Record<string, unknown>>) => void) | null;
+  ephemerals?: Readonly<Record<string, KeyedBoundaryEphemeralSource>> | null;
   onReceipt?: ((receipt: unknown) => void) | null;
   rootId?: string;
 }): KeyedSnapbackContractProvider;

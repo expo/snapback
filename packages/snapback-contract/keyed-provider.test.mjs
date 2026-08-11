@@ -223,6 +223,87 @@ forcedSubscription.dispose();
 unforcedSubscription.dispose();
 forceSurface.dispose();
 
+// Keyed providers accept the boundary-source shape used by the full surface,
+// preserve Exact's descriptor/source guards, and own single-shot disposal.
+{
+  const originalWarn = console.warn;
+  const warnings = [];
+  console.warn = (...args) => warnings.push(args);
+  let starts = 0;
+  let disposals = 0;
+  const ephemeralProvider = createKeyedSnapbackContractProvider({
+    runtime,
+    client: { async mutate() {} },
+    manifest: {
+      manifestVersion: 2,
+      provider: 'keyed-ephemeral-provider-test',
+      queries: {
+        eventDetails: { mode: 'live', livePush: true },
+        presence: { ephemeral: true },
+        missingPresence: { ephemeral: true },
+      },
+      mutations: {},
+    },
+    keyedQueries: ['eventDetails'],
+    ephemerals: {
+      presence(args, emit) {
+        starts += 1;
+        emit({ status: 'ready', entries: [{ key: args.roomId }] });
+        return { dispose() { disposals += 1; } };
+      },
+      eventDetails(_args, emit) {
+        emit({ status: 'ready', entries: [] });
+        return () => { disposals += 1; };
+      },
+    },
+  });
+  try {
+    const cells = [];
+    const subscription = ephemeralProvider.provider.subscribeEphemeral(
+      'presence',
+      { roomId: 'room-a' },
+      (cell) => cells.push(cell),
+    );
+    assert.deepEqual(cells.at(-1).entries, [{ key: 'room-a' }]);
+    subscription.dispose();
+    subscription.dispose();
+    assert.equal(disposals, 1, 'source disposer runs exactly once');
+
+    const missingCells = [];
+    ephemeralProvider.provider.subscribeEphemeral('missing', {}, (cell) => missingCells.push(cell));
+    assert.deepEqual(missingCells, [{ status: 'error', entries: [] }]);
+    const missingSourceCells = [];
+    ephemeralProvider.provider.subscribeEphemeral(
+      'missingPresence',
+      {},
+      (cell) => missingSourceCells.push(cell),
+    );
+    assert.deepEqual(missingSourceCells, [{ status: 'error', entries: [] }]);
+    const mismatchCells = [];
+    ephemeralProvider.provider.subscribeEphemeral(
+      'eventDetails',
+      {},
+      (cell) => mismatchCells.push(cell),
+    );
+    assert.deepEqual(mismatchCells, [{ status: 'error', entries: [] }]);
+    assert.equal(starts, 1, 'invalid bindings do not start provider sources');
+
+    ephemeralProvider.provider.subscribeEphemeral('presence', { roomId: 'room-b' }, () => {});
+
+    ephemeralProvider.dispose();
+    assert.equal(disposals, 2, 'provider disposal tears down each still-active source once');
+    assert.throws(
+      () => ephemeralProvider.provider.subscribeEphemeral('presence', {}, () => {}),
+      (error) => error?.code === 'SNAPBACK_CONTRACT_KEYED_PROVIDER_DISPOSED',
+    );
+    assert.equal(starts, 2, 'disposed provider cannot start another ephemeral source');
+    assert.equal(warnings.length, 3);
+  } finally {
+    console.warn = originalWarn;
+    ephemeralProvider.dispose();
+  }
+}
+
 // The provider handoff is Exact DataProviderDiagnostic-compatible, carries a
 // source Exact can recover from a thrown refusal, and emits one report per
 // root/instance/cause rather than one entry per reactive tick.

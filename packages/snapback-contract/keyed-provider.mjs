@@ -265,6 +265,7 @@ export function createKeyedSnapbackContractProvider({
   liveStreamOptions = {},
   onConnectionChange = null,
   onSubscriptionEvent = null,
+  ephemerals = null,
   onReceipt = null,
   rootId = randomOpaqueId(),
 }) {
@@ -310,6 +311,12 @@ export function createKeyedSnapbackContractProvider({
   for (const diagnostic of artifactDiagnostics) diagnosticCollector.record(diagnostic);
   const diagnostics = diagnosticCollector.diagnostics();
   const queryPlane = createQueryForcePlane();
+  const configuredEphemerals = ephemerals
+    && typeof ephemerals === 'object'
+    && Object.keys(ephemerals).length > 0
+    ? ephemerals
+    : null;
+  const activeEphemeralDisposers = new Set();
   let disposed = false;
   let activeUserId = userId;
   let authorityCapture = initialAuthorityCapture;
@@ -470,6 +477,64 @@ export function createKeyedSnapbackContractProvider({
         options?.scope ? normalizeForceScope(options.scope) : null,
       );
     },
+    // Deliberate gap: keyed providers do not implement forceEphemeralState.
+    ...(configuredEphemerals ? {
+      subscribeEphemeral(name, args, observer) {
+        assertActive();
+        const descriptor = manifest?.queries?.[name];
+        const source = configuredEphemerals[name];
+        const deliverBindError = () => observer({ status: 'error', entries: [] });
+        if (!descriptor) {
+          console.warn(
+            `[contract] unknown ephemeral collection "${name}" (no manifest descriptor); map renders as error`,
+          );
+          deliverBindError();
+          return { dispose() {} };
+        }
+        if (descriptor.ephemeral !== true) {
+          console.warn(
+            `[contract] descriptor "${name}" is not an ephemeral collection; bind it with \`query\` (LLP 0284 §2.4 kind mismatch); map renders as error`,
+          );
+          deliverBindError();
+          return { dispose() {} };
+        }
+        if (typeof source !== 'function') {
+          console.warn(
+            `[contract] unknown ephemeral collection "${name}" (no provider source); map renders as error`,
+          );
+          deliverBindError();
+          return { dispose() {} };
+        }
+
+        let sourceDisposer = null;
+        let subscriptionDisposed = false;
+        const runSourceDisposer = () => {
+          const disposal = sourceDisposer;
+          sourceDisposer = null;
+          if (typeof disposal === 'function') disposal();
+          else disposal?.dispose?.();
+        };
+        const disposeOnce = () => {
+          if (subscriptionDisposed) return;
+          subscriptionDisposed = true;
+          activeEphemeralDisposers.delete(disposeOnce);
+          runSourceDisposer();
+        };
+        activeEphemeralDisposers.add(disposeOnce);
+        try {
+          sourceDisposer = source(args ?? {}, (cell) => observer(cell)) ?? null;
+          // A synchronous source emission can re-enter provider.dispose()
+          // before the source returns its disposer.
+          if (subscriptionDisposed) runSourceDisposer();
+        } catch (error) {
+          activeEphemeralDisposers.delete(disposeOnce);
+          subscriptionDisposed = true;
+          console.warn(`[contract] ephemeral source "${name}" threw during subscribe`, error);
+          deliverBindError();
+        }
+        return { dispose: disposeOnce };
+      },
+    } : {}),
     async mutate(mutationName, args, correlation) {
       assertActive();
       if (authorityPaused) {
@@ -553,6 +618,10 @@ export function createKeyedSnapbackContractProvider({
       if (disposed) return;
       disposed = true;
       detachReceipt?.();
+      for (const disposeEphemeral of [...activeEphemeralDisposers]) {
+        disposeEphemeral();
+      }
+      activeEphemeralDisposers.clear();
       queryPlane.dispose();
       active.clear();
     },

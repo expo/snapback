@@ -444,6 +444,7 @@ export const EPHEMERAL_IDLE_LINGER_MS: number;
 export interface SwappableEphemeralWiring {
   readonly descriptors: unknown;
   readonly sources: Record<string, unknown>;
+  readonly supportsEphemeral: boolean;
   sourceStarts(name: string): number;
   prewarm(): Promise<unknown>;
   prewarmScope(name: string, args?: Record<string, unknown>): Promise<unknown>;

@@ -25,12 +25,10 @@ query result. Presence is separate ephemeral state and never contains a vote.
 The durable bindings use `createSnapbackContractSurface` with
 `keyedQueryScopes: true`; the descriptor list is an allowlist, while
 `activeRoomId` supplies binding-time args. Exact owns canonical keyed identity,
-refcounts, predecessor disposal, and late-delivery fencing. The published keyed
-surface currently omits generated ephemeral links, so boot also creates an
-ephemeral-only companion surface and merges only that missing link family.
-Room selection, ephemeral subscription args, rated publication, and heartbeat
-remain Contract expressions over `activeRoomId`; the companion composition is
-host glue and is not presented as Contract-native provider boot.
+refcounts, predecessor disposal, and late-delivery fencing. That same surface
+returns the generated `roomPresence` and `roomPresencePublish` links, so one
+provider boots the durable keyed queries, room-scoped subscription, rated
+publication, and heartbeat as Contract expressions over `activeRoomId`.
 
 ## Verify it
 

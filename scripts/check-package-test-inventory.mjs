@@ -344,6 +344,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'exact-package.test.mjs',
       'ids.test.mjs',
       'index.test.mjs',
+      'keyed-ephemeral-links.test.mjs',
       'keyed-provider.test.mjs',
       'lifecycle-generation-exhaustion.test.mjs',
       'migration-quarantine.test.mjs',
@@ -458,7 +459,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 247,
+  expectedTotal = 248,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -777,6 +778,9 @@ export function checkPackageTestInventories(options = {}) {
 // optimistic-create.test.mjs (useSnapbackOptimisticCreate landing 26fb0b948)
 // was in the package test chain but missing here; registered at the LLP 0218
 // P2 landing.
+// 247 -> 248 (2026-08-10, LLP 0034 §10.11): @expo/snapback-contract gains
+// keyed-surface ephemeral link, boot-refusal, publish-splitting, and
+// authority-wiring swap coverage.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');
