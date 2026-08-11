@@ -1,28 +1,29 @@
 {
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
-    "format": "snapback.composition-activation.v1",
-    "databaseId": "019fea21-6d3e-7cd1-b52d-bf7a536eaf76",
+    "format": "snapback.composition-activation.v2",
+    "databaseId": "019fee83-3d6b-7b00-96ec-030987a3fafc",
     "deploymentId": "contention-calendar-rung2-exit",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "dev",
-    "expectedGeneration": {
+    "authoredSourceHash": "sha256:9b9699250015603b401d305ed4491d6e32934409e8e5fcc068072b8ec3baf085",
+    "mintedGeneration": {
       "schemaVersion": "snapback.v0",
       "appId": "contention-calendar",
-      "schemaHash": "sha256:5df6fef30e0ffa61",
-      "bundleHash": "sha256:7426adcc3fb56546",
-      "inputsHash": "05c8220eef6a0b8272a0727df8f1da1d60ea3242bff95aa4b70ab94d04b87732"
+      "schemaHash": "sha256:d82b10f847f22b90",
+      "bundleHash": "sha256:1d59085d1b804d93",
+      "inputsHash": "368a047b3137d17005f2c6b8d408335b7857a788094548ce1ef552af2becdb9f"
     },
-    "proofKeyManifestDigest": "sha256:46686df8f0a561f7364ed242e1dd2e5caf158c98e9edc8684044b9d5e1040bc8"
+    "proofKeyManifestDigest": "sha256:00541b1a4881ff018c14397043f17dfc3f0982fbb1813cad427b8cd003389b1d"
   },
-  "activationHash": "sha256:b7c5cc5075f036413673a46dfca0df44dbc6f4e0c3ae00b60a347acd32d45fe5",
+  "activationHash": "sha256:c8bcd630043c0fa06c420c6c37bea898201c03c8f194639754227772a2ea391c",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.fCjSqdN7uDqmkxiBhVi7vg",
+        "proofKeyId": "sbpk1.dWY8gu29uxCHt157IujEOg",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "_izrbJNjF8BONNB7WhgKFJL9D2G9SXxr1iIeCjpiQfg"
+        "publicKeyBase64url": "xawLGPrSBI-20jcMh7-8fBGIAnhFzAputLFSAZsfJMM"
       }
     ]
   }

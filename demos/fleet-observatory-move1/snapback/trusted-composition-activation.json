@@ -1,28 +1,29 @@
 {
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
-    "format": "snapback.composition-activation.v1",
-    "databaseId": "019feb0d-7164-7461-a686-e1814710d7a1",
+    "format": "snapback.composition-activation.v2",
+    "databaseId": "019fee8f-59f9-77e1-bf66-15b8e1d58348",
     "deploymentId": "fleet-observatory-move1-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
-    "expectedGeneration": {
+    "authoredSourceHash": "sha256:83ac6ae63574ea9689487a695d2e0439e841ef904e899f7c5cd7b3918c3000b8",
+    "mintedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "fleet-observatory-move1",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:9c81ebdda807722e13657807b13ab744f29117b15a7a68d75d6bd6184560f486",
-      "bundleHash": "snapback.v1:sessions:function:sha256:afe5d4bcee1b584e69b34d7d9b73b69ceef5e7e189d07924fdd29798463b6178",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:15cbc43b0b9c39a0fa3443a673f6eaf07dd8c14c204a27d06e05c623e511e72b"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:11e85359c14af44f4792aa7e9c06267deabf3154c541eff279d4fb3defc0ad68",
+      "bundleHash": "snapback.v1:sessions:function:sha256:d2418cc95cd34f6f8455e039146426370ff89ad223cb8662936430a4e8edf2d5",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:30835fbcf0c8db4b81ca67927fa4a1ed6024da716d842da8b016535d78c95cc4"
     },
-    "proofKeyManifestDigest": "sha256:9a4a588f96110d197841ba0f6df2f385f5f80a38e99d2ecb7c00a3145476d40b"
+    "proofKeyManifestDigest": "sha256:044d4406799119d1e30960ec01f196276722503fef48a9095313c1f5a768e3c0"
   },
-  "activationHash": "sha256:3f14ee1e07f9f1b7693252c5683a8a93341d708af8603d14ba2d4be6bc6267ac",
+  "activationHash": "sha256:95e90ee8f2fe92c56b750bc38586c313f78ba47f95eb9bb9b0dfc11077a9c68b",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.jNkaME9HwxMaNWmpJkpCMA",
+        "proofKeyId": "sbpk1.xjrtNnSmkDwE534k78LZaA",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "iZbpmWDdgEPEvKhUVc19IhBV6NL3KTDbO1heiS6mWzQ"
+        "publicKeyBase64url": "e04XcyG3O5gHeUm5vrm6NQvYiOUrJfAURC3S1JgOEeg"
       }
     ]
   }

@@ -8,7 +8,7 @@
     "LLP 0166#d4--completeness-honest-local-answers"
   ],
   "source": {
-    "revision": "1952d6f8ca72b239a199f99f4e5237f521842881",
+    "revision": "c71222e8480ed0cde87fa9f16fa141146bade020",
     "dirty": true,
     "files": [
       {
@@ -25,11 +25,11 @@
       },
       {
         "path": "demos/triage-graph/snapback/trusted-composition-activation.json",
-        "sha256": "4aed47acb04b0c057441837c5ad2608515a4da7b2fb5310b58d825bb5daee7b9"
+        "sha256": "8e996573770c81d9d751bcabd72cd6f38d47f8fc0ec08b488f639089a07ccc6c"
       },
       {
         "path": "demos/triage-graph/snapback/generated/artifacts.json",
-        "sha256": "d4f48e31ee0411ddeb5a8e759488a5f5b28caad809b53056486bf0b9822013f0"
+        "sha256": "9fded3e70c348fbe32e4dc02620503682e2663166a0ad446ccd35c1a3cbf8caa"
       },
       {
         "path": "demos/triage-graph/demo.snapback.json",
@@ -45,11 +45,11 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "3f3a2e55e2f9280b9b83a2a534d51fc310b09f546d11e451e1ca8b1bd8d234c2"
+        "sha256": "876616ce65376f39dbf57c6e727384f41ce7539008348b98f47110b0fdfc770c"
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
-        "sha256": "34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
+        "sha256": "947eb3d549fdedf03f873bba76644ed3bb4d7eb57ae3f4b5ea9812e6144d1fa3"
       },
       {
         "path": "packages/snapback-client/materialization-store-runtime.mjs",
@@ -65,7 +65,7 @@
       },
       {
         "path": "packages/snapback-client/store-runtime.mjs",
-        "sha256": "cf7a65f7b83eb4308b3cad526dc2401c2a3fe7d45665acd0247b594bea8533b8"
+        "sha256": "99abcfc574ab38920105d90fe220ec43c5ee374226199b98d8ec6c4d768389ab"
       },
       {
         "path": "demos/triage-graph/workload-manifest.2026-08-03.v1.json",
@@ -77,13 +77,13 @@
     "status": "PASS",
     "runtime": {
       "serverBinary": "target/debug/snapback",
-      "serverBinarySha256": "c5b84b881579a869575409c139425f484a392482fb605824585abfd19ff14c5b",
+      "serverBinarySha256": "063aa26b8a99263dbcee773c98c2052f2d0fcc4bfd67a090e7deaa0310867ffa",
       "launchRung": "configured",
       "backendStoppedBeforeRelaunch": true
     },
     "activation": {
       "format": "snapback.composition-activation-preparation.v1",
-      "activationHash": "sha256:3901aec6b393b68f66b2294175b2385be1f208635bf57903032988c6d57d85b8",
+      "activationHash": "sha256:b5acf4b47ea7a20cf4d69e165552189b364d428ed59863741393d85734f29f02",
       "deploymentId": "triage-graph-p3-controlled-run"
     }
   },
@@ -115,15 +115,15 @@
         "resultBytes": 14981,
         "proofBytes": 1224,
         "durableRegistrations": 1,
-        "registrationBytes": 1459,
+        "registrationBytes": 1554,
         "leaseRecords": 1,
-        "physicalCarrierBytes": 74850
+        "physicalCarrierBytes": 74975
       },
       "hydration": {
         "attempts": 1,
         "rowsInstalled": 100,
         "payloadBytes": 14981,
-        "elapsedMs": 307.004
+        "elapsedMs": 221.366
       }
     },
     "frozenCeilings": {
@@ -139,7 +139,7 @@
         "authoritativeRetainedRows": 100,
         "logicalBytes": 16205,
         "durableRegistrations": 1,
-        "registrationBytes": 1459,
+        "registrationBytes": 1554,
         "leaseRecords": 1
       },
       "hydration": {
@@ -183,31 +183,31 @@
         "releasedVolatilePayloadRecords": 0,
         "retainingSets": {
           "registrations": [
-            "qmk1.1wLjNnFcPSwbsBp2BCTmC74Ycv5-CVR6wuIqQfHKZpY"
+            "qmk1.BtXDrCh2N12Axa_0WKT9yhFHbrtSH2b7VLuFrkJnB7I"
           ],
           "releaseGrace": [],
           "safetyBlockers": [],
           "instanceBookkeepingStubs": [
-            "qmk1.-pn4K9UeFp4D7x3Po3PQyEHAfNgC1FmeaJWwA1yQla8",
-            "qmk1.2_geTedi9WPKCn0ub8J_z9LsJqaK1ZCB9yqLzQ8SywM",
-            "qmk1.3cxJ1jmauj5Ct7ByVbbiMtwCElG7as2aKVArrWZ2ZHg",
-            "qmk1.4hRxstjYugA-4ilKVaMQqgqaBusEVxrDjnuw07GC5cI",
-            "qmk1.9LMrm37MtnqE0oHNo-4H1-ggNCo9XVhq16G3FLF2IqE",
-            "qmk1.TlMh1QE4mnsveTmDWjl1-MN7NtBWDC0-d-NP0idPrcg",
-            "qmk1.VojZRjK60IkvTRAtzRhQ8UgA1pkJEY03jP6PzbDC2OE",
-            "qmk1.W4D_Jpg2LglJXT5oK_iE6U6BgmH9ZlcDFII-TABA1dY",
-            "qmk1.aBdQEosT_yPyU0aaG0FJJAHzc1IKylJKCLyrqDs4vT0",
-            "qmk1.aWTJPw1Y8pHwMgfD26VU-Ml3dq3A4yAlLTkGaWG_-H4",
-            "qmk1.bDzV0l2fjC77wY5Zd_6RpR1Mzr1H3XWcQrtNyrXlUiQ",
-            "qmk1.da1hby5mNNa_JFIq9GRKGWxHTkaGFjkPVbPssghfAvA",
-            "qmk1.diRb1offjITq-u7ie7QZfLv7yN5xf6qKOmby_OWlzRU",
-            "qmk1.gAt_ieZkZWBIk33wVBZ1BMw3z5aGbpAzXA_I2fYtSm4",
-            "qmk1.j4fD5eXcyW99ogr0QpDMo6qqnGEgGPabtQ-CxfrnbhI",
-            "qmk1.mQ3P_vqVdKLMZDeabSburnN90aW-1QWEQErwQztR6iw",
-            "qmk1.qmkDtBFX547r5CZlWIGYMgZW-SlgNXOJZHMyh2S3GBo",
-            "qmk1.rrjIZSktnQO6CFIiUpnUTNNGOFi0u70yNlnNaGzvYXI",
-            "qmk1.tscQNsrk9ZiqLP8SmiHxv1aTqou7yEYw6XEhKPT0RCw",
-            "qmk1.wiWawNUNY60JbLeCrob5Wjn19c3pJVZ0ncYZWpfF-WE"
+            "qmk1.0Khst007XeFwE3WUo1qIK65FbcBo8nEk9go6dffauTA",
+            "qmk1.1uz4iNcfx0j0wxG2DUhH93nx64ew-hVEc8WQbbsVl-I",
+            "qmk1.3nNtlABkXma8ifxa8aDs6eUN0qziz4spC3dtZw8uW2k",
+            "qmk1.5gjE_W5UadMbm1ZBm7Gf8lgTUAXvIX1e9i71r3O2_aY",
+            "qmk1.7x7hayd5dWVMM5whzsiCPiEddT8zDNGPeYmyD9Jf-B8",
+            "qmk1.DevnFLqkbr3Bducz3DLSp2EZ8_0U_K4mdn8q4KoTN9k",
+            "qmk1.E2gWzFuwigpurD75a4k0_J_vXqNzj_GWuOyKp-XUFzw",
+            "qmk1.FN071tYmDDrweJGvTWgSBfuAntn2vfiONqUfnQ83UP8",
+            "qmk1.I-OLrgPwmHY9ujHeh1SfeQP5X5_aazg66k5YpyZL1D8",
+            "qmk1.JzljYNTaNcgRUP2qztz9quhVtunmqAH1zBBi6OqC0Cs",
+            "qmk1.K1DzYbdsdZIoTwSN81nVaX91wBiMpFmSnQaEfM3DnD0",
+            "qmk1.L1GPDtYCUC6g297fkZjQWk2Hq7DdePllrfzniNluC4A",
+            "qmk1.Mo0e-QOv1hdH9hEDlMC6S50CMShrVcvTx3_IWQCVLFU",
+            "qmk1.Pa7P2Zgl2gU1_nJsn-6bxEaXo1t1_XDcPurJKehlCGk",
+            "qmk1.RKQM4CaPu9cajS9qXGzj-OTYV2JyaZAVKULoyOvzz-8",
+            "qmk1.VL6FoUY4WQ2iZxtuUtVFMaAEKFKKaaFPBZW6r9xcbDU",
+            "qmk1.jSRl1q9OGyhE0YExiWyX58H_Euc7cvJwcTGvpTcv6JU",
+            "qmk1.pnw4WFJ0KIfg-j7ZVZa4RgZLWzivn1wKbrCbjpyUF2c",
+            "qmk1.uwYXbxQEOpSjZLFJc5UXVj4Ri9oipkTRZ0_zAYaekSw",
+            "qmk1.vq5DbRbhn44RhuEiZHYbdqFxY0uf_xk-oUg7O2tIq3Q"
           ]
         },
         "fragments": 1,
@@ -215,7 +215,7 @@
         "authoritativeRetainedRowsExplained": 100,
         "durableRegistrations": 1,
         "leaseRecords": 1,
-        "addressKey": "qmk1.1wLjNnFcPSwbsBp2BCTmC74Ycv5-CVR6wuIqQfHKZpY",
+        "addressKey": "qmk1.BtXDrCh2N12Axa_0WKT9yhFHbrtSH2b7VLuFrkJnB7I",
         "currentTransition": {
           "answerClass": "authoritative",
           "freshness": "current"
@@ -308,31 +308,31 @@
         "releasedVolatilePayloadRecords": 0,
         "retainingSets": {
           "registrations": [
-            "qmk1.1wLjNnFcPSwbsBp2BCTmC74Ycv5-CVR6wuIqQfHKZpY"
+            "qmk1.BtXDrCh2N12Axa_0WKT9yhFHbrtSH2b7VLuFrkJnB7I"
           ],
           "releaseGrace": [],
           "safetyBlockers": [],
           "instanceBookkeepingStubs": [
-            "qmk1.-pn4K9UeFp4D7x3Po3PQyEHAfNgC1FmeaJWwA1yQla8",
-            "qmk1.2_geTedi9WPKCn0ub8J_z9LsJqaK1ZCB9yqLzQ8SywM",
-            "qmk1.3cxJ1jmauj5Ct7ByVbbiMtwCElG7as2aKVArrWZ2ZHg",
-            "qmk1.4hRxstjYugA-4ilKVaMQqgqaBusEVxrDjnuw07GC5cI",
-            "qmk1.9LMrm37MtnqE0oHNo-4H1-ggNCo9XVhq16G3FLF2IqE",
-            "qmk1.TlMh1QE4mnsveTmDWjl1-MN7NtBWDC0-d-NP0idPrcg",
-            "qmk1.VojZRjK60IkvTRAtzRhQ8UgA1pkJEY03jP6PzbDC2OE",
-            "qmk1.W4D_Jpg2LglJXT5oK_iE6U6BgmH9ZlcDFII-TABA1dY",
-            "qmk1.aBdQEosT_yPyU0aaG0FJJAHzc1IKylJKCLyrqDs4vT0",
-            "qmk1.aWTJPw1Y8pHwMgfD26VU-Ml3dq3A4yAlLTkGaWG_-H4",
-            "qmk1.bDzV0l2fjC77wY5Zd_6RpR1Mzr1H3XWcQrtNyrXlUiQ",
-            "qmk1.da1hby5mNNa_JFIq9GRKGWxHTkaGFjkPVbPssghfAvA",
-            "qmk1.diRb1offjITq-u7ie7QZfLv7yN5xf6qKOmby_OWlzRU",
-            "qmk1.gAt_ieZkZWBIk33wVBZ1BMw3z5aGbpAzXA_I2fYtSm4",
-            "qmk1.j4fD5eXcyW99ogr0QpDMo6qqnGEgGPabtQ-CxfrnbhI",
-            "qmk1.mQ3P_vqVdKLMZDeabSburnN90aW-1QWEQErwQztR6iw",
-            "qmk1.qmkDtBFX547r5CZlWIGYMgZW-SlgNXOJZHMyh2S3GBo",
-            "qmk1.rrjIZSktnQO6CFIiUpnUTNNGOFi0u70yNlnNaGzvYXI",
-            "qmk1.tscQNsrk9ZiqLP8SmiHxv1aTqou7yEYw6XEhKPT0RCw",
-            "qmk1.wiWawNUNY60JbLeCrob5Wjn19c3pJVZ0ncYZWpfF-WE"
+            "qmk1.0Khst007XeFwE3WUo1qIK65FbcBo8nEk9go6dffauTA",
+            "qmk1.1uz4iNcfx0j0wxG2DUhH93nx64ew-hVEc8WQbbsVl-I",
+            "qmk1.3nNtlABkXma8ifxa8aDs6eUN0qziz4spC3dtZw8uW2k",
+            "qmk1.5gjE_W5UadMbm1ZBm7Gf8lgTUAXvIX1e9i71r3O2_aY",
+            "qmk1.7x7hayd5dWVMM5whzsiCPiEddT8zDNGPeYmyD9Jf-B8",
+            "qmk1.DevnFLqkbr3Bducz3DLSp2EZ8_0U_K4mdn8q4KoTN9k",
+            "qmk1.E2gWzFuwigpurD75a4k0_J_vXqNzj_GWuOyKp-XUFzw",
+            "qmk1.FN071tYmDDrweJGvTWgSBfuAntn2vfiONqUfnQ83UP8",
+            "qmk1.I-OLrgPwmHY9ujHeh1SfeQP5X5_aazg66k5YpyZL1D8",
+            "qmk1.JzljYNTaNcgRUP2qztz9quhVtunmqAH1zBBi6OqC0Cs",
+            "qmk1.K1DzYbdsdZIoTwSN81nVaX91wBiMpFmSnQaEfM3DnD0",
+            "qmk1.L1GPDtYCUC6g297fkZjQWk2Hq7DdePllrfzniNluC4A",
+            "qmk1.Mo0e-QOv1hdH9hEDlMC6S50CMShrVcvTx3_IWQCVLFU",
+            "qmk1.Pa7P2Zgl2gU1_nJsn-6bxEaXo1t1_XDcPurJKehlCGk",
+            "qmk1.RKQM4CaPu9cajS9qXGzj-OTYV2JyaZAVKULoyOvzz-8",
+            "qmk1.VL6FoUY4WQ2iZxtuUtVFMaAEKFKKaaFPBZW6r9xcbDU",
+            "qmk1.jSRl1q9OGyhE0YExiWyX58H_Euc7cvJwcTGvpTcv6JU",
+            "qmk1.pnw4WFJ0KIfg-j7ZVZa4RgZLWzivn1wKbrCbjpyUF2c",
+            "qmk1.uwYXbxQEOpSjZLFJc5UXVj4Ri9oipkTRZ0_zAYaekSw",
+            "qmk1.vq5DbRbhn44RhuEiZHYbdqFxY0uf_xk-oUg7O2tIq3Q"
           ]
         },
         "fragments": 1,
@@ -340,7 +340,7 @@
         "authoritativeRetainedRowsExplained": 100,
         "durableRegistrations": 1,
         "leaseRecords": 1,
-        "addressKey": "qmk1.1wLjNnFcPSwbsBp2BCTmC74Ycv5-CVR6wuIqQfHKZpY",
+        "addressKey": "qmk1.BtXDrCh2N12Axa_0WKT9yhFHbrtSH2b7VLuFrkJnB7I",
         "currentTransition": {
           "answerClass": "authoritative",
           "freshness": "current"

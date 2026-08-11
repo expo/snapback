@@ -2,23 +2,53 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-06",
   "source": {
-    "revision": "1952d6f8ca72b239a199f99f4e5237f521842881",
+    "revision": "c71222e8480ed0cde87fa9f16fa141146bade020",
     "dirty": true,
     "dirtyPaths": [
       "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
       "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
+      "demos/latency-kanban/snapback/generated/artifacts.json",
+      "demos/latency-kanban/snapback/trusted-composition-activation.json",
       "demos/triage-graph/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/trusted-composition-activation.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.d.ts",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/api.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.3f478e3d7e08dfd12287f38db98abff1a91cad05c435f7d8ab918820da500d1c.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.bec26ea45b7395d2ca23bb0568cf0861758e1dde4ff51c6541d8d4ee97fe41c4.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.2b7028021a541998c3d85bcae297e6a8098c83853d62eb82285846b9071dd57a.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.cd0297742a1407f613fe19110e5b75cb3bea7005a1fe1b1a0fabcb4bea736e46.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/artifacts.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/capability.manifest.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/contract-data.manifest.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/functions.manifest.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-bindings.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-introspection.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/schema.manifest.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/trusted-composition-activation.json",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/trusted-composition-activation.json",
+      "src/local-persistent-store-publication.anchor.v1.json",
+      "src/local-persistent-store-publication.v1.json",
+      "src/local-relation-activity-publication.v1.json",
+      "src/local-sequence-allocation-publication.v1.json",
+      "src/manifest.rs",
+      "tests/acceptance/contention-calendar-rung2-v1-evidence.md",
+      "tests/acceptance/fixtures/contention-calendar/rung2-exit.2026-08-04.r1.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
+      "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json",
       "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
       "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
+      "tests/acceptance/latency-kanban-move3-v1-evidence.md",
       "tests/acceptance/triage-graph-move1-v1-evidence.md",
-      ".ceremony-carrier.log",
-      ".ceremony-fleet.log",
-      ".ceremony-triage.log"
+      "tests/conformance/relation-activity-publication-v1.mjs",
+      "tests/conformance/sequence-allocation-publication-v1.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.binding.75a2f1b6c2a81fcbad595f313cbae9787a149fa35939e4772f1a82dad8de5817.mjs",
+      "demos/zero-bakeoff/apps/contention-calendar/snapback/generated/app.descriptor.5b4c5f8ad9ebfb86610b4c343f296a310ccf3ee07f189d00e593aebaae95b2e6.json"
     ],
     "files": [
       {
@@ -27,11 +57,11 @@
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
-        "sha256": "34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
+        "sha256": "947eb3d549fdedf03f873bba76644ed3bb4d7eb57ae3f4b5ea9812e6144d1fa3"
       },
       {
         "path": "packages/snapback-client/materialization-bridge.mjs",
-        "sha256": "5e8681971300b089e29b43b1ecd1bf4b3f7ad0ce7966e2dfc5a6f69d4cda27a1"
+        "sha256": "c6aac06b5147a742073c941a6359c9e023cd81b4e7137862776c3ab3c59b1b63"
       },
       {
         "path": "packages/snapback-client/registration-ledger.mjs",
@@ -59,7 +89,7 @@
       },
       {
         "path": "packages/snapback-client/rqs-store-meta.mjs",
-        "sha256": "a28a5013b99f7373f991c9decb4bfbc7c4ccc77bee47642bd2d0b831fd83e3f9"
+        "sha256": "481ca7006373501e9bf4ac3304b9789afdc939ba1ddaf4ffefa68ba85587bf67"
       },
       {
         "path": "packages/snapback-client/materialization-store-runtime.mjs",
@@ -71,19 +101,19 @@
       },
       {
         "path": "packages/snapback-client/store-runtime.mjs",
-        "sha256": "cf7a65f7b83eb4308b3cad526dc2401c2a3fe7d45665acd0247b594bea8533b8"
+        "sha256": "99abcfc574ab38920105d90fe220ec43c5ee374226199b98d8ec6c4d768389ab"
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "3f3a2e55e2f9280b9b83a2a534d51fc310b09f546d11e451e1ca8b1bd8d234c2"
+        "sha256": "876616ce65376f39dbf57c6e727384f41ce7539008348b98f47110b0fdfc770c"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
-        "sha256": "d6efc998f1c3662fcbf48564c23dbea1843a8e9e771fd4479242bc95fc3818bf"
+        "sha256": "2939a00e3c0f1a850ca1f46bb9a2dd6473a69f3b3a882ce185f4865fd29e6376"
       },
       {
         "path": "packages/snapback-client/rqs-store-file.mjs",
-        "sha256": "5477f90891fb5319a67f2779919ba1031f5195729c34e2ac3691733d7c1848ae"
+        "sha256": "32133704d11cc6bacc0145492d9359a89bea96dfc772cfda29c52648fdaa2ae0"
       },
       {
         "path": "packages/snapback-contract/auth-coordinator.mjs",
@@ -111,19 +141,19 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-        "sha256": "9806f9df6dd879b334503f69d6c9afb98fc03b1402915ac59c4b46f37cd0abac"
+        "sha256": "7e30fc30d20ec726e19fa3b82a7e4f10cf0577b3aba5cb8c85760cb019427c4c"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-        "sha256": "1cf7f5e3f7607f5e90b487df434f3ccbebd0bcaffefa75111f95585b261c0c87"
+        "sha256": "eae238d08c04dfd5595ce6ea375ad5028eeca741703570d6f79f40134f366924"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "2f0fd506f5a779f9b83c161809f56e53dbdb1478c1efb4b244e9cdc0883fb46c"
+        "sha256": "c34618b6fae0f863a7be3b709c31ddc661c7abe313a84593341e18ff62ff0d5e"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "f853da3f3d85a04bcf3ed1b75f7c20bde8524e10aeeacfc49b1cf33e62c519c4"
+        "sha256": "0b7dcc0b6bdfeb813f922438655957eeabe49c5f814b63802cbc381a65a49a24"
       }
     ]
   },
@@ -147,38 +177,38 @@
     "external": []
   },
   "output": {
-    "minifiedBytes": 720892,
-    "gzipBytes": 199570,
-    "brotliBytes": 160296,
-    "sha256": "acd4a44457e431e518bbd59d37e811d82532658583f3b738c341589bcdb44d11"
+    "minifiedBytes": 752758,
+    "gzipBytes": 207440,
+    "brotliBytes": 166602,
+    "sha256": "6b2b128961a5fdcdf4060f852379ece53a291a00b42e83be39eec674409ded24"
   },
   "modules": [
     {
       "module": "materialization-store",
       "path": "packages/snapback-client/materialization-store.mjs",
-      "sourceBytes": 85627,
-      "minifiedModuleOwnBytes": 45516,
-      "sourceSha256": "34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
+      "sourceBytes": 86832,
+      "minifiedModuleOwnBytes": 46222,
+      "sourceSha256": "947eb3d549fdedf03f873bba76644ed3bb4d7eb57ae3f4b5ea9812e6144d1fa3"
     },
     {
       "module": "materialization-bridge",
       "path": "packages/snapback-client/materialization-bridge.mjs",
-      "sourceBytes": 17969,
-      "minifiedModuleOwnBytes": 10599,
-      "sourceSha256": "5e8681971300b089e29b43b1ecd1bf4b3f7ad0ce7966e2dfc5a6f69d4cda27a1"
+      "sourceBytes": 18451,
+      "minifiedModuleOwnBytes": 10740,
+      "sourceSha256": "c6aac06b5147a742073c941a6359c9e023cd81b4e7137862776c3ab3c59b1b63"
     },
     {
       "module": "registration-ledger",
       "path": "packages/snapback-client/registration-ledger.mjs",
       "sourceBytes": 38537,
-      "minifiedModuleOwnBytes": 19276,
+      "minifiedModuleOwnBytes": 19286,
       "sourceSha256": "620ee29ef2cbf27a1c08d65ec99049618743668bf1009b2c84e880e72b785989"
     },
     {
       "module": "demand-broker",
       "path": "packages/snapback-client/demand-broker.mjs",
       "sourceBytes": 30790,
-      "minifiedModuleOwnBytes": 15844,
+      "minifiedModuleOwnBytes": 15730,
       "sourceSha256": "bcae730e18c5a9f45b74ea205c32837d37a1e162bfd029674471e807076755ba"
     },
     {
@@ -212,17 +242,17 @@
     {
       "module": "rqs-store-meta",
       "path": "packages/snapback-client/rqs-store-meta.mjs",
-      "sourceBytes": 5550,
-      "minifiedModuleOwnBytes": 3044,
-      "sourceSha256": "a28a5013b99f7373f991c9decb4bfbc7c4ccc77bee47642bd2d0b831fd83e3f9"
+      "sourceBytes": 6105,
+      "minifiedModuleOwnBytes": 3196,
+      "sourceSha256": "481ca7006373501e9bf4ac3304b9789afdc939ba1ddaf4ffefa68ba85587bf67"
     }
   ],
-  "totalMeasuredModuleOwnBytes": 112230,
+  "totalMeasuredModuleOwnBytes": 113125,
   "browserClosureQualification": {
     "status": "PASS",
     "materializationStoreResolved": true,
     "resolved": true,
-    "outputBytes": 73241,
+    "outputBytes": 74082,
     "externalImports": []
   }
 }

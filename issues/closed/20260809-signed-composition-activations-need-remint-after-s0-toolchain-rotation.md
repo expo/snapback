@@ -109,3 +109,16 @@ audited `activationGenerationAdvanced` marker instead of an invalidation.
 Implementation commissioned; this ticket's resolution ceremony becomes the
 v2 re-mint of the four demos, after which routine toolchain rotations stop
 re-opening this class.
+
+## Resolution — 2026-08-10 (v2 ceremony complete; class retired)
+
+All four demo activations re-minted to `snapback.composition-activation.v2`
+under the RULED LLP 0157 amendment, each through its full acceptance run:
+latency-kanban 5/5, triage-graph 8/8, fleet-observatory-move1 8/8,
+contention-calendar 8/8 (the previously flaking rung passed on this run).
+Carrier chain requalified: local-store-carrier-exit 17 PASS / 0 GAP,
+finalize published, conformance green, custody checker 110 pass / 0 fail.
+Under v2, admission binds `authoredSourceHash`; future toolchain rotations
+record an audited `activationGenerationAdvanced` marker instead of
+invalidating the ceremony — the recurring class this ticket tracked (five
+bypass landings in two days) cannot recur. Closing.

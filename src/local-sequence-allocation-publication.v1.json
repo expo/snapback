@@ -13,7 +13,7 @@
     "src/local/inspection.rs": "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679",
     "src/local/live_protocol.rs": "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090",
     "src/local/receipt_log.rs": "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add",
-    "src/local/tests.rs": "sha256:041d6e53fb8186df1f6948fa0c1a9c046735a4c2657984eabd0c923f516f03e1",
+    "src/local/tests.rs": "sha256:dd36dd0febedaf350de1e4ba8f56d92c7a6406784a051e3029bc331fa0dbf7ba",
     "src/runtime.rs": "sha256:863c613cc043ccf4e67a60b90695e4b9fe9499d3e6bcc4dcd45174ce54686e53",
     "src/storage.rs": "sha256:7f49c6810b9955dc031f998127bd704df402c7b4877118258ba41112c33e7baa",
     "src/storage/auth.rs": "sha256:9d93d22347409fee1d10725972c0180ba1c8f355f97e6e429ac1463c42a8381f",

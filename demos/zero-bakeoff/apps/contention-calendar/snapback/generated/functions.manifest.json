@@ -6,7 +6,8 @@
   ],
   "appId": "contention-calendar",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:7426adcc3fb56546",
+  "authoredSourceHash": "sha256:9b9699250015603b401d305ed4491d6e32934409e8e5fcc068072b8ec3baf085",
+  "bundleHash": "sha256:1d59085d1b804d93",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -754,7 +755,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "05c8220eef6a0b8272a0727df8f1da1d60ea3242bff95aa4b70ab94d04b87732",
+  "inputsHash": "368a047b3137d17005f2c6b8d408335b7857a788094548ce1ef552af2becdb9f",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }
