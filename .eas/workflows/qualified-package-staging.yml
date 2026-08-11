@@ -382,28 +382,10 @@ jobs:
 
       - name: Require the complete retained qualification
         run: |
-          release_root="$HOME/qualified-release"
-          mkdir -p "$release_root/receipts"
-          qualified_artifact=${{ steps.qualified_artifact.outputs.artifact_path }}
-          darwin_receipt=${{ steps.darwin_receipt.outputs.artifact_path }}
-          linux_receipt=${{ steps.linux_receipt.outputs.artifact_path }}
-          test -d "$qualified_artifact"
-          test -f "$darwin_receipt"
-          test -f "$linux_receipt"
-          cp -R "$qualified_artifact/." "$release_root/"
-          cp "$darwin_receipt" \
-            "$release_root/receipts/snapback-darwin-arm64-staged-receipt.json"
-          cp "$linux_receipt" \
-            "$release_root/receipts/snapback-linux-x64-staged-receipt.json"
-          test -f "$release_root/publish-ledger.json"
-          test -f "$release_root/receipts/snapback-darwin-arm64-staged-receipt.json"
-          test -f "$release_root/receipts/snapback-linux-x64-staged-receipt.json"
-          expected_package_count=$(L="$release_root/publish-ledger.json" \
-            node -p 'JSON.parse(require("fs").readFileSync(process.env.L,"utf8")).packages.length')
-          test "$(find "$release_root" -maxdepth 1 -name '*.tgz' | wc -l | tr -d ' ')" = "$expected_package_count"
-          mkdir -p .eas-artifacts
-          tar -czf .eas-artifacts/snapback-qualified-release.tar.gz \
-            -C "$release_root" .
+          export SNAPBACK_QUALIFIED_ARTIFACT="${{ steps.qualified_artifact.outputs.artifact_path }}"
+          export SNAPBACK_DARWIN_STAGED_RECEIPT="${{ steps.darwin_receipt.outputs.artifact_path }}"
+          export SNAPBACK_LINUX_STAGED_RECEIPT="${{ steps.linux_receipt.outputs.artifact_path }}"
+          scripts/qualified-staging-retain-release
 
       - uses: eas/upload_artifact
         with:

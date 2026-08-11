@@ -486,10 +486,19 @@ const qualifiedStagingLedgerCheck = readFileSync(
   join(ROOT, 'scripts', 'qualified-staging-ledger-check.mjs'),
   'utf8',
 );
+const qualifiedStagingRetainRelease = readFileSync(
+  join(ROOT, 'scripts', 'qualified-staging-retain-release'),
+  'utf8',
+);
+assert(
+  Buffer.byteLength(qualifiedPackageStaging, 'utf8') <= 16_384,
+  'qualified package staging must fit EAS\'s 16 KiB workflow revision limit',
+);
 const qualifiedStagingSources = [
   qualifiedPackageStaging,
   qualifiedStagingAssembly,
   qualifiedStagingLedgerCheck,
+  qualifiedStagingRetainRelease,
 ].join('\n');
 for (const required of [
   'SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY',
@@ -524,6 +533,11 @@ assert.equal(
   qualifiedPackageStaging.match(/scripts\/qualified-staging-assemble/g)?.length,
   2,
   'qualified staging must assemble once for receipt minting and once for receipt-qualified proof',
+);
+assert.match(
+  qualifiedPackageStaging,
+  /scripts\/qualified-staging-retain-release/u,
+  'qualified staging must retain the final closure through its size-capped checked-in script',
 );
 for (const artifact of [
   'snapback-qualification-tarballs',

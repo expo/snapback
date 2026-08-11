@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Keep the final EAS retention step executable and reviewable without pushing
+# qualified-package-staging.yml over EAS's 16 KiB workflow revision ceiling.
+# @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — retain the exact
+# qualified tarball closure together with both staged-platform proof receipts.
+
+: "${SNAPBACK_QUALIFIED_ARTIFACT:?SNAPBACK_QUALIFIED_ARTIFACT is required}"
+: "${SNAPBACK_DARWIN_STAGED_RECEIPT:?SNAPBACK_DARWIN_STAGED_RECEIPT is required}"
+: "${SNAPBACK_LINUX_STAGED_RECEIPT:?SNAPBACK_LINUX_STAGED_RECEIPT is required}"
+
+release_root="${SNAPBACK_QUALIFIED_RELEASE_ROOT:-$HOME/qualified-release}"
+release_artifact="${SNAPBACK_QUALIFIED_RELEASE_ARTIFACT:-.eas-artifacts/snapback-qualified-release.tar.gz}"
+darwin_retained="$release_root/receipts/snapback-darwin-arm64-staged-receipt.json"
+linux_retained="$release_root/receipts/snapback-linux-x64-staged-receipt.json"
+
+test -d "$SNAPBACK_QUALIFIED_ARTIFACT"
+test -f "$SNAPBACK_DARWIN_STAGED_RECEIPT"
+test -f "$SNAPBACK_LINUX_STAGED_RECEIPT"
+mkdir -p "$release_root/receipts" "$(dirname "$release_artifact")"
+cp -R "$SNAPBACK_QUALIFIED_ARTIFACT/." "$release_root/"
+cp "$SNAPBACK_DARWIN_STAGED_RECEIPT" "$darwin_retained"
+cp "$SNAPBACK_LINUX_STAGED_RECEIPT" "$linux_retained"
+
+test -f "$release_root/publish-ledger.json"
+test -f "$darwin_retained"
+test -f "$linux_retained"
+expected_package_count=$(L="$release_root/publish-ledger.json" \
+  node -p 'JSON.parse(require("fs").readFileSync(process.env.L,"utf8")).packages.length')
+actual_package_count=$(find "$release_root" -maxdepth 1 -name '*.tgz' | wc -l | tr -d ' ')
+test "$actual_package_count" = "$expected_package_count"
+tar -czf "$release_artifact" -C "$release_root" .
