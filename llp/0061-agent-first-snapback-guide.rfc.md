@@ -5,7 +5,15 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
-**Revised:** 2026-08-09 (tiered projection amendment: implements the disposition of `issues/closed/20260806-guide-flat-projection-oversize.md`, raised by LLP 0187 OQ4 and decided by the program orchestrator on 2026-08-09. The honest one-request claim now belongs to the budgeted capability-index + surface-map entry tier; the generator emits and checks one flat per top-level section; the roughly 2.5 MiB whole-corpus flat remains a labeled bulk export; and HTTP, MCP, `/llms.txt`, Guide, README, CLI, and instance-home discovery preserve one hash/build identity while recommending the bounded tiers. The disposition named a 40 KiB capability budget; the implementation reports about 50 KiB because the enforced budget had deliberately advanced to 51 KiB as capability rows landed, while the surface-map budget remains 16 KiB.) 2026-08-08 (served-guide witness names the explicit `snapback start` server projection); 2026-08-06 (LLP 0187 T4 installed the first out-of-repo discovery funnel over the existing build-bound projections: published-package orientation uses served URLs plus `snapback mcp`; the native `snapback guide [query]` carrier lists channels and searches embedded sections; and every current `snapback new` template carries a short consumer AGENTS.md. This records source-current carrier behavior without claiming that an npm closure containing it has been promoted). 2026-08-06 (routing conventions amendment from accepted LLP 0187 T1: paved-alternative links at the point of choice, the alias column's grep-vocabulary charter — workload terms, plausible wrong-guess symbol names, and LLP 0186 W2's competitor rosetta rows — schema-side/client-side vocabulary splits classified as guide defects, and LLP 0187 T7's standing rule that every replicated discoverability miss produces a retrieval-eval seed case when fixed; recorded in §Design 1 with the executable forms in `guide/conventions.md` and `guide/retrieval-eval.md`). 2026-08-03 (the 40 KiB trigger fired while classifying LLP 0017's claim-link routes; implemented the recorded split of the mechanical route/host-op surface map into `guide/surface-map.md` with its own 16 KiB budget while preserving the closed checker join). 2026-07-16 (r10 — ENG-25111 implemented Phase 2b as the resource-first `snapback mcp` stdio server: manifest, flat guide, and every manifest-named page are build-bound read-only resources; each carries the same guide hash/build commit; the consistency check validates exact resource membership and page hashes; host-operation tools remain explicitly absent). 2026-07-16 (r9 — ENG-25113 completed the reciprocal Exact seam: both corpora use `repo(<repository>):<path>`, Exact's `data.snapback` external-authority row points back to this guide without a fake local witness, and Snapback's checker now validates the generic form.) 2026-07-16 (r8 — ENG-25112 implemented optional Phase 3: the Contract admin console has a Docs tab whose navigation comes from the served generated manifest, whose page reads must match the manifest response's content-hash/build-commit identity, and whose console-owned Markdown block renderer emits text leaves only. The conditional dependency check found `@exact/markdown` source in the sibling Exact workspace but no supported published dependency in the admin package set, so this uses the RFC's pattern-reuse branch rather than creating a source-tree dependency.) 2026-07-15 (r7 — the public, content-negotiated instance home at `/` now advertises the guide index to humans and the one-request flat projection in its HTML and machine-readable renderings.) 2026-07-15 (r6 — ENG-25102 implemented Phase 2a: the generator emits and hash-stamps the capability-first flat projection; `build.rs` embeds the checked corpus with eval evidence excluded; the LLP 0031 registry serves index, files, and `flat.md` with content-hash/build-commit headers; memory-server acceptance pins the bytes and identity; and the capability row is shipped for out-of-repo readers.) 2026-07-15 (r5 — implementation program filed: ENG-25100
+**Revised:** 2026-08-10 (reachability amendment: §Design 5 names the
+sophisticated-variant-only anti-pattern — a page teaching only the advanced
+variant of a capability makes the base variant look unsupported, so the
+search terminates in a wrong conclusion — with Diary 0074's three guide-gap
+tickets as the replicated instances, states the base-variant/composition
+authoring rule reviewed on the LLP 0016 reconcile line, and reconciles §5's
+filing sentence with the repo's filesystem-ticket-first policy; the page
+fixes, ticket closures, and the corresponding retrieval-eval seed cases land
+separately.) 2026-08-09 (tiered projection amendment: implements the disposition of `issues/closed/20260806-guide-flat-projection-oversize.md`, raised by LLP 0187 OQ4 and decided by the program orchestrator on 2026-08-09. The honest one-request claim now belongs to the budgeted capability-index + surface-map entry tier; the generator emits and checks one flat per top-level section; the roughly 2.5 MiB whole-corpus flat remains a labeled bulk export; and HTTP, MCP, `/llms.txt`, Guide, README, CLI, and instance-home discovery preserve one hash/build identity while recommending the bounded tiers. The disposition named a 40 KiB capability budget; the implementation reports about 50 KiB because the enforced budget had deliberately advanced to 51 KiB as capability rows landed, while the surface-map budget remains 16 KiB.) 2026-08-08 (served-guide witness names the explicit `snapback start` server projection); 2026-08-06 (LLP 0187 T4 installed the first out-of-repo discovery funnel over the existing build-bound projections: published-package orientation uses served URLs plus `snapback mcp`; the native `snapback guide [query]` carrier lists channels and searches embedded sections; and every current `snapback new` template carries a short consumer AGENTS.md. This records source-current carrier behavior without claiming that an npm closure containing it has been promoted). 2026-08-06 (routing conventions amendment from accepted LLP 0187 T1: paved-alternative links at the point of choice, the alias column's grep-vocabulary charter — workload terms, plausible wrong-guess symbol names, and LLP 0186 W2's competitor rosetta rows — schema-side/client-side vocabulary splits classified as guide defects, and LLP 0187 T7's standing rule that every replicated discoverability miss produces a retrieval-eval seed case when fixed; recorded in §Design 1 with the executable forms in `guide/conventions.md` and `guide/retrieval-eval.md`). 2026-08-03 (the 40 KiB trigger fired while classifying LLP 0017's claim-link routes; implemented the recorded split of the mechanical route/host-op surface map into `guide/surface-map.md` with its own 16 KiB budget while preserving the closed checker join). 2026-07-16 (r10 — ENG-25111 implemented Phase 2b as the resource-first `snapback mcp` stdio server: manifest, flat guide, and every manifest-named page are build-bound read-only resources; each carries the same guide hash/build commit; the consistency check validates exact resource membership and page hashes; host-operation tools remain explicitly absent). 2026-07-16 (r9 — ENG-25113 completed the reciprocal Exact seam: both corpora use `repo(<repository>):<path>`, Exact's `data.snapback` external-authority row points back to this guide without a fake local witness, and Snapback's checker now validates the generic form.) 2026-07-16 (r8 — ENG-25112 implemented optional Phase 3: the Contract admin console has a Docs tab whose navigation comes from the served generated manifest, whose page reads must match the manifest response's content-hash/build-commit identity, and whose console-owned Markdown block renderer emits text leaves only. The conditional dependency check found `@exact/markdown` source in the sibling Exact workspace but no supported published dependency in the admin package set, so this uses the RFC's pattern-reuse branch rather than creating a source-tree dependency.) 2026-07-15 (r7 — the public, content-negotiated instance home at `/` now advertises the guide index to humans and the one-request flat projection in its HTML and machine-readable renderings.) 2026-07-15 (r6 — ENG-25102 implemented Phase 2a: the generator emits and hash-stamps the capability-first flat projection; `build.rs` embeds the checked corpus with eval evidence excluded; the LLP 0031 registry serves index, files, and `flat.md` with content-hash/build-commit headers; memory-server acceptance pins the bytes and identity; and the capability row is shipped for out-of-repo readers.) 2026-07-15 (r5 — implementation program filed: ENG-25100
 (umbrella) + ENG-25101 (eval intents 2–3, the formal Phase 1 exit),
 ENG-25102 (Phase 2a served guide), ENG-25103–25110 (the eight GAP-page
 issues), ENG-25111 (Phase 2b MCP, blocked on ENG-25102 + the LLP 0042
@@ -587,16 +595,40 @@ cadence — a snippet that runs can still teach an anti-pattern, so checked
 structure does not substitute for reviewed prose.
 
 **The diary loop.** A diary entry recording knowledge the author needed and
-couldn't find is a **guide gap**: filed as a Linear issue (Exact project,
-Snapback label, `guide-gap` in the title or label), linked from the
-capability index's filing pointer, and normally fixed by a page or an index
-row. Diaries are a rich source of *new cases*; they are complementary to —
+couldn't find is a **guide gap**: filed as a filesystem ticket under
+`issues/` with `guide-gap` in the title (graduating to Linear — Exact
+project, Snapback label — only when it needs PM coordination, per the repo's
+ticket policy), linked from the capability index's filing pointer, and
+normally fixed by a page or an index row. Diaries are a rich source of *new cases*; they are complementary to —
 not a substitute for — the eval below, because they are post hoc,
 uncontrolled, and only required when a demo is built or substantially
 changed. (A cheap optional extension once the corpus exists: periodically
 replay an old diary workaround as a cold-agent intent against the current
 guide — a "friction replay" that tests currentness and discoverability
 together.)
+
+**The reachability anti-pattern (sophisticated-variant-only pages).** Three
+of Diary 0074's guide gaps (2026-08-10: the browser-sessions mailbox relay
+for a non-React Contract surface, Contract-native presence publishing, and
+the Contract `invariant` grammar ceiling) shared one failure shape, distinct
+from a missing page: the owning page documented only the *sophisticated*
+variant of a capability — pointer channels but not plain presence
+publishing; React browser auth but not a non-React sessions boot; keyed
+scopes and ephemeral channels as sibling bullets with their composition
+unstated — so a reader who found the page concluded the ordinary variant was
+unsupported. That search terminates in a confident wrong conclusion rather
+than in "not found", which costs the workaround, then the wrong
+architecture, then a diary note asserting the wrong limit that later readers
+copy. The shape can also be pure reachability: in the `invariant` case the
+reference material existed in Exact's own guide (the clause inventory in its
+contract-blocks page), but the expressiveness ceiling was unstated and
+nothing on the Snapback side pointed there. The authoring rule, checked in
+review on the LLP 0016 reconcile line: **a page that teaches variant N of a
+capability must also teach the base variant, link to where it lives, or
+carry an explicit GAP row — and a page presenting two features on the same
+surface must state whether their composition is supported.** Per the LLP
+0187 T7 standing rule, each such replicated miss adds a seed case to
+`guide/retrieval-eval.md` when its page fix lands.
 
 **The retrieval eval (pinned, small).** The Phase 1 exit criterion, kept
 repeatable rather than anecdotal, sized to this repo:
