@@ -1218,3 +1218,154 @@ and `issues/` is outside it. Both want `guide-gap` in the title.
   contention. The reason to use it here is different and simpler: it is the only
   place the invariant is stated once. Worth a sentence, because the section's
   current framing lets a reader conclude it does not apply to them.
+
+## 2026-08-11 — slice 12: RevenueCat vocabulary, and the store SKU as the atom
+
+### The decision
+
+Two changes that are really one. The vocabulary becomes RevenueCat's —
+**package / product / entitlement** — and the **store SKU becomes the atomic
+unit**. What used to be `products` (with `appleId`/`googleId`/`stripePriceId`
+columns) is now `packages`, and `products` is the store SKU: one row per
+(store, productId).
+
+The forcing argument is that columns cannot carry per-SKU structure. The moment
+a store fact has to attach to one platform's listing — a Google base plan, an
+Apple promotional offer, a per-store price or review status — there is no row
+to attach it to. `basePlanId` and `offerId` are on the SKU row now, nullable and
+unread, precisely to show where such facts land. The old shape had nowhere.
+
+The derive path is `transaction -> product (SKU) -> productEntitlements ->
+entitlement`. **The package is not on it.** It is grouping, DX, and the source
+of `kind`, and that is deliberate: if a re-grouping could change what a past
+purchase grants, the catalog would be editing history.
+
+### The keying decision: compound (store, productId)
+
+The brief left this open — compound index or surrogate — so, stated plainly:
+**`products` is keyed by the compound unique index
+`by_store_product` on `['store', 'productId']`**, and the mapping edge is a
+three-column unique on `['store', 'productId', 'entitlementId']`.
+
+Two reasons.
+
+**A SKU string is only unique within its store.** `pro_monthly` is a legal
+Google product id and a legal Stripe price lookup key at the same time. A global
+unique on `productId` would refuse a real catalog. The acceptance proves this
+directly: one string, two stores, both land; the same string twice in one store
+loses at the index.
+
+**A surrogate would be a second spelling of an identity `transactions` already
+carries.** The transaction row records `store` and `productId` because those are
+what the store told us. A surrogate `sku` column would have to be synthesized
+from that pair at every join, and slice 11's lesson was that a duplicated key is
+somewhere for two spellings to drift.
+
+The cost is real and worth naming: the compound key makes every lookup two
+`.eq()` calls, membership tests need a composed string (`skuKey`), and the edge
+table carries three columns where it used to carry two. I would still choose it.
+
+### What the model change bought, unexpectedly
+
+**Decision 23's cross-platform union stopped being a feature.** Under the old
+shape, "a user who bought on Apple and on Google holds one entitlement" would
+have needed a rule about products belonging to the same package. Under SKU-level
+edges it is what a set union does: both SKUs map to `pro`, `deriveGrant` walks
+the user's transactions and takes the max horizon, and there is no "same
+package" test anywhere in the code. The check I added for it asserts one grant
+row from two stores, and it passed the first time — which is the tell that the
+model, not the code, is doing the work.
+
+**A whole class of state became expressible.** A package whose Apple SKU is live
+and whose Google SKU is still in review is now a first-class thing the dashboard
+renders: same package, one SKU granting, one not. The old shape could not say
+it, because the entitlement mapping hung off the package.
+
+### What was hard
+
+**Reshaping 73 checks without weakening them.** The suite names a product at 97
+sites, and every one had to become a SKU under the right store. I wrote a
+throwaway Node pass that rewrote `productId: '<package>'` to
+`SKU.<store>.<package>` using the nearest `store:` in the same object literal,
+and — importantly — printed every site it could not resolve rather than leaving
+it. It resolved 54 and flagged 10, which is the right ratio for a mechanical
+pass: enough leverage to be worth it, few enough leftovers to read carefully.
+The alternative, hand-editing 97 sites, would have been slower AND less
+trustworthy, because there would be no list of what the tool was unsure about.
+
+The 67 non-CRUD checks went green in one run after that, which was the moment
+the refactor stopped being frightening.
+
+**The Google SKU collision nearly produced a false assertion.** I wrote
+`assert(!products.has('pro_monthly'), 'the audit never names a package id')` —
+and it would have failed, because Grace bought the GOOGLE `pro_monthly` SKU,
+whose string genuinely is `pro_monthly`. I caught it by reading rather than by
+running. The check became something better: assert the row is there AND that
+`store` is `'google'`, because the collision is the whole reason `store` has to
+ride every row. Seeded fixtures where two levels share a string are worth
+keeping for exactly this reason — they make the ambiguity testable.
+
+**`reconcileTransaction` needed a third identity field.** The stored row already
+owned `userId` and `productId` against a lying notification. With a compound SKU
+key, `store` joined them: reading it from the payload after the row exists would
+let a notification re-point the reconcile at a different SKU's entitlements. One
+line, and it would have been a silent cross-store bug.
+
+### On Snapback specifically
+
+**Unique indexes made the keying decision cheap to state and impossible to
+drift.** Declaring `['store','productId'], { unique: true }` is the whole
+implementation of "a SKU is identified by its store and its id". No handler
+scan, no convention, no comment that could go stale — and the acceptance asserts
+the diagnostic code rather than a message.
+
+**Declared reads caught the package hop.** Adding the SKU -> package lookup in
+`enqueueAcknowledgement` meant `packages` had to join two mutations' `reads:`
+arrays. Codegen would have refused otherwise. On a stack where a handler can
+read anything, that hop would have been invisible in review.
+
+**Renaming a table was uneventful, which is the point.** `products` ->
+`packages` plus a new `products` is the kind of change that on a migration-based
+stack is a multi-step dance. Here it was: edit the schema, edit the seed, run
+codegen, run the suite. The database is rebuilt from the manifest on every
+`reset()`, so there is no migration to write — and equally, no migration story
+for anyone with real data, which this demo does not have and a product would.
+
+### Compared to Convex / Supabase
+
+On Postgres this model is more natural than what I built: `products` would carry
+`PRIMARY KEY (store, product_id)`, the edge table would have a composite foreign
+key with `ON DELETE CASCADE`, and both cascades in `deletePackage` would be
+declarations instead of nested loops. My `deletePackage` walks SKUs, walks each
+SKU's edges, deletes, and reports counts — about thirty lines that Postgres
+would do in the schema. That is a genuine ergonomic loss and I do not want to
+argue it away.
+
+What the loops bought is the same thing they bought in slice 11: I had to decide
+what happens to `entitlementGrants`, which has no foreign key to anything
+because it is a derived projection. A cascade would have fired silently and left
+the grants behind. Twice now, the absence of cascades has been what made me look
+at the derived state.
+
+Convex is again the closest comparison and again lands about even, with one
+difference that matters here: Convex has no unique-index primitive, so
+"(store, productId) is unique" would be a read-then-insert inside the
+transaction. Serializable transactions make that safe, but it is a convention
+rather than a constraint — and a convention is exactly what I did not want the
+keying decision to be.
+
+### Guide gap worth filing
+
+Not filed: this session was scoped to `demos/eas-payments/` plus this diary, and
+`issues/` is outside it. Wants `guide-gap` in the title.
+
+- **Nothing covers compound-key lookups as a pattern.**
+  `guide/backend/queries.md` documents `.eq()` and shows compound indexes, and
+  `guide/backend/mutations.md` documents compound unique indexes, but no page
+  walks the case where an entity's IDENTITY is compound: chained `.eq()` per
+  key part, why membership tests need a composed key string, and how a
+  referencing table carries the whole key. That is an ordinary modelling
+  situation — anything keyed by (tenant, id) or (store, sku) — and the two
+  halves of the answer are on two pages that never point at each other. Grep
+  vocabulary: "compound key", "composite primary key", "two-column identity",
+  "eq eq".

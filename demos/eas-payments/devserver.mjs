@@ -107,6 +107,9 @@ const DASHBOARD_USER = 'dashboard';
 // path -> the mutation it commits. Every route is a POST with a JSON body whose
 // keys are the mutation's own arguments, so there is nothing to translate.
 const CATALOG_WRITES = {
+  '/admin/packages/create': api.createPackage,
+  '/admin/packages/update': api.updatePackage,
+  '/admin/packages/delete': api.deletePackage,
   '/admin/products/create': api.createProduct,
   '/admin/products/update': api.updateProduct,
   '/admin/products/delete': api.deleteProduct,
@@ -157,17 +160,36 @@ const proxy = createServer(async (req, res) => {
   try {
     // --- runtime API (the end-user app) --------------------------------------
 
+    // The storefront. One row per PACKAGE — the cross-platform thing a user
+    // picks — each carrying the store SKUs it is sold as, so the client can
+    // resolve "Pro, monthly" to the SKU for the platform it is running on.
+    // That resolution is the client's job precisely because it is the only
+    // party that knows which store it is talking to.
     if (req.method === 'GET' && path === '/products') {
-      const { rows } = await db.query(api.listProducts, {});
-      send(res, 200, rows);
+      const [packages, products] = await Promise.all([
+        db.query(api.listPackages, {}),
+        db.query(api.listProducts, {}),
+      ]);
+      send(res, 200, packages.rows.map((pkg) => ({
+        packageId: pkg.packageId,
+        title: pkg.title,
+        kind: pkg.kind,
+        skus: products.rows
+          .filter((sku) => sku.packageId === pkg.packageId)
+          .map((sku) => ({ store: sku.store, productId: sku.productId })),
+      })));
       return;
     }
 
     if (req.method === 'POST' && path === '/buy') {
       const body = JSON.parse((await readBody(req)) || '{}');
       const { userId, productId } = body;
+      // The client names a STORE SKU and the store that issued it (slice 12) —
+      // never a package. `apple` stays the default only because this proxy
+      // predates the SKU model and the Expo client simulates Apple purchases.
+      const storeName = body.store ?? 'apple';
       if (!userId || !productId) {
-        send(res, 400, { error: 'userId and productId are required' });
+        send(res, 400, { error: 'userId and productId (a store SKU) are required' });
         return;
       }
       // A simulated purchase: a unique receipt the fake store has never seen,
@@ -177,7 +199,7 @@ const proxy = createServer(async (req, res) => {
         args: {
           storeBaseUrl: store.baseUrl,
           productId,
-          store: 'apple',
+          store: storeName,
           receipt,
           environment: 'sandbox',
         },
@@ -230,12 +252,14 @@ const proxy = createServer(async (req, res) => {
     // at a mis-sold bundle wants to see an edge pointing at a product that does
     // not exist, and a server-side join would silently drop it.
     if (req.method === 'GET' && path === '/admin/catalog') {
-      const [products, entitlements, productEntitlements] = await Promise.all([
+      const [packages, products, entitlements, productEntitlements] = await Promise.all([
+        db.query(api.listPackages, {}),
         db.query(api.listProducts, {}),
         db.query(api.listEntitlements, {}),
         db.query(api.listProductEntitlements, {}),
       ]);
       send(res, 200, {
+        packages: packages.rows,
         products: products.rows,
         entitlements: entitlements.rows,
         productEntitlements: productEntitlements.rows,
@@ -336,10 +360,10 @@ await new Promise((resolve, reject) => {
   proxy.listen(PORT, '0.0.0.0', resolve);
 });
 console.log(`[devserver] ready on :${PORT}`);
-console.log('[devserver]   runtime    GET /products  POST /buy  GET /entitlements?userId=  GET /purchases?userId=');
+console.log('[devserver]   runtime    GET /products (packages+skus)  POST /buy {userId,store,productId}  GET /entitlements?userId=  GET /purchases?userId=');
 console.log('[devserver]   management GET /admin/changes?sinceSeq=  GET /admin/customers  GET /admin/purchases?userId=');
 console.log('[devserver]              GET /admin/catalog  GET /admin/customer?userId=');
-console.log(`[devserver]              POST ${Object.keys(CATALOG_WRITES).join('  ')}`);
+for (const route of Object.keys(CATALOG_WRITES)) console.log(`[devserver]              POST ${route}`);
 console.log('[devserver]   dashboard  GET /  (serves ~/projects/eas-payments-dashboard/index.html)');
 
 const shutdown = async () => {

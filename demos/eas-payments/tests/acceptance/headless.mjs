@@ -38,6 +38,36 @@ const functionManifest = gen('functions.manifest.json');
 const seed = JSON.parse(readFileSync(join(backendDir, 'seed.json'), 'utf8'));
 const option = (name) => { const at = process.argv.indexOf(`--${name}`); return at < 0 ? null : process.argv[at + 1]; };
 
+// The store SKUs, indexed by store and then by the package they belong to
+// (slice 12). A transaction names one of these strings, never a package id.
+//
+// Read the Google column: its SKU strings are the package ids. That is
+// realistic — Google product ids routinely match what a developer calls the
+// thing — and it is why the catalog keys SKUs on (store, productId) rather than
+// on productId alone, and why `store` rides every transaction and every
+// mapping edge. Apple and Stripe strings are distinguishable, so checks that
+// need to PROVE a SKU is not a package id use those.
+const SKU = {
+  apple: {
+    pro_monthly: 'com.example.app.pro.monthly',
+    pro_annual: 'com.example.app.pro.annual',
+    plus_monthly: 'com.example.app.plus.monthly',
+    coins_100: 'com.example.app.coins.100',
+  },
+  google: {
+    pro_monthly: 'pro_monthly',
+    pro_annual: 'pro_annual',
+    plus_monthly: 'plus_monthly',
+    coins_100: 'coins_100',
+  },
+  stripe: {
+    pro_monthly: 'price_pro_monthly',
+    pro_annual: 'price_pro_annual',
+    plus_monthly: 'price_plus_monthly',
+    coins_100: 'price_coins_100',
+  },
+};
+
 // Separate buyers so user scoping, expiry, credential failure, and
 // store-reported-expired never share an entitlement row — no check should
 // depend on where it sits in the file.
@@ -74,6 +104,10 @@ const ZOE = 'user_zoe'; // the control: buys once, must never move
 // deletion has a derived grant to clean up; DASH is the dashboard's identity.
 const ZED = 'user_zed';
 const DASH = 'dashboard';
+// Slice 12 — the store SKU as the atom.
+const NOVA = 'user_nova'; // holds the apple AND google SKUs of one entitlement
+const ORSON = 'user_orson'; // buys a SKU no edge maps: a good record, no grant
+const PIA = 'user_pia'; // buys each of one package's three SKUs in turn
 // Slice 8 — acknowledgement. These buy on GOOGLE, the only adapter that carries a
 // server-side ack obligation, so every earlier check's apple/stripe purchases
 // stay outside this machinery entirely.
@@ -94,7 +128,7 @@ const STORE_KEY = 'fake-store-key-slice-2';
 const WRONG_STORE_KEY = 'not-the-store-key';
 const WEBHOOK_SECRET = 'developer-shared-secret-slice-5';
 
-const suite = createSuite('eas-payments / headless', { expectedChecks: 73 });
+const suite = createSuite('eas-payments / headless', { expectedChecks: 79 });
 const cleanups = [];
 let server = null;
 let db = null;
@@ -269,9 +303,15 @@ await runAcceptance(suite, async () => {
     const names = state.functions.functions.map((f) => f.name).sort();
     for (const required of [
       'getEntitlements',
+      'listPackages',
       'listProducts',
       'listEntitlements',
       'listProductEntitlements',
+      'createPackage',
+      'deletePackage',
+      'createProduct',
+      'deleteProduct',
+      'addProductEntitlement',
       'recordPurchase',
       'validateReceipt',
       'reconcileTransaction',
@@ -311,20 +351,36 @@ await runAcceptance(suite, async () => {
   await suite.check('deterministic reset + declarative seed installs the catalog', async () => {
     await db.reset();
     await db.seed(seed);
-    const products = await db.query(api.listProducts, {});
+    // Three levels now (slice 12): packages group the store SKUs that are
+    // actually purchasable, and entitlements are what a SKU grants.
+    const packages = await db.query(api.listPackages, {});
     assertEqual(
-      products.rows.map((r) => r.productId),
+      packages.rows.map((r) => r.packageId),
       ['coins_100', 'plus_monthly', 'pro_annual', 'pro_monthly'],
-      'seeded products',
+      'seeded packages',
     );
-    const proMonthly = products.rows.find((r) => r.productId === 'pro_monthly');
-    assertEqual(proMonthly.kind, 'subscription', 'product kind');
-    assertEqual(proMonthly.appleId, 'com.example.app.pro.monthly', 'per-platform apple id');
-    // The consumable is catalogued like anything else; what makes it a
-    // consumable is the productEntitlements row it deliberately does NOT have.
-    const coins = products.rows.find((r) => r.productId === 'coins_100');
-    assertEqual(coins.kind, 'consumable', 'consumable product kind');
-    return { products: products.rows.length };
+    const proMonthly = packages.rows.find((r) => r.packageId === 'pro_monthly');
+    assertEqual(proMonthly.kind, 'subscription', 'package kind');
+    // `kind` lives on the package, not the SKU: a consumable is a consumable on
+    // every store or on none.
+    const coins = packages.rows.find((r) => r.packageId === 'coins_100');
+    assertEqual(coins.kind, 'consumable', 'consumable package kind');
+
+    const products = await db.query(api.listProducts, {});
+    assertEqual(products.rows.length, 12, 'four packages x three stores of SKUs');
+    // The SKU carries the store identity the package deliberately does not.
+    const appleProMonthly = products.rows.find(
+      (r) => r.store === 'apple' && r.productId === SKU.apple.pro_monthly,
+    );
+    assertEqual(appleProMonthly.packageId, 'pro_monthly', 'the SKU names its package');
+    // Structured store facts land on the SKU row — the thing the old
+    // appleId/googleId/stripePriceId columns had nowhere to put.
+    const googleProMonthly = products.rows.find(
+      (r) => r.store === 'google' && r.productId === SKU.google.pro_monthly,
+    );
+    assertEqual(googleProMonthly.basePlanId, 'monthly-autorenewing', 'google base plan id');
+    assert(!appleProMonthly.basePlanId, 'apple has no base plan concept, so the field is absent');
+    return { packages: packages.rows.length, products: products.rows.length };
   });
 
   // The management side of the catalog: the graph a developer dashboard needs
@@ -344,19 +400,42 @@ await runAcceptance(suite, async () => {
     return { entitlements: rows.length };
   });
 
-  await suite.check('listProductEntitlements exposes the store-product graph', async () => {
+  await suite.check('listProductEntitlements exposes the SKU-level graph', async () => {
     const { rows } = await db.query(api.listProductEntitlements, {});
     const byEntitlement = {};
     for (const row of rows) {
-      (byEntitlement[row.entitlementId] ??= []).push(row.productId);
+      (byEntitlement[row.entitlementId] ??= []).push(`${row.store} ${row.productId}`);
     }
-    // Many-to-many in both directions is the whole reason this is a table:
-    // two products grant `pro`, and `plus` is granted by exactly one.
-    assertEqual(byEntitlement.pro.slice().sort(), ['pro_annual', 'pro_monthly'], 'pro is granted by two products');
-    assertEqual(byEntitlement.plus, ['plus_monthly'], 'plus is granted by one product');
-    // The consumable's absence from this table is what makes it a consumable.
-    assertEqual(rows.filter((r) => r.productId === 'coins_100'), [], 'a consumable grants nothing');
-    assertEqual(Object.keys(rows[0]).sort(), ['entitlementId', 'productId'], 'projected shape');
+    // The edges moved down a level in slice 12: they name SKUs, not packages.
+    // `pro` is granted by two packages x three stores = six SKUs, which is what
+    // makes decision 23's cross-platform union fall out of an ordinary set
+    // union rather than needing a "same package" rule.
+    assertEqual(byEntitlement.pro.slice().sort(), [
+      'apple com.example.app.pro.annual',
+      'apple com.example.app.pro.monthly',
+      'google pro_annual',
+      'google pro_monthly',
+      'stripe price_pro_annual',
+      'stripe price_pro_monthly',
+    ], 'pro is granted by six SKUs across two packages');
+    assertEqual(byEntitlement.plus.slice().sort(), [
+      'apple com.example.app.plus.monthly',
+      'google plus_monthly',
+      'stripe price_plus_monthly',
+    ], 'plus is granted by one package across three stores');
+    // The consumable's absence from this table is what makes it a consumable —
+    // now expressed one level down, at each of its three SKUs.
+    const coinSkus = [SKU.apple.coins_100, SKU.google.coins_100, SKU.stripe.coins_100];
+    assertEqual(
+      rows.filter((r) => coinSkus.includes(r.productId)),
+      [],
+      'no coins_100 SKU grants anything',
+    );
+    assertEqual(
+      Object.keys(rows[0]).sort(),
+      ['entitlementId', 'productId', 'store'],
+      'projected shape carries the compound SKU identity',
+    );
     return { mappings: rows.length };
   });
 
@@ -367,7 +446,7 @@ await runAcceptance(suite, async () => {
   await suite.check('validateReceipt: action -> mutation -> transaction + grant', async () => {
     const before = store.requests.length;
     const res = await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_ada_1',
       environment: 'sandbox',
@@ -416,7 +495,7 @@ await runAcceptance(suite, async () => {
     // sandbox rows later without a backfill.
     const replay = await db.mutate(api.recordPurchase, {
       args: {
-        productId: 'pro_monthly',
+        productId: SKU.apple.pro_monthly,
         store: 'apple',
         storeTxnId: 'apple:receipt_ada_1',
         status: 'active',
@@ -432,7 +511,7 @@ await runAcceptance(suite, async () => {
 
   await suite.check('replaying the receipt is idempotent end to end', async () => {
     const replay = await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_ada_1',
       environment: 'sandbox',
@@ -446,12 +525,12 @@ await runAcceptance(suite, async () => {
     // The caller asks the sandbox endpoint; the store answers `production`.
     // What lands in the transaction must be the store's answer.
     store.setState('apple:receipt_env_authority', {
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       status: 'active',
       environment: 'production',
     });
     const res = await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_env_authority',
       environment: 'sandbox',
@@ -463,13 +542,13 @@ await runAcceptance(suite, async () => {
 
   await suite.check('a store-reported expired receipt grants nothing', async () => {
     store.setState('apple:receipt_born_expired', {
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       status: 'expired',
       environment: 'sandbox',
       expiresAt: store.now - 1_000,
     });
     const res = await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_born_expired',
       environment: 'sandbox',
@@ -487,7 +566,7 @@ await runAcceptance(suite, async () => {
       // An action reports a handler failure as a structured envelope rather
       // than throwing at the client, so assert on the envelope.
       const res = await validate({
-        productId: 'pro_monthly',
+        productId: SKU.apple.pro_monthly,
         store: 'apple',
         receipt: 'receipt_bad_key',
         environment: 'sandbox',
@@ -510,7 +589,7 @@ await runAcceptance(suite, async () => {
 
   await suite.check('the restored credential works again', async () => {
     const res = await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_after_restore',
       environment: 'sandbox',
@@ -523,7 +602,7 @@ await runAcceptance(suite, async () => {
     const live = await db.liveQuery(api.getEntitlements, { connectionId: 'grace_app', userId: GRACE });
     assertEqual(live.rows.length, 0, 'grace starts empty');
     await validate({
-      productId: 'pro_monthly',
+      productId: SKU.google.pro_monthly,
       store: 'google',
       receipt: 'receipt_grace_1',
       environment: 'sandbox',
@@ -538,7 +617,7 @@ await runAcceptance(suite, async () => {
     await assertThrows(
       () => db.mutate(api.recordPurchase, {
         args: {
-          productId: 'pro_monthly',
+          productId: SKU.apple.pro_monthly,
           store: 'apple',
           storeTxnId: 'apple:bad_env',
           status: 'active',
@@ -558,7 +637,7 @@ await runAcceptance(suite, async () => {
   await suite.check('applyStoreState re-fetches instead of trusting its trigger', async () => {
     // Frank buys pro_monthly the ordinary way.
     await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_frank_1',
       environment: 'sandbox',
@@ -613,13 +692,13 @@ await runAcceptance(suite, async () => {
     // not lose the entitlement — that is the whole point of deriving grants
     // from transactions rather than assigning them per purchase.
     await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_hank_monthly',
       environment: 'sandbox',
     }, HANK);
     await validate({
-      productId: 'pro_annual',
+      productId: SKU.apple.pro_annual,
       store: 'apple',
       receipt: 'receipt_hank_annual',
       environment: 'sandbox',
@@ -650,7 +729,7 @@ await runAcceptance(suite, async () => {
     // Grace holds plus. Frank's and Hank's reconciles above must not have
     // touched it, and neither must the next one.
     await validate({
-      productId: 'plus_monthly',
+      productId: SKU.stripe.plus_monthly,
       store: 'stripe',
       receipt: 'receipt_grace_plus',
       environment: 'sandbox',
@@ -660,7 +739,7 @@ await runAcceptance(suite, async () => {
     const graceGrantBefore = await grantFor(GRACE, 'plus');
 
     await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_frank_2',
       environment: 'sandbox',
@@ -695,7 +774,7 @@ await runAcceptance(suite, async () => {
   await suite.check('a grant appends exactly one change the developer can poll', async () => {
     const cursor = await changeCursor();
     await validate({
-      productId: 'plus_monthly',
+      productId: SKU.stripe.plus_monthly,
       store: 'stripe',
       receipt: 'receipt_jo_plus',
       environment: 'sandbox',
@@ -771,7 +850,7 @@ await runAcceptance(suite, async () => {
 
     const commit = await db.mutate(api.recordPurchase, {
       args: {
-        productId: 'plus_monthly',
+        productId: SKU.stripe.plus_monthly,
         store: 'stripe',
         storeTxnId: 'stripe:receipt_mia_plus',
         status: 'active',
@@ -822,7 +901,7 @@ await runAcceptance(suite, async () => {
     developer.failNext(2);
     await db.mutate(api.recordPurchase, {
       args: {
-        productId: 'pro_monthly',
+        productId: SKU.stripe.pro_monthly,
         store: 'stripe',
         storeTxnId: 'stripe:receipt_nia_pro',
         status: 'active',
@@ -858,7 +937,7 @@ await runAcceptance(suite, async () => {
     try {
       await db.mutate(api.recordPurchase, {
         args: {
-          productId: 'pro_monthly',
+          productId: SKU.stripe.pro_monthly,
           store: 'stripe',
           storeTxnId: 'stripe:receipt_omar_pro',
           status: 'active',
@@ -890,7 +969,7 @@ await runAcceptance(suite, async () => {
     // Mia's transaction was committed directly, so teach the store the same
     // state; reconciling against it must then be a no-op.
     store.setState('stripe:receipt_mia_plus', {
-      productId: 'plus_monthly',
+      productId: SKU.stripe.plus_monthly,
       status: 'active',
       environment: 'sandbox',
       expiresAt: (await grantFor(MIA, 'plus')).activeUntil,
@@ -930,7 +1009,7 @@ await runAcceptance(suite, async () => {
     ]) {
       await db.mutate(api.recordPurchase, {
         args: {
-          productId: 'pro_monthly',
+          productId: SKU.stripe.pro_monthly,
           store: 'stripe',
           storeTxnId: `stripe:${receipt}`,
           status: 'active',
@@ -1000,7 +1079,7 @@ await runAcceptance(suite, async () => {
     const purchasesBefore = await purchases(GRACE);
 
     const res = await validate({
-      productId: 'coins_100',
+      productId: SKU.apple.coins_100,
       store: 'apple',
       receipt: 'receipt_grace_coins_1',
       environment: 'sandbox',
@@ -1012,7 +1091,7 @@ await runAcceptance(suite, async () => {
     // The transaction is real...
     const after = await purchases(GRACE);
     assertEqual(after.length, purchasesBefore.length + 1, 'exactly one new transaction');
-    const coins = after.filter((row) => row.productId === 'coins_100');
+    const coins = after.filter((row) => row.productId === SKU.apple.coins_100);
     assertEqual(coins.length, 1, 'the coin purchase is in the audit');
     assertEqual(coins[0].storeTxnId, 'apple:receipt_grace_coins_1', 'recorded under the store id');
     // ...and it granted nothing.
@@ -1025,7 +1104,7 @@ await runAcceptance(suite, async () => {
     // A feed row here would be a false wake-up on every coin pack sold.
     const cursor = await changeCursor();
     const res = await validate({
-      productId: 'coins_100',
+      productId: SKU.apple.coins_100,
       store: 'apple',
       receipt: 'receipt_grace_coins_2',
       environment: 'sandbox',
@@ -1044,11 +1123,11 @@ await runAcceptance(suite, async () => {
     // re-delivered subscription must not collapse two genuine coin packs into
     // one. Distinct receipts mean distinct storeTxnIds, which is the whole
     // mechanism — dedupe is keyed on the store's identity, not the product.
-    const before = (await purchases(GRACE)).filter((row) => row.productId === 'coins_100');
+    const before = (await purchases(GRACE)).filter((row) => row.productId === SKU.apple.coins_100);
     assertEqual(before.length, 2, 'two coin packs bought so far');
 
     const third = await validate({
-      productId: 'coins_100',
+      productId: SKU.apple.coins_100,
       store: 'apple',
       receipt: 'receipt_grace_coins_3',
       environment: 'sandbox',
@@ -1056,20 +1135,20 @@ await runAcceptance(suite, async () => {
     assert(third.ok, `validateReceipt failed: ${JSON.stringify(third.diagnostic)}`);
     assertEqual(third.result.deduped, false, 'a distinct receipt is a distinct purchase');
 
-    const after = (await purchases(GRACE)).filter((row) => row.productId === 'coins_100');
+    const after = (await purchases(GRACE)).filter((row) => row.productId === SKU.apple.coins_100);
     assertEqual(after.length, 3, 'three coin packs recorded');
     assertEqual(new Set(after.map((row) => row.storeTxnId)).size, 3, 'three distinct store ids');
 
     // Dedupe still protects a RE-DELIVERED consumable: same receipt, no new row.
     const replay = await validate({
-      productId: 'coins_100',
+      productId: SKU.apple.coins_100,
       store: 'apple',
       receipt: 'receipt_grace_coins_3',
       environment: 'sandbox',
     }, GRACE);
     assertEqual(replay.result.deduped, true, 'the same receipt twice is still one purchase');
     assertEqual(
-      (await purchases(GRACE)).filter((row) => row.productId === 'coins_100').length,
+      (await purchases(GRACE)).filter((row) => row.productId === SKU.apple.coins_100).length,
       3,
       'a replay adds no fourth row',
     );
@@ -1095,10 +1174,21 @@ await runAcceptance(suite, async () => {
       );
       assert(row.createdAt > 0, 'the server stamped the row');
     }
-    // Both halves of her history are here: subscriptions and consumables.
+    // Both halves of her history are here: subscriptions and consumables. The
+    // audit names STORE SKUs (slice 12) — what the store actually told us was
+    // bought — never the package those SKUs are grouped under.
     const products = new Set(rows.map((row) => row.productId));
-    assert(products.has('coins_100'), 'the consumable buys are in the audit');
-    assert(products.has('pro_monthly') || products.has('plus_monthly'), 'so are the subscriptions');
+    assert(products.has(SKU.apple.coins_100), 'the consumable buys are in the audit');
+    assert(products.has(SKU.stripe.plus_monthly), 'so are the subscriptions');
+
+    // Grace also holds the GOOGLE pro_monthly SKU, whose string is literally
+    // `pro_monthly` — the same string as the package it belongs to. That is
+    // realistic, and it is why `store` has to ride every row: productId alone
+    // cannot say whether this is Google's SKU or somebody's package id, and
+    // (store, productId) is the only thing that can.
+    const googlePro = rows.filter((row) => row.productId === SKU.google.pro_monthly);
+    assertEqual(googlePro.length, 1, 'the google SKU is in the audit');
+    assertEqual(googlePro[0].store, 'google', 'and `store` is what disambiguates it');
 
     // Scoped to the caller: Ada's purchases are not in Grace's audit.
     const adaRows = await purchases(ADA);
@@ -1115,7 +1205,7 @@ await runAcceptance(suite, async () => {
     // only meaningful if the feed still speaks when an entitlement really moves.
     const cursor = await changeCursor();
     const res = await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_pat_pro',
       environment: 'sandbox',
@@ -1145,7 +1235,7 @@ await runAcceptance(suite, async () => {
   // untouched after it ends. Registered here so isolation is a claim about a
   // grant that existed throughout, not one created afterwards.
   await validate({
-    productId: 'plus_monthly',
+    productId: SKU.stripe.plus_monthly,
     store: 'stripe',
     receipt: 'receipt_zoe_plus',
     environment: 'sandbox',
@@ -1158,11 +1248,11 @@ await runAcceptance(suite, async () => {
     // A model that keyed access off expiresAt alone would have dropped this
     // user the moment billing failed, which is the outage this slice prevents.
     store.script('apple:receipt_quinn_pro', 'active->grace->lapse', {
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       environment: 'sandbox',
     });
     const bought = await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_quinn_pro',
       environment: 'sandbox',
@@ -1216,11 +1306,11 @@ await runAcceptance(suite, async () => {
 
   await suite.check('grace recovering to active keeps access ON and ticks the state change', async () => {
     store.script('apple:receipt_rue_pro', 'active->grace->active', {
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       environment: 'sandbox',
     });
     await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_rue_pro',
       environment: 'sandbox',
@@ -1248,11 +1338,11 @@ await runAcceptance(suite, async () => {
     // the PAST (the paid window closed) while the subscription is very much
     // alive. A date-only sweep would tear it down mid-recovery.
     store.script('apple:receipt_sam_pro', 'active->retry_hold->active', {
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       environment: 'sandbox',
     });
     await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_sam_pro',
       environment: 'sandbox',
@@ -1286,11 +1376,11 @@ await runAcceptance(suite, async () => {
     // subscription; a sweep that read resumesAt as an expiry would do it
     // backwards. Neither may happen.
     store.script('stripe:receipt_tara_plus', 'active->paused->active', {
-      productId: 'plus_monthly',
+      productId: SKU.stripe.plus_monthly,
       environment: 'sandbox',
     });
     await validate({
-      productId: 'plus_monthly',
+      productId: SKU.stripe.plus_monthly,
       store: 'stripe',
       receipt: 'receipt_tara_plus',
       environment: 'sandbox',
@@ -1326,11 +1416,11 @@ await runAcceptance(suite, async () => {
     // a grant moves, an empty feed page is also proof that no ping was queued.
     const cursor = await changeCursor();
     store.script('apple:receipt_uma_pro', 'pending->active', {
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       environment: 'sandbox',
     });
     const pending = await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_uma_pro',
       environment: 'sandbox',
@@ -1363,11 +1453,11 @@ await runAcceptance(suite, async () => {
     // The other resolution: canceled before it ever cleared.
     const vicCursor = await changeCursor();
     store.script('apple:receipt_vic_pro', 'pending->canceled', {
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       environment: 'sandbox',
     });
     await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_vic_pro',
       environment: 'sandbox',
@@ -1390,17 +1480,17 @@ await runAcceptance(suite, async () => {
     // completely silent, and "your payment is failing" is the most actionable
     // thing the feed carries.
     await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_wes_monthly',
       environment: 'sandbox',
     }, WES);
     store.script('apple:receipt_wes_annual', 'active->grace->active', {
-      productId: 'pro_annual',
+      productId: SKU.apple.pro_annual,
       environment: 'sandbox',
     });
     await validate({
-      productId: 'pro_annual',
+      productId: SKU.apple.pro_annual,
       store: 'apple',
       receipt: 'receipt_wes_annual',
       environment: 'sandbox',
@@ -1523,7 +1613,7 @@ await runAcceptance(suite, async () => {
 
   await suite.check('the ack lands before the deadline, so the deadline is harmless', async () => {
     const bought = await validate({
-      productId: 'pro_monthly',
+      productId: SKU.google.pro_monthly,
       store: 'google',
       receipt: 'receipt_anil_pro',
       environment: 'sandbox',
@@ -1567,7 +1657,7 @@ await runAcceptance(suite, async () => {
     // unconsumed consumable cannot be purchased again, so picking plain
     // acknowledge here would silently cap the user at one coin pack forever.
     const first = await validate({
-      productId: 'coins_100',
+      productId: SKU.google.coins_100,
       store: 'google',
       receipt: 'receipt_bea_coins_1',
       environment: 'sandbox',
@@ -1601,7 +1691,7 @@ await runAcceptance(suite, async () => {
     // Re-buy: a distinct receipt is a distinct storeTxnId, so this is a real
     // second purchase and not a dedupe no-op.
     const second = await validate({
-      productId: 'coins_100',
+      productId: SKU.google.coins_100,
       store: 'google',
       receipt: 'receipt_bea_coins_2',
       environment: 'sandbox',
@@ -1610,7 +1700,7 @@ await runAcceptance(suite, async () => {
     assertEqual(second.result.deduped, false, 'the re-buy is a new transaction');
     await drain();
 
-    const coins = (await purchases(BEA)).filter((row) => row.productId === 'coins_100');
+    const coins = (await purchases(BEA)).filter((row) => row.productId === SKU.google.coins_100);
     assertEqual(coins.length, 2, 'two coin packs recorded');
     assertEqual(new Set(coins.map((row) => row.storeTxnId)).size, 2, 'two distinct store ids');
     assertEqual(
@@ -1624,7 +1714,7 @@ await runAcceptance(suite, async () => {
   await suite.check('a missed ack is auto-refunded by the store, and we reconcile it OFF', async () => {
     // The consequence the whole slice exists to avoid, made observable.
     const bought = await validate({
-      productId: 'pro_monthly',
+      productId: SKU.google.pro_monthly,
       store: 'google',
       receipt: 'receipt_chen_pro',
       environment: 'sandbox',
@@ -1678,7 +1768,7 @@ await runAcceptance(suite, async () => {
     // nothing — and the guard lives in the mutation, the only place that can see
     // current state at commit time.
     await validate({
-      productId: 'pro_annual',
+      productId: SKU.google.pro_annual,
       store: 'google',
       receipt: 'receipt_dev_annual',
       environment: 'sandbox',
@@ -1725,7 +1815,7 @@ await runAcceptance(suite, async () => {
     // no server endpoint to call, so a server that "acknowledged" would be
     // inventing a protocol. The adapter rule is what keeps us out of it.
     const bought = await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_elif_pro',
       environment: 'sandbox',
@@ -1780,7 +1870,7 @@ await runAcceptance(suite, async () => {
   // The control buyer, registered before the churn so isolation is a claim about
   // a grant that existed throughout.
   await validate({
-    productId: 'plus_monthly',
+    productId: SKU.stripe.plus_monthly,
     store: 'stripe',
     receipt: 'receipt_kai_plus',
     environment: 'sandbox',
@@ -1809,7 +1899,7 @@ await runAcceptance(suite, async () => {
     // The regression half of slice 7's 'revoked': this already worked, and it
     // must keep working now that a second axis rides alongside it.
     await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_farid_pro',
       environment: 'sandbox',
@@ -1879,7 +1969,7 @@ await runAcceptance(suite, async () => {
     // obligation, not a state change: nothing about the transaction moves because
     // Apple is thinking about a refund.
     await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_gita_pro',
       environment: 'sandbox',
@@ -1928,7 +2018,7 @@ await runAcceptance(suite, async () => {
     // means Apple decides with our non-answer on the record, on time. The second
     // is strictly better, and the alarm is what guarantees it.
     await validate({
-      productId: 'pro_monthly',
+      productId: SKU.apple.pro_monthly,
       store: 'apple',
       receipt: 'receipt_hugo_pro',
       environment: 'sandbox',
@@ -1958,7 +2048,7 @@ await runAcceptance(suite, async () => {
     // Involuntary: the user did not ask us and the store did not decide. A bank
     // pulled the money, so access ends immediately and the outcome comes later.
     await validate({
-      productId: 'pro_monthly',
+      productId: SKU.stripe.pro_monthly,
       store: 'stripe',
       receipt: 'receipt_iris_pro',
       environment: 'sandbox',
@@ -2008,7 +2098,7 @@ await runAcceptance(suite, async () => {
     // it does not move at all — so refundState is the ONLY thing that changes.
     // With one axis this transition would be invisible.
     await validate({
-      productId: 'pro_monthly',
+      productId: SKU.stripe.pro_monthly,
       store: 'stripe',
       receipt: 'receipt_juno_pro',
       environment: 'sandbox',
@@ -2101,141 +2191,343 @@ await runAcceptance(suite, async () => {
     return { code: err.diagnostic.code };
   });
 
-  // --- catalog management (slice 11) ------------------------------------------
+  // --- the store SKU is the atom (slice 12) -----------------------------------
+
+  await suite.check('a transaction records the STORE SKU, with its store', async () => {
+    const res = await validate({
+      productId: SKU.stripe.pro_monthly,
+      store: 'stripe',
+      receipt: 'receipt_pia_stripe_pro',
+      environment: 'sandbox',
+    }, PIA);
+    assert(res.ok, `validateReceipt failed: ${JSON.stringify(res.diagnostic)}`);
+    const row = await purchaseOf(PIA, 'stripe:receipt_pia_stripe_pro');
+    // The Stripe SKU string is `price_pro_monthly` — it cannot be confused with
+    // the `pro_monthly` package, which is the point of asserting on this store.
+    assertEqual(row.productId, SKU.stripe.pro_monthly, 'the transaction names the SKU');
+    assertEqual(row.store, 'stripe', 'and the store that issued it');
+    assert(row.productId !== 'pro_monthly', 'never the package id');
+    assertEqual(await activeEntitlementIds(PIA), ['pro'], 'the SKU granted its entitlement');
+    return { productId: row.productId, store: row.store };
+  });
+
+  await suite.check('every SKU of a package grants the same entitlement', async () => {
+    // Pia already holds the Stripe SKU. Buying the Apple and Google SKUs of the
+    // same package adds two more transactions naming two more strings — and the
+    // entitlement set does not grow, because all three map to `pro`.
+    for (const store of ['apple', 'google']) {
+      const res = await validate({
+        productId: SKU[store].pro_monthly,
+        store: store,
+        receipt: `receipt_pia_${store}_pro`,
+        environment: 'sandbox',
+      }, PIA);
+      assert(res.ok, `${store} purchase failed: ${JSON.stringify(res.diagnostic)}`);
+    }
+    const rows = await purchases(PIA);
+    assertEqual(
+      rows.map((r) => `${r.store} ${r.productId}`).sort(),
+      [
+        `apple ${SKU.apple.pro_monthly}`,
+        `google ${SKU.google.pro_monthly}`,
+        `stripe ${SKU.stripe.pro_monthly}`,
+      ],
+      'three distinct SKUs, three transactions',
+    );
+    // One entitlement, not three: the union is over entitlements, and the
+    // package never enters the derivation.
+    assertEqual(await activeEntitlementIds(PIA), ['pro'], 'still exactly one entitlement');
+    const grants = (await db.query(api.getEntitlements, { userId: PIA })).rows;
+    assertEqual(grants.length, 1, 'one grant row, not one per SKU');
+    return { transactions: rows.length, grants: grants.length };
+  });
+
+  await suite.check('cross-platform union: apple and google SKUs of one entitlement make ONE grant', async () => {
+    // Decision 23, and in slice 12 it needs no code of its own. Nova buys the
+    // Apple SKU of pro_monthly and the Google SKU of pro_ANNUAL — different
+    // packages, different stores, same entitlement.
+    const apple = await validate({
+      productId: SKU.apple.pro_monthly,
+      store: 'apple',
+      receipt: 'receipt_nova_apple',
+      environment: 'sandbox',
+    }, NOVA);
+    assert(apple.ok, `apple purchase failed: ${JSON.stringify(apple.diagnostic)}`);
+    assertEqual(await activeEntitlementIds(NOVA), ['pro'], 'apple SKU grants pro');
+    const afterApple = await grantFor(NOVA, 'pro');
+
+    const google = await validate({
+      productId: SKU.google.pro_annual,
+      store: 'google',
+      receipt: 'receipt_nova_google',
+      environment: 'sandbox',
+    }, NOVA);
+    assert(google.ok, `google purchase failed: ${JSON.stringify(google.diagnostic)}`);
+
+    const grants = (await db.query(api.getEntitlements, { userId: NOVA })).rows;
+    assertEqual(grants.length, 1, 'two purchases across two stores, ONE grant');
+    assertEqual(grants[0].entitlementId, 'pro', 'unioned onto pro');
+    // The horizon is the max across both, so the second purchase can only
+    // extend access, never shorten it.
+    assert(
+      grants[0].activeUntil >= afterApple.activeUntil,
+      'the union takes the later horizon',
+    );
+    return { grants: grants.length, activeUntil: grants[0].activeUntil };
+  });
+
+  await suite.check('an unmapped SKU records a transaction and grants nothing', async () => {
+    // The consumable case, stated at SKU level: coins_100's SKUs carry no edge.
+    // The purchase is still a first-class record — this is the "good record, no
+    // grant" outcome, not a rejection.
+    const res = await validate({
+      productId: SKU.stripe.coins_100,
+      store: 'stripe',
+      receipt: 'receipt_orson_coins',
+      environment: 'sandbox',
+    }, ORSON);
+    assert(res.ok, `coins purchase failed: ${JSON.stringify(res.diagnostic)}`);
+    const row = await purchaseOf(ORSON, 'stripe:receipt_orson_coins');
+    assert(row, 'the transaction landed');
+    assertEqual(row.productId, SKU.stripe.coins_100, 'naming the SKU');
+    assertEqual(row.status, 'active', 'and it is an active store fact');
+    assertEqual(await activeEntitlementIds(ORSON), [], 'but nothing was granted');
+    return { storeTxnId: row.storeTxnId };
+  });
+
+  await suite.check('deriveGrant resolves through the SKU, not through the package', async () => {
+    // Unmap ONE store's SKU from `pro` and leave its two siblings mapped. If the
+    // package were on the derive path, this would be invisible; because the SKU
+    // is, a buyer of the unmapped SKU gets nothing while the siblings still
+    // grant.
+    await catalogWrite(api.removeProductEntitlement, {
+      productId: SKU.stripe.plus_monthly,
+      store: 'stripe',
+      entitlementId: 'plus',
+    });
+    const unmapped = await validate({
+      productId: SKU.stripe.plus_monthly,
+      store: 'stripe',
+      receipt: 'receipt_orson_plus_stripe',
+      environment: 'sandbox',
+    }, ORSON);
+    assert(unmapped.ok, `purchase failed: ${JSON.stringify(unmapped.diagnostic)}`);
+    assertEqual(
+      await activeEntitlementIds(ORSON),
+      [],
+      'the unmapped stripe SKU grants nothing, though its package still sells plus',
+    );
+
+    // The apple sibling of the SAME package still grants, which is only
+    // possible if the edge is read at SKU granularity.
+    const mapped = await validate({
+      productId: SKU.apple.plus_monthly,
+      store: 'apple',
+      receipt: 'receipt_orson_plus_apple',
+      environment: 'sandbox',
+    }, ORSON);
+    assert(mapped.ok, `purchase failed: ${JSON.stringify(mapped.diagnostic)}`);
+    assertEqual(await activeEntitlementIds(ORSON), ['plus'], 'the mapped sibling grants');
+
+    // Put the seed back so nothing after this inherits a half-unmapped package.
+    await catalogWrite(api.addProductEntitlement, {
+      productId: SKU.stripe.plus_monthly,
+      store: 'stripe',
+      entitlementId: 'plus',
+    });
+    return { entitlements: await activeEntitlementIds(ORSON) };
+  });
+
+  // --- catalog management (slice 11, reshaped for the SKU model) ---------------
   //
   // Deliberately last in the suite: these mutate the catalog every earlier
   // check reads, so running them here keeps the lifecycle checks working
   // against the seeded fixture they were written for.
 
-  await suite.check('createProduct + createEntitlement + addProductEntitlement round-trip', async () => {
-    const created = await catalogWrite(api.createProduct, {
-      productId: 'zz_bundle',
+  await suite.check('createPackage + createProduct + addProductEntitlement round-trip', async () => {
+    await catalogWrite(api.createPackage, {
+      packageId: 'zz_bundle',
       kind: 'subscription',
       title: 'Test bundle',
-      appleId: 'com.example.app.zz.bundle',
-      googleId: 'zz_bundle',
-      // Left absent, not empty: this product is not sold on Stripe.
-      stripePriceId: '',
     });
-    assertEqual(created.productId, 'zz_bundle', 'created productId echoed');
     await catalogWrite(api.createEntitlement, { entitlementId: 'zz_archive', title: 'Archive access' });
+    const sku = await catalogWrite(api.createProduct, {
+      productId: 'com.example.app.zz.bundle',
+      store: 'apple',
+      packageId: 'zz_bundle',
+      // Apple has no base-plan concept, so it stays absent rather than empty.
+      basePlanId: '',
+    });
+    assertEqual(sku.store, 'apple', 'created SKU echoes its store');
     await catalogWrite(api.addProductEntitlement, {
-      productId: 'zz_bundle',
+      productId: 'com.example.app.zz.bundle',
+      store: 'apple',
       entitlementId: 'zz_archive',
     });
 
-    const products = (await db.query(api.listProducts, {})).rows;
-    const row = products.find((p) => p.productId === 'zz_bundle');
-    assert(row, 'the new product is in the catalog');
-    assertEqual(row.kind, 'subscription', 'kind');
-    assertEqual(row.appleId, 'com.example.app.zz.bundle', 'apple id');
-    // '' normalized to absent rather than stored as a present empty string,
-    // which would read as "configured on Stripe".
-    assert(!row.stripePriceId, 'an empty store id is absent, not empty');
-
-    const entitlements = (await db.query(api.listEntitlements, {})).rows;
+    const packages = (await db.query(api.listPackages, {})).rows;
     assertEqual(
-      entitlements.find((e) => e.entitlementId === 'zz_archive').title,
-      'Archive access',
-      'entitlement title',
+      packages.find((p) => p.packageId === 'zz_bundle').kind,
+      'subscription',
+      'package kind',
     );
+    const products = (await db.query(api.listProducts, {})).rows;
+    const row = products.find((p) => p.productId === 'com.example.app.zz.bundle');
+    assertEqual(row.packageId, 'zz_bundle', 'the SKU names its package');
+    assert(!row.basePlanId, "an empty structured field is absent, not ''");
     const edges = (await db.query(api.listProductEntitlements, {})).rows;
     assertEqual(
-      edges.filter((m) => m.entitlementId === 'zz_archive').map((m) => m.productId),
-      ['zz_bundle'],
-      'the edge is readable through the graph query',
+      edges.filter((m) => m.entitlementId === 'zz_archive')
+        .map((m) => `${m.store} ${m.productId}`),
+      ['apple com.example.app.zz.bundle'],
+      'the SKU-level edge is readable through the graph query',
     );
-    return { products: products.length, edges: edges.length };
+    return { packages: packages.length, products: products.length };
   });
 
-  await suite.check('duplicate catalog ids lose at the unique index, not at a handler scan', async () => {
-    // @ref LLP 0004#handler-api — structural uniqueness is the declared index,
-    // so the loser commits nothing rather than racing a read-then-insert check.
-    const dupProduct = await assertThrows(
-      () => catalogWrite(api.createProduct, { productId: 'zz_bundle', kind: 'consumable' }),
+  await suite.check('one SKU string under two stores is legal; a duplicate within one store is not', async () => {
+    // This is the whole argument for keying SKUs on (store, productId). The
+    // string `zz_shared` is a legal Google product id AND a legal Stripe price
+    // lookup key at the same time, and a catalog that refused the second would
+    // be refusing a real deployment.
+    await catalogWrite(api.createProduct, {
+      productId: 'zz_shared',
+      store: 'google',
+      packageId: 'zz_bundle',
+    });
+    const stripe = await catalogWrite(api.createProduct, {
+      productId: 'zz_shared',
+      store: 'stripe',
+      packageId: 'zz_bundle',
+    });
+    assertEqual(stripe.store, 'stripe', 'the same string under a second store is accepted');
+    const products = (await db.query(api.listProducts, {})).rows;
+    assertEqual(
+      products.filter((p) => p.productId === 'zz_shared').map((p) => p.store).sort(),
+      ['google', 'stripe'],
+      'two SKU rows, one string, two stores',
+    );
+
+    // Within one store it is the same SKU, and the compound unique index is
+    // what says so — not a handler scan.
+    const dup = await assertThrows(
+      () => catalogWrite(api.createProduct, {
+        productId: 'zz_shared',
+        store: 'google',
+        packageId: 'zz_bundle',
+      }),
       'SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION',
-      'a duplicate productId is refused',
+      'a duplicate (store, productId) is refused',
+    );
+    // The other unique keys, for completeness.
+    await assertThrows(
+      () => catalogWrite(api.createPackage, { packageId: 'zz_bundle', kind: 'consumable' }),
+      'SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION',
+      'a duplicate packageId is refused',
     );
     await assertThrows(
       () => catalogWrite(api.createEntitlement, { entitlementId: 'zz_archive' }),
       'SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION',
       'a duplicate entitlementId is refused',
     );
-    // The edge's uniqueness is compound: both directions are legitimately many,
-    // so only (productId, entitlementId) together can be constrained.
+    // The edge's key is now three columns, because the SKU half is compound.
     await assertThrows(
       () => catalogWrite(api.addProductEntitlement, {
-        productId: 'zz_bundle',
+        productId: 'com.example.app.zz.bundle',
+        store: 'apple',
         entitlementId: 'zz_archive',
       }),
       'SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION',
       'a duplicate mapping edge is refused',
     );
-    // Nothing was written by any of the three refusals.
-    const products = (await db.query(api.listProducts, {})).rows;
-    assertEqual(
-      products.filter((p) => p.productId === 'zz_bundle').length,
-      1,
-      'still exactly one zz_bundle',
-    );
-    return { code: dupProduct.diagnostic.code };
+    return { code: dup.diagnostic.code };
   });
 
-  await suite.check('updateProduct replaces store ids, and re-submitting the same form is a no-op', async () => {
+  await suite.check('updateProduct replaces structured fields; updatePackage merges required ones', async () => {
     const changed = await catalogWrite(api.updateProduct, {
-      productId: 'zz_bundle',
-      title: 'Test bundle',
-      kind: 'subscription',
-      // googleId edited, appleId re-sent unchanged, stripePriceId still absent.
-      appleId: 'com.example.app.zz.bundle',
-      googleId: 'zz_bundle_v2',
+      productId: 'zz_shared',
+      store: 'google',
+      basePlanId: 'monthly-autorenewing',
+      offerId: 'intro-7-day',
     });
     assertEqual(changed.changed, true, 'the edit moved the row');
-    let row = (await db.query(api.listProducts, {})).rows.find((p) => p.productId === 'zz_bundle');
-    assertEqual(row.googleId, 'zz_bundle_v2', 'google id replaced');
-    assertEqual(row.appleId, 'com.example.app.zz.bundle', 're-sent apple id retained');
+    let row = (await db.query(api.listProducts, {})).rows
+      .find((p) => p.store === 'google' && p.productId === 'zz_shared');
+    assertEqual(row.basePlanId, 'monthly-autorenewing', 'base plan set');
+    assertEqual(row.offerId, 'intro-7-day', 'offer set');
 
-    // Optional columns REPLACE: omitting googleId now clears it, which is how
-    // "no longer sold on Google" is expressible at all.
+    // Optional columns REPLACE: omitting offerId clears it, which is how
+    // "that promotional offer ended" is expressible at all.
     const cleared = await catalogWrite(api.updateProduct, {
-      productId: 'zz_bundle',
-      appleId: 'com.example.app.zz.bundle',
+      productId: 'zz_shared',
+      store: 'google',
+      basePlanId: 'monthly-autorenewing',
     });
-    assertEqual(cleared.changed, true, 'clearing a store id is a change');
-    row = (await db.query(api.listProducts, {})).rows.find((p) => p.productId === 'zz_bundle');
-    assert(!row.googleId, 'an omitted store id is cleared');
-    // Required columns MERGE: title and kind survived an update that omitted
-    // them, because a product with no kind is not a legal row.
-    assertEqual(row.kind, 'subscription', 'omitted required column unchanged');
-    assertEqual(row.title, 'Test bundle', 'omitted title unchanged');
+    assertEqual(cleared.changed, true, 'clearing an offer is a change');
+    row = (await db.query(api.listProducts, {})).rows
+      .find((p) => p.store === 'google' && p.productId === 'zz_shared');
+    assert(!row.offerId, 'an omitted structured field is cleared');
+    // Required columns MERGE: packageId survived an update that omitted it.
+    assertEqual(row.packageId, 'zz_bundle', 'omitted required column unchanged');
 
     // Idempotent re-submit: a dashboard that polls on `changed` must not be
     // told the row moved when it did not.
     const again = await catalogWrite(api.updateProduct, {
-      productId: 'zz_bundle',
-      appleId: 'com.example.app.zz.bundle',
+      productId: 'zz_shared',
+      store: 'google',
+      basePlanId: 'monthly-autorenewing',
     });
     assertEqual(again.changed, false, 'an unchanged form reports no change');
-    return { googleId: row.googleId ?? null };
+
+    const pkg = await catalogWrite(api.updatePackage, { packageId: 'zz_bundle', title: 'Renamed bundle' });
+    assertEqual(pkg.changed, true, 'package title renamed');
+    const packages = (await db.query(api.listPackages, {})).rows;
+    const bundle = packages.find((p) => p.packageId === 'zz_bundle');
+    assertEqual(bundle.title, 'Renamed bundle', 'title moved');
+    assertEqual(bundle.kind, 'subscription', 'omitted kind unchanged');
+    return { offerId: row.offerId ?? null };
   });
 
-  await suite.check('catalog writes refuse unknown kinds, unknown ids, and dangling edges', async () => {
+  await suite.check('catalog writes refuse unknown kinds, stores, ids, and dangling edges', async () => {
     await assertThrows(
-      () => catalogWrite(api.createProduct, { productId: 'zz_bad_kind', kind: 'subscriptions' }),
+      () => catalogWrite(api.createPackage, { packageId: 'zz_bad_kind', kind: 'subscriptions' }),
       'SNAPBACK_HANDLER_FAILED',
       'a typo in the closed kind vocabulary is refused',
     );
+    // The store vocabulary is closed too: a SKU on an unknown store is a row no
+    // notification could ever match.
     await assertThrows(
-      () => catalogWrite(api.updateProduct, { productId: 'zz_missing', kind: 'consumable' }),
+      () => catalogWrite(api.createProduct, {
+        productId: 'zz_bad_store',
+        store: 'amazon',
+        packageId: 'zz_bundle',
+      }),
       'SNAPBACK_HANDLER_FAILED',
-      'updating a product that does not exist is refused',
+      'an unknown store is refused',
+    );
+    // A SKU must belong to a package, or it would have no `kind` and the
+    // acknowledgement path would silently pick 'acknowledge'.
+    await assertThrows(
+      () => catalogWrite(api.createProduct, {
+        productId: 'zz_orphan',
+        store: 'apple',
+        packageId: 'zz_nonexistent',
+      }),
+      'SNAPBACK_HANDLER_FAILED',
+      'a SKU under a missing package is refused',
+    );
+    await assertThrows(
+      () => catalogWrite(api.updateProduct, { productId: 'zz_missing', store: 'apple' }),
+      'SNAPBACK_HANDLER_FAILED',
+      'updating a SKU that does not exist is refused',
     );
     // An edge may not name an endpoint that does not exist. The dashboard still
     // RENDERS orphan edges, because a seeded or migrated corpus can carry one —
     // but this surface will not mint them.
     await assertThrows(
       () => catalogWrite(api.addProductEntitlement, {
-        productId: 'zz_bundle',
+        productId: 'com.example.app.zz.bundle',
+        store: 'apple',
         entitlementId: 'zz_nonexistent',
       }),
       'SNAPBACK_HANDLER_FAILED',
@@ -2244,17 +2536,18 @@ await runAcceptance(suite, async () => {
     await assertThrows(
       () => catalogWrite(api.addProductEntitlement, {
         productId: 'zz_nonexistent',
+        store: 'apple',
         entitlementId: 'zz_archive',
       }),
       'SNAPBACK_HANDLER_FAILED',
-      'an edge from a missing product is refused',
+      'an edge from a missing SKU is refused',
     );
     const products = (await db.query(api.listProducts, {})).rows;
-    assertEqual(products.filter((p) => p.productId === 'zz_bad_kind'), [], 'nothing was written');
-    // Removing an edge that is not there is a no-op, not an error: the caller
-    // wanted it gone and it is gone.
+    assertEqual(products.filter((p) => p.productId === 'zz_orphan'), [], 'nothing was written');
+    // Removing an edge that is not there is a no-op, not an error.
     const absent = await catalogWrite(api.removeProductEntitlement, {
-      productId: 'zz_bundle',
+      productId: 'com.example.app.zz.bundle',
+      store: 'apple',
       entitlementId: 'zz_nonexistent',
     });
     assertEqual(absent.removed, false, 'removing a missing edge is a silent no-op');
@@ -2267,13 +2560,13 @@ await runAcceptance(suite, async () => {
     // for a deleted entitlement is unreachable by every derivation path, so
     // nothing would ever turn it off.
     const bought = await validate({
-      productId: 'zz_bundle',
+      productId: 'com.example.app.zz.bundle',
       store: 'apple',
       receipt: 'receipt_zed_bundle',
       environment: 'sandbox',
     }, ZED);
     assert(bought.ok, `zz_bundle purchase failed: ${JSON.stringify(bought.diagnostic)}`);
-    assertEqual(await activeEntitlementIds(ZED), ['zz_archive'], 'the new edge granted on purchase');
+    assertEqual(await activeEntitlementIds(ZED), ['zz_archive'], 'the SKU edge granted on purchase');
 
     const removed = await catalogWrite(api.deleteEntitlement, { entitlementId: 'zz_archive' });
     assertEqual(removed.deleted, true, 'entitlement deleted');
@@ -2281,41 +2574,84 @@ await runAcceptance(suite, async () => {
     assertEqual(removed.grantsRemoved, 1, 'and so did the derived grant');
 
     assertEqual(await activeEntitlementIds(ZED), [], 'the holder no longer holds it');
-    const entitlements = (await db.query(api.listEntitlements, {})).rows;
-    assertEqual(entitlements.filter((e) => e.entitlementId === 'zz_archive'), [], 'gone from the catalog');
     const edges = (await db.query(api.listProductEntitlements, {})).rows;
     assertEqual(edges.filter((m) => m.entitlementId === 'zz_archive'), [], 'no orphan edge left behind');
     // The purchase itself survives: the catalog says what is for sale, the
     // transaction says what WAS sold, and deleting the first does not un-sell.
     const audit = await purchases(ZED);
-    assertEqual(audit.map((p) => p.productId), ['zz_bundle'], 'the transaction is untouched history');
+    assertEqual(audit.map((p) => p.productId), ['com.example.app.zz.bundle'], 'untouched history');
     return removed;
   });
 
-  await suite.check('deleteProduct removes the product and its mapping edges', async () => {
-    // Re-map zz_bundle to a seeded entitlement so the delete has an edge to
-    // clean up, then delete the product from under it.
+  await suite.check('deletePackage cascades to its SKUs and their edges', async () => {
+    // Re-map one SKU so the cascade has an edge to clean, then delete the
+    // package from under all three.
     await catalogWrite(api.createEntitlement, { entitlementId: 'zz_temp', title: 'Temp' });
-    await catalogWrite(api.addProductEntitlement, { productId: 'zz_bundle', entitlementId: 'zz_temp' });
-    const before = (await db.query(api.listProductEntitlements, {})).rows.length;
+    await catalogWrite(api.addProductEntitlement, {
+      productId: 'zz_shared',
+      store: 'google',
+      entitlementId: 'zz_temp',
+    });
+    const skusBefore = (await db.query(api.listProducts, {})).rows
+      .filter((p) => p.packageId === 'zz_bundle');
+    assertEqual(skusBefore.length, 3, 'the bundle has three SKUs: apple, google, stripe');
 
-    const removed = await catalogWrite(api.deleteProduct, { productId: 'zz_bundle' });
-    assertEqual(removed.deleted, true, 'product deleted');
-    assertEqual(removed.edgesRemoved, 1, 'its edge went with it, in the same commit');
+    const removed = await catalogWrite(api.deletePackage, { packageId: 'zz_bundle' });
+    assertEqual(removed.deleted, true, 'package deleted');
+    assertEqual(removed.productsRemoved, 3, 'all three SKUs went with it');
+    assertEqual(removed.edgesRemoved, 1, 'and the surviving edge, in the same commit');
 
+    const packages = (await db.query(api.listPackages, {})).rows;
+    assertEqual(packages.filter((p) => p.packageId === 'zz_bundle'), [], 'gone from the catalog');
     const products = (await db.query(api.listProducts, {})).rows;
-    assertEqual(products.filter((p) => p.productId === 'zz_bundle'), [], 'gone from the catalog');
+    assertEqual(products.filter((p) => p.packageId === 'zz_bundle'), [], 'no SKU names it');
     const edges = (await db.query(api.listProductEntitlements, {})).rows;
-    assertEqual(edges.length, before - 1, 'exactly one edge removed');
-    assertEqual(edges.filter((m) => m.productId === 'zz_bundle'), [], 'no edge names the deleted product');
+    assertEqual(edges.filter((m) => m.entitlementId === 'zz_temp'), [], 'no edge survived its SKU');
     // The seeded catalog is exactly as the earlier checks left it.
     assertEqual(
-      products.map((p) => p.productId),
+      packages.map((p) => p.packageId),
       ['coins_100', 'plus_monthly', 'pro_annual', 'pro_monthly'],
       'the seeded catalog is intact',
     );
+    assertEqual(products.length, 12, 'and so are its twelve SKUs');
     await assertThrows(
-      () => catalogWrite(api.deleteProduct, { productId: 'zz_bundle' }),
+      () => catalogWrite(api.deletePackage, { packageId: 'zz_bundle' }),
+      'SNAPBACK_HANDLER_FAILED',
+      'deleting it twice is refused',
+    );
+    return { packages: packages.length, products: products.length };
+  });
+
+  await suite.check('deleteProduct removes one SKU and its edges, leaving its siblings', async () => {
+    // Deleting a single SKU is the narrower operation: the package and its other
+    // store listings survive, which is what withdrawing one platform looks like.
+    const before = (await db.query(api.listProductEntitlements, {})).rows.length;
+    const removed = await catalogWrite(api.deleteProduct, {
+      productId: SKU.stripe.plus_monthly,
+      store: 'stripe',
+    });
+    assertEqual(removed.deleted, true, 'SKU deleted');
+    assertEqual(removed.edgesRemoved, 1, 'its edge went with it');
+
+    const products = (await db.query(api.listProducts, {})).rows;
+    assertEqual(
+      products.filter((p) => p.packageId === 'plus_monthly').map((p) => p.store).sort(),
+      ['apple', 'google'],
+      'the sibling SKUs survive the deletion of one store listing',
+    );
+    const edges = (await db.query(api.listProductEntitlements, {})).rows;
+    assertEqual(edges.length, before - 1, 'exactly one edge removed');
+    assertEqual(
+      edges.filter((m) => m.store === 'stripe' && m.productId === SKU.stripe.plus_monthly),
+      [],
+      'no edge names the deleted SKU',
+    );
+    // The package itself is untouched — deleting a listing is not withdrawing
+    // the product.
+    const packages = (await db.query(api.listPackages, {})).rows;
+    assert(packages.some((p) => p.packageId === 'plus_monthly'), 'the package survives');
+    await assertThrows(
+      () => catalogWrite(api.deleteProduct, { productId: SKU.stripe.plus_monthly, store: 'stripe' }),
       'SNAPBACK_HANDLER_FAILED',
       'deleting it twice is refused',
     );

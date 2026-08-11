@@ -1,8 +1,14 @@
 // EAS Payments — engine-first slice schema.
 //
 // The shape follows the Payments Engine architecture, not a receipt store:
-// products carry per-platform ids, transactions are the raw store facts, and
-// `entitlementGrants` is the DERIVED read model the app actually gates on.
+// packages group the store SKUs that are actually purchasable, transactions are
+// the raw store facts naming one SKU, and `entitlementGrants` is the DERIVED
+// read model the app actually gates on.
+//
+// Slice 12 adopted RevenueCat's vocabulary (package / product / entitlement) and
+// made the store SKU the atomic unit. The derive path is
+// transaction -> product (SKU) -> entitlement; the package is grouping and the
+// source of `kind`, and is deliberately NOT on that path.
 //
 // @ref LLP 0004#handler-api — server-owned _id/_version/_createdAt/_updatedAt,
 //   so nothing here declares a timestamp field the runtime already owns.
@@ -24,45 +30,108 @@
 import { defineSchema, defineTable, v } from '../../_kit/define.mjs';
 
 export default defineSchema({
-  // Catalog. One row per sellable product, carrying the per-platform ids the
-  // store adapters will need. `kind` is a closed vocabulary the handlers
-  // validate: 'subscription' | 'nonconsumable' | 'consumable'.
+  // --- Catalog (slice 12: the store SKU is the atom) --------------------------
   //
-  // by_product is UNIQUE (catalog CRUD). Two products sharing a productId would
-  // make `enqueueAcknowledgement`'s `kind` lookup and every mapping edge
-  // ambiguous, and the catalog is now writable at runtime rather than only
-  // seeded — so the invariant is declared structurally instead of scanned for in
-  // a handler, which is a race between the scan and the insert.
-  products: defineTable({
-    productId: v.string(),
+  // Three levels, RevenueCat's vocabulary:
+  //
+  //   package  the cross-platform thing a developer SELLS ("Pro, monthly")
+  //   product  the STORE SKU that is actually purchasable on one store
+  //   entitlement  what a purchase BUYS, and the only thing an app gates on
+  //
+  // The previous shape collapsed the first two: one `products` row carried
+  // `appleId`/`googleId`/`stripePriceId` columns. That reads fine until a store
+  // fact has to attach to one platform's SKU — a Google base plan, an Apple
+  // promotional offer, a price, a store-specific status — and there is no row to
+  // attach it to. Columns cannot carry per-SKU structure, so the SKU has to be a
+  // row. That is the whole change.
+
+  // The cross-platform purchasable. Carries NO store identity at all: it is the
+  // grouping a developer thinks in and the source of `kind`, and it is
+  // deliberately absent from the derive path (see deriveGrant).
+  //
+  // `kind` is a closed vocabulary the handlers validate:
+  // 'subscription' | 'nonconsumable' | 'consumable'. It lives here rather than on
+  // the SKU because it is a property of what is being sold, not of where — the
+  // same package is a consumable on all three stores or on none.
+  packages: defineTable({
+    packageId: v.string(),
     title: v.string(),
     kind: v.string(),
-    appleId: v.optional(v.string()),
-    googleId: v.optional(v.string()),
-    stripePriceId: v.optional(v.string()),
-  }).index('by_product', ['productId'], { unique: true }),
+  }).index('by_package', ['packageId'], { unique: true }),
 
-  // What a purchase actually buys. Apps gate on these, never on products.
+  // The store SKU: the atom. One row per (store, productId), which is the exact
+  // identity a store notification arrives carrying and the exact pair
+  // `transactions` records.
+  //
+  // KEYED COMPOUND on (store, productId) rather than by a surrogate, because a
+  // store SKU string is only unique WITHIN its store. `pro_monthly` is a
+  // perfectly legal Google product id and a perfectly legal Stripe price lookup
+  // key at the same time, so a global unique on productId alone would refuse a
+  // real catalog. The acceptance proves that directly by creating one SKU string
+  // under two stores and asserting both land.
+  //
+  // The seed makes the adjacent point: the Google SKU for the `pro_monthly`
+  // package is itself the string `pro_monthly`, which is realistic and is
+  // exactly why package ids and SKU strings must be separate namespaces rather
+  // than one id space with a convention.
+  //
+  // A surrogate key was the alternative. It loses because it would be a second
+  // spelling of an identity `transactions` already carries as two columns, and
+  // slice 11's lesson was that a duplicated key is somewhere for two spellings
+  // to drift.
+  //
+  // basePlanId and offerId are the structured store facts the old column shape
+  // had nowhere to put. Nullable for now — nothing reads them yet, and they are
+  // here to show the SKU row is where such facts LAND rather than to pretend
+  // this demo models Google's base-plan/offer hierarchy.
+  products: defineTable({
+    productId: v.string(),
+    store: v.string(),
+    packageId: v.string(),
+    basePlanId: v.optional(v.string()),
+    offerId: v.optional(v.string()),
+  })
+    // The identity, and the lookup every purchase performs: given the (store,
+    // productId) a transaction names, which SKU row is this.
+    .index('by_store_product', ['store', 'productId'], { unique: true })
+    // by_package is the grouping direction: the dashboard's "which stores sell
+    // this package", and the cascade when a package is deleted.
+    .index('by_package', ['packageId']),
+
+  // What a purchase actually buys. Apps gate on these, never on packages and
+  // never on SKUs.
   entitlements: defineTable({
     entitlementId: v.string(),
     title: v.string(),
   }).index('by_entitlement', ['entitlementId'], { unique: true }),
 
-  // The product -> entitlement mapping. Many-to-many by construction: a bundle
-  // product can grant several entitlements, and several products can grant the
-  // same one (pro_monthly and pro_annual both grant `pro`).
+  // The SKU -> entitlement mapping. Moved down a level from the package: the
+  // edge now names (store, productId), which is what makes decision 23's
+  // cross-platform union fall out rather than being special-cased. The Apple SKU
+  // and the Google SKU under one package both map to `pro`, so a user who
+  // somehow holds both derives ONE grant — the union is just what a set union
+  // does, with no "same package" rule anywhere in the code.
+  //
+  // Many-to-many in both directions, as before: a bundle SKU can grant several
+  // entitlements, and many SKUs across many packages can grant the same one.
+  //
+  // A consumable's SKUs simply have no edge here. That is unchanged from the
+  // package-level shape and is still how "records a purchase, grants nothing"
+  // is expressed — it just happens one level down.
   productEntitlements: defineTable({
     productId: v.string(),
+    store: v.string(),
     entitlementId: v.string(),
   })
-    .index('by_product', ['productId'])
-    // by_entitlement is the reverse direction the reconcile needs: given an
-    // entitlement, which products can currently justify it.
+    // The edges of one SKU. Compound, because the SKU's identity is compound.
+    .index('by_product', ['store', 'productId'])
+    // by_entitlement is the reverse direction: given an entitlement, which SKUs
+    // can currently justify it.
     .index('by_entitlement', ['entitlementId'])
-    // The edge itself is the unique thing, and it is compound: `pro_monthly
-    // grants pro` may be recorded once. Neither single-column index can say
-    // that, since both directions are legitimately many.
-    .index('by_product_entitlement', ['productId', 'entitlementId'], { unique: true }),
+    // The edge itself is the unique thing, and it is now a THREE-column key.
+    // Neither narrower index can state it: both directions are legitimately
+    // many, and the SKU half is itself compound.
+    .index('by_product_entitlement', ['store', 'productId', 'entitlementId'], { unique: true }),
 
   // Raw store facts. `environment` ('sandbox' | 'production') rides every row
   // so metering can exclude test transactions later without a backfill.
@@ -79,6 +148,12 @@ export default defineSchema({
   // `graceUntil` bounds 'grace', and `resumesAt` is when a 'paused' subscription
   // is expected back. Collapsing them into one "endsAt" would lose which clock
   // is running, and the sweep needs exactly that to know what it may expire.
+  //
+  // `productId` names the STORE SKU, not the package (slice 12), and with
+  // `store` it is the compound identity of a `products` row. This is the
+  // immutable store fact: the store told us which SKU was bought, and no later
+  // catalog edit may rewrite it. Deleting the SKU from the catalog does not
+  // un-sell it — the transaction keeps naming the string the store used.
   transactions: defineTable({
     userId: v.string(),
     productId: v.string(),

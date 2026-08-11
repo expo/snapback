@@ -104,12 +104,26 @@ export const getEntitlements = defineJsLiveQuery({
   },
 });
 
-// Merchandising read. Declarative because the plan vocabulary says it all.
+// Merchandising read: the cross-platform things on sale. Declarative because
+// the plan vocabulary says it all.
+//
+// This is what a storefront lists — a user picks "Pro, monthly", not a Google
+// base plan id. Which SKU that resolves to is the client's platform question,
+// answered by listProducts below.
+export const listPackages = defineQuery({
+  table: 'packages',
+  args: {},
+  order: [asc('packageId')],
+  index: 'by_package',
+});
+
+// The store SKUs. One row per (store, productId) — the atom a transaction
+// names.
 export const listProducts = defineQuery({
   table: 'products',
   args: {},
-  order: [asc('productId')],
-  index: 'by_product',
+  order: [asc('store'), asc('productId')],
+  index: 'by_store_product',
 });
 
 // The two halves of the catalog graph, for the DEVELOPER rather than the app.
@@ -150,15 +164,19 @@ export const listEntitlements = defineJsQuery({
 });
 
 // The join table itself, unaggregated. The dashboard renders one entitlement
-// with its granting products, and a developer debugging a mis-sold bundle
+// with its granting SKUs, and a developer debugging a mis-sold bundle
 // wants the raw edges — so this hands back edges and lets the reader group
 // them, rather than picking one direction of the many-to-many here and making
 // the other direction unavailable.
+//
+// Each edge names the SKU by its compound identity, so `store` rides along:
+// without it an edge row cannot say WHICH `pro_monthly` it means.
 export const listProductEntitlements = defineJsQuery({
   args: {},
   reads: ['productEntitlements'],
   result: results.records(v.object({
     productId: v.string(),
+    store: v.string(),
     entitlementId: v.string(),
   })),
   handler: async (ctx) => {
@@ -170,6 +188,7 @@ export const listProductEntitlements = defineJsQuery({
       .collect();
     return rows.map((row) => ({
       productId: row.productId,
+      store: row.store,
       entitlementId: row.entitlementId,
     }));
   },
@@ -334,9 +353,29 @@ function readOptionalMs(value, label) {
   return value;
 }
 
+// The SKU's compound identity as one comparable string. A NUL separator rather
+// than ':' because store SKU strings legitimately contain colons and every other
+// punctuation character a reader might reach for; NUL cannot appear in either
+// half, so `apple` + `x:y` can never collide with `apple:x` + `y`.
+function skuKey(store, productId) {
+  return store + '\u0000' + productId;
+}
+
 // What the user's transactions currently justify for one entitlement. Pure
-// read: several products can grant the same entitlement (pro_monthly and
-// pro_annual both grant `pro`), so losing one does not necessarily lose it.
+// read: several SKUs can grant the same entitlement — pro_monthly and pro_annual
+// both grant `pro`, and so do the Apple, Google, and Stripe SKUs of each — so
+// losing one does not necessarily lose it.
+//
+// THE PACKAGE IS NOT ON THIS PATH (slice 12). The walk is
+// transaction -> product (SKU) -> productEntitlements -> entitlement, and the
+// join key is the SKU's (store, productId). Grouping SKUs under a package is a
+// merchandising convenience; making it load-bearing here would mean a catalog
+// re-grouping could silently change what a past purchase grants.
+//
+// Decision 23's cross-platform union needs no code of its own as a result: a
+// user holding both the Apple and the Google SKU for `pro` contributes two
+// transactions to the same entitlement, and the union below is an ordinary max
+// over both. There is no "same package" rule anywhere.
 //
 // Reasons over per-transaction *state*, not over `expiresAt` alone. A grace
 // transaction whose `expiresAt` is long past still grants access until its
@@ -348,7 +387,10 @@ async function deriveGrant(ctx, userId, entitlementId) {
     .withIndex('by_entitlement')
     .eq('entitlementId', entitlementId)
     .collect();
-  const productIds = mappings.map((mapping) => mapping.productId);
+  // Membership is tested on the compound SKU identity, never on productId
+  // alone: an Apple SKU and a Google SKU may share a string, and treating them
+  // as one would grant `pro` for a purchase of somebody else's SKU.
+  const skus = mappings.map((mapping) => skuKey(mapping.store, mapping.productId));
   const transactions = await ctx.db
     .query('transactions')
     .withIndex('by_user')
@@ -361,7 +403,7 @@ async function deriveGrant(ctx, userId, entitlementId) {
   let maxUntil = -1;
   let source = '';
   for (const txn of transactions) {
-    if (productIds.indexOf(txn.productId) < 0) continue;
+    if (skus.indexOf(skuKey(txn.store, txn.productId)) < 0) continue;
     // The five non-granting states contribute nothing at all — not a shorter
     // window, not a weaker grant. A pending purchase in particular derives to
     // exactly the same answer as no purchase, which is what makes it silent.
@@ -540,12 +582,29 @@ async function enqueueAcknowledgement(ctx, store, productId, storeTxnId) {
   // Consumables are CONSUMED, which also acknowledges. That is not a
   // preference: an unconsumed consumable cannot be bought again, so plain
   // acknowledge would silently cap the user at one purchase forever.
+  //
+  // `kind` lives on the PACKAGE, so this is the one place the SKU -> package
+  // hop is load-bearing (slice 12). It is a merchandising fact — "this is a
+  // consumable" is true of the thing being sold, not of one store's listing of
+  // it — and reading it here rather than storing a copy on the SKU keeps a
+  // single answer. A SKU whose package is missing yields '' and therefore
+  // 'acknowledge', which is the safe default: acknowledging a consumable is
+  // recoverable (it can be consumed later), while consuming a durable is not.
   const products = await ctx.db
     .query('products')
-    .withIndex('by_product')
+    .withIndex('by_store_product')
+    .eq('store', store)
     .eq('productId', productId)
     .collect();
-  const kind = products.length === 0 ? '' : products[0].kind;
+  const packageId = products.length === 0 ? '' : products[0].packageId;
+  const packages = packageId === ''
+    ? []
+    : await ctx.db
+      .query('packages')
+      .withIndex('by_package')
+      .eq('packageId', packageId)
+      .collect();
+  const kind = packages.length === 0 ? '' : packages[0].kind;
   await ctx.jobs.enqueue(
     'acknowledgePurchase',
     {
@@ -557,11 +616,18 @@ async function enqueueAcknowledgement(ctx, store, productId, storeTxnId) {
   return true;
 }
 
-// Recompute every entitlement a product can affect. Returns how many moved.
-async function applyProductEntitlements(ctx, userId, productId) {
+// Recompute every entitlement one SKU can affect. Returns how many moved.
+//
+// Scoped to the SKU, not to its package: buying the Apple SKU recomputes only
+// the entitlements that Apple SKU maps to. The Google sibling's entitlements are
+// recomputed too if and only if they are the same entitlements — which they
+// normally are, and which is exactly how the cross-platform union stays correct
+// without this function knowing anything about packages.
+async function applyProductEntitlements(ctx, userId, store, productId) {
   const mappings = await ctx.db
     .query('productEntitlements')
     .withIndex('by_product')
+    .eq('store', store)
     .eq('productId', productId)
     .collect();
   let changed = 0;
@@ -577,6 +643,13 @@ async function applyProductEntitlements(ctx, userId, productId) {
 // The one place a *new* purchase is written. Idempotent on the store's own
 // transaction id, so a re-delivered notification is a no-op rather than a
 // second grant. `grants` counts entitlement grants that actually moved.
+//
+// `productId` is the STORE SKU (slice 12) and travels with `store`; together
+// they are the compound identity of a `products` row. Deliberately NOT
+// validated against the catalog: the store is the authority on what was sold,
+// and a purchase of a SKU we have not catalogued yet is a real event that must
+// still be recorded. It simply maps to no entitlement — the same "good record,
+// no grant" outcome a consumable already has.
 export const recordPurchase = defineJsMutation({
   args: {
     productId: v.string(),
@@ -589,7 +662,7 @@ export const recordPurchase = defineJsMutation({
     resumesAt: v.optional(v.integer()),
     refundState: v.optional(v.string()),
   },
-  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints', 'products'],
+  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints', 'products', 'packages'],
   writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
   result: results.value(v.object({
     transactionId: v.string(),
@@ -656,7 +729,7 @@ export const recordPurchase = defineJsMutation({
 
     // Derive, never assign: the new transaction is now one input among the
     // user's transactions, and the grant is recomputed from all of them.
-    const granted = await applyProductEntitlements(ctx, userId, args.productId);
+    const granted = await applyProductEntitlements(ctx, userId, args.store, args.productId);
     if (granted > 0) {
       await appendChange(ctx, userId, (await readMaxChangeSeq(ctx)) + 1, ctx.runtime.now(), true);
     }
@@ -815,7 +888,7 @@ export const reconcileTransaction = defineJsMutation({
     resumesAt: v.optional(v.integer()),
     refundState: v.optional(v.string()),
   },
-  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints', 'products'],
+  reads: ['transactions', 'productEntitlements', 'entitlementGrants', 'entitlementChanges', 'webhookEndpoints', 'products', 'packages'],
   writes: ['transactions', 'entitlementGrants', 'entitlementChanges'],
   result: results.value(v.object({
     changed: v.boolean(),
@@ -851,6 +924,11 @@ export const reconcileTransaction = defineJsMutation({
 
     let userId = args.userId;
     let productId = args.productId;
+    // The SKU's identity is (store, productId), so `store` is part of what the
+    // stored row owns — see the identity note in the else-branch below. Reading
+    // it from the payload after the row exists would let a notification's
+    // `store` field re-point the reconcile at a different SKU's entitlements.
+    let store = args.store;
     let transactionChanged = false;
     if (seen.length === 0) {
       // A notification may be the first time we hear about a transaction.
@@ -884,6 +962,7 @@ export const reconcileTransaction = defineJsMutation({
       }
       userId = row.userId;
       productId = row.productId;
+      store = row.store;
       const rowUntil = row.expiresAt === undefined ? null : row.expiresAt;
       const rowGrace = row.graceUntil === undefined ? null : row.graceUntil;
       const rowResumes = row.resumesAt === undefined ? null : row.resumesAt;
@@ -913,7 +992,7 @@ export const reconcileTransaction = defineJsMutation({
       }
     }
 
-    const entitlementsChanged = await applyProductEntitlements(ctx, userId, productId);
+    const entitlementsChanged = await applyProductEntitlements(ctx, userId, store, productId);
     // Only an actual move in the active set reaches the feed. A redundant
     // notification updates nothing and says nothing.
     if (entitlementsChanged > 0) {
@@ -1707,11 +1786,12 @@ export const listDeliveries = defineQuery({
   index: 'by_seq',
 });
 
-// --- Catalog management (slice 11) ----------------------------------------------
+
+// --- Catalog management (slice 11, reshaped in slice 12) ------------------------
 
 // The write side of the developer's catalog: the mutations behind the
-// dashboard's /admin/* routes. Until now the catalog arrived only through
-// `seed.json`, which made it a fixture rather than a product surface.
+// dashboard's /admin/* routes. Slice 12 split them across the new three-level
+// shape — package CRUD, SKU CRUD, entitlement CRUD, and the SKU-level edge.
 //
 // PROTOTYPE AUTHORITY GAP, WRITE SIDE. The closed auth vocabulary is
 // public | optional-user | authenticated (LLP 0058), so a mutation that should
@@ -1720,25 +1800,30 @@ export const listDeliveries = defineQuery({
 // management-only because the devserver exposes them under /admin/*, exactly as
 // the catalog READS are. The boundary is a proxy, not the engine. That is the
 // same gap already recorded on `reconcileTransaction` for system authority and
-// on `listEntitlements`/`listProductEntitlements` for secret-tier reads; this is
-// its most consequential face, because these mutations can rewrite what every
-// user's purchases mean. In production the split is two APIs with two keys
-// (decision 11). Nothing here should be read as the engine fencing them.
+// on the catalog reads for secret-tier reads; this is its most consequential
+// face, because these mutations can rewrite what every user's purchases mean.
+// In production the split is two APIs with two keys (decision 11). Nothing here
+// should be read as the engine fencing them.
 //
-// Uniqueness is STRUCTURAL, not scanned: `products.by_product`,
-// `entitlements.by_entitlement`, and the compound
-// `productEntitlements.by_product_entitlement` are unique indexes, so a
-// duplicate create loses at the write boundary with
+// Uniqueness is STRUCTURAL, not scanned: `packages.by_package`,
+// `entitlements.by_entitlement`, the compound `products.by_store_product`, and
+// the three-column `productEntitlements.by_product_entitlement` are unique
+// indexes, so a duplicate create loses at the write boundary with
 // SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION rather than racing a read-then-insert
-// check. A seeded catalog could pretend a handler scan was enough; a writable
-// one cannot.
+// check.
 
-// The closed product vocabulary, spelled as a function declaration because
+// The closed package vocabulary, spelled as a function declaration because
 // inline handlers capture same-file declarations but not outer consts.
-function isKnownProductKind(kind) {
+function isKnownPackageKind(kind) {
   return kind === 'subscription'
     || kind === 'nonconsumable'
     || kind === 'consumable';
+}
+
+// The closed store vocabulary. A SKU belongs to exactly one store, and an
+// unknown store would produce a row no notification could ever match.
+function isKnownStore(store) {
+  return store === 'apple' || store === 'google' || store === 'stripe';
 }
 
 // Trim to a non-empty string, or refuse. Catalog ids reach us from a dashboard
@@ -1749,155 +1834,306 @@ function requiredId(value, label) {
   return text;
 }
 
-// An optional store id on the way IN. Absent means "no id for this store",
-// which is the ordinary case for a product sold on one platform only.
+// An optional structured store fact on the way IN. Absent means "this store
+// does not use that concept", which is the ordinary case — only Google has base
+// plans and offers.
 //
-// The empty string is normalized to absent rather than stored: a dashboard form
-// submits '' for a field the developer cleared, and an appleId of '' would
-// otherwise be a present-but-meaningless value that reads as configured.
-function optionalStoreId(value) {
+// The empty string normalizes to absent rather than being stored: a dashboard
+// form submits '' for a field the developer cleared, and a basePlanId of ''
+// would otherwise be a present-but-meaningless value that reads as configured.
+function optionalStoreField(value) {
   if (value === undefined || value === null) return null;
   const text = String(value).trim();
   return text === '' ? null : text;
 }
 
-export const createProduct = defineJsMutation({
+// --- Packages ------------------------------------------------------------------
+
+export const createPackage = defineJsMutation({
   auth: 'authenticated',
   args: {
-    productId: v.string(),
+    packageId: v.string(),
     kind: v.string(),
     // The schema requires a title; the dashboard does not force one. Defaulting
     // to the id keeps the column honest without inventing prose.
     title: v.optional(v.string()),
-    appleId: v.optional(v.string()),
-    googleId: v.optional(v.string()),
-    stripePriceId: v.optional(v.string()),
   },
+  writes: ['packages'],
+  result: results.value(v.object({
+    id: v.id('packages'),
+    packageId: v.string(),
+  })),
+  handler: async (ctx, args) => {
+    const packageId = requiredId(args.packageId, 'packageId');
+    if (!isKnownPackageKind(args.kind)) {
+      throw new Error('unknown package kind: ' + args.kind);
+    }
+    const title = String(args.title ?? '').trim() || packageId;
+    const id = await ctx.db.insert('packages', {
+      packageId: packageId,
+      title: title,
+      kind: args.kind,
+    });
+    return { id: id, packageId: packageId };
+  },
+});
+
+// Editing a package's merchandising facts. Required columns MERGE — omitting
+// `kind` leaves it, because a package with no kind is not a legal row.
+//
+// `packageId` is identity and is deliberately not editable: every SKU names it,
+// so renaming would strand them. That is a migration, not an edit.
+export const updatePackage = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    packageId: v.string(),
+    title: v.optional(v.string()),
+    kind: v.optional(v.string()),
+  },
+  reads: ['packages'],
+  writes: ['packages'],
+  result: results.value(v.object({ packageId: v.string(), changed: v.boolean() })),
+  handler: async (ctx, args) => {
+    const packageId = requiredId(args.packageId, 'packageId');
+    const rows = await ctx.db
+      .query('packages')
+      .withIndex('by_package')
+      .eq('packageId', packageId)
+      .collect();
+    if (rows.length === 0) throw new Error('unknown packageId: ' + packageId);
+    const row = rows[0];
+
+    const kind = args.kind === undefined ? row.kind : args.kind;
+    if (!isKnownPackageKind(kind)) {
+      throw new Error('unknown package kind: ' + kind);
+    }
+    const title = args.title === undefined
+      ? row.title
+      : (String(args.title).trim() || packageId);
+    if (row.title === title && row.kind === kind) {
+      return { packageId: packageId, changed: false };
+    }
+    await ctx.db.patch('packages', row._id, { title: title, kind: kind });
+    return { packageId: packageId, changed: true };
+  },
+});
+
+// Delete a package, its store SKUs, and those SKUs' entitlement edges — all in
+// one commit, so there is no window in which a SKU names a package that does not
+// exist or an edge names a SKU that does not.
+//
+// TRANSACTIONS ARE LEFT ALONE, deliberately. A transaction records the SKU a
+// user actually bought, and withdrawing a package from sale does not un-sell it.
+// The catalog is what is FOR SALE; transactions are what WAS sold, and the
+// second is history we do not get to edit.
+//
+// POC BOUND: 200 SKUs and 500 edges, because one mutation buffers at most 1,024
+// writes. The counts are returned rather than hidden so a caller can see the cap.
+export const deletePackage = defineJsMutation({
+  auth: 'authenticated',
+  args: { packageId: v.string() },
+  reads: ['packages', 'products', 'productEntitlements'],
+  writes: ['packages', 'products', 'productEntitlements'],
+  result: results.value(v.object({
+    packageId: v.string(),
+    deleted: v.boolean(),
+    productsRemoved: v.integer(),
+    edgesRemoved: v.integer(),
+  })),
+  handler: async (ctx, args) => {
+    const packageId = requiredId(args.packageId, 'packageId');
+    const rows = await ctx.db
+      .query('packages')
+      .withIndex('by_package')
+      .eq('packageId', packageId)
+      .collect();
+    if (rows.length === 0) throw new Error('unknown packageId: ' + packageId);
+
+    const skus = await ctx.db
+      .query('products')
+      .withIndex('by_package')
+      .eq('packageId', packageId)
+      .take(200)
+      .collect();
+    let edgesRemoved = 0;
+    for (const sku of skus) {
+      const edges = await ctx.db
+        .query('productEntitlements')
+        .withIndex('by_product')
+        .eq('store', sku.store)
+        .eq('productId', sku.productId)
+        .take(500)
+        .collect();
+      for (const edge of edges) {
+        await ctx.db.delete('productEntitlements', edge._id);
+        edgesRemoved += 1;
+      }
+      await ctx.db.delete('products', sku._id);
+    }
+    await ctx.db.delete('packages', rows[0]._id);
+    return {
+      packageId: packageId,
+      deleted: true,
+      productsRemoved: skus.length,
+      edgesRemoved: edgesRemoved,
+    };
+  },
+});
+
+// --- Products (store SKUs) ------------------------------------------------------
+
+// Create one store SKU under an existing package.
+//
+// The package must exist. A SKU is defined by what it sells, and one pointing at
+// no package would have no `kind` — which the acknowledgement path reads to
+// decide consume-vs-acknowledge, and would silently resolve to 'acknowledge'.
+export const createProduct = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    productId: v.string(),
+    store: v.string(),
+    packageId: v.string(),
+    basePlanId: v.optional(v.string()),
+    offerId: v.optional(v.string()),
+  },
+  reads: ['packages'],
   writes: ['products'],
   result: results.value(v.object({
     id: v.id('products'),
     productId: v.string(),
+    store: v.string(),
   })),
   handler: async (ctx, args) => {
     const productId = requiredId(args.productId, 'productId');
-    if (!isKnownProductKind(args.kind)) {
-      throw new Error('unknown product kind: ' + args.kind);
+    const packageId = requiredId(args.packageId, 'packageId');
+    if (!isKnownStore(args.store)) {
+      throw new Error('unknown store: ' + args.store);
     }
-    const title = String(args.title ?? '').trim() || productId;
+    const packages = await ctx.db
+      .query('packages')
+      .withIndex('by_package')
+      .eq('packageId', packageId)
+      .collect();
+    if (packages.length === 0) throw new Error('unknown packageId: ' + packageId);
+
     const id = await ctx.db.insert('products', {
       productId: productId,
-      title: title,
-      kind: args.kind,
-      appleId: optionalStoreId(args.appleId),
-      googleId: optionalStoreId(args.googleId),
-      stripePriceId: optionalStoreId(args.stripePriceId),
+      store: args.store,
+      packageId: packageId,
+      basePlanId: optionalStoreField(args.basePlanId),
+      offerId: optionalStoreField(args.offerId),
     });
-    return { id: id, productId: productId };
+    return { id: id, productId: productId, store: args.store };
   },
 });
 
-// Editing a product, including its store ids.
+// Edit a SKU: which package it belongs to, and its structured store fields.
 //
-// The merge rule follows the SCHEMA's own optionality, so there is one rule to
-// remember rather than a per-field convention:
+// The merge rule follows the SCHEMA's own optionality, so there is one rule
+// rather than a per-field convention:
 //
-//   required columns (title, kind)          omitted -> unchanged
-//   optional columns (the three store ids)  omitted -> CLEARED
+//   required columns (packageId)          omitted -> unchanged
+//   optional columns (basePlanId, offerId) omitted -> CLEARED
 //
-// Store ids replace rather than merge because "this product is no longer sold
-// on Google" has to be expressible, and a merge-only update cannot say it. The
-// dashboard therefore submits all three fields, prefilled — an edit form, not a
-// patch.
+// Optional fields replace rather than merge because "this base plan no longer
+// exists" has to be expressible, and a merge-only update cannot say it.
 //
-// `productId` is identity and is deliberately not editable. Renaming it would
-// strand every transaction and edge that names the old string, which is a
-// migration rather than an edit; delete and re-create instead.
+// (store, productId) is identity and is not editable: every transaction that
+// named this SKU would be stranded. Delete and re-create instead.
 export const updateProduct = defineJsMutation({
   auth: 'authenticated',
   args: {
     productId: v.string(),
-    title: v.optional(v.string()),
-    kind: v.optional(v.string()),
-    appleId: v.optional(v.string()),
-    googleId: v.optional(v.string()),
-    stripePriceId: v.optional(v.string()),
+    store: v.string(),
+    packageId: v.optional(v.string()),
+    basePlanId: v.optional(v.string()),
+    offerId: v.optional(v.string()),
   },
-  reads: ['products'],
+  reads: ['products', 'packages'],
   writes: ['products'],
-  result: results.value(v.object({ productId: v.string(), changed: v.boolean() })),
+  result: results.value(v.object({
+    productId: v.string(),
+    store: v.string(),
+    changed: v.boolean(),
+  })),
   handler: async (ctx, args) => {
     const productId = requiredId(args.productId, 'productId');
+    if (!isKnownStore(args.store)) {
+      throw new Error('unknown store: ' + args.store);
+    }
     const rows = await ctx.db
       .query('products')
-      .withIndex('by_product')
+      .withIndex('by_store_product')
+      .eq('store', args.store)
       .eq('productId', productId)
       .collect();
-    if (rows.length === 0) throw new Error('unknown productId: ' + productId);
+    if (rows.length === 0) {
+      throw new Error('unknown SKU: ' + args.store + ' ' + productId);
+    }
     const row = rows[0];
 
-    const kind = args.kind === undefined ? row.kind : args.kind;
-    if (!isKnownProductKind(kind)) {
-      throw new Error('unknown product kind: ' + kind);
+    const packageId = args.packageId === undefined
+      ? row.packageId
+      : requiredId(args.packageId, 'packageId');
+    if (packageId !== row.packageId) {
+      const packages = await ctx.db
+        .query('packages')
+        .withIndex('by_package')
+        .eq('packageId', packageId)
+        .collect();
+      if (packages.length === 0) throw new Error('unknown packageId: ' + packageId);
     }
-    const title = args.title === undefined
-      ? row.title
-      : (String(args.title).trim() || productId);
     const next = {
-      title: title,
-      kind: kind,
-      appleId: optionalStoreId(args.appleId),
-      googleId: optionalStoreId(args.googleId),
-      stripePriceId: optionalStoreId(args.stripePriceId),
+      packageId: packageId,
+      basePlanId: optionalStoreField(args.basePlanId),
+      offerId: optionalStoreField(args.offerId),
     };
 
     // Absent and present-null are the same fact here, so compare them as one.
     // Without this a re-submitted unchanged form would report `changed: true`
     // forever, and a dashboard would poll on a lie.
-    const same = row.title === next.title
-      && row.kind === next.kind
-      && (row.appleId ?? null) === next.appleId
-      && (row.googleId ?? null) === next.googleId
-      && (row.stripePriceId ?? null) === next.stripePriceId;
-    if (same) return { productId: productId, changed: false };
+    const same = row.packageId === next.packageId
+      && (row.basePlanId ?? null) === next.basePlanId
+      && (row.offerId ?? null) === next.offerId;
+    if (same) return { productId: productId, store: args.store, changed: false };
 
     await ctx.db.patch('products', row._id, next);
-    return { productId: productId, changed: true };
+    return { productId: productId, store: args.store, changed: true };
   },
 });
 
-// Delete a product and the mapping edges that named it.
-//
-// The edges go in the SAME commit, so there is no window in which an edge
-// points at a product that does not exist. That is the whole reason this is one
-// mutation and not two calls from the dashboard.
-//
-// TRANSACTIONS ARE LEFT ALONE, deliberately. A transaction records what a user
-// actually bought, and deleting a catalog row does not un-sell it — the purchase
-// audit must keep naming `coins_100` after `coins_100` is withdrawn from sale.
-// The catalog is what is FOR SALE; transactions are what WAS sold, and the
-// second is history we do not get to edit.
+// Delete one SKU and the entitlement edges that named it, in the same commit.
+// Transactions that bought it are untouched history, as with a package.
 export const deleteProduct = defineJsMutation({
   auth: 'authenticated',
-  args: { productId: v.string() },
+  args: { productId: v.string(), store: v.string() },
   reads: ['products', 'productEntitlements'],
   writes: ['products', 'productEntitlements'],
   result: results.value(v.object({
     productId: v.string(),
+    store: v.string(),
     deleted: v.boolean(),
     edgesRemoved: v.integer(),
   })),
   handler: async (ctx, args) => {
     const productId = requiredId(args.productId, 'productId');
+    if (!isKnownStore(args.store)) {
+      throw new Error('unknown store: ' + args.store);
+    }
     const rows = await ctx.db
       .query('products')
-      .withIndex('by_product')
+      .withIndex('by_store_product')
+      .eq('store', args.store)
       .eq('productId', productId)
       .collect();
-    if (rows.length === 0) throw new Error('unknown productId: ' + productId);
+    if (rows.length === 0) {
+      throw new Error('unknown SKU: ' + args.store + ' ' + productId);
+    }
 
     const edges = await ctx.db
       .query('productEntitlements')
       .withIndex('by_product')
+      .eq('store', args.store)
       .eq('productId', productId)
       .take(500)
       .collect();
@@ -1905,9 +2141,16 @@ export const deleteProduct = defineJsMutation({
       await ctx.db.delete('productEntitlements', edge._id);
     }
     await ctx.db.delete('products', rows[0]._id);
-    return { productId: productId, deleted: true, edgesRemoved: edges.length };
+    return {
+      productId: productId,
+      store: args.store,
+      deleted: true,
+      edgesRemoved: edges.length,
+    };
   },
 });
+
+// --- Entitlements ---------------------------------------------------------------
 
 export const createEntitlement = defineJsMutation({
   auth: 'authenticated',
@@ -1956,11 +2199,11 @@ export const updateEntitlement = defineJsMutation({
 //
 // The grants are the part worth arguing about. `entitlementGrants` is derived
 // state, and the honest instinct is to leave derived state to its derivation.
-// That instinct fails here: `applyProductEntitlements` walks mappings BY
-// PRODUCT, so once an entitlement's edges are gone nothing will ever revisit its
-// grants. A perpetual grant would then stay active forever, and the app would
-// keep unlocking a feature whose entitlement the developer deleted. The cron
-// sweep cannot save it either — it only expires grants that carry a horizon.
+// That instinct fails here: `applyProductEntitlements` walks mappings BY SKU, so
+// once an entitlement's edges are gone nothing will ever revisit its grants. A
+// perpetual grant would then stay active forever, and the app would keep
+// unlocking a feature whose entitlement the developer deleted. The cron sweep
+// cannot save it either — it only expires grants that carry a horizon.
 //
 // So the choice is between deleting the grants and leaving an unreachable ghost
 // that grants real access. The grant rows go.
@@ -2027,41 +2270,55 @@ export const deleteEntitlement = defineJsMutation({
   },
 });
 
-// Record that a product grants an entitlement.
+// --- The SKU -> entitlement edge -------------------------------------------------
+
+// Record that one store SKU grants an entitlement.
 //
-// Both endpoints must exist. An edge naming a missing product is exactly the
+// Both endpoints must exist. An edge naming a missing SKU is exactly the
 // corruption the dashboard renders in red, and while the graph should keep
 // showing one if it ever appears, this surface should not be the thing that
 // mints it.
 //
+// SKU-LEVEL, not package-level (slice 12). Wiring a package would be less
+// clicking and is the wrong primitive: a package's Apple SKU can be live while
+// its Google SKU is still in review, and a package-level edge cannot express
+// that one of them grants and the other does not yet.
+//
 // DOES NOT RECOMPUTE EXISTING GRANTS, and cannot cheaply. A user who already
-// owns `pro_monthly` gains the newly mapped entitlement on their next
-// reconcile — a store notification, a fresh purchase, or an applyStoreState
-// re-fetch — not at the moment the edge is written. Recomputing here would mean
-// finding every user holding a transaction for this product, and `transactions`
-// is indexed by user and by store id, not by product. The same limitation
-// applies to removal, where it matters more: unmapping a product does not revoke
-// the access it already justified. Naming it is better than a surface that
-// silently half-applies.
+// owns this SKU gains the newly mapped entitlement on their next reconcile — a
+// store notification, a fresh purchase, or an applyStoreState re-fetch — not at
+// the moment the edge is written. Recomputing would mean finding every user
+// holding a transaction for this SKU, and `transactions` is indexed by user and
+// by store id, not by (store, productId). The same limitation applies to
+// removal, where it matters more: unmapping does not revoke the access it
+// already justified. Naming it is better than a surface that silently
+// half-applies.
 export const addProductEntitlement = defineJsMutation({
   auth: 'authenticated',
-  args: { productId: v.string(), entitlementId: v.string() },
+  args: { productId: v.string(), store: v.string(), entitlementId: v.string() },
   reads: ['products', 'entitlements'],
   writes: ['productEntitlements'],
   result: results.value(v.object({
     id: v.id('productEntitlements'),
     productId: v.string(),
+    store: v.string(),
     entitlementId: v.string(),
   })),
   handler: async (ctx, args) => {
     const productId = requiredId(args.productId, 'productId');
     const entitlementId = requiredId(args.entitlementId, 'entitlementId');
+    if (!isKnownStore(args.store)) {
+      throw new Error('unknown store: ' + args.store);
+    }
     const products = await ctx.db
       .query('products')
-      .withIndex('by_product')
+      .withIndex('by_store_product')
+      .eq('store', args.store)
       .eq('productId', productId)
       .collect();
-    if (products.length === 0) throw new Error('unknown productId: ' + productId);
+    if (products.length === 0) {
+      throw new Error('unknown SKU: ' + args.store + ' ' + productId);
+    }
     const entitlements = await ctx.db
       .query('entitlements')
       .withIndex('by_entitlement')
@@ -2070,12 +2327,18 @@ export const addProductEntitlement = defineJsMutation({
     if (entitlements.length === 0) {
       throw new Error('unknown entitlementId: ' + entitlementId);
     }
-    // A duplicate edge loses at the unique compound index, not here.
+    // A duplicate edge loses at the unique three-column index, not here.
     const id = await ctx.db.insert('productEntitlements', {
       productId: productId,
+      store: args.store,
       entitlementId: entitlementId,
     });
-    return { id: id, productId: productId, entitlementId: entitlementId };
+    return {
+      id: id,
+      productId: productId,
+      store: args.store,
+      entitlementId: entitlementId,
+    };
   },
 });
 
@@ -2083,16 +2346,20 @@ export const addProductEntitlement = defineJsMutation({
 // access already derived from the mapping.
 export const removeProductEntitlement = defineJsMutation({
   auth: 'authenticated',
-  args: { productId: v.string(), entitlementId: v.string() },
+  args: { productId: v.string(), store: v.string(), entitlementId: v.string() },
   reads: ['productEntitlements'],
   writes: ['productEntitlements'],
   result: results.value(v.object({ removed: v.boolean() })),
   handler: async (ctx, args) => {
     const productId = requiredId(args.productId, 'productId');
     const entitlementId = requiredId(args.entitlementId, 'entitlementId');
+    if (!isKnownStore(args.store)) {
+      throw new Error('unknown store: ' + args.store);
+    }
     const edges = await ctx.db
       .query('productEntitlements')
       .withIndex('by_product_entitlement')
+      .eq('store', args.store)
       .eq('productId', productId)
       .eq('entitlementId', entitlementId)
       .collect();

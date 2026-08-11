@@ -1,41 +1,106 @@
 {
   "tables": {
+    "packages": [
+      {
+        "_id": "seed_package_pro_monthly",
+        "packageId": "pro_monthly",
+        "title": "Pro (monthly)",
+        "kind": "subscription"
+      },
+      {
+        "_id": "seed_package_pro_annual",
+        "packageId": "pro_annual",
+        "title": "Pro (annual)",
+        "kind": "subscription"
+      },
+      {
+        "_id": "seed_package_plus_monthly",
+        "packageId": "plus_monthly",
+        "title": "Plus (monthly)",
+        "kind": "subscription"
+      },
+      {
+        "_id": "seed_package_coins_100",
+        "packageId": "coins_100",
+        "title": "100 Coins",
+        "kind": "consumable"
+      }
+    ],
     "products": [
       {
-        "_id": "seed_product_pro_monthly",
+        "_id": "seed_sku_apple_pro_monthly",
+        "productId": "com.example.app.pro.monthly",
+        "store": "apple",
+        "packageId": "pro_monthly"
+      },
+      {
+        "_id": "seed_sku_google_pro_monthly",
         "productId": "pro_monthly",
-        "title": "Pro (monthly)",
-        "kind": "subscription",
-        "appleId": "com.example.app.pro.monthly",
-        "googleId": "pro_monthly",
-        "stripePriceId": "price_pro_monthly"
+        "store": "google",
+        "packageId": "pro_monthly",
+        "basePlanId": "monthly-autorenewing"
       },
       {
-        "_id": "seed_product_pro_annual",
+        "_id": "seed_sku_stripe_pro_monthly",
+        "productId": "price_pro_monthly",
+        "store": "stripe",
+        "packageId": "pro_monthly"
+      },
+      {
+        "_id": "seed_sku_apple_pro_annual",
+        "productId": "com.example.app.pro.annual",
+        "store": "apple",
+        "packageId": "pro_annual"
+      },
+      {
+        "_id": "seed_sku_google_pro_annual",
         "productId": "pro_annual",
-        "title": "Pro (annual)",
-        "kind": "subscription",
-        "appleId": "com.example.app.pro.annual",
-        "googleId": "pro_annual",
-        "stripePriceId": "price_pro_annual"
+        "store": "google",
+        "packageId": "pro_annual",
+        "basePlanId": "annual-autorenewing"
       },
       {
-        "_id": "seed_product_plus_monthly",
+        "_id": "seed_sku_stripe_pro_annual",
+        "productId": "price_pro_annual",
+        "store": "stripe",
+        "packageId": "pro_annual"
+      },
+      {
+        "_id": "seed_sku_apple_plus_monthly",
+        "productId": "com.example.app.plus.monthly",
+        "store": "apple",
+        "packageId": "plus_monthly"
+      },
+      {
+        "_id": "seed_sku_google_plus_monthly",
         "productId": "plus_monthly",
-        "title": "Plus (monthly)",
-        "kind": "subscription",
-        "appleId": "com.example.app.plus.monthly",
-        "googleId": "plus_monthly",
-        "stripePriceId": "price_plus_monthly"
+        "store": "google",
+        "packageId": "plus_monthly",
+        "basePlanId": "monthly-autorenewing"
       },
       {
-        "_id": "seed_product_coins_100",
+        "_id": "seed_sku_stripe_plus_monthly",
+        "productId": "price_plus_monthly",
+        "store": "stripe",
+        "packageId": "plus_monthly"
+      },
+      {
+        "_id": "seed_sku_apple_coins_100",
+        "productId": "com.example.app.coins.100",
+        "store": "apple",
+        "packageId": "coins_100"
+      },
+      {
+        "_id": "seed_sku_google_coins_100",
         "productId": "coins_100",
-        "title": "100 Coins",
-        "kind": "consumable",
-        "appleId": "com.example.app.coins.100",
-        "googleId": "coins_100",
-        "stripePriceId": "price_coins_100"
+        "store": "google",
+        "packageId": "coins_100"
+      },
+      {
+        "_id": "seed_sku_stripe_coins_100",
+        "productId": "price_coins_100",
+        "store": "stripe",
+        "packageId": "coins_100"
       }
     ],
     "entitlements": [
@@ -43,9 +108,60 @@
       { "_id": "seed_entitlement_plus", "entitlementId": "plus", "title": "Plus features" }
     ],
     "productEntitlements": [
-      { "_id": "seed_map_pro_monthly_pro", "productId": "pro_monthly", "entitlementId": "pro" },
-      { "_id": "seed_map_pro_annual_pro", "productId": "pro_annual", "entitlementId": "pro" },
-      { "_id": "seed_map_plus_monthly_plus", "productId": "plus_monthly", "entitlementId": "plus" }
+      {
+        "_id": "seed_map_apple_pro_monthly_pro",
+        "productId": "com.example.app.pro.monthly",
+        "store": "apple",
+        "entitlementId": "pro"
+      },
+      {
+        "_id": "seed_map_google_pro_monthly_pro",
+        "productId": "pro_monthly",
+        "store": "google",
+        "entitlementId": "pro"
+      },
+      {
+        "_id": "seed_map_stripe_pro_monthly_pro",
+        "productId": "price_pro_monthly",
+        "store": "stripe",
+        "entitlementId": "pro"
+      },
+      {
+        "_id": "seed_map_apple_pro_annual_pro",
+        "productId": "com.example.app.pro.annual",
+        "store": "apple",
+        "entitlementId": "pro"
+      },
+      {
+        "_id": "seed_map_google_pro_annual_pro",
+        "productId": "pro_annual",
+        "store": "google",
+        "entitlementId": "pro"
+      },
+      {
+        "_id": "seed_map_stripe_pro_annual_pro",
+        "productId": "price_pro_annual",
+        "store": "stripe",
+        "entitlementId": "pro"
+      },
+      {
+        "_id": "seed_map_apple_plus_monthly_plus",
+        "productId": "com.example.app.plus.monthly",
+        "store": "apple",
+        "entitlementId": "plus"
+      },
+      {
+        "_id": "seed_map_google_plus_monthly_plus",
+        "productId": "plus_monthly",
+        "store": "google",
+        "entitlementId": "plus"
+      },
+      {
+        "_id": "seed_map_stripe_plus_monthly_plus",
+        "productId": "price_plus_monthly",
+        "store": "stripe",
+        "entitlementId": "plus"
+      }
     ]
   }
 }
