@@ -3371,17 +3371,25 @@ mod tests {
                     "INSERT INTO _auth_users(id, created_at_ms) VALUES('u', 1)",
                     [],
                 )?;
-                tx.execute(
-                    "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
-                     VALUES('i', 'u', 'email-code', 'u@example.com', 1)",
-                    [],
+                crate::storage::insert_test_email_identity(
+                    tx,
+                    "i",
+                    "u",
+                    "u@example.com",
+                    1,
+                    false,
                 )?;
-                tx.execute(
-                    "INSERT INTO _auth_sessions(
-                       id, user_id, identity_id, authority_instance_id, token_hash, generation,
-                       created_at_ms, last_used_at_ms, expires_at_ms, absolute_expires_at_ms
-                     ) VALUES('01890f47-0000-7000-8000-000000000001', 'u', 'i', 'a', zeroblob(32), 1, 1, 1, 100, 100)",
-                    [],
+                crate::storage::insert_test_identity_session(
+                    tx,
+                    "01890f47-0000-7000-8000-000000000001",
+                    "u",
+                    "i",
+                    "a",
+                    &[0_u8; 32],
+                    1,
+                    1,
+                    100,
+                    100,
                 )?;
                 Ok(())
             })
@@ -3447,17 +3455,25 @@ mod tests {
                     "INSERT INTO _auth_users(id, created_at_ms) VALUES('u', 1)",
                     [],
                 )?;
-                tx.execute(
-                    "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
-                     VALUES('i', 'u', 'email-code', 'u@example.com', 1)",
-                    [],
+                crate::storage::insert_test_email_identity(
+                    tx,
+                    "i",
+                    "u",
+                    "u@example.com",
+                    1,
+                    false,
                 )?;
-                tx.execute(
-                    "INSERT INTO _auth_sessions(
-                       id, user_id, identity_id, authority_instance_id, token_hash, generation,
-                       created_at_ms, last_used_at_ms, expires_at_ms, absolute_expires_at_ms
-                     ) VALUES('01890f47-0000-7000-8000-000000000001', 'u', 'i', 'a', zeroblob(32), 1, 1, 1, 100, 100)",
-                    [],
+                crate::storage::insert_test_identity_session(
+                    tx,
+                    "01890f47-0000-7000-8000-000000000001",
+                    "u",
+                    "i",
+                    "a",
+                    &[0_u8; 32],
+                    1,
+                    1,
+                    100,
+                    100,
                 )?;
                 tx.execute_batch(
                     "INSERT INTO _auth_users(

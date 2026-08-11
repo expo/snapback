@@ -619,25 +619,25 @@ mod tests {
                     "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, 1)",
                     params![user_id],
                 )?;
-                tx.execute(
-                    "INSERT INTO _auth_identities(
-                       id, user_id, provider, subject, verified_at_ms
-                     ) VALUES(?1, ?2, 'email-code', 'person@example.com', 2)",
-                    params![identity_id, user_id],
+                crate::storage::insert_test_email_identity(
+                    tx,
+                    &identity_id,
+                    &user_id,
+                    "person@example.com",
+                    2,
+                    false,
                 )?;
-                tx.execute(
-                    "INSERT INTO _auth_sessions(
-                       id, user_id, identity_id, authority_instance_id, token_hash,
-                       generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                       absolute_expires_at_ms, revoked_at_ms
-                     ) VALUES(?1, ?2, ?3, ?4, ?5, 1, 3, 4, 200, 300, NULL)",
-                    params![
-                        session_id,
-                        user_id,
-                        identity_id,
-                        authority_id,
-                        vec![7_u8; 32]
-                    ],
+                crate::storage::insert_test_identity_session(
+                    tx,
+                    &session_id,
+                    &user_id,
+                    &identity_id,
+                    &authority_id,
+                    &[7_u8; 32],
+                    3,
+                    4,
+                    200,
+                    300,
                 )?;
                 tx.execute(
                     "INSERT INTO _auth_session_tokens(

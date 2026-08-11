@@ -106,8 +106,8 @@ fn test_catalog_v3(conn: &Connection) -> SnapbackResult<bool> {
 }
 
 #[cfg(test)]
-fn insert_test_email_identity(
-    tx: &Transaction<'_>,
+pub(crate) fn insert_test_email_identity(
+    conn: &Connection,
     id: &str,
     user: &str,
     address: &str,
@@ -115,18 +115,46 @@ fn insert_test_email_identity(
     ignore: bool,
 ) -> SnapbackResult<()> {
     let verb = if ignore { "INSERT OR IGNORE" } else { "INSERT" };
-    if test_catalog_v3(tx)? {
-        tx.execute(&format!("{verb} INTO _auth_identities(id,user_id,kind,provider,subject,canonical_value,created_at_ms,verified_at_ms) VALUES(?1,?2,'email','email-code',?3,?3,?4,?4)"), params![id,user,address,now])?;
+    if test_catalog_v3(conn)? {
+        conn.execute(&format!("{verb} INTO _auth_identities(id,user_id,kind,provider,subject,canonical_value,created_at_ms,verified_at_ms) VALUES(?1,?2,'email','email-code',?3,?3,?4,?4)"), params![id,user,address,now])?;
     } else {
-        tx.execute(&format!("{verb} INTO _auth_identities(id,user_id,provider,subject,verified_at_ms) VALUES(?1,?2,'email-code',?3,?4)"), params![id,user,address,now])?;
+        conn.execute(&format!("{verb} INTO _auth_identities(id,user_id,provider,subject,verified_at_ms) VALUES(?1,?2,'email-code',?3,?4)"), params![id,user,address,now])?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+pub(crate) fn insert_test_external_identity(
+    conn: &Connection,
+    id: &str,
+    user: &str,
+    provider: &str,
+    subject: &str,
+    now: u64,
+) -> SnapbackResult<()> {
+    if test_catalog_v3(conn)? {
+        conn.execute(
+            "INSERT INTO _auth_identities(
+               id, user_id, kind, provider, issuer, subject, canonical_value,
+               created_at_ms, verified_at_ms, disabled_at_ms
+             ) VALUES(?1, ?2, 'external', ?3, NULL, ?4, NULL, ?5, ?5, NULL)",
+            params![id, user, provider, subject, now],
+        )?;
+    } else {
+        conn.execute(
+            "INSERT INTO _auth_identities(
+               id, user_id, provider, subject, verified_at_ms
+             ) VALUES(?1, ?2, ?3, ?4, ?5)",
+            params![id, user, provider, subject, now],
+        )?;
     }
     Ok(())
 }
 
 #[cfg(test)]
 #[allow(clippy::too_many_arguments)]
-fn insert_test_identity_session(
-    tx: &Transaction<'_>,
+pub(crate) fn insert_test_identity_session(
+    conn: &Connection,
     id: &str,
     user: &str,
     identity: &str,
@@ -137,10 +165,10 @@ fn insert_test_identity_session(
     expires: u64,
     absolute: u64,
 ) -> SnapbackResult<()> {
-    if test_catalog_v3(tx)? {
-        tx.execute("INSERT INTO _auth_sessions(id,user_id,identity_id,credential_id,authn_source,authority_instance_id,token_hash,generation,created_at_ms,last_used_at_ms,expires_at_ms,absolute_expires_at_ms,revoked_at_ms) VALUES(?1,?2,?3,NULL,'identity',?4,?5,1,?6,?7,?8,?9,NULL)",params![id,user,identity,authority,token,created,last,expires,absolute])?;
+    if test_catalog_v3(conn)? {
+        conn.execute("INSERT INTO _auth_sessions(id,user_id,identity_id,credential_id,authn_source,authority_instance_id,token_hash,generation,created_at_ms,last_used_at_ms,expires_at_ms,absolute_expires_at_ms,revoked_at_ms) VALUES(?1,?2,?3,NULL,'identity',?4,?5,1,?6,?7,?8,?9,NULL)",params![id,user,identity,authority,token,created,last,expires,absolute])?;
     } else {
-        tx.execute("INSERT INTO _auth_sessions(id,user_id,identity_id,authority_instance_id,token_hash,generation,created_at_ms,last_used_at_ms,expires_at_ms,absolute_expires_at_ms,revoked_at_ms) VALUES(?1,?2,?3,?4,?5,1,?6,?7,?8,?9,NULL)",params![id,user,identity,authority,token,created,last,expires,absolute])?;
+        conn.execute("INSERT INTO _auth_sessions(id,user_id,identity_id,authority_instance_id,token_hash,generation,created_at_ms,last_used_at_ms,expires_at_ms,absolute_expires_at_ms,revoked_at_ms) VALUES(?1,?2,?3,?4,?5,1,?6,?7,?8,?9,NULL)",params![id,user,identity,authority,token,created,last,expires,absolute])?;
     }
     Ok(())
 }

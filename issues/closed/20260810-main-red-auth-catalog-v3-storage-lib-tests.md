@@ -33,3 +33,13 @@ Attribution: the 0214 auth-floor landing session should claim; per the
 2026-08-10 sitting convention, unclaimed for 24h → fix-forward by anyone.
 Not bisected past containment here: counts identical with and without the
 owner-#2 slice, so this red is wholly pre-existing at the merge-base.
+
+## Resolved (2026-08-11)
+Made the catalog-aware identity/session test helpers reusable across storage
+test modules and fixed the real logical-transfer code path so v3 inserts supply
+the required columns (_auth_identities.kind, _auth_sessions.authn_source). v3
+schema unchanged (NOT NULL kept). Verified NO-DYLD: storage:: 428/0,
+generation 64/0, cli:: 128/0, auth:: 383/0, instance_fork:: 52/0. The 3
+remaining local:: failures are pre-existing live-publication reds unrelated to
+catalog v3 — tracked separately at
+issues/20260811-main-red-local-live-publication-3-tests.md.

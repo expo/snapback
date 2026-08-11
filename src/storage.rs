@@ -81,6 +81,10 @@ pub use asset_attempts::{AssetAttemptsKernel, AssetPreparedVariant, AssetPublish
 pub use asset_maintenance::AssetMaintenanceKernel;
 pub use asset_reads::{AssetDelivery, AssetDeliveryOutcome, AssetReadsKernel};
 pub use auth_catalog_ops::AuthCatalogKernel;
+#[cfg(test)]
+pub(crate) use auth_catalog_ops::{
+    insert_test_email_identity, insert_test_external_identity, insert_test_identity_session,
+};
 pub use branch_ops::{BranchOpsKernel, BranchOpsReadKernel};
 pub use checkpoints::{CheckpointsKernel, CheckpointsReadKernel};
 use connections::registered_writer_coverage_manifest;

@@ -5,7 +5,10 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-10 (implementation reconciliation: first-class closed-v1
+**Revised:** 2026-08-11 (catalog-v3 reconciliation: closed-v1 logical auth
+transfer now accepts exact v2/v3 source and empty-target catalogs, records the
+source catalog version, reconstructs only the v3 identity descriptors the
+format implies exactly, and refuses lossy descriptor mappings.) 2026-08-10 (implementation reconciliation: first-class closed-v1
 logical auth export/import now carries stable users, identities, agent recovery
 metadata, and v2 scope bases while excluding all spendable authority; empty-v2
 import rotates the authorization incarnation atomically.) 2026-08-10 (dated amendment: LLP 0215 wave 2c replaces four
@@ -574,9 +577,14 @@ Logical export/import tooling is now implemented by `snapback auth export` and
 - export users and identities, including canonical subjects;
 - exclude sessions, token hashes, tombstones, verification challenges/digests,
   mailbox entries, and keyring bytes;
-- require an exact current catalog on export; import only into an exact current
-  empty v2 catalog, reject identity collisions, and mint no session,
-  credential, grant, invitation, or pairing request;
+- require an exact current v2 or v3 catalog on export; import only into an
+  exact empty v2 or v3 catalog without migrating either version, reject
+  identity collisions, and mint no session, credential, grant, invitation, or
+  pairing request;
+- record the source catalog version in the artifact; for v3, accept only the
+  email-code, local-password, and agent-credential descriptors whose kind,
+  issuer, canonical value, and enabled state format 1 implies exactly, and
+  refuse every lossy export or import mapping;
 - regenerate the durable authorization-stream incarnation in the same
   transaction as the destructive import, as LLP 0039 pins and LLP 0059's
   stream protocol implements;

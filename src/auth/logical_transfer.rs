@@ -17,7 +17,8 @@ use std::path::Path;
 
 pub(crate) const AUTH_LOGICAL_EXPORT_FORMAT_VERSION: u8 = 1;
 pub(crate) const AUTH_LOGICAL_EXPORT_SCHEMA_VERSION: &str = "snapback.auth-logical-export.v1";
-pub(crate) const AUTH_LOGICAL_EXPORT_CATALOG_VERSION: u8 = 2;
+pub(crate) const AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V2: u8 = 2;
+pub(crate) const AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V3: u8 = 3;
 pub(crate) const MAX_AUTH_LOGICAL_EXPORT_BYTES: u64 = 64 * 1024 * 1024;
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
@@ -94,6 +95,7 @@ pub(crate) struct AuthLogicalExportV1 {
 
 impl AuthLogicalExportV1 {
     pub(crate) fn new(
+        auth_catalog_version: u8,
         users: Vec<AuthLogicalUserV1>,
         identities: Vec<AuthLogicalIdentityV1>,
         scope_bases: Vec<AuthLogicalScopeBaseV1>,
@@ -101,7 +103,7 @@ impl AuthLogicalExportV1 {
         let artifact = Self {
             schema_version: AUTH_LOGICAL_EXPORT_SCHEMA_VERSION.to_owned(),
             format_version: AUTH_LOGICAL_EXPORT_FORMAT_VERSION,
-            auth_catalog_version: AUTH_LOGICAL_EXPORT_CATALOG_VERSION,
+            auth_catalog_version,
             users,
             identities,
             scope_bases,
@@ -143,7 +145,10 @@ impl AuthLogicalExportV1 {
             return Err(logical_format_unsupported(u64::from(self.format_version)));
         }
         if self.schema_version != AUTH_LOGICAL_EXPORT_SCHEMA_VERSION
-            || self.auth_catalog_version != AUTH_LOGICAL_EXPORT_CATALOG_VERSION
+            || !matches!(
+                self.auth_catalog_version,
+                AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V2 | AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V3
+            )
         {
             return Err(logical_import_invalid(
                 "logical auth import names an unsupported schema or auth catalog version",

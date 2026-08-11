@@ -431,10 +431,29 @@ impl LocalDatabase {
                 "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
                 params![user_id, exercise.now_ms as i64],
             )?;
-            transaction.execute(
-                "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms) VALUES(?1, ?2, 'email-code', ?3, ?4)",
-                params![identity_id, user_id, address.as_str(), exercise.now_ms as i64],
-            )?;
+            if super::auth::inspect_auth_catalog_on(transaction)?
+                == super::auth::AuthCatalogState::ReadyV3
+            {
+                // @ref LLP 0214#35-identity-link-relation — rehearsal-created
+                // email links carry the same complete v3 descriptor as the
+                // ordinary email-code provider.
+                transaction.execute(
+                    "INSERT INTO _auth_identities(
+                       id, user_id, kind, provider, issuer, subject,
+                       canonical_value, created_at_ms, verified_at_ms,
+                       disabled_at_ms
+                     ) VALUES(?1, ?2, 'email', 'email-code', NULL, ?3, ?3,
+                              ?4, ?4, NULL)",
+                    params![identity_id, user_id, address.as_str(), exercise.now_ms as i64],
+                )?;
+            } else {
+                transaction.execute(
+                    "INSERT INTO _auth_identities(
+                       id, user_id, provider, subject, verified_at_ms
+                     ) VALUES(?1, ?2, 'email-code', ?3, ?4)",
+                    params![identity_id, user_id, address.as_str(), exercise.now_ms as i64],
+                )?;
+            }
             insert_rehearsal_identity_provenance_for_provider_in(
                 transaction,
                 &identity_id,

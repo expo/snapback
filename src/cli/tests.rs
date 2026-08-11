@@ -2005,13 +2005,15 @@ fn auth_logical_cli_moves_identity_facts_between_file_databases() {
             [],
         )
         .unwrap();
-    source
-        .execute(
-            "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
-             VALUES('cli-identity', 'cli-human', 'email-code', 'cli@example.com', 2)",
-            [],
-        )
-        .unwrap();
+    crate::storage::insert_test_email_identity(
+        &source,
+        "cli-identity",
+        "cli-human",
+        "cli@example.com",
+        2,
+        false,
+    )
+    .unwrap();
     drop(source);
     {
         let mut target = crate::storage::LocalDatabase::open(&target_path).unwrap();

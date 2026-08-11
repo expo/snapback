@@ -3,6 +3,7 @@
 use super::auth::AuthCatalogState;
 use super::{LocalDatabase, current_version_on};
 use crate::auth::logical_transfer::{
+    AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V2, AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V3,
     AuthLogicalExportV1, AuthLogicalIdentityV1, AuthLogicalImportOutcomeV1,
     AuthLogicalPrincipalKindV1, AuthLogicalScopeBaseV1, AuthLogicalUserV1, logical_export_invalid,
     logical_identity_collision, logical_import_invalid, logical_target_not_empty,
@@ -11,7 +12,7 @@ use crate::diagnostic::SnapbackResult;
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use serde_json::Value;
 
-const AUTH_LOGICAL_TABLES: &[&str] = &[
+const AUTH_LOGICAL_TABLES_V2: &[&str] = &[
     "_auth_users",
     "_auth_identities",
     "_auth_sessions",
@@ -25,15 +26,30 @@ const AUTH_LOGICAL_TABLES: &[&str] = &[
     "_auth_scope_bases",
 ];
 
+const AUTH_LOGICAL_TABLES_V3_EXTRA: &[&str] = &[
+    "_auth_credentials",
+    "_auth_password_credentials",
+    "_auth_passkey_credentials",
+    "_auth_recovery_code_sets",
+    "_auth_recovery_codes",
+    "_auth_assurances",
+    "_auth_provisioning_receipts",
+    "_auth_security_events",
+];
+
 impl LocalDatabase {
     /// Read the exact included rows from one SQLite snapshot. The artifact's
     /// closed type has no field for any excluded authority class.
     pub(crate) fn auth_logical_export(&self) -> SnapbackResult<AuthLogicalExportV1> {
-        if self.inspect_auth_catalog()? != AuthCatalogState::ReadyV2 {
-            return Err(logical_export_invalid(
-                "logical auth export requires an exact current catalog version 2",
-            ));
-        }
+        let catalog_version = match self.inspect_auth_catalog()? {
+            AuthCatalogState::ReadyV2 => AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V2,
+            AuthCatalogState::ReadyV3 => AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V3,
+            _ => {
+                return Err(logical_export_invalid(
+                    "logical auth export requires an exact catalog version 2 or 3",
+                ));
+            }
+        };
         super::with_pinned_read_snapshot(&self.conn, |conn| {
             let users = {
                 let mut statement = conn.prepare(
@@ -69,21 +85,58 @@ impl LocalDatabase {
                     .collect::<Result<Vec<_>, _>>()?
             };
             let identities = {
-                let mut statement = conn.prepare(
-                    "SELECT id, user_id, provider, subject, verified_at_ms
-                     FROM _auth_identities ORDER BY id",
-                )?;
-                statement
-                    .query_map([], |row| {
-                        Ok(AuthLogicalIdentityV1 {
-                            id: row.get(0)?,
-                            user_id: row.get(1)?,
-                            provider: row.get(2)?,
-                            subject: row.get(3)?,
-                            verified_at_ms: row.get(4)?,
-                        })
-                    })?
-                    .collect::<Result<Vec<_>, _>>()?
+                if catalog_version == AUTH_LOGICAL_EXPORT_CATALOG_VERSION_V3 {
+                    let mut statement = conn.prepare(
+                        "SELECT id, user_id, kind, provider, issuer, subject,
+                                canonical_value, verified_at_ms, disabled_at_ms
+                         FROM _auth_identities ORDER BY id",
+                    )?;
+                    statement
+                        .query_map([], |row| {
+                            let kind = row.get::<_, String>(2)?;
+                            let provider = row.get::<_, String>(3)?;
+                            let issuer = row.get::<_, Option<String>>(4)?;
+                            let subject = row.get::<_, String>(5)?;
+                            let canonical_value = row.get::<_, Option<String>>(6)?;
+                            let disabled_at_ms = row.get::<_, Option<u64>>(8)?;
+                            let Some((expected_kind, expected_canonical)) =
+                                format_one_v3_identity_descriptor(&provider, &subject)
+                            else {
+                                return Err(rusqlite::Error::InvalidQuery);
+                            };
+                            if kind != expected_kind
+                                || issuer.is_some()
+                                || canonical_value.as_deref() != expected_canonical
+                                || disabled_at_ms.is_some()
+                            {
+                                return Err(rusqlite::Error::InvalidQuery);
+                            }
+                            Ok(AuthLogicalIdentityV1 {
+                                id: row.get(0)?,
+                                user_id: row.get(1)?,
+                                provider,
+                                subject,
+                                verified_at_ms: row.get(7)?,
+                            })
+                        })?
+                        .collect::<Result<Vec<_>, _>>()?
+                } else {
+                    let mut statement = conn.prepare(
+                        "SELECT id, user_id, provider, subject, verified_at_ms
+                         FROM _auth_identities ORDER BY id",
+                    )?;
+                    statement
+                        .query_map([], |row| {
+                            Ok(AuthLogicalIdentityV1 {
+                                id: row.get(0)?,
+                                user_id: row.get(1)?,
+                                provider: row.get(2)?,
+                                subject: row.get(3)?,
+                                verified_at_ms: row.get(4)?,
+                            })
+                        })?
+                        .collect::<Result<Vec<_>, _>>()?
+                }
             };
             let scope_bases = {
                 let mut statement = conn.prepare(
@@ -107,7 +160,7 @@ impl LocalDatabase {
                     })?
                     .collect::<Result<Vec<_>, _>>()?
             };
-            AuthLogicalExportV1::new(users, identities, scope_bases)
+            AuthLogicalExportV1::new(catalog_version, users, identities, scope_bases)
         })
         .map_err(|_| {
             logical_export_invalid(
@@ -128,12 +181,26 @@ impl LocalDatabase {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        if super::auth::inspect_auth_catalog_on(&tx)? != AuthCatalogState::ReadyV2 {
+        let target_catalog = super::auth::inspect_auth_catalog_on(&tx)?;
+        if !matches!(
+            target_catalog,
+            AuthCatalogState::ReadyV2 | AuthCatalogState::ReadyV3
+        ) {
             return Err(logical_import_invalid(
-                "logical auth import requires an exact current catalog version 2",
+                "logical auth import requires an exact catalog version 2 or 3",
             ));
         }
-        require_empty_auth_target(&tx)?;
+        require_empty_auth_target(&tx, target_catalog)?;
+
+        if target_catalog == AuthCatalogState::ReadyV3
+            && artifact.identities.iter().any(|identity| {
+                format_one_v3_identity_descriptor(&identity.provider, &identity.subject).is_none()
+            })
+        {
+            return Err(logical_import_invalid(
+                "logical auth import contains an identity descriptor that format 1 cannot map to catalog version 3",
+            ));
+        }
 
         for user in &artifact.users {
             tx.execute(
@@ -175,17 +242,51 @@ impl LocalDatabase {
             }
         }
         for identity in &artifact.identities {
-            let inserted = tx.execute(
-                "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
-                 VALUES(?1, ?2, ?3, ?4, ?5)",
-                params![
-                    identity.id,
-                    identity.user_id,
-                    identity.provider,
-                    identity.subject,
-                    identity.verified_at_ms,
-                ],
-            );
+            let inserted = if target_catalog == AuthCatalogState::ReadyV3 {
+                // Format 1 predates v3's explicit identity kind and canonical
+                // value. Preserve the two built-in provider semantics; other
+                // provider subjects remain external identity links.
+                //
+                // @ref LLP 0214#35-identity-link-relation — v3 imports write
+                // the complete non-null identity descriptor without treating
+                // provider subjects as credentials.
+                let (kind, canonical_value) =
+                    format_one_v3_identity_descriptor(&identity.provider, &identity.subject)
+                        .ok_or_else(|| {
+                            logical_import_invalid(
+                                "logical auth import contains an identity descriptor that format 1 cannot map to catalog version 3",
+                            )
+                        })?;
+                tx.execute(
+                    "INSERT INTO _auth_identities(
+                       id, user_id, kind, provider, issuer, subject,
+                       canonical_value, created_at_ms, verified_at_ms,
+                       disabled_at_ms
+                     ) VALUES(?1, ?2, ?3, ?4, NULL, ?5, ?6, ?7, ?7, NULL)",
+                    params![
+                        identity.id,
+                        identity.user_id,
+                        kind,
+                        identity.provider,
+                        identity.subject,
+                        canonical_value,
+                        identity.verified_at_ms,
+                    ],
+                )
+            } else {
+                tx.execute(
+                    "INSERT INTO _auth_identities(
+                       id, user_id, provider, subject, verified_at_ms
+                     ) VALUES(?1, ?2, ?3, ?4, ?5)",
+                    params![
+                        identity.id,
+                        identity.user_id,
+                        identity.provider,
+                        identity.subject,
+                        identity.verified_at_ms,
+                    ],
+                )
+            };
             if let Err(error) = inserted {
                 if matches!(
                     error.sqlite_error_code(),
@@ -235,8 +336,32 @@ impl LocalDatabase {
     }
 }
 
-fn require_empty_auth_target(conn: &rusqlite::Connection) -> SnapbackResult<()> {
-    for table in AUTH_LOGICAL_TABLES {
+/// Format 1 predates catalog-v3 identity descriptors. These are the only
+/// provider spellings whose v3 kind/canonical fields are fully implied by the
+/// format-1 row; all others must fail closed instead of being guessed.
+fn format_one_v3_identity_descriptor<'a>(
+    provider: &str,
+    subject: &'a str,
+) -> Option<(&'static str, Option<&'a str>)> {
+    match provider {
+        "email-code" => Some(("email", Some(subject))),
+        "local-password" => Some(("username", Some(subject))),
+        "agent-credential" => Some(("external", None)),
+        _ => None,
+    }
+}
+
+fn require_empty_auth_target(
+    conn: &rusqlite::Connection,
+    catalog: AuthCatalogState,
+) -> SnapbackResult<()> {
+    for table in AUTH_LOGICAL_TABLES_V2.iter().copied().chain(
+        (catalog == AuthCatalogState::ReadyV3)
+            .then_some(AUTH_LOGICAL_TABLES_V3_EXTRA)
+            .into_iter()
+            .flatten()
+            .copied(),
+    ) {
         let sql = format!("SELECT EXISTS(SELECT 1 FROM \"{table}\" LIMIT 1)");
         if conn.query_row(&sql, [], |row| row.get::<_, bool>(0))? {
             return Err(logical_target_not_empty());
@@ -302,10 +427,13 @@ mod tests {
                 "INSERT INTO _auth_users(id, created_at_ms) VALUES('human-1', 10)",
                 [],
             )?;
-            tx.execute(
-                "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
-                 VALUES('identity-human', 'human-1', 'email-code', 'owner@example.com', 11)",
-                [],
+            crate::storage::insert_test_email_identity(
+                tx,
+                "identity-human",
+                "human-1",
+                "owner@example.com",
+                11,
+                false,
             )?;
             Ok(())
         })
@@ -347,10 +475,13 @@ mod tests {
                 "UPDATE _auth_users SET deactivated_at_ms = 20 WHERE id = 'agent-unowned'",
                 [],
             )?;
-            tx.execute(
-                "INSERT INTO _auth_identities(id, user_id, provider, subject, verified_at_ms)
-                 VALUES('identity-agent', 'agent-owned', 'agent-credential', 'dead-credential-id', 12)",
-                [],
+            crate::storage::insert_test_external_identity(
+                tx,
+                "identity-agent",
+                "agent-owned",
+                "agent-credential",
+                "dead-credential-id",
+                12,
             )?;
             tx.execute(
                 "INSERT INTO _auth_scope_bases(function_id, kind, generation, present, authority_creating)
@@ -358,14 +489,17 @@ mod tests {
                 [],
             )?;
             // Planted authority and secrets must have no representable export slot.
-            tx.execute(
-                "INSERT INTO _auth_sessions(
-                   id, user_id, identity_id, authority_instance_id, token_hash,
-                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                   absolute_expires_at_ms, revoked_at_ms
-                 ) VALUES('session-secret-marker', 'human-1', 'identity-human',
-                          'authority-secret-marker', ?1, 1, 11, 11, 90, 100, NULL)",
-                params![vec![0x11_u8; 32]],
+            crate::storage::insert_test_identity_session(
+                tx,
+                "session-secret-marker",
+                "human-1",
+                "identity-human",
+                "authority-secret-marker",
+                &[0x11_u8; 32],
+                11,
+                11,
+                90,
+                100,
             )?;
             tx.execute(
                 "INSERT INTO _auth_session_tokens(token_hash, session_id, superseded_at_ms)
@@ -501,6 +635,64 @@ mod tests {
             )
             .unwrap();
         assert_eq!(unowned, (None, Some(20)));
+    }
+
+    #[test]
+    fn logical_v3_transfer_refuses_identity_descriptors_format_one_cannot_preserve() {
+        let source = seed_source();
+        source
+            .conn
+            .execute(
+                "UPDATE _auth_identities SET disabled_at_ms = 12
+                 WHERE id = 'identity-human'",
+                [],
+            )
+            .unwrap();
+        assert_eq!(
+            source.auth_logical_export().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_LOGICAL_EXPORT_INVALID"
+        );
+
+        source
+            .conn
+            .execute(
+                "UPDATE _auth_identities
+                 SET kind = 'external', provider = 'future-provider',
+                     canonical_value = NULL, disabled_at_ms = NULL
+                 WHERE id = 'identity-human'",
+                [],
+            )
+            .unwrap();
+        assert_eq!(
+            source.auth_logical_export().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_LOGICAL_EXPORT_INVALID"
+        );
+
+        let mut artifact = seed_source().auth_logical_export().unwrap();
+        let identity = artifact
+            .identities
+            .iter_mut()
+            .find(|identity| identity.id == "identity-human")
+            .unwrap();
+        identity.provider = "future-provider".to_owned();
+        let mut target = ready_database();
+        assert_eq!(
+            target
+                .auth_logical_import(&artifact)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_LOGICAL_IMPORT_INVALID"
+        );
+        assert_eq!(
+            target
+                .conn
+                .query_row("SELECT COUNT(*) FROM _auth_users", [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .unwrap(),
+            0
+        );
     }
 
     #[test]

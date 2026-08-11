@@ -1747,7 +1747,7 @@ examples: [src/storage/auth_logical_transfer.rs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-10
+reviewed: 2026-08-11
 reviewed-commit: HEAD
 ---
 
@@ -1776,12 +1776,19 @@ snapback auth export \
   --output auth-logical.json
 ```
 
-The command requires an exact current auth catalog (version 2), takes the
-database instance lock, reads one SQLite snapshot, and refuses to overwrite an
-existing output path. The format is
-`snapback.auth-logical-export.v1`; every row set is deterministically sorted
-and validated against the generated
+The command requires an exact auth catalog (version 2 or 3), takes the database
+instance lock, reads one SQLite snapshot, and refuses to overwrite an existing
+output path. Fresh catalogs use version 3; exact version-2 catalogs remain
+supported without migration. The format is `snapback.auth-logical-export.v1`,
+and its `authCatalogVersion` records whether the source was version 2 or 3.
+Every row set is deterministically sorted and validated against the generated
 `schemas/auth.logical-export.v1.schema.json` shape.
+
+Format 1 can reconstruct the current email-code, local-password, and
+agent-credential identity descriptors exactly. Export refuses disabled links
+or any other v3 descriptor rather than guessing at kind, issuer, canonical
+value, or enabled state; import applies the same fail-closed mapping rule for a
+v3 target.
 
 The artifact includes:
 
@@ -1813,8 +1820,9 @@ registration provenance can still be sensitive.
 ## Import into a fresh auth catalog
 
 Prepare the destination through the app's normal sessions-mode activation, so
-its database already contains an exact version-2 auth catalog but no auth rows.
-Stop that server, then import:
+its database already contains an exact auth catalog but no auth rows. Fresh
+destinations use version 3; an exact version-2 destination remains supported
+without migration. Stop that server, then import:
 
 ```sh
 snapback auth import \

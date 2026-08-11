@@ -17,7 +17,9 @@ use crate::auth::service_authority_contract::{
     ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition, ServiceAuthorityWitness,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::storage::auth::{AuthTransactionAttempt, ServiceAuthTransactionAttempt};
+use crate::storage::auth::{
+    AuthCatalogState, AuthTransactionAttempt, ServiceAuthTransactionAttempt,
+};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde_json::Value;
 use std::collections::BTreeSet;
@@ -1555,12 +1557,26 @@ pub(super) fn issue_initial_agent_credential_on(
         params![credential_id, user_id, hash.as_bytes(), now_ms as i64],
     )
     .map_err(map_live_credential_constraint)?;
-    tx.execute(
-        "INSERT INTO _auth_identities(
-           id, user_id, provider, subject, verified_at_ms
-         ) VALUES(?1, ?2, 'agent-credential', ?3, ?4)",
-        params![identity_id, user_id, credential_id, now_ms as i64],
-    )?;
+    if super::auth::inspect_auth_catalog_on(tx)? == AuthCatalogState::ReadyV3 {
+        // @ref LLP 0214#35-identity-link-relation — the carried LLP 0055
+        // agent-credential link is an external identity in v3; the actual
+        // credential material remains in `_auth_agent_credentials`.
+        tx.execute(
+            "INSERT INTO _auth_identities(
+               id, user_id, kind, provider, issuer, subject, canonical_value,
+               created_at_ms, verified_at_ms, disabled_at_ms
+             ) VALUES(?1, ?2, 'external', 'agent-credential', NULL, ?3, NULL,
+                      ?4, ?4, NULL)",
+            params![identity_id, user_id, credential_id, now_ms as i64],
+        )?;
+    } else {
+        tx.execute(
+            "INSERT INTO _auth_identities(
+               id, user_id, provider, subject, verified_at_ms
+             ) VALUES(?1, ?2, 'agent-credential', ?3, ?4)",
+            params![identity_id, user_id, credential_id, now_ms as i64],
+        )?;
+    }
     Ok(IssuedAgentCredential {
         credential_id: credential_id.to_owned(),
         user_id: user_id.to_owned(),

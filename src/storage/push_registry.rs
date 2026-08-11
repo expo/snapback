@@ -232,31 +232,29 @@ impl LocalDatabase {
                 "INSERT OR IGNORE INTO _auth_users(id, created_at_ms) VALUES(?1, 0)",
                 params![principal_id],
             )?;
-            tx.execute(
-                "INSERT OR IGNORE INTO _auth_identities(
-                   id, user_id, provider, subject, verified_at_ms
-                 ) VALUES(?1, ?2, 'email-code', ?3, 0)",
-                params![
-                    identity_id,
-                    principal_id,
-                    format!("user-{discriminator}@example.com")
-                ],
+            super::insert_test_email_identity(
+                tx,
+                &identity_id,
+                principal_id,
+                &format!("user-{discriminator}@example.com"),
+                0,
+                true,
+            )?;
+            super::insert_test_identity_session(
+                tx,
+                session_id,
+                principal_id,
+                &identity_id,
+                &format!("authority-{discriminator}"),
+                &[discriminator; 32],
+                0,
+                0,
+                expires_at_ms,
+                expires_at_ms,
             )?;
             tx.execute(
-                "INSERT INTO _auth_sessions(
-                   id, user_id, identity_id, authority_instance_id, token_hash,
-                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                   absolute_expires_at_ms, revoked_at_ms
-                 ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, ?7, NULL)",
-                params![
-                    session_id,
-                    principal_id,
-                    identity_id,
-                    format!("authority-{discriminator}"),
-                    vec![discriminator; 32],
-                    generation as i64,
-                    expires_at_ms as i64,
-                ],
+                "UPDATE _auth_sessions SET generation = ?1 WHERE id = ?2",
+                params![generation as i64, session_id],
             )?;
             Ok(())
         })

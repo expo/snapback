@@ -453,34 +453,25 @@ mod tests {
                 "INSERT INTO _auth_users(id, created_at_ms) VALUES(?1, ?2)",
                 params!["user_1", NOW as i64 - 1],
             )?;
-            tx.execute(
-                "INSERT INTO _auth_identities(
-                   id, user_id, provider, subject, verified_at_ms
-                 ) VALUES(?1, ?2, ?3, ?4, ?5)",
-                params![
-                    "identity_1",
-                    "user_1",
-                    "email-code",
-                    "lease@example.test",
-                    NOW as i64 - 1,
-                ],
+            crate::storage::insert_test_email_identity(
+                tx,
+                "identity_1",
+                "user_1",
+                "lease@example.test",
+                NOW - 1,
+                false,
             )?;
-            tx.execute(
-                "INSERT INTO _auth_sessions(
-                   id, user_id, identity_id, authority_instance_id, token_hash,
-                   generation, created_at_ms, last_used_at_ms, expires_at_ms,
-                   absolute_expires_at_ms, revoked_at_ms
-                 ) VALUES(?1, ?2, ?3, ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)",
-                params![
-                    SESSION_ID,
-                    "user_1",
-                    "identity_1",
-                    "01890f3c-9d5b-7000-8000-000000000004",
-                    vec![0x71_u8; 32],
-                    NOW as i64 - 1,
-                    (NOW + AUTHORIZED_LEASE_HARD_MAX_MS) as i64,
-                    (NOW + AUTHORIZED_LEASE_HARD_MAX_MS * 2) as i64,
-                ],
+            crate::storage::insert_test_identity_session(
+                tx,
+                SESSION_ID,
+                "user_1",
+                "identity_1",
+                "01890f3c-9d5b-7000-8000-000000000004",
+                &[0x71_u8; 32],
+                NOW - 1,
+                NOW - 1,
+                NOW + AUTHORIZED_LEASE_HARD_MAX_MS,
+                NOW + AUTHORIZED_LEASE_HARD_MAX_MS * 2,
             )?;
             Ok(())
         })
