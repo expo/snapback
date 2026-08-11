@@ -5,7 +5,14 @@
 **Systems:** Testing, CI, Packaging, Documentation, Developer experience, LLP governance
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-07
-**Revised:** 2026-08-07 (round-1 dual-family review amendments — mechanism
+**Revised:** 2026-08-10 (D-8 coverage-shape amendment, author-directed in
+session, Charlie Cheever: system behavior is a cross-product of axes while
+tests and docs pin points; two same-day defects from Diary 0074's probe sat
+in uncovered cells — sessions-mode 3× frame delivery, shipping in card-game,
+and the keyed-surface ephemeral-link omission. D-8 adds cross-cell parity
+evidence on the battery cadence, named boot refusals for combinations a
+construction path cannot serve, and cell-explicit claim scopes. D-1–D-7
+unchanged.) 2026-08-07 (round-1 dual-family review amendments — mechanism
 tightening only; the cadence ruling is unchanged: D-1 signature-keyed tickets,
 claim cross-references, and escalation; D-3 mandatory demotion window,
 scope-edit rule, and battery-red triage; D-4 semantic-role scoping, gate
@@ -199,6 +206,42 @@ and LLP 0175 D2.4's exact-current telemetry authority for frozen release
 candidates under LLP 0154's trust contract), that protocol stands as written
 until separately amended. The default is this
 decision; extra strictness is opt-in per claim, never ambient.
+
+**D-8 — Coverage shape: axes, cells, and parity evidence (added 2026-08-10,
+author-directed in session, Charlie Cheever).** Snapback's observable
+behavior is a cross-product of orthogonal axes — server auth mode
+(dev/sessions), live-query family (declarative/JS), scope construction
+(unkeyed/keyed), client arm, transport — while tests, demos, and guide pages
+naturally pin *points* in that space. Defects then accumulate in the
+uncovered cells and ship silently: on 2026-08-10 a single small probe app
+surfaced two same-day instances — sessions-mode live updates delivered as
+three byte-identical frames (present in the shipped `card-game` demo;
+unnoticed because nothing counted frames in the sessions cell —
+`issues/20260810-sessions-live-updates-delivered-three-times.md`), and the
+keyed Contract surface omitting the generated ephemeral link family
+(unnoticed because nothing booted that composition; fixed with
+`SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED`, LLP 0034 §10.11). The ruling has
+three parts:
+
+1. *Cross-cell observables carry parity evidence.* A small parity-harness
+   class in the canonical inventory runs one app across the axis cells and
+   asserts the observables that must not vary or must match spec across
+   cells: frames per commit version per subscription, envelope kind where
+   the wire contract (LLP 0094) specifies it, the link families a surface
+   construction returns, and teardown (a disposed subscription actually
+   unregisters). It runs on the D-1 battery cadence; D-2 is unchanged —
+   parity is battery evidence, not a landing gate.
+2. *Unproven combinations refuse by name.* When a construction path cannot
+   serve a declared combination of axis values, it refuses at boot with a
+   stable `SNAPBACK_*` diagnostic naming the combination and what is
+   missing (the pattern of `SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED` and
+   the keyed-offline refusals), rather than degrading silently. Silent
+   degradation across an axis is a defect class, not a documentation gap.
+3. *Claims are cell-explicit.* A capability claim's D-4 scope names the
+   cells its evidence actually exercised; evidence from one cell never
+   extends a claim to another (a dev-mode proof says nothing about sessions
+   mode unless the scope says so). This is D-4 scoping applied along axes,
+   not a new digest mechanism.
 
 ## Consequences
 
