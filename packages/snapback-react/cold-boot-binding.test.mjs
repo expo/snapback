@@ -399,4 +399,27 @@ try {
   globalThis.fetch = originalFetch;
 }
 
+// --- With no admitted receipt, binding preparation retains the attempted
+// --- origin and phase instead of leaking the browser's bare `Failed to fetch`.
+globalThis.fetch = async () => { throw new TypeError('Failed to fetch'); };
+try {
+  const attemptedOrigin = 'http://127.0.0.1:4291';
+  const unreachable = createExternalSessionClient(attemptedOrigin, {
+    bearerToken: BEARER,
+    rqsStore: createMemoryRqsResumeStore(),
+  });
+  await assert.rejects(
+    () => unreachable.prepareReactBinding({ generatedManifest }),
+    (error) => error?.code === 'SNAPBACK_REACT_BINDING_ORIGIN_UNREACHABLE'
+      && error.diagnostic?.code === 'SNAPBACK_REACT_BINDING_ORIGIN_UNREACHABLE'
+      && error.diagnostic?.details?.origin === attemptedOrigin
+      && error.diagnostic?.details?.attemptedOrigin === attemptedOrigin
+      && error.diagnostic?.details?.phase === 'application-binding-preparation'
+      && error.cause?.fetchDispatchFailed === true,
+    'an unreachable explicit origin reports the attempted target and binding-preparation phase',
+  );
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
 console.log('snapback-react cold-boot binding tests: ok');

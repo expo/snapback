@@ -158,12 +158,18 @@ preparing the React provider, as described in
 [native auth](../auth/native-apps.md):
 
 ```tsx source=demos/tandem-expo-bakeoff/snapback/src/backend.tsx
-      const client = createExternalSessionClient(origin, { bearerToken: brokerPayload.bearerToken });
+      activeServerOrigin = brokerPayload.serverOrigin;
+      const client = createExternalSessionClient(brokerPayload.serverOrigin, { bearerToken: brokerPayload.bearerToken });
       const binding = await client.prepareReactBinding({
         generatedManifest: { schema, functions, capabilityManifest },
       });
       return { status: 'ready' as const, client, provider: createSnapbackReactProvider(binding) };
 ```
+
+That broker response carries the stack-selected public backend origin beside
+the bearer. A dynamic development port must come from the target's ready
+descriptor or this kind of stack-owned carrier, never an app-owned fixed
+fallback.
 
 The client flow is: create an attempt (the generated reference plus the
 declared byte length — deferred length refuses), transfer bytes over TUS

@@ -91,7 +91,7 @@ impl<'a> GenerationActivation<'a> {
 
         if let Err(error) = self
             .snapback
-            .generation_database_mut()
+            .generation_commit_ops()
             .commit_function_generation(CommitFunctionGeneration {
                 manifest: manifest.clone(),
                 trusted_active_generation,
@@ -108,14 +108,14 @@ impl<'a> GenerationActivation<'a> {
             self.snapback.publish_generation_ephemeral_collections();
         }
         self.snapback
-            .generation_database_mut()
+            .generation_commit_ops()
             .install_committed_sequence_declarations(sequence_declarations);
         // @ref LLP 0204#d91--streaming-conversations — the protected
         // transcript table exists iff this exact generation carries at least
         // one streaming action or the active schema enables D5 ask.
         if let Err(error) = self
             .snapback
-            .generation_database_mut()
+            .generation_commit_ops()
             .activate_stream_transcript_manifest(&manifest)
         {
             diagnostics.push(error.diagnostic);
@@ -158,7 +158,7 @@ impl<'a> GenerationActivation<'a> {
         // storage kernel materializes the remaining plans after DDL/seed in
         // that same composite transaction.
         let can_materialize_before_commit =
-            seed.is_none() && self.snapback.generation_database_mut().schema() == &schema;
+            seed.is_none() && self.snapback.generation_commit_ops().schema() == &schema;
         let projection_publications = if can_materialize_before_commit {
             Self::materialize_projection_publications(self.snapback, &functions, &mut diagnostics)
                 .map_err(ModeCommitFailure::RolledBack)?
@@ -176,7 +176,7 @@ impl<'a> GenerationActivation<'a> {
                 .map_err(ModeCommitFailure::RolledBack)?;
         let committed = self
             .snapback
-            .generation_database_mut()
+            .generation_commit_ops()
             .apply_same_mode_network_deployment_with_functions_classified(
                 deployment,
                 schema,
@@ -201,7 +201,7 @@ impl<'a> GenerationActivation<'a> {
         }
         self.snapback.publish_generation_ephemeral_collections();
         self.snapback
-            .generation_database_mut()
+            .generation_commit_ops()
             .install_committed_sequence_declarations(sequence_declarations);
         self.snapback
             .compose_function_generation_successor(functions, order_field_bounds);
@@ -232,7 +232,7 @@ impl<'a> GenerationActivation<'a> {
         let mut publications = Vec::new();
         for plan in &manifest.projections {
             if let Some(publication) = snapback
-                .generation_database_mut()
+                .generation_commit_ops()
                 .rebuild_projection_if_stale(plan, "activation")?
             {
                 diagnostics.push(Self::projection_rebuilt_diagnostic(&publication));

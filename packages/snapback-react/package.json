@@ -16,6 +16,10 @@
   "keywords": ["snapback", "backend", "react", "react-native"],
   "files": [
     "README.md",
+    "core.d.mts",
+    "core.mjs",
+    "full-capabilities.mjs",
+    "implementation.mjs",
     "index.d.mts",
     "index.mjs",
     "react-runtime.mjs",
@@ -26,6 +30,10 @@
     ".": {
       "types": "./index.d.mts",
       "import": "./index.mjs"
+    },
+    "./core": {
+      "types": "./core.d.mts",
+      "import": "./core.mjs"
     },
     "./thumbhash": {
       "types": "./thumbhash.d.mts",

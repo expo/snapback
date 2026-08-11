@@ -9,6 +9,7 @@ import {
   assessMetroWatchInertness,
   expoMetroChildEnvironment,
   expoSupervisorChildEnvironment,
+  resolveExpoMetroCommand,
 } from './expo-dev.mjs';
 
 const watchCapableDirectory = '/snapback/project';
@@ -58,6 +59,19 @@ for (const ci of ['1', 'true', '0', 'false', '']) {
     'the supervisor must preserve every explicit caller CI value',
   );
 }
+
+const webCommand = resolveExpoMetroCommand(null, 19006, 'web');
+assert.deepEqual(
+  webCommand.args,
+  ['--no-install', 'expo', 'start', '--localhost', '--port', '19006', '--web'],
+  'the first-class web selection launches Expo web through the supervised Metro arm',
+);
+assert.match(webCommand.display, /expo start .* --web$/u);
+assert.equal(
+  resolveExpoMetroCommand(null, 19006, 'ios').args.includes('--web'),
+  false,
+  'native defaults keep their existing Expo start command',
+);
 
 const defaulted = assessMetroWatchInertness({ env: {}, directory: watchCapableDirectory });
 assertFrozen(defaulted);

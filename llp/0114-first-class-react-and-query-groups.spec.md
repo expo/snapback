@@ -5,7 +5,10 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-09 (LLP 0210 §D1 registers `useSnapbackAssetUrl` as a named projection over the framework-neutral issued-URL store; no React-owned refresh state); 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-06 (descriptor-mode cold retained boot: the existing
+**Revised:** 2026-08-10 (static React core composition: the package root
+remains the Full synchronous surface/command/asset composition, while
+`@expo/snapback-react/core` selects the same provider registry owner without
+those optional capabilities; see the dated section); 2026-08-09 (LLP 0210 §D1 registers `useSnapbackAssetUrl` as a named projection over the framework-neutral issued-URL store; no React-owned refresh state); 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-06 (descriptor-mode cold retained boot: the existing
 binding receipt now carries a compact admitted deployment projection for an
 exact AppDescriptor, so descriptor preparation reuses the same process-cold
 receipt/RQS machinery and same typed mismatch refusal; no surface cache,
@@ -1227,6 +1230,36 @@ stores, manager work, listener registrations, and timers, then unregisters
 its barrier participant. No `disposeClient` option exists. A second provider
 may borrow the same client, but has a distinct registry, participant,
 provider-instance identity, caps, and inspection surface.
+
+### Static core capability composition (dated amendment 2026-08-10)
+
+React capability selection is static without adding another store owner.
+`@expo/snapback-react/core` constructs its provider over this section's same
+`createRegistry` implementation, prepared binding, canonical query stores,
+presence rooms, optimistic layers (including `useSnapbackOptimisticCreate`),
+outbox projection, barrier participant, and disposal protocol. Its provider
+facade deliberately has no `surface`, `assets`, `assetSourceAdapter`, or
+command-task inspection member. The root `@expo/snapback-react` entry remains
+the Full compatibility composition and decorates that owner with the existing
+synchronous surface, command, and asset projections.
+
+The Full entry initializes command and asset factories statically before any
+provider can be constructed. Therefore `provider.surface(...)`, command
+`start()`/`retry()`, and asset hooks keep their existing synchronous contracts;
+there is no asynchronous import, proxy task, or second registry. The narrow
+entry reaches prepared-binding admission through
+`@expo/snapback-client/react-binding` plus the existing canonical-value
+subpath, rather than through the client's root barrel. This makes
+`commands.mjs`, `assets.mjs`, and the root-only React capability module absent
+from its literal bundle graph.
+
+The package root's export surface and behavior remain compatible. The core
+entry exports the provider, query/group, mutation, optimistic-create,
+presence, outbox, connection, and framework-neutral observer seams, and omits
+surface/command/asset and root-only lifecycle exports. Metrology carries three
+negative core profiles plus one Full positive profile; the package test also
+constructs a core provider, proves one shared server subscription, and proves
+the optional provider members are absent.
 
 ### Closed connection and cancellation protocol
 

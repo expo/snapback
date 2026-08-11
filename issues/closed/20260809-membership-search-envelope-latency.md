@@ -35,8 +35,12 @@ regression gate (anchor-index token-range SEARCH, no terms SCAN),
 (4,000 rows / ~21k-term partition; best-of-5 56.4 ms debug, equal within
 noise to pre-fix at this deliberately CI-sized fixture where release
 re-derivation dominates), and a broad-match 2,000-row release-path
-budget test; full `search::sqlite` module green. Residual
-follow-through, tracked in LLP 0221 §Execution log: an envelope-scale
-measured before/after, and the Clique 10k-message/166k-action pilot
-probe rerun at the next Clique run (O5 ceilings calibrate near these
-numbers).
+budget test; full `search::sqlite` module green.
+
+Envelope-scale before/after (post-landing, same machine/toolchain,
+debug, best-of-5, 24,000 rows / ~216k-term partition / 50 matches):
+pre-fix `ca7119ed5` 135.3 ms → fixed `4f7fe2ca7` 25.5 ms (5.3×). At
+this vocabulary the pre-fix substr scan dominates exactly as diagnosed.
+Remaining follow-through, tracked in LLP 0221 §Execution log: the
+Clique 10k-message/166k-action pilot probe rerun at the next Clique run
+(O5 ceilings calibrate near these numbers).

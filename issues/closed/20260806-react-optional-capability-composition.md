@@ -1,6 +1,6 @@
 # React core profiles retain optional surface, command, and asset capability mass
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 2
@@ -41,3 +41,30 @@ entry and synchronous command task semantics.
 Add positive and negative metrology profiles proving the chosen narrow entry
 excludes surface, command, and asset modules. Do not mutate the historical
 client-bundle receipts; record any new entry prospectively.
+
+## Resolution (2026-08-10)
+
+Added `@expo/snapback-react/core` as the static provider/query/mutation/
+optimistic-create/presence/outbox composition. It constructs over the same
+prepared-binding `createRegistry` owner as the Full package root but omits the
+surface, command, and asset provider decoration. The root remains compatible
+and preserves synchronous surface and command-task semantics. A narrow
+`@expo/snapback-client/react-binding` subpath prevents the core composition
+from reaching the client's Full barrel.
+
+Metrology now carries three negative core profiles and one positive Full
+profile. All core closures retain the shared React implementation and
+literally exclude `full-capabilities.mjs`, `commands.mjs`, and `assets.mjs`;
+the Full positive profile contains all three. Against the committed
+pre-change root profiles:
+
+- query: 114,826 → 61,681 minified (−53,145), 34,830 → 19,329 gzip
+  (−15,501), 30,450 → 16,951 Brotli (−13,499);
+- query + mutation: 115,001 → 62,605 minified (−52,396), 34,883 →
+  19,586 gzip (−15,297), 30,483 → 17,173 Brotli (−13,310).
+
+The Full compatibility profiles also tightened slightly, so no existing
+ceiling needs a rollover. Historical receipts remain byte-identical. The new
+profile set is declared for prospective
+`baseline.react-core-composition.v1.json`; source-bound receipt minting waits
+until the implementation and instrument have a reachable commit.

@@ -39,6 +39,10 @@ const MICRO_LIVE_MODULE = 'packages/snapback-client/micro-live.mjs';
 const STORE_RUNTIME_MODULE = 'packages/snapback-client/store-runtime.mjs';
 const REACT_RUNTIME_MODULE = 'packages/snapback-react/react-runtime.mjs';
 const REACT_BINDING_HMR_MODULE = 'packages/snapback-client/react-binding-hmr.mjs';
+const REACT_IMPLEMENTATION_MODULE = 'packages/snapback-react/implementation.mjs';
+const REACT_FULL_CAPABILITIES_MODULE = 'packages/snapback-react/full-capabilities.mjs';
+const COMMANDS_MODULE = 'packages/snapback-client/commands.mjs';
+const ASSETS_MODULE = 'packages/snapback-client/assets.mjs';
 const FINITE_CARRIER_MODULE = 'packages/snapback-client/finite-completeness-carrier.mjs';
 const MATERIALIZATION_RUNTIME_MODULE =
   'packages/snapback-client/materialization-store-runtime.mjs';
@@ -84,6 +88,10 @@ const SYNC_OWNED_CLIENT_SUBPATHS = new Set(Object.freeze([
   './rqs-store-expo',
   './rqs-store-default',
   './outbox-shared',
+  // This framework-adapter seam owns prepared-binding admission and its
+  // development-only generation handoff; it is narrow relative to the client
+  // root's optional command/assets exports, not to local-sync admission.
+  './react-binding',
 ]));
 
 const RESOLVED_NARROW_SUBPATH_EXPORTS = Object.freeze(
@@ -318,6 +326,33 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
     ]),
     behaviorCommands: Object.freeze([
       ['node', ['packages/snapback-client/remediation.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.react-core-composition.v1.json',
+    profileFilename: 'react-core-composition-profiles.v1.json',
+    profileIds: Object.freeze([
+      'react-core-application',
+      'react-core-capabilities-negative',
+      'react-core-query',
+      'react-full-capabilities-positive',
+      'public-subpath-react-binding',
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0114#prepared-binding-and-provider-ownership',
+      'LLP 0145#option-2--static-capability-modules-around-a-shared-kernel',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0179#no-second-owner',
+      'LLP 0180#react-and-surface-projections',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-react/optimistic-create.test.mjs']],
+      ['node', ['packages/snapback-react/surface.test.mjs']],
+      ['node', ['packages/snapback-react/commands.test.mjs']],
+      ['node', ['packages/snapback-react/assets.test.mjs']],
+      ['node', ['scripts/check-package-export-types.mjs']],
     ]),
   }),
 ]);
@@ -1802,6 +1837,65 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-react/offline.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.react-composition-merge-residue.v1.json',
+    profileFilename: 'sessions-custody-offline-queue-profiles.v1.json',
+    workloadVersion: 'react-composition-merge-residue.2026-08-10.v1',
+    profileIds: Object.freeze([
+      'public-subpath-react-binding',
+      'react-external',
+      'react-full-capabilities-positive',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.react-core-composition.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-react-binding',
+          'react-full-capabilities-positive',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.outbox-drain-controller.v1.json',
+        profileIds: Object.freeze(['react-external']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-10',
+      landing: '0fbdc5ff0688d1a9134eb1893bbd0448cb1bfb07',
+      classification: 'merge-composition residue across same-day landed features',
+      fix: 'The react-core composition receipt was minted pre-rebase; the '
+        + 'final merged tree composes it with the same-day optimistic-create '
+        + 'and outbox drain-controller landings, growing react-binding '
+        + '(+339 min), full-capabilities-positive (+189 min), and '
+        + 'react-external Brotli (+35). All three landings are receipted '
+        + 'features with their own rollovers; this entry ratifies only their '
+        + 'composition on the merged tree.',
+      ticket: 'issues/closed/20260806-react-optional-capability-composition.md',
+      standingPolicy: 'LLP 0145 Phase A, 2026-08-10 author ruling: attributed '
+        + 'growth from a landed, receipted fix takes an automatic blessed rollover.',
+      byteDeltas: 'public-subpath-react-binding min 65065->65404 (+339), gzip '
+        + '19570->19689 (+119), brotli 17322->17408 (+86); react-external '
+        + 'brotli 30484->30519 (+35), min/gzip unchanged; '
+        + 'react-full-capabilities-positive min 68023->68212 (+189), gzip '
+        + '22333->22409 (+76), brotli 19461->19530 (+69).',
+      summary: 'Ratify the merged-tree composition of the three same-day '
+        + 'receipted React landings; all other ceilings and both '
+        + 'predecessors remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'public-subpath-react-binding',
+      'react-external',
+      'react-full-capabilities-positive',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/package.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {
@@ -2049,6 +2143,18 @@ function profileSource(profile) {
       "  if (auth.principal !== 'fixture' || auth.permissions[0] !== 'read') throw new Error('root auth behavior changed');",
       "  if (root.SnapbackClient.roomPermission('room', { id: 1 }) !== 'room:2:id=1:1') throw new Error('root roomPermission behavior changed');",
       '  return Object.keys(root).length;',
+      '}',
+    ].join('\n');
+  }
+  if (profile.fixture === 'react-core-capabilities-negative') {
+    return [
+      "import * as core from '@expo/snapback-react/core';",
+      'export function __snapbackMetrologyBehavior() {',
+      "  for (const name of ['useSurface', 'useSnapbackCommand', 'invokeSnapbackCommand', 'useSnapbackAssetUrl', 'useSnapbackAssetUpload', 'useSnapbackAssetImage', 'SnapbackAssetImage']) {",
+      "    if (name in core) throw new Error(`optional React capability ${name} leaked into ./core`);",
+      '  }',
+      "  if (typeof core.createSnapbackReactProvider !== 'function' || typeof core.useSnapbackQuery !== 'function' || typeof core.useSnapbackOptimisticCreate !== 'function') throw new Error('React core composition is incomplete');",
+      '  return Object.keys(core).length;',
       '}',
     ].join('\n');
   }
@@ -2389,6 +2495,44 @@ function assertStoreRuntimeClosure(profiles) {
   }
 }
 
+function assertReactCoreComposition(profiles) {
+  const byId = new Map(profiles.map((profile) => [profile.id, profile]));
+  const coreProfiles = [
+    'react-core-application',
+    'react-core-capabilities-negative',
+    'react-core-query',
+  ].map((id) => byId.get(id));
+  const full = byId.get('react-full-capabilities-positive');
+  assert.ok(coreProfiles.every(Boolean) && full, 'React core composition profiles are present');
+  for (const profile of coreProfiles) {
+    assert.ok(
+      Object.hasOwn(profile.metafile.inputs, REACT_IMPLEMENTATION_MODULE),
+      `${profile.id}: retains the shared provider implementation`,
+    );
+    for (const forbidden of [
+      REACT_FULL_CAPABILITIES_MODULE,
+      COMMANDS_MODULE,
+      ASSETS_MODULE,
+    ]) {
+      assert.equal(
+        Object.hasOwn(profile.metafile.inputs, forbidden),
+        false,
+        `${profile.id}: excludes ${forbidden}`,
+      );
+    }
+  }
+  for (const required of [
+    REACT_FULL_CAPABILITIES_MODULE,
+    COMMANDS_MODULE,
+    ASSETS_MODULE,
+  ]) {
+    assert.ok(
+      Object.hasOwn(full.metafile.inputs, required),
+      `react-full-capabilities-positive: includes ${required}`,
+    );
+  }
+}
+
 function assertResolvedNarrowSubpathAbsence(profiles) {
   const executableExports = Object.keys(CLIENT_PACKAGE_MANIFEST.exports)
     .filter((key) => key !== './package.json')
@@ -2471,6 +2615,7 @@ async function measure() {
   assertExpoPushInstallationClosure(measured);
   assertMicroClosure(measured);
   assertResolvedNarrowSubpathAbsence(measured);
+  assertReactCoreComposition(measured);
   assertStoreRuntimeClosure(measured);
   return {
     schemaVersion: 'snapback.client-bundle-metrology.v1',

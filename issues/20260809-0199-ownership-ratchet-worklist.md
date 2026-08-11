@@ -142,6 +142,19 @@ unassigned-module freezes that drain with the local.rs remainder.
     local.rs drainage slice that assigns those modules or 2026-09-15,
     whichever comes first.
 
+**Relocation re-key 2026-08-10 (owner-#2 generation-commit slice):** the
+composite commit primitive moved from storage.rs into
+storage/generation_commit.rs, and the frozen `local.rs -> storage.rs`
+coupling's commit-primitive portion follows the moved code as `local.rs ->
+storage/generation_commit.rs` (unassigned->kernel, one edge; provenance:
+relocation — the wide `generation_database_mut` accessor was replaced by the
+narrow typed `GenerationCommitOps` accessor, which local.rs must name).
+Drains with the local.rs remainder like its sibling local.rs->storage/*
+entries. The same landing's unmanifested-module catch (#8-9:
+auth/identity_core.rs -> leaf, storage/auth_identity.rs -> kernel, from the
+961b8be8c auth-floor landing) added allowed downward edges only — no
+forbidden growth.
+
 8. **Waiver (time-bounded): `src/local.rs → src/connected_clients.rs`.**
    Genuinely new god-file-pattern coupling frozen 2026-08-10 at the
    connected-client landing, reclassified as a formal waiver by LLP 0225 §2

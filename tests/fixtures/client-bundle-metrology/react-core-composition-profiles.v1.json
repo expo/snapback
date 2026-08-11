@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "snapback.client-bundle-metrology-additive-profiles.v1",
+  "profiles": [
+    {
+      "id": "react-core-query",
+      "package": "@expo/snapback-react/core",
+      "imports": ["SnapbackProvider", "useSnapbackQuery"],
+      "uses": ["SnapbackProvider", "useSnapbackQuery"],
+      "external": ["react"]
+    },
+    {
+      "id": "react-core-application",
+      "package": "@expo/snapback-react/core",
+      "imports": ["SnapbackProvider", "useSnapbackMutation", "useSnapbackOptimisticCreate", "useSnapbackQuery"],
+      "uses": ["SnapbackProvider", "useSnapbackMutation", "useSnapbackOptimisticCreate", "useSnapbackQuery"],
+      "external": ["react"]
+    },
+    {
+      "id": "react-core-capabilities-negative",
+      "package": "@expo/snapback-react/core",
+      "fixture": "react-core-capabilities-negative",
+      "external": ["react"]
+    },
+    {
+      "id": "react-full-capabilities-positive",
+      "package": "@expo/snapback-react",
+      "imports": ["SnapbackAssetImage", "useSnapbackAssetUpload", "useSnapbackCommand", "useSurface"],
+      "uses": ["SnapbackAssetImage", "useSnapbackAssetUpload", "useSnapbackCommand", "useSurface"],
+      "external": ["react"]
+    }
+  ]
+}

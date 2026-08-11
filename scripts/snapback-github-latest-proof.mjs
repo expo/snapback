@@ -218,6 +218,20 @@ function runGhJson(args) {
   }
 }
 
+// gh transport failures (non-zero gh exit, non-JSON output) during run-state
+// POLLING are retryable inside the wait deadline: polling only observes, and
+// acceptance still requires an identity-bound successful readRun plus the
+// byte-exact collection reopen. Identity, freshness, and conclusion
+// judgments are never classified as transient.
+export function isTransientGithubTransportError(error) {
+  return typeof error?.message === 'string'
+    && (
+      /^snapback-github-latest-proof: gh \S+ failed with /u.test(error.message)
+      || /^snapback-github-latest-proof: gh \S+ returned non-JSON output$/u
+        .test(error.message)
+    );
+}
+
 function writePrivateAtomic(path, bytes) {
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
   const temporary = `${path}.tmp-${process.pid}-${randomUUID()}`;
@@ -341,16 +355,23 @@ async function discoverRun(options, dispatchStartedAt) {
   const deadline = Date.now() + Math.min(options.timeoutMs, 90_000);
   const expectedTitle = `public-package-proof-${options.operationId}`;
   while (Date.now() < deadline) {
-    const runs = runGhJson([
-      'run',
-      'list',
-      '--repo', options.repository,
-      '--workflow', options.workflow,
-      '--branch', options.ref,
-      '--event', 'workflow_dispatch',
-      '--limit', '50',
-      '--json', 'databaseId,displayTitle,createdAt,headSha',
-    ]);
+    let runs;
+    try {
+      runs = runGhJson([
+        'run',
+        'list',
+        '--repo', options.repository,
+        '--workflow', options.workflow,
+        '--branch', options.ref,
+        '--event', 'workflow_dispatch',
+        '--limit', '50',
+        '--json', 'databaseId,displayTitle,createdAt,headSha',
+      ]);
+    } catch (error) {
+      if (!isTransientGithubTransportError(error)) throw error;
+      await wait(2_000);
+      continue;
+    }
     const matches = runs.filter((run) => (
       run.displayTitle === expectedTitle
       && run.headSha === options.expectedHeadSha
@@ -399,8 +420,23 @@ function readRun(options, runId, dispatchStartedAt) {
 
 async function waitForSuccessfulRun(options, runId, dispatchStartedAt) {
   const deadline = dispatchStartedAt + options.timeoutMs;
+  let consecutiveTransportFailures = 0;
   while (Date.now() < deadline) {
-    const observed = readRun(options, runId, dispatchStartedAt);
+    let observed;
+    try {
+      observed = readRun(options, runId, dispatchStartedAt);
+      consecutiveTransportFailures = 0;
+    } catch (error) {
+      // A transient gh failure while the run is still in progress must not
+      // abandon a run that is about to succeed (release-0.1.18-20260810-r3
+      // rolled back a succeeded run for exactly this). Hard identity or
+      // freshness refusals rethrow immediately.
+      if (!isTransientGithubTransportError(error)) throw error;
+      consecutiveTransportFailures += 1;
+      if (consecutiveTransportFailures > 15) throw error;
+      await wait(4_000);
+      continue;
+    }
     if (observed.run.status === 'completed') {
       if (observed.run.conclusion !== 'success') {
         fail(`GitHub latest-root proof concluded ${observed.run.conclusion}`);

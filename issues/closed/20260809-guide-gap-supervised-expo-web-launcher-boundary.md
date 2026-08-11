@@ -1,6 +1,6 @@
 # guide-gap: supervised Expo web launcher and generic client-arm boundary are not discoverable
 
-**Status:** Open
+**Status:** Closed — resolved 2026-08-10
 **Opened:** 2026-08-09 · **Severity:** P2 · **Area:** CLI / Expo / Guide / diagnostics
 **Related:** LLP 0181, `guide/clients/react-expo.md`,
 `issues/closed/20260807-supervised-expo-web-carrier-unpaved.md`
@@ -85,3 +85,23 @@ boundary, and diagnosing an accidental bypass.
   origin and connection phase; a UI can distinguish it from credential
   rejection without parsing prose.
 
+## Resolution
+
+`snapback dev --expo --expo-platform web` now selects the same supervised
+bootstrap owner as the native arms and launches the default Expo command with
+`--web`. CLI help lists all three complete selections. A recognizable direct
+`expo start` passed through `--client-command` emits
+`SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED` and points to the supported web command
+without changing the generic arm's environment.
+
+The Expo Guide now explains that lifecycle boundary, transcludes a custom
+broker that carries its stack-selected backend origin with the ordinary
+session bearer, and forbids incidental fixed-port fallbacks. When that explicit
+origin cannot be reached and no persisted binding receipt admits the boot,
+`prepareReactBinding` reports `SNAPBACK_REACT_BINDING_ORIGIN_UNREACHABLE` with
+the attempted origin and `application-binding-preparation` phase; answered auth
+refusals keep their original diagnostic.
+
+Regression coverage lives in `expo-dev-loop.test.mjs`,
+`expo-metro-watch-advisory.test.mjs`, `dev-cli-diagnostics.test.mjs`, and
+`cold-boot-binding.test.mjs`.

@@ -1724,4 +1724,41 @@ for (const lease of storeLeases) lease.release();
 await flush();
 await storeProvider.dispose();
 
+const coreEntry = await import('./core.mjs');
+for (const name of [
+  'useSurface',
+  'useSnapbackCommand',
+  'invokeSnapbackCommand',
+  'useSnapbackAssetUrl',
+  'useSnapbackAssetUpload',
+  'useSnapbackAssetImage',
+  'SnapbackAssetImage',
+]) {
+  assert.equal(name in coreEntry, false, `./core excludes optional capability ${name}`);
+}
+for (const name of [
+  'createSnapbackReactProvider',
+  'SnapbackProvider',
+  'useSnapbackQuery',
+  'useSnapbackMutation',
+  'useSnapbackOptimisticCreate',
+]) {
+  assert.equal(typeof coreEntry[name], 'function', `./core exports ${name}`);
+}
+const coreProvider = coreEntry.createSnapbackReactProvider(binding, {
+  connectionId: 'react-package-core-composition-test',
+});
+assert.equal('surface' in coreProvider, false);
+assert.equal('assets' in coreProvider, false);
+const coreObserver = coreEntry.observeSnapbackQueries(coreProvider, {
+  feed: { ref: feed, args: {} },
+}, () => {});
+await flush();
+assert.equal(coreObserver.snapshot().queries.feed.status, 'ready');
+assert.equal(coreProvider.inspection().serverSubscriptions, 1);
+assert.equal('commandTasks' in coreProvider.inspection(), false);
+coreObserver.dispose();
+await flush();
+await coreProvider.dispose();
+
 console.log('package.test.mjs: prepared binding, provider registry, exact caps, groups, mutation, custody blanking, and cleanup pass');

@@ -339,6 +339,34 @@ Per the 2026-08-10 commission ruling, the structural check landed **with**
 this slice's program (the manifest/gate seeding and the unconditional
 pre-push promotion both predate this document), not after it.
 
+### Second slice — the generation-commit kernel primitive (executed)
+
+The first §4-item-1 kernel typed-operation slice landed 2026-08-10: the
+composite generation-commit family moved out of `src/storage.rs` into the
+dedicated kernel module `src/storage/generation_commit.rs`
+(`CommitFunctionGeneration`, `FunctionGenerationRecord`,
+`commit_function_generation`, `function_generation_record`,
+`install_committed_sequence_declarations`, and the sequence-predecessor
+helper — the two commit-path methods narrowed to `pub(super)`), and the
+activation coordinator's database access narrowed from the wide
+`&mut LocalDatabase` accessor (`generation_database_mut`, deleted) to the
+typed `GenerationCommitOps` view exposing exactly the six operations owner
+#1 composes: the composite commit, the classified same-mode deployment
+commit, the committed-sequence install, stream-transcript manifest
+activation, stale-projection materialization, and the schema read. Behavior,
+diagnostic ordering, and the public surface are unchanged; the §3
+commit-boundary contract is unaffected (this is surface narrowing, not a
+transaction-domain change).
+
+Baseline disposition, per §2's monotonic rule: one relocation re-key with
+provenance — `src/local.rs → src/storage/generation_commit.rs`
+(unassigned→kernel), the commit-primitive portion of the frozen
+`src/local.rs → src/storage.rs` coupling following the moved code — recorded
+in the ratchet worklist; the slice's other new edges are allowed downward
+edges. The same landing carried the unmanifested-module catch-up for the
+2026-08-10 auth-floor landing (`src/auth/identity_core.rs` → contract leaf,
+`src/storage/auth_identity.rs` → kernel; allowed edges only).
+
 ### Continuing sequence (order of intent, not a schedule)
 
 1. **Kernel typed-operation slices** (co-sequenced with owner 1 per 0199

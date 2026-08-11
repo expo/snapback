@@ -70,6 +70,7 @@
     "push-registry.d.mts",
     "push-registry.mjs",
     "react-binding-hmr.mjs",
+    "react-binding.d.mts",
     "react-binding.mjs",
     "registration-ledger.d.mts",
     "registration-ledger.mjs",
@@ -162,6 +163,10 @@
     "./external-store": {
       "types": "./external-store.d.mts",
       "import": "./external-store.mjs"
+    },
+    "./react-binding": {
+      "types": "./react-binding.d.mts",
+      "import": "./react-binding.mjs"
     },
     "./materialization-store": {
       "types": "./materialization-store.d.mts",

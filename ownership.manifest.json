@@ -211,6 +211,7 @@
       "src/storage/checkpoints.rs",
       "src/storage/connections.rs",
       "src/storage/declared_clients.rs",
+      "src/storage/generation_commit.rs",
       "src/storage/hosted_admission.rs",
       "src/storage/jobs.rs",
       "src/storage/membership_plans.rs",
