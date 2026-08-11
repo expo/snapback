@@ -66,7 +66,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query, the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 remains pre-Accepted (in Review since 2026-08-03) | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, job status, retryable by design, dead-letter, DLQ, succeeded after retry, secret-read lease, job drain, drain jobs | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates. Actions can query the advisory 15-second connected-client predicate. | subscription, realtime, connected client, hasFreshClient | local | shipped | route /live/{name}/subscribe + capability manifest `connectedClientPredicate` semanticsVersion 2 | llp/0008, llp/0222 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state, connection disconnect, disconnect client, force disconnect | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
-| realtime.ephemeral | Typed ephemeral rooms plus the scoped React presence hook: presence, typing indicators, cursors, TTL | presence, cursors, rooms, ephemeral, React ephemeral hook, useSnapbackPresence, useSnapbackEphemeral, typing indicator, ephemeral cleanup, cleanup stale entries, expire ephemeral, Supabase Presence, Supabase Broadcast | local | shipped | route /ephemeral/publish + `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0013, llp/0107, llp/0114 | realtime/ephemeral-state.md |
+| realtime.ephemeral | Typed ephemeral rooms with TTL, React presence, and Contract rated publishing | presence, cursors, rooms, ephemeral, useSnapbackPresence, useSnapbackEphemeral, typing indicator, pointerChannel, publish rate=, Contract presence publishing, Supabase Presence, Supabase Broadcast | local | shipped | route /ephemeral/publish + `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0013, llp/0107, llp/0114 | realtime/ephemeral-state.md |
 | realtime.snapshot-bundles | RQS bundles evaluate a served route's queries at one commit with resume tokens; register mode arms live owners. Structured args accept `routeParam()` at object-reachable leaves beside validated literal context (contributor-only after 0.1.15). Local Experimental mixed-route evaluates live and ordinary children at one snapshot, registering only live children. Legacy adoption remains prove-or-fresh; `publicInline` powers Channel A; Cloudflare read mode ships while register/mixed remain deferred. | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest, routeParam, nested routeParam, structured route arguments, route group args, query context | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) + packages/snapback-codegen/authoring-validation.test.mjs | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | sync.offline-js-arm | Experimental JS/React offline substrate: browser IndexedDB + Web Locks, durable Node files, memory fallback; declared public retained queries; durable ordered M2 outbox and pending-intent projection. Legacy RQS adoption is connected-only prove-or-fresh into QMK custody, atomically and without dropping intent. Node/file and React-stub tests pass; LLP 0155 proves real-Chrome `SIGKILL` persistence and two-tab lock takeover. The browser witness proves public labeling, replay, settlement, convergence, and reload; protected lease custody has the sibling row's package witness. No local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, pending intent render | local | partial | packages/snapback-client/rqs-store-default.mjs + demos/public-dashboard/tests/acceptance/offline-local-first.mjs + demos/zero-bakeoff/stage0/browser/run.mjs + packages/snapback-client/rqs-resume.test.mjs + demos/browser-local-first/tests/acceptance/browser-public-witness.mjs | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166 | sync/offline-and-retention.md |
@@ -77,7 +77,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | api.external-exposure | Opt-in `/api/v1` + CORS; local OAuth/PKCE and remote MCP; capability links, durable watches, and approval-gated mutation/action effects; read-only `ask` v1 with provider credentials, result schemas, durable token/result-volume budgets, and HMAC provenance receipts. Telemetry stays lossy; billing metering is a gap | external api, oauth, remote mcp, approval, effects, capability links, watches, ask, near-data ai, api budgets | local | partial | route /effects + src/storage/pending_effects.rs + route /api/v1/ask + src/storage/ask_spend.rs | llp/0204, llp/0031, llp/0055, llp/0150 | backend/external-api.md |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session, principal binding, app user table, identityBinding | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.external-identity-broker | Local bridges: adopted bearer for headless/native, or trusted-server one-use exchange into browser coordinator custody; mint/capture remain dev/test/demo only | native login, external identity, broker, adopted bearer, browser external sign-in, signed assertion, issuer subject | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0024, llp/0057, llp/0096, llp/0151 | recipes/browser-auth.md |
-| auth.browser-session-custody | Bearer-v1 custody through AuthCoordinator + IndexedDB/Web Locks, with reload restoration and logout replacement; XSS-readable and not sender-constrained | durable browser auth, browser auth reload, IndexedDB auth custody, createIndexedDbAuthCustodyStorage, reload session, persistent login | local | shipped | `createIndexedDbAuthCustodyStorage` in packages/snapback-contract/auth-custody-indexeddb.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0059, llp/0060 | recipes/browser-auth.md |
+| auth.browser-session-custody | AuthCoordinator + IndexedDB reload/logout custody; serve-only Vite mailbox relay for local codes; XSS-readable, not sender-constrained | browser auth reload, IndexedDB auth custody, createIndexedDbAuthCustodyStorage, dev mailbox relay, Vite mailbox middleware, authRequestCode, authExchange | local | shipped | demos/browser-auth/tests/acceptance/browser-auth.mjs + demos/pointing-room/surfaces/contract/vite.config.ts | llp/0059, llp/0060 | recipes/browser-auth.md |
 | auth.scoped-queries | Per-principal query scoping via authScopeField | hidden data, per-user, row security, Supabase RLS | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
 | auth.invalidation-barrier | Authorization invalidation; logout blanking | logout, revoke, invalidation | local | shipped | route /live/authorization-invalidation/acknowledge | llp/0053 | auth/protecting-data.md |
 | auth.authorized-leases | Lease-bounded offline retention of authorized reads | offline auth, lease, retained | local | shipped | route /query/{name}/authorized-lease | llp/0059 | auth/protecting-data.md |
@@ -96,9 +96,9 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | clients.external-store | Shared current-value/subscription store | external store | local | shipped | `createExternalQueryStoreRegistry` in packages/snapback-client/external-store.mjs | llp/0012, llp/0064 | clients/headless.md |
 | clients.framework-bindings | React/Contract bindings | bindings | local | partial | `SNAPBACK_EXTERNAL_STORE_PROTOCOL` in packages/snapback-client/external-store.mjs | llp/0012, llp/0034, llp/0064 | clients/framework-bindings.md |
 | clients.app-cli | Local artifact/served-envelope app CLI, brokered code mode, stable two-section `agentDigest.v1` introspection, and an experimental app-bound Ibex one-file build qualified on macOS arm64 and Linux x86_64 GLIBC 2.35. Public inspection still lacks row-count magnitudes and D1 verdicts; hosted targets remain a GAP. | app cli, code mode, introspect, agent digest, changed since, digest cursor, one-file executable | local | partial | `buildAgentDigest` in packages/snapback-app-cli/digest.mjs + scripts/build-app-bound-executable + packages/snapback-app-cli/code-mode-ibex.test.mjs + GitHub Actions run 30999145126 | llp/0062, llp/0146 | clients/app-cli.md |
-| clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
+| clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings, Contract invariant, disclosure claim | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
 | clients.contract-provider-generation | Provider-neutral Contract manifest, bindings, metadata, types, fixtures, and docs from a provider declaration | provider declaration, contract sidecar generator, convex bindings | local | shipped | `generateFromDeclaration` in demos/partiful-matrix/scripts/generate-contract-provider.mjs | llp/0063 | clients/contract-adapter.md |
-| clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
+| clients.contract-keyed-scopes | One keyed Contract surface serves dynamic durable queries and generated ephemeral read/publish links with authority fencing; no keyed `forceEphemeralState` | keyedQueryScopes, dynamic query, query args, keyed ephemeral links, roomPresencePublish, forceEphemeralState | local | shipped | packages/snapback-contract/keyed-ephemeral-links.test.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
 | clients.react | React provider over one headless store/transport: generated live/group/mixed-route reads with provenance, fallback, and recovery; session adoption; validated optimistic rebase/rollback; queued-settlement rejection, dev warnings; managed presence; freshness/retention/outbox facts; Strict Mode/HMR sharing and cleanup | react, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, result inference, typed mutation, optimistic rollback, queued mutation, SnapbackQueuedMutationError, projectRecordFields, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge, pending sidecar, application error, app refusal, appCode | local | shipped | `SnapbackQueuedMutationError` in packages/snapback-react/index.d.mts | llp/0012, llp/0043, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
@@ -1670,6 +1670,11 @@ From then on the client carries the session credential; `AuthCoordinator`
 (from `@expo/snapback-contract`) owns custody, refresh, and the logout barrier
 for surface-based clients.
 
+For a browser/Vite surface in local development, keep the privileged mailbox
+read in a serve-only dev-server relay while the browser performs
+`authRequestCode` → relay fetch → `authExchange`. The complete non-React
+pattern is [get the sign-in code in local development](../recipes/browser-auth.md#get-the-sign-in-code-in-local-development).
+
 The shipped provider has no production mail adapter yet. For a local native
 app whose identity front door lives in trusted server code, use the sanctioned
 [external identity-broker seam](./native-apps.md): the broker invokes the
@@ -1776,8 +1781,11 @@ bundle). What a web author actually does today is one of these:
 
 - **Dev mode** (`auth: { mode: 'dev' }`) for the authoring loop — trusted
   client-passed `userId`, no sign-in UI at all.
-- **Test personas** for acceptance suites — the mailbox loop above, driven
-  by the suite's server-side harness, never by page code.
+- **Test/dev personas** for acceptance suites and Vite surfaces — the privileged
+  mailbox read stays in the suite harness or the
+  [serve-only dev mailbox relay](../recipes/browser-auth.md#get-the-sign-in-code-in-local-development).
+  Page code may request and exchange the one-time code, but never receives the
+  admin or impersonation carriers.
 - **The trusted-server seam** for a product-shaped flow — a server-side
   component authenticates the user through its own front door. For a browser,
   prefer staging a one-use challenge/code that the ordinary `authExchange`
@@ -9469,7 +9477,7 @@ order: 1
 audience: agent-first
 capabilities: [clients.contract, clients.contract-provider-generation, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
 authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs]
-examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
+examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, demos/pointing-room, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -9644,6 +9652,12 @@ what's missing, seeds only empty tables — a reload never resets data; LLP
 authorized retained snapshot; a true first run fails with the original
 network error instead of inventing an empty app.
 
+A sessions-mode Contract/Vite surface that needs its one-time code during
+local boot should use the
+[serve-only dev mailbox relay](../recipes/browser-auth.md#get-the-sign-in-code-in-local-development):
+Vite owns the admin and impersonation carriers, while the browser sees only the
+code it passes to `authExchange`.
+
 The `registeredBoot` spread is the optional **Channel C register-mode boot**
 (LLP 0090 D4): one `client.fetchBundle({ route, mode: 'register', userId })`
 returns every query's snapshot plus its live registration and the connection
@@ -9754,6 +9768,40 @@ What the surface does for you:
   });
   ```
 
+<!-- since: 0.1.19 unreleased -->
+
+> **Unreleased.** The keyed ephemeral link family is newer than the newest
+> published Snapback closure, 0.1.18. Use a source build until the next
+> qualified closure is published.
+
+  One `createSnapbackContractSurface({ keyedQueryScopes: true })` now boots a
+  component that combines keyed durable queries with manifest-declared
+  ephemeral collections. The returned `links` contains each durable query and
+  mutation plus the generated ephemeral `<name>` / `<name>Publish` read/publish
+  pair; Pointing Room therefore configures one registry from one surface, with
+  no companion-surface merge. The durable `liveQueries` list remains an
+  allowlist, while an ephemeral named by `requiredQueries` is checked against
+  ephemeral wiring instead of that durable allowlist.
+
+  One surface does not mean one physical connection: the durable keyed lane
+  keeps the surface connection, while the ephemeral lane uses its own stable
+  connection across authority transitions. That separation prevents an
+  ephemeral consumer from withholding a disposed keyed binding's durable
+  unsubscribe.
+
+  Construction refuses with `SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED` when the
+  client cannot provide `subscribeEphemeral()` and `liveStreamManager()` for
+  the required ephemeral collections—or for every manifest-declared ephemeral
+  when none is explicitly required. Its message names both missing generated
+  links for each collection, such as `roomPresence` and
+  `roomPresencePublish`, before the component mounts.
+
+  The deliberate remaining limit is force-state tooling: the keyed provider
+  exposes `forceQueryState` but not `forceEphemeralState`. The ordinary
+  multi-live boundary-provider path still exposes local-only
+  `forceEphemeralState`; use that path when a test needs to force an ephemeral
+  cell.
+
   For an **Online-only** surface with no `authCoordinator`,
   `agentAuthority`, or retained client store, import
   `createKeyedSnapbackContractProvider` from
@@ -9796,9 +9844,52 @@ What the surface does for you:
   pairs). For connection-keyed maps, the adapter derives `self` from the
   opaque granted id captured by the successful overlay subscribe—not from the
   surface's readable `connectionId` label—so collision and mint-only
-  containment remain correct. See the
-  [presence recipe](../recipes/presence-cursors.md) and
+  containment remain correct. Ordinary collection values publish through the
+  same rated-channel clause as pointers; `pointerChannel` is the carrier, not
+  a payload restriction. See
+  [publish ordinary presence from Contract](../recipes/presence-cursors.md#publish-ordinary-presence-from-contract) and the
   [ephemeral-state reference](../realtime/ephemeral-state.md).
+
+## Prove disclosure at the wire boundary
+
+Contract owns the `contract` block grammar. Read Exact's closed
+[clause inventory](repo(exact):guide/contract/contract-blocks.md#the-complete-clause-inventory)
+and [claim ceiling](repo(exact):guide/contract/contract-blocks.md#know-what-a-claim-cannot-say)
+instead of inferring a stronger assertion language from the Snapback binding.
+An invariant has the form `invariant [when <expr> then] <assertion>`, where the
+assertion is only `has`, `missing`, `count`, or `state`.
+
+For authorization- or disclosure-shaped claims, that means a Contract block
+can continuously prove the observable UI shadow: presence/absence, element
+state, and counts that match derived partitions. Pointing Room partitions the
+nullable server result and keeps the rendered branches aligned with those
+counts:
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+  derive maskedVoteCount = tally.filter((vote) => vote.value == null).length
+  derive revealedVoteCount = tally.filter((vote) => vote.value != null).length
+```
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+    count node testId="participant-card" = tally.length
+    invariant count node testId="masked-vote-value" = maskedVoteCount
+    invariant count node testId="revealed-vote-value" = revealedVoteCount
+```
+
+The block cannot prove rendered-text equality against an expression, quantify
+over every `each` row, or state that a value came from a particular field,
+row, principal, or server response. Selector strings are literals, and
+`count` is the only assertion with an expression on the right. Therefore the
+count partition is genuine UI evidence, but it is not an authorization or
+wire-disclosure proof.
+
+Pair the Contract block with a wire-level acceptance test. Pointing Room's
+[`disclosure-invariant.mjs`](repo:demos/pointing-room/tests/acceptance/disclosure-invariant.mjs)
+mints two principals and asserts the raw subscription-response and WebSocket
+bytes: a masked vote is `null`, the hidden value is absent before reveal, the
+revealed value arrives afterward, and another room never appears. Keep the
+Contract claim scoped to rendering and let the two-principal test carry the
+server disclosure claim.
 
 ## Call a paged query from a Contract screen
 
@@ -9887,6 +9978,9 @@ function props for legacy capability glue until Exact promotes that spelling.
 - **Do not pass a scoped token as a raw bearer to Contract.** Construct the
   headless client with `AgentAuthorityFence`; protocol-v1 agent work without
   that custody owner is refused.
+- **Do not treat a Contract invariant as an authorization proof.** It can
+  check the rendered partition, not provenance or raw response bytes; pair it
+  with a wire-level two-principal acceptance test.
 
 ---
 
@@ -19447,7 +19541,7 @@ order: 1
 audience: agent-first
 capabilities: [realtime.ephemeral]
 authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs, packages/snapback-react/index.mjs]
-examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
+examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts, demos/pointing-room/surfaces/contract/pointing.contract]
 status: current
 targets: [local]
 maturity: shipped
@@ -19565,6 +19659,72 @@ server-stamped `expiresAtMs`; the reference hook freezes TTL-pruning while
 the connection is `stale`/`disconnected` so departed cursors stay
 renderable during degradation instead of silently vanishing.
 
+## Publish ordinary presence from Contract
+
+A Contract surface uses the generated ephemeral read and publish descriptors
+with a rated channel. Pointing Room imports both halves plus Exact's channel:
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+use roomPresence from "../../snapback/generated/contract/roomPresence.ephemeral.ts"
+use roomPresencePublish from "../../snapback/generated/contract/roomPresence.publish.ts"
+use pointerChannel from "@exact/contract/channels"
+```
+
+Bind the collection to Contract-owned scope state and declare the channel. The
+same `activeRoomId` that keys durable queries keys the presence subscription:
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+  query currentRound = liveRound({ roomId: activeRoomId })
+  query tally = liveTally({ roomId: activeRoomId })
+  ephemeral presence = roomPresence({ roomId: activeRoomId })
+
+  mutation submitVote = castVote
+  mutation flipRound = revealRound
+  mutation beginRound = startRound
+  use presencePulse = pointerChannel()
+```
+
+Publish once at mount so the viewer appears before the first interaction:
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+  task announcePresence mount
+    publish(presencePulse)
+```
+
+The view clause maps channel pulses to the ordinary collection publisher. It
+owns the rate, heartbeat, current scope, payload, and TTL:
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+      publish presencePulse.self -> roomPresencePublish rate=4 heartbeat=0.1 payload={ roomId: activeRoomId, value: { name: viewerName, picking: selected != "" }, ttlMs: 15000 }
+```
+
+**Collection publishing is not pointer-only.** `pointerChannel` is the rated
+carrier that schedules the clause; it does not restrict the published value to
+pointer coordinates. Here it publishes an ordinary `{ name, picking }`
+presence value through `roomPresencePublish`.
+
+When `activeRoomId` changes, the `ephemeral presence = ...` binding re-keys the
+subscription. The action also pulses the channel *after* updating the scope so
+the same view clause publishes current presence into the new room immediately;
+payload-changing actions pulse it for the same reason:
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+  action switchRoom(roomId) writes activeRoomId, selected, nextTopic
+    activeRoomId = roomId
+    selected = ""
+    nextTopic = ""
+    publish(presencePulse)
+  action startNext writes selected, nextTopic mutates beginRound
+    beginRound({ roomId: activeRoomId, topic: nextTopic.trim() })
+    selected = ""
+    nextTopic = ""
+    publish(presencePulse)
+```
+
+The heartbeat keeps the active lease refreshed between explicit pulses; it is
+not a substitute for the scope-change pulse because the new room should not
+wait for the next heartbeat.
+
 ## Anti-patterns
 
 - **Do not store presence in tables.** Cursor positions in app data means
@@ -19579,6 +19739,9 @@ renderable during degradation instead of silently vanishing.
 - **Do not hand-wire a React overlay for ordinary presence or typing.** Use
   `useSnapbackPresence` so the provider owns Strict Mode replay, heartbeat,
   resync, authority changes, and teardown.
+- **Do not build a DOM/timer bridge for Contract presence publishing.** Use a
+  rated channel plus the generated publish descriptor; pulse it at mount and
+  whenever Contract-owned scope or payload state changes.
 
 ---
 
@@ -20229,7 +20392,7 @@ order: 5
 audience: agent-first
 capabilities: [auth.sessions, auth.external-identity-broker, auth.browser-session-custody, auth.scoped-queries, auth.invalidation-barrier]
 authorities: [llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0060-hosted-auth-security.rfc.md, llp/0151-first-party-identity-integrations.rfc.md, demos/browser-auth/snapback/schema.mjs, demos/browser-auth/snapback/functions.mjs, demos/browser-auth/server/gateway.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs]
-examples: [demos/browser-auth]
+examples: [demos/browser-auth, demos/pointing-room/surfaces/contract, demos/file-drop/vite.config.ts]
 status: current
 targets: [local]
 maturity: partial
@@ -20340,6 +20503,118 @@ export const viewer = defineJsQuery({
 This is application-level identity binding. It does not replace the future
 platform-owned `_auth_identities` lifecycle in Draft LLP 0151.
 
+## Get the sign-in code in local development
+
+For a non-React Contract/Vite surface, use a **serve-only dev mailbox relay**.
+The Vite process reads the ready-file carriers server-side; page code never
+does. Pointing Room accepts explicit environment carriers for harnesses or
+reads the owner-only files named by the ready descriptor:
+
+```ts source=demos/pointing-room/surfaces/contract/vite.config.ts
+function localMailboxCredentials(): { adminToken: string; impersonation: string } | null {
+  const explicitAdmin = process.env.SNAPBACK_POINTING_ADMIN_TOKEN?.trim();
+  const explicitImpersonation = process.env.SNAPBACK_POINTING_IMPERSONATION_CAPABILITY?.trim();
+  if (explicitAdmin && explicitImpersonation) {
+    return { adminToken: explicitAdmin, impersonation: explicitImpersonation };
+  }
+  const readyFile = process.env.SNAPBACK_POINTING_READY_FILE;
+  if (!readyFile) return null;
+  const descriptor = JSON.parse(readFileSync(readyFile, 'utf8')) as {
+    adminTokenFile: string;
+    impersonationCapabilityFile: string;
+  };
+  return {
+    adminToken: readFileSync(descriptor.adminTokenFile, 'utf8').trim(),
+    impersonation: readFileSync(descriptor.impersonationCapabilityFile, 'utf8').trim(),
+  };
+}
+```
+
+The plugin applies only to `vite serve`, recognizes one relay route, calls only
+the gated mailbox endpoint, disables caching, and passes every other request to
+the next middleware. It is not an arbitrary Snapback proxy:
+
+```ts source=demos/pointing-room/surfaces/contract/vite.config.ts
+// The local provider has no mail delivery. This serve-only middleware keeps
+// the admin and impersonation carriers in the Vite process and relays only the
+// one-time code to the browser. It never proxies arbitrary Snapback routes.
+const pointingRoomMailbox = {
+  name: 'pointing-room-local-mailbox',
+  apply: 'serve' as const,
+  configureServer(server: { middlewares: { use: Function } }) {
+    server.middlewares.use(async (
+      request: { url?: string },
+      response: {
+        statusCode: number;
+        setHeader(name: string, value: string): void;
+        end(body: string): void;
+      },
+      next: () => void,
+    ) => {
+      if (!request.url?.startsWith('/__pointing-mailbox')) return next();
+      const challengeId = new URL(request.url, 'http://pointing-room.local')
+        .searchParams.get('challengeId');
+      const credentials = localMailboxCredentials();
+      if (!challengeId) {
+        response.statusCode = 400;
+        response.setHeader('content-type', 'application/json; charset=utf-8');
+        return response.end(JSON.stringify({ error: 'missing challengeId' }));
+      }
+      if (!credentials) {
+        response.statusCode = 503;
+        response.setHeader('content-type', 'application/json; charset=utf-8');
+        return response.end(JSON.stringify({
+          error: 'local mailbox credentials unavailable',
+          recovery: 'set SNAPBACK_POINTING_READY_FILE or both SNAPBACK_POINTING_ADMIN_TOKEN and SNAPBACK_POINTING_IMPERSONATION_CAPABILITY',
+        }));
+      }
+      const mailbox = await fetch(
+        `${snapbackTarget}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(challengeId)}`,
+        {
+          headers: {
+            'x-snapback-admin-token': credentials.adminToken,
+            'x-snapback-impersonation-capability': credentials.impersonation,
+          },
+        },
+      );
+      response.statusCode = mailbox.status;
+      response.setHeader('content-type', 'application/json; charset=utf-8');
+      response.setHeader('cache-control', 'no-store');
+      return response.end(await mailbox.text());
+    });
+  },
+};
+```
+
+The browser half remains the ordinary public flow: request a challenge, fetch
+the relayed one-time code, and exchange it into coordinator-owned custody.
+
+```ts source=demos/pointing-room/surfaces/contract/main.ts
+async function signIn(client: SnapbackClient, email: string) {
+  const challenge = await client.authRequestCode(email);
+  const mailboxResponse = await fetch(
+    `/__pointing-mailbox?challengeId=${encodeURIComponent(challenge.challengeId)}`,
+  );
+  if (!mailboxResponse.ok) {
+    throw new Error(`local sign-in mailbox refused (${mailboxResponse.status}): ${await mailboxResponse.text()}`);
+  }
+  const mailbox = await mailboxResponse.json() as { code: string };
+  return await client.authExchange({ challengeId: challenge.challengeId, code: mailbox.code });
+}
+```
+
+The browser receives only the one-time code. The admin token, impersonation
+capability, mailbox reader, and any private backend origin must never enter
+`define`, `import.meta.env`, page code, the bundle, or logs. Pointing Room's
+ordinary app-data origin is separately browser-reachable; that does not make a
+private relay origin safe to publish. The React-side sibling is
+[`demos/file-drop/vite.config.ts`](repo:demos/file-drop/vite.config.ts); the
+custody rule is framework-independent.
+
+This relay is a local dev fixture, not production challenge delivery. Replace
+it with the admitted provider/delivery path when one exists; do not deploy the
+Vite middleware as an auth service.
+
 ## Put browser custody in IndexedDB
 
 Construct exactly one coordinator with the generated app id and the shipped
@@ -20423,6 +20698,8 @@ specs; do not generalize this fixture into those contracts.
 - Do not return a broker-minted bearer to browser app state and call it
   coordinator custody.
 - Do not put mailbox/admin/impersonation material in browser code or logs.
+- Do not expose the mailbox as a generic proxy or publish its private backend
+  origin through Vite environment replacement.
 - Do not use memory custody and claim reload persistence.
 - Do not label this local fixture hosted, OIDC-complete, or production-ready.
 
@@ -21569,7 +21846,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-diagnostics-registry.mjs. Never hand-edit. -->
@@ -22031,14 +22308,14 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-authorized-lease-key-unavailable"></a>`SNAPBACK_AUTHORIZED_LEASE_KEY_UNAVAILABLE` | server | — | — | `src/auth/provider.rs:5253` | 2 |
 | <a id="diagnostic-snapback-authorized-lease-protocol-version"></a>`SNAPBACK_AUTHORIZED_LEASE_PROTOCOL_VERSION` | contract | — | — | `packages/snapback-contract/authorized-lease.mjs:24` | 5 |
 | <a id="diagnostic-snapback-authorized-lease-query-not-retainable"></a>`SNAPBACK_AUTHORIZED_LEASE_QUERY_NOT_RETAINABLE` | server | 400 | — | `src/local.rs:10573` | 2 |
-| <a id="diagnostic-snapback-authorized-lease-renewal-failed"></a>`SNAPBACK_AUTHORIZED_LEASE_RENEWAL_FAILED` | contract | — | — | `packages/snapback-contract/index.mjs:1794` | 1 |
+| <a id="diagnostic-snapback-authorized-lease-renewal-failed"></a>`SNAPBACK_AUTHORIZED_LEASE_RENEWAL_FAILED` | contract | — | — | `packages/snapback-contract/index.mjs:1804` | 1 |
 | <a id="diagnostic-snapback-authorized-lease-request-reused"></a>`SNAPBACK_AUTHORIZED_LEASE_REQUEST_REUSED` | server | 409 | — | `src/server/api_error.rs:474` | 3 |
 | <a id="diagnostic-snapback-authorized-lease-required"></a>`SNAPBACK_AUTHORIZED_LEASE_REQUIRED` | contract | — | — | `packages/snapback-contract/client-store.mjs:2923` | 1 |
 | <a id="diagnostic-snapback-authorized-lease-snapshot-mismatch"></a>`SNAPBACK_AUTHORIZED_LEASE_SNAPSHOT_MISMATCH` | client | — | — | `packages/snapback-client/store-runtime.mjs:395` | 3 |
 | <a id="diagnostic-snapback-authorized-lease-stale"></a>`SNAPBACK_AUTHORIZED_LEASE_STALE` | contract | 409 | — | `packages/snapback-contract/client-store.mjs:2454` | 12 |
 | <a id="diagnostic-snapback-authorized-lease-state-corrupt"></a>`SNAPBACK_AUTHORIZED_LEASE_STATE_CORRUPT` | server | — | — | `src/server/api_error.rs:783` | 2 |
 | <a id="diagnostic-snapback-authorized-lease-unavailable"></a>`SNAPBACK_AUTHORIZED_LEASE_UNAVAILABLE` | server | — | — | `src/local.rs:10612` | 5 |
-| <a id="diagnostic-snapback-authorized-retention-unavailable"></a>`SNAPBACK_AUTHORIZED_RETENTION_UNAVAILABLE` | contract | — | — | `packages/snapback-contract/index.mjs:1404` | 1 |
+| <a id="diagnostic-snapback-authorized-retention-unavailable"></a>`SNAPBACK_AUTHORIZED_RETENTION_UNAVAILABLE` | contract | — | — | `packages/snapback-contract/index.mjs:1414` | 1 |
 | <a id="diagnostic-snapback-auth-"></a>`SNAPBACK_AUTH_` | auth | — | — | `packages/snapback-app-cli/code-mode.mjs:138` | 5 |
 | <a id="diagnostic-snapback-auth-acceptance-property-receipt"></a>`SNAPBACK_AUTH_ACCEPTANCE_PROPERTY_RECEIPT` | auth | — | — | `src/local/authorization_acceptance.rs:1292` | 1 |
 | <a id="diagnostic-snapback-auth-acceptance-room-drain-send-receipt"></a>`SNAPBACK_AUTH_ACCEPTANCE_ROOM_DRAIN_SEND_RECEIPT` | auth | — | — | `src/local/auth_room_kick_acceptance.rs:800` | 1 |
@@ -22219,7 +22496,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-provisioning-write-forbidden"></a>`SNAPBACK_AUTH_PROVISIONING_WRITE_FORBIDDEN` | auth | — | — | `src/storage/auth_identity.rs:136` | 3 |
 | <a id="diagnostic-snapback-auth-query-fence-stale"></a>`SNAPBACK_AUTH_QUERY_FENCE_STALE` | auth | — | — | `packages/snapback-client/index.mjs:10277` | 15 |
 | <a id="diagnostic-snapback-auth-query-instance-exhausted"></a>`SNAPBACK_AUTH_QUERY_INSTANCE_EXHAUSTED` | auth | — | — | `packages/snapback-contract/auth-invalidation.mjs:557` | 1 |
-| <a id="diagnostic-snapback-auth-query-quarantined"></a>`SNAPBACK_AUTH_QUERY_QUARANTINED` | auth | — | — | `packages/snapback-contract/index.mjs:2223` | 3 |
+| <a id="diagnostic-snapback-auth-query-quarantined"></a>`SNAPBACK_AUTH_QUERY_QUARANTINED` | auth | — | — | `packages/snapback-contract/index.mjs:2233` | 3 |
 | <a id="diagnostic-snapback-auth-query-retirement-pending"></a>`SNAPBACK_AUTH_QUERY_RETIREMENT_PENDING` | auth | — | — | `packages/snapback-contract/client-store.mjs:2898` | 3 |
 | <a id="diagnostic-snapback-auth-query-version-stale"></a>`SNAPBACK_AUTH_QUERY_VERSION_STALE` | auth | — | — | `packages/snapback-client/index.mjs:10845` | 2 |
 | <a id="diagnostic-snapback-auth-quota-budget"></a>`SNAPBACK_AUTH_QUOTA_BUDGET` | auth | 429 | — | `src/auth/throttle.rs:566` | 2 |
@@ -22495,7 +22772,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-client-id-invalid"></a>`SNAPBACK_CLIENT_ID_INVALID` | client | — | — | `packages/snapback-client/index.mjs:559` | 1 |
 | <a id="diagnostic-snapback-client-id-status-header"></a>`SNAPBACK_CLIENT_ID_STATUS_HEADER` | client | — | — | `src/server.rs:6850` | 2 |
 | <a id="diagnostic-snapback-client-id-table-invalid"></a>`SNAPBACK_CLIENT_ID_TABLE_INVALID` | client | — | — | `packages/snapback-client/index.mjs:555` | 1 |
-| <a id="diagnostic-snapback-client-mutation-ack-deferred"></a>`SNAPBACK_CLIENT_MUTATION_ACK_DEFERRED` | client | — | — | `packages/snapback-contract/index.mjs:2328` | 1 |
+| <a id="diagnostic-snapback-client-mutation-ack-deferred"></a>`SNAPBACK_CLIENT_MUTATION_ACK_DEFERRED` | client | — | — | `packages/snapback-contract/index.mjs:2338` | 1 |
 | <a id="diagnostic-snapback-client-mutation-ack-limit-exceeded"></a>`SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED` | client | 400 | — | `src/server/api_error.rs:953` | 2 |
 | <a id="diagnostic-snapback-client-mutation-ack-overlap"></a>`SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP` | client | 400 | — | `src/server.rs:25406` | 2 |
 | <a id="diagnostic-snapback-client-mutation-id-invalid"></a>`SNAPBACK_CLIENT_MUTATION_ID_INVALID` | client | 400 | — | `src/server/api_error.rs:972` | 3 |
@@ -22529,7 +22806,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-client-store-terminal-dirty"></a>`SNAPBACK_CLIENT_STORE_TERMINAL_DIRTY` | client | — | — | `packages/snapback-contract/client-store.mjs:1547` | 1 |
 | <a id="diagnostic-snapback-client-store-version"></a>`SNAPBACK_CLIENT_STORE_VERSION` | client | — | — | `packages/snapback-contract/client-store.mjs:29` | 9 |
 | <a id="diagnostic-snapback-client-store-version-unsupported"></a>`SNAPBACK_CLIENT_STORE_VERSION_UNSUPPORTED` | client | — | — | `packages/snapback-contract/client-store.mjs:705` | 1 |
-| <a id="diagnostic-snapback-client-store-write-failed"></a>`SNAPBACK_CLIENT_STORE_WRITE_FAILED` | client | — | — | `packages/snapback-contract/index.mjs:1881` | 3 |
+| <a id="diagnostic-snapback-client-store-write-failed"></a>`SNAPBACK_CLIENT_STORE_WRITE_FAILED` | client | — | — | `packages/snapback-contract/index.mjs:1891` | 3 |
 | <a id="diagnostic-snapback-client-subscription-generation-exhausted"></a>`SNAPBACK_CLIENT_SUBSCRIPTION_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:11441` | 2 |
 | <a id="diagnostic-snapback-client-upgrade-required"></a>`SNAPBACK_CLIENT_UPGRADE_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:185` | 2 |
 | <a id="diagnostic-snapback-client-webcrypto-rng-missing"></a>`SNAPBACK_CLIENT_WEBCRYPTO_RNG_MISSING` | client | — | [guide](../clients/react-expo.md#anti-patterns) | `packages/snapback-client/index.mjs:573` | 3 |
@@ -22672,37 +22949,37 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-contract-adapter-version"></a>`SNAPBACK_CONTRACT_ADAPTER_VERSION` | contract | — | — | `packages/snapback-contract/index.mjs:11` | 5 |
 | <a id="diagnostic-snapback-contract-agent-durable-custody-required"></a>`SNAPBACK_CONTRACT_AGENT_DURABLE_CUSTODY_REQUIRED` | contract | — | — | `packages/snapback-contract/index.mjs:644` | 1 |
 | <a id="diagnostic-snapback-contract-auth-coordinator-mismatch"></a>`SNAPBACK_CONTRACT_AUTH_COORDINATOR_MISMATCH` | contract | — | [guide](../clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure) | `packages/snapback-contract/index.mjs:609` | 1 |
-| <a id="diagnostic-snapback-contract-auth-resume-failed"></a>`SNAPBACK_CONTRACT_AUTH_RESUME_FAILED` | contract | — | — | `packages/snapback-contract/index.mjs:3146` | 1 |
+| <a id="diagnostic-snapback-contract-auth-resume-failed"></a>`SNAPBACK_CONTRACT_AUTH_RESUME_FAILED` | contract | — | — | `packages/snapback-contract/index.mjs:3156` | 1 |
 | <a id="diagnostic-snapback-contract-capability-class"></a>`SNAPBACK_CONTRACT_CAPABILITY_CLASS` | contract | — | — | `packages/snapback-contract/index.mjs:14` | 5 |
 | <a id="diagnostic-snapback-contract-derived-overlay-skipped"></a>`SNAPBACK_CONTRACT_DERIVED_OVERLAY_SKIPPED` | contract | — | — | `packages/snapback-contract/derived-overlay.mjs:698` | 1 |
-| <a id="diagnostic-snapback-contract-ephemeral-unsupported"></a>`SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED` | contract | — | — | `packages/snapback-contract/index.mjs:909` | 1 |
-| <a id="diagnostic-snapback-contract-inner-mutation-queued"></a>`SNAPBACK_CONTRACT_INNER_MUTATION_QUEUED` | contract | — | — | `packages/snapback-contract/index.mjs:2498` | 4 |
+| <a id="diagnostic-snapback-contract-ephemeral-unsupported"></a>`SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED` | contract | — | [guide](../clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure) | `packages/snapback-contract/index.mjs:919` | 1 |
+| <a id="diagnostic-snapback-contract-inner-mutation-queued"></a>`SNAPBACK_CONTRACT_INNER_MUTATION_QUEUED` | contract | — | — | `packages/snapback-contract/index.mjs:2508` | 4 |
 | <a id="diagnostic-snapback-contract-keyed-live-transport-required"></a>`SNAPBACK_CONTRACT_KEYED_LIVE_TRANSPORT_REQUIRED` | contract | — | — | `packages/snapback-contract/index.mjs:762` | 2 |
 | <a id="diagnostic-snapback-contract-keyed-offline-pending"></a>`SNAPBACK_CONTRACT_KEYED_OFFLINE_PENDING` | contract | — | — | `packages/snapback-contract/index.mjs:769` | 2 |
 | <a id="diagnostic-snapback-contract-keyed-provider-disposed"></a>`SNAPBACK_CONTRACT_KEYED_PROVIDER_DISPOSED` | contract | — | — | `packages/snapback-contract/keyed-provider.mjs:334` | 1 |
 | <a id="diagnostic-snapback-contract-keyed-runtime-required"></a>`SNAPBACK_CONTRACT_KEYED_RUNTIME_REQUIRED` | contract | — | — | `packages/snapback-contract/keyed-provider.mjs:274` | 1 |
 | <a id="diagnostic-snapback-contract-lifecycle-generation-exhausted"></a>`SNAPBACK_CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED` | contract | — | [guide](../clients/headless.md#enter-and-leave-session-authority) | `packages/snapback-contract/index.mjs:299` | 1 |
-| <a id="diagnostic-snapback-contract-livequery-args-mismatch"></a>`SNAPBACK_CONTRACT_LIVEQUERY_ARGS_MISMATCH` | contract | — | — | `packages/snapback-contract/index.mjs:4508` | 3 |
-| <a id="diagnostic-snapback-contract-livequery-duplicate"></a>`SNAPBACK_CONTRACT_LIVEQUERY_DUPLICATE` | contract | — | — | `packages/snapback-contract/index.mjs:4525` | 2 |
-| <a id="diagnostic-snapback-contract-livequery-not-live"></a>`SNAPBACK_CONTRACT_LIVEQUERY_NOT_LIVE` | contract | — | [guide](../clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure) | `packages/snapback-contract/index.mjs:4606` | 3 |
-| <a id="diagnostic-snapback-contract-manifest-invalid"></a>`SNAPBACK_CONTRACT_MANIFEST_INVALID` | contract | — | — | `packages/snapback-contract/index.mjs:2627` | 1 |
-| <a id="diagnostic-snapback-contract-mutation-failed"></a>`SNAPBACK_CONTRACT_MUTATION_FAILED` | contract | — | [guide](../clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure) | `packages/snapback-contract/index.mjs:2531` | 3 |
+| <a id="diagnostic-snapback-contract-livequery-args-mismatch"></a>`SNAPBACK_CONTRACT_LIVEQUERY_ARGS_MISMATCH` | contract | — | — | `packages/snapback-contract/index.mjs:4518` | 3 |
+| <a id="diagnostic-snapback-contract-livequery-duplicate"></a>`SNAPBACK_CONTRACT_LIVEQUERY_DUPLICATE` | contract | — | — | `packages/snapback-contract/index.mjs:4535` | 2 |
+| <a id="diagnostic-snapback-contract-livequery-not-live"></a>`SNAPBACK_CONTRACT_LIVEQUERY_NOT_LIVE` | contract | — | [guide](../clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure) | `packages/snapback-contract/index.mjs:4616` | 3 |
+| <a id="diagnostic-snapback-contract-manifest-invalid"></a>`SNAPBACK_CONTRACT_MANIFEST_INVALID` | contract | — | — | `packages/snapback-contract/index.mjs:2637` | 1 |
+| <a id="diagnostic-snapback-contract-mutation-failed"></a>`SNAPBACK_CONTRACT_MUTATION_FAILED` | contract | — | [guide](../clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure) | `packages/snapback-contract/index.mjs:2541` | 3 |
 | <a id="diagnostic-snapback-contract-online-auth-unsupported"></a>`SNAPBACK_CONTRACT_ONLINE_AUTH_UNSUPPORTED` | contract | — | — | `packages/snapback-contract/online-surface.mjs:160` | 1 |
 | <a id="diagnostic-snapback-contract-online-queries-required"></a>`SNAPBACK_CONTRACT_ONLINE_QUERIES_REQUIRED` | contract | — | — | `packages/snapback-contract/online-surface.mjs:64` | 1 |
 | <a id="diagnostic-snapback-contract-online-runtime-required"></a>`SNAPBACK_CONTRACT_ONLINE_RUNTIME_REQUIRED` | contract | — | — | `packages/snapback-contract/online-surface.mjs:153` | 1 |
 | <a id="diagnostic-snapback-contract-online-surface-disposed"></a>`SNAPBACK_CONTRACT_ONLINE_SURFACE_DISPOSED` | contract | — | — | `packages/snapback-contract/online-surface.mjs:204` | 1 |
-| <a id="diagnostic-snapback-contract-optimistic-reducer-failed"></a>`SNAPBACK_CONTRACT_OPTIMISTIC_REDUCER_FAILED` | contract | — | — | `packages/snapback-contract/index.mjs:2690` | 1 |
+| <a id="diagnostic-snapback-contract-optimistic-reducer-failed"></a>`SNAPBACK_CONTRACT_OPTIMISTIC_REDUCER_FAILED` | contract | — | — | `packages/snapback-contract/index.mjs:2700` | 1 |
 | <a id="diagnostic-snapback-contract-parity-capability-class"></a>`SNAPBACK_CONTRACT_PARITY_CAPABILITY_CLASS` | contract | — | — | `packages/snapback-contract/index.mjs:15` | 2 |
 | <a id="diagnostic-snapback-contract-partition-rotation-required"></a>`SNAPBACK_CONTRACT_PARTITION_ROTATION_REQUIRED` | contract | — | — | `packages/snapback-contract/keyed-provider.mjs:280` | 1 |
 | <a id="diagnostic-snapback-contract-query-transport-required"></a>`SNAPBACK_CONTRACT_QUERY_TRANSPORT_REQUIRED` | contract | — | — | `packages/snapback-contract/keyed-provider.mjs:438` | 1 |
 | <a id="diagnostic-snapback-contract-query-unconfigured"></a>`SNAPBACK_CONTRACT_QUERY_UNCONFIGURED` | contract | — | [guide](../clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure) | `packages/snapback-contract/index.mjs:787` | 6 |
 | <a id="diagnostic-snapback-contract-query-unknown"></a>`SNAPBACK_CONTRACT_QUERY_UNKNOWN` | contract | — | — | `packages/snapback-contract/keyed-provider.mjs:111` | 2 |
 | <a id="diagnostic-snapback-contract-receipt-capability"></a>`SNAPBACK_CONTRACT_RECEIPT_CAPABILITY` | contract | — | — | `packages/snapback-codegen/index.mjs:45` | 4 |
-| <a id="diagnostic-snapback-contract-reconcile-failed"></a>`SNAPBACK_CONTRACT_RECONCILE_FAILED` | contract | — | — | `packages/snapback-contract/index.mjs:2469` | 3 |
-| <a id="diagnostic-snapback-contract-required-query-unknown"></a>`SNAPBACK_CONTRACT_REQUIRED_QUERY_UNKNOWN` | contract | — | — | `packages/snapback-contract/index.mjs:4545` | 2 |
+| <a id="diagnostic-snapback-contract-reconcile-failed"></a>`SNAPBACK_CONTRACT_RECONCILE_FAILED` | contract | — | — | `packages/snapback-contract/index.mjs:2479` | 3 |
+| <a id="diagnostic-snapback-contract-required-query-unknown"></a>`SNAPBACK_CONTRACT_REQUIRED_QUERY_UNKNOWN` | contract | — | — | `packages/snapback-contract/index.mjs:4555` | 2 |
 | <a id="diagnostic-snapback-contract-service-principal-user-invalid"></a>`SNAPBACK_CONTRACT_SERVICE_PRINCIPAL_USER_INVALID` | contract | — | — | `packages/snapback-contract/index.mjs:352` | 1 |
 | <a id="diagnostic-snapback-contract-service-principal-user-mismatch"></a>`SNAPBACK_CONTRACT_SERVICE_PRINCIPAL_USER_MISMATCH` | contract | — | — | `packages/snapback-contract/index.mjs:362` | 1 |
-| <a id="diagnostic-snapback-contract-surface-binding-required"></a>`SNAPBACK_CONTRACT_SURFACE_BINDING_REQUIRED` | contract | — | — | `packages/snapback-contract/index.mjs:1176` | 1 |
+| <a id="diagnostic-snapback-contract-surface-binding-required"></a>`SNAPBACK_CONTRACT_SURFACE_BINDING_REQUIRED` | contract | — | — | `packages/snapback-contract/index.mjs:1186` | 1 |
 | <a id="diagnostic-snapback-contract-surface-disposal-failed"></a>`SNAPBACK_CONTRACT_SURFACE_DISPOSAL_FAILED` | contract | — | — | `packages/snapback-contract/render-first.mjs:46` | 2 |
 | <a id="diagnostic-snapback-contract-surface-disposed"></a>`SNAPBACK_CONTRACT_SURFACE_DISPOSED` | contract | — | — | `packages/snapback-contract/render-first.mjs:37` | 1 |
 | <a id="diagnostic-snapback-control-audit-invalid"></a>`SNAPBACK_CONTROL_AUDIT_INVALID` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:1044` | 8 |
@@ -23521,7 +23798,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-micro-transport-failed"></a>`SNAPBACK_MICRO_TRANSPORT_FAILED` | client | — | — | `packages/snapback-client/micro-core.mjs:203` | 3 |
 | <a id="diagnostic-snapback-migration-approval-required"></a>`SNAPBACK_MIGRATION_APPROVAL_REQUIRED` | migrations | 403 | [guide](../backend/migrations.md#handle-migration-refusals) | `src/cli/migration.rs:156` | 7 |
 | <a id="diagnostic-snapback-migration-barrier-failed"></a>`SNAPBACK_MIGRATION_BARRIER_FAILED` | migrations | — | [guide](../backend/migrations.md#handle-migration-refusals) | `src/server/api_error.rs:838` | 4 |
-| <a id="diagnostic-snapback-migration-boundary"></a>`SNAPBACK_MIGRATION_BOUNDARY` | migrations | — | — | `packages/snapback-contract/index.mjs:1471` | 1 |
+| <a id="diagnostic-snapback-migration-boundary"></a>`SNAPBACK_MIGRATION_BOUNDARY` | migrations | — | — | `packages/snapback-contract/index.mjs:1481` | 1 |
 | <a id="diagnostic-snapback-migration-cancelled"></a>`SNAPBACK_MIGRATION_CANCELLED` | migrations | 409 | [guide](../backend/migrations.md#handle-migration-refusals) | `src/error_tracking.rs:37` | 4 |
 | <a id="diagnostic-snapback-migration-executor-stale"></a>`SNAPBACK_MIGRATION_EXECUTOR_STALE` | migrations | 409 | [guide](../backend/migrations.md#handle-migration-refusals) | `src/server/api_error.rs:510` | 4 |
 | <a id="diagnostic-snapback-migration-executor-unavailable"></a>`SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE` | migrations | 409 | [guide](../backend/migrations.md#handle-migration-refusals) | `src/manifest.rs:12688` | 7 |
@@ -23563,7 +23840,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-offline-mutations-quarantined"></a>`SNAPBACK_OFFLINE_MUTATIONS_QUARANTINED` | client | — | — | `packages/snapback-client/index.mjs:7978` | 1 |
 | <a id="diagnostic-snapback-offline-mutations-reentered"></a>`SNAPBACK_OFFLINE_MUTATIONS_REENTERED` | client | — | — | `packages/snapback-client/index.mjs:6605` | 1 |
 | <a id="diagnostic-snapback-offline-mutations-stranded"></a>`SNAPBACK_OFFLINE_MUTATIONS_STRANDED` | client | — | — | `packages/snapback-client/index.mjs:6262` | 1 |
-| <a id="diagnostic-snapback-offline-mutation-failed"></a>`SNAPBACK_OFFLINE_MUTATION_FAILED` | contract | — | — | `packages/snapback-contract/index.mjs:3321` | 1 |
+| <a id="diagnostic-snapback-offline-mutation-failed"></a>`SNAPBACK_OFFLINE_MUTATION_FAILED` | contract | — | — | `packages/snapback-contract/index.mjs:3331` | 1 |
 | <a id="diagnostic-snapback-offline-mutation-outcome-unknown"></a>`SNAPBACK_OFFLINE_MUTATION_OUTCOME_UNKNOWN` | client | — | — | `packages/snapback-client/index.mjs:7875` | 2 |
 | <a id="diagnostic-snapback-offline-mutation-queued"></a>`SNAPBACK_OFFLINE_MUTATION_QUEUED` | client | — | — | `packages/snapback-client/index.mjs:6323` | 4 |
 | <a id="diagnostic-snapback-offline-mutation-queue-refused"></a>`SNAPBACK_OFFLINE_MUTATION_QUEUE_REFUSED` | client | — | — | `packages/snapback-client/index.mjs:6198` | 4 |
@@ -24132,8 +24409,8 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-resume-witness-oversize"></a>`SNAPBACK_RESUME_WITNESS_OVERSIZE` | server | — | — | `src/local.rs:2873` | 2 |
 | <a id="diagnostic-snapback-resume-witness-replay-diverged"></a>`SNAPBACK_RESUME_WITNESS_REPLAY_DIVERGED` | server | — | — | `src/rqs.rs:102` | 1 |
 | <a id="diagnostic-snapback-resume-witness-root-mismatch"></a>`SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH` | server | — | — | `src/rqs.rs:98` | 1 |
-| <a id="diagnostic-snapback-retained-identity-incomplete"></a>`SNAPBACK_RETAINED_IDENTITY_INCOMPLETE` | contract | — | — | `packages/snapback-contract/index.mjs:1263` | 1 |
-| <a id="diagnostic-snapback-retained-query-stale"></a>`SNAPBACK_RETAINED_QUERY_STALE` | contract | — | — | `packages/snapback-contract/index.mjs:2167` | 1 |
+| <a id="diagnostic-snapback-retained-identity-incomplete"></a>`SNAPBACK_RETAINED_IDENTITY_INCOMPLETE` | contract | — | — | `packages/snapback-contract/index.mjs:1273` | 1 |
+| <a id="diagnostic-snapback-retained-query-stale"></a>`SNAPBACK_RETAINED_QUERY_STALE` | contract | — | — | `packages/snapback-contract/index.mjs:2177` | 1 |
 | <a id="diagnostic-snapback-retention-not-retainable"></a>`SNAPBACK_RETENTION_NOT_RETAINABLE` | client | — | [guide](../sync/offline-and-retention.md#opt-a-live-query-into-cold-retention-rqseligible) | `packages/snapback-client/index.mjs:11977` | 2 |
 | <a id="diagnostic-snapback-retention-not-rqs-eligible"></a>`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE` | client | — | [guide](../retrieval-eval.md#seed-intents) | `packages/snapback-client/index.mjs:11993` | 1 |
 | <a id="diagnostic-snapback-retention-owner-authority-unavailable"></a>`SNAPBACK_RETENTION_OWNER_AUTHORITY_UNAVAILABLE` | client | — | — | `packages/snapback-client/index.mjs:11966` | 1 |
@@ -24605,7 +24882,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -24613,7 +24890,7 @@ reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
 # Generated API reference
 
 One build-bound projection of 1029 public symbols (429 runtime values and 600 explicit type-only symbols).
-Registry identity: `sha256:1b1665a7c41c50f031771f91fba629e7980ecf0c8cc08b107b09ec9595f03930`; source commit: `c8555549914f0c9a55d089d69c660ca347a4048f`.
+Registry identity: `sha256:1b1665a7c41c50f031771f91fba629e7980ecf0c8cc08b107b09ec9595f03930`; source commit: `58429ea3365df97a0dab1e977c070d0a3dd998e8`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -24683,7 +24960,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -33845,7 +34122,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34370,7 +34647,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34604,7 +34881,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35247,7 +35524,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35354,7 +35631,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35809,7 +36086,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35948,7 +36225,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36310,7 +36587,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36401,7 +36678,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36770,7 +37047,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36920,7 +37197,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37423,7 +37700,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37924,7 +38201,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38158,7 +38435,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38521,7 +38798,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38635,7 +38912,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39256,7 +39533,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39561,7 +39838,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40008,7 +40285,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40134,7 +40411,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40306,7 +40583,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40761,7 +41038,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40948,7 +41225,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41353,7 +41630,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41820,7 +42097,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42077,7 +42354,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42467,7 +42744,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43091,7 +43368,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43239,7 +43516,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43447,7 +43724,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43640,7 +43917,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43893,7 +44170,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44496,7 +44773,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46725,7 +47002,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47772,7 +48049,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47885,7 +48162,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -50901,7 +51178,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51183,7 +51460,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51307,7 +51584,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51462,7 +51739,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51586,7 +51863,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51756,7 +52033,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -52178,7 +52455,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: c8555549914f0c9a55d089d69c660ca347a4048f
+reviewed-commit: 58429ea3365df97a0dab1e977c070d0a3dd998e8
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->

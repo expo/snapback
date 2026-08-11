@@ -31,3 +31,18 @@ cannot tell whether they have an auth problem or a surface-boot problem.
   React-shaped and the carriers question is framework-independent.
 - Reference it from `guide/clients/contract-adapter.md`'s boot section, which is
   where a Contract author is standing when they hit this.
+
+## Resolution (2026-08-10)
+
+`guide/recipes/browser-auth.md` gains "Get the sign-in code in local
+development", the serve-only dev mailbox relay as a named pattern, shown for
+the **non-React** Contract/Vite surface: the credential resolver, the
+`apply: 'serve'` middleware that answers one relay route and passes everything
+else through, and the browser half (`authRequestCode` → relay fetch →
+`authExchange`). It names what must never reach the bundle, and that the relay
+is not an arbitrary Snapback proxy. `demos/file-drop/vite.config.ts` is
+referenced as the React-side sibling.
+
+Reachable from both places an author actually stands: the mailbox explanation
+in `guide/auth/sessions-and-principals.md` and the boot section of
+`guide/clients/contract-adapter.md`.

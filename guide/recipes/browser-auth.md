@@ -5,7 +5,7 @@ order: 5
 audience: agent-first
 capabilities: [auth.sessions, auth.external-identity-broker, auth.browser-session-custody, auth.scoped-queries, auth.invalidation-barrier]
 authorities: [llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0060-hosted-auth-security.rfc.md, llp/0151-first-party-identity-integrations.rfc.md, demos/browser-auth/snapback/schema.mjs, demos/browser-auth/snapback/functions.mjs, demos/browser-auth/server/gateway.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs]
-examples: [demos/browser-auth]
+examples: [demos/browser-auth, demos/pointing-room/surfaces/contract, demos/file-drop/vite.config.ts]
 status: current
 targets: [local]
 maturity: partial
@@ -116,6 +116,118 @@ export const viewer = defineJsQuery({
 This is application-level identity binding. It does not replace the future
 platform-owned `_auth_identities` lifecycle in Draft LLP 0151.
 
+## Get the sign-in code in local development
+
+For a non-React Contract/Vite surface, use a **serve-only dev mailbox relay**.
+The Vite process reads the ready-file carriers server-side; page code never
+does. Pointing Room accepts explicit environment carriers for harnesses or
+reads the owner-only files named by the ready descriptor:
+
+```ts source=demos/pointing-room/surfaces/contract/vite.config.ts
+function localMailboxCredentials(): { adminToken: string; impersonation: string } | null {
+  const explicitAdmin = process.env.SNAPBACK_POINTING_ADMIN_TOKEN?.trim();
+  const explicitImpersonation = process.env.SNAPBACK_POINTING_IMPERSONATION_CAPABILITY?.trim();
+  if (explicitAdmin && explicitImpersonation) {
+    return { adminToken: explicitAdmin, impersonation: explicitImpersonation };
+  }
+  const readyFile = process.env.SNAPBACK_POINTING_READY_FILE;
+  if (!readyFile) return null;
+  const descriptor = JSON.parse(readFileSync(readyFile, 'utf8')) as {
+    adminTokenFile: string;
+    impersonationCapabilityFile: string;
+  };
+  return {
+    adminToken: readFileSync(descriptor.adminTokenFile, 'utf8').trim(),
+    impersonation: readFileSync(descriptor.impersonationCapabilityFile, 'utf8').trim(),
+  };
+}
+```
+
+The plugin applies only to `vite serve`, recognizes one relay route, calls only
+the gated mailbox endpoint, disables caching, and passes every other request to
+the next middleware. It is not an arbitrary Snapback proxy:
+
+```ts source=demos/pointing-room/surfaces/contract/vite.config.ts
+// The local provider has no mail delivery. This serve-only middleware keeps
+// the admin and impersonation carriers in the Vite process and relays only the
+// one-time code to the browser. It never proxies arbitrary Snapback routes.
+const pointingRoomMailbox = {
+  name: 'pointing-room-local-mailbox',
+  apply: 'serve' as const,
+  configureServer(server: { middlewares: { use: Function } }) {
+    server.middlewares.use(async (
+      request: { url?: string },
+      response: {
+        statusCode: number;
+        setHeader(name: string, value: string): void;
+        end(body: string): void;
+      },
+      next: () => void,
+    ) => {
+      if (!request.url?.startsWith('/__pointing-mailbox')) return next();
+      const challengeId = new URL(request.url, 'http://pointing-room.local')
+        .searchParams.get('challengeId');
+      const credentials = localMailboxCredentials();
+      if (!challengeId) {
+        response.statusCode = 400;
+        response.setHeader('content-type', 'application/json; charset=utf-8');
+        return response.end(JSON.stringify({ error: 'missing challengeId' }));
+      }
+      if (!credentials) {
+        response.statusCode = 503;
+        response.setHeader('content-type', 'application/json; charset=utf-8');
+        return response.end(JSON.stringify({
+          error: 'local mailbox credentials unavailable',
+          recovery: 'set SNAPBACK_POINTING_READY_FILE or both SNAPBACK_POINTING_ADMIN_TOKEN and SNAPBACK_POINTING_IMPERSONATION_CAPABILITY',
+        }));
+      }
+      const mailbox = await fetch(
+        `${snapbackTarget}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(challengeId)}`,
+        {
+          headers: {
+            'x-snapback-admin-token': credentials.adminToken,
+            'x-snapback-impersonation-capability': credentials.impersonation,
+          },
+        },
+      );
+      response.statusCode = mailbox.status;
+      response.setHeader('content-type', 'application/json; charset=utf-8');
+      response.setHeader('cache-control', 'no-store');
+      return response.end(await mailbox.text());
+    });
+  },
+};
+```
+
+The browser half remains the ordinary public flow: request a challenge, fetch
+the relayed one-time code, and exchange it into coordinator-owned custody.
+
+```ts source=demos/pointing-room/surfaces/contract/main.ts
+async function signIn(client: SnapbackClient, email: string) {
+  const challenge = await client.authRequestCode(email);
+  const mailboxResponse = await fetch(
+    `/__pointing-mailbox?challengeId=${encodeURIComponent(challenge.challengeId)}`,
+  );
+  if (!mailboxResponse.ok) {
+    throw new Error(`local sign-in mailbox refused (${mailboxResponse.status}): ${await mailboxResponse.text()}`);
+  }
+  const mailbox = await mailboxResponse.json() as { code: string };
+  return await client.authExchange({ challengeId: challenge.challengeId, code: mailbox.code });
+}
+```
+
+The browser receives only the one-time code. The admin token, impersonation
+capability, mailbox reader, and any private backend origin must never enter
+`define`, `import.meta.env`, page code, the bundle, or logs. Pointing Room's
+ordinary app-data origin is separately browser-reachable; that does not make a
+private relay origin safe to publish. The React-side sibling is
+[`demos/file-drop/vite.config.ts`](repo:demos/file-drop/vite.config.ts); the
+custody rule is framework-independent.
+
+This relay is a local dev fixture, not production challenge delivery. Replace
+it with the admitted provider/delivery path when one exists; do not deploy the
+Vite middleware as an auth service.
+
 ## Put browser custody in IndexedDB
 
 Construct exactly one coordinator with the generated app id and the shipped
@@ -199,5 +311,7 @@ specs; do not generalize this fixture into those contracts.
 - Do not return a broker-minted bearer to browser app state and call it
   coordinator custody.
 - Do not put mailbox/admin/impersonation material in browser code or logs.
+- Do not expose the mailbox as a generic proxy or publish its private backend
+  origin through Vite environment replacement.
 - Do not use memory custody and claim reload persistence.
 - Do not label this local fixture hosted, OIDC-complete, or production-ready.

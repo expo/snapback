@@ -116,6 +116,11 @@ From then on the client carries the session credential; `AuthCoordinator`
 (from `@expo/snapback-contract`) owns custody, refresh, and the logout barrier
 for surface-based clients.
 
+For a browser/Vite surface in local development, keep the privileged mailbox
+read in a serve-only dev-server relay while the browser performs
+`authRequestCode` → relay fetch → `authExchange`. The complete non-React
+pattern is [get the sign-in code in local development](../recipes/browser-auth.md#get-the-sign-in-code-in-local-development).
+
 The shipped provider has no production mail adapter yet. For a local native
 app whose identity front door lives in trusted server code, use the sanctioned
 [external identity-broker seam](./native-apps.md): the broker invokes the
@@ -222,8 +227,11 @@ bundle). What a web author actually does today is one of these:
 
 - **Dev mode** (`auth: { mode: 'dev' }`) for the authoring loop — trusted
   client-passed `userId`, no sign-in UI at all.
-- **Test personas** for acceptance suites — the mailbox loop above, driven
-  by the suite's server-side harness, never by page code.
+- **Test/dev personas** for acceptance suites and Vite surfaces — the privileged
+  mailbox read stays in the suite harness or the
+  [serve-only dev mailbox relay](../recipes/browser-auth.md#get-the-sign-in-code-in-local-development).
+  Page code may request and exchange the one-time code, but never receives the
+  admin or impersonation carriers.
 - **The trusted-server seam** for a product-shaped flow — a server-side
   component authenticates the user through its own front door. For a browser,
   prefer staging a one-use challenge/code that the ordinary `authExchange`

@@ -35,3 +35,18 @@ answer.
   presence recipe that lacks the Contract half.
 - State plainly that ordinary collection publishing is not pointer-only, since
   the current framing invites exactly the wrong inference.
+
+## Resolution (2026-08-10)
+
+`guide/recipes/presence-cursors.md` gains "Publish ordinary presence from
+Contract": the `roomPresence` / `roomPresencePublish` / `pointerChannel`
+imports, the `ephemeral` binding beside the keyed queries, the mount task, the
+`publish … rate= heartbeat= payload={…}` view clause, and why a scope-changing
+action pulses the channel rather than waiting for the next heartbeat. Every
+snippet is `source=`-bound to `demos/pointing-room/surfaces/contract/pointing.contract`.
+
+The wrong inference is now refused explicitly: **collection publishing is not
+pointer-only** — `pointerChannel` is the rated carrier, not a payload
+restriction — with a matching anti-pattern against the DOM/timer bridge this
+gap produced. `guide/clients/contract-adapter.md`'s ephemeral-channels bullet
+links the new section directly instead of the recipe's React-only half.

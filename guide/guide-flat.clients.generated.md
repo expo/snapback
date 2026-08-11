@@ -10,7 +10,7 @@ order: 1
 audience: agent-first
 capabilities: [clients.contract, clients.contract-provider-generation, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
 authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs]
-examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
+examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, demos/pointing-room, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -185,6 +185,12 @@ what's missing, seeds only empty tables — a reload never resets data; LLP
 authorized retained snapshot; a true first run fails with the original
 network error instead of inventing an empty app.
 
+A sessions-mode Contract/Vite surface that needs its one-time code during
+local boot should use the
+[serve-only dev mailbox relay](../recipes/browser-auth.md#get-the-sign-in-code-in-local-development):
+Vite owns the admin and impersonation carriers, while the browser sees only the
+code it passes to `authExchange`.
+
 The `registeredBoot` spread is the optional **Channel C register-mode boot**
 (LLP 0090 D4): one `client.fetchBundle({ route, mode: 'register', userId })`
 returns every query's snapshot plus its live registration and the connection
@@ -295,6 +301,40 @@ What the surface does for you:
   });
   ```
 
+<!-- since: 0.1.19 unreleased -->
+
+> **Unreleased.** The keyed ephemeral link family is newer than the newest
+> published Snapback closure, 0.1.18. Use a source build until the next
+> qualified closure is published.
+
+  One `createSnapbackContractSurface({ keyedQueryScopes: true })` now boots a
+  component that combines keyed durable queries with manifest-declared
+  ephemeral collections. The returned `links` contains each durable query and
+  mutation plus the generated ephemeral `<name>` / `<name>Publish` read/publish
+  pair; Pointing Room therefore configures one registry from one surface, with
+  no companion-surface merge. The durable `liveQueries` list remains an
+  allowlist, while an ephemeral named by `requiredQueries` is checked against
+  ephemeral wiring instead of that durable allowlist.
+
+  One surface does not mean one physical connection: the durable keyed lane
+  keeps the surface connection, while the ephemeral lane uses its own stable
+  connection across authority transitions. That separation prevents an
+  ephemeral consumer from withholding a disposed keyed binding's durable
+  unsubscribe.
+
+  Construction refuses with `SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED` when the
+  client cannot provide `subscribeEphemeral()` and `liveStreamManager()` for
+  the required ephemeral collections—or for every manifest-declared ephemeral
+  when none is explicitly required. Its message names both missing generated
+  links for each collection, such as `roomPresence` and
+  `roomPresencePublish`, before the component mounts.
+
+  The deliberate remaining limit is force-state tooling: the keyed provider
+  exposes `forceQueryState` but not `forceEphemeralState`. The ordinary
+  multi-live boundary-provider path still exposes local-only
+  `forceEphemeralState`; use that path when a test needs to force an ephemeral
+  cell.
+
   For an **Online-only** surface with no `authCoordinator`,
   `agentAuthority`, or retained client store, import
   `createKeyedSnapbackContractProvider` from
@@ -337,9 +377,52 @@ What the surface does for you:
   pairs). For connection-keyed maps, the adapter derives `self` from the
   opaque granted id captured by the successful overlay subscribe—not from the
   surface's readable `connectionId` label—so collision and mint-only
-  containment remain correct. See the
-  [presence recipe](../recipes/presence-cursors.md) and
+  containment remain correct. Ordinary collection values publish through the
+  same rated-channel clause as pointers; `pointerChannel` is the carrier, not
+  a payload restriction. See
+  [publish ordinary presence from Contract](../recipes/presence-cursors.md#publish-ordinary-presence-from-contract) and the
   [ephemeral-state reference](../realtime/ephemeral-state.md).
+
+## Prove disclosure at the wire boundary
+
+Contract owns the `contract` block grammar. Read Exact's closed
+[clause inventory](repo(exact):guide/contract/contract-blocks.md#the-complete-clause-inventory)
+and [claim ceiling](repo(exact):guide/contract/contract-blocks.md#know-what-a-claim-cannot-say)
+instead of inferring a stronger assertion language from the Snapback binding.
+An invariant has the form `invariant [when <expr> then] <assertion>`, where the
+assertion is only `has`, `missing`, `count`, or `state`.
+
+For authorization- or disclosure-shaped claims, that means a Contract block
+can continuously prove the observable UI shadow: presence/absence, element
+state, and counts that match derived partitions. Pointing Room partitions the
+nullable server result and keeps the rendered branches aligned with those
+counts:
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+  derive maskedVoteCount = tally.filter((vote) => vote.value == null).length
+  derive revealedVoteCount = tally.filter((vote) => vote.value != null).length
+```
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+    count node testId="participant-card" = tally.length
+    invariant count node testId="masked-vote-value" = maskedVoteCount
+    invariant count node testId="revealed-vote-value" = revealedVoteCount
+```
+
+The block cannot prove rendered-text equality against an expression, quantify
+over every `each` row, or state that a value came from a particular field,
+row, principal, or server response. Selector strings are literals, and
+`count` is the only assertion with an expression on the right. Therefore the
+count partition is genuine UI evidence, but it is not an authorization or
+wire-disclosure proof.
+
+Pair the Contract block with a wire-level acceptance test. Pointing Room's
+[`disclosure-invariant.mjs`](repo:demos/pointing-room/tests/acceptance/disclosure-invariant.mjs)
+mints two principals and asserts the raw subscription-response and WebSocket
+bytes: a masked vote is `null`, the hidden value is absent before reveal, the
+revealed value arrives afterward, and another room never appears. Keep the
+Contract claim scoped to rendering and let the two-principal test carry the
+server disclosure claim.
 
 ## Call a paged query from a Contract screen
 
@@ -428,6 +511,9 @@ function props for legacy capability glue until Exact promotes that spelling.
 - **Do not pass a scoped token as a raw bearer to Contract.** Construct the
   headless client with `AgentAuthorityFence`; protocol-v1 agent work without
   that custody owner is refused.
+- **Do not treat a Contract invariant as an authorization proof.** It can
+  check the rendered partition, not provenance or raw response bytes; pair it
+  with a wire-level two-principal acceptance test.
 
 ---
 

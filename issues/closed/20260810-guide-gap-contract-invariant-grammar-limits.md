@@ -37,3 +37,26 @@ the reader standing in front of it.
   pair it with a wire-level acceptance test instead of over-trusting the block.
   `demos/pointing-room`'s split (count-partition invariants in Contract, raw
   two-principal byte assertions in the headless proof) is a usable model.
+
+## Resolution (2026-08-10)
+
+The ticket's premise was partly wrong, which is worth recording. Exact's guide
+already documented the `invariant` clause (`invariant [when <expr> then]
+<assertion>`), the `has`/`missing`/`count`/`state` assertion inventory, and the
+enforcement table, in `guide/contract/contract-blocks.md`. The real gap was the
+**ceiling**, plus the absence of any Snapback-side pointer to that page.
+
+Both halves landed:
+
+- Exact (`expo/exact` commit 770ac3b050) adds "Know what a claim cannot say":
+  selector strings are literals and never expressions, `count` is the only
+  clause with an expression on the right, nothing quantifies over `each` rows,
+  and nothing states provenance — so a contract block cannot say a value was
+  withheld, only that a masked node rendered. Plus an anti-pattern against
+  using a contract block as a security test.
+- Snapback's `guide/clients/contract-adapter.md` gains "Prove disclosure at the
+  wire boundary": the ceiling stated for authorization-shaped claims, the
+  cross-repo links to Exact's clause inventory and ceiling, pointing-room's
+  count-partition invariants as what *is* expressible, and the instruction to
+  pair the block with a two-principal wire test — naming
+  `demos/pointing-room/tests/acceptance/disclosure-invariant.mjs` as the model.

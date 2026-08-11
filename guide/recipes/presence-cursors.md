@@ -5,7 +5,7 @@ order: 1
 audience: agent-first
 capabilities: [realtime.ephemeral]
 authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs, packages/snapback-react/index.mjs]
-examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
+examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts, demos/pointing-room/surfaces/contract/pointing.contract]
 status: current
 targets: [local]
 maturity: shipped
@@ -123,6 +123,72 @@ server-stamped `expiresAtMs`; the reference hook freezes TTL-pruning while
 the connection is `stale`/`disconnected` so departed cursors stay
 renderable during degradation instead of silently vanishing.
 
+## Publish ordinary presence from Contract
+
+A Contract surface uses the generated ephemeral read and publish descriptors
+with a rated channel. Pointing Room imports both halves plus Exact's channel:
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+use roomPresence from "../../snapback/generated/contract/roomPresence.ephemeral.ts"
+use roomPresencePublish from "../../snapback/generated/contract/roomPresence.publish.ts"
+use pointerChannel from "@exact/contract/channels"
+```
+
+Bind the collection to Contract-owned scope state and declare the channel. The
+same `activeRoomId` that keys durable queries keys the presence subscription:
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+  query currentRound = liveRound({ roomId: activeRoomId })
+  query tally = liveTally({ roomId: activeRoomId })
+  ephemeral presence = roomPresence({ roomId: activeRoomId })
+
+  mutation submitVote = castVote
+  mutation flipRound = revealRound
+  mutation beginRound = startRound
+  use presencePulse = pointerChannel()
+```
+
+Publish once at mount so the viewer appears before the first interaction:
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+  task announcePresence mount
+    publish(presencePulse)
+```
+
+The view clause maps channel pulses to the ordinary collection publisher. It
+owns the rate, heartbeat, current scope, payload, and TTL:
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+      publish presencePulse.self -> roomPresencePublish rate=4 heartbeat=0.1 payload={ roomId: activeRoomId, value: { name: viewerName, picking: selected != "" }, ttlMs: 15000 }
+```
+
+**Collection publishing is not pointer-only.** `pointerChannel` is the rated
+carrier that schedules the clause; it does not restrict the published value to
+pointer coordinates. Here it publishes an ordinary `{ name, picking }`
+presence value through `roomPresencePublish`.
+
+When `activeRoomId` changes, the `ephemeral presence = ...` binding re-keys the
+subscription. The action also pulses the channel *after* updating the scope so
+the same view clause publishes current presence into the new room immediately;
+payload-changing actions pulse it for the same reason:
+
+```contract source=demos/pointing-room/surfaces/contract/pointing.contract
+  action switchRoom(roomId) writes activeRoomId, selected, nextTopic
+    activeRoomId = roomId
+    selected = ""
+    nextTopic = ""
+    publish(presencePulse)
+  action startNext writes selected, nextTopic mutates beginRound
+    beginRound({ roomId: activeRoomId, topic: nextTopic.trim() })
+    selected = ""
+    nextTopic = ""
+    publish(presencePulse)
+```
+
+The heartbeat keeps the active lease refreshed between explicit pulses; it is
+not a substitute for the scope-change pulse because the new room should not
+wait for the next heartbeat.
+
 ## Anti-patterns
 
 - **Do not store presence in tables.** Cursor positions in app data means
@@ -137,3 +203,6 @@ renderable during degradation instead of silently vanishing.
 - **Do not hand-wire a React overlay for ordinary presence or typing.** Use
   `useSnapbackPresence` so the provider owns Strict Mode replay, heartbeat,
   resync, authority changes, and teardown.
+- **Do not build a DOM/timer bridge for Contract presence publishing.** Use a
+  rated channel plus the generated publish descriptor; pulse it at mount and
+  whenever Contract-owned scope or payload state changes.
