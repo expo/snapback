@@ -534,6 +534,28 @@ assert.equal(
   2,
   'qualified staging must assemble once for receipt minting and once for receipt-qualified proof',
 );
+for (const job of [
+  'linux_store_qualification',
+  'darwin_staged_proof',
+  'linux_staged_proof',
+]) {
+  const start = qualifiedPackageStaging.indexOf(`  ${job}:`);
+  const bodyStart = start + `  ${job}:`.length;
+  const nextJob = qualifiedPackageStaging.slice(bodyStart).search(/\n  [a-z][a-z_]+:\n/u);
+  const end = nextJob === -1
+    ? qualifiedPackageStaging.length
+    : bodyStart + nextJob;
+  const block = qualifiedPackageStaging.slice(
+    start,
+    end,
+  );
+  assert(start >= 0, `qualified staging must retain the ${job} job`);
+  assert.match(
+    block,
+    /eas\/install_node_modules[\s\S]*scripts\/(?:qualified-staging-store-qualification|snapback-package-cold-install)\.mjs/u,
+    `${job} must install the publication validator dependencies before qualification`,
+  );
+}
 assert.match(
   qualifiedPackageStaging,
   /scripts\/qualified-staging-retain-release/u,

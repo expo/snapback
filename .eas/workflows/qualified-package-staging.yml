@@ -218,6 +218,8 @@ jobs:
       - name: Remove checkout authority
         run: git remote set-url origin https://github.com/expo/snapback.git && scripts/check-checkout-credentials
 
+      - uses: eas/install_node_modules
+
       - id: closure
         uses: eas/download_artifact
         with:
@@ -298,6 +300,8 @@ jobs:
       - name: Remove checkout authority
         run: git remote set-url origin https://github.com/expo/snapback.git && scripts/check-checkout-credentials
 
+      - uses: eas/install_node_modules
+
       - id: qualified_artifact
         uses: eas/download_artifact
         with:
@@ -333,6 +337,8 @@ jobs:
 
       - name: Remove checkout authority
         run: git remote set-url origin https://github.com/expo/snapback.git && scripts/check-checkout-credentials
+
+      - uses: eas/install_node_modules
 
       - id: qualified_artifact
         uses: eas/download_artifact
