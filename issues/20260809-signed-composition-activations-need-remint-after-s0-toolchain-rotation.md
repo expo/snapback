@@ -100,3 +100,12 @@ final ceremony re-mints the four demos and discharges this ticket's
 recurring class — the fourth same-day rotation of this treadmill would
 otherwise keep re-blocking every client-touching landing (five bypass
 landings recorded above as of tonight).
+
+## Dated note — 2026-08-10 (RULED: v2 adopted)
+
+Charlie ruled for `composition-activation.v2` (LLP 0157 amendment, now
+RULED): admission binds `authoredSourceHash`; generation drift becomes an
+audited `activationGenerationAdvanced` marker instead of an invalidation.
+Implementation commissioned; this ticket's resolution ceremony becomes the
+v2 re-mint of the four demos, after which routine toolchain rotations stop
+re-opening this class.

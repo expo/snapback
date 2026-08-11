@@ -6,7 +6,7 @@
 Client SDK, Live queries, Wire Protocol, Codegen, Admin console, Testing
 **Author:** Charlie Cheever / Claude (Fable 5) / Codex
 **Date:** 2026-08-02
-**Revised:** 2026-08-10 (PROPOSED amendment appended — toolchain-stable activation identity v2; author ruling required; re-routes the design question the remint ticket sent to parked LLP 0087)
+**Revised:** 2026-08-10 (author RULING: composition-activation.v2 adopted — authored-byte admission, audited generation drift; implementation commissioned. Earlier same day: amendment drafted, re-routing the design question off parked LLP 0087)
 **Revised:** 2026-08-06, Move-1 closure (the retained qualified Fleet
 Observatory receipt at
 `tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json`
@@ -2700,11 +2700,18 @@ the newly required capability id is part of the plan's declared capability
 classification and therefore rotates the plan identity consistently in
 codegen and host reconstruction.
 
-## Proposed amendment — 2026-08-10: toolchain-stable activation identity (author ruling required)
+## Amendment — 2026-08-10: toolchain-stable activation identity (RULED)
 
-**Status of this section: PROPOSED. Nothing below is in force until the
-author accepts it with a dated ruling; the v1 exact-equality rule stands
-until then.**
+**Author ruling — 2026-08-10 (Charlie Cheever): v2 adopted as specified
+below. The signing ceremony vouches for authored bytes; frozen-artifact
+custody lives in the acceptance receipts. The `activationGenerationAdvanced`
+audit marker is a MUST. Implementation commissioned as a single lane
+(dual-version validation, mint path, rotation-survival regression, one
+final ceremony re-minting the four demos to v2, discharging the standing
+remint ticket). The knowingly-accepted tradeoff: a v2 activation alone no
+longer freezes emitted artifact bytes — any future design that admits a
+deployment on an activation WITHOUT receipts (e.g. if LLP 0087 un-parks)
+must revisit this binding first.**
 
 ### Problem
 
