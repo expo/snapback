@@ -134,6 +134,7 @@
       "src/local/config_types.rs",
       "src/manifest.rs",
       "src/network_profile.rs",
+      "src/owner_only_file.rs",
       "src/remediation.rs",
       "src/result_contract.rs",
       "src/result_transform.rs",

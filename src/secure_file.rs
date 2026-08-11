@@ -13,8 +13,6 @@ use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-use zeroize::Zeroize as _;
-
 #[cfg(unix)]
 fn open_existing(path: &Path, writable: bool) -> io::Result<File> {
     use std::os::unix::fs::OpenOptionsExt as _;
@@ -81,35 +79,7 @@ fn validate_open_file(file: &File) -> io::Result<()> {
 
 #[cfg(unix)]
 fn validate_open_file_strict(file: &File) -> io::Result<()> {
-    use std::os::unix::fs::{MetadataExt as _, PermissionsExt as _};
-
-    validate_open_file(file)?;
-    let metadata = file.metadata()?;
-    // Refusals name the failed inode predicate — observed mode, ownership,
-    // link count, or ACL state — without disclosing contents: an operator
-    // must be able to repair a refused startup artifact from the diagnostic
-    // alone (issues/20260729-external-package-lifecycle-gaps.md).
-    if metadata.permissions().mode() & 0o777 != 0o600 {
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            format!(
-                "secret file mode {:04o} is not exactly owner read/write (0600); \
-                 group/other permission bits must be clear",
-                metadata.permissions().mode() & 0o7777
-            ),
-        ));
-    }
-    if metadata.nlink() != 1 {
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            format!(
-                "secret file has {} hard links; exactly one is required",
-                metadata.nlink()
-            ),
-        ));
-    }
-    validate_no_extended_acl(file)?;
-    Ok(())
+    crate::owner_only_file::validate_strict_owner_only_descriptor(file)
 }
 
 /// Validate an already-open auth-sensitive file descriptor without reopening
@@ -118,93 +88,12 @@ fn validate_open_file_strict(file: &File) -> io::Result<()> {
 /// all checked on the inode that will be published.
 #[cfg(unix)]
 pub(crate) fn validate_strict_owner_only_descriptor(file: &File) -> io::Result<()> {
-    validate_open_file_strict(file)
+    crate::owner_only_file::validate_strict_owner_only_descriptor(file)
 }
 
-// @ref LLP 0057#keyring-protocol — strict auth files fail closed on ACL-bearing inodes, and unsupported descriptor-level ACL validation never exposes bytes.
-#[cfg(target_os = "macos")]
+#[cfg(unix)]
 fn validate_no_extended_acl(file: &File) -> io::Result<()> {
-    use std::os::fd::AsRawFd as _;
-
-    const ACL_TYPE_EXTENDED: libc::c_int = 0x0000_0100;
-
-    unsafe extern "C" {
-        fn acl_get_fd_np(fd: libc::c_int, acl_type: libc::c_int) -> *mut libc::c_void;
-        fn acl_free(object: *mut libc::c_void) -> libc::c_int;
-    }
-
-    // SAFETY: the file descriptor remains valid for the duration of the call.
-    // `ACL_TYPE_EXTENDED` is the Darwin value from <sys/acl.h>.
-    let acl = unsafe { acl_get_fd_np(file.as_raw_fd(), ACL_TYPE_EXTENDED) };
-    if acl.is_null() {
-        let error = io::Error::last_os_error();
-        return match error.raw_os_error() {
-            // Darwin reports an absent extended ACL as ENOENT.
-            Some(libc::ENOENT) => Ok(()),
-            Some(libc::EOPNOTSUPP) => Err(io::Error::new(
-                io::ErrorKind::Unsupported,
-                "strict owner-only ACL validation is unsupported by this filesystem",
-            )),
-            _ => Err(error),
-        };
-    }
-
-    // A non-null ACL object means the inode has at least one persisted Darwin
-    // extended ACL. Reject it regardless of whether an individual entry grants
-    // or denies access: strict secret files have mode-only authority.
-    // SAFETY: `acl` was allocated by `acl_get_fd_np` and has not been freed.
-    let free_result = unsafe { acl_free(acl) };
-    if free_result != 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Err(io::Error::new(
-        io::ErrorKind::PermissionDenied,
-        "secret file has an extended access ACL",
-    ))
-}
-
-#[cfg(target_os = "linux")]
-fn validate_no_extended_acl(file: &File) -> io::Result<()> {
-    use std::os::fd::AsRawFd as _;
-
-    // Linux exposes a file's POSIX access ACL through this descriptor-relative
-    // virtual xattr. A mode-equivalent ACL is normally elided by the VFS; any
-    // persisted value is conservatively treated as extended authority.
-    const POSIX_ACCESS_ACL: &[u8] = b"system.posix_acl_access\0";
-    // SAFETY: the descriptor is live, the attribute name is NUL-terminated,
-    // and a null buffer with size zero is the documented size probe.
-    let result = unsafe {
-        libc::fgetxattr(
-            file.as_raw_fd(),
-            POSIX_ACCESS_ACL.as_ptr().cast(),
-            std::ptr::null_mut(),
-            0,
-        )
-    };
-    if result >= 0 {
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            "secret file has an extended access ACL",
-        ));
-    }
-
-    let error = io::Error::last_os_error();
-    match error.raw_os_error() {
-        Some(libc::ENODATA) => Ok(()),
-        Some(libc::EOPNOTSUPP) => Err(io::Error::new(
-            io::ErrorKind::Unsupported,
-            "strict owner-only ACL validation is unsupported by this filesystem",
-        )),
-        _ => Err(error),
-    }
-}
-
-#[cfg(all(unix, not(any(target_os = "macos", target_os = "linux"))))]
-fn validate_no_extended_acl(_file: &File) -> io::Result<()> {
-    Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "strict owner-only ACL validation is not implemented on this Unix host",
-    ))
+    crate::owner_only_file::validate_no_extended_acl_descriptor(file)
 }
 
 #[cfg(unix)]
@@ -246,84 +135,8 @@ pub fn read_owner_only(path: &Path) -> io::Result<Vec<u8>> {
 /// Unlike [`read_owner_only`], this never repairs permissions: mode, owner,
 /// regular-file status, link count, and size must already be valid before a
 /// byte is exposed. The path must still name the opened inode after the read.
-#[cfg(unix)]
 pub(crate) fn read_strict_owner_only(path: &Path, maximum_bytes: usize) -> io::Result<Vec<u8>> {
-    use std::os::unix::fs::MetadataExt as _;
-
-    let mut file = open_strict_owner_only(path)?;
-    let before = file.metadata()?;
-    if before.len() > maximum_bytes as u64 {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "secret file exceeds its size limit",
-        ));
-    }
-
-    let mut bytes = Vec::with_capacity(before.len() as usize);
-    if let Err(error) = (&mut file)
-        .take(maximum_bytes as u64 + 1)
-        .read_to_end(&mut bytes)
-    {
-        bytes.zeroize();
-        return Err(error);
-    }
-    if bytes.len() > maximum_bytes {
-        bytes.zeroize();
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "secret file exceeds its size limit",
-        ));
-    }
-
-    // Do not return content if the opened inode's strict protection changed
-    // during the read. The pre-read check above remains the exposure boundary;
-    // this second descriptor check closes the returned-stale-validation race.
-    if let Err(error) = validate_open_file_strict(&file) {
-        bytes.zeroize();
-        return Err(error);
-    }
-
-    // Re-open-free path verification closes the ordinary path-check/open race
-    // in the other direction: replacement during the read is refused rather
-    // than allowing this operation to keep using a stale cached inode.
-    let current = match std::fs::symlink_metadata(path) {
-        Ok(metadata) => metadata,
-        Err(error) => {
-            bytes.zeroize();
-            return Err(error);
-        }
-    };
-    if !current.file_type().is_file()
-        || current.dev() != before.dev()
-        || current.ino() != before.ino()
-    {
-        bytes.zeroize();
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            "secret path changed while it was being read",
-        ));
-    }
-    let after = match std::fs::metadata(path) {
-        Ok(metadata) => metadata,
-        Err(error) => {
-            bytes.zeroize();
-            return Err(error);
-        }
-    };
-    // SAFETY: geteuid has no preconditions and reads process identity only.
-    let effective_uid = unsafe { libc::geteuid() };
-    if after.len() != bytes.len() as u64
-        || after.nlink() != 1
-        || after.uid() != effective_uid
-        || after.mode() & 0o777 != 0o600
-    {
-        bytes.zeroize();
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "secret file changed while it was being read",
-        ));
-    }
-    Ok(bytes)
+    crate::owner_only_file::read_strict_owner_only(path, maximum_bytes)
 }
 
 /// Open a strict owner-only regular file without following symlinks or
@@ -450,14 +263,6 @@ fn validate_trusted_executable_descriptor(file: &File) -> io::Result<()> {
 }
 
 #[cfg(not(unix))]
-pub(crate) fn read_strict_owner_only(_path: &Path, _maximum_bytes: usize) -> io::Result<Vec<u8>> {
-    Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "strict owner-only capability-file validation is not implemented on this host",
-    ))
-}
-
-#[cfg(not(unix))]
 pub(crate) fn open_strict_owner_only(_path: &Path) -> io::Result<File> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
@@ -495,10 +300,7 @@ pub fn write_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
 /// attacker who pre-creates or races a hardlink at the candidate path gets
 /// `AlreadyExists`, never a truncation of the linked target.
 pub(crate) fn write_new_owner_only(path: &Path, bytes: &[u8]) -> io::Result<()> {
-    write_new_owner_only_with(path, |file| {
-        file.write_all(bytes)?;
-        file.sync_all()
-    })
+    crate::owner_only_file::write_new_owner_only(path, bytes)
 }
 
 /// Copy a potentially large validated artifact to a brand-new owner-only file

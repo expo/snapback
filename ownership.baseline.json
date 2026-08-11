@@ -2,7 +2,7 @@
   "schemaVersion": "snapback.module-ownership-baseline.v2",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
   "moduleCount": 236,
-  "edgeCount": 1724,
+  "edgeCount": 1723,
   "edges": [
     {
       "from": "src/admin_agent_destroy.rs",
@@ -1419,12 +1419,6 @@
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
-    },
-    {
-      "from": "src/auth/rehearsal.rs",
-      "fromOwner": "shared-contract-types-leaf",
-      "to": "src/secure_file.rs",
-      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/auth/rescue.rs",
@@ -10349,7 +10343,7 @@
       "toOwner": "transport-adapters"
     }
   ],
-  "frozenForbiddenEdgeCount": 370,
+  "frozenForbiddenEdgeCount": 369,
   "frozenForbiddenEdges": [
     {
       "fingerprint": "src/admin_secret_read.rs (transport-adapters) → src/local.rs (unassigned)"
@@ -10403,17 +10397,6 @@
         "observationRevision": "8f135b91a449a11960a8f186cf03b6cc747b47e7",
         "worklist": "issues/20260809-0199-ownership-ratchet-worklist.md",
         "provenance": "The upgraded module-relative and transitive re-export analyzer proves this edge in the predecessor source graph."
-      }
-    },
-    {
-      "fingerprint": "src/auth/rehearsal.rs (shared-contract-types-leaf) → src/secure_file.rs (storage-migration-kernel)",
-      "attribution": {
-        "disposition": "time-bounded-waiver",
-        "observationRevision": "eefe4e446",
-        "worklist": "issues/20260809-0199-ownership-ratchet-worklist.md",
-        "provenance": "Item 9: live main-red from the LLP 0213 slice-C wave, frozen by the fleet at the slice-1 re-application landing; carried into the v2 frozen set as item 9 machine records.",
-        "inversionOwner": "storage-migration-kernel",
-        "deadline": "2026-08-11"
       }
     },
     {

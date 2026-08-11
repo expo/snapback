@@ -125,16 +125,15 @@ item 3's typed-input inversion family) and `storage/watches -> jobs`
 absorb it). The two `local.rs -> watches`/`storage/watches` edges are
 unassigned-module freezes that drain with the local.rs remainder.
 
-9. **Waiver (time-bounded): `src/auth/rehearsal.rs → src/secure_file.rs`
+9. **Retired 2026-08-11: `src/auth/rehearsal.rs → src/secure_file.rs`
    (leaf→kernel) and `src/storage/auth_rehearsal.rs → src/admin.rs`
-   (kernel→transport).** Frozen 2026-08-10 at the slice-1 re-application
-   landing; both were live main-reds from the LLP 0213 slice-C wave
-   (issues/20260810-main-module-ownership-red-rehearsal-edges.md). Inversion
-   owner: **the LLP 0213 rehearsal/auth stream** (that ticket's routed
-   author). Vehicle: item 3's typed-input/leaf-shape moves. Bound: the
-   author-sitting 24h fix-forward conversion (2026-08-11) on the routed
-   ticket; if unmet, fix-forward-by-anyone, and escalate to the author if
-   still frozen at the next 0213 slice.
+   (kernel→transport).** Both were live main-reds from the LLP 0213 slice-C
+   wave (issues/20260810-main-module-ownership-red-rehearsal-edges.md). The
+   kernel→transport edge retired when `ServerProfile` moved to the contract
+   leaf. The leaf→kernel edge retired when strict owner-only capsule I/O moved
+   to the dependency-free `src/owner_only_file.rs` leaf; the kernel keeps a
+   downward compatibility wrapper. Both waiver records are removed from the
+   frozen baseline.
 
 10. **Waiver (time-bounded): `src/local.rs → src/wire_version.rs` and
     `src/local/tests.rs → src/wire_version.rs` (unassigned→leaf).** Lane-J
@@ -277,12 +276,9 @@ the frozen item-4 edge on its existing key until item 4 inverts.
 <!-- module-ownership-frozen-edge: {"fingerprint":"src/schema_export.rs (generation-activation-coordinator) → src/auth/logical_transfer.rs (sync-realtime-engine)","disposition":"time-bounded-waiver","observationRevision":"eefe4e446","provenance":"Item 11: the logical-transfer wave landed both modules unmanifested; the fleet assigned them and froze these edges at its --update-baseline. Carried into the v2 frozen set as item 11 machine records.","inversionOwner":"sync-realtime-engine","deadline":"2026-09-15"} -->
 <!-- module-ownership-frozen-edge: {"fingerprint":"src/storage/auth_logical_transfer.rs (storage-migration-kernel) → src/auth/logical_transfer.rs (sync-realtime-engine)","disposition":"time-bounded-waiver","observationRevision":"eefe4e446","provenance":"Item 11: the logical-transfer wave landed both modules unmanifested; the fleet assigned them and froze these edges at its --update-baseline. Carried into the v2 frozen set as item 11 machine records.","inversionOwner":"sync-realtime-engine","deadline":"2026-09-15"} -->
 
-<!-- module-ownership-frozen-edge: {"fingerprint":"src/auth/rehearsal.rs (shared-contract-types-leaf) → src/secure_file.rs (storage-migration-kernel)","disposition":"time-bounded-waiver","observationRevision":"eefe4e446","provenance":"Item 9: live main-red from the LLP 0213 slice-C wave, frozen by the fleet at the slice-1 re-application landing; carried into the v2 frozen set as item 9 machine records.","inversionOwner":"storage-migration-kernel","deadline":"2026-08-11"} -->
-<!-- Item 9's kernel->transport half RETIRED 2026-08-10: the edge
-     src/storage/auth_rehearsal.rs -> src/admin.rs no longer exists (ServerProfile
-     moved to the contract leaf; see the items-4/5 entry below), so its waiver
-     record is removed rather than left to expire on 2026-08-11. The leaf->kernel
-     half above still stands. -->
+<!-- Item 9 RETIRED 2026-08-11: both rehearsal-edge waiver records are gone;
+     the kernel->transport half retired with the ServerProfile leaf move, and
+     the leaf->kernel half retired with owner_only_file extraction. -->
 
 **Item 3 first cut, 2026-08-10 (kernel auth authority shapes → leaf).** Six
 frozen kernel→sync edges inverted by moving value shapes down, with the

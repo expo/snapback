@@ -146,6 +146,7 @@ pub(crate) mod operation_detail;
 pub mod operation_ledger;
 #[doc(hidden)]
 pub mod operational_readiness;
+pub(crate) mod owner_only_file;
 #[doc(hidden)]
 pub mod proof_checkpoint;
 #[doc(hidden)]

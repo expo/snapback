@@ -1180,7 +1180,7 @@ pub(crate) fn write_export_verification_key_capsule(
         key_base64url: encode_base64url(key.expose_secret()),
     };
     let mut bytes = serde_json::to_vec(&wire).map_err(|_| export_key_unavailable())?;
-    let result = crate::secure_file::write_new_owner_only(path, &bytes)
+    let result = crate::owner_only_file::write_new_owner_only(path, &bytes)
         .map_err(|_| export_key_unavailable());
     bytes.zeroize();
     result
@@ -1195,9 +1195,11 @@ pub(crate) fn read_export_verification_key_capsule(
     expected_source_store_id: &str,
     expected_source_key_id: &str,
 ) -> SnapbackResult<RehearsalExportVerificationKey> {
-    let mut bytes =
-        crate::secure_file::read_strict_owner_only(path, MAX_REHEARSAL_EXPORT_KEY_CAPSULE_BYTES)
-            .map_err(|_| export_key_unavailable())?;
+    let mut bytes = crate::owner_only_file::read_strict_owner_only(
+        path,
+        MAX_REHEARSAL_EXPORT_KEY_CAPSULE_BYTES,
+    )
+    .map_err(|_| export_key_unavailable())?;
     let parsed = serde_json::from_slice::<RehearsalExportVerificationKeyCapsuleWireV1>(&bytes);
     bytes.zeroize();
     let mut wire = parsed.map_err(|_| export_key_unavailable())?;

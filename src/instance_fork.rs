@@ -624,6 +624,13 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         name: "_snapback_job_idempotency_tombstones_v1",
         disposition: CustodyDisposition::Copy,
     },
+    // @ref LLP 0213#durable-deferred-intent-provenance — copied jobs retain
+    // their protected rehearsal mark so a fork cannot replay marked work as
+    // clean work and bypass the external-egress gate.
+    CustodyRule {
+        name: "_snapback_job_rehearsal_provenance_v1",
+        disposition: CustodyDisposition::Copy,
+    },
     // Asset custody (LLP 0185 Phase 5, implementing LLP 0158 OQ5's decided
     // posture): durable asset metadata copies together with a digest-verified
     // fork-private blob-tree copy taken from the same consistent cut;
@@ -754,6 +761,41 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         name: "_auth_identities",
         disposition: CustodyDisposition::Copy,
     },
+    // @ref LLP 0214#3-catalog-version-3 — credentials, recovery state,
+    // assurances, provisioning receipts, and the redacted security journal
+    // are durable account state, not live bearer authority.
+    CustodyRule {
+        name: "_auth_credentials",
+        disposition: CustodyDisposition::Copy,
+    },
+    CustodyRule {
+        name: "_auth_password_credentials",
+        disposition: CustodyDisposition::Copy,
+    },
+    CustodyRule {
+        name: "_auth_passkey_credentials",
+        disposition: CustodyDisposition::Copy,
+    },
+    CustodyRule {
+        name: "_auth_recovery_code_sets",
+        disposition: CustodyDisposition::Copy,
+    },
+    CustodyRule {
+        name: "_auth_recovery_codes",
+        disposition: CustodyDisposition::Copy,
+    },
+    CustodyRule {
+        name: "_auth_assurances",
+        disposition: CustodyDisposition::Copy,
+    },
+    CustodyRule {
+        name: "_auth_provisioning_receipts",
+        disposition: CustodyDisposition::Copy,
+    },
+    CustodyRule {
+        name: "_auth_security_events",
+        disposition: CustodyDisposition::Copy,
+    },
     CustodyRule {
         name: "_auth_scope_bases",
         disposition: CustodyDisposition::Copy,
@@ -788,6 +830,49 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
     },
     CustodyRule {
         name: "_auth_pairing_requests",
+        disposition: CustodyDisposition::Scrub,
+    },
+    // @ref LLP 0213#security-boundaries-and-invariants — rehearsal grants,
+    // derived authority, windows, accounting, and store-local admission state
+    // are bound to the source instance and boot and are never live in a fork.
+    CustodyRule {
+        name: "_snapback_auth_rehearsal_grants",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_auth_rehearsal_idempotency",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_auth_rehearsal_mint_idempotency",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_auth_rehearsal_audit",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_auth_rehearsal_store_markers",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_auth_rehearsal_identities",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_auth_rehearsal_sessions",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_auth_rehearsal_window_reservations",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_auth_rehearsal_windows",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_auth_rehearsal_window_challenges",
         disposition: CustodyDisposition::Scrub,
     },
 ];

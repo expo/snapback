@@ -34,3 +34,11 @@ issues/20260809-0199-ownership-ratchet-worklist.md files both edges into
 item 3's inversion family, and this ticket stays open until they are
 inverted or explicitly waived per LLP 0225 §2. The gate is green again on
 main; the burn-down obligation is unchanged.
+
+## Resolved (2026-08-11)
+Both rehearsal edges fixed by refactor, not baseline laundering: the shared owner-only
+file type moved out of src/secure_file.rs (kernel) into a new leaf src/owner_only_file.rs
+so src/auth/rehearsal.rs depends down, not up; the kernel→transport edge inverted. The
+laundered rehearsal→secure_file entry was REMOVED from ownership.baseline.json.
+check-module-ownership.mjs PASS: 0 stale baseline; rehearsal edges gone (2 remaining
+outstanding are the separate jobs-edges ticket).
