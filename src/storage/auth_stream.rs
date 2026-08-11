@@ -8,9 +8,11 @@
 use super::auth::inspect_auth_catalog_on;
 use super::{AuthorizationVersion, LocalDatabase};
 use crate::auth::session_projection::{
-    AUTHORIZATION_STREAM_META_KEY, AuthorizationStreamIncarnation, AuthorizationStreamRecord,
-    ProjectionIdentityRow, ProjectionSessionRow, ProjectionSource, ProjectionTokenRow,
-    ProjectionUserRow, SESSION_TERMINAL_CAUSE_META_PREFIX,
+    AUTHORIZATION_STREAM_META_KEY, AuthorizationStreamRecord, ProjectionIdentityRow,
+    ProjectionSessionRow, ProjectionSource, ProjectionTokenRow, ProjectionUserRow,
+};
+use crate::contract_types::{
+    AuthorizationStreamIncarnation, SESSION_TERMINAL_CAUSE_META_PREFIX,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};

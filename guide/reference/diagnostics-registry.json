@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "a8d9c5710b344accbbb75631ea39df03444b4468",
-    "sourceDigest": "sha256:1a7fb0fd0b8514b39e79710d6f5e2cf79b364fec81a33ae360878a31992a4353"
+    "commit": "979fa7835b1c9e2adfd5b24d278703798feab92b",
+    "sourceDigest": "sha256:bd2d6652f6026f7781b4faac4f77619996723bd023f9d78cfe40c6cd3e2e9218"
   },
   "limits": {
     "lookupBytes": 16384
@@ -13035,17 +13035,17 @@
         },
         {
           "file": "src/storage/auth_stream.rs",
-          "line": 440,
+          "line": 442,
           "column": 27
         },
         {
           "file": "src/storage/auth_stream.rs",
-          "line": 547,
+          "line": 549,
           "column": 18
         },
         {
           "file": "src/storage/auth_stream.rs",
-          "line": 564,
+          "line": 566,
           "column": 14
         }
       ],
@@ -15444,7 +15444,7 @@
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 1560,
+          "line": 1561,
           "column": 10
         },
         {
@@ -20193,37 +20193,37 @@
       "sites": [
         {
           "file": "src/auth/session_projection.rs",
-          "line": 2995,
+          "line": 2954,
           "column": 27
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3278,
+          "line": 3237,
           "column": 14
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3286,
+          "line": 3245,
           "column": 14
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3294,
+          "line": 3253,
           "column": 14
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3307,
+          "line": 3266,
           "column": 14
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3315,
+          "line": 3274,
           "column": 14
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3323,
+          "line": 3282,
           "column": 14
         },
         {
@@ -20233,17 +20233,17 @@
         },
         {
           "file": "src/storage/auth_stream.rs",
-          "line": 87,
+          "line": 89,
           "column": 63
         },
         {
           "file": "src/storage/auth_stream.rs",
-          "line": 444,
+          "line": 446,
           "column": 27
         },
         {
           "file": "src/storage/auth_stream.rs",
-          "line": 684,
+          "line": 686,
           "column": 44
         }
       ],
@@ -20258,27 +20258,27 @@
       "sites": [
         {
           "file": "src/auth/coordinator.rs",
-          "line": 1536,
+          "line": 1537,
           "column": 10
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2262,
+          "line": 2264,
           "column": 14
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2289,
+          "line": 2291,
           "column": 14
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2379,
+          "line": 2381,
           "column": 14
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2577,
+          "line": 2579,
           "column": 14
         },
         {
@@ -20323,27 +20323,27 @@
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 2999,
+          "line": 2958,
           "column": 27
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3507,
+          "line": 3466,
           "column": 14
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3543,
+          "line": 3502,
           "column": 14
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3568,
+          "line": 3527,
           "column": 14
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3970,
+          "line": 3929,
           "column": 14
         },
         {
@@ -21661,12 +21661,12 @@
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 1552,
+          "line": 1553,
           "column": 10
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2513,
+          "line": 2515,
           "column": 14
         },
         {
@@ -22174,17 +22174,17 @@
       "sites": [
         {
           "file": "src/auth/coordinator.rs",
-          "line": 1544,
+          "line": 1545,
           "column": 10
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2418,
+          "line": 2420,
           "column": 44
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2569,
+          "line": 2571,
           "column": 44
         },
         {
@@ -22851,12 +22851,12 @@
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 1572,
+          "line": 1573,
           "column": 10
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2218,
+          "line": 2220,
           "column": 18
         },
         {
@@ -23350,17 +23350,17 @@
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 2991,
+          "line": 2950,
           "column": 27
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3103,
+          "line": 3062,
           "column": 18
         },
         {
           "file": "src/auth/session_projection.rs",
-          "line": 3331,
+          "line": 3290,
           "column": 14
         },
         {
@@ -23370,17 +23370,17 @@
         },
         {
           "file": "src/storage/auth_stream.rs",
-          "line": 87,
+          "line": 89,
           "column": 18
         },
         {
           "file": "src/storage/auth_stream.rs",
-          "line": 436,
+          "line": 438,
           "column": 27
         },
         {
           "file": "src/storage/auth_stream.rs",
-          "line": 590,
+          "line": 592,
           "column": 18
         },
         {
@@ -60338,7 +60338,7 @@
         },
         {
           "file": "src/contract_types.rs",
-          "line": 21,
+          "line": 70,
           "column": 60
         },
         {
@@ -74586,12 +74586,12 @@
       "sites": [
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2412,
+          "line": 2414,
           "column": 22
         },
         {
           "file": "src/auth/coordinator.rs",
-          "line": 2563,
+          "line": 2565,
           "column": 22
         },
         {

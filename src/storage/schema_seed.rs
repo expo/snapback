@@ -6,7 +6,7 @@ fn reset_and_seed_transaction(
     projections: &[crate::manifest::MaintainedProjectionPlan],
     order_field_bounds: &BTreeMap<(String, String), u64>,
     seed: Option<SeedData>,
-    successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+    successor: &crate::contract_types::AuthorizationStreamIncarnation,
     versioned: Option<(&crate::seed_identity::ResetSeedRequestV1, &str)>,
 ) -> SnapbackResult<(
     Option<MutationOutput>,
@@ -495,8 +495,8 @@ impl LocalDatabase {
     pub(super) fn attempt_reset_and_seed_with_authorization_stream(
         &mut self,
         seed: Option<SeedData>,
-        predecessor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
-        successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+        predecessor: &crate::contract_types::AuthorizationStreamIncarnation,
+        successor: &crate::contract_types::AuthorizationStreamIncarnation,
     ) -> auth::AuthTransactionAttempt<Option<MutationOutput>> {
         let _writer_token = match self
             .writer_authority
@@ -625,8 +625,8 @@ impl LocalDatabase {
     pub(super) fn attempt_versioned_seed_reset_with_authorization_stream(
         &mut self,
         request: crate::seed_identity::ResetSeedRequestV1,
-        predecessor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
-        successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+        predecessor: &crate::contract_types::AuthorizationStreamIncarnation,
+        successor: &crate::contract_types::AuthorizationStreamIncarnation,
     ) -> auth::AuthTransactionAttempt<(
         Option<MutationOutput>,
         crate::seed_identity::SeedInstallReceiptV1,
@@ -1235,8 +1235,8 @@ impl<'a> SchemaSeedKernel<'a> {
     pub(crate) fn attempt_reset_and_seed_with_authorization_stream(
         &mut self,
         seed: Option<SeedData>,
-        predecessor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
-        successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+        predecessor: &crate::contract_types::AuthorizationStreamIncarnation,
+        successor: &crate::contract_types::AuthorizationStreamIncarnation,
     ) -> auth::AuthTransactionAttempt<Option<MutationOutput>> {
         self.db
             .attempt_reset_and_seed_with_authorization_stream(seed, predecessor, successor)
@@ -1254,8 +1254,8 @@ impl<'a> SchemaSeedKernel<'a> {
     pub(crate) fn attempt_versioned_seed_reset_with_authorization_stream(
         &mut self,
         request: crate::seed_identity::ResetSeedRequestV1,
-        predecessor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
-        successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+        predecessor: &crate::contract_types::AuthorizationStreamIncarnation,
+        successor: &crate::contract_types::AuthorizationStreamIncarnation,
     ) -> auth::AuthTransactionAttempt<(
         Option<MutationOutput>,
         crate::seed_identity::SeedInstallReceiptV1,

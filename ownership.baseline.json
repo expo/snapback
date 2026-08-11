@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v2",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 236,
-  "edgeCount": 1723,
+  "moduleCount": 238,
+  "edgeCount": 1746,
   "edges": [
     {
       "from": "src/admin_agent_destroy.rs",
@@ -303,6 +303,12 @@
       "fromOwner": "transport-adapters",
       "to": "src/operation_ledger.rs",
       "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/admin.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/operational_readiness.rs",
+      "toOwner": "generation-activation-coordinator"
     },
     {
       "from": "src/admin.rs",
@@ -1273,6 +1279,12 @@
     {
       "from": "src/auth/provider.rs",
       "fromOwner": "sync-realtime-engine",
+      "to": "src/contract_types.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/auth/provider.rs",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
@@ -1418,6 +1430,12 @@
       "from": "src/auth/rehearsal.rs",
       "fromOwner": "shared-contract-types-leaf",
       "to": "src/diagnostic.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/auth/rehearsal.rs",
+      "fromOwner": "shared-contract-types-leaf",
+      "to": "src/owner_only_file.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
@@ -1573,6 +1591,12 @@
     {
       "from": "src/auth/sender_proof.rs",
       "fromOwner": "sync-realtime-engine",
+      "to": "src/contract_types.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/auth/sender_proof.rs",
+      "fromOwner": "sync-realtime-engine",
       "to": "src/storage/auth.rs",
       "toOwner": "storage-migration-kernel"
     },
@@ -1628,6 +1652,12 @@
       "from": "src/auth/session_projection.rs",
       "fromOwner": "sync-realtime-engine",
       "to": "src/auth/rehearsal.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/auth/session_projection.rs",
+      "fromOwner": "sync-realtime-engine",
+      "to": "src/contract_types.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
@@ -2113,6 +2143,12 @@
     {
       "from": "src/cli.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/operational_readiness.rs",
+      "toOwner": "generation-activation-coordinator"
+    },
+    {
+      "from": "src/cli.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/replication.rs",
       "toOwner": "background-services"
     },
@@ -2528,6 +2564,12 @@
       "from": "src/cli/tests.rs",
       "fromOwner": "transport-adapters",
       "to": "src/storage.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/cli/tests.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/storage/auth_catalog_ops.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
@@ -3141,6 +3183,12 @@
       "fromOwner": "transport-adapters",
       "to": "src/manifest.rs",
       "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/host_ops.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/operational_readiness.rs",
+      "toOwner": "generation-activation-coordinator"
     },
     {
       "from": "src/host_ops.rs",
@@ -4877,6 +4925,48 @@
       "toOwner": "storage-migration-kernel"
     },
     {
+      "from": "src/operational_readiness.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/auth/mode.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/operational_readiness.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/contract_types.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/operational_readiness.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/diagnostic.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/operational_readiness.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/host_ops_contract.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/operational_readiness.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/manifest.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/operational_readiness.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/rqs_contract.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/operational_readiness.rs",
+      "fromOwner": "generation-activation-coordinator",
+      "to": "src/seed_identity.rs",
+      "toOwner": "generation-activation-coordinator"
+    },
+    {
       "from": "src/proof_checkpoint.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/admin.rs",
@@ -5461,6 +5551,12 @@
     {
       "from": "src/schema_export.rs",
       "fromOwner": "generation-activation-coordinator",
+      "to": "src/operational_readiness.rs",
+      "toOwner": "generation-activation-coordinator"
+    },
+    {
+      "from": "src/schema_export.rs",
+      "fromOwner": "generation-activation-coordinator",
       "to": "src/proof_checkpoint.rs",
       "toOwner": "storage-migration-kernel"
     },
@@ -5811,6 +5907,12 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/storage/auth_stream.rs",
       "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/secure_file.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/owner_only_file.rs",
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/seed_identity.rs",
@@ -6189,6 +6291,12 @@
       "fromOwner": "transport-adapters",
       "to": "src/network_profile.rs",
       "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/server.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/operational_readiness.rs",
+      "toOwner": "generation-activation-coordinator"
     },
     {
       "from": "src/server.rs",
@@ -6973,6 +7081,12 @@
     {
       "from": "src/server/writer_gate.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/contract_types.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/server/writer_gate.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
@@ -7753,12 +7867,6 @@
     {
       "from": "src/storage/auth_catalog_ops.rs",
       "fromOwner": "storage-migration-kernel",
-      "to": "src/auth/session_projection.rs",
-      "toOwner": "sync-realtime-engine"
-    },
-    {
-      "from": "src/storage/auth_catalog_ops.rs",
-      "fromOwner": "storage-migration-kernel",
       "to": "src/auth/throttle.rs",
       "toOwner": "storage-migration-kernel"
     },
@@ -7766,6 +7874,12 @@
       "from": "src/storage/auth_catalog_ops.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/wire.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/auth_catalog_ops.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/contract_types.rs",
       "toOwner": "shared-contract-types-leaf"
     },
     {
@@ -8047,6 +8161,12 @@
     {
       "from": "src/storage/auth_logical_transfer.rs",
       "fromOwner": "storage-migration-kernel",
+      "to": "src/storage/auth_catalog_ops.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/auth_logical_transfer.rs",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/storage/auth_invalidation.rs",
       "toOwner": "storage-migration-kernel"
     },
@@ -8079,12 +8199,6 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/mode.rs",
       "toOwner": "shared-contract-types-leaf"
-    },
-    {
-      "from": "src/storage/auth_mode.rs",
-      "fromOwner": "storage-migration-kernel",
-      "to": "src/auth/session_projection.rs",
-      "toOwner": "sync-realtime-engine"
     },
     {
       "from": "src/storage/auth_mode.rs",
@@ -8138,6 +8252,12 @@
       "from": "src/storage/auth_mode.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/storage/ask_spend.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/auth_mode.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/storage/auth_catalog_ops.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
@@ -8371,6 +8491,12 @@
     {
       "from": "src/storage/auth_stream.rs",
       "fromOwner": "storage-migration-kernel",
+      "to": "src/contract_types.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/auth_stream.rs",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/diagnostic.rs",
       "toOwner": "shared-contract-types-leaf"
     },
@@ -8378,6 +8504,12 @@
       "from": "src/storage/auth_stream.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/storage.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/auth_stream.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/storage/auth_catalog_ops.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
@@ -8450,12 +8582,6 @@
       "from": "src/storage/auth.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/service_fence.rs",
-      "toOwner": "sync-realtime-engine"
-    },
-    {
-      "from": "src/storage/auth.rs",
-      "fromOwner": "storage-migration-kernel",
-      "to": "src/auth/session_projection.rs",
       "toOwner": "sync-realtime-engine"
     },
     {
@@ -8648,6 +8774,12 @@
       "from": "src/storage/authorized_lease.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/storage.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/authorized_lease.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/storage/auth_catalog_ops.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
@@ -9175,12 +9307,6 @@
     {
       "from": "src/storage/push_registry.rs",
       "fromOwner": "storage-migration-kernel",
-      "to": "src/auth/session_projection.rs",
-      "toOwner": "sync-realtime-engine"
-    },
-    {
-      "from": "src/storage/push_registry.rs",
-      "fromOwner": "storage-migration-kernel",
       "to": "src/contract_types.rs",
       "toOwner": "shared-contract-types-leaf"
     },
@@ -9206,6 +9332,12 @@
       "from": "src/storage/push_registry.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/storage.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/push_registry.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/storage/auth_catalog_ops.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
@@ -9243,6 +9375,12 @@
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/session_projection.rs",
       "toOwner": "sync-realtime-engine"
+    },
+    {
+      "from": "src/storage/schema_seed.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/contract_types.rs",
+      "toOwner": "shared-contract-types-leaf"
     },
     {
       "from": "src/storage/schema_seed.rs",
@@ -10343,7 +10481,7 @@
       "toOwner": "transport-adapters"
     }
   ],
-  "frozenForbiddenEdgeCount": 369,
+  "frozenForbiddenEdgeCount": 365,
   "frozenForbiddenEdges": [
     {
       "fingerprint": "src/admin_secret_read.rs (transport-adapters) → src/local.rs (unassigned)"
@@ -11542,9 +11680,6 @@
       "fingerprint": "src/storage/auth_catalog_ops.rs (storage-migration-kernel) → src/auth/sender_proof.rs (sync-realtime-engine)"
     },
     {
-      "fingerprint": "src/storage/auth_catalog_ops.rs (storage-migration-kernel) → src/auth/session_projection.rs (sync-realtime-engine)"
-    },
-    {
       "fingerprint": "src/storage/auth_invalidation.rs (storage-migration-kernel) → src/auth/invalidation.rs (sync-realtime-engine)"
     },
     {
@@ -11560,9 +11695,6 @@
         "inversionOwner": "sync-realtime-engine",
         "deadline": "2026-09-15"
       }
-    },
-    {
-      "fingerprint": "src/storage/auth_mode.rs (storage-migration-kernel) → src/auth/session_projection.rs (sync-realtime-engine)"
     },
     {
       "fingerprint": "src/storage/auth_mode.rs (storage-migration-kernel) → src/push.rs (background-services)"
@@ -11587,9 +11719,6 @@
     },
     {
       "fingerprint": "src/storage/auth.rs (storage-migration-kernel) → src/auth/service_fence.rs (sync-realtime-engine)"
-    },
-    {
-      "fingerprint": "src/storage/auth.rs (storage-migration-kernel) → src/auth/session_projection.rs (sync-realtime-engine)"
     },
     {
       "fingerprint": "src/storage/auth.rs (storage-migration-kernel) → src/push.rs (background-services)"
@@ -11647,9 +11776,6 @@
     },
     {
       "fingerprint": "src/storage/push_registry.rs (storage-migration-kernel) → src/auth/invocation.rs (sync-realtime-engine)"
-    },
-    {
-      "fingerprint": "src/storage/push_registry.rs (storage-migration-kernel) → src/auth/session_projection.rs (sync-realtime-engine)"
     },
     {
       "fingerprint": "src/storage/push_registry.rs (storage-migration-kernel) → src/push.rs (background-services)"

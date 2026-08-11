@@ -4808,8 +4808,8 @@ impl LocalSnapback {
     pub(crate) fn attempt_reset_with_seed_and_authorization_stream(
         &mut self,
         seed: Option<SeedData>,
-        predecessor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
-        successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+        predecessor: &crate::contract_types::AuthorizationStreamIncarnation,
+        successor: &crate::contract_types::AuthorizationStreamIncarnation,
     ) -> crate::storage::auth::AuthTransactionAttempt<CoordinatedResetCommit> {
         use crate::storage::auth::AuthTransactionAttempt;
 
@@ -4898,8 +4898,8 @@ impl LocalSnapback {
     pub(crate) fn attempt_versioned_seed_reset_with_authorization_stream(
         &mut self,
         request: crate::seed_identity::ResetSeedRequestV1,
-        predecessor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
-        successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
+        predecessor: &crate::contract_types::AuthorizationStreamIncarnation,
+        successor: &crate::contract_types::AuthorizationStreamIncarnation,
     ) -> crate::storage::auth::AuthTransactionAttempt<CoordinatedVersionedSeedResetCommit> {
         use crate::storage::auth::AuthTransactionAttempt;
 

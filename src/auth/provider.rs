@@ -37,8 +37,7 @@ use super::lease::{
 };
 use super::lifecycle::KeyringGcResult;
 use super::mailbox::{CaptureMailbox, CaptureMailboxEntry};
-use super::session_projection::ProjectedSessionInsert;
-use super::session_projection::{RevocationReason, TokenDigest};
+use super::session_projection::{ProjectedSessionInsert, TokenDigest};
 use super::throttle::{
     AuthBudgetDeploymentProfile, AuthBudgetName, AuthBudgetRefusal,
     ResolvedCompatibilityAuthBudgetPolicy, ServerVerifiedAuthTrustEvidence,
@@ -47,6 +46,7 @@ use super::throttle::{
 use super::wire::{
     CredentialResponse, FamilyAlarmResponse, MailboxResponse, RequestCodeResponse, SessionResponse,
 };
+use crate::contract_types::RevocationReason;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::LocalDatabase;
 use crate::storage::auth::AuthTransactionAttempt;

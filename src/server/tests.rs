@@ -431,7 +431,7 @@ use crate::auth::service_fence::{
     ServiceAuthorityCommitInterlock, ServiceAuthorityFenceRegistry,
     with_service_authority_terminal_gate,
 };
-use crate::auth::session_projection::RevocationReason;
+use crate::contract_types::RevocationReason;
 use crate::cron::CronRunOutcome;
 use crate::diagnostic::SnapbackError;
 use crate::local::{

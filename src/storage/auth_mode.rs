@@ -1003,7 +1003,7 @@ impl LocalDatabase {
         let sessions_revoked = crate::storage::auth::revoke_all_sessions_in(
             &tx,
             now_ms,
-            crate::auth::session_projection::RevocationReason::ModeTransition,
+            crate::contract_types::RevocationReason::ModeTransition,
         )?;
         // @ref LLP 0055#companion-obligations — downgrade ends all agent
         // bearer and pending-consent authority in the same transaction as

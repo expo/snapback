@@ -15,6 +15,55 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
+// @ref LLP 0225#1-ownership-map — the kernel consumes these session and
+// terminal value shapes from the leaf; the sync engine keeps
+// `SessionProjection` and behavioral impls.
+pub(crate) const SESSION_TERMINAL_CAUSE_META_PREFIX: &str = "auth_session_terminal_cause_v1/";
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct AuthorizationStreamIncarnation(pub(crate) String);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RevocationReason {
+    DurableRevocation,
+    Logout,
+    CapEviction,
+    FamilyAlarm,
+    RefreshReuse,
+    Reset,
+    Restore,
+    ModeTransition,
+    Expired,
+    Uncertain,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum PersistedSessionTerminalReason {
+    DurableRevocation,
+    Logout,
+    CapEviction,
+    FamilyAlarm,
+    RefreshReuse,
+    Reset,
+    Restore,
+    ModeTransition,
+}
+
+/// Versioned durable witness for the cause that advanced one session into a
+/// revoked generation. The auth catalog's frozen v1/v2 table shapes carry only
+/// `revoked_at_ms`; this exact metadata record supplies the independent client
+/// disposition axis without mutating either recognized catalog schema.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct SessionTerminalCauseRecord {
+    pub(crate) format_version: u32,
+    pub(crate) session_id: String,
+    pub(crate) generation: u64,
+    pub(crate) revoked_at_ms: u64,
+    pub(crate) reason: PersistedSessionTerminalReason,
+}
+
 /// The positive environment/profile capability (LLP 0034 §5 D4 residual,
 /// ENG-22527): auth (`AdminWrite`) answers "may this principal?"; the profile
 /// answers "is this operation appropriate in this environment?". Destructive

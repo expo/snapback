@@ -355,8 +355,8 @@ pub(crate) async fn with_snapback_stream_reset_admission_effect<T, F>(
 where
     F: FnOnce(
             &mut LocalSnapback,
-            &crate::auth::session_projection::AuthorizationStreamIncarnation,
-            &crate::auth::session_projection::AuthorizationStreamIncarnation,
+            &crate::contract_types::AuthorizationStreamIncarnation,
+            &crate::contract_types::AuthorizationStreamIncarnation,
         ) -> AuthTransactionAttempt<T>
         + Send
         + 'static,

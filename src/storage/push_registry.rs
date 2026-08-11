@@ -899,7 +899,7 @@ impl LocalDatabase {
                 session_id,
                 2,
                 200,
-                crate::auth::session_projection::RevocationReason::Logout,
+                crate::contract_types::RevocationReason::Logout,
             )
         })
     }
@@ -919,7 +919,7 @@ impl LocalDatabase {
                 session_id,
                 2,
                 202,
-                crate::auth::session_projection::RevocationReason::DurableRevocation,
+                crate::contract_types::RevocationReason::DurableRevocation,
             )
         })
     }

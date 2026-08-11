@@ -30,6 +30,8 @@ cut: kernel auth authority shapes to the leaf, six frozen kernel→sync edges
 inverted)
 **Revised:** 2026-08-10 (l — §4 records the items-4/5 first cut: `ServerProfile`
 to the contract leaf, twelve frozen edges removed and none added)
+**Revised:** 2026-08-11 (m — §4 records the item-3 second cut: `session_projection`
+value shapes to the leaf; the remaining item-3 edges raised as an ownership question)
 **Revised:** 2026-08-10 (l — merge-wave reconciliation of the §5 enforcement
 landing; see Revision history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
@@ -529,6 +531,46 @@ for why `cargo fmt --all` is not safe on main today).
 Still open in items 4-5: `proof_checkpoint → admin` and `store_state → admin`
 (both import other admin items), the `store_state → auth/{lifecycle,runtime}`
 composition edges, and `storage/hosted_admission → auth/hosted_edge`.
+
+### Item-3 second cut — `session_projection` value shapes (executed)
+
+Landed 2026-08-11, the third slice on this recipe. Five symbols moved from the
+sync-owned `src/auth/session_projection.rs` to `src/contract_types.rs` —
+`SESSION_TERMINAL_CAUSE_META_PREFIX`, `RevocationReason`,
+`PersistedSessionTerminalReason`, `SessionTerminalCauseRecord`, and
+`AuthorizationStreamIncarnation` — with **every `impl` block left behind**,
+because each reaches something not leaf-safe (a `TerminalAuthorityDisposition`
+return, conversion/validation logic, or the private
+`validate_canonical_uuid_v7` / `stream_corrupt` helpers). The private serde
+enum was required collateral: it is `SessionTerminalCauseRecord.reason`'s field
+type, and a leaf struct may not hold a field owned by a sync module.
+
+**4 frozen forbidden edges removed, none added — 370 → 366**
+(`storage/auth_mode`, `storage/push_registry`, `storage/auth`,
+`storage/auth_catalog_ops`). Destination reasoning matched the previous cut:
+`src/local.rs` consumes `AuthorizationStreamIncarnation`, so the leaf had to be
+one it already depends on; `src/ids.rs` was rejected on charter (it is the
+*prefixed*-identifier registry and this is a bare UUIDv7).
+
+`SessionProjection` deliberately stayed — 36 methods, and it is the behavior
+this boundary exists to keep in the sync engine. That is why
+`storage/auth_stream`, `storage/tests`, and `storage/schema_seed` retain their
+edges; the survey initially predicted schema_seed would clear, which was wrong
+(it uses `SessionProjection` through a function-local `use`).
+
+The remaining item-3 edges are **not** shape moves and should not be attempted
+as such: `storage/auth_catalog_ops.rs` calls 24 functions in
+`src/auth/provider.rs`, and `storage/auth_sender.rs` imports six more from
+`sender_proof`. Whether that is a misassignment, an inversion, or (most likely)
+a split is an open ownership question recorded in
+`issues/20260810-item-3-remainder-auth-catalog-ops-owner-question.md`; taking
+it either way trades §3.1's transaction authority against §2's rule that the
+kernel owns no policy.
+
+Characterization envelope: pure relocation — `auth`/`storage`/`server` lib-test
+failure name sets byte-identical to the merge-base (630/58, 385/50, 265/24
+pre-existing), `cargo build --all-targets` and `./ref-check --verbose` green,
+and the persisted serde encoding carried verbatim.
 
 ### Continuing sequence (order of intent, not a schedule)
 

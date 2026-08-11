@@ -342,3 +342,21 @@ Still open in items 4-5: `src/proof_checkpoint.rs -> src/admin.rs`
 (`admin_token_sibling` / `console_credential_sibling`), the `store_state ->
 auth/{lifecycle,runtime}` composition edges, and `storage/hosted_admission ->
 auth/hosted_edge`.
+
+
+**Item-3 second cut, 2026-08-11 (`session_projection` value shapes -> leaf).**
+Four more frozen kernel->sync edges inverted (370 -> 366) by moving
+`SESSION_TERMINAL_CAUSE_META_PREFIX`, `RevocationReason`,
+`PersistedSessionTerminalReason`, `SessionTerminalCauseRecord`, and
+`AuthorizationStreamIncarnation` to `src/contract_types.rs`, leaving every
+`impl` behind in `auth/session_projection.rs`
+(`issues/20260810-item-3-session-projection-shapes-leaf.md`). Cleared:
+`storage/auth_mode`, `storage/push_registry`, `storage/auth`,
+`storage/auth_catalog_ops`. Zero baseline growth; no waiver.
+
+`SessionProjection` deliberately did NOT move (36 methods — it is the behavior
+the boundary exists to keep in sync), which is why `storage/auth_stream`,
+`storage/tests`, and `storage/schema_seed` keep their edges. Those, plus the
+`auth_catalog_ops`/`auth_sender` function call-ups, are the ownership question
+in `issues/20260810-item-3-remainder-auth-catalog-ops-owner-question.md` and
+need a ruling before more of item 3 moves.

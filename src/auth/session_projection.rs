@@ -10,6 +10,10 @@
 //! saved session snapshot, own every reversible pre-commit marker.
 
 use crate::auth::crypto::TokenHash;
+use crate::contract_types::{
+    AuthorizationStreamIncarnation, PersistedSessionTerminalReason, RevocationReason,
+    SESSION_TERMINAL_CAUSE_META_PREFIX, SessionTerminalCauseRecord,
+};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -25,7 +29,6 @@ use uuid::Uuid;
 pub(crate) const AUTHORIZATION_STREAM_FORMAT_VERSION: u32 = 1;
 pub(crate) const SESSION_PROJECTION_FORMAT_VERSION: u32 = 1;
 pub(crate) const AUTHORIZATION_STREAM_META_KEY: &str = "auth_stream_incarnation_v1";
-pub(crate) const SESSION_TERMINAL_CAUSE_META_PREFIX: &str = "auth_session_terminal_cause_v1/";
 const MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
 const MAX_SAFE_GENERATION: u64 = 9_007_199_254_740_991;
 pub(crate) const TERMINAL_CLOSE_GRACE: Duration = Duration::from_millis(5_000);
@@ -120,9 +123,6 @@ pub(crate) fn ranked_mutex_lock_unpoisoned<T>(
         _rank: rank_guard,
     }
 }
-
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct AuthorizationStreamIncarnation(String);
 
 impl AuthorizationStreamIncarnation {
     pub(crate) fn fresh() -> Self {
@@ -332,20 +332,6 @@ struct DeadlineKey {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum RevocationReason {
-    DurableRevocation,
-    Logout,
-    CapEviction,
-    FamilyAlarm,
-    RefreshReuse,
-    Reset,
-    Restore,
-    ModeTransition,
-    Expired,
-    Uncertain,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum TerminalAuthorityDisposition {
     Carrier,
     DurableDelete,
@@ -366,19 +352,6 @@ impl RevocationReason {
             | Self::ModeTransition => TerminalAuthorityDisposition::DurableDelete,
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-enum PersistedSessionTerminalReason {
-    DurableRevocation,
-    Logout,
-    CapEviction,
-    FamilyAlarm,
-    RefreshReuse,
-    Reset,
-    Restore,
-    ModeTransition,
 }
 
 impl PersistedSessionTerminalReason {
@@ -412,20 +385,6 @@ impl PersistedSessionTerminalReason {
             Self::ModeTransition => RevocationReason::ModeTransition,
         }
     }
-}
-
-/// Versioned durable witness for the cause that advanced one session into a
-/// revoked generation. The auth catalog's frozen v1/v2 table shapes carry only
-/// `revoked_at_ms`; this exact metadata record supplies the independent client
-/// disposition axis without mutating either recognized catalog schema.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct SessionTerminalCauseRecord {
-    format_version: u32,
-    session_id: String,
-    generation: u64,
-    revoked_at_ms: u64,
-    reason: PersistedSessionTerminalReason,
 }
 
 impl SessionTerminalCauseRecord {

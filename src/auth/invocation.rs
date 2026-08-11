@@ -1373,7 +1373,7 @@ impl PreparedAuthority {
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
-    ) -> SnapbackResult<Option<crate::auth::session_projection::RevocationReason>> {
+    ) -> SnapbackResult<Option<crate::contract_types::RevocationReason>> {
         match &self.publication {
             Some(publication) => publication.session_terminal_reason(epoch_now_ms, monotonic_now),
             None => Ok(None),

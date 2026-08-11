@@ -7,7 +7,7 @@
 
 use super::{LocalDatabase, is_auth_reserved_identifier};
 use crate::auth::service_fence::ServiceAuthorityCommitInterlock;
-use crate::auth::session_projection::{
+use crate::contract_types::{
     RevocationReason, SESSION_TERMINAL_CAUSE_META_PREFIX, SessionTerminalCauseRecord,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};

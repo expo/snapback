@@ -3354,7 +3354,7 @@ mod tests {
             &session_id,
             4,
             revoked_at_ms,
-            crate::auth::session_projection::RevocationReason::Logout,
+            crate::contract_types::RevocationReason::Logout,
         )
         .unwrap();
         transaction.commit().unwrap();
@@ -3479,7 +3479,7 @@ mod tests {
             &session_id,
             4,
             revoked_at_ms,
-            crate::auth::session_projection::RevocationReason::CapEviction,
+            crate::contract_types::RevocationReason::CapEviction,
         )
         .unwrap();
         transaction.commit().unwrap();
@@ -3520,7 +3520,7 @@ mod tests {
             &session_id,
             4,
             0,
-            crate::auth::session_projection::RevocationReason::Logout,
+            crate::contract_types::RevocationReason::Logout,
         )
         .unwrap();
         transaction.commit().unwrap();

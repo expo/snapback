@@ -1,5 +1,5 @@
 use crate::admin::{AppState, ServerContext};
-use crate::contract_types::ServerProfile;
+use crate::contract_types::{RevocationReason, ServerProfile};
 use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintEnvelope, SecretReadScope,
 };
@@ -45,7 +45,7 @@ use crate::auth::service_fence::{
 };
 use crate::auth::session_projection::{
     AUTH_LOCK_RANK_CONNECTION_REGISTRY, FencedAuthorityWorkPermit, FencedPublication,
-    RankedMutexGuard, RevocationReason, TerminalAuthorityDisposition, ranked_mutex_lock_unpoisoned,
+    RankedMutexGuard, TerminalAuthorityDisposition, ranked_mutex_lock_unpoisoned,
 };
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,

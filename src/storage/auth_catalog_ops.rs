@@ -1226,7 +1226,7 @@ impl LocalDatabase {
             transaction.execute(
                 "DELETE FROM _snapback_meta WHERE key = ?1",
                 params![
-                    crate::auth::session_projection::SessionTerminalCauseRecord::meta_key(
+                    crate::contract_types::SessionTerminalCauseRecord::meta_key(
                         session_id
                     )?
                 ],

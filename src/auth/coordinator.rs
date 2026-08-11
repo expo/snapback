@@ -15,12 +15,13 @@ use super::provider::{
     SessionRevocation,
 };
 use super::session_projection::{
-    AUTH_LOCK_RANK_TOPOLOGY, AuthorityWorkDrain, AuthorizationStreamIncarnation,
-    BoundConnectionSessionIdentity, DueExpiryBatch, DueExpiryFinalization, FencedPublication,
-    MutationTicket, PendingMutationKind, ProjectedBoundSessionResolution,
-    ProjectedConnectionTokenResolution, ProjectedSessionAuthority, ProjectedTokenResolution,
-    RankedMutexGuard, RevocationReason, SessionProjection, TokenDigest, ranked_mutex_lock,
+    AUTH_LOCK_RANK_TOPOLOGY, AuthorityWorkDrain, BoundConnectionSessionIdentity, DueExpiryBatch,
+    DueExpiryFinalization, FencedPublication, MutationTicket, PendingMutationKind,
+    ProjectedBoundSessionResolution, ProjectedConnectionTokenResolution,
+    ProjectedSessionAuthority, ProjectedTokenResolution, RankedMutexGuard, SessionProjection,
+    TokenDigest, ranked_mutex_lock,
 };
+use crate::contract_types::{AuthorizationStreamIncarnation, RevocationReason};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth::AuthTransactionAttempt;
 use std::collections::BTreeSet;
@@ -241,7 +242,7 @@ pub(crate) enum RevocationFinish {
     },
     AlreadyTerminal {
         generation: u64,
-        reason: Option<crate::auth::session_projection::RevocationReason>,
+        reason: Option<crate::contract_types::RevocationReason>,
     },
     PredecessorChanged,
 }
@@ -1581,14 +1582,15 @@ fn session_expired(reason: RevocationReason) -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contract_types::ServerProfile;
+    use crate::contract_types::{
+        AuthorizationStreamIncarnation, RevocationReason, ServerProfile,
+    };
     use crate::auth::crypto::{CryptoError, RandomSource};
     use crate::auth::invocation::{InvocationGate, InvocationSource, WireAuthorityFields};
     use crate::auth::provider::PlannedTokenSource;
     use crate::auth::session_projection::{
-        AuthorizationStreamIncarnation, AuthorizationStreamRecord, ProjectedSessionInsert,
-        ProjectionIdentityRow, ProjectionSessionRow, ProjectionSource, ProjectionUserRow,
-        RevocationReason,
+        AuthorizationStreamRecord, ProjectedSessionInsert, ProjectionIdentityRow,
+        ProjectionSessionRow, ProjectionSource, ProjectionUserRow,
     };
     use crate::local::LocalSnapback;
     use crate::manifest::AuthMode;
