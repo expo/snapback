@@ -1631,6 +1631,19 @@ fn drain_live_stream_through_test_sink(
         .collect()
 }
 
+fn project_authorization_frames_through_test_sink(
+    snapback: &mut LocalSnapback,
+    connection_id: &str,
+    admission: &crate::auth::admission::AdmissionLease,
+) -> Vec<String> {
+    snapback
+        .authorization_invalidation_frames(connection_id, admission)
+        .expect("project pending authorization frames")
+        .into_iter()
+        .map(|message| String::from_utf8(message.payload).expect("authorization frame UTF-8"))
+        .collect()
+}
+
 fn drain_live_stream_through_fenced_test_sink(
     snapback: &LocalSnapback,
     connection_id: &str,
@@ -5249,7 +5262,11 @@ fn asset_record_live_projection_sessions_mode_rides_the_witnessed_lane() {
             },
         )
         .expect("sessions finalize publishes");
-    let frames = drain_live_stream_through_test_sink(&mut snapback, "conn-sess-a")
+    let frames = project_authorization_frames_through_test_sink(
+        &mut snapback,
+        "conn-sess-a",
+        &managed_session_admission(),
+    )
         .into_iter()
         .filter_map(|text| serde_json::from_str::<Value>(&text).ok())
         .collect::<Vec<_>>();
@@ -5275,7 +5292,11 @@ fn asset_record_live_projection_sessions_mode_rides_the_witnessed_lane() {
     snapback
         .asset_delete(&creator, &asset_id)
         .expect("sessions delete");
-    let frames = drain_live_stream_through_test_sink(&mut snapback, "conn-sess-a")
+    let frames = project_authorization_frames_through_test_sink(
+        &mut snapback,
+        "conn-sess-a",
+        &managed_session_admission(),
+    )
         .into_iter()
         .filter_map(|text| serde_json::from_str::<Value>(&text).ok())
         .collect::<Vec<_>>();
@@ -22851,7 +22872,8 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
         },
     )
     .expect("delete the visible book");
-    let messages = drain_live_stream_through_test_sink(&mut snapback, "rel-shrink");
+    let messages =
+        project_authorization_frames_through_test_sink(&mut snapback, "rel-shrink", &admission);
     let frame = messages
         .iter()
         .filter_map(|message| serde_json::from_str::<Value>(message).ok())
@@ -23169,7 +23191,11 @@ fn auth_scoped_removal_is_atomic_obligation_and_exact_ack() {
         },
     )
     .expect("delete visible row");
-    let messages = drain_live_stream_through_test_sink(&mut snapback, "session-remove");
+    let messages = project_authorization_frames_through_test_sink(
+        &mut snapback,
+        "session-remove",
+        &admission,
+    );
     let frame = messages
         .iter()
         .filter_map(|message| serde_json::from_str::<Value>(message).ok())
@@ -23292,7 +23318,11 @@ fn mutation_fanout_resolution_supersession_never_reuses_frame_key() {
         },
     )
     .expect("matching mutation raises and resolves one obligation");
-    let first = drain_live_stream_through_test_sink(&mut snapback, "session-overlap")
+    let first = project_authorization_frames_through_test_sink(
+        &mut snapback,
+        "session-overlap",
+        &admission,
+    )
         .into_iter()
         .filter_map(|message| serde_json::from_str::<Value>(&message).ok())
         .find(|message| message["kind"] == "authorization_invalidation")
@@ -23391,7 +23421,7 @@ fn overflow_root_waits_for_every_auth_scoped_child() {
             .ephemeral
             .enqueue_durable("session-overflow", b"{}".to_vec());
     }
-    invoke_test_session_mutation(
+    let deletion = invoke_test_session_mutation(
         &mut snapback,
         "deleteItem",
         HandlerInput {
@@ -23399,7 +23429,18 @@ fn overflow_root_waits_for_every_auth_scoped_child() {
             ..HandlerInput::default()
         },
     )
-    .expect("delete triggers overflow");
+    .expect("delete raises retained authorization obligations");
+    // @ref LLP 0094#0c8-sessions-live-update-envelope-and-delivery-multiplicity —
+    // auth snapshots no longer overflow the physical outbox. Cross the physical
+    // bound with unrelated durable traffic, then project the resulting LLP 0053
+    // connection root from retained state.
+    let overflowed = snapback
+        .ephemeral
+        .enqueue_durable("session-overflow", b"{}".to_vec());
+    assert!(overflowed.overflowed_now, "fixture must cross the queue bound");
+    snapback
+        .raise_connection_overflow("session-overflow", deletion.version)
+        .expect("physical overflow raises the retained connection root");
     let overflow = snapback.drain_live_stream("session-overflow");
     let overflow_sentinel_observed = overflow
         .iter()

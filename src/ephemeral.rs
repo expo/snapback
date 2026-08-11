@@ -7137,6 +7137,13 @@ impl LocalEphemeralBackend {
         self.enqueue_durable_message(connection_id, DurableMessage::new(payload))
     }
 
+    /// Wake the current transport after publishing level-triggered durable
+    /// state that the drain projects directly. No physical outbox entry is
+    /// created: the retained state remains the sole delivery authority.
+    pub(crate) fn wake_durable_projection(&self, connection_id: &str) {
+        self.shared.delivery.wake(connection_id);
+    }
+
     /// Prepare one scheduler-backed subscription frame for ordered enqueue.
     /// This is a no-op when the connection has no pending outbox. The Local
     /// owner calls it only while the evaluation scheduler is installed; the

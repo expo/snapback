@@ -606,6 +606,17 @@ fn parse_direct_invalidation_frames(frames: Vec<crate::ephemeral::DurableMessage
         .collect()
 }
 
+// @ref LLP 0094#0c8-sessions-live-update-envelope-and-delivery-multiplicity —
+// retained obligation projection is the only sessions auth-snapshot lane.
+fn assert_no_physical_invalidation_snapshots(frames: &[Value]) {
+    assert!(
+        frames
+            .iter()
+            .all(|frame| frame.get("snapshot").is_none_or(Value::is_null)),
+        "the physical outbox must not duplicate a projected authorization snapshot"
+    );
+}
+
 fn drain_live_stream_through_test_sink(
     snapback: &mut LocalSnapback,
     connection_id: &str,
@@ -631,23 +642,44 @@ fn settle_query(
 ) -> DeliveryObservation {
     let predecessor_rows = query.rows.clone();
     let predecessor_version = query.version;
+    let primary_projection = matches!(
+        mode,
+        DeliveryMode::DeliverDrain | DeliveryMode::DropDrainAndReproject
+    )
+    .then(|| {
+        parse_direct_invalidation_frames(
+            snapback
+                .authorization_invalidation_frames(&query.connection_id, admission)
+                .expect("primary level-triggered invalidation projection"),
+        )
+    });
     let drained = parse_invalidation_frames(drain_live_stream_through_test_sink(
         snapback,
         &query.connection_id,
     ));
+    assert_no_physical_invalidation_snapshots(&drained);
     let mut observation = DeliveryObservation::default();
     observation.record_generated(&drained, false);
+    if let Some(primary_projection) = primary_projection.as_ref() {
+        observation.record_generated(primary_projection, false);
+    }
 
     let frames = match mode {
-        DeliveryMode::DeliverDrain => drained,
+        DeliveryMode::DeliverDrain => {
+            let mut delivered = drained;
+            delivered.extend(primary_projection.expect("delivery projection was prepared"));
+            delivered
+        }
         DeliveryMode::DropDrainAndReproject | DeliveryMode::ReprojectAfterPriorDrop => {
             match mode {
                 DeliveryMode::DropDrainAndReproject => {
+                    let mut discarded = drained;
+                    discarded.extend(primary_projection.expect("loss projection was prepared"));
                     assert!(
-                        !drained.is_empty(),
+                        !discarded.is_empty(),
                         "a requested response-loss schedule must discard a generated frame"
                     );
-                    observation.record_discarded(&drained);
+                    observation.record_discarded(&discarded);
                 }
                 DeliveryMode::ReprojectAfterPriorDrop => assert!(
                     drained.is_empty(),
@@ -1642,16 +1674,29 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         "setUserRole",
         json!({ "id": user, "role": "suspended" }),
     );
+    let admission = session_authority("alice", InvocationSource::HttpQuery)
+        .admission_lease()
+        .clone();
     for query in &queries {
-        let _lost = drain_live_stream_through_test_sink(&mut snapback, &query.connection_id);
+        let lost = parse_direct_invalidation_frames(
+            snapback
+                .authorization_invalidation_frames(&query.connection_id, &admission)
+                .expect("lost primary invalidation projection"),
+        );
+        assert!(
+            !lost.is_empty(),
+            "the prior-drop schedule must discard a projected response"
+        );
+        let physically_drained = parse_invalidation_frames(drain_live_stream_through_test_sink(
+            &mut snapback,
+            &query.connection_id,
+        ));
+        assert_no_physical_invalidation_snapshots(&physically_drained);
     }
     let denied = snapback
         .subscriptions
         .get(&queries[0].subscription_id)
         .expect("query selected for escalation")
-        .clone();
-    let admission = session_authority("alice", InvocationSource::HttpQuery)
-        .admission_lease()
         .clone();
     snapback.fail_subscription_fanout_with_retry(
         &denied,

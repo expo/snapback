@@ -94,3 +94,20 @@ the codegen cache first — a fresh `card-game` run refuses with
   lane `lane-sess3x-20260810`). Frame-count regression and re-measurement on a
   current-HEAD binary are in the same lane. Please coordinate before starting
   competing work on this ticket.
+
+## Resolution
+
+- 2026-08-10: fixed in this landing. Root cause was three delivery sources
+  for one obligation: the serialized physical enqueue, the drain's direct
+  level-triggered projection of the same pending obligation, and a second
+  projection triggered by the queued outbox lease's own commit wake. The
+  retained obligation is now the sole delivery authority
+  (`src/local.rs`, `wake_durable_projection` in `src/ephemeral.rs`).
+  Measured 3×→1× on card-game `myHand`; dev arm unchanged. Delivery
+  multiplicity is now normative in LLP 0094 §0C.8 and documented in
+  `guide/protocol/client-protocol.md`. Regression:
+  `server::tests::sessions_live_update_stream_sends_one_frame_per_subscription_version`.
+  Envelope-shape question resolved as documented-deliberate (the wrapper
+  atomically binds obligation, resolution ticket, and snapshot until exact
+  post-apply ACK). Cross-cell generalization of the frame-count assertion is
+  commissioned under LLP 0189 D-8 (parity harness lane).

@@ -85,6 +85,47 @@ fn drain_through_test_sink(ephemeral: &EphemeralApi, connection_id: &str) -> Vec
         .collect()
 }
 
+fn is_authorization_snapshot(envelope: &RealtimeEnvelope) -> bool {
+    matches!(envelope, RealtimeEnvelope::Durable(message)
+    if serde_json::from_slice::<Value>(&message.payload).is_ok_and(|frame| {
+        frame["kind"] == "authorization_invalidation"
+            && frame.get("snapshot").is_some_and(|snapshot| !snapshot.is_null())
+    }))
+}
+
+fn is_authorization_snapshot_for(envelope: &RealtimeEnvelope, function: &str) -> bool {
+    matches!(envelope, RealtimeEnvelope::Durable(message)
+    if serde_json::from_slice::<Value>(&message.payload).is_ok_and(|frame| {
+        frame["kind"] == "authorization_invalidation"
+            && frame["snapshot"]["function"] == function
+    }))
+}
+
+// @ref LLP 0094#0c8-sessions-live-update-envelope-and-delivery-multiplicity —
+// direct retained projection is the sole auth-snapshot lane.
+fn assert_no_physical_authorization_snapshot(envelope: &RealtimeEnvelope) {
+    assert!(
+        !is_authorization_snapshot(envelope),
+        "the physical outbox must not duplicate a projected authorization snapshot"
+    );
+}
+
+fn project_authorization_envelopes(
+    snapback: &mut LocalSnapback,
+    connection_id: &str,
+    user_id: &str,
+) -> Vec<RealtimeEnvelope> {
+    let admission = session_authority(InvocationSource::LiveInitialQuery, user_id)
+        .admission_lease()
+        .clone();
+    snapback
+        .authorization_invalidation_frames(connection_id, &admission)
+        .expect("project pending authorization frames")
+        .into_iter()
+        .map(RealtimeEnvelope::Durable)
+        .collect()
+}
+
 impl KickFixture {
     fn new() -> Self {
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
@@ -183,9 +224,9 @@ impl KickFixture {
                 OPPONENT_MOVE
             );
         }
-        // Drive the real durable fanout path before the kick so A's outbox
-        // contains an authorization-stamped board snapshot that can be paused
-        // after destructive drain, alongside the protected presence frame.
+        // Drive the real durable fanout path before the kick so A's retained
+        // obligation projects an authorization-stamped board snapshot that can
+        // be paused at final send alongside the protected presence frame.
         snapback.notify_live_subscriptions(&[]);
 
         let ephemeral = snapback.ephemeral_api();
@@ -229,14 +270,26 @@ impl KickFixture {
         RealtimeEnvelope,
         KickBoundaryObservations,
     ) {
+        let old_board_envelope = {
+            let mut snapback = self.snapback.lock().unwrap_or_else(PoisonError::into_inner);
+            project_authorization_envelopes(&mut snapback, CONNECTION_A, USER_A)
+                .into_iter()
+                .find(|envelope| is_authorization_snapshot_for(envelope, "board"))
+                .expect("A's private board snapshot reached direct projection")
+        };
+        let old_board_send_permit = self
+            .ephemeral
+            .begin_final_send(&old_board_envelope)
+            .expect("pre-kick board projection reaches final send")
+            .expect("auth-scoped projected board carries publication permit");
         let admitted = self
             .ephemeral
             .drain_outbox_for_send_if_active(CONNECTION_A)
             .expect("A is an active room connection");
         let mut old_room = None;
-        let mut old_board = None;
         for admitted in admitted {
             let (envelope, permit) = admitted.into_parts();
+            assert_no_physical_authorization_snapshot(&envelope);
             if matches!(
                 &envelope,
                 RealtimeEnvelope::Ephemeral(EphemeralMessage::Upsert { entry, .. })
@@ -248,22 +301,9 @@ impl KickFixture {
                 ));
                 continue;
             }
-            if let RealtimeEnvelope::Durable(message) = &envelope
-                && serde_json::from_slice::<Value>(&message.payload).is_ok_and(|frame| {
-                    frame["snapshot"]["function"] == "board"
-                        && frame["snapshot"]["rows"][0]["move"] == OPPONENT_MOVE
-                })
-            {
-                old_board = Some((
-                    envelope,
-                    permit.expect("auth-scoped durable board carries publication permit"),
-                ));
-            }
         }
         let (old_room_envelope, old_room_send_permit) =
             old_room.expect("A's pre-kick opponent-presence frame reached destructive drain");
-        let (old_board_envelope, old_board_send_permit) =
-            old_board.expect("A's private board snapshot reached destructive drain");
 
         let snapback = self.snapback.clone();
         let (started_tx, started_rx) = mpsc::channel();
@@ -439,6 +479,41 @@ impl KickFixture {
             },
         )
     }
+
+    fn drain_composed_delivery(&self, connection_id: &str, user_id: &str) -> Vec<RealtimeEnvelope> {
+        let projections = {
+            let mut snapback = self.snapback.lock().unwrap_or_else(PoisonError::into_inner);
+            project_authorization_envelopes(&mut snapback, connection_id, user_id)
+        };
+        let admitted = self
+            .ephemeral
+            .drain_outbox_for_send_if_active(connection_id)
+            .expect("connection remains active");
+        let mut frames = admitted
+            .into_iter()
+            .map(AdmittedRealtimeEnvelope::into_parts)
+            .map(|(envelope, permit)| {
+                assert_no_physical_authorization_snapshot(&envelope);
+                drop(permit);
+                envelope
+            })
+            .collect::<Vec<_>>();
+        frames.extend(projections.into_iter().map(|envelope| {
+            let permit = self
+                .ephemeral
+                .begin_final_send(&envelope)
+                .expect("projected authorization frame reaches final send");
+            if is_authorization_snapshot(&envelope) {
+                assert!(
+                    permit.is_some(),
+                    "projected auth snapshot carries a final-send permit"
+                );
+            }
+            drop(permit);
+            envelope
+        }));
+        frames
+    }
 }
 
 #[test]
@@ -612,44 +687,8 @@ fn card_game_kick_composes_durable_and_room_authority_boundaries() {
         .expect("installed authorization expectation");
     assert_eq!(pending[0].obligation.authorization, expectation);
 
-    let frames_a = fixture
-        .ephemeral
-        .drain_outbox_for_send_if_active(CONNECTION_A)
-        .expect("A remains an active connection")
-        .into_iter()
-        .map(AdmittedRealtimeEnvelope::into_parts)
-        .map(|(envelope, permit)| {
-            if matches!(&envelope, RealtimeEnvelope::Durable(message)
-                if serde_json::from_slice::<Value>(&message.payload)
-                    .is_ok_and(|frame| frame["snapshot"]["function"] == "board"))
-            {
-                assert!(
-                    permit.is_some(),
-                    "the fresh kicked-player board boundary is final-send fenced"
-                );
-            }
-            envelope
-        })
-        .collect::<Vec<_>>();
-    let frames_b = fixture
-        .ephemeral
-        .drain_outbox_for_send_if_active(CONNECTION_B)
-        .expect("B remains an active connection")
-        .into_iter()
-        .map(AdmittedRealtimeEnvelope::into_parts)
-        .map(|(envelope, permit)| {
-            if matches!(&envelope, RealtimeEnvelope::Durable(message)
-                if serde_json::from_slice::<Value>(&message.payload)
-                    .is_ok_and(|frame| frame["snapshot"]["function"] == "board"))
-            {
-                assert!(
-                    permit.is_some(),
-                    "the survivor's successor board snapshot passes the final-send fence"
-                );
-            }
-            envelope
-        })
-        .collect::<Vec<_>>();
+    let frames_a = fixture.drain_composed_delivery(CONNECTION_A, USER_A);
+    let frames_b = fixture.drain_composed_delivery(CONNECTION_B, USER_B);
     assert_durable_kick_snapshot(&frames_a, "currentMembership", kick.version, 0);
     assert_durable_kick_snapshot(&frames_b, "currentMembership", kick.version, 1);
     let board_a = assert_durable_kick_snapshot(&frames_a, "board", kick.version, 0);

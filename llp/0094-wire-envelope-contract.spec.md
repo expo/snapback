@@ -5,7 +5,10 @@
 **Systems:** Wire Protocol, Realtime, Live Queries, Client SDK, HTTP surface, Cloudflare arm, Schema governance
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-08-10 (LLP 0146 OQ6 remediation-carrier amendment: `diagnostic.details.remediationSet`, nested versioning, closed outer envelopes unchanged — see the dated section); 2026-08-08 (ErrorResponse v1 amendment: every HTTP error envelope
+**Revised:** 2026-08-10 (sessions live-update delivery amendment: one content
+frame per commit version per subscription; auth-scoped row changes use the
+obligation-backed `authorization_invalidation` envelope — see §0C.8);
+2026-08-10 (LLP 0146 OQ6 remediation-carrier amendment: `diagnostic.details.remediationSet`, nested versioning, closed outer envelopes unchanged — see the dated section); 2026-08-08 (ErrorResponse v1 amendment: every HTTP error envelope
 now requires `formatVersion: "snapback.error-response.v1"`; receivers ignore
 unknown top-level members for forward-additive evolution while the version is
 must-understand. This does not resolve LLP 0146 OQ6 or add a remediation
@@ -771,6 +774,26 @@ optional `ephemeralAuthorityInstance`. It does **not** add or reserve a
 remediation member, select a remediation carrier, or otherwise decide LLP
 0146 OQ6; typed suggestions continue to ride only the already-governed
 diagnostic `details` allowlists until that separate question is decided.
+
+### 0C.8 Sessions live-update envelope and delivery multiplicity
+
+For one live subscription, a commit version that changes its result **MUST
+produce exactly one content frame for that subscription and version in one
+delivery turn**. A server MUST NOT publish the same snapshot through both a
+queued durable frame and a direct level-triggered projection. Independent
+redelivery after loss, reconnect, or absence of the exact acknowledgement is
+still permitted and required by the obligation protocol; that later retry is
+not permission to emit byte-identical copies in the same delivery turn.
+
+In sessions mode, an auth-scoped data change is delivered as an
+`authorization_invalidation` envelope whose `snapshot` carries the replacement
+rows. This does not assert that the authorization policy changed. The wrapper
+is used because ordinary auth-scoped replacement — including any potentially
+shrinking result — raises a persistent quarantine delivery obligation. The
+envelope atomically binds that obligation, its resolution ticket, and the
+replacement snapshot, so only the exact post-apply acknowledgement discharges
+the reliable row-delivery obligation. Each subscription owns one such scope;
+the envelope is not multiplied by the number of negotiated auth protocols.
 
 Socket server→client union rule: on the kit stream, durable-lane
 payloads arrive **unwrapped** — bare `LiveEnvelope` kinds

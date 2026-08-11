@@ -9,8 +9,8 @@ examples: [clients/swift/SnapbackClient]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
+reviewed: 2026-08-10
+reviewed-commit: 61bed55506396483864130ee61552e701d030313
 ---
 
 # Client protocol
@@ -71,6 +71,13 @@ Apply delta operations by row id. `resync_required` re-enters the named
 subscription through fresh snapshot-with-subscribe; an absent subscription id
 means every subscription and retained ephemeral overlay must resync.
 
+For each affected subscription, one commit version produces exactly one
+content frame in a delivery turn. Two byte-identical frames for the same
+subscription and version are a server protocol violation, not fanout across
+negotiated auth protocols. A later retry after loss, reconnect, or an
+unacknowledged sessions snapshot is separate level-triggered recovery and may
+repeat the version safely.
+
 The socket has an application heartbeat: send `{"type":"ping"}` every five
 seconds and require a `pong` or other activity inside the 15-second freshness
 budget. A missed budget forces socket loss and reconnect. Reconnect is always a
@@ -103,6 +110,13 @@ Apply the invalidation frame's camelCase `snapshot` atomically, then POST
 `/live/authorization-invalidation/acknowledge`. Never acknowledge a snapshot
 that was not applied. A duplicate redelivery whose version is already held is
 safe to acknowledge again; do not regress rows.
+
+The wrapper does not mean the authorization policy changed. Sessions row
+updates use it because every auth-scoped replacement, including one that may
+shrink the visible result, is retained as a quarantine delivery obligation.
+`authorization_invalidation` atomically carries that obligation, its resolution
+ticket, and the replacement snapshot; applying and acknowledging the exact
+ticket is what discharges reliable row delivery.
 
 Session mode rejects client-selected identity in bodies. Carry the bearer in
 `Authorization`; omit `auth.user_id`.

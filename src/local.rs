@@ -23295,7 +23295,7 @@ impl LocalSnapback {
         if let Some((obligation, entered)) = quarantine_entry.as_ref() {
             self.record_quarantine_entry(obligation, *entered);
         }
-        let (projection, proof) = {
+        {
             let state = self.auth_invalidation.as_mut().ok_or_else(|| {
                 SnapbackError::error(
                     "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
@@ -23309,41 +23309,19 @@ impl LocalSnapback {
                 proof.clone(),
                 &snapshot_identity,
             )?;
-            (
-                state
-                    .obligations
-                    .projection(&authorization.scope_id)
-                    .expect("a just-raised obligation has a projection"),
-                proof,
-            )
-        };
+        }
         // The durable episode closes only after its proof has transferred to
         // the still-live obligation and exact ACK ticket above.
         self.resolve_authorization_retry_episode(subscription, &proof, &_publication)?;
-        let payload = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
-            projection.obligation,
-            projection.resolution,
-            Some(snapshot),
-        ))
-        .map_err(|error| {
-            SnapbackError::error(
-                "SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED",
-                "realtime",
-                "authorization invalidation snapshot could not be serialized",
-            )
-            .with_details(json!({ "error": error.to_string() }))
-        })?;
         if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
             stored.read_dependencies = query.read_dependencies;
         }
-        let enqueue = self.enqueue_subscription_authorized_durable(
-            subscription,
-            payload,
-            proof.authorization,
-        );
-        if enqueue.overflowed_now {
-            self.raise_connection_overflow(&subscription.connection_id, snapshot_version)?;
-        }
+        // @ref LLP 0094#0c8-sessions-live-update-envelope-and-delivery-multiplicity —
+        // the pending obligation is the sole frame source. Enqueuing its exact
+        // projection as well would make the stream send the queued copy plus
+        // its level-triggered direct projection in the same delivery turn.
+        self.ephemeral
+            .wake_durable_projection(&subscription.connection_id);
         Ok(true)
     }
 

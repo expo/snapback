@@ -17221,6 +17221,137 @@ async fn websocket_projection_offer_loses_to_marker_installed_after_selection() 
     assert!(retry[0].is_recovery_marker());
 }
 
+/// @ref LLP 0094#0c8-sessions-live-update-envelope-and-delivery-multiplicity —
+/// one sessions mutation publishes one obligation-backed snapshot source, so
+/// the exact stream drain must hand off one frame for that subscription/version.
+#[tokio::test]
+async fn sessions_live_update_stream_sends_one_frame_per_subscription_version() {
+    let connection_id = "sessions-one-frame-per-version";
+    let state = auth_projection_http_fixture(connection_id, 0, 0);
+    let credential = mint_test_credential(&state, "one-frame@example.test").await;
+    let bearer = credential["token"].as_str().expect("credential token");
+    let (_opened, connection_act) =
+        prepare_invalidation_session_connection_act(&state, bearer, connection_id);
+    state.ephemeral.touch_connection(connection_id);
+    let notifier = state.ephemeral.delivery_notifier();
+    let (generation, waker) = notifier
+        .register_bound(connection_id, connection_act.grant_id.clone())
+        .expect("register exact sessions stream owner");
+    let admission = test_route_admission(&state).0;
+
+    let subscribe_authority = InvocationGate::prepare_admitted_authority(
+        InvocationSource::LiveInitialQuery,
+        AuthMode::Sessions,
+        state.server.profile,
+        admission.clone(),
+        &WireAuthorityFields::default(),
+        connection_act.resolved.clone(),
+    )
+    .expect("prepare sessions live authority")
+    .with_fenced_publication(connection_act.bound.publication().clone());
+    let effect_fence = connection_act.effect_fence();
+    let invalidation = connection_act.authorization_invalidation.clone();
+    let subscribed = with_snapback(&state.snapback, {
+        let connection_id = connection_id.to_owned();
+        move |snapback| {
+            snapback.subscribe_live_prepared_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id,
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(QueryNamespace {
+                        client_store_id: "sessions_one_frame_store".to_owned(),
+                        query_key: "listItems:{}".to_owned(),
+                        query_instance_id: 91_001,
+                    }),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+                subscribe_authority,
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: invalidation,
+                    effect_fence: Some(effect_fence),
+                },
+            )
+        }
+    })
+    .await
+    .expect("install one sessions subscription");
+
+    let mutation_authority = InvocationGate::prepare_admitted_authority(
+        InvocationSource::HttpMutation,
+        AuthMode::Sessions,
+        state.server.profile,
+        admission.clone(),
+        &WireAuthorityFields::default(),
+        connection_act.resolved.clone(),
+    )
+    .expect("prepare sessions mutation authority")
+    .with_fenced_publication(connection_act.bound.publication().clone());
+    let mutation = with_snapback(&state.snapback, move |snapback| {
+        snapback.invoke_mutation_with_authority(
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "one committed change" }),
+                ..HandlerInput::default()
+            },
+            mutation_authority,
+        )
+    })
+    .await
+    .expect("commit one sessions mutation");
+    tokio::time::timeout(Duration::from_secs(1), waker.notified())
+        .await
+        .expect("mutation wakes the sessions stream");
+
+    let (writer, mut writes) = tokio::sync::mpsc::channel(4);
+    let capture = tokio::spawn(async move {
+        let mut frames = Vec::new();
+        while let Some(write) = writes.recv().await {
+            let super::AdmittedLiveWrite {
+                message,
+                admission: _write_admission,
+                _publication_authority,
+                completed,
+            } = write;
+            if let super::Message::Text(text) = message {
+                frames.push(text.to_string());
+            }
+            let _ = completed.send(true);
+        }
+        frames
+    });
+    let outcome = super::drain_and_send(super::LiveDrain {
+        state: &state.snapback,
+        ephemeral: &state.ephemeral,
+        connection_id,
+        generation,
+        writer: &writer,
+        notify: &notifier,
+        admission: &admission,
+        connections: &state.connections,
+        connection_act: &connection_act,
+        reproject_authorization: true,
+    })
+    .await;
+    assert_eq!(outcome, std::ops::ControlFlow::Continue(()));
+    drop(writer);
+    let frames = capture.await.expect("frame capture task");
+    assert_eq!(frames.len(), 1, "one mutation must hand off one frame");
+    assert!(
+        futures_util::FutureExt::now_or_never(waker.notified()).is_none(),
+        "the handoff must not schedule an immediate duplicate drain"
+    );
+    let frame = serde_json::from_str::<Value>(&frames[0]).expect("sessions frame JSON");
+    assert_eq!(frame["kind"], "authorization_invalidation");
+    assert_eq!(
+        frame["snapshot"]["subscriptionId"],
+        subscribed.subscription_id
+    );
+    assert_eq!(frame["snapshot"]["version"], mutation.version);
+}
+
 #[test]
 fn websocket_selected_marker_defers_precomputed_projections_and_emits_alone() {
     let state = test_detached_app_state(LocalSnapback::memory().expect("WS marker-alone fixture"));
