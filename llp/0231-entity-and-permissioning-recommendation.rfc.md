@@ -1,7 +1,7 @@
 # LLP 0231: Entity and permissioning — recommendation
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Auth, Security/authorization, Storage, Live queries, Code generation, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-10

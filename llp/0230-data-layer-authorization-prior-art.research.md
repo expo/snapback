@@ -1,7 +1,7 @@
 # LLP 0230: Data-layer authorization — prior art
 
 **Type:** Research
-**Status:** Draft
+**Status:** Review
 **Systems:** Auth, Security/authorization, Storage, Live queries, Code generation, Client integration
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-10
