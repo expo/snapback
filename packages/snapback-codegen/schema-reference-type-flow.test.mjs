@@ -301,10 +301,16 @@ try {
     });
   `);
   generated = await generate(root);
-  assert.equal(generated.ok, false);
-  assert(generated.diagnostics.some(({ code, capability }) => (
+  // @ref LLP 0211#capability-and-maturity-the-llp-0134-publication-contract
+  // — the reviewed support flip admits the typed carrier while preserving
+  // the explicit capability requirement for older runtimes.
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  assert(
+    generated.schemaManifest.requiredCapabilities.includes('structured_stored_value_v1'),
+    JSON.stringify(generated.schemaManifest),
+  );
+  assert(!generated.diagnostics.some(({ code }) => (
     code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
-      && capability === 'structured_stored_value_v1'
   )), JSON.stringify(generated.diagnostics));
   assert(!generated.diagnostics.some(({ code }) => (
     code === 'SCHEMA_INVALID_VALIDATOR'

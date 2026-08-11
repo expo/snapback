@@ -49,11 +49,15 @@ async function structuredSchema(body) {
 import { defineSchema, defineTable, v } from '${defineUrl}';
 ${body}
 `);
-  assert.equal(result.ok, false, JSON.stringify(result.diagnostics));
-  assert(result.diagnostics.some(({ code, capability }) => (
-    code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
-      && capability === 'structured_stored_value_v1'
-  )), JSON.stringify(result.diagnostics));
+  // @ref LLP 0211#capability-and-maturity-the-llp-0134-publication-contract
+  // — non-enum unions take the Structured row and the reviewed local support
+  // flip admits that carrier while retaining its explicit requirement.
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  assert(
+    result.schemaManifest.requiredCapabilities.includes('structured_stored_value_v1'),
+    JSON.stringify(result.schemaManifest),
+  );
+  assert(!result.diagnostics.some(({ code }) => code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'));
   assert(!result.diagnostics.some(({ code }) => code === 'SCHEMA_INVALID_VALIDATOR'));
 }
 

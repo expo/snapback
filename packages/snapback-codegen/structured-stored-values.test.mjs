@@ -90,9 +90,9 @@ void seededHandler;
   assert.notEqual(typecheck.status, 0, 'nested structured type mismatch must fail typecheck');
   assert.match(`${typecheck.stdout}\n${typecheck.stderr}`, /number.*not assignable.*string/i);
 
-  // The serving target is intentionally support-false during Phase A. A
-  // native Clique schema must therefore reach only the coherent capability
-  // refusal, proving it took Structured dispatch rather than v.json degrade.
+  // @ref LLP 0211#capability-and-maturity-the-llp-0134-publication-contract
+  // — after the reviewed support flip a native Clique schema is admitted and
+  // still carries the capability requirement that protects older runtimes.
   const native = await compile(`
 export default defineSchema({
   messages: defineTable({
@@ -101,10 +101,13 @@ export default defineSchema({
   }),
 });
 `);
-  assert.equal(native.ok, false);
-  assert(native.diagnostics.some((diagnostic) => (
+  assert.equal(native.ok, true, JSON.stringify(native.diagnostics));
+  assert(
+    native.schemaManifest.requiredCapabilities.includes('structured_stored_value_v1'),
+    JSON.stringify(native.schemaManifest),
+  );
+  assert(!native.diagnostics.some((diagnostic) => (
     diagnostic.code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
-    && diagnostic.capability === 'structured_stored_value_v1'
   )), JSON.stringify(native.diagnostics));
   assert(!native.diagnostics.some((diagnostic) => (
     diagnostic.code.startsWith('SCHEMA_STRUCTURED_')
@@ -294,4 +297,4 @@ export const matched = defineLiveQuery({
   for (const root of roots) rmSync(root, { recursive: true, force: true });
 }
 
-console.log('structured-stored-values.test.mjs: LLP 0211 Phase A corpus passed');
+  console.log('structured-stored-values.test.mjs: LLP 0211 structured storage corpus passed');

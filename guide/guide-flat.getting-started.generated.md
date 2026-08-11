@@ -135,11 +135,11 @@ indexes, filters, orders, live matchers, search membership, search/vector
 `storedFields`, and bounded/relational/maintained projections refuse them.
 Project a scalar into an ordinary field when it must be queried.
 
-`structured_stored_value_v1` is currently registered experimental but
-support-false on the local target, so a schema using this grammar reaches the
-typed carrier and then refuses coherently at capability settlement until the
-separate reviewed support flip. This is intentional: maturity registration is
-not runtime support. `v.json()` remains the unchanged untyped escape hatch.
+`structured_stored_value_v1` is registered experimental and supported on the
+local target. Schemas using this grammar carry that explicit capability
+requirement, so older runtimes refuse coherently at capability settlement
+instead of degrading the value to `v.json()`. `v.json()` remains the unchanged
+untyped escape hatch.
 The remaining [`backend.structured-stored-fields` GAP](../capabilities.md) is
 queryable structure—interior predicates, containment, and portable declared
 projections—owned by

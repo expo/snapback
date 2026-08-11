@@ -39,11 +39,13 @@
   "surfaces": {
     "headless": {
       "requirement": "required",
+      "buildTargets": [],
       "runner": "node demos/pointing-room/tests/acceptance/disclosure-invariant.mjs",
       "toolchain": "node>=22 and the prebuilt local Snapback runtime"
     },
     "contract": {
       "requirement": "required",
+      "buildTargets": ["web"],
       "browserRunner": "bun install --cwd demos/pointing-room/surfaces/contract, then node demos/pointing-room/tests/acceptance/contract-browser.mjs",
       "build": "bun run --cwd demos/pointing-room/surfaces/contract build",
       "toolchain": "bun, Exact registry packages, and headless Chrome"

@@ -57,7 +57,7 @@ try {
   assert.deepEqual(
     collectRequiredWebSurfaces()
       .map(({ demoId, surfaceName }) => `${demoId}/${surfaceName}`),
-    ['all-aboard/contract', 'cursors-web/contract'],
+    ['all-aboard/contract', 'cursors-web/contract', 'pointing-room/contract'],
     'the manifest-derived required web inventory is explicit and non-vacuous',
   );
 
@@ -115,7 +115,7 @@ try {
   const gatedBackends = collectGatedGeneratedBackends(collectRequiredWebSurfaces());
   assert.deepEqual(
     gatedBackends.map(({ demoId, outboundActions }) => `${demoId}:${outboundActions}`),
-    ['all-aboard:true', 'cursors-web:false'],
+    ['all-aboard:true', 'cursors-web:false', 'pointing-room:false'],
     'gated demos with committed review manifests are materialized before their builds',
   );
   const generatedDemoDir = join(scratch, 'generated-demos', 'fixture');

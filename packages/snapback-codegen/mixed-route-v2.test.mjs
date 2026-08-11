@@ -46,8 +46,8 @@ const stableDigest = (value) => digest(normalizeVolatile(value));
 // generation inputs legitimately rotate (expectedGeneration hashes ride
 // every reference); re-pin only after verifying the SHAPE is unchanged —
 // a new field on format 1 is the defect this guard exists to catch.
-const FORMAT_1_BYTES_SHA256 = '372019d75890405c41bcbd0a0fbad3919d46f111dabc200c29ebbf6450ebd4bc';
-const FORMAT_2_BYTES_SHA256 = '6be5564d1f47f0b74efcbf161f733d7ad2bef7b14cbb33f4dbe5be3996d0b366';
+const FORMAT_1_BYTES_SHA256 = '25685fda1552796e18513315d350d459463e630d845bd84d0737e6bdd23e01ed';
+const FORMAT_2_BYTES_SHA256 = 'c3f8a326b4d73a969146aca400550ef2c682fddd0528b3dabd76835ce1ddb7d9';
 
 test('mixed route emits format 2 from bound liveness while format 1 stays byte-exact', async (t) => {
   const root = mkdtempSync(join(tmpdir(), 'snapback-mixed-route-v2-'));
