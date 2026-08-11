@@ -8,10 +8,11 @@
 by ruling at that landing). Useful input for the LLP 0198 session's
 post-landing adversarial verification pass.
 
-1. No fixture exercises `#[path]` module aliasing or `self::`/`super::`
-   inside inline `mod { }` blocks, though LLP 0225 §5 claims adversarial
-   fixtures for every form. The mechanism is implemented but unpinned
-   (`tests/fixtures/module-ownership/` has 13 files, none covering these).
+1. **Resolved 2026-08-10.** Added adversarial fixtures for `#[path]` module
+   aliasing and `self::`/`super::` inside inline `mod { }` blocks. The tests
+   assert the exact resolved edges; the `#[path]` probe also proves a
+   forbidden direction produces a red with its fingerprint named while an
+   allowed direction stays green.
 2. Fingerprints embed owner names, so reassigning a module's owner rotates
    every touching fingerprint and orphans frozen records; a still-forbidden
    edge under new owners can only re-enter via a fresh deadline-bearing
@@ -45,15 +46,13 @@ post-landing adversarial verification pass.
 
 ## Verifier confirmations — 2026-08-10 (LLP 0198 session)
 
-- The `#[path]`/inline-mod fixture gap is now live-proven: behavior
-  handles `#[path]` (probe A9 red, B9 green) but no regression fixture
-  or test case exists — repro in the closed gaps ticket's verification
-  record. Raising this from "unpinned" to "confirmed missing."
-- New minor from the same pass: the unassigned-growth refusal
-  (`legacy unassigned bucket is shrink-only; assign new modules to a
-  real owner: <module>`) does not name the seven permitted owners; the
-  0225 §5 fix language expects them named. Diagnostic completeness
-  only.
+- **Resolved 2026-08-10.** The live-proven `#[path]`/inline-mod fixture gap
+  now has checked-in regression fixtures and exact-edge assertions mirroring
+  the A9-red/B9-green result recorded in the closed gaps ticket.
+- **Resolved 2026-08-10.** The unassigned-growth refusal now appends the
+  seven permitted owners read from the current manifest, and the existing
+  shrink-only test asserts that complete runtime-derived list. This closes
+  the diagnostic-completeness finding.
 - Faked-clock (2026-08-12) CLI run passes with `2 expired waivers
   (escalate)`; expired-waiver advisory posture behaves as the
   pre-landing MATERIAL fix claims.

@@ -940,9 +940,11 @@ export function enforceMonotonicBaseline(
 function enforceUnassignedShrinkOnly(current, predecessor) {
   const previous = new Set(predecessor.manifest.modulesByOwner.unassigned);
   const additions = current.manifest.modulesByOwner.unassigned.filter((path) => !previous.has(path));
+  const permittedOwners = Object.keys(current.manifest.owners)
+    .filter((owner) => owner !== 'unassigned');
   assert(
     additions.length === 0,
-    `legacy unassigned bucket is shrink-only; assign new modules to a real owner: ${additions.join(', ')}`,
+    `legacy unassigned bucket is shrink-only; assign new modules to a real owner: ${additions.join(', ')}; permitted owners: ${permittedOwners.join(', ')}`,
   );
 }
 

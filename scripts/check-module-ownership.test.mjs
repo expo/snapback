@@ -49,6 +49,10 @@ test('extractor resolves crate/group/alias/pub-use, module-relative roots, and c
     ['src/crate_consumer.rs', fixture('crate-root.rs')],
     ['src/group_consumer.rs', fixture('grouped-use.rs')],
     ['src/glob_chain_consumer.rs', fixture('reexport-glob-consumer.rs')],
+    ['src/inline_self_parent.rs', fixture('inline-self-root.rs')],
+    ['src/inline_self_parent/nested/self_target.rs', fixture('target.rs')],
+    ['src/inline_super_parent.rs', fixture('inline-super-root.rs')],
+    ['src/inline_super_parent/sibling.rs', fixture('target.rs')],
     ['src/nested/sibling.rs', fixture('target.rs')],
     ['src/nested/super_consumer.rs', fixture('super-root.rs')],
     ['src/parent.rs', fixture('self-root.rs')],
@@ -72,12 +76,78 @@ test('extractor resolves crate/group/alias/pub-use, module-relative roots, and c
   ]) assert(edges.has(`${consumer}->src/target.rs`), `${consumer} must resolve crate::target`);
   assert(edges.has('src/nested/super_consumer.rs->src/nested/sibling.rs'));
   assert(edges.has('src/parent.rs->src/parent/self_target.rs'));
+  assert(edges.has('src/inline_self_parent.rs->src/inline_self_parent/nested/self_target.rs'));
+  assert(edges.has('src/inline_super_parent.rs->src/inline_super_parent/sibling.rs'));
   assert(edges.has('src/chain_consumer.rs->src/bridge_one.rs'));
   assert(edges.has('src/chain_consumer.rs->src/bridge_two.rs'));
   assert(edges.has('src/chain_consumer.rs->src/target.rs'));
   assert(edges.has('src/glob_chain_consumer.rs->src/bridge_glob_one.rs'));
   assert(edges.has('src/glob_chain_consumer.rs->src/bridge_glob_two.rs'));
   assert(edges.has('src/glob_chain_consumer.rs->src/target.rs'));
+});
+
+function snapshotForSources(manifest, sources, {
+  issues = new Map(),
+  revision = 'abc1234',
+  frozen = [],
+} = {}) {
+  const analysis = analyzeSources(manifest, sources);
+  return {
+    analysis,
+    baseline: {
+      schemaVersion: 'snapback.module-ownership-baseline.v2',
+      manifestSchemaVersion: 'snapback.module-ownership-manifest.v1',
+      moduleCount: analysis.moduleCount,
+      edgeCount: analysis.edges.length,
+      edges: analysis.edges,
+      frozenForbiddenEdgeCount: frozen.length,
+      frozenForbiddenEdges: frozen,
+    },
+    issues,
+    manifest,
+    revision,
+  };
+}
+
+function pathAliasSnapshot(fromOwner, consumerSource) {
+  const sources = new Map([
+    ['src/path_consumer.rs', consumerSource],
+    ['src/path-target.rs', fixture('target.rs')],
+  ]);
+  const manifest = manifestFor({
+    'src/path_consumer.rs': fromOwner,
+    'src/path-target.rs': 'background-services',
+  });
+  return snapshotForSources(manifest, sources);
+}
+
+test('#[path] module aliases name forbidden edges and preserve allowed-direction edges', () => {
+  const pathAlias = fixture('path-module-alias.rs');
+  const forbidden = pathAliasSnapshot('sync-realtime-engine', pathAlias);
+  const forbiddenEdge = 'src/path_consumer.rs (sync-realtime-engine) → src/path-target.rs (background-services)';
+  assert(edgePairs(forbidden.analysis).has('src/path_consumer.rs->src/path-target.rs'));
+  assert.equal(forbidden.analysis.unresolvedReferenceCount, 0);
+  assert.throws(
+    () => enforceSnapshotProtocol(
+      forbidden,
+      [pathAliasSnapshot('sync-realtime-engine', 'pub struct Consumer;\n')],
+    ),
+    (error) => {
+      assert.match(error.message, /introduced forbidden module edges/u);
+      assert(error.message.includes(forbiddenEdge), `refusal must name ${forbiddenEdge}`);
+      return true;
+    },
+  );
+
+  const allowed = pathAliasSnapshot('transport-adapters', pathAlias);
+  assert(edgePairs(allowed.analysis).has('src/path_consumer.rs->src/path-target.rs'));
+  assert.equal(allowed.analysis.unresolvedReferenceCount, 0);
+  const protocol = enforceSnapshotProtocol(
+    allowed,
+    [pathAliasSnapshot('transport-adapters', 'pub struct Consumer;\n')],
+  );
+  assert.deepEqual(protocol.inherited, []);
+  assert.deepEqual(protocol.reports[0].introduced, []);
 });
 
 function sourceSnapshot({
@@ -96,22 +166,7 @@ function sourceSnapshot({
     [fromPath]: fromOwner,
     'src/other.rs': 'background-services',
   });
-  const analysis = analyzeSources(manifest, sources);
-  return {
-    analysis,
-    baseline: {
-      schemaVersion: 'snapback.module-ownership-baseline.v2',
-      manifestSchemaVersion: 'snapback.module-ownership-manifest.v1',
-      moduleCount: analysis.moduleCount,
-      edgeCount: analysis.edges.length,
-      edges: analysis.edges,
-      frozenForbiddenEdgeCount: frozen.length,
-      frozenForbiddenEdges: frozen,
-    },
-    issues,
-    manifest,
-    revision,
-  };
+  return snapshotForSources(manifest, sources, { frozen, issues, revision });
 }
 
 function worklistRecord(fingerprint, disposition, overrides = {}) {
@@ -263,8 +318,18 @@ test('legacy unassigned modules are shrink-only across the predecessor compariso
   const current = sourceSnapshot({ fromOwner: 'unassigned' });
   current.manifest.modulesByOwner.unassigned.push('src/new_residue.rs');
   current.manifest.modulesByOwner.unassigned.sort();
+  const permittedOwners = Object.keys(current.manifest.owners)
+    .filter((owner) => owner !== 'unassigned');
+  assert.equal(permittedOwners.length, 7);
   assert.throws(
     () => enforceSnapshotProtocol(current, [predecessor]),
-    /legacy unassigned bucket is shrink-only/u,
+    (error) => {
+      assert.match(error.message, /legacy unassigned bucket is shrink-only/u);
+      assert(
+        error.message.includes(`permitted owners: ${permittedOwners.join(', ')}`),
+        'refusal must name every real owner from the manifest',
+      );
+      return true;
+    },
   );
 });
