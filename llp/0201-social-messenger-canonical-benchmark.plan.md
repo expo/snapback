@@ -813,3 +813,32 @@ feature is expressible by each tier-1 backend. Consequences:
   regenerated invariant manifests; the M8 web choreography segment.
   Grader-side probe instances for the new categories join the next
   probe rotation (they are wave artifacts, not brief artifacts).
+
+**2026-08-11 — Exploratory model sweep (author direction).** Before
+the P3 freeze, D5's exploratory leg runs once as a **seven-model
+research sweep**: Fable 5 (the series' effort setting), Opus 5
+(default effort), Sonnet 5 (default), GPT-5.6 sol (xhigh),
+GPT-5.6 terra (high), Grok (harness default), and Kimi K3 (harness
+default) — each in its **native harness** (Claude Code, Codex CLI,
+Grok CLI, Kimi CLI), with harness name and version recorded per lane
+alongside the model and pinned effort. Scope: the reduced brief
+(M1–M3, suites plus web choreography segments; no scale replay, no
+M7/M8), over Snapback and Convex only, N=1 per cell. Posture:
+Snapback lanes consume the **published npm package at a pinned
+version** (what an external agent gets), not a checkout build; the
+aid condition is uniform across harnesses — the consumer-form
+authoring skill embedded in the lane prompt, per the P2 pilot's
+mechanism. Execution: all lanes **serial on one reserved fleet
+machine**, each model's Snapback and Convex lanes back-to-back so
+the within-model backend comparison shares conditions; the full pin
+manifest (npm version, instrument commit, brief blobs, harness
+versions) freezes at sweep start and never advances mid-sweep.
+Publication: **calibration-labeled** under P2's rule — per-dimension
+observations only, never the scored phrase; token totals are the
+primary cross-model metric, wall clock reported with timestamps and
+the provider-weather caveat. Role: the sweep's Convex lanes seed
+cap-family mini-pilot data for any later promotion of a new model to
+scored status (the inclusion rule's floor check), and its results
+inform OQ1's mid-tier choice at P3. The scored matrix is unchanged:
+scored waves remain Fable 5 + GPT-5.6/Codex at N≥3, and no sweep
+cell qualifies for claims at N=1.
