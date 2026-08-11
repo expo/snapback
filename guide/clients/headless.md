@@ -4,13 +4,13 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.micro]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed: 2026-08-10
+reviewed-commit: 97c985aec0637b08a4c06d7db6b47c5f30745338
 ---
 
 # The headless client
@@ -263,6 +263,8 @@ function argument at that outer level does not pass it to the function. The
 client's compiled reference-type fixture uses the same shape for ordinary and
 live calls:
 
+<!-- since: 0.1.18 -->
+
 ```ts source=packages/snapback-client/exact-reference-types.fixture.ts fragment="generated query, mutation, and live-query call shapes"
 client.query(listTodos, { args: { owner: 'ada' } }).then((output) => {
   output.rows[0]?.title.toUpperCase();
@@ -287,6 +289,36 @@ client.liveQuery(listTodos, {
   },
 });
 ```
+
+`mutate()` resolves `MutationDispatchOutcome<Result>`. The settled branch is
+the existing raw `MutationOutput` with `status: 'settled'` added, so fields
+such as `result`, `version`, and `receipt` remain at top level after narrowing.
+The queued branch appears only when the foreground attempt is relinquished and
+the durable record remains replayable; it carries `status: 'queued'`, the
+durable id and sequence, and `presentation: 'withheld'` because the headless
+arm attempted no optimistic install. It is pending settlement, not success and
+not an error. The temporary `queued: true` compatibility alias is deprecated.
+
+Observe the durable identity separately with
+`mutationStatus(clientMutationId)` or
+`subscribeMutation(clientMutationId, listener)`. The disposition union is
+`pending | settled | failed | stranded | quarantined | resultGone | unknown`.
+The subscription delivers the current disposition asynchronously and then
+transitions; reads and subscriptions do not consume retained settlement or
+change ACK eligibility. `unknown` means there is no durable record and licenses
+no settlement inference. Only `markMutationSettlementsConsumed()` owns the
+existing consumption cut.
+
+`outboxStatus()` adds `oldestPendingAtMs`, `drainPhase`
+(`idle | waiting-barrier | replaying | backoff | paused`), `lastAttemptAtMs`,
+`nextRetryAtMs`, and a payload-free `blockedReason` beside the existing
+disposition counts and `replaying` fact. For a non-React host, call
+`startOutboxDrain()` once per client/store lifecycle and stop the returned
+controller at teardown. It scans restored work at start, establishes a fresh
+resync/readiness barrier before replay, honors writer and captured-custody
+fences, retries transient failures on capped backoff, and wakes on store,
+connectivity, and authority transitions. `controller.drainNow()` requests one
+safety-gated cycle; `{ automatic: false }` disables scheduling, not safety.
 
 Generated references carry their closed operation argument schema. The client
 validates it before network I/O for query, mutation, action, live subscribe,
@@ -530,7 +562,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Function calls | `query`, `search`, `vectorSearch`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
 | Route bundles | `fetchBundle` |
 | Durable live | `liveQuery`, `startLiveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
-| Offline queue and settlement | `outboxStatus`, `subscribeOutbox`, `outboxDiagnostics` (getter), `replayQueuedMutations`, `adoptQueuedMutations`, `settledMutations`, `markMutationSettlementsConsumed` |
+| Offline queue and settlement | `outboxStatus`, `subscribeOutbox`, `outboxDiagnostics` (getter), `startOutboxDrain`, `replayQueuedMutations`, `mutationStatus`, `subscribeMutation`, `acknowledgeResultGoneMutations`, `adoptQueuedMutations`, `settledMutations`, `markMutationSettlementsConsumed` |
 | Offline quarantine and stranded intents | `quarantinedMutations`, `reenterQuarantinedMutations`, `strandedMutations`, `discardStrandedMutations`, `reRecordStrandedMutation` |
 | Local store runtime | `storePolicyInspection`, `registerQuery`, `evaluateLocalResultTransform`, `releaseQueryRegistration` |
 | Optimistic mutation view | `createOptimisticMutationView` |

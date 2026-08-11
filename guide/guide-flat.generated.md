@@ -9,13 +9,13 @@ id: meta.capabilities
 order: 2
 audience: agent-first
 capabilities: []
-authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0045-notifications-outbox.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0133-local-settlement.spec.md, llp/0154-minimal-observability.rfc.md, llp/0155-local-sync-product-direction.rfc.md, llp/0156-minimal-error-tracking.rfc.md, llp/0188-ltx-sqlite-replication.rfc.md, llp/0211-typed-opaque-structured-stored-values.spec.md, llp/0222-connected-client-predicate.rfc.md, src/server.rs, src/admin.rs, src/replication.rs, src/cli.rs, src/telemetry_query.rs, src/errors_query.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
+authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0045-notifications-outbox.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0133-local-settlement.spec.md, llp/0154-minimal-observability.rfc.md, llp/0155-local-sync-product-direction.rfc.md, llp/0156-minimal-error-tracking.rfc.md, llp/0188-ltx-sqlite-replication.rfc.md, llp/0211-typed-opaque-structured-stored-values.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0222-connected-client-predicate.rfc.md, src/server.rs, src/admin.rs, src/replication.rs, src/cli.rs, src/telemetry_query.rs, src/errors_query.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: bbfb871f14c3cefbda2e1e143770b5c25eadb94f
+reviewed-commit: 97c985aec0637b08a4c06d7db6b47c5f30745338
 ---
 
 # Capability index
@@ -66,10 +66,10 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query, the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 remains pre-Accepted (in Review since 2026-08-03) | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, job status, retryable by design, dead-letter, DLQ, succeeded after retry, secret-read lease, job drain, drain jobs | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates. Actions can query the advisory 15-second connected-client predicate. | subscription, realtime, connected client, hasFreshClient | local | shipped | route /live/{name}/subscribe + capability manifest `connectedClientPredicate` semanticsVersion 2 | llp/0008, llp/0222 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state, connection disconnect, disconnect client, force disconnect | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
-| realtime.ephemeral | Typed ephemeral rooms with TTL, React presence, and Contract rated publishing | presence, cursors, rooms, ephemeral, useSnapbackPresence, useSnapbackEphemeral, typing indicator, pointerChannel, publish rate=, Contract presence publishing, Supabase Presence, Supabase Broadcast | local | shipped | route /ephemeral/publish + `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0013, llp/0107, llp/0114 | realtime/ephemeral-state.md |
+| realtime.ephemeral | Typed ephemeral rooms plus the scoped React presence hook: presence, typing indicators, cursors, TTL | presence, cursors, rooms, ephemeral, React ephemeral hook, useSnapbackPresence, useSnapbackEphemeral, typing indicator, ephemeral cleanup, cleanup stale entries, expire ephemeral, Supabase Presence, Supabase Broadcast | local | shipped | route /ephemeral/publish + `useSnapbackPresence` in packages/snapback-react/index.d.mts | llp/0013, llp/0107, llp/0114 | realtime/ephemeral-state.md |
 | realtime.snapshot-bundles | RQS bundles evaluate a served route's queries at one commit with resume tokens; register mode arms live owners. Structured args accept `routeParam()` at object-reachable leaves beside validated literal context (contributor-only after 0.1.15). Local Experimental mixed-route evaluates live and ordinary children at one snapshot, registering only live children. Legacy adoption remains prove-or-fresh; `publicInline` powers Channel A; Cloudflare read mode ships while register/mixed remain deferred. | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest, routeParam, nested routeParam, structured route arguments, route group args, query context | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) + packages/snapback-codegen/authoring-validation.test.mjs | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
-| sync.offline-js-arm | Experimental JS/React offline substrate: browser IndexedDB + Web Locks, durable Node files, memory fallback; declared public retained queries; durable ordered M2 outbox and pending-intent projection. Legacy RQS adoption is connected-only prove-or-fresh into QMK custody, atomically and without dropping intent. Node/file and React-stub tests pass; LLP 0155 proves real-Chrome `SIGKILL` persistence and two-tab lock takeover. The browser witness proves public labeling, replay, settlement, convergence, and reload; protected lease custody has the sibling row's package witness. No local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, pending intent render | local | partial | packages/snapback-client/rqs-store-default.mjs + demos/public-dashboard/tests/acceptance/offline-local-first.mjs + demos/zero-bakeoff/stage0/browser/run.mjs + packages/snapback-client/rqs-resume.test.mjs + demos/browser-local-first/tests/acceptance/browser-public-witness.mjs | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166 | sync/offline-and-retention.md |
+| sync.offline-js-arm | JS/React offline: IndexedDB/Web Locks, Node files, memory fallback; retained public queries; durable M2 outbox; settled/queued union; platform drain, not hand-built flushers. Browser: labeling, auto replay, settlement, convergence, reload. No local execution or `Parity` | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, pending intent render, queued dispatch union, platform drain | local | partial | packages/snapback-client/rqs-store-default.mjs + packages/snapback-client/rqs-resume.test.mjs + demos/browser-local-first/tests/acceptance/browser-public-witness.mjs | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166, llp/0218 | sync/offline-and-retention.md |
 | sync.offline-js-arm-sessions | JS-arm offline queue under browser-session and agent custody (LLP 0043 §Auth posture, ratified 2026-08-04, implemented 2026-08-06): capture-at-enqueue authority descriptor + principal scope + durable custody lineage; same-principal replacement sessions strand rerecordable work for explicit read/discard/re-record-as-new-`clientMutationId`; principal change privacy-deletes predecessor queue bytes with a diagnostic count before successor observation; `SNAPBACK_AUTH_STALE_RESULT` replay refusals strand terminally while content refusals stay failed; v1 is server-refusal-only (no LLP 0053 queue-obligation port — named Contract-arm asymmetry) | sessions custody, agent custody offline, strand, re-record, cross-principal delete, offline auth queue | local | shipped | demos/card-game/tests/acceptance/offline-sessions-custody.mjs + packages/snapback-client/outbox-custody.test.mjs | llp/0043, llp/0053, llp/0129 | sync/offline-and-retention.md |
 | sync.local-persistent-store | LLP 0166 store + hydration bridge: one v3 store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof plus applicable lease validation before page commit, public programmatic and manifest-derived preload registrations, and proof-revalidated relaunch answers. Writer maintenance derives custody from registrations: active demand is restart-volatile, durable programmatic demand survives, `none` release compacts immediately, and every retained address exposes one StorePolicyInspectionV1 reason. The D7 result-transform gate is fired on durable IndexedDB and Node/file; memory and Expo report volatile and refuse durable fragments with a structured GAP. Authority-independent `single_table_v1@1` needs no lease but keeps every proof/fence check. The contributor-source local manifest publishes the experimental class from a retained 2026-08-06 carrier exit at 17 PASS / 0 GAP / 0 skipped plus Triage and Fleet at 8/8 each; remote-service and Cloudflare manifests remain nonclaims | retained render, materialization, completeness proof, qmk1, hydration bridge, programmatic registration, preload, maintenance, custody inspection, relaunch, result transform, answer class, carrier honesty | local | partial | src/local-persistent-store-publication.v1.json + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json + tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json + tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json (56/56 Rust/JavaScript, two claiming + two refusing carriers) | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094 | sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention for generated JS/React live queries: exact namespace, atomic fresh-query/lease custody, equality expiry, and mismatch delete-before-render | offline auth browser, lease js, private chat offline | local | partial | packages/snapback-client/rqs-resume.test.mjs (custody matrix + fresh-client offline handoff) | llp/0043, llp/0053, llp/0129 | GAP (real-process restart witness; owner: orchestrator, review: 2026-08-26; issue: issues/20260801-js-arm-integrated-authenticated-restart-witness.md); sync/offline-and-retention.md |
@@ -77,7 +77,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | api.external-exposure | Opt-in `/api/v1` + CORS; local OAuth/PKCE and remote MCP; capability links, durable watches, and approval-gated mutation/action effects; read-only `ask` v1 with provider credentials, result schemas, durable token/result-volume budgets, and HMAC provenance receipts. Telemetry stays lossy; billing metering is a gap | external api, oauth, remote mcp, approval, effects, capability links, watches, ask, near-data ai, api budgets | local | partial | route /effects + src/storage/pending_effects.rs + route /api/v1/ask + src/storage/ask_spend.rs | llp/0204, llp/0031, llp/0055, llp/0150 | backend/external-api.md |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session, principal binding, app user table, identityBinding | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.external-identity-broker | Local bridges: adopted bearer for headless/native, or trusted-server one-use exchange into browser coordinator custody; mint/capture remain dev/test/demo only | native login, external identity, broker, adopted bearer, browser external sign-in, signed assertion, issuer subject | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0024, llp/0057, llp/0096, llp/0151 | recipes/browser-auth.md |
-| auth.browser-session-custody | AuthCoordinator + IndexedDB reload/logout custody; serve-only Vite mailbox relay for local codes; XSS-readable, not sender-constrained | browser auth reload, IndexedDB auth custody, createIndexedDbAuthCustodyStorage, dev mailbox relay, Vite mailbox middleware, authRequestCode, authExchange | local | shipped | demos/browser-auth/tests/acceptance/browser-auth.mjs + demos/pointing-room/surfaces/contract/vite.config.ts | llp/0059, llp/0060 | recipes/browser-auth.md |
+| auth.browser-session-custody | Bearer-v1 custody through AuthCoordinator + IndexedDB/Web Locks, with reload restoration and logout replacement; XSS-readable and not sender-constrained | durable browser auth, browser auth reload, IndexedDB auth custody, createIndexedDbAuthCustodyStorage, reload session, persistent login | local | shipped | `createIndexedDbAuthCustodyStorage` in packages/snapback-contract/auth-custody-indexeddb.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0059, llp/0060 | recipes/browser-auth.md |
 | auth.scoped-queries | Per-principal query scoping via authScopeField | hidden data, per-user, row security, Supabase RLS | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
 | auth.invalidation-barrier | Authorization invalidation; logout blanking | logout, revoke, invalidation | local | shipped | route /live/authorization-invalidation/acknowledge | llp/0053 | auth/protecting-data.md |
 | auth.authorized-leases | Lease-bounded offline retention of authorized reads | offline auth, lease, retained | local | shipped | route /query/{name}/authorized-lease | llp/0059 | auth/protecting-data.md |
@@ -96,12 +96,13 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | clients.external-store | Shared current-value/subscription store | external store | local | shipped | `createExternalQueryStoreRegistry` in packages/snapback-client/external-store.mjs | llp/0012, llp/0064 | clients/headless.md |
 | clients.framework-bindings | React/Contract bindings | bindings | local | partial | `SNAPBACK_EXTERNAL_STORE_PROTOCOL` in packages/snapback-client/external-store.mjs | llp/0012, llp/0034, llp/0064 | clients/framework-bindings.md |
 | clients.app-cli | Local artifact/served-envelope app CLI, brokered code mode, stable two-section `agentDigest.v1` introspection, and an experimental app-bound Ibex one-file build qualified on macOS arm64 and Linux x86_64 GLIBC 2.35. Public inspection still lacks row-count magnitudes and D1 verdicts; hosted targets remain a GAP. | app cli, code mode, introspect, agent digest, changed since, digest cursor, one-file executable | local | partial | `buildAgentDigest` in packages/snapback-app-cli/digest.mjs + scripts/build-app-bound-executable + packages/snapback-app-cli/code-mode-ibex.test.mjs + GitHub Actions run 30999145126 | llp/0062, llp/0146 | clients/app-cli.md |
-| clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings, Contract invariant, disclosure claim | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
+| clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
 | clients.contract-provider-generation | Provider-neutral Contract manifest, bindings, metadata, types, fixtures, and docs from a provider declaration | provider declaration, contract sidecar generator, convex bindings | local | shipped | `generateFromDeclaration` in demos/partiful-matrix/scripts/generate-contract-provider.mjs | llp/0063 | clients/contract-adapter.md |
-| clients.contract-keyed-scopes | One keyed Contract surface serves dynamic durable queries and generated ephemeral read/publish links with authority fencing; no keyed `forceEphemeralState` | keyedQueryScopes, dynamic query, query args, keyed ephemeral links, roomPresencePublish, forceEphemeralState | local | shipped | packages/snapback-contract/keyed-ephemeral-links.test.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
-| clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
+| clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
+| clients.mutation-outcomes | Settlements; settled/queued union; Exact three-fact projection; non-consuming `mutationStatus`/`subscribeMutation` observation | mutation state, timeout, retry, receipt, ambiguity, queued mutation union, mutation disposition, subscribeMutation, dispatch outcome | local | shipped | packages/snapback-client/outbox-store.test.mjs | llp/0043, llp/0063, llp/0218 | clients/contract-adapter.md |
+| clients.outbox-drain | Outbox drain: barrier-gated, custody-honoring, capped-backoff, level-triggered `startOutboxDrain`; React auto/manual wiring; `useSnapbackOutbox` drain/custody facts | outbox drain, auto drain, OutboxFlusher, offline replay automatic, drainNow, outboxDrain | local | shipped | packages/snapback-client/outbox-drain.test.mjs + packages/snapback-react/offline.test.mjs + demos/browser-local-first/tests/acceptance/browser-public-witness.mjs (offline→online drain) | llp/0043, llp/0218 | sync/offline-and-retention.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
-| clients.react | React provider over one headless store/transport: generated live/group/mixed-route reads with provenance, fallback, and recovery; session adoption; validated optimistic rebase/rollback; queued-settlement rejection, dev warnings; managed presence; freshness/retention/outbox facts; Strict Mode/HMR sharing and cleanup | react, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, result inference, typed mutation, optimistic rollback, queued mutation, SnapbackQueuedMutationError, projectRecordFields, presence, ephemeral hook, useSnapbackPresence, typing indicator, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge, pending sidecar, application error, app refusal, appCode | local | shipped | `SnapbackQueuedMutationError` in packages/snapback-react/index.d.mts | llp/0012, llp/0043, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
+| clients.react | React provider: generated reads; optimistic lifecycle; settled/queued union and settled-only compat; platform drain; presence; offline facts; Strict Mode/HMR | react, hooks, useSyncExternalStore, useSnapbackQuery, Convex useQuery, result inference, typed mutation, optimistic rollback, queued mutation, useSnapbackSettledMutation, outboxDrain, drainNow, projectRecordFields, presence, useSnapbackPresence, typing indicator, query groups, mixed route, hmr, offline freshness, outbox badge, application error, app refusal, appCode | local | shipped | packages/snapback-react/exact-result-types.fixture.ts + packages/snapback-react/offline.test.mjs + packages/snapback-react/optimistic.test.mjs | llp/0012, llp/0043, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157, llp/0218 | clients/react.md |
 | clients.react-paged-list | React load-more: unique raw keyset, whole-result merge, volatile archive; protected cursors stay headless | paginated list, load more, infinite scroll, whole-result replacement, retained pages, pageKey | local | shipped | packages/snapback-cli/templates/media-feed/acceptance.mjs | llp/0100, llp/0114, llp/0196 | recipes/paged-list.md |
 | clients.optimistic-mutation-view | Generated-IR optimistic create: durable intent, typed provisional row, logical-mint mapping, ambiguous retry | createOptimisticMutationView, optimistic create, server-minted ID, logical mint, idMap, ambiguous retry, response loss | local | shipped | `createOptimisticMutationView` in packages/snapback-client/index.d.mts | llp/0133, llp/0155 | recipes/optimistic-create.md |
 | clients.optimistic-create | First-class React-provider generated-IR insert over the exact canonical query store, with typed durable provisional identity, explicit shared projection, logical-mint settlement, replay recovery, and provider lifecycle ownership | React optimistic create, useSnapbackOptimisticCreate, optimistic insert hook, provider provisional row, ProvisionalId, intent id, idMap, response loss | local | shipped | `useSnapbackOptimisticCreate` in packages/snapback-react/index.mjs + `optimistic-create.test.mjs` + the real-server optimistic-create check in demos/_kit/tests/provider-live-conformance.mjs | llp/0107, llp/0133, llp/0155 | recipes/optimistic-create.md |
@@ -10037,13 +10038,13 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.micro]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: 772c00649534d68b2ba63b98699e8ce2b2019057
+reviewed: 2026-08-10
+reviewed-commit: 97c985aec0637b08a4c06d7db6b47c5f30745338
 ---
 
 # The headless client
@@ -10296,6 +10297,8 @@ function argument at that outer level does not pass it to the function. The
 client's compiled reference-type fixture uses the same shape for ordinary and
 live calls:
 
+<!-- since: 0.1.18 -->
+
 ```ts source=packages/snapback-client/exact-reference-types.fixture.ts fragment="generated query, mutation, and live-query call shapes"
 client.query(listTodos, { args: { owner: 'ada' } }).then((output) => {
   output.rows[0]?.title.toUpperCase();
@@ -10320,6 +10323,36 @@ client.liveQuery(listTodos, {
   },
 });
 ```
+
+`mutate()` resolves `MutationDispatchOutcome<Result>`. The settled branch is
+the existing raw `MutationOutput` with `status: 'settled'` added, so fields
+such as `result`, `version`, and `receipt` remain at top level after narrowing.
+The queued branch appears only when the foreground attempt is relinquished and
+the durable record remains replayable; it carries `status: 'queued'`, the
+durable id and sequence, and `presentation: 'withheld'` because the headless
+arm attempted no optimistic install. It is pending settlement, not success and
+not an error. The temporary `queued: true` compatibility alias is deprecated.
+
+Observe the durable identity separately with
+`mutationStatus(clientMutationId)` or
+`subscribeMutation(clientMutationId, listener)`. The disposition union is
+`pending | settled | failed | stranded | quarantined | resultGone | unknown`.
+The subscription delivers the current disposition asynchronously and then
+transitions; reads and subscriptions do not consume retained settlement or
+change ACK eligibility. `unknown` means there is no durable record and licenses
+no settlement inference. Only `markMutationSettlementsConsumed()` owns the
+existing consumption cut.
+
+`outboxStatus()` adds `oldestPendingAtMs`, `drainPhase`
+(`idle | waiting-barrier | replaying | backoff | paused`), `lastAttemptAtMs`,
+`nextRetryAtMs`, and a payload-free `blockedReason` beside the existing
+disposition counts and `replaying` fact. For a non-React host, call
+`startOutboxDrain()` once per client/store lifecycle and stop the returned
+controller at teardown. It scans restored work at start, establishes a fresh
+resync/readiness barrier before replay, honors writer and captured-custody
+fences, retries transient failures on capped backoff, and wakes on store,
+connectivity, and authority transitions. `controller.drainNow()` requests one
+safety-gated cycle; `{ automatic: false }` disables scheduling, not safety.
 
 Generated references carry their closed operation argument schema. The client
 validates it before network I/O for query, mutation, action, live subscribe,
@@ -10563,7 +10596,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Function calls | `query`, `search`, `vectorSearch`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
 | Route bundles | `fetchBundle` |
 | Durable live | `liveQuery`, `startLiveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
-| Offline queue and settlement | `outboxStatus`, `subscribeOutbox`, `outboxDiagnostics` (getter), `replayQueuedMutations`, `adoptQueuedMutations`, `settledMutations`, `markMutationSettlementsConsumed` |
+| Offline queue and settlement | `outboxStatus`, `subscribeOutbox`, `outboxDiagnostics` (getter), `startOutboxDrain`, `replayQueuedMutations`, `mutationStatus`, `subscribeMutation`, `acknowledgeResultGoneMutations`, `adoptQueuedMutations`, `settledMutations`, `markMutationSettlementsConsumed` |
 | Offline quarantine and stranded intents | `quarantinedMutations`, `reenterQuarantinedMutations`, `strandedMutations`, `discardStrandedMutations`, `reRecordStrandedMutation` |
 | Local store runtime | `storePolicyInspection`, `registerQuery`, `evaluateLocalResultTransform`, `releaseQueryRegistration` |
 | Optimistic mutation view | `createOptimisticMutationView` |
@@ -10955,13 +10988,13 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts]
 examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, demos/_kit/tests/provider-live-conformance.mjs, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/optimistic-create.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-commit: 97c985aec0637b08a4c06d7db6b47c5f30745338
 ---
 
 # The React client
@@ -11274,59 +11307,54 @@ hook's framework-neutral twin for acceptance adapters.
 
 ## Run a mutation
 
-```ts fragment reason="mutation names and fields come from the application schema"
-const addTask = useSnapbackMutation(api.addTask);
-const taskId = await addTask({ incidentId, body: 'Check headers' });
+<!-- since: 0.1.18 -->
+
+The default `useSnapbackMutation` function resolves a discriminated union.
+The settled branch wraps the generated, LLP 0101-validated result as
+`{ status: 'settled', result }`; the queued branch reports
+`{ status: 'queued', clientMutationId, sequence, presentation }`. Queueing is
+the foreground relinquishment cut: accepted intent is durable and replayable,
+but it is still pending settlement. Narrow before reading either branch:
+
+```ts source=packages/snapback-react/exact-result-types.fixture.ts
+const create = useSnapbackMutation(createTodo);
+create({ title: 'ship it' }).then((outcome) => {
+  if (outcome.status === 'settled') outcome.result.toUpperCase();
+  else {
+    outcome.clientMutationId.toUpperCase();
+    outcome.sequence.toFixed();
+    const presentation: 'installed' | 'withheld' | 'unavailable' = outcome.presentation;
+    void presentation;
+  }
+});
+const createRequired = useSnapbackMutation(createTodo, { queue: false });
+createRequired({ title: 'connectivity required' }).then((id) => id.toUpperCase());
+const createSettled = useSnapbackSettledMutation(createTodo);
+createSettled({ title: 'settled convenience' }).then((id) => id.toUpperCase());
 ```
 
-The returned function infers exact arguments and the unwrapped result from the
-generated mutation reference. Runtime refusals reject with Snapback's
-structured diagnostic. Without React,
-`invokeSnapbackMutation(provider, ref, args, { optimistic })` runs the exact
-hook-path admission and mutation, and
-`invokeSnapbackCommand(provider, commandRef, inputs)` starts a generated
-[command task](./surfaces.md#run-a-command-and-read-its-truthful-outcome)
-over the same provider-owned command client. The hooks for asset-bearing
-commands (`useSnapbackCommand`) and whole-screen compositions (`useSurface`)
-live on [application surfaces](./surfaces.md).
+`presentation` is the dispatch-time local fact: `installed` means the
+provider installed the optimistic layer, `withheld` means it did not attempt
+one, and `unavailable` means accepted intent survived a local-presentation
+failure. The last branch carries a payload-safe `diagnosticCode`; a
+presentation problem never converts accepted durable intent into a rejected
+call.
 
-<!-- since: 0.1.16 -->
+Use `useSnapbackSettledMutation(ref, options)` or
+`useSnapbackMutation(ref, { ...options, queue: false })` when a caller truly
+requires the historical bare validated result. Both disable queueing, so a
+connectivity failure rejects with its original error. The framework-neutral
+`invokeSnapbackMutation` and generated bound-mutation surfaces follow the same
+union/`queue: false` split. Runtime application refusals still reject with
+Snapback's structured diagnostic. `invokeSnapbackCommand` and
+`useSnapbackCommand` remain command-task surfaces and do not use this union.
 
-The resolved value remains exclusively the generated mutation result. When a
-connectivity refusal has instead crossed the durable enqueue cut, the
-imperative client returns `{ queued: true, clientMutationId, sequence }`, but
-the React function rejects with the distinct `SnapbackQueuedMutationError`
-(`code === 'SNAPBACK_REACT_MUTATION_QUEUED'`). That rejection preserves the
-result-only return type; it means **pending settlement**, not server refusal,
-and it never carries `appCode`. Keep pending UI in that branch. Roll back only
-when the server returned a declared application refusal carrying an
-`appCode`:
-
-```ts fragment reason="mutation names, pending-state shape, and refusal copy come from the application"
-try {
-  const result = await saveTask(input);
-  clearPendingTask(input.intentKey, result);
-} catch (error) {
-  if ((error as { code?: string }).code === 'SNAPBACK_REACT_MUTATION_QUEUED') {
-    return; // durable replay owns settlement; keep the pending presentation
-  }
-  const appCode = (error as { diagnostic?: { details?: { appCode?: unknown } } })
-    .diagnostic?.details?.appCode;
-  if (typeof appCode === 'string') {
-    rollbackPendingTask(input.intentKey);
-    showDeclaredRefusal(appCode);
-    return;
-  }
-  throw error; // unknown/ambiguous is not permission to claim rollback
-}
-```
-
-In a positively identified development build, queueing also logs
-`SNAPBACK_REACT_MUTATION_QUEUED` with the mutation name and durable identity.
-If the queue head has not advanced after 30 seconds, it logs
-`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` naming the blocked mutation. These are
-diagnostics, not an automatic drain or a new queue-state hook; use
-`useSnapbackOutbox()` for the queue facts that ship today.
+In a positively identified development build, the first queued dispatch in a
+session is promoted to a loud `SNAPBACK_REACT_MUTATION_QUEUED` diagnostic that
+names the mutation, queue-reason class, and `auto`/`manual` drain mode. Later
+queued dispatches still enter the structured diagnostics channel without
+repeating that promotion. `SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` remains the
+bounded no-progress diagnostic; neither diagnostic is settlement evidence.
 
 For a mutation whose optimistic projection updates a currently authoritative
 live query, declare that projection beside the hook:
@@ -11348,14 +11376,40 @@ const toggleTask = useSnapbackMutation(api.toggleTask, {
 The optimistic layer is installed only over the provider's already-current
 authoritative query store and is validated against the generated result
 contract before network work. Overlapping attempts rebase in invocation order.
-Any rejected mutation call removes that attempt's built-in optimistic layer
-and recomputes over the newest authoritative base. That includes the
-`SNAPBACK_REACT_MUTATION_QUEUED` rejection: durable custody remains pending,
-but the built-in layer is not retained. An HTTP response validates and settles
-the mutation promise, but is not itself live-query authority;
-`isAuthoritative`, when present, retires that layer only after a matching
-validated live delivery. There are at most 256 pending optimistic layers per
-store.
+A successfully installed layer survives a queued outcome and is then driven by
+the durable `clientMutationId` disposition: `pending` retains it; `settled`
+runs result validation and the existing authority matcher; `failed` rolls it
+back; `stranded`, `quarantined`, and `resultGone` retire it while their custody
+affordances remain visible through the outbox hook; `unknown` retains it as
+orphaned rather than inferring settlement. Authority loss keeps LLP 0107's
+existing retirement rule. An immediate HTTP settlement still is not itself
+live-query authority: `isAuthoritative`, when present, retires the confirmed
+layer only after a matching validated live delivery. There are at most 256
+pending optimistic layers per store.
+
+The regression witness proves that generic rejection handling cannot erase a
+queued layer and that durable settlement retires it through the disposition
+channel:
+
+```js source=packages/snapback-react/optimistic.test.mjs
+  harness.attempt.queue(41);
+  assert.deepEqual(await guarded, {
+    status: 'queued',
+    queued: true,
+    presentation: 'installed',
+    clientMutationId: harness.attempt.clientMutationId,
+    sequence: 41,
+  });
+  await flush();
+  assert.equal(genericRollbackRan, false);
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 1);
+  assert.equal(harness.queuedObserver.snapshot().queries.feed.data[0].count, 1);
+  harness.queuedClient.emit([{ id: 'counter', count: 1 }]);
+  assert.equal(harness.queuedObserver.snapshot().queries.feed.data[0].count, 1);
+  harness.attempt.disposition('settled', { targetCount: 1 });
+  await flush();
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 0);
+```
 
 `update` is a **replayable projection**, not an action: it is recomputed over
 every newer authoritative base, so capture the intended outcome outside the
@@ -11602,6 +11656,16 @@ persisted rows with `freshness: 'retained'` and `status: 'refreshing'`
   assert.equal(latest.retention?.retainable, true);
 ```
 
+For a durable writer store, `SnapbackProvider` owns the platform drain and
+defaults `outboxDrain="auto"`. It wakes on queued relinquishment, restored
+connectivity, provider resume/foreground, writer acquisition, and custody or
+authority replacement. Set `outboxDrain="manual"` only when a host owns the
+schedule; the safety controller remains installed and `drainNow()` is still
+barrier- and custody-gated. `outboxDrainOptions` passes carrier scheduling and
+online-event seams to the headless controller. Provider teardown stops its
+controller, and Strict Mode/HMR share at most one live controller per durable
+store.
+
 `useSnapbackOutbox()` projects the durable queued-intent state
 ([`SnapbackOutboxState` exact type](../reference/expo-snapback-react.md#symbol-snapbackoutboxstate-904e9d7007),
 LLP 0043 M2). Its complete field list:
@@ -11617,11 +11681,35 @@ LLP 0043 M2). Its complete field list:
 - `resultGone`: intents whose terminal outcome is known (committed or
   refused) but whose result payload expired before it could be read — never
   re-executed, held until the application discards them;
+- `depth`: the sum of every visible disposition count;
 - `replaying`: whether the single-flight drain is currently running;
+- `oldestPendingAtMs`: enqueue time of the oldest pending intent, or `null`;
+- `drainPhase`: `idle | waiting-barrier | replaying | backoff | paused`;
+- `lastAttemptAtMs` and `nextRetryAtMs`: drain-attempt/backoff timing, or
+  `null`;
+- `blockedReason`: the payload-free writer, barrier, custody, authority, or
+  terminal-disposition reason preventing progress, or `null`.
 
-plus a `replay()` action that drains through the client's single-flight
-`replayQueuedMutations()`. The stranded/quarantine semantics and their
-recovery methods are on
+The handle adds `drainNow()` to request one controller cycle; `replay()` is a
+deprecated alias. It also exposes `mutationStatus(clientMutationId)` and the
+custody affordances `strandedMutations`, `discardStrandedMutations`,
+`reRecordStrandedMutation`, `quarantinedMutations`,
+`reenterQuarantinedMutations`, and `acknowledgeResultGoneMutations`. The
+package test exercises the projection and recovery surface directly:
+
+```js source=packages/snapback-react/offline.test.mjs
+    affordances = {
+      mutationStatus: await latest.mutationStatus('m4'),
+      stranded: await latest.strandedMutations(),
+      reRecorded: await latest.reRecordStrandedMutation('m5'),
+      quarantined: await latest.quarantinedMutations(),
+      discarded: await latest.discardStrandedMutations(['m5']),
+      reentered: await latest.reenterQuarantinedMutations(),
+      acknowledged: await latest.acknowledgeResultGoneMutations(['m4']),
+    };
+```
+
+The stranded/quarantine semantics and their recovery methods are on
 [offline retention](../sync/offline-and-retention.md#replay-and-settle-without-guessing)
 (and its
 [migration-quarantine boundary](../sync/offline-and-retention.md#migration-boundaries-quarantine-dont-fail)).
@@ -21892,7 +21980,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-diagnostics-registry.mjs. Never hand-edit. -->
@@ -23894,7 +23982,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-offline-mutation-replay-failed"></a>`SNAPBACK_OFFLINE_MUTATION_REPLAY_FAILED` | client | — | — | `packages/snapback-client/index.mjs:8030` | 1 |
 | <a id="diagnostic-snapback-offline-mutation-result-expired"></a>`SNAPBACK_OFFLINE_MUTATION_RESULT_EXPIRED` | client | — | — | `packages/snapback-client/index.mjs:7860` | 2 |
 | <a id="diagnostic-snapback-offline-mutation-stranded"></a>`SNAPBACK_OFFLINE_MUTATION_STRANDED` | client | — | — | `packages/snapback-client/index.mjs:7943` | 2 |
-| <a id="diagnostic-snapback-offline-queue-disabled"></a>`SNAPBACK_OFFLINE_QUEUE_DISABLED` | client | — | [guide](../sync/offline-and-retention.md#keep-a-queued-react-mutation-pending) | `packages/snapback-client/index.mjs:6090` | 2 |
+| <a id="diagnostic-snapback-offline-queue-disabled"></a>`SNAPBACK_OFFLINE_QUEUE_DISABLED` | client | — | [guide](../sync/offline-and-retention.md#keep-a-queued-mutation-pending-while-the-platform-drains-it) | `packages/snapback-client/index.mjs:6090` | 2 |
 | <a id="diagnostic-snapback-offline-queue-durability-required"></a>`SNAPBACK_OFFLINE_QUEUE_DURABILITY_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:6113` | 1 |
 | <a id="diagnostic-snapback-offline-queue-store-incapable"></a>`SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE` | client | — | — | `packages/snapback-client/index.mjs:6107` | 6 |
 | <a id="diagnostic-snapback-offline-stranded-mutations-discarded"></a>`SNAPBACK_OFFLINE_STRANDED_MUTATIONS_DISCARDED` | client | — | — | `packages/snapback-client/index.mjs:6685` | 1 |
@@ -24027,7 +24115,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-outbox-failure-mark-skipped-store-closed"></a>`SNAPBACK_OUTBOX_FAILURE_MARK_SKIPPED_STORE_CLOSED` | client | — | — | `packages/snapback-client/index.mjs:8752` | 1 |
 | <a id="diagnostic-snapback-outbox-full"></a>`SNAPBACK_OUTBOX_FULL` | client | — | — | `packages/snapback-client/outbox-shared.mjs:114` | 1 |
 | <a id="diagnostic-snapback-outbox-identity-mismatch"></a>`SNAPBACK_OUTBOX_IDENTITY_MISMATCH` | client | — | — | `packages/snapback-client/outbox-shared.mjs:585` | 1 |
-| <a id="diagnostic-snapback-outbox-not-writer"></a>`SNAPBACK_OUTBOX_NOT_WRITER` | client | — | [guide](../sync/offline-and-retention.md#keep-a-queued-react-mutation-pending) | `packages/snapback-client/index.mjs:8504` | 2 |
+| <a id="diagnostic-snapback-outbox-not-writer"></a>`SNAPBACK_OUTBOX_NOT_WRITER` | client | — | [guide](../sync/offline-and-retention.md#keep-a-queued-mutation-pending-while-the-platform-drains-it) | `packages/snapback-client/index.mjs:8504` | 2 |
 | <a id="diagnostic-snapback-outbox-quarantine-unsupported"></a>`SNAPBACK_OUTBOX_QUARANTINE_UNSUPPORTED` | client | — | — | `packages/snapback-client/index.mjs:7955` | 1 |
 | <a id="diagnostic-snapback-outbox-record-invalid"></a>`SNAPBACK_OUTBOX_RECORD_INVALID` | client | — | — | `packages/snapback-client/outbox-shared.mjs:103` | 2 |
 | <a id="diagnostic-snapback-outbox-record-oversize"></a>`SNAPBACK_OUTBOX_RECORD_OVERSIZE` | client | — | — | `packages/snapback-client/outbox-shared.mjs:126` | 1 |
@@ -24479,7 +24567,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-rqs-store-host-unsupported"></a>`SNAPBACK_RQS_STORE_HOST_UNSUPPORTED` | client | — | — | `packages/snapback-client/rqs-store-file.mjs:124` | 1 |
 | <a id="diagnostic-snapback-rqs-store-lock-unavailable"></a>`SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE` | client | — | — | `packages/snapback-client/rqs-store.mjs:290` | 1 |
 | <a id="diagnostic-snapback-rqs-store-meta-regression"></a>`SNAPBACK_RQS_STORE_META_REGRESSION` | client | — | — | `packages/snapback-client/rqs-store-file.mjs:828` | 4 |
-| <a id="diagnostic-snapback-rqs-store-not-writer"></a>`SNAPBACK_RQS_STORE_NOT_WRITER` | client | — | [guide](../sync/offline-and-retention.md#keep-a-queued-react-mutation-pending) | `packages/snapback-client/materialization-store-runtime.mjs:35` | 5 |
+| <a id="diagnostic-snapback-rqs-store-not-writer"></a>`SNAPBACK_RQS_STORE_NOT_WRITER` | client | — | [guide](../sync/offline-and-retention.md#keep-a-queued-mutation-pending-while-the-platform-drains-it) | `packages/snapback-client/materialization-store-runtime.mjs:35` | 5 |
 | <a id="diagnostic-snapback-rqs-store-random-unavailable"></a>`SNAPBACK_RQS_STORE_RANDOM_UNAVAILABLE` | client | — | — | `packages/snapback-client/rqs-store-meta.mjs:64` | 2 |
 | <a id="diagnostic-snapback-rqs-store-unavailable"></a>`SNAPBACK_RQS_STORE_UNAVAILABLE` | client | — | — | `packages/snapback-client/rqs-store-expo.mjs:25` | 4 |
 | <a id="diagnostic-snapback-runtime-artifact-identity-mismatch"></a>`SNAPBACK_RUNTIME_ARTIFACT_IDENTITY_MISMATCH` | runtime | — | [guide](../getting-started/the-authoring-loop.md#2-regenerate) | `packages/snapback-cli/index.mjs:1878` | 1 |
@@ -24928,7 +25016,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -24936,7 +25024,7 @@ reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
 # Generated API reference
 
 One build-bound projection of 1029 public symbols (429 runtime values and 600 explicit type-only symbols).
-Registry identity: `sha256:1b1665a7c41c50f031771f91fba629e7980ecf0c8cc08b107b09ec9595f03930`; source commit: `28c3790872ba3087785a4647071776d56f65e4f1`.
+Registry identity: `sha256:1b1665a7c41c50f031771f91fba629e7980ecf0c8cc08b107b09ec9595f03930`; source commit: `e9d7f182f2379745f5b0bf05e1070044f77b2f8a`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -25006,7 +25094,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34168,7 +34256,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34693,7 +34781,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34927,7 +35015,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35570,7 +35658,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35677,7 +35765,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36132,7 +36220,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36271,7 +36359,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36633,7 +36721,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36724,7 +36812,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37093,7 +37181,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37243,7 +37331,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37746,7 +37834,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38247,7 +38335,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38481,7 +38569,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38844,7 +38932,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38958,7 +39046,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39579,7 +39667,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39884,7 +39972,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40331,7 +40419,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40457,7 +40545,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40629,7 +40717,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41084,7 +41172,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41271,7 +41359,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41676,7 +41764,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42143,7 +42231,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42400,7 +42488,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42790,7 +42878,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43414,7 +43502,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43562,7 +43650,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43770,7 +43858,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43963,7 +44051,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44216,7 +44304,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44819,7 +44907,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47048,7 +47136,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -48095,7 +48183,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -48208,7 +48296,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51224,7 +51312,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51506,7 +51594,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51630,7 +51718,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51785,7 +51873,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51909,7 +51997,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -52079,7 +52167,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -52501,7 +52589,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 28c3790872ba3087785a4647071776d56f65e4f1
+reviewed-commit: e9d7f182f2379745f5b0bf05e1070044f77b2f8a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -53389,14 +53477,14 @@ title: Offline retention and mutation replay
 id: sync.offline-and-retention
 order: 1
 audience: agent-first
-capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.offline-js-arm-protected, sync.offline-js-arm-sessions, sync.local-persistent-store]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, packages/snapback-client/protected-query-retention.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/assets.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/rqs-resume.test.mjs, packages/snapback-react/index.mjs, packages/snapback-expo/supervised-environment.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
+capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.offline-js-arm-protected, sync.offline-js-arm-sessions, sync.local-persistent-store, clients.outbox-drain]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, llp/0218-outbox-settlement-contract.rfc.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, packages/snapback-client/protected-query-retention.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/assets.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-client/rqs-resume.test.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-expo/supervised-environment.mjs, demos/browser-local-first/tests/acceptance/browser-public-witness.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
 examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, demos/browser-local-first, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-client/rqs-resume.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-commit: 97c985aec0637b08a4c06d7db6b47c5f30745338
 ---
 
 # Offline retention and mutation replay
@@ -53593,8 +53681,9 @@ proof of the same contracts. The headless witness proves:
   hash/binding mismatch refusal, and delete-before-read in the IndexedDB carrier.
 - **A durable LLP 0043 M2 outbox.** A mutation refused by connectivity is
   queued durably under a client-minted `clientMutationId` (protocol-lane
-  identity) with a monotonic local sequence, and returns
-  `{ queued: true, clientMutationId, sequence }`. Connectivity is classified
+  identity) with a monotonic local sequence, and resolves the queued dispatch
+  branch with `status: 'queued'`, that identity and sequence, and the arm's
+  point-in-time `presentation` fact. Connectivity is classified
   by transport provenance — the fetch dispatch itself rejected, so no HTTP
   status, diagnostic, or receipt exists — independent of the rejection's
   constructor (undici throws `TypeError`; Expo/RN fetch rejects a plain
@@ -53647,50 +53736,66 @@ proof of the same contracts. The headless witness proves:
   retained rows from `client.outboxStatus()` (React:
   `useSnapbackOutbox()`), never by faking the rows themselves.
 
-### Keep a queued React mutation pending
+### Keep a queued mutation pending while the platform drains it
 
-<!-- since: 0.1.16 -->
+<!-- since: 0.1.18 -->
 
-The headless client resolves a durably enqueued dispatch with
-`{ queued: true, clientMutationId, sequence }`. `useSnapbackMutation` keeps its
-generated result-only resolved type, so the same durable outcome rejects with
-`SnapbackQueuedMutationError` and code
-`SNAPBACK_REACT_MUTATION_QUEUED`. That class is a pending-settlement signal,
-not a server refusal: it has `queued === true`, names the mutation identity and
-sequence, and has no `appCode`. Any rejected mutation call, including this
-one, removes that attempt's built-in optimistic layer; the application's
-pending presentation is separate and must remain visible. Roll that app-owned
-presentation back only for a server refusal whose diagnostic carries a
-declared `appCode`:
+The relinquishment cut is explicit. Headless `mutate()` resolves either the
+flattened settled `MutationOutput` with `status: 'settled'`, or
+`{ status: 'queued', clientMutationId, sequence, presentation }`. React's
+`useSnapbackMutation` resolves `{ status: 'settled', result }` or that queued
+branch. `presentation` is `installed`, `withheld`, or `unavailable`; it is a
+dispatch-time local-presentation fact, never settlement. Callers that require
+a bare settled result choose `useSnapbackSettledMutation` or `{ queue: false }`,
+which disables queueing and preserves the original connectivity rejection.
 
-```ts fragment reason="pending presentation and refusal copy are application-specific"
-try {
-  await mutate(input);
-  clearPending(input.intentKey);
-} catch (error) {
-  if ((error as { code?: string }).code === 'SNAPBACK_REACT_MUTATION_QUEUED') {
-    return; // still durable and replayable
-  }
-  const appCode = (error as { diagnostic?: { details?: { appCode?: unknown } } })
-    .diagnostic?.details?.appCode;
-  if (typeof appCode === 'string') {
-    rollbackPending(input.intentKey);
-    showDeclaredRefusal(appCode);
-    return;
-  }
-  throw error;
-}
+A React optimistic layer that was installed before enqueue survives the
+queued resolution. The provider follows the durable identity rather than the
+finished promise: pending retains the layer, settlement retires it through the
+ordinary result matcher, typed failure rolls it back, custody-terminal states
+retire it with a recovery affordance, and unknown retains it without guessing.
+The [React mutation section](../clients/react.md#run-a-mutation) carries the
+source-backed disposition regression.
+
+The drain is now platform-owned. React starts it by default for a durable
+writer store (`SnapbackProvider outboxDrain="auto"`); `"manual"` disables
+automatic scheduling but keeps the safety controller. Non-React hosts call
+`client.startOutboxDrain()` and stop the returned controller with their host
+lifecycle. Start scans restored pending work. Level-triggered wakeups cover a
+queued relinquishment, restored connectivity, resume/foreground, writer-lock
+takeover, custody replacement, and successor authority bind; transient replay
+or resync failures retry on capped backoff without waiting for another edge.
+
+Every controller cycle establishes a fresh full-resync barrier before replay.
+It resyncs retained registrations even when no query is mounted; with no
+registrations, a fresh connection-readiness handshake is the empty-set cut.
+Writer, captured authority, custody, strand, quarantine, and terminal-failure
+rules remain in force immediately before each transport. A bounded refusal to
+produce the barrier or other pause is visible in `outboxStatus().blockedReason`
+and the `drainPhase`, never an unobservable wait.
+
+`useSnapbackOutbox()` now exposes `oldestPendingAtMs`, `drainPhase`,
+`lastAttemptAtMs`, `nextRetryAtMs`, `blockedReason`, total `depth`, disposition
+counts, and custody recovery actions. `drainNow()` requests a safety-gated
+controller cycle; `replay()` remains only as a deprecated React alias. The
+real-browser witness restores the authority, emits `online`, and waits for the
+provider's own resync-first scheduler—there is no manual replay in this leg:
+
+```js source=demos/browser-local-first/tests/acceptance/browser-public-witness.mjs
+    // This is a controller wake-up, not a manual replay. The provider-owned
+    // P2 drain must establish its fresh barrier and settle the queued union.
+    await page.evaluate(() => globalThis.dispatchEvent(new Event('online')));
+    // No forced drain here: the product's own resync-first scheduling is the
+    // contract under test (drainNow/drainDebug stay available as diagnostic
+    // seams but must never run inside the witness path).
 ```
 
-In development, the React arm logs the queued mutation immediately. If the
-durable queue still has pending work after 30 seconds and the bounded
-diagnostic history has not proven that mutation's progress, it logs
-`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED`. The warning deliberately does not
-claim that the named mutation is still present or is the blocking head: the
-bounded history may have evicted its settlement. These warnings do not add an
-automatic drain or an oldest-pending hook. Those remain the LLP 0208 G1
-follow-on; today, inspect and explicitly drain through
-`useSnapbackOutbox()`.
+In development, the first queued React dispatch in a session is promoted to a
+loud `SNAPBACK_REACT_MUTATION_QUEUED` diagnostic naming the mutation,
+queue-reason class, and drain mode. The bounded
+`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` diagnostic still does not prove which
+record is blocking; inspect `oldestPendingAtMs`, `blockedReason`, and individual
+`mutationStatus()` instead.
 
 <!-- since: 0.1.15 -->
 

@@ -3,14 +3,14 @@ title: Offline retention and mutation replay
 id: sync.offline-and-retention
 order: 1
 audience: agent-first
-capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.offline-js-arm-protected, sync.offline-js-arm-sessions, sync.local-persistent-store]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, packages/snapback-client/protected-query-retention.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/assets.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/rqs-resume.test.mjs, packages/snapback-react/index.mjs, packages/snapback-expo/supervised-environment.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
+capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.offline-js-arm-protected, sync.offline-js-arm-sessions, sync.local-persistent-store, clients.outbox-drain]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, llp/0218-outbox-settlement-contract.rfc.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, packages/snapback-client/protected-query-retention.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/assets.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-shared.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-client/rqs-resume.test.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-expo/supervised-environment.mjs, demos/browser-local-first/tests/acceptance/browser-public-witness.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
 examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, demos/browser-local-first, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-client/rqs-resume.test.mjs, tests/acceptance/desktop-sidecar-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-commit: 97c985aec0637b08a4c06d7db6b47c5f30745338
 ---
 
 # Offline retention and mutation replay
@@ -207,8 +207,9 @@ proof of the same contracts. The headless witness proves:
   hash/binding mismatch refusal, and delete-before-read in the IndexedDB carrier.
 - **A durable LLP 0043 M2 outbox.** A mutation refused by connectivity is
   queued durably under a client-minted `clientMutationId` (protocol-lane
-  identity) with a monotonic local sequence, and returns
-  `{ queued: true, clientMutationId, sequence }`. Connectivity is classified
+  identity) with a monotonic local sequence, and resolves the queued dispatch
+  branch with `status: 'queued'`, that identity and sequence, and the arm's
+  point-in-time `presentation` fact. Connectivity is classified
   by transport provenance — the fetch dispatch itself rejected, so no HTTP
   status, diagnostic, or receipt exists — independent of the rejection's
   constructor (undici throws `TypeError`; Expo/RN fetch rejects a plain
@@ -261,50 +262,66 @@ proof of the same contracts. The headless witness proves:
   retained rows from `client.outboxStatus()` (React:
   `useSnapbackOutbox()`), never by faking the rows themselves.
 
-### Keep a queued React mutation pending
+### Keep a queued mutation pending while the platform drains it
 
-<!-- since: 0.1.16 -->
+<!-- since: 0.1.18 -->
 
-The headless client resolves a durably enqueued dispatch with
-`{ queued: true, clientMutationId, sequence }`. `useSnapbackMutation` keeps its
-generated result-only resolved type, so the same durable outcome rejects with
-`SnapbackQueuedMutationError` and code
-`SNAPBACK_REACT_MUTATION_QUEUED`. That class is a pending-settlement signal,
-not a server refusal: it has `queued === true`, names the mutation identity and
-sequence, and has no `appCode`. Any rejected mutation call, including this
-one, removes that attempt's built-in optimistic layer; the application's
-pending presentation is separate and must remain visible. Roll that app-owned
-presentation back only for a server refusal whose diagnostic carries a
-declared `appCode`:
+The relinquishment cut is explicit. Headless `mutate()` resolves either the
+flattened settled `MutationOutput` with `status: 'settled'`, or
+`{ status: 'queued', clientMutationId, sequence, presentation }`. React's
+`useSnapbackMutation` resolves `{ status: 'settled', result }` or that queued
+branch. `presentation` is `installed`, `withheld`, or `unavailable`; it is a
+dispatch-time local-presentation fact, never settlement. Callers that require
+a bare settled result choose `useSnapbackSettledMutation` or `{ queue: false }`,
+which disables queueing and preserves the original connectivity rejection.
 
-```ts fragment reason="pending presentation and refusal copy are application-specific"
-try {
-  await mutate(input);
-  clearPending(input.intentKey);
-} catch (error) {
-  if ((error as { code?: string }).code === 'SNAPBACK_REACT_MUTATION_QUEUED') {
-    return; // still durable and replayable
-  }
-  const appCode = (error as { diagnostic?: { details?: { appCode?: unknown } } })
-    .diagnostic?.details?.appCode;
-  if (typeof appCode === 'string') {
-    rollbackPending(input.intentKey);
-    showDeclaredRefusal(appCode);
-    return;
-  }
-  throw error;
-}
+A React optimistic layer that was installed before enqueue survives the
+queued resolution. The provider follows the durable identity rather than the
+finished promise: pending retains the layer, settlement retires it through the
+ordinary result matcher, typed failure rolls it back, custody-terminal states
+retire it with a recovery affordance, and unknown retains it without guessing.
+The [React mutation section](../clients/react.md#run-a-mutation) carries the
+source-backed disposition regression.
+
+The drain is now platform-owned. React starts it by default for a durable
+writer store (`SnapbackProvider outboxDrain="auto"`); `"manual"` disables
+automatic scheduling but keeps the safety controller. Non-React hosts call
+`client.startOutboxDrain()` and stop the returned controller with their host
+lifecycle. Start scans restored pending work. Level-triggered wakeups cover a
+queued relinquishment, restored connectivity, resume/foreground, writer-lock
+takeover, custody replacement, and successor authority bind; transient replay
+or resync failures retry on capped backoff without waiting for another edge.
+
+Every controller cycle establishes a fresh full-resync barrier before replay.
+It resyncs retained registrations even when no query is mounted; with no
+registrations, a fresh connection-readiness handshake is the empty-set cut.
+Writer, captured authority, custody, strand, quarantine, and terminal-failure
+rules remain in force immediately before each transport. A bounded refusal to
+produce the barrier or other pause is visible in `outboxStatus().blockedReason`
+and the `drainPhase`, never an unobservable wait.
+
+`useSnapbackOutbox()` now exposes `oldestPendingAtMs`, `drainPhase`,
+`lastAttemptAtMs`, `nextRetryAtMs`, `blockedReason`, total `depth`, disposition
+counts, and custody recovery actions. `drainNow()` requests a safety-gated
+controller cycle; `replay()` remains only as a deprecated React alias. The
+real-browser witness restores the authority, emits `online`, and waits for the
+provider's own resync-first scheduler—there is no manual replay in this leg:
+
+```js source=demos/browser-local-first/tests/acceptance/browser-public-witness.mjs
+    // This is a controller wake-up, not a manual replay. The provider-owned
+    // P2 drain must establish its fresh barrier and settle the queued union.
+    await page.evaluate(() => globalThis.dispatchEvent(new Event('online')));
+    // No forced drain here: the product's own resync-first scheduling is the
+    // contract under test (drainNow/drainDebug stay available as diagnostic
+    // seams but must never run inside the witness path).
 ```
 
-In development, the React arm logs the queued mutation immediately. If the
-durable queue still has pending work after 30 seconds and the bounded
-diagnostic history has not proven that mutation's progress, it logs
-`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED`. The warning deliberately does not
-claim that the named mutation is still present or is the blocking head: the
-bounded history may have evicted its settlement. These warnings do not add an
-automatic drain or an oldest-pending hook. Those remain the LLP 0208 G1
-follow-on; today, inspect and explicitly drain through
-`useSnapbackOutbox()`.
+In development, the first queued React dispatch in a session is promoted to a
+loud `SNAPBACK_REACT_MUTATION_QUEUED` diagnostic naming the mutation,
+queue-reason class, and drain mode. The bounded
+`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` diagnostic still does not prove which
+record is blocking; inspect `oldestPendingAtMs`, `blockedReason`, and individual
+`mutationStatus()` instead.
 
 <!-- since: 0.1.15 -->
 

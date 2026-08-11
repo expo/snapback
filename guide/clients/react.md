@@ -4,13 +4,13 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts]
 examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, demos/_kit/tests/provider-live-conformance.mjs, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/optimistic-create.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-commit: 97c985aec0637b08a4c06d7db6b47c5f30745338
 ---
 
 # The React client
@@ -323,59 +323,54 @@ hook's framework-neutral twin for acceptance adapters.
 
 ## Run a mutation
 
-```ts fragment reason="mutation names and fields come from the application schema"
-const addTask = useSnapbackMutation(api.addTask);
-const taskId = await addTask({ incidentId, body: 'Check headers' });
+<!-- since: 0.1.18 -->
+
+The default `useSnapbackMutation` function resolves a discriminated union.
+The settled branch wraps the generated, LLP 0101-validated result as
+`{ status: 'settled', result }`; the queued branch reports
+`{ status: 'queued', clientMutationId, sequence, presentation }`. Queueing is
+the foreground relinquishment cut: accepted intent is durable and replayable,
+but it is still pending settlement. Narrow before reading either branch:
+
+```ts source=packages/snapback-react/exact-result-types.fixture.ts
+const create = useSnapbackMutation(createTodo);
+create({ title: 'ship it' }).then((outcome) => {
+  if (outcome.status === 'settled') outcome.result.toUpperCase();
+  else {
+    outcome.clientMutationId.toUpperCase();
+    outcome.sequence.toFixed();
+    const presentation: 'installed' | 'withheld' | 'unavailable' = outcome.presentation;
+    void presentation;
+  }
+});
+const createRequired = useSnapbackMutation(createTodo, { queue: false });
+createRequired({ title: 'connectivity required' }).then((id) => id.toUpperCase());
+const createSettled = useSnapbackSettledMutation(createTodo);
+createSettled({ title: 'settled convenience' }).then((id) => id.toUpperCase());
 ```
 
-The returned function infers exact arguments and the unwrapped result from the
-generated mutation reference. Runtime refusals reject with Snapback's
-structured diagnostic. Without React,
-`invokeSnapbackMutation(provider, ref, args, { optimistic })` runs the exact
-hook-path admission and mutation, and
-`invokeSnapbackCommand(provider, commandRef, inputs)` starts a generated
-[command task](./surfaces.md#run-a-command-and-read-its-truthful-outcome)
-over the same provider-owned command client. The hooks for asset-bearing
-commands (`useSnapbackCommand`) and whole-screen compositions (`useSurface`)
-live on [application surfaces](./surfaces.md).
+`presentation` is the dispatch-time local fact: `installed` means the
+provider installed the optimistic layer, `withheld` means it did not attempt
+one, and `unavailable` means accepted intent survived a local-presentation
+failure. The last branch carries a payload-safe `diagnosticCode`; a
+presentation problem never converts accepted durable intent into a rejected
+call.
 
-<!-- since: 0.1.16 -->
+Use `useSnapbackSettledMutation(ref, options)` or
+`useSnapbackMutation(ref, { ...options, queue: false })` when a caller truly
+requires the historical bare validated result. Both disable queueing, so a
+connectivity failure rejects with its original error. The framework-neutral
+`invokeSnapbackMutation` and generated bound-mutation surfaces follow the same
+union/`queue: false` split. Runtime application refusals still reject with
+Snapback's structured diagnostic. `invokeSnapbackCommand` and
+`useSnapbackCommand` remain command-task surfaces and do not use this union.
 
-The resolved value remains exclusively the generated mutation result. When a
-connectivity refusal has instead crossed the durable enqueue cut, the
-imperative client returns `{ queued: true, clientMutationId, sequence }`, but
-the React function rejects with the distinct `SnapbackQueuedMutationError`
-(`code === 'SNAPBACK_REACT_MUTATION_QUEUED'`). That rejection preserves the
-result-only return type; it means **pending settlement**, not server refusal,
-and it never carries `appCode`. Keep pending UI in that branch. Roll back only
-when the server returned a declared application refusal carrying an
-`appCode`:
-
-```ts fragment reason="mutation names, pending-state shape, and refusal copy come from the application"
-try {
-  const result = await saveTask(input);
-  clearPendingTask(input.intentKey, result);
-} catch (error) {
-  if ((error as { code?: string }).code === 'SNAPBACK_REACT_MUTATION_QUEUED') {
-    return; // durable replay owns settlement; keep the pending presentation
-  }
-  const appCode = (error as { diagnostic?: { details?: { appCode?: unknown } } })
-    .diagnostic?.details?.appCode;
-  if (typeof appCode === 'string') {
-    rollbackPendingTask(input.intentKey);
-    showDeclaredRefusal(appCode);
-    return;
-  }
-  throw error; // unknown/ambiguous is not permission to claim rollback
-}
-```
-
-In a positively identified development build, queueing also logs
-`SNAPBACK_REACT_MUTATION_QUEUED` with the mutation name and durable identity.
-If the queue head has not advanced after 30 seconds, it logs
-`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` naming the blocked mutation. These are
-diagnostics, not an automatic drain or a new queue-state hook; use
-`useSnapbackOutbox()` for the queue facts that ship today.
+In a positively identified development build, the first queued dispatch in a
+session is promoted to a loud `SNAPBACK_REACT_MUTATION_QUEUED` diagnostic that
+names the mutation, queue-reason class, and `auto`/`manual` drain mode. Later
+queued dispatches still enter the structured diagnostics channel without
+repeating that promotion. `SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` remains the
+bounded no-progress diagnostic; neither diagnostic is settlement evidence.
 
 For a mutation whose optimistic projection updates a currently authoritative
 live query, declare that projection beside the hook:
@@ -397,14 +392,40 @@ const toggleTask = useSnapbackMutation(api.toggleTask, {
 The optimistic layer is installed only over the provider's already-current
 authoritative query store and is validated against the generated result
 contract before network work. Overlapping attempts rebase in invocation order.
-Any rejected mutation call removes that attempt's built-in optimistic layer
-and recomputes over the newest authoritative base. That includes the
-`SNAPBACK_REACT_MUTATION_QUEUED` rejection: durable custody remains pending,
-but the built-in layer is not retained. An HTTP response validates and settles
-the mutation promise, but is not itself live-query authority;
-`isAuthoritative`, when present, retires that layer only after a matching
-validated live delivery. There are at most 256 pending optimistic layers per
-store.
+A successfully installed layer survives a queued outcome and is then driven by
+the durable `clientMutationId` disposition: `pending` retains it; `settled`
+runs result validation and the existing authority matcher; `failed` rolls it
+back; `stranded`, `quarantined`, and `resultGone` retire it while their custody
+affordances remain visible through the outbox hook; `unknown` retains it as
+orphaned rather than inferring settlement. Authority loss keeps LLP 0107's
+existing retirement rule. An immediate HTTP settlement still is not itself
+live-query authority: `isAuthoritative`, when present, retires the confirmed
+layer only after a matching validated live delivery. There are at most 256
+pending optimistic layers per store.
+
+The regression witness proves that generic rejection handling cannot erase a
+queued layer and that durable settlement retires it through the disposition
+channel:
+
+```js source=packages/snapback-react/optimistic.test.mjs
+  harness.attempt.queue(41);
+  assert.deepEqual(await guarded, {
+    status: 'queued',
+    queued: true,
+    presentation: 'installed',
+    clientMutationId: harness.attempt.clientMutationId,
+    sequence: 41,
+  });
+  await flush();
+  assert.equal(genericRollbackRan, false);
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 1);
+  assert.equal(harness.queuedObserver.snapshot().queries.feed.data[0].count, 1);
+  harness.queuedClient.emit([{ id: 'counter', count: 1 }]);
+  assert.equal(harness.queuedObserver.snapshot().queries.feed.data[0].count, 1);
+  harness.attempt.disposition('settled', { targetCount: 1 });
+  await flush();
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 0);
+```
 
 `update` is a **replayable projection**, not an action: it is recomputed over
 every newer authoritative base, so capture the intended outcome outside the
@@ -651,6 +672,16 @@ persisted rows with `freshness: 'retained'` and `status: 'refreshing'`
   assert.equal(latest.retention?.retainable, true);
 ```
 
+For a durable writer store, `SnapbackProvider` owns the platform drain and
+defaults `outboxDrain="auto"`. It wakes on queued relinquishment, restored
+connectivity, provider resume/foreground, writer acquisition, and custody or
+authority replacement. Set `outboxDrain="manual"` only when a host owns the
+schedule; the safety controller remains installed and `drainNow()` is still
+barrier- and custody-gated. `outboxDrainOptions` passes carrier scheduling and
+online-event seams to the headless controller. Provider teardown stops its
+controller, and Strict Mode/HMR share at most one live controller per durable
+store.
+
 `useSnapbackOutbox()` projects the durable queued-intent state
 ([`SnapbackOutboxState` exact type](../reference/expo-snapback-react.md#symbol-snapbackoutboxstate-904e9d7007),
 LLP 0043 M2). Its complete field list:
@@ -666,11 +697,35 @@ LLP 0043 M2). Its complete field list:
 - `resultGone`: intents whose terminal outcome is known (committed or
   refused) but whose result payload expired before it could be read — never
   re-executed, held until the application discards them;
+- `depth`: the sum of every visible disposition count;
 - `replaying`: whether the single-flight drain is currently running;
+- `oldestPendingAtMs`: enqueue time of the oldest pending intent, or `null`;
+- `drainPhase`: `idle | waiting-barrier | replaying | backoff | paused`;
+- `lastAttemptAtMs` and `nextRetryAtMs`: drain-attempt/backoff timing, or
+  `null`;
+- `blockedReason`: the payload-free writer, barrier, custody, authority, or
+  terminal-disposition reason preventing progress, or `null`.
 
-plus a `replay()` action that drains through the client's single-flight
-`replayQueuedMutations()`. The stranded/quarantine semantics and their
-recovery methods are on
+The handle adds `drainNow()` to request one controller cycle; `replay()` is a
+deprecated alias. It also exposes `mutationStatus(clientMutationId)` and the
+custody affordances `strandedMutations`, `discardStrandedMutations`,
+`reRecordStrandedMutation`, `quarantinedMutations`,
+`reenterQuarantinedMutations`, and `acknowledgeResultGoneMutations`. The
+package test exercises the projection and recovery surface directly:
+
+```js source=packages/snapback-react/offline.test.mjs
+    affordances = {
+      mutationStatus: await latest.mutationStatus('m4'),
+      stranded: await latest.strandedMutations(),
+      reRecorded: await latest.reRecordStrandedMutation('m5'),
+      quarantined: await latest.quarantinedMutations(),
+      discarded: await latest.discardStrandedMutations(['m5']),
+      reentered: await latest.reenterQuarantinedMutations(),
+      acknowledged: await latest.acknowledgeResultGoneMutations(['m4']),
+    };
+```
+
+The stranded/quarantine semantics and their recovery methods are on
 [offline retention](../sync/offline-and-retention.md#replay-and-settle-without-guessing)
 (and its
 [migration-quarantine boundary](../sync/offline-and-retention.md#migration-boundaries-quarantine-dont-fail)).

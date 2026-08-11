@@ -436,11 +436,24 @@ through an internal injected-channel stub — the LLP 0219 attachment seam
 (constructor option `devDiagnosticsChannel`); delivery/formatting/
 coalescing remain LLP 0219's, per this program's carve-out — and the
 React arm promotes the first queued dispatch per provider session to the
-loud dev warning naming mutation, reason class, and drain mode. P5 docs:
-see the dated notes below as they land. P6 deprecation closure is
-window-gated: it runs after the
-deprecation window of the release carrying the union, tracked by a
-filesystem ticket at the P5 landing.
+loud dev warning naming mutation, reason class, and drain mode. P5 docs: implemented
+(2026-08-10) — capability rows updated (`clients.mutation-outcomes`,
+`clients.react`, `sync.offline-js-arm`) plus a distinct
+`clients.outbox-drain` row citing outbox-drain.test.mjs, the React
+offline battery, and the browser witness's offline→online automatic
+drain leg; React, headless, and offline guide pages document the union,
+the settled-only compat surface, the §4.2 layer lifecycle, the
+platform drain, and the extended outbox hook with CI-verified
+source-pinned snippets (`check-guide` green, 121 pages / 1327
+snippets). LLP 0219's producer wording already carries the
+relinquishment cadence in its accepted text, so §4.4's scheduled
+amendment is satisfied without an edit; §4.4's channel delivery is
+stubbed behind the internal `devDiagnosticsChannel` seam per this
+program's carve-out, for the LLP 0219 program to attach. P6 deprecation
+closure is window-gated: it runs after the deprecation window of the
+release carrying the union, tracked as
+`issues/20260810-llp-0218-p6-deprecation-closure.md` (filed at the P5
+landing).
 
 ## Open questions
 
