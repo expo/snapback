@@ -1,0 +1,18 @@
+{
+  "tables": {
+    "rooms": [
+      {
+        "_id": "room_planning",
+        "name": "Planning",
+        "ownerId": "user_seed_owner"
+      },
+      {
+        "_id": "room_platform",
+        "name": "Platform",
+        "ownerId": "user_seed_owner"
+      }
+    ],
+    "rounds": [],
+    "votes": []
+  }
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Pointing Room</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body, #exact-root { min-height: 100%; margin: 0; }
+      body {
+        background: #f5f2ff;
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+      }
+      #boot-status {
+        position: fixed;
+        left: 16px;
+        bottom: 16px;
+        max-width: min(620px, calc(100vw - 32px));
+        padding: 10px 12px;
+        border: 1px solid #d8d2ee;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #332b52;
+        font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+        box-shadow: 0 8px 24px rgba(50, 36, 89, 0.12);
+      }
+      #boot-status[data-state="ready"] { display: none; }
+      #boot-status[data-state="error"] { color: #9f2d3d; border-color: #e8aeb6; }
+    </style>
+  </head>
+  <body>
+    <div id="exact-root"></div>
+    <div id="boot-status">Signing in to Pointing Room…</div>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

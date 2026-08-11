@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "snapback.codegen-policy.v1",
+  "committedProjections": [
+    "functions.manifest.json",
+    "schema.manifest.json"
+  ]
+}

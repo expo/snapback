@@ -1,0 +1,74 @@
+{
+  "id": "pointing-room",
+  "title": "Pointing Room",
+  "description": "Two-room planning poker whose room-keyed cross-table live query withholds every other principal's vote until reveal, with runtime Contract re-scoping and raw-wire cross-room isolation proof.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["API", "Storage", "Runtime", "Realtime", "Auth", "Contract/Exact", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "liveSubscriptions": true,
+    "ephemeralRealtime": true,
+    "authMode": "sessions",
+    "contractBindings": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/pointing-room/snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/contract-data.manifest.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/artifacts.json",
+      "snapback/generated/contract/runtime-links.ts",
+      "snapback/generated/contract/*.query.ts",
+      "snapback/generated/contract/*.mutation.ts",
+      "snapback/generated/contract/*.ephemeral.ts",
+      "snapback/generated/contract/*.publish.ts"
+    ],
+    "stalenessPolicy": "committed review projections; regenerate with codegen"
+  },
+  "seed": {
+    "profile": "deterministic-empty",
+    "file": "snapback/seed.json",
+    "rows": { "rooms": 2, "rounds": 0, "votes": 0 },
+    "note": "Planning and Platform are structural room fixtures. Their inert seed owner is never used as an authorization predicate; all callable operations still require a real session principal."
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "runner": "node demos/pointing-room/tests/acceptance/disclosure-invariant.mjs",
+      "toolchain": "node>=22 and the prebuilt local Snapback runtime"
+    },
+    "contract": {
+      "requirement": "required",
+      "browserRunner": "bun install --cwd demos/pointing-room/surfaces/contract, then node demos/pointing-room/tests/acceptance/contract-browser.mjs",
+      "build": "bun run --cwd demos/pointing-room/surfaces/contract build",
+      "toolchain": "bun, Exact registry packages, and headless Chrome"
+    }
+  },
+  "acceptanceChecks": {
+    "headless": [
+      "two independently minted sessions resolve to different principals",
+      "principal A can see its own vote before reveal",
+      "principal B's raw liveTally subscription bytes contain value:null and not A's vote before reveal",
+      "a Platform vote never appears in principal B's Planning subscription bytes or rows",
+      "principal B's raw WebSocket bytes contain A's vote after reveal",
+      "late voting refuses with application code ROUND_REVEALED"
+    ],
+    "contract": [
+      "compiled Contract root mounts against a sessions-mode backend",
+      "activeRoomId re-keys liveRound, liveTally, and presence without remounting",
+      "server inspection shows both predecessor query subscription ids disappear and two successor ids establish on every switch",
+      "Planning and Platform render only their own topic and tally rows after re-scoping",
+      "participant cards render the nullable server value directly with null mapped to '?'"
+    ]
+  },
+  "notClaiming": [
+    "room membership or invitation policy",
+    "hosted auth or hosted ephemeral rooms",
+    "offline retention of vote tallies"
+  ]
+}

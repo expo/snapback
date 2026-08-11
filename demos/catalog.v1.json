@@ -223,6 +223,22 @@
       "documentation": { "status": "contract", "path": "demos/party-wall/README.md" }
     },
     {
+      "id": "pointing-room",
+      "directory": "demos/pointing-room",
+      "teaches": "Two-room planning poker whose room-keyed cross-table live query withholds every other principal's vote until reveal, with runtime Contract re-scoping and raw-wire cross-room isolation proof.",
+      "clients": ["headless", "contract"],
+      "targets": ["local"],
+      "maturity": "integration",
+      "run": "node demos/pointing-room/tests/acceptance/disclosure-invariant.mjs",
+      "proof": "node demos/pointing-room/tests/acceptance/disclosure-invariant.mjs",
+      "expectedEvidence": "A two-principal wire trace carrying value:null for another principal's vote before reveal, the real value after, and no cross-room leakage.",
+      "evidence": [
+        "demos/pointing-room/tests/acceptance/disclosure-invariant.mjs",
+        "demos/pointing-room/tests/acceptance/contract-browser.mjs"
+      ],
+      "documentation": { "status": "contract", "path": "demos/pointing-room/README.md" }
+    },
+    {
       "id": "public-dashboard",
       "directory": "demos/public-dashboard",
       "teaches": "A route-declared public snapshot bundle with parameter binding and resume tokens.",

@@ -24,6 +24,7 @@ export const EXPECTED_DEMO_IDS = Object.freeze([
   'messaging-snapback',
   'partiful-matrix',
   'party-wall',
+  'pointing-room',
   'public-dashboard',
   'pulse-monitor',
   'rbac',

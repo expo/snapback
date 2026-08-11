@@ -42,6 +42,7 @@ rows in `guide/capabilities.md`, the current capability truth.
 | `messaging-snapback` | Expo Router messaging app: DMs, groups, text/image messages, reactions, reply previews, live typing | expo (ios/android/web), headless acceptance | yes |
 | `partiful-matrix` | Partitime: one event/RSVP/wall contract as a 3×4 matrix across React/Contract/vanilla JS and four backends | headless (required) + 16 integration arms | yes |
 | `party-wall` | Full asset-pipeline consumer: strip-declared photo uploads, required variants, ctx.assets.attach, RBAC'd live wall | headless (required), react (integration) | yes |
+| `pointing-room` | Planning poker: state-dependent disclosure (votes masked on the wire until the round is revealed) over a cross-table JS live query, plus room-keyed Contract query scopes | headless disclosure proof (required), contract browser (integration) | yes |
 | `public-dashboard` | Route-declared public snapshot bundle with parameter binding and resume tokens | headless (required) | yes |
 | `pulse-monitor` | Demand-gated scheduled action → mutation → live-query delivery | headless (required) | yes |
 | `rbac` | Scoped roles and memberships: declaration-bound visibility, generated membership writes, raw-write refusal | headlessRbacProof (required) | yes |

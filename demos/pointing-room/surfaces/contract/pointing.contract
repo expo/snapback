@@ -1,0 +1,162 @@
+// Pointing Room — planning poker over generated Snapback bindings.
+//
+// Disclosure invariant: participant cards branch only on `vote.value` from
+// liveTally. There is deliberately no client-side `round.revealed` branch that
+// can hide a value already received from the server; null is the face-down
+// wire value, and a non-null value is the face-up wire value.
+
+use liveRound from "../../snapback/generated/contract/liveRound.query.ts"
+use liveTally from "../../snapback/generated/contract/liveTally.query.ts"
+use castVote from "../../snapback/generated/contract/castVote.mutation.ts"
+use revealRound from "../../snapback/generated/contract/revealRound.mutation.ts"
+use startRound from "../../snapback/generated/contract/startRound.mutation.ts"
+use roomPresence from "../../snapback/generated/contract/roomPresence.ephemeral.ts"
+use roomPresencePublish from "../../snapback/generated/contract/roomPresence.publish.ts"
+use pointerChannel from "@exact/contract/channels"
+
+component PointingRoom
+  props
+    viewerId: string
+    viewerName: string
+    initialRoomId: string
+
+  state selected = ""
+  state nextTopic = ""
+  state activeRoomId = initialRoomId
+
+  query currentRound = liveRound({ roomId: activeRoomId })
+  query tally = liveTally({ roomId: activeRoomId })
+  ephemeral presence = roomPresence({ roomId: activeRoomId })
+
+  mutation submitVote = castVote
+  mutation flipRound = revealRound
+  mutation beginRound = startRound
+  use presencePulse = pointerChannel()
+
+  derive canStart = nextTopic.trim() != ""
+  derive activeRoomName = activeRoomId == "room_planning" ? "Planning" : "Platform"
+  derive maskedVoteCount = tally.filter((vote) => vote.value == null).length
+  derive revealedVoteCount = tally.filter((vote) => vote.value != null).length
+
+  action pick(roundId, value) writes selected mutates submitVote
+    selected = value
+    submitVote({ roundId: roundId, value: value })
+    publish(presencePulse)
+  action reveal(roundId) mutates flipRound
+    flipRound({ roundId: roundId })
+  action setNextTopic(value) writes nextTopic
+    nextTopic = value
+  action switchRoom(roomId) writes activeRoomId, selected, nextTopic
+    activeRoomId = roomId
+    selected = ""
+    nextTopic = ""
+    publish(presencePulse)
+  action startNext writes selected, nextTopic mutates beginRound
+    beginRound({ roomId: activeRoomId, topic: nextTopic.trim() })
+    selected = ""
+    nextTopic = ""
+    publish(presencePulse)
+
+  task announcePresence mount
+    publish(presencePulse)
+
+  contract
+    has node testId="pointing-room"
+    has node testId="vote-card-row"
+    has input testId="next-topic-input"
+    has node testId="reveal-round"
+    press button "1" -> pick
+    press button "Reveal cards" -> reveal
+    press button "Start next round" -> startNext
+    press button "Planning" -> switchRoom
+    press button "Platform" -> switchRoom
+    change input testId="next-topic-input" -> setNextTopic
+    count node testId="participant-card" = tally.length
+    invariant count node testId="masked-vote-value" = maskedVoteCount
+    invariant count node testId="revealed-vote-value" = revealedVoteCount
+    action pick writes selected
+    action setNextTopic writes nextTopic
+    action switchRoom writes activeRoomId, selected, nextTopic
+    action startNext writes selected, nextTopic
+    derive canStart depends only on nextTopic
+    derive activeRoomName depends only on activeRoomId
+    derive maskedVoteCount depends only on tally
+    derive revealedVoteCount depends only on tally
+
+  view
+    column align="center" padding=28 background="#f5f2ff" width="100%" minHeight="100vh" testId="pointing-room"
+      publish presencePulse.self -> roomPresencePublish rate=4 heartbeat=0.1 payload={ roomId: activeRoomId, value: { name: viewerName, picking: selected != "" }, ttlMs: 15000 }
+      column gap=20 padding=24 radius=18 background="#ffffff" borderWidth=1 borderColor="#ded8f2" width="100%" maxWidth=780
+        column gap=4
+          text "Pointing Room" size=28 weight=800 color="#241b42" headingLevel=1
+          text "Pick privately. Reveal together." size=14 color="#6d6584"
+          text `Active room: ${activeRoomName}` size=12 weight=800 color="#6d4aff" testId="active-room-name"
+          text activeRoomId size=10 color="#756a98" testId="active-room-id"
+          text `${presence.entries.length} here · ${presence.entries.filter((entry) => entry.value.picking).length} choosing` size=12 color="#756a98" testId="presence-line"
+        row gap=8 testId="room-switcher"
+          button press=switchRoom("room_planning") testId="room-planning" paddingTop=8 paddingBottom=8 paddingLeft=14 paddingRight=14 radius=999 background=activeRoomId == "room_planning" ? "#6d4aff" : "#eee9ff"
+            text "Planning" size=12 weight=800 color=activeRoomId == "room_planning" ? "#ffffff" : "#6d4aff"
+          button press=switchRoom("room_platform") testId="room-platform" paddingTop=8 paddingBottom=8 paddingLeft=14 paddingRight=14 radius=999 background=activeRoomId == "room_platform" ? "#6d4aff" : "#eee9ff"
+            text "Platform" size=12 weight=800 color=activeRoomId == "room_platform" ? "#ffffff" : "#6d4aff"
+        row gap=8 testId="presence-people"
+          each person in presence.entries key=person.key
+            text `${person.value.name}${person.value.picking ? " · choosing" : ""}` size=11 weight=person.self ? 800 : 500 color=person.value.picking ? "#6d4aff" : "#756a98" testId="presence-person"
+
+        async currentRound
+          loading
+            text "Loading the current round…" size=14 color="#6d6584" testId="round-loading"
+          error err
+            text err.message size=14 color="#a32f43" testId="round-error"
+          empty
+            column gap=8 padding=18 radius=12 background="#f8f6ff" testId="round-empty"
+              text "No round yet" size=18 weight=750 color="#33275a"
+              text "Name the first story below to begin." size=13 color="#756a98"
+          ready rounds
+            each round in rounds key=round._id
+              column gap=16 padding=18 radius=14 background="#f8f6ff" borderWidth=1 borderColor="#e2dcf5" testId="current-round"
+                column gap=3
+                  text `Round ${round.sequence}` size=12 weight=800 color="#756a98" testId="round-sequence"
+                  text round.topic size=22 weight=800 color="#2c2052" testId="round-topic"
+                  text round.revealed ? "Revealed" : "Votes are hidden on the wire" size=12 weight=700 color=round.revealed ? "#2a8447" : "#8b5a16" testId="round-state"
+                row gap=8 align="center" testId="vote-card-row"
+                  button press=pick(round._id, "1") testId="vote-card-1" width=56 height=72 radius=10 background=selected == "1" ? "#6d4aff" : "#ffffff" borderWidth=2 borderColor="#6d4aff"
+                    text "1" size=20 weight=800 color=selected == "1" ? "#ffffff" : "#6d4aff"
+                  button press=pick(round._id, "2") testId="vote-card-2" width=56 height=72 radius=10 background=selected == "2" ? "#6d4aff" : "#ffffff" borderWidth=2 borderColor="#6d4aff"
+                    text "2" size=20 weight=800 color=selected == "2" ? "#ffffff" : "#6d4aff"
+                  button press=pick(round._id, "3") testId="vote-card-3" width=56 height=72 radius=10 background=selected == "3" ? "#6d4aff" : "#ffffff" borderWidth=2 borderColor="#6d4aff"
+                    text "3" size=20 weight=800 color=selected == "3" ? "#ffffff" : "#6d4aff"
+                  button press=pick(round._id, "5") testId="vote-card-5" width=56 height=72 radius=10 background=selected == "5" ? "#6d4aff" : "#ffffff" borderWidth=2 borderColor="#6d4aff"
+                    text "5" size=20 weight=800 color=selected == "5" ? "#ffffff" : "#6d4aff"
+                  button press=pick(round._id, "8") testId="vote-card-8" width=56 height=72 radius=10 background=selected == "8" ? "#6d4aff" : "#ffffff" borderWidth=2 borderColor="#6d4aff"
+                    text "8" size=20 weight=800 color=selected == "8" ? "#ffffff" : "#6d4aff"
+                  button press=pick(round._id, "13") testId="vote-card-13" width=56 height=72 radius=10 background=selected == "13" ? "#6d4aff" : "#ffffff" borderWidth=2 borderColor="#6d4aff"
+                    text "13" size=20 weight=800 color=selected == "13" ? "#ffffff" : "#6d4aff"
+                  button press=pick(round._id, "?") testId="vote-card-question" width=56 height=72 radius=10 background=selected == "?" ? "#6d4aff" : "#ffffff" borderWidth=2 borderColor="#6d4aff"
+                    text "?" size=20 weight=800 color=selected == "?" ? "#ffffff" : "#6d4aff"
+                button press=reveal(round._id) testId="reveal-round" paddingTop=11 paddingBottom=11 paddingLeft=18 paddingRight=18 radius=9 background="#241b42"
+                  text "Reveal cards" size=14 weight=750 color="#ffffff"
+
+        async tally
+          loading
+            text "Loading votes…" size=13 color="#756a98" testId="tally-loading"
+          error err
+            text err.message size=13 color="#a32f43" testId="tally-error"
+          empty
+            text "Nobody has voted yet." size=13 color="#756a98" testId="tally-empty"
+          ready votes
+            row gap=12 testId="participant-cards"
+              each vote in votes key=vote.userId
+                column align="center" gap=6 padding=10 radius=12 background=vote.userId == viewerId ? "#eee9ff" : "#f7f6fa" borderWidth=1 borderColor=vote.userId == viewerId ? "#9b83ff" : "#e4e1ea" testId="participant-card"
+                  column align="center" width=64 height=84 radius=10 background=vote.value == null ? "#31284d" : "#ffffff" borderWidth=2 borderColor="#6d4aff"
+                    when vote.value == null
+                      text "?" size=24 weight=850 color="#ffffff" testId="masked-vote-value"
+                    when vote.value != null
+                      text vote.value size=24 weight=850 color="#6d4aff" testId="revealed-vote-value"
+                  text vote.userId size=10 color="#756a98" testId="participant-id"
+
+        column gap=8 paddingTop=6 borderBottomWidth=1 borderColor="#e8e4f2" testId="next-round-composer"
+          text "Start the next round" size=14 weight=800 color="#33275a"
+          row gap=10 align="center"
+            input label="Next story" value=nextTopic change=setNextTopic submit=startNext testId="next-topic-input" flex=1 paddingTop=10 paddingBottom=10 paddingLeft=12 paddingRight=12 radius=8 borderWidth=1 borderColor="#d8d2ee" background="#ffffff" color="#241b42"
+            button press=startNext testId="start-next-round" disabled=!canStart opacity=canStart ? 1 : 0.45 paddingTop=10 paddingBottom=10 paddingLeft=16 paddingRight=16 radius=8 background="#6d4aff"
+              text "Start next round" size=13 weight=750 color="#ffffff"
