@@ -303,11 +303,7 @@ try {
 }
 ```
 
-<!-- since: 0.1.19 unreleased -->
-
-> **Unreleased.** Structured queue diagnostics landed after the newest
-> published closure, 0.1.18; use contributor source until a 0.1.19+ closure
-> publishes.
+<!-- since: 0.1.19 -->
 
 At the P3 relinquishment-to-queued cut, the client emits the canonical
 `SNAPBACK_OFFLINE_MUTATION_QUEUED` channel event. React's

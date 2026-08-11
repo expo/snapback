@@ -575,6 +575,16 @@ assert.match(
   /scripts\/qualified-staging-retain-release/u,
   'qualified staging must retain the final closure through its size-capped checked-in script',
 );
+{
+  const start = qualifiedPackageStaging.indexOf('  qualified_release:');
+  const block = qualifiedPackageStaging.slice(start);
+  assert(start >= 0, 'qualified staging must retain the qualified_release job');
+  assert.match(
+    block,
+    /eas\/checkout[\s\S]*scripts\/qualified-staging-retain-release/u,
+    'qualified release retention must checkout the retained release script before invoking it',
+  );
+}
 for (const artifact of [
   'snapback-qualification-tarballs',
   'snapback-darwin-store-receipt',

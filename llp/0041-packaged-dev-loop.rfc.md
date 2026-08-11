@@ -6,6 +6,12 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (qualified 0.1.19 promotion):** 2026-08-11 (candidate
+`74eeaead1410` completed exact two-platform staged qualification and leased
+promotion operation `release-0.1.19-20260811-r3`, publication epoch 18;
+`newestPublished` and `newestQualified` advance to 0.1.19. See §"0.1.19
+(2026-08-11)".)
+
 **Revised (first completed qualified promotion):** 2026-08-11 (0.1.18 is the
 first closure to travel the full qualified ceremony end to end — frozen
 candidate, EAS-provenance staged receipts, leased `latest` promotion,
@@ -1654,3 +1660,29 @@ inherits none of them:
   revision, and `main` has always moved by promotion time.
 - The hosted-proof dispatch targets the **release-branch ref**, for the same
   reason: the workflow file and the proof harness must be the candidate's.
+
+## 0.1.19 (2026-08-11): qualified closure and fail-closed retry record
+
+All eleven packages were published from frozen source revision
+`74eeaead1410e74ba1abe86ac7432b6aea3c3bff` under holding tag
+`bakeoff-0-1-19-74eeaead1410`, then promoted together by operation
+`release-0.1.19-20260811-r3` at publication epoch 18. The final hosted public
+install proof is GitHub Actions run 31513524295; both darwin-arm64 and
+linux-x64 passed against the live `latest` vector. The post-promotion ledger
+and promotion receipt are retained under `tests/acceptance/publication/`.
+
+Two earlier leased attempts failed closed and restored the complete 0.1.18
+vector. Epoch 16 exhausted its hosted-proof wait budget after macOS runner
+queueing; both platform jobs later completed green. Epoch 17 completed both
+platform jobs green but hit a transient local TLS trust error while downloading
+one GitHub artifact. A direct retry of the same artifact path succeeded, and
+epoch 18 completed the identical package-owned proof, artifact validation, and
+authority close. These are conclusively proof-transport/capacity failures, not
+package failures.
+
+The exact staging run also exposed a retention-only workflow omission: the
+final `qualified_release` job invoked the checked-in retention helper without
+checking out the repository. The independently downloaded immutable tarballs
+and both staged receipts were retained with that same helper for this release;
+the workflow now checks out before invoking it, with a structural regression
+assertion. No gate or publication-authority bypass was used.

@@ -1238,11 +1238,7 @@ Public unauthenticated projections intentionally drop `message` and
 operator context. Error envelopes expose the diagnostic at
 `error.diagnostic`; some terminal mutation paths also attach a receipt.
 
-<!-- since: 0.1.19 unreleased -->
-
-> **Unreleased.** The client-side dev diagnostics channel landed after the
-> newest published closure, 0.1.18; use contributor source until a 0.1.19+
-> closure publishes.
+<!-- since: 0.1.19 -->
 
 ## Inspect client-side dev diagnostics
 
@@ -1325,11 +1321,7 @@ does not persist the summary, and does not promote popular mistakes into
 aliases. Regenerate or reload your artifacts when the diagnostic's generation
 does not match the artifact you used.
 
-<!-- since: 0.1.19 unreleased -->
-> **Unreleased.** The remediation carrier and apply operation are newer than
-> the newest published closure, 0.1.18 (they landed on `main` after the 0.1.18
-> candidate was frozen). Use a source build until the next qualified closure
-> is published.
+<!-- since: 0.1.19 -->
 
 ## Apply a remediation safely
 
@@ -1682,11 +1674,7 @@ fragment. The page removes the fragment before boot and stores the derived
 record through the same `snapback_console_credential_v1` path used by the paste
 fallback.
 
-<!-- since: 0.1.19 unreleased -->
-> **Unreleased.** Automatic build-matched console packaging is newer than the
-> newest published closure, 0.1.18 (it landed on `main` after the 0.1.18
-> candidate was frozen). Use a contributor source build until the next
-> qualified closure is published.
+<!-- since: 0.1.19 -->
 
 The server serves the immutable console snapshot at `/_snapback/admin/`.
 Published `@expo/snapback-cli` installs carry a build-matched snapshot inside

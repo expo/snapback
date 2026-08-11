@@ -49,7 +49,7 @@ npm create snapback-app my-app
 #               bun create snapback-app my-app
 #               pnpm create snapback-app my-app
 # scoped CLI spelling, same scaffolder:
-#   npx --yes @expo/snapback-cli@0.1.18 new my-app --template expo-chat
+#   npx --yes @expo/snapback-cli@0.1.19 new my-app --template expo-chat
 ```
 
 `expo-chat` is `create-snapback-app`'s default template, so `--template` is
@@ -73,11 +73,11 @@ published closure is the checked-in record in
 
 ```sh
 npx expo install \
-  @expo/snapback-cli@0.1.18 \
-  @expo/snapback-client@0.1.18 \
-  @expo/snapback-codegen@0.1.18 \
-  @expo/snapback-expo@0.1.18 \
-  @expo/snapback-react@0.1.18 \
+  @expo/snapback-cli@0.1.19 \
+  @expo/snapback-client@0.1.19 \
+  @expo/snapback-codegen@0.1.19 \
+  @expo/snapback-expo@0.1.19 \
+  @expo/snapback-react@0.1.19 \
   expo-file-system expo-crypto expo-image-picker
 ```
 

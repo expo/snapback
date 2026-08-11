@@ -301,11 +301,7 @@ What the surface does for you:
   });
   ```
 
-<!-- since: 0.1.19 unreleased -->
-
-> **Unreleased.** The keyed ephemeral link family is newer than the newest
-> published Snapback closure, 0.1.18. Use a source build until the next
-> qualified closure is published.
+<!-- since: 0.1.19 -->
 
   One `createSnapbackContractSurface({ keyedQueryScopes: true })` now boots a
   component that combines keyed durable queries with manifest-declared
@@ -1608,12 +1604,7 @@ stale references and production builds keep the strict
 Regression witness: `packages/snapback-react/hmr-generation-handoff.test.mjs`;
 governing design: LLP 0114 (mounted-provider HMR generation handoff).
 
-<!-- since: 0.1.19 unreleased -->
-
-> **Unreleased.** The static React core entry is newer than the newest
-> published Snapback closure, 0.1.18 (it landed on `main` after the 0.1.18
-> candidate was frozen). Use it from this source checkout until the next
-> qualified closure is published.
+<!-- since: 0.1.19 -->
 
 ## Keep query-only application bundles narrow
 
@@ -2071,10 +2062,7 @@ React wrapper over the client's `registerEphemeralRepublisher` that re-asks
 the mounted producer for its value after an authority replacement blanks the
 room; disposal follows the component lifecycle.
 
-<!-- since: 0.1.19 unreleased -->
-
-> **Unreleased.** Client dev diagnostics landed after the newest published
-> closure, 0.1.18; use contributor source until a 0.1.19+ closure publishes.
+<!-- since: 0.1.19 -->
 
 ## Inspect client dev diagnostics
 
@@ -3009,7 +2997,7 @@ npm create snapback-app my-app
 #               bun create snapback-app my-app
 #               pnpm create snapback-app my-app
 # scoped CLI spelling, same scaffolder:
-#   npx --yes @expo/snapback-cli@0.1.18 new my-app --template expo-chat
+#   npx --yes @expo/snapback-cli@0.1.19 new my-app --template expo-chat
 ```
 
 `expo-chat` is `create-snapback-app`'s default template, so `--template` is
@@ -3033,11 +3021,11 @@ published closure is the checked-in record in
 
 ```sh
 npx expo install \
-  @expo/snapback-cli@0.1.18 \
-  @expo/snapback-client@0.1.18 \
-  @expo/snapback-codegen@0.1.18 \
-  @expo/snapback-expo@0.1.18 \
-  @expo/snapback-react@0.1.18 \
+  @expo/snapback-cli@0.1.19 \
+  @expo/snapback-client@0.1.19 \
+  @expo/snapback-codegen@0.1.19 \
+  @expo/snapback-expo@0.1.19 \
+  @expo/snapback-react@0.1.19 \
   expo-file-system expo-crypto expo-image-picker
 ```
 

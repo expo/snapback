@@ -24,9 +24,7 @@ and scope a query, or the [hidden-hands recipe](../recipes/hidden-hands.md) for
 the shortest end-to-end example. This page is the systematic reference for
 what happens after private data becomes live or retained.
 
-<!-- since: 0.1.19 unreleased -->
-> **Unreleased.** Table visibility declarations are newer than the newest
-> published `@expo/snapback-*` closure, `0.1.18`.
+<!-- since: 0.1.19 -->
 
 ## Declare who can read each table
 

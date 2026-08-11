@@ -138,12 +138,7 @@ stale references and production builds keep the strict
 Regression witness: `packages/snapback-react/hmr-generation-handoff.test.mjs`;
 governing design: LLP 0114 (mounted-provider HMR generation handoff).
 
-<!-- since: 0.1.19 unreleased -->
-
-> **Unreleased.** The static React core entry is newer than the newest
-> published Snapback closure, 0.1.18 (it landed on `main` after the 0.1.18
-> candidate was frozen). Use it from this source checkout until the next
-> qualified closure is published.
+<!-- since: 0.1.19 -->
 
 ## Keep query-only application bundles narrow
 
@@ -601,10 +596,7 @@ React wrapper over the client's `registerEphemeralRepublisher` that re-asks
 the mounted producer for its value after an authority replacement blanks the
 room; disposal follows the component lifecycle.
 
-<!-- since: 0.1.19 unreleased -->
-
-> **Unreleased.** Client dev diagnostics landed after the newest published
-> closure, 0.1.18; use contributor source until a 0.1.19+ closure publishes.
+<!-- since: 0.1.19 -->
 
 ## Inspect client dev diagnostics
 

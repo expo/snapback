@@ -1,0 +1,1549 @@
+{
+  "schemaVersion": "snapback.package-promotion-receipt.v1",
+  "previousLedgerSha256": "6fdcafcb8c7876cfee9354823d2eb8f8140b09fac7551b8a5b59f94d393919db",
+  "operationId": "release-0.1.19-20260811-r3",
+  "publicationEpoch": 18,
+  "publisherInstanceId": "publisher-host-01",
+  "candidateTag": "bakeoff-0-1-19-74eeaead1410",
+  "defaultTag": "latest",
+  "startedAt": "2026-08-11T16:36:21.468Z",
+  "status": "promoted-and-closed",
+  "telemetryCurrentness": {
+    "schemaVersion": "snapback.telemetry-phase1-evidence-assessment.v1",
+    "valid": true,
+    "evidenceState": "HISTORICAL_VALID",
+    "state": "CURRENT",
+    "sourceRevision": "f5da121f54ad6628e759971e1d4991a5d51e1afc",
+    "headRevision": "74eeaead1410e74ba1abe86ac7432b6aea3c3bff",
+    "sourceDigest": "a303e2c99ecf3018749d28f347662d337e52329d80e34f8bc2aff1c099be5d77",
+    "currentDigest": "a303e2c99ecf3018749d28f347662d337e52329d80e34f8bc2aff1c099be5d77",
+    "ageHours": 1.665,
+    "maxAgeHours": 24,
+    "changedSourceFileCount": 0,
+    "changedSourceFiles": [],
+    "changedSourceFilesTruncated": false,
+    "acceptedForOrdinaryMerge": true,
+    "acceptedForReleaseOrCapabilityPromotion": true,
+    "rollingFullProofRequested": false
+  },
+  "priorDefaultClosurePreflight": {
+    "schemaVersion": "snapback.prior-default-closure.v2",
+    "policyVersion": "snapback.prior-default-closure-policy.v2",
+    "registry": "https://registry.npmjs.org",
+    "defaultTag": "latest",
+    "candidateLedgerSha256": "6fdcafcb8c7876cfee9354823d2eb8f8140b09fac7551b8a5b59f94d393919db",
+    "candidateTag": "bakeoff-0-1-19-74eeaead1410",
+    "sourceRevision": "74eeaead1410e74ba1abe86ac7432b6aea3c3bff",
+    "producerRevision": "a8d9c5710b344accbbb75631ea39df03444b4468",
+    "helperSha256": "5fbf83da31b808f002d51ff8cce572316df16559e4ffdd5ead4810fac487dd24",
+    "operationId": "release-0.1.19-20260811-r3",
+    "publisherInstanceId": "publisher-host-01",
+    "startedAt": "2026-08-11T16:35:50.660Z",
+    "completedAt": "2026-08-11T16:36:11.537Z",
+    "initialVector": {
+      "@expo/snapback-runtime-darwin-arm64": "0.1.18",
+      "@expo/snapback-runtime-linux-x64": "0.1.18",
+      "@expo/snapback-contract": "0.1.18",
+      "@expo/snapback-client": "0.1.18",
+      "@expo/snapback-codegen": "0.1.18",
+      "@expo/snapback-vite": "0.1.18",
+      "@expo/snapback-react": "0.1.18",
+      "@expo/snapback-expo": "0.1.18",
+      "@expo/snapback-app-cli": "0.1.18",
+      "@expo/snapback-cli": "0.1.18",
+      "create-snapback-app": "0.1.18"
+    },
+    "finalVector": {
+      "@expo/snapback-runtime-darwin-arm64": "0.1.18",
+      "@expo/snapback-runtime-linux-x64": "0.1.18",
+      "@expo/snapback-contract": "0.1.18",
+      "@expo/snapback-client": "0.1.18",
+      "@expo/snapback-codegen": "0.1.18",
+      "@expo/snapback-vite": "0.1.18",
+      "@expo/snapback-react": "0.1.18",
+      "@expo/snapback-expo": "0.1.18",
+      "@expo/snapback-app-cli": "0.1.18",
+      "@expo/snapback-cli": "0.1.18",
+      "create-snapback-app": "0.1.18"
+    },
+    "packages": [
+      {
+        "name": "@expo/snapback-runtime-darwin-arm64",
+        "version": "0.1.18",
+        "status": "verified",
+        "rollbackAction": "restore",
+        "tarballFile": "00.tgz",
+        "tarballSha256": "b879cf7cfea88d35fd428194bc99c724bbb0ec05e64ee4ae781ba27d27f28a64",
+        "registryIntegrity": "sha512-eeg85FxXkkseOWDl8PA91Ev8asW7etlVj9vlBUe1PVjldHYu5T2JbM+RlJ+I3WUXpYadLfSQUpPKTdfc2Fh0ng==",
+        "registryShasum": "5ec3872490ecd58b51a15fd864befd2a5b456993",
+        "manifestSha256": "f8a2192d729812edf525c3a7e41c0f5f6c82d9cd6353cf19fe0db37390f29400",
+        "dependencySections": {
+          "dependencies": {},
+          "optionalDependencies": {},
+          "peerDependencies": {},
+          "devDependencies": {}
+        },
+        "dependencyAliases": []
+      },
+      {
+        "name": "@expo/snapback-runtime-linux-x64",
+        "version": "0.1.18",
+        "status": "verified",
+        "rollbackAction": "restore",
+        "tarballFile": "01.tgz",
+        "tarballSha256": "f9f26a35d436e58d71f993d360cfe7942a9e54fb8517c18537446b65c877764a",
+        "registryIntegrity": "sha512-qnFfr92of8eyMqqXFcSa13fVp+frySc3+oZaccWHIxsdP04zTtIvPxfXpSEAB9zhDVlY8xtxRafPOxjjTGzhPw==",
+        "registryShasum": "c5054d28e73449ca8264eb2daa4983764ad04e21",
+        "manifestSha256": "a2caae4550fa15fb344803eeee7ccce5118083435ec114ae93367187e3415d39",
+        "dependencySections": {
+          "dependencies": {},
+          "optionalDependencies": {},
+          "peerDependencies": {},
+          "devDependencies": {}
+        },
+        "dependencyAliases": []
+      },
+      {
+        "name": "@expo/snapback-contract",
+        "version": "0.1.18",
+        "status": "verified",
+        "rollbackAction": "restore",
+        "tarballFile": "02.tgz",
+        "tarballSha256": "d58ffd3997c3c805544be147ff785666c181cf1fbf7f75b4e0c005cfd2dbadf2",
+        "registryIntegrity": "sha512-YIZE/JXMx7jUTlvyurz7JInIX0ppdvDbMJJUsV3lSA3ScpYGq4Zi3Ajt0njpqm7FQmjc0GH/7jO7PNc6sVlF4A==",
+        "registryShasum": "534b116901e5297efa09fa62ae7940d59aa03e83",
+        "manifestSha256": "be9602b0b60453a5fde7d73a75173c64875a9c17c0cc99d25dc6ba82de1366b5",
+        "dependencySections": {
+          "dependencies": {},
+          "optionalDependencies": {},
+          "peerDependencies": {},
+          "devDependencies": {}
+        },
+        "dependencyAliases": []
+      },
+      {
+        "name": "@expo/snapback-client",
+        "version": "0.1.18",
+        "status": "verified",
+        "rollbackAction": "restore",
+        "tarballFile": "03.tgz",
+        "tarballSha256": "be2d2adb5bdc27d5ec10b054c6485480ff85e88b2a38ced67ac349e27db5cc53",
+        "registryIntegrity": "sha512-D3TOuISwZEJhtZ7v/+U2kfm7scbe3jBeijpSL76lc9MBPBhesridz6qvnBoDaBa15uj80nBZHtgOcA7udgroMg==",
+        "registryShasum": "80cd9159b7fce106ba13ed4eafdb85f58a9888a3",
+        "manifestSha256": "c03d0f18022a3fa4e83ff0f53fe9dfc1a41f0084da18570971fbf63fcc54d749",
+        "dependencySections": {
+          "dependencies": {
+            "@expo/snapback-contract": "0.1.18"
+          },
+          "optionalDependencies": {},
+          "peerDependencies": {},
+          "devDependencies": {}
+        },
+        "dependencyAliases": [
+          {
+            "section": "dependencies",
+            "dependency": "@expo/snapback-contract",
+            "target": "@expo/snapback-contract",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          }
+        ]
+      },
+      {
+        "name": "@expo/snapback-codegen",
+        "version": "0.1.18",
+        "status": "verified",
+        "rollbackAction": "restore",
+        "tarballFile": "04.tgz",
+        "tarballSha256": "441db475b9ddb0ac17fd4fa6ae8a208f99e970dfec4225b3430657b234c73905",
+        "registryIntegrity": "sha512-RDvOC6fe05yWFYbT1sYLu5AwfZzdPAAU+9LtR8104lxz1NcrWYR7GViDnsFXwBCCTQzD3i+4iBmL6FbHTeMLTA==",
+        "registryShasum": "31004dc4cab9356f51072e8c6f434ef96b9e6151",
+        "manifestSha256": "abb4fdddfdeb3bd434db23278d6e7aaec911a08cd97ee55bbc2bb8e2177b0e08",
+        "dependencySections": {
+          "dependencies": {
+            "@expo/snapback-contract": "0.1.18",
+            "acorn": "^8.17.0",
+            "esbuild": "^0.28.1",
+            "typescript": "5.9.3"
+          },
+          "optionalDependencies": {},
+          "peerDependencies": {},
+          "devDependencies": {}
+        },
+        "dependencyAliases": [
+          {
+            "section": "dependencies",
+            "dependency": "@expo/snapback-contract",
+            "target": "@expo/snapback-contract",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          }
+        ]
+      },
+      {
+        "name": "@expo/snapback-vite",
+        "version": "0.1.18",
+        "status": "verified",
+        "rollbackAction": "restore",
+        "tarballFile": "05.tgz",
+        "tarballSha256": "15a69130be1474a0de1c412502de7a98e044fc7ee791e633b96ba8c401f49eab",
+        "registryIntegrity": "sha512-cMtTSeGwJnwUq2c8HrBfBjwg0wQ1vy9xC2c0sNj5s6mseyzTiCBugkKqtcRswkGdzaQupWFqSAI6rNMUoL5YEw==",
+        "registryShasum": "0c0931953559ddcb31b91c9f24373409f9974087",
+        "manifestSha256": "ee9278a84898afa60ff77494bb618c6337ff42d2654d873dc0310673c06c4e3d",
+        "dependencySections": {
+          "dependencies": {
+            "@expo/snapback-cli": "0.1.18"
+          },
+          "optionalDependencies": {},
+          "peerDependencies": {
+            "vite": "^8.0.0"
+          },
+          "devDependencies": {
+            "@expo/snapback-client": "0.1.18",
+            "vite": "^8.0.0"
+          }
+        },
+        "dependencyAliases": [
+          {
+            "section": "dependencies",
+            "dependency": "@expo/snapback-cli",
+            "target": "@expo/snapback-cli",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          },
+          {
+            "section": "devDependencies",
+            "dependency": "@expo/snapback-client",
+            "target": "@expo/snapback-client",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          }
+        ]
+      },
+      {
+        "name": "@expo/snapback-react",
+        "version": "0.1.18",
+        "status": "verified",
+        "rollbackAction": "restore",
+        "tarballFile": "06.tgz",
+        "tarballSha256": "fea5d1241ee037df8d260f91d48475970b85fd63d489308c8a8109a774473e22",
+        "registryIntegrity": "sha512-ivjkPQvok3qP0sPdSpzFR6hy4UjgPyiSxQqBx2daU9HymlUN2gTGbHnm98gyW5btnTKFjRd58xq2zCFTCrlCcg==",
+        "registryShasum": "e385e6b5e4f963257bbcb129f675182e79a3b7ef",
+        "manifestSha256": "ee7c5a2418689e20f23a7059dae7b67d346c2717baa2a25bd52d69c1e99dc582",
+        "dependencySections": {
+          "dependencies": {},
+          "optionalDependencies": {},
+          "peerDependencies": {
+            "@expo/snapback-client": "0.1.18",
+            "react": ">=18.0.0 <20.0.0"
+          },
+          "devDependencies": {}
+        },
+        "dependencyAliases": [
+          {
+            "section": "peerDependencies",
+            "dependency": "@expo/snapback-client",
+            "target": "@expo/snapback-client",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          }
+        ]
+      },
+      {
+        "name": "@expo/snapback-expo",
+        "version": "0.1.18",
+        "status": "verified",
+        "rollbackAction": "restore",
+        "tarballFile": "07.tgz",
+        "tarballSha256": "d54bf2b66738d9b67cdefaa670289b9dd5c591cf7c60101d332b49c98d2c5095",
+        "registryIntegrity": "sha512-wLMeqViy4s7/8QBNfnP3DzkGkI4C3WqxRqvDviu6AHQprE2oX1o/O7M2NMoPwswE9AA6DTKur2vOv6n+EGKqkA==",
+        "registryShasum": "ca9c54242939a95e7ce8002d6a8f97ba1be10cd7",
+        "manifestSha256": "5365d05bac8ec7ab94fd6bb96a63d45f9b3741b6b049ba88e00af6c0e794cf2f",
+        "dependencySections": {
+          "dependencies": {
+            "@expo/snapback-client": "0.1.18",
+            "@expo/snapback-react": "0.1.18"
+          },
+          "optionalDependencies": {},
+          "peerDependencies": {
+            "expo": ">=57.0.0 <58.0.0",
+            "expo-file-system": ">=57.0.0 <58.0.0",
+            "react": ">=19.0.0 <20.0.0",
+            "react-dom": ">=19.0.0 <20.0.0",
+            "react-native": ">=0.86.0 <0.87.0",
+            "react-native-web": ">=0.21.0 <0.22.0"
+          },
+          "devDependencies": {}
+        },
+        "dependencyAliases": [
+          {
+            "section": "dependencies",
+            "dependency": "@expo/snapback-client",
+            "target": "@expo/snapback-client",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          },
+          {
+            "section": "dependencies",
+            "dependency": "@expo/snapback-react",
+            "target": "@expo/snapback-react",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          }
+        ]
+      },
+      {
+        "name": "@expo/snapback-app-cli",
+        "version": "0.1.18",
+        "status": "verified",
+        "rollbackAction": "restore",
+        "tarballFile": "08.tgz",
+        "tarballSha256": "4807d248cd5fc4a30120228ce7cb53a1203dbb5136cddf078ddf63a16b062999",
+        "registryIntegrity": "sha512-MhHFPvxyQs7zHfqA90bI0Ei8nKoPZ7dAXfFlnfRrpdsuZROo5IQwMW+i7kMVyG3/1NlTQwMgrqkuGHxE014OPQ==",
+        "registryShasum": "a52cd4b02903cf18f0a6281ebf52bd71bbb3bdb9",
+        "manifestSha256": "e1cb0c36bde5ddcf01a52d7e4a3044f34e912099b17a9ea21c01487fdb2ed36e",
+        "dependencySections": {
+          "dependencies": {
+            "@expo/snapback-client": "0.1.18",
+            "@expo/snapback-codegen": "0.1.18",
+            "ajv": "^8.20.0",
+            "typescript": "5.9.3"
+          },
+          "optionalDependencies": {},
+          "peerDependencies": {},
+          "devDependencies": {}
+        },
+        "dependencyAliases": [
+          {
+            "section": "dependencies",
+            "dependency": "@expo/snapback-client",
+            "target": "@expo/snapback-client",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          },
+          {
+            "section": "dependencies",
+            "dependency": "@expo/snapback-codegen",
+            "target": "@expo/snapback-codegen",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          }
+        ]
+      },
+      {
+        "name": "@expo/snapback-cli",
+        "version": "0.1.18",
+        "status": "verified",
+        "rollbackAction": "restore",
+        "tarballFile": "09.tgz",
+        "tarballSha256": "85d2692c4e98796a68a8a2d90ef644bd0cbb19e9b9ec76a9fec7a814bbd1dc25",
+        "registryIntegrity": "sha512-EtMnbpz89k+v+JxvBy4SwkPFuo0PGLSv1P2gBz7IjzyqFurUxe12pAa3gBbQmsMaiEjJduoNrsD4WmIClQzuaw==",
+        "registryShasum": "8eb6ecabb995c7710b8a50663fb894f995235c65",
+        "manifestSha256": "5e52139d040a7866e4c2751b19b52f9889f3fda4b74561517a5fea937077b26a",
+        "dependencySections": {
+          "dependencies": {
+            "@expo/snapback-client": "0.1.18",
+            "@expo/snapback-codegen": "0.1.18",
+            "@expo/snapback-contract": "0.1.18",
+            "@expo/snapback-react": "0.1.18",
+            "ajv": "^8.20.0"
+          },
+          "optionalDependencies": {
+            "@expo/snapback-runtime-darwin-arm64": "0.1.18",
+            "@expo/snapback-runtime-linux-x64": "0.1.18"
+          },
+          "peerDependencies": {},
+          "devDependencies": {}
+        },
+        "dependencyAliases": [
+          {
+            "section": "dependencies",
+            "dependency": "@expo/snapback-client",
+            "target": "@expo/snapback-client",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          },
+          {
+            "section": "dependencies",
+            "dependency": "@expo/snapback-codegen",
+            "target": "@expo/snapback-codegen",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          },
+          {
+            "section": "dependencies",
+            "dependency": "@expo/snapback-contract",
+            "target": "@expo/snapback-contract",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          },
+          {
+            "section": "dependencies",
+            "dependency": "@expo/snapback-react",
+            "target": "@expo/snapback-react",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          },
+          {
+            "section": "optionalDependencies",
+            "dependency": "@expo/snapback-runtime-darwin-arm64",
+            "target": "@expo/snapback-runtime-darwin-arm64",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          },
+          {
+            "section": "optionalDependencies",
+            "dependency": "@expo/snapback-runtime-linux-x64",
+            "target": "@expo/snapback-runtime-linux-x64",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          }
+        ]
+      },
+      {
+        "name": "create-snapback-app",
+        "version": "0.1.18",
+        "status": "verified",
+        "rollbackAction": "restore",
+        "tarballFile": "10.tgz",
+        "tarballSha256": "094758a3346ce130537450120e1b5383690851775352623d23b4874093797ac2",
+        "registryIntegrity": "sha512-dUFaA/dix4USb3STZ5wwOxd28x9VonIOEZysHmab5uDKIWmwtzD/DXH+vJyOfWHUi6wasX7GIGhusduu4KqE5A==",
+        "registryShasum": "dec11412ba910faeb80ddd20425dbec928bfd875",
+        "manifestSha256": "47b6737195260175afb81de089ef5c30decc2edff74cf88475db301b4f2f8736",
+        "dependencySections": {
+          "dependencies": {
+            "@expo/snapback-cli": "0.1.18"
+          },
+          "optionalDependencies": {},
+          "peerDependencies": {},
+          "devDependencies": {}
+        },
+        "dependencyAliases": [
+          {
+            "section": "dependencies",
+            "dependency": "@expo/snapback-cli",
+            "target": "@expo/snapback-cli",
+            "version": "0.1.18",
+            "sectionVector": "prior"
+          }
+        ]
+      }
+    ],
+    "receiptSha256": "b7ec0b275293d9c55afa3f70a73c359e3a23d3fa33b60a05bb2a5ea4ed053dc8"
+  },
+  "events": [
+    {
+      "phase": "promote",
+      "package": "@expo/snapback-runtime-darwin-arm64",
+      "beforeLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "2d0034dab850d81b0f9a96c4e2b792e3dbb80b65366ec3d3b88f19d858860542",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "F13IeggBbfdeYHKSvmxxJTmwQrBH3TRRtMX3PawQG3iMW1miLZdz8H-Le5lDmzQ51Lnuy-kCTO9buY8KxxruBA",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "before": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.18",
+        "@expo/snapback-runtime-linux-x64": "0.1.18",
+        "@expo/snapback-contract": "0.1.18",
+        "@expo/snapback-client": "0.1.18",
+        "@expo/snapback-codegen": "0.1.18",
+        "@expo/snapback-vite": "0.1.18",
+        "@expo/snapback-react": "0.1.18",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "after": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.18",
+        "@expo/snapback-contract": "0.1.18",
+        "@expo/snapback-client": "0.1.18",
+        "@expo/snapback-codegen": "0.1.18",
+        "@expo/snapback-vite": "0.1.18",
+        "@expo/snapback-react": "0.1.18",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "afterLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "e794789f8c545e4ad7bee0a73f2a59556b79c0e416257290f895fea10794b993",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "2O84FZkHLpodBi2js3NcBfJralAVLwqeJ_WrY22IRN6-FWNB0mFDqA3tbWDyWLbCu3lWYLsrrPd5CXQ5YFRiAQ",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "commandReportedError": null,
+      "preMutationRegistryConvergenceAttempts": 1,
+      "registryConvergenceAttempts": 3
+    },
+    {
+      "phase": "promote",
+      "package": "@expo/snapback-runtime-linux-x64",
+      "beforeLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "30e3d98c9366ad982e637d0c36f111460addedecfca3fa1f5550451b2f8850b4",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "h7LXObd4ymdy2WHGvTS3D78DUM5MjdOCbc4ugntZDuIqGTf8ZUu51farq2OXSqNNfkdRIULG7LzIO002xh6vBA",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "before": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.18",
+        "@expo/snapback-contract": "0.1.18",
+        "@expo/snapback-client": "0.1.18",
+        "@expo/snapback-codegen": "0.1.18",
+        "@expo/snapback-vite": "0.1.18",
+        "@expo/snapback-react": "0.1.18",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "after": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.18",
+        "@expo/snapback-client": "0.1.18",
+        "@expo/snapback-codegen": "0.1.18",
+        "@expo/snapback-vite": "0.1.18",
+        "@expo/snapback-react": "0.1.18",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "afterLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "49a33730052b96c5b325c79329ede427d6754e3dfb64fb1ca73b4c0de7e4620e",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "mpm0I0WgtDQ6cT06uMaXrM8tDg1jPIkNPrx_-l1XsHAveE8ro9IfKSy3P-GTLCjpJ6KolJL-m2be6Q64ZD38Ag",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "commandReportedError": null,
+      "preMutationRegistryConvergenceAttempts": 1,
+      "registryConvergenceAttempts": 3
+    },
+    {
+      "phase": "promote",
+      "package": "@expo/snapback-contract",
+      "beforeLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "f62b9b2f6e7cbff092b51a663082d7d017eb978da639853333f709fcdcd36680",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "q1JeLyAMbBxG8QcfV1h6QsFBQgWVvmUsEtWH-U-Sgqqi2y8htHTwn_w1DCWrwT6Xmx0LwCxRD8vJcagv4MOnBQ",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "before": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.18",
+        "@expo/snapback-client": "0.1.18",
+        "@expo/snapback-codegen": "0.1.18",
+        "@expo/snapback-vite": "0.1.18",
+        "@expo/snapback-react": "0.1.18",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "after": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.18",
+        "@expo/snapback-codegen": "0.1.18",
+        "@expo/snapback-vite": "0.1.18",
+        "@expo/snapback-react": "0.1.18",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "afterLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "c851c7d2d5611dbea04dae125ff5a0c1d714845acf02a3fe46c3785446f59f1f",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "pGpIVblwh-ipUMiOWwznzwe9ahy6Gja-cMPBjiFn0Cdd_SVv3iyE8RDJU3Bilf__Y92FAOk04zxCcprT2PgYCg",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "commandReportedError": null,
+      "preMutationRegistryConvergenceAttempts": 1,
+      "registryConvergenceAttempts": 3
+    },
+    {
+      "phase": "promote",
+      "package": "@expo/snapback-client",
+      "beforeLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "54aa2f9f24b47aef3b17e06ecb252b4dd6aa0063f6b6085b534e420cf3b76182",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "rJWHSZs7mCRi563y8gwOP2siRZ8XnG1WeXYkWZhLf-SHODuT0bz3HgQ4KHqKnHNQXSu78etW8jEYYCEZ1Qm4BA",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "before": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.18",
+        "@expo/snapback-codegen": "0.1.18",
+        "@expo/snapback-vite": "0.1.18",
+        "@expo/snapback-react": "0.1.18",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "after": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.18",
+        "@expo/snapback-vite": "0.1.18",
+        "@expo/snapback-react": "0.1.18",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "afterLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "a8ea83df13aba0562e11c6c1855be6fbfdc4362ef642d1ac15dafcecc7390f20",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "7PzMdfUL5BjSf7LOtDdeM7grhbaydahgaEQ5w-TESe0Ww6PywO8eEuzHsCzdXypSg9Zr2h43OMdncI1suveXDQ",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "commandReportedError": null,
+      "preMutationRegistryConvergenceAttempts": 1,
+      "registryConvergenceAttempts": 5
+    },
+    {
+      "phase": "promote",
+      "package": "@expo/snapback-codegen",
+      "beforeLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "ef949e2bbdfa9d680ed217a5fd3e54a48ec2859d175315e47de6fe17cc873dec",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "zpfg_6fdZIYOoe92nLT5JkzDUG6FAN-UNoV9Qhc7PIOr44geg3Lhd2oGHxw80qxwMgK9mzbu58ZNiIPqwwnzDQ",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "before": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.18",
+        "@expo/snapback-vite": "0.1.18",
+        "@expo/snapback-react": "0.1.18",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "after": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-vite": "0.1.18",
+        "@expo/snapback-react": "0.1.18",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "afterLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "291f371b6b7de21fe0cacfc23861d57c0f4d3b1b05d4e83b3b4257fe85fa68cf",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "LO1-S6U7-acAAUcJNaNkbOGLtJRgfHku8use6Xny2WPcy077rWqMKNgNEOXf6kHHNA_EKh6cow_DnWbbwcHlBw",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "commandReportedError": null,
+      "preMutationRegistryConvergenceAttempts": 1,
+      "registryConvergenceAttempts": 4
+    },
+    {
+      "phase": "promote",
+      "package": "@expo/snapback-vite",
+      "beforeLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "5c36cd60a57228344259d19285b133c826d55055ac6c993753748aded622d5cb",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "3smOkWaTX6cR6Hhzp_vfH6ZTs-vQHA__uRO1xHGg_iXZvdv4P2DZzToB_tuvgGQy8sz7hJkZb5nwcx_aBTuoDQ",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "before": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-vite": "0.1.18",
+        "@expo/snapback-react": "0.1.18",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "after": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-vite": "0.1.19",
+        "@expo/snapback-react": "0.1.18",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "afterLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "285dd14385d6b2af07b58daed1a0ca396f59253e82f5cd89d3cc80ad49cdb073",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "Q2fyr-ITUe3u7mgVcHWSmS2ye9CorEjKXGeeY5lawGlAGvvbgbYgCy9610VxlTDl6qEBelYHht66m4SUINcECw",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "commandReportedError": null,
+      "preMutationRegistryConvergenceAttempts": 1,
+      "registryConvergenceAttempts": 5
+    },
+    {
+      "phase": "promote",
+      "package": "@expo/snapback-react",
+      "beforeLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "b70d15deac59899d422752bbcde5818ef7b17ad43ca4bb96c3fc89703b70208b",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "5-uHnueGrDcZoScS97rPiZ3zZ_yNFdwrL3tpK6mbneWHh4emuF4pBbvHhNDMKEzdHZtB8VUWThWKcAR4DvnuDQ",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "before": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-vite": "0.1.19",
+        "@expo/snapback-react": "0.1.18",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "after": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-vite": "0.1.19",
+        "@expo/snapback-react": "0.1.19",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "afterLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "357003736c56b6a60e90d854a36e7a9c32456efc0c86a15a75295570f2ad5816",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "dzQK9P5j3slHmSfwxfnuFBwzXBmsqxaDRczAuoXydTDLg41-y0-fqZBd28Tj7gfzoMqA42nvO51br4D5isZICQ",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "commandReportedError": null,
+      "preMutationRegistryConvergenceAttempts": 1,
+      "registryConvergenceAttempts": 5
+    },
+    {
+      "phase": "promote",
+      "package": "@expo/snapback-expo",
+      "beforeLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "b09ee8103d7280abfd93c4b039735869012823f204c69a2ea1a90c8f08faf84a",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "aWZwKv2fpOEROehaachyaqS9jde0HmA-5-pnzyQe2t31N55EgwlYM8G04B-P-U484e3Bc-UXZsbe4mvA_2c5DA",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "before": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-vite": "0.1.19",
+        "@expo/snapback-react": "0.1.19",
+        "@expo/snapback-expo": "0.1.18",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "after": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-vite": "0.1.19",
+        "@expo/snapback-react": "0.1.19",
+        "@expo/snapback-expo": "0.1.19",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "afterLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "b45c1a10b38ed286a9e1b5abceedb707b7b2944cb85086eb7a927f383b1600ac",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "A4YpksrNhcCYNZtag9DEVoEsP9bdKXptu392A6mHHv0m2qJfg69hNHTfh4vqLpQJ3zgkMMV14vJLcSk-VR50Ag",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "commandReportedError": null,
+      "preMutationRegistryConvergenceAttempts": 1,
+      "registryConvergenceAttempts": 2
+    },
+    {
+      "phase": "promote",
+      "package": "@expo/snapback-app-cli",
+      "beforeLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "cf7a2365f3650dc7f623f105fa2679a1cf1e9cba1f61e0bd2539370f35adba07",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "iUWs_H8y5u1her_sECFJ03Ucl-F6CL7Gr1C3_SsInsF_QF6WhoCJK5bJo5V_kwPMg_ZE1OjjXuqnk7ufgv86Bw",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "before": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-vite": "0.1.19",
+        "@expo/snapback-react": "0.1.19",
+        "@expo/snapback-expo": "0.1.19",
+        "@expo/snapback-app-cli": "0.1.18",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "after": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-vite": "0.1.19",
+        "@expo/snapback-react": "0.1.19",
+        "@expo/snapback-expo": "0.1.19",
+        "@expo/snapback-app-cli": "0.1.19",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "afterLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "3995b42f3d5324ee608fe3388478472bab78f11f22cb108c1f3450ae53cc86d8",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "OA9qvCLwsEdJifZ_nRzZqTsfztnM3P7pplX9v44UCPItZAAtDqEhjtTr-Q5xbDoIxwHr77HCUU1RfTyVwj0TCQ",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "commandReportedError": null,
+      "preMutationRegistryConvergenceAttempts": 1,
+      "registryConvergenceAttempts": 4
+    },
+    {
+      "phase": "promote",
+      "package": "@expo/snapback-cli",
+      "beforeLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "837bdae615795eee53543fcb4b174f84c28832e97a095de3cd2b293b04e28e9d",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "5xvObz8sGmk-l4d9ok4mvGa-cYM5JK-EzTlJUqNG5NQ8PNHi9e7Ko2aVIWcVhQzyfrsJkcNFJNc3h0a_afHlCQ",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "before": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-vite": "0.1.19",
+        "@expo/snapback-react": "0.1.19",
+        "@expo/snapback-expo": "0.1.19",
+        "@expo/snapback-app-cli": "0.1.19",
+        "@expo/snapback-cli": "0.1.18",
+        "create-snapback-app": "0.1.18"
+      },
+      "after": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-vite": "0.1.19",
+        "@expo/snapback-react": "0.1.19",
+        "@expo/snapback-expo": "0.1.19",
+        "@expo/snapback-app-cli": "0.1.19",
+        "@expo/snapback-cli": "0.1.19",
+        "create-snapback-app": "0.1.18"
+      },
+      "afterLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "8b36545f178b7c0505aeabf31e2159e52761c048724babeff0febd7f5c2f4de9",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "rrm8u_Jxe_zA_79BAKqzaVlXYrvRs9ixnjNSEKhPcWfbyPF8rCbIJeYofnpQKe1VFsfYbN64t1-Xt9by6GPqAQ",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "commandReportedError": null,
+      "preMutationRegistryConvergenceAttempts": 1,
+      "registryConvergenceAttempts": 4
+    },
+    {
+      "phase": "promote",
+      "package": "create-snapback-app",
+      "beforeLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "0eb52b9dbb3d5a5edca577234c95e43c4c1070fce49bce81f44138c9fc27bf27",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "9YQPTAV20MPW_fSJ2XKtiojpOjf_Q1LyW7SFo5f9y-pvwCUQq-37FaP-XcOHAZtqF1tV4lcC4HRkmcUWoWttBw",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "before": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-vite": "0.1.19",
+        "@expo/snapback-react": "0.1.19",
+        "@expo/snapback-expo": "0.1.19",
+        "@expo/snapback-app-cli": "0.1.19",
+        "@expo/snapback-cli": "0.1.19",
+        "create-snapback-app": "0.1.18"
+      },
+      "after": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-vite": "0.1.19",
+        "@expo/snapback-react": "0.1.19",
+        "@expo/snapback-expo": "0.1.19",
+        "@expo/snapback-app-cli": "0.1.19",
+        "@expo/snapback-cli": "0.1.19",
+        "create-snapback-app": "0.1.19"
+      },
+      "afterLeaseHead": {
+        "authorityGeneration": 47,
+        "authorityInstallationId": "snapback-publication-primary-v1",
+        "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+        "challenge": "756a4f2e2a7897fb1de61344f75ec16590ffa284c3380ced9d1c500155047292",
+        "expiresAt": "2026-08-11T16:51:12.809Z",
+        "headSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+        "operationId": "release-0.1.19-20260811-r3",
+        "outcome": null,
+        "publicationEpoch": 18,
+        "publisherInstanceId": "publisher-host-01",
+        "schemaVersion": "snapback.publication-authority-head.v3",
+        "signature": "4-dF3pzjpwaNqGdiZY_D2q1YaCcwfEDjG0H4YdnOSvIA0x0tv2AL1l0dyURemvanqYOyldqIHl-8ffj_N6C-Dw",
+        "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+        "status": "acquired"
+      },
+      "commandReportedError": null,
+      "preMutationRegistryConvergenceAttempts": 1,
+      "registryConvergenceAttempts": 4
+    }
+  ],
+  "authorityAcquisition": {
+    "authorityGeneration": 47,
+    "authorityInstallationId": "snapback-publication-primary-v1",
+    "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+    "closed": false,
+    "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+    "operationId": "release-0.1.19-20260811-r3",
+    "outcome": "acquired",
+    "publicationEpoch": 18,
+    "publicationLedgerSha256": null,
+    "publisherInstanceId": "publisher-host-01",
+    "schemaVersion": "snapback.publication-authority-transition-receipt.v2",
+    "signature": "WXPArn6Ror1BgpBzF7wh-Qt7IcdpKaPBcokuhPh7GyRjOIQdGcV7A5BFvNqAXLst4JATXTxIMqqRUnnKvgqYDw",
+    "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+    "vectorSha256": "db680443cb55cc682c00db06664861bcd356fb0f2e66f17c39d229606378c0b4"
+  },
+  "publicLatestRootBarrier": {
+    "schemaVersion": "snapback.promoted-installability-barrier.v2",
+    "status": "passed",
+    "package": "@expo/snapback-cli",
+    "expectedVersion": "0.1.19",
+    "requiredRemainingMs": 540000,
+    "probeBoundMs": 45000,
+    "delayMs": 30000,
+    "requiredSuccessfulAttempts": 2,
+    "mandatoryStabilityReserveMs": 120000,
+    "maximumAttempts": 6,
+    "attempts": [
+      {
+        "attempt": 1,
+        "startedAt": "2026-08-11T16:38:24.956Z",
+        "completedAt": "2026-08-11T16:38:32.135Z",
+        "beforeVectorSha256": "e170b9998c7fa901f1eef2ab9cf5ef8050ca90776ec1bba08b161de9fa5eddfe",
+        "afterVectorSha256": "e170b9998c7fa901f1eef2ab9cf5ef8050ca90776ec1bba08b161de9fa5eddfe",
+        "beforeHeadSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "afterHeadSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "publicationEpoch": 18,
+        "observation": {
+          "ok": true,
+          "rootVersion": "0.1.19",
+          "closure": {
+            "root": "@expo/snapback-cli",
+            "selected": "0.1.19",
+            "installed": {
+              "@expo/snapback-cli": "0.1.19",
+              "@expo/snapback-client": "0.1.19",
+              "@expo/snapback-codegen": "0.1.19",
+              "@expo/snapback-contract": "0.1.19",
+              "@expo/snapback-react": "0.1.19",
+              "@expo/snapback-runtime-darwin-arm64": "0.1.19"
+            },
+            "omittedOptionalPlatformRuntimes": [
+              {
+                "sourceName": "@expo/snapback-runtime-linux-x64",
+                "treePath": [
+                  "@expo/snapback-cli",
+                  "@expo/snapback-runtime-linux-x64"
+                ]
+              }
+            ],
+            "defaultTagVector": {
+              "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+              "@expo/snapback-runtime-linux-x64": "0.1.19",
+              "@expo/snapback-contract": "0.1.19",
+              "@expo/snapback-client": "0.1.19",
+              "@expo/snapback-codegen": "0.1.19",
+              "@expo/snapback-react": "0.1.19",
+              "@expo/snapback-expo": "0.1.19",
+              "@expo/snapback-app-cli": "0.1.19",
+              "@expo/snapback-cli": "0.1.19",
+              "@expo/snapback-vite": "0.1.19",
+              "create-snapback-app": "0.1.19"
+            }
+          },
+          "error": null,
+          "retryablePriorRoot": false
+        }
+      },
+      {
+        "attempt": 2,
+        "startedAt": "2026-08-11T16:39:02.137Z",
+        "completedAt": "2026-08-11T16:39:08.942Z",
+        "beforeVectorSha256": "e170b9998c7fa901f1eef2ab9cf5ef8050ca90776ec1bba08b161de9fa5eddfe",
+        "afterVectorSha256": "e170b9998c7fa901f1eef2ab9cf5ef8050ca90776ec1bba08b161de9fa5eddfe",
+        "beforeHeadSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "afterHeadSha256": "e554230f21340bac4e117d53187009e70cb918d04577c0d4d4224eba78e38e65",
+        "publicationEpoch": 18,
+        "observation": {
+          "ok": true,
+          "rootVersion": "0.1.19",
+          "closure": {
+            "root": "@expo/snapback-cli",
+            "selected": "0.1.19",
+            "installed": {
+              "@expo/snapback-cli": "0.1.19",
+              "@expo/snapback-client": "0.1.19",
+              "@expo/snapback-codegen": "0.1.19",
+              "@expo/snapback-contract": "0.1.19",
+              "@expo/snapback-react": "0.1.19",
+              "@expo/snapback-runtime-darwin-arm64": "0.1.19"
+            },
+            "omittedOptionalPlatformRuntimes": [
+              {
+                "sourceName": "@expo/snapback-runtime-linux-x64",
+                "treePath": [
+                  "@expo/snapback-cli",
+                  "@expo/snapback-runtime-linux-x64"
+                ]
+              }
+            ],
+            "defaultTagVector": {
+              "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+              "@expo/snapback-runtime-linux-x64": "0.1.19",
+              "@expo/snapback-contract": "0.1.19",
+              "@expo/snapback-client": "0.1.19",
+              "@expo/snapback-codegen": "0.1.19",
+              "@expo/snapback-react": "0.1.19",
+              "@expo/snapback-expo": "0.1.19",
+              "@expo/snapback-app-cli": "0.1.19",
+              "@expo/snapback-cli": "0.1.19",
+              "@expo/snapback-vite": "0.1.19",
+              "create-snapback-app": "0.1.19"
+            }
+          },
+          "error": null,
+          "retryablePriorRoot": false
+        }
+      }
+    ],
+    "completedAt": "2026-08-11T16:39:08.942Z",
+    "resolution": {
+      "root": "@expo/snapback-cli",
+      "selected": "0.1.19",
+      "installed": {
+        "@expo/snapback-cli": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-react": "0.1.19",
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19"
+      },
+      "omittedOptionalPlatformRuntimes": [
+        {
+          "sourceName": "@expo/snapback-runtime-linux-x64",
+          "treePath": [
+            "@expo/snapback-cli",
+            "@expo/snapback-runtime-linux-x64"
+          ]
+        }
+      ],
+      "defaultTagVector": {
+        "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+        "@expo/snapback-runtime-linux-x64": "0.1.19",
+        "@expo/snapback-contract": "0.1.19",
+        "@expo/snapback-client": "0.1.19",
+        "@expo/snapback-codegen": "0.1.19",
+        "@expo/snapback-react": "0.1.19",
+        "@expo/snapback-expo": "0.1.19",
+        "@expo/snapback-app-cli": "0.1.19",
+        "@expo/snapback-cli": "0.1.19",
+        "@expo/snapback-vite": "0.1.19",
+        "create-snapback-app": "0.1.19"
+      }
+    }
+  },
+  "finalVector": {
+    "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+    "@expo/snapback-runtime-linux-x64": "0.1.19",
+    "@expo/snapback-contract": "0.1.19",
+    "@expo/snapback-client": "0.1.19",
+    "@expo/snapback-codegen": "0.1.19",
+    "@expo/snapback-vite": "0.1.19",
+    "@expo/snapback-react": "0.1.19",
+    "@expo/snapback-expo": "0.1.19",
+    "@expo/snapback-app-cli": "0.1.19",
+    "@expo/snapback-cli": "0.1.19",
+    "create-snapback-app": "0.1.19"
+  },
+  "finalization": {
+    "postPromotionLedger": "/private/tmp/snapback-release-0119.gki4TI/promotion-attempt3/post-promotion-ledger-0.1.19.json",
+    "postPromotionLedgerSha256": "78e687f25b56b33b5f374cb2bda39d02e82505d687bc302ea13d780e764608df",
+    "latestRootReceipts": [
+      {
+        "platform": "darwin-arm64",
+        "sha256": "9d1ec0f47f8fd3829f144690992480a23fc6048d7e88fa3e136ba15eeed7efa2",
+        "github": {
+          "authorizedLeaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+          "publicationEpoch": 18,
+          "expectedPriorRootVersion": "0.1.18",
+          "repository": "expo/snapback",
+          "workflow": "public-package-proof.yml",
+          "workflowId": 320923038,
+          "workflowPath": ".github/workflows/public-package-proof.yml",
+          "ref": "main",
+          "runId": 31513524295,
+          "runAttempt": 1,
+          "runHeadSha": "a8d9c5710b344accbbb75631ea39df03444b4468",
+          "operationId": "release-0.1.19-20260811-r3",
+          "dispatchStartedAt": "2026-08-11T16:39:09.106Z",
+          "runCreatedAt": "2026-08-11T16:39:10Z",
+          "runStartedAt": "2026-08-11T16:39:10Z",
+          "collectedAt": "2026-08-11T16:45:18.343Z",
+          "artifactId": 9110232640,
+          "artifactName": "snapback-darwin-arm64-latest-public-package-receipt-31513524295",
+          "artifactApiDigest": "sha256:570e6d9c12f253a702b3a218c122acf8dc28483a303e31b2428f6177b58f16fe",
+          "artifactArchiveSha256": "570e6d9c12f253a702b3a218c122acf8dc28483a303e31b2428f6177b58f16fe"
+        },
+        "machine": {
+          "platform": "darwin",
+          "architecture": "arm64",
+          "osRelease": "24.6.0",
+          "nodeVersion": "v24.18.0",
+          "runtimePackage": "@expo/snapback-runtime-darwin-arm64",
+          "runnerEnvironment": "github-hosted",
+          "separatelyProvisionedCleanMachine": true,
+          "githubRunId": "31513524295",
+          "githubRunAttempt": "1",
+          "githubRepository": "expo/snapback",
+          "githubWorkflowSha": "a8d9c5710b344accbbb75631ea39df03444b4468",
+          "easBuildId": null,
+          "easGitCommitHash": null,
+          "easOperationId": null,
+          "easProjectId": null,
+          "easRunner": null,
+          "easWorkflowFilename": null,
+          "easWorkflowRef": null,
+          "easWorkflowRunId": null,
+          "proofHarnessRevision": "a8d9c5710b344accbbb75631ea39df03444b4468"
+        },
+        "latestRootResolution": {
+          "root": "@expo/snapback-cli",
+          "selected": "0.1.19",
+          "installed": {
+            "@expo/snapback-cli": "0.1.19",
+            "@expo/snapback-client": "0.1.19",
+            "@expo/snapback-codegen": "0.1.19",
+            "@expo/snapback-contract": "0.1.19",
+            "@expo/snapback-react": "0.1.19",
+            "@expo/snapback-runtime-darwin-arm64": "0.1.19"
+          },
+          "omittedOptionalPlatformRuntimes": [
+            {
+              "sourceName": "@expo/snapback-runtime-linux-x64",
+              "treePath": [
+                "@expo/snapback-cli",
+                "@expo/snapback-runtime-linux-x64"
+              ]
+            }
+          ],
+          "defaultTagVector": {
+            "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+            "@expo/snapback-runtime-linux-x64": "0.1.19",
+            "@expo/snapback-contract": "0.1.19",
+            "@expo/snapback-client": "0.1.19",
+            "@expo/snapback-codegen": "0.1.19",
+            "@expo/snapback-react": "0.1.19",
+            "@expo/snapback-expo": "0.1.19",
+            "@expo/snapback-app-cli": "0.1.19",
+            "@expo/snapback-cli": "0.1.19",
+            "@expo/snapback-vite": "0.1.19",
+            "create-snapback-app": "0.1.19"
+          }
+        },
+        "latestRootPropagationSha256": "84f6b022fdaf061cabb37bfb8051d2b0328a598172658df39d97ded6eeb0a73e",
+        "browserCaptureSha256": "45fecd6d689a6a9d6c7063f4ab0530e83d7381ad114b71679775b21cde09ce7a",
+        "browserDistributionSha256": "1fdaf2a168dcc4fbc5245864566512935b602a347163a0417f6b248e13c860e0",
+        "browserExecutableSha256": "7687bff7cb2db075f250e6d5848bbc8838cac3802ac3952a899c574f8eccab45",
+        "browserPackageTreeSha256": "d2af5388f6bf212585b0935991b706364752b889fd8024067db3255bc5c2cb4a"
+      },
+      {
+        "platform": "linux-x64",
+        "sha256": "1083af34a47d0b25b5658dd0ffeca15840427e01b1783c21fafd97acab2f7353",
+        "github": {
+          "authorizedLeaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+          "publicationEpoch": 18,
+          "expectedPriorRootVersion": "0.1.18",
+          "repository": "expo/snapback",
+          "workflow": "public-package-proof.yml",
+          "workflowId": 320923038,
+          "workflowPath": ".github/workflows/public-package-proof.yml",
+          "ref": "main",
+          "runId": 31513524295,
+          "runAttempt": 1,
+          "runHeadSha": "a8d9c5710b344accbbb75631ea39df03444b4468",
+          "operationId": "release-0.1.19-20260811-r3",
+          "dispatchStartedAt": "2026-08-11T16:39:09.106Z",
+          "runCreatedAt": "2026-08-11T16:39:10Z",
+          "runStartedAt": "2026-08-11T16:39:10Z",
+          "collectedAt": "2026-08-11T16:45:18.343Z",
+          "artifactId": 9110270323,
+          "artifactName": "snapback-linux-x64-latest-public-package-receipt-31513524295",
+          "artifactApiDigest": "sha256:14b07bb15cd5d0acd61c506ed89f5b5c218987f43aa11d47eb5b6b6171a07bb0",
+          "artifactArchiveSha256": "14b07bb15cd5d0acd61c506ed89f5b5c218987f43aa11d47eb5b6b6171a07bb0"
+        },
+        "machine": {
+          "platform": "linux",
+          "architecture": "x64",
+          "osRelease": "6.17.0-1020-azure",
+          "nodeVersion": "v24.18.0",
+          "runtimePackage": "@expo/snapback-runtime-linux-x64",
+          "runnerEnvironment": "github-hosted",
+          "separatelyProvisionedCleanMachine": true,
+          "githubRunId": "31513524295",
+          "githubRunAttempt": "1",
+          "githubRepository": "expo/snapback",
+          "githubWorkflowSha": "a8d9c5710b344accbbb75631ea39df03444b4468",
+          "easBuildId": null,
+          "easGitCommitHash": null,
+          "easOperationId": null,
+          "easProjectId": null,
+          "easRunner": null,
+          "easWorkflowFilename": null,
+          "easWorkflowRef": null,
+          "easWorkflowRunId": null,
+          "proofHarnessRevision": "a8d9c5710b344accbbb75631ea39df03444b4468"
+        },
+        "latestRootResolution": {
+          "root": "@expo/snapback-cli",
+          "selected": "0.1.19",
+          "installed": {
+            "@expo/snapback-cli": "0.1.19",
+            "@expo/snapback-client": "0.1.19",
+            "@expo/snapback-codegen": "0.1.19",
+            "@expo/snapback-contract": "0.1.19",
+            "@expo/snapback-react": "0.1.19",
+            "@expo/snapback-runtime-linux-x64": "0.1.19"
+          },
+          "omittedOptionalPlatformRuntimes": [
+            {
+              "sourceName": "@expo/snapback-runtime-darwin-arm64",
+              "treePath": [
+                "@expo/snapback-cli",
+                "@expo/snapback-runtime-darwin-arm64"
+              ]
+            }
+          ],
+          "defaultTagVector": {
+            "@expo/snapback-runtime-darwin-arm64": "0.1.19",
+            "@expo/snapback-runtime-linux-x64": "0.1.19",
+            "@expo/snapback-contract": "0.1.19",
+            "@expo/snapback-client": "0.1.19",
+            "@expo/snapback-codegen": "0.1.19",
+            "@expo/snapback-react": "0.1.19",
+            "@expo/snapback-expo": "0.1.19",
+            "@expo/snapback-app-cli": "0.1.19",
+            "@expo/snapback-cli": "0.1.19",
+            "@expo/snapback-vite": "0.1.19",
+            "create-snapback-app": "0.1.19"
+          }
+        },
+        "latestRootPropagationSha256": "369d296193cbc4b272d7aa05dae858a2fa5cc6a19445cf614e8d962d4ebcdda4",
+        "browserCaptureSha256": "08a93dda56bb7d0cd360d134a2f39a0df74306381fdfe77b040fe2780886d3c5",
+        "browserDistributionSha256": "bd019350d72bac4d5722d0054cc6c50358958388891914714df14248323c8759",
+        "browserExecutableSha256": "e11fc9ce65c96313476f7ee9844b6fb6a9220fb048693cfe9eee00acf4170a9f",
+        "browserPackageTreeSha256": "968e1d19ea5c34f4d843db17a64cdc290db27568490b2fac54866818c402724e"
+      }
+    ],
+    "authorityClosure": {
+      "authorityGeneration": 48,
+      "authorityInstallationId": "snapback-publication-primary-v1",
+      "authorityOrigin": "https://snapback-publication-authority.fly.dev",
+      "closed": true,
+      "leaseSha256": "8ba1bfb9ae87ed25847f32b4b81db8342a1afbb220dc5f9d24921536247acf9c",
+      "operationId": "release-0.1.19-20260811-r3",
+      "outcome": "promoted",
+      "publicationEpoch": 18,
+      "publicationLedgerSha256": "78e687f25b56b33b5f374cb2bda39d02e82505d687bc302ea13d780e764608df",
+      "publisherInstanceId": "publisher-host-01",
+      "schemaVersion": "snapback.publication-authority-transition-receipt.v2",
+      "signature": "MayCZCCLfbVea1tYya0wUGHcBtvt1bwrB6zBBvkffdkreCvQ9ALnZVepf4ZR5Jyn5To3Og5BSsQdAGp-0lH_Dg",
+      "signingKeyId": "5ed963fa6665a45924bede1d17b220937c356ec9b8ef1af770d9c5b17da33472",
+      "vectorSha256": "e170b9998c7fa901f1eef2ab9cf5ef8050ca90776ec1bba08b161de9fa5eddfe"
+    }
+  },
+  "finishedAt": "2026-08-11T16:45:27.297Z",
+  "receiptSha256": "afe4576bba9a792ff9c821dfc0799e6d28c45010fc70d5b6871512ced7d56ab6"
+}

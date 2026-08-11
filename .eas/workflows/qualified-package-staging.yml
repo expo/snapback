@@ -373,6 +373,8 @@ jobs:
     needs: [darwin_staged_proof, linux_staged_proof]
     runs_on: linux-medium
     steps:
+      - uses: eas/checkout
+
       - id: qualified_artifact
         uses: eas/download_artifact
         with:

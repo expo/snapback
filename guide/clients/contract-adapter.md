@@ -296,11 +296,7 @@ What the surface does for you:
   });
   ```
 
-<!-- since: 0.1.19 unreleased -->
-
-> **Unreleased.** The keyed ephemeral link family is newer than the newest
-> published Snapback closure, 0.1.18. Use a source build until the next
-> qualified closure is published.
+<!-- since: 0.1.19 -->
 
   One `createSnapbackContractSurface({ keyedQueryScopes: true })` now boots a
   component that combines keyed durable queries with manifest-declared
