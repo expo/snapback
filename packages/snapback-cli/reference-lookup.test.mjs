@@ -55,7 +55,7 @@ assert.equal(capabilityDiagnostic.match, 'diagnostic');
 assert.equal(capabilityDiagnostic.diagnostic.sites, undefined);
 assert.equal(
   capabilityDiagnostic.diagnostic.guideAnchor,
-  '/_snapback/guide/operating/diagnostics.md#diagnose-snapbackcapabilityunsupported',
+  '/_snapback/guide/backend/streamed-actions.md#read-the-refusal-codes',
 );
 const internalDiagnostic = lookupGuideReference(
   ['SNAPBACK_AUTH_SESSION_EXPIRED'],

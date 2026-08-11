@@ -1,5 +1,15 @@
-#[tokio::main]
-async fn main() {
+const SNAPBACK_WORKER_STACK_BYTES: usize = 8 * 1024 * 1024;
+
+fn main() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_stack_size(SNAPBACK_WORKER_STACK_BYTES)
+        .build()
+        .expect("Snapback Tokio runtime must initialize");
+    runtime.block_on(run());
+}
+
+async fn run() {
     if let Err(error) = snapback::cli::run_from_env().await {
         let (exit_code, envelope) = snapback::cli::project_cli_failure(&error);
         if snapback::cli::json_mode_requested() {

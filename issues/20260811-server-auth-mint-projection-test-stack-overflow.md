@@ -3,14 +3,24 @@
 **Status:** Open
 **Date:** 2026-08-11
 **Systems:** server, host-ops, auth, testing
-**Severity:** low (test-harness stack sensitivity; NOT a correctness or production bug)
+**Severity:** medium (the test remains stack-sensitive; the same depth also
+exposed a production runtime configuration bug, fixed in the release-candidate
+follow-up that gives Tokio workers an explicit 8 MiB stack)
 
 `cargo test --lib 'server::tests::auth_mint_host_op_has_exact_projection_and_sessions_only_activation' -- --exact`
 (no DYLD) aborts with `has overflowed its stack` / SIGABRT on default test
 threads (~2MB). It is **not** infinite recursion: with
 `RUST_MIN_STACK=134217728` (128MB) the same test **passes** (1/0). So the logic
 is correct; the projection path is simply deep/stack-hungry and exceeds the 2MB
-test-thread default. Production threads (tokio/main, ≥8MB) are unaffected.
+test-thread default.
+
+The original claim that production Tokio workers already had at least 8 MiB
+was incorrect: the shipped `#[tokio::main]` runtime used Tokio's default worker
+stack and the Expo supervised-dev session mint reproduced the same abort over
+HTTP. The release-candidate fix constructs both native runtimes explicitly
+with an 8 MiB worker stack; that real-server path passes at the new floor.
+This ticket remains open for the isolated lib-test thread, which still uses
+the test harness's smaller default stack.
 
 Because it aborts the whole `server::` lib-test binary, it also masks the rest
 of the `server::` suite's results.
