@@ -55,6 +55,8 @@ const executable = join(
 
 let stdout = '';
 let stderr = '';
+let stdoutRemainder = '';
+const lifecycleEvents = [];
 const checks = [];
 const cleanup = {
   attempted: false,

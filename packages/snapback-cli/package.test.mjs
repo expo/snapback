@@ -482,6 +482,11 @@ console.log(JSON.stringify({
   assert.match(chatAcceptanceSource, /runExpoDev/u);
   assert.match(chatAcceptanceSource, /observeSnapbackSurface/u);
   assert.match(chatAcceptanceSource, /client\.mutate\(api\.sendMessage/u);
+  assert.match(
+    chatAcceptanceSource,
+    /let stdoutRemainder = '';[\s\S]*const lifecycleEvents = \[\];[\s\S]*child\.stdout\.on\('data'/u,
+    'the expo-chat acceptance stream parser must own its retained remainder and lifecycle event state',
+  );
 
   const git = (...args) => {
     const result = spawnSync('git', ['-C', project, ...args], { encoding: 'utf8' });
