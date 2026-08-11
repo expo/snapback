@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "58429ea3365df97a0dab1e977c070d0a3dd998e8",
-    "sourceDigest": "sha256:c533d44a7d024acf8f7c6ac2df61fd9bd890b1c6568a8c5ef765c10e82d2f35c"
+    "commit": "a834672f2baa2049a22950d4717adfca6bceb1cc",
+    "sourceDigest": "sha256:91bb6cf255ca7c90f7a0e0943e09b965b52ed304ba6ba09e092f4bcefb3b117b"
   },
   "limits": {
     "lookupBytes": 16384
@@ -33633,7 +33633,8 @@
       "httpStatusClass": null,
       "guideAnchor": "/_snapback/guide/clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure",
       "guideAnchors": [
-        "/_snapback/guide/clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure"
+        "/_snapback/guide/clients/contract-adapter.md#boot-one-surface-one-idempotent-ensure",
+        "/_snapback/guide/retrieval-eval.md#seed-intents"
       ]
     },
     "SNAPBACK_CONTRACT_INNER_MUTATION_QUEUED": {

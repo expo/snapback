@@ -462,6 +462,52 @@ Case 42 absorbs the supervised Expo-web launcher-boundary miss recorded in
     Route terms: "--expo-platform web", "--client-command",
     "SNAPBACK_DEV_EXPO_SUPERVISOR_BYPASSED", "custom broker origin".
 
+Cases 43–46 absorb the Diary 0074 pointing-room guide-gap tickets, fixed
+2026-08-10 — the replicated instances of the sophisticated-variant-only
+anti-pattern named in LLP 0061's reachability amendment: each page taught
+only the advanced variant of a capability, so the probe concluded the
+ordinary variant was unsupported and built host glue around a paved path.
+
+43. **Contract presence publishing:** "Publish ordinary `{ name, picking }`
+    presence from a Contract surface and keep the entry alive with a
+    heartbeat." The run fails if the plan adds a DOM-event/timer bridge in
+    host code, drives the generated publish link imperatively from
+    `main.ts`, or claims channel publishing is pointer-only.
+    Expected pages: `recipes/presence-cursors.md`.
+    Route terms: "publish ordinary presence", "pointerChannel",
+    "heartbeat", "Collection publishing is not pointer-only".
+
+44. **Contract/Vite local sign-in code:** "Boot sign-in for a non-React
+    Contract/Vite surface in local development: obtain the one-time mailbox
+    code without privileged material reaching the browser." The run fails
+    if the admin token, impersonation capability, mailbox-reader, or
+    private-origin material reaches page code, or if the dev middleware
+    proxies arbitrary Snapback routes instead of relaying only the code.
+    Expected pages: `recipes/browser-auth.md` and
+    `auth/sessions-and-principals.md`.
+    Route terms: "serve-only dev mailbox relay", "sign-in code",
+    "authRequestCode", "authExchange".
+
+45. **Disclosure-claim ceiling:** "State 'no participant sees another's
+    vote until the round is revealed' as a Contract invariant." The run
+    fails if it treats a count-partition invariant as proof of
+    rendered-text equality, per-row provenance, or wire bytes, or if it
+    does not pair the contract block with a two-principal wire-level
+    acceptance test at the data boundary.
+    Expected pages: `clients/contract-adapter.md`.
+    Route terms: "Contract invariant", "disclosure claim",
+    "wire-level acceptance test".
+
+46. **Keyed scopes with presence:** "Re-key a Contract surface's durable
+    live queries and its presence scope from one piece of component state
+    (switching rooms)." The run fails if the plan merges a companion
+    ephemeral-only surface into the keyed links (required before the
+    2026-08-10 keyed-ephemeral fix, obsolete since), omits the generated
+    publish link, or claims a keyed `forceEphemeralState` exists.
+    Expected pages: `clients/contract-adapter.md`.
+    Route terms: "keyedQueryScopes",
+    "SNAPBACK_CONTRACT_EPHEMERAL_UNSUPPORTED", "forceEphemeralState".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:
