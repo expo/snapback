@@ -2,24 +2,72 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-06",
   "source": {
-    "revision": "f045d6c1c65d6e73435dca5a95799fc5093333d3",
+    "revision": "4c258767642a9e3f1ed3575499251b8aa7bbe668",
     "dirty": true,
     "dirtyPaths": [
       "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
       "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
       "demos/triage-graph/snapback/generated/artifacts.json",
       "demos/triage-graph/snapback/trusted-composition-activation.json",
+      "guide/guide-flat.generated.md",
+      "guide/guide-flat.reference.generated.md",
+      "guide/guide-manifest.generated.json",
+      "guide/reference/diagnostics-registry.json",
+      "guide/reference/diagnostics.md",
+      "guide/reference/expo-snapback-cli--verify.md",
+      "guide/reference/expo-snapback-client--agent-authority.md",
+      "guide/reference/expo-snapback-client--app-data.md",
+      "guide/reference/expo-snapback-client--assets.md",
+      "guide/reference/expo-snapback-client--canonical-client-value.md",
+      "guide/reference/expo-snapback-client--client-diagnostics.md",
+      "guide/reference/expo-snapback-client--commands.md",
+      "guide/reference/expo-snapback-client--evaluation-floor.md",
+      "guide/reference/expo-snapback-client--external-store.md",
+      "guide/reference/expo-snapback-client--hosted-browser.md",
+      "guide/reference/expo-snapback-client--ir-evaluator.md",
+      "guide/reference/expo-snapback-client--lease-convergence.md",
+      "guide/reference/expo-snapback-client--local-read-admission.md",
+      "guide/reference/expo-snapback-client--materialization-store.md",
+      "guide/reference/expo-snapback-client--micro-core.md",
+      "guide/reference/expo-snapback-client--micro-live.md",
+      "guide/reference/expo-snapback-client--micro.md",
+      "guide/reference/expo-snapback-client--online.md",
+      "guide/reference/expo-snapback-client--optimistic-rebase.md",
+      "guide/reference/expo-snapback-client--outbox-shared.md",
+      "guide/reference/expo-snapback-client--push-installation-expo.md",
+      "guide/reference/expo-snapback-client--push-registry.md",
+      "guide/reference/expo-snapback-client--react-binding.md",
+      "guide/reference/expo-snapback-client--remediation.md",
+      "guide/reference/expo-snapback-client--result-transform.md",
+      "guide/reference/expo-snapback-client--rqs-preload.md",
+      "guide/reference/expo-snapback-client--rqs-registered.md",
+      "guide/reference/expo-snapback-client--rqs-store-default.md",
+      "guide/reference/expo-snapback-client--rqs-store-expo.md",
+      "guide/reference/expo-snapback-client--rqs-store-file.md",
+      "guide/reference/expo-snapback-client--rqs-store.md",
+      "guide/reference/expo-snapback-client--rqs.md",
+      "guide/reference/expo-snapback-client--search.md",
+      "guide/reference/expo-snapback-client--vector-search.md",
+      "guide/reference/expo-snapback-client.md",
+      "guide/reference/expo-snapback-codegen--ctx.md",
+      "guide/reference/expo-snapback-expo--app-binding.md",
+      "guide/reference/expo-snapback-expo--app.plugin.md",
+      "guide/reference/expo-snapback-expo--asset-source.md",
+      "guide/reference/expo-snapback-expo--config-plugin.md",
+      "guide/reference/expo-snapback-expo--supervised-environment.md",
+      "guide/reference/expo-snapback-expo.md",
+      "guide/reference/expo-snapback-react--core.md",
+      "guide/reference/expo-snapback-react--thumbhash.md",
+      "guide/reference/expo-snapback-react.md",
+      "guide/reference/index.md",
+      "guide/reference/registry.json",
       "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fixtures/fleet-observatory/runtime-readiness.2026-08-06.v1.json",
       "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
       "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
       "tests/acceptance/fleet-observatory-move1-v1-evidence.md",
-      "tests/acceptance/triage-graph-move1-v1-evidence.md",
-      "llp/0232-green-pointer-development-model.rfc.md",
-      "llp/reviews/0232-green-pointer-development-model.claude.md",
-      "llp/reviews/0232-green-pointer-development-model.gpt-5.md",
-      "llp/reviews/0232-green-pointer-development-model.run.md"
+      "tests/acceptance/triage-graph-move1-v1-evidence.md"
     ],
     "files": [
       {
@@ -112,19 +160,19 @@
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json",
-        "sha256": "02df0b73bb5bbf1573bbb8a44aaa4b40b0618d144877cc4518a1c67fe5a1df13"
+        "sha256": "256bb7a7454390f7fe2da47c1fa86a5e20ab5d6ca2b9475c94a2c3e2301f5e48"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json",
-        "sha256": "0c2c222a84b9938f5b5a16b91011f4da3f74ac2e46fcd58074c3af36f4ff7eeb"
+        "sha256": "c04cc4f7ac9646b9a63b4eabb682c15925bb5f43b5ae5f8454e3d19a14d8d847"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json",
-        "sha256": "fadfa238467e0c1e2d9c75e473d87223f9a0658958f8381a864e335800a8c24e"
+        "sha256": "a8379a094515486009a49c6ddf2eaa205bd2d21aa869cd9351cdc892359258e7"
       },
       {
         "path": "tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json",
-        "sha256": "b860a3f5a4779a27f2aaf2b9318ca09606c9ef96ba3ba6f72b19d1dfe0cb17ae"
+        "sha256": "0d2169263f479dc74637d90f406bc9ea3e70f80b4fb8409eec7c647e3388bb3a"
       }
     ]
   },
@@ -149,7 +197,7 @@
   },
   "output": {
     "minifiedBytes": 768934,
-    "gzipBytes": 212735,
+    "gzipBytes": 211934,
     "brotliBytes": 170805,
     "sha256": "1fb54018cc11c440a8985da612022f38d7af0e7cc89a6b1584dd48d7ace9aeb9"
   },
