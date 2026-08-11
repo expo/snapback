@@ -33,8 +33,8 @@ every restricted policy from RQS.
 The real-session acceptance fixture
 `tests/acceptance/table-visibility-any-of-live.mjs` models Following as a
 dedicated membership projection. It proves the author arm without a self-edge,
-follow insertion and deletion in a live result, anonymous denial, and an
-authenticated stranger's positive owner arm plus negative cross-user leak
+follow insertion and deletion in a live result, an anonymous empty result, and
+an authenticated stranger's positive owner arm plus negative cross-user leak
 probe.
 
 LLP 0231 OQ1 and the auth guide record the exact bounded decision and its
