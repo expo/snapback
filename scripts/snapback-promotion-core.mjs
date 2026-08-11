@@ -651,6 +651,28 @@ export function buildPostPromotionLedger({
   return validatePostPromotionLedger(ledger);
 }
 
+// GitHub's REST API reports run timestamps as canonical UTC at SECOND
+// precision (2026-08-11T01:39:43Z), and those raw strings must survive
+// unmodified end-to-end because the dispatch helper's collection reopen
+// compares them byte-exactly against the live run. The receipt validator
+// therefore accepts exactly the two canonical shapes — GitHub's
+// second-precision form and the helper-minted millisecond form — instead of
+// normalizing at mint (release-0.1.18-20260811-r10 refused a successful
+// collected proof on runCreatedAt).
+function parseGithubApiTimestamp(value, field) {
+  if (/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/u.test(value ?? '')) {
+    const parsed = Date.parse(value);
+    if (
+      !Number.isFinite(parsed)
+      || new Date(parsed).toISOString() !== value.replace('Z', '.000Z')
+    ) {
+      throw new Error(`${field} is not canonical`);
+    }
+    return parsed;
+  }
+  return parseTimestamp(value, field);
+}
+
 export function validatePostPromotionLatestRootReceipts(receipts, operationId) {
   if (!Array.isArray(receipts) || receipts.length !== 2) {
     throw new Error('post-promotion latest receipts are incomplete');
@@ -683,7 +705,7 @@ export function validatePostPromotionLatestRootReceipts(receipts, operationId) {
       'runStartedAt',
       'collectedAt',
     ]) {
-      githubTimes[field] = parseTimestamp(
+      githubTimes[field] = parseGithubApiTimestamp(
         receipt.github[field],
         `latest receipt ${index}.github.${field}`,
       );
