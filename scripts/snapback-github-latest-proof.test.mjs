@@ -5,6 +5,8 @@ import { test } from 'node:test';
 import {
   isTransientGithubTransportError,
   parseArgs,
+  requireAncestorComparisonStatus,
+  selectDispatchedRun,
   validateExistingLatestReceipt,
   validateGithubLatestProofCollection,
 } from './snapback-github-latest-proof.mjs';
@@ -24,6 +26,7 @@ const CONTEXT = {
   workflow: 'public-package-proof.yml',
   ref: 'agent/release',
   expectedHeadSha: 'a'.repeat(40),
+  runHeadSha: 'a'.repeat(40),
   expectedPriorRootVersion: '0.1.0',
   authorizedLeaseSha256: 'c'.repeat(64),
   publicationEpoch: 17,
@@ -109,7 +112,48 @@ test('transient gh transport failures are retryable, judgments are not', () => {
   }
 });
 
-function receipt(platform = 'darwin', architecture = 'arm64') {
+test('dispatched-run correlation is operation-unique and head-ancestry based, never tip equality', () => {
+  const dispatchStartedAt = Date.parse('2026-08-11T00:26:40.000Z');
+  const operationId = 'release-0.1.18-20260811-r6';
+  const displayTitle = `public-package-proof-${operationId}`;
+  const runs = [{
+    databaseId: 31446058314,
+    displayTitle,
+    createdAt: '2026-08-11T00:26:42Z',
+    headSha: 'b'.repeat(40),
+  }];
+  assert.equal(
+    selectDispatchedRun(runs, { operationId, dispatchStartedAt }),
+    31446058314,
+  );
+  assert.equal(selectDispatchedRun([
+    { ...runs[0], displayTitle: 'public-package-proof-other-operation' },
+    { ...runs[0], createdAt: '2026-08-11T00:28:11Z' },
+  ], { operationId, dispatchStartedAt }), null);
+  assert.throws(() => selectDispatchedRun([
+    runs[0],
+    { ...runs[0], databaseId: 31446058315 },
+  ], { operationId, dispatchStartedAt }), /matched multiple runs/u);
+
+  const heads = {
+    expectedHeadSha: 'a'.repeat(40),
+    runHeadSha: 'b'.repeat(40),
+  };
+  assert.equal(requireAncestorComparisonStatus('ahead', heads), 'ahead');
+  assert.equal(requireAncestorComparisonStatus('identical', heads), 'identical');
+  for (const status of ['behind', 'diverged', undefined]) {
+    assert.throws(
+      () => requireAncestorComparisonStatus(status, heads),
+      /does not contain the plan-pinned head/u,
+    );
+  }
+});
+
+function receipt(
+  platform = 'darwin',
+  architecture = 'arm64',
+  runHeadSha = CONTEXT.runHeadSha,
+) {
   const platformId = `${platform}-${architecture}`;
   const latestRootResolution = {
     root: '@expo/snapback-cli',
@@ -164,7 +208,7 @@ function receipt(platform = 'darwin', architecture = 'arm64') {
       dirty: false,
     },
     proofHarnessCheckout: {
-      headSha: CONTEXT.expectedHeadSha,
+      headSha: runHeadSha,
       dirty: false,
     },
     githubProof: {
@@ -175,7 +219,7 @@ function receipt(platform = 'darwin', architecture = 'arm64') {
       eventName: 'workflow_dispatch',
       runId: String(CONTEXT.runId),
       runAttempt: String(CONTEXT.runAttempt),
-      runHeadSha: CONTEXT.expectedHeadSha,
+      runHeadSha,
       operationId: CONTEXT.operationId,
     },
     machine: {
@@ -186,13 +230,13 @@ function receipt(platform = 'darwin', architecture = 'arm64') {
       githubRunId: String(CONTEXT.runId),
       githubRunAttempt: String(CONTEXT.runAttempt),
       githubRepository: CONTEXT.repository,
-      githubWorkflowSha: CONTEXT.expectedHeadSha,
-      proofHarnessRevision: CONTEXT.expectedHeadSha,
+      githubWorkflowSha: runHeadSha,
+      proofHarnessRevision: runHeadSha,
     },
   };
 }
 
-function collection(bytesByPlatform) {
+function collection(bytesByPlatform, runHeadSha = CONTEXT.runHeadSha) {
   const artifacts = [...bytesByPlatform.entries()].map(([platform, bytes], index) => {
     const archiveSha256 = String(index + 1).repeat(64);
     return {
@@ -220,7 +264,7 @@ function collection(bytesByPlatform) {
       `.github/workflows/${CONTEXT.workflow}@refs/heads/${CONTEXT.ref}`,
     ref: CONTEXT.ref,
     expectedHeadSha: CONTEXT.expectedHeadSha,
-    runHeadSha: CONTEXT.expectedHeadSha,
+    runHeadSha,
     operationId: CONTEXT.operationId,
     ledgerRevision: CONTEXT.ledgerRevision,
     runId: CONTEXT.runId,
@@ -293,12 +337,36 @@ test('collection binds run attempt, artifact ids/digests, receipt bytes, and fre
     receiptBytesByPlatform: bytes,
     now: NOW,
   }), value);
+  const advancedRunHeadSha = 'e'.repeat(40);
+  const advancedBytes = new Map([
+    [
+      'darwin-arm64',
+      Buffer.from(JSON.stringify(receipt('darwin', 'arm64', advancedRunHeadSha))),
+    ],
+    [
+      'linux-x64',
+      Buffer.from(JSON.stringify(receipt('linux', 'x64', advancedRunHeadSha))),
+    ],
+  ]);
+  const advancedValue = collection(advancedBytes, advancedRunHeadSha);
+  assert.equal(validateGithubLatestProofCollection({
+    collection: advancedValue,
+    options,
+    ledgerIdentity: {
+      revision: CONTEXT.ledgerRevision,
+      candidateLedgerSha256: CONTEXT.candidateLedgerSha256,
+      version: CONTEXT.candidateRootVersion,
+    },
+    receiptBytesByPlatform: advancedBytes,
+    now: NOW,
+  }), advancedValue);
   for (const mutate of [
     (candidate) => { candidate.runAttempt = 1; },
     (candidate) => { candidate.operationId = 'other-operation'; },
     (candidate) => { candidate.expectedPriorRootVersion = '0.0.9'; },
     (candidate) => { candidate.authorizedLeaseSha256 = 'e'.repeat(64); },
     (candidate) => { candidate.publicationEpoch = 18; },
+    (candidate) => { candidate.runHeadSha = 'not-40-hex'; },
     (candidate) => { candidate.candidateLedgerSha256 = 'f'.repeat(64); },
     (candidate) => { candidate.candidateRootVersion = '0.1.2'; },
     (candidate) => { candidate.artifacts[0].artifactId = 0; },

@@ -218,6 +218,31 @@ function runGhJson(args) {
   }
 }
 
+const verifiedAncestorRunHeads = new Map();
+function requireRunHeadContainsExpectedHead(options, runHeadSha) {
+  if (!/^[0-9a-f]{40}$/u.test(runHeadSha ?? '')) {
+    fail('GitHub run head is not one lowercase Git SHA');
+  }
+  if (runHeadSha === options.expectedHeadSha) return 'identical';
+  const cached = verifiedAncestorRunHeads.get(runHeadSha);
+  if (cached !== undefined) return cached;
+  // gh --jq prints scalar strings raw (no JSON quoting), so this reads the
+  // trimmed stdout directly; per_page=1 bounds the compare payload, whose
+  // commit/file listings are irrelevant to the ancestry verdict.
+  const status = runGh([
+    'api',
+    '-H', 'Accept: application/vnd.github+json',
+    `repos/${options.repository}/compare/${options.expectedHeadSha}...${runHeadSha}?per_page=1`,
+    '--jq', '.status',
+  ]).trim();
+  requireAncestorComparisonStatus(status, {
+    expectedHeadSha: options.expectedHeadSha,
+    runHeadSha,
+  });
+  verifiedAncestorRunHeads.set(runHeadSha, status);
+  return status;
+}
+
 // gh transport failures (non-zero gh exit, non-JSON output) during run-state
 // POLLING are retryable inside the wait deadline: polling only observes, and
 // acceptance still requires an identity-bound successful readRun plus the
@@ -293,6 +318,38 @@ function expectedWorkflowPath(ref) {
   return `.github/workflows/${LATEST_PROOF_WORKFLOW}@refs/heads/${ref}`;
 }
 
+// The dispatched run is correlated by its unique operation-id run name plus
+// the dispatch-time window — never by branch-tip equality. Fleet sessions
+// land commits continuously, so the branch tip at run creation is routinely
+// ahead of the plan-pinned head (release-0.1.18-20260811-r5/r6 both failed
+// correlation on exactly that).
+export function selectDispatchedRun(runs, { operationId, dispatchStartedAt }) {
+  const expectedTitle = `public-package-proof-${operationId}`;
+  const matches = runs.filter((run) => (
+    run.displayTitle === expectedTitle
+    && Date.parse(run.createdAt) >= dispatchStartedAt - 5_000
+    && Date.parse(run.createdAt) <= dispatchStartedAt + 90_000
+  ));
+  if (matches.length > 1) {
+    fail('workflow dispatch correlation matched multiple runs');
+  }
+  return matches.length === 1 ? matches[0].databaseId : null;
+}
+
+// Head integrity replaces tip equality with containment: the plan-pinned
+// head must be an ancestor of (compare status "ahead") or identical to the
+// observed run head, so the proof runs harness code at-or-after the pinned
+// head that carries the committed candidate ledger.
+export function requireAncestorComparisonStatus(status, { expectedHeadSha, runHeadSha }) {
+  if (status !== 'ahead' && status !== 'identical') {
+    fail(
+      `GitHub run head ${runHeadSha} does not contain the plan-pinned head `
+        + `${expectedHeadSha} (compare status ${status ?? 'unknown'})`,
+    );
+  }
+  return status;
+}
+
 export function validateExistingLatestReceipt(receipt, platform, context = null) {
   const [expectedPlatform, expectedArchitecture] = platform.split('-');
   if (
@@ -312,12 +369,12 @@ export function validateExistingLatestReceipt(receipt, platform, context = null)
       expectedRevision: context.ledgerRevision,
       expectedWorkflow: context.workflow,
       expectedOperationId: context.operationId,
-      expectedWorkflowHead: context.expectedHeadSha,
+      expectedWorkflowHead: context.runHeadSha,
     });
     if (
       receipt.githubProof.runId !== String(context.runId)
       || receipt.githubProof.runAttempt !== String(context.runAttempt)
-      || receipt.githubProof.runHeadSha !== context.expectedHeadSha
+      || receipt.githubProof.runHeadSha !== context.runHeadSha
       || receipt.githubProof.ref !== `refs/heads/${context.ref}`
       || receipt.version !== context.candidateRootVersion
       || receipt.candidateLedgerSha256 !== context.candidateLedgerSha256
@@ -353,7 +410,6 @@ async function wait(delayMs) {
 
 async function discoverRun(options, dispatchStartedAt) {
   const deadline = Date.now() + Math.min(options.timeoutMs, 90_000);
-  const expectedTitle = `public-package-proof-${options.operationId}`;
   while (Date.now() < deadline) {
     let runs;
     try {
@@ -372,14 +428,11 @@ async function discoverRun(options, dispatchStartedAt) {
       await wait(2_000);
       continue;
     }
-    const matches = runs.filter((run) => (
-      run.displayTitle === expectedTitle
-      && run.headSha === options.expectedHeadSha
-      && Date.parse(run.createdAt) >= dispatchStartedAt - 5_000
-      && Date.parse(run.createdAt) <= dispatchStartedAt + 90_000
-    ));
-    if (matches.length === 1) return matches[0].databaseId;
-    if (matches.length > 1) fail('workflow dispatch correlation matched multiple runs');
+    const runId = selectDispatchedRun(runs, {
+      operationId: options.operationId,
+      dispatchStartedAt,
+    });
+    if (runId !== null) return runId;
     await wait(2_000);
   }
   fail('dispatched workflow run did not become observable');
@@ -399,7 +452,6 @@ function readRun(options, runId, dispatchStartedAt) {
   if (
     run.id !== Number(runId)
     || run.event !== 'workflow_dispatch'
-    || run.head_sha !== options.expectedHeadSha
     || run.head_branch !== options.ref
     || run.path !== expectedWorkflowPath(options.ref)
     || run.workflow_id !== workflow.id
@@ -415,6 +467,7 @@ function readRun(options, runId, dispatchStartedAt) {
   ) {
     fail('GitHub run identity/freshness does not match the closed dispatch');
   }
+  requireRunHeadContainsExpectedHead(options, run.head_sha);
   return { run, workflow };
 }
 
@@ -521,7 +574,8 @@ export function validateGithubLatestProofCollection({
     || collection.expectedPriorRootVersion !== options.expectedPriorRootVersion
     || collection.authorizedLeaseSha256 !== options.authorizedLeaseSha256
     || collection.publicationEpoch !== options.publicationEpoch
-    || collection.runHeadSha !== options.expectedHeadSha
+    // The run head is bound to the live run and its ancestry at reopen time, not structurally.
+    || !/^[0-9a-f]{40}$/u.test(collection.runHeadSha ?? '')
     || collection.operationId !== options.operationId
     || collection.ledgerRevision !== ledgerIdentity.revision
     || collection.candidateLedgerSha256 !== ledgerIdentity.candidateLedgerSha256
@@ -610,6 +664,7 @@ function reopenCollection(options, collection, ledgerIdentity) {
     || observed.run.run_attempt !== collection.runAttempt
     || observed.run.created_at !== collection.runCreatedAt
     || observed.run.run_started_at !== collection.runStartedAt
+    || observed.run.head_sha !== collection.runHeadSha
     || observed.workflow.id !== collection.workflowId
   ) {
     fail('GitHub run changed or is not successful during collection reopen');
@@ -681,6 +736,7 @@ async function dispatch(options) {
     candidateRootVersion: ledgerIdentity.version,
     runId,
     runAttempt: observed.run.run_attempt,
+    runHeadSha: observed.run.head_sha,
   };
   const retainedArtifacts = [];
   for (const [platform, outputPath] of [
