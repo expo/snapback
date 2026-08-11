@@ -9,7 +9,7 @@
   "auth": {
     "mode": "sessions"
   },
-  "authoredSourceHash": "sha256:8fbef78c58431ef67a90972523693d6776456592329fe3be6f7088cf7b405f94",
+  "authoredSourceHash": "sha256:bc1500c2a60f0b61477653629ef6a7320dc40ac4670e069d8174161650333b13",
   "ephemeralCollections": [
     {
       "burst": 12,
@@ -68,12 +68,12 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:e42468ddd7531f8f462496918c471466166d12721721c6c0285d31806e34ef8c",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:a7f79c42774945a046962a93e9c2f027c891cf37a64414f189b3677fd2da1561",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:97b7deee92f9058920b544e478fee052ca519e0761ef6a9d73dcba124b67b5ec",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:09ee2a309aa629aee4037b17a75b6d7897fe7551386ff435cdad5740d5a8e9ff",
   "schemaVersion": "snapback.v1",
   "tables": [
     {

@@ -7,15 +7,15 @@
   ],
   "qualificationReceiptSha256": "sha256:362ed2bc9443a6a027b224705c21ad516b647583a1dfda7d2056205e3a4fa6da",
   "executorSourceSha256": {
-    "src/local.rs": "sha256:2bc40947f30ebdf6ab959a8e941a4f15e30a13fc851b75a17cbad4709e0d372c",
-    "src/local/auth_room_kick_acceptance.rs": "sha256:8d756f057cae42d67bf9d466aaf36bf4b449ff12fc05f28b0e56c4bbfd774374",
+    "src/local.rs": "sha256:f888a57c151fd0b26d375523a6500af85a567fd4adb65b36b67174c0a4b6fc95",
+    "src/local/auth_room_kick_acceptance.rs": "sha256:b380e4856f1e67fd6e7e96bd28af5de0d7623cd3df29b17a6bd5de5cf5811720",
     "src/local/authorization_acceptance.rs": "sha256:d785824c0d4dbaa9463f9a10dd54014af9ec07793d9ac067ca3a562049d68a07",
     "src/local/config_types.rs": "sha256:ccae542de561b1e394053f482f21b88118c74d028017f72307691b806f2b0e85",
     "src/local/inspection.rs": "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679",
     "src/local/live_protocol.rs": "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090",
     "src/local/receipt_log.rs": "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add",
-    "src/local/tests.rs": "sha256:5984289247755c13b8db67eba62c9fd5d5bf788f756d753d3f957c1b74be3cc9",
-    "src/storage.rs": "sha256:69504d62b3f46145c6e7643bb217ed484ba0a54256a03a64d9f22dd02b84d04b",
+    "src/local/tests.rs": "sha256:8c36bc4293eb5b4a9a21279a747138426c5cb25281b822e110968a82abc4c25a",
+    "src/storage.rs": "sha256:137ae3f6377f62971cf4079e4796f9929564fe0dc63461f9cdc708b30f64fb27",
     "src/storage/auth.rs": "sha256:4af814a097b0f766f2bc1d57501b0a468d8f19d895420775cc4095b99810f9c8",
     "src/storage/auth_agent_credentials.rs": "sha256:e51d28284648094b0dc429e9bf5ecb2b765a97e121b4c5e8f5e3f1141270bb74",
     "src/storage/auth_agents.rs": "sha256:ddee7ebe59434cd2c4aa368fd96896b4187dca1f56b81ca5e19fddc23b6704c3",
@@ -24,7 +24,7 @@
     "src/storage/auth_invalidation.rs": "sha256:575782a9d656905c0a127ab6b2c0fd83d7951cc3452f0944b3c04e3df17a9099",
     "src/storage/auth_mode.rs": "sha256:9c881e67f8a75e4bbb969ef3ccb3528d4346081f145838f2ad3d7982774765e8",
     "src/storage/auth_rescue.rs": "sha256:aad890b7d0d57cc917344e0c9436e02acca0cc3fa7ad347bfccc525c389fbe4b",
-    "src/storage/auth_scope_bases.rs": "sha256:3ee8e5dca5fd0c2553ed03db02abba84a9dfcacc6eaeadbd953b11f8079b69ae",
+    "src/storage/auth_scope_bases.rs": "sha256:1d58a12622da72a938d1e60cb3b74197bad35681462f0d3dfa3751270f77e4b6",
     "src/storage/auth_sender.rs": "sha256:e72c2665964b26ba971bee9f745ae8afb53266b76d321c7fcdc888f5a761ab06",
     "src/storage/auth_stream.rs": "sha256:35702716432a3b889c0ba8fb1bd51f82fcfa6dc4f98a89889336ebd413b4df1f",
     "src/storage/auth_throttle.rs": "sha256:ab84db31a7505eacc8b1e32357f0ccd0e3cdf555d11ff716489b94d3d6d71ea7",
@@ -32,15 +32,15 @@
     "src/storage/authorized_lease.rs": "sha256:ce24cfa5d02870ecaa95c1f856f8a64c27d5373cca8613a7a2db9c32b78696ea",
     "src/storage/connections.rs": "sha256:802f027db805e802487a51d16491e224430825aa5eb799669feba4785d605fdd",
     "src/storage/hosted_admission.rs": "sha256:ee1a0b496f36b80949dbab122c2be72f91a4942d44365d509149b6cb38f385ac",
-    "src/storage/migration_executor.rs": "sha256:b65c0ff666b8f915359600df6bbff1803f93bef7b34b6a6ae5a7b0a7c5a2429d",
+    "src/storage/migration_executor.rs": "sha256:36b6ffbda3d5e9b391013f628e4db0eb6b9262b958e855ad46ab860b11545e25",
     "src/storage/migration_scan.rs": "sha256:77e87db570420bec02a3b7dc56bca5a847119bc2e7f6432f178e8914323671f1",
-    "src/storage/projection_rebuild.rs": "sha256:3275766501ca2d21ca57fa83b348026f5ce6264336b68cfd280d8e1549512fde",
+    "src/storage/projection_rebuild.rs": "sha256:a806a5f5f1068fe160b5c7b36e48e7cda24ad8a37f01a9b21d64627880214f0a",
     "src/storage/schema_transition.rs": "sha256:c91c85ef764082865c95059dc2ba755f23ea3eabc88b6260a2f08f8705957952",
-    "src/storage/tests.rs": "sha256:57b3bcc8b54af77508c5e97b4df15fda8e968f889c6f7491a379e376c65dff4d",
+    "src/storage/tests.rs": "sha256:760b0191bc241d92e45c2f87efce68a3794a0ff82ea632d849086f7a50ac568e",
     "src/storage/write_authority.rs": "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/define.mjs": "sha256:0242caac140a9cb6f093218bfcb766f097649e050b0a8c45050371e550b9be0f"
+    "packages/snapback-codegen/define.mjs": "sha256:5c3c43e713aac48fe86e962faa9595d8c91d485b26c0ef9e49220cac9fc3244f"
   },
   "packageClosureSha256": null,
   "buildProvenanceRequirement": "source-commit-and-embedded-carrier-sha256"
