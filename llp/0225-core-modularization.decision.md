@@ -34,6 +34,9 @@ to the contract leaf, twelve frozen edges removed and none added)
 value shapes to the leaf; the remaining item-3 edges raised as an ownership question)
 **Revised:** 2026-08-10 (l — merge-wave reconciliation of the §5 enforcement
 landing; see Revision history)
+**Revised:** 2026-08-11 (n — §4 rules the item-3 remainder: the split runs
+through `src/auth/provider.rs`, not `src/storage/auth_catalog_ops.rs`; see
+Revision history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -561,16 +564,85 @@ edges; the survey initially predicted schema_seed would clear, which was wrong
 The remaining item-3 edges are **not** shape moves and should not be attempted
 as such: `storage/auth_catalog_ops.rs` calls 24 functions in
 `src/auth/provider.rs`, and `storage/auth_sender.rs` imports six more from
-`sender_proof`. Whether that is a misassignment, an inversion, or (most likely)
-a split is an open ownership question recorded in
-`issues/20260810-item-3-remainder-auth-catalog-ops-owner-question.md`; taking
-it either way trades §3.1's transaction authority against §2's rule that the
-kernel owns no policy.
+`sender_proof`. That was raised as an open ownership question and is now
+**ruled** — see the next section, which also corrects the premise this
+paragraph was written on.
 
 Characterization envelope: pure relocation — `auth`/`storage`/`server` lib-test
 failure name sets byte-identical to the merge-base (630/58, 385/50, 265/24
 pre-existing), `cargo build --all-targets` and `./ref-check --verbose` green,
 and the persisted serde encoding carried verbatim.
+
+### Item-3 remainder — the provider split, ruled (sequenced)
+
+Ruled 2026-08-11 under §5 (module assignments are operational) and §6 (a split
+that changes an assignment's meaning is a semantic slice and follows §4). The
+ruling **rejects the framing the question was filed under**, because reading
+the function *bodies* rather than the import list inverts the picture.
+
+**The corrected finding.** `src/storage/auth_catalog_ops.rs` is not "the SQL
+half of the provider's session lifecycle." It is the *transaction-scoping*
+half, and it is correctly kernel-owned: its operations open the connection or
+immediate transaction — §3.1's commit primitive — and hand the borrowed
+`&Transaction` to a function in `src/auth/provider.rs`. The SQL bodies are in
+the **sync-owned** module. `planned_revocation_transaction`,
+`plan_exchange_read`, `plan_session_issuance_read`,
+`lookup_presented_session`, `reconcile_planned_revocation` and their siblings
+all have the same shape: `&Connection`/`&Transaction` plus an
+already-composed typed plan, then `UPDATE`/`SELECT` against `_auth_sessions`,
+`_auth_identities`, `_auth_session_tokens`, and a call *down* into
+`crate::storage::auth::*_in` helpers. The `plan_*` names describe what the
+returned value is for, not what the function does.
+
+**So both candidate resolutions in the question were wrong**, and their
+"opposite failure modes" were an artifact of the wrong premise. Reassigning
+`auth_catalog_ops.rs` to sync (a) would move the transaction primitive *out*
+of the kernel while leaving canonical-store SQL in a domain service —
+strictly worse on §3.1. Rewriting its wrappers into "typed kernel operations"
+(b) is the right *direction* stated at the wrong *module*: the wrappers are
+already typed kernel operations.
+
+**The ruling.** The split runs through `src/auth/provider.rs`, in three
+directions at once:
+
+1. **Behavior down.** A function whose body is SQL against the canonical
+   auth store is a kernel commit primitive by §3.1 and moves into
+   `src/storage/`, co-located with the wrapper that scopes its transaction.
+   The kernel then never calls up for it.
+2. **Shapes down.** The plan/outcome value types that cross the boundary
+   (`ProviderRevocationPlan`, `PlannedRevocationCommit`, `SessionCandidate`,
+   `PlannedIdentityState`, `AuthProviderProfile`, and their ~15 siblings) go
+   to the contract leaf, or the relocated body still returns a sync-owned
+   type and the edge survives the move.
+3. **Policy stays.** Composing a plan, choosing which attempt to make, and
+   classifying a refusal remain in `provider.rs`. §2 is explicit that neither
+   the leaf nor the kernel owns domain policy, and this is the clause the
+   slice must not spend.
+
+**Where the line is genuinely hard, and how to cut it.** Two of the reads
+(`plan_exchange_read`, `plan_session_issuance_read`) both fetch durable rows
+*and* classify them — attempt exhaustion, expiry, consumed/superseded state,
+`Create` versus `Existing` identity. That classification is policy. The cut is
+therefore not "move the function": the kernel operation returns the durable
+facts it read, and `provider.rs` classifies them into the plan. That is what
+makes this a semantic slice with a characterization envelope rather than a
+relocation, and it is why it is sequenced rather than folded into a shape cut.
+
+`src/storage/auth_sender.rs` → `src/auth/sender_proof.rs` (six functions) is
+the same class and takes the same ruling.
+
+**Sequence.** A1 shapes down (proven recipe; clears
+`store_state → provider` and `auth_rehearsal → provider`), A2 the provider
+bodies, A3 the sender-proof bodies. A2 is the substantial one: ~24 functions
+across a 7,466-line module, and it carries the classification split above.
+The implementation worklist is
+`issues/20260811-llp0225-item-3-provider-split-implementation.md`; the
+question that produced this ruling is closed at
+`issues/closed/20260810-item-3-remainder-auth-catalog-ops-owner-question.md`.
+
+This ruling changes no owner, rank, or `allowedDependencies` entry, so §5's
+amendment-only rule for dependency direction is not engaged; it records what
+the eventual module *assignments* will mean, which §5 makes operational.
 
 ### Continuing sequence (order of intent, not a schedule)
 
@@ -864,3 +936,17 @@ so slices can follow product priorities.
   by `issues/20260810-main-module-ownership-red-jobs-edges.md`. Waiver
   deadlines are escalation metadata: an expired deadline blocks only NEW
   admissions and never wedges parsing of committed snapshots.
+- **2026-08-11 (n).** §4 rules the item-3 remainder that revision (m) left
+  open, and corrects the premise the question was filed under: reading the
+  function bodies (not the import list) shows `src/storage/auth_catalog_ops.rs`
+  is the *transaction-scoping* half — correctly kernel-owned under §3.1 — while
+  the canonical-store SQL lives in the sync-owned `src/auth/provider.rs`. Both
+  resolutions the question offered were therefore wrong, and their "opposite
+  failure modes" were an artifact of the inverted premise. The ruling splits
+  `provider.rs` three ways — SQL bodies down to the kernel, plan/outcome value
+  shapes down to the leaf, plan composition and refusal classification staying
+  in sync — with the read-and-classify functions cut so the kernel returns
+  durable facts and sync classifies them. Sequenced A1/A2/A3 in
+  `issues/20260811-llp0225-item-3-provider-split-implementation.md`; no owner,
+  rank, or `allowedDependencies` entry changes, so §5's amendment-only rule for
+  dependency direction is not engaged.

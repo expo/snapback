@@ -357,6 +357,19 @@ Four more frozen kernel->sync edges inverted (370 -> 366) by moving
 `SessionProjection` deliberately did NOT move (36 methods — it is the behavior
 the boundary exists to keep in sync), which is why `storage/auth_stream`,
 `storage/tests`, and `storage/schema_seed` keep their edges. Those, plus the
-`auth_catalog_ops`/`auth_sender` function call-ups, are the ownership question
-in `issues/20260810-item-3-remainder-auth-catalog-ops-owner-question.md` and
-need a ruling before more of item 3 moves.
+`auth_catalog_ops`/`auth_sender` function call-ups, were raised as an ownership
+question.
+
+**Item-3 remainder RULED 2026-08-11.** LLP 0225 revision (n), §4 "Item-3
+remainder — the provider split, ruled". The question's premise was inverted:
+`storage/auth_catalog_ops.rs` is the *transaction-scoping* half (correctly
+kernel-owned under §3.1) and the canonical-store SQL lives in the sync-owned
+`src/auth/provider.rs`. The split therefore runs through `provider.rs` — SQL
+bodies down to the kernel, plan/outcome shapes down to the leaf, plan
+composition and refusal classification staying in sync, with the
+read-and-classify functions cut so the kernel returns durable facts and sync
+classifies them. Sequenced A1/A2/A3 in
+`issues/20260811-llp0225-item-3-provider-split-implementation.md`; the question
+is closed at
+`issues/closed/20260810-item-3-remainder-auth-catalog-ops-owner-question.md`.
+Item 3 is unblocked.

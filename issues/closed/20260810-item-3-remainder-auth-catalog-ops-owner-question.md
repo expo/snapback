@@ -1,8 +1,52 @@
 # Item-3 remainder: the kernel→sync auth call-ups are an ownership question, not an import fix
 
-**Opened:** 2026-08-10 · **Status:** open, analysis complete, needs a design
-call · **Area:** core modularization / ownership ratchet (LLP 0225 §4
-continuing item 1)
+**Opened:** 2026-08-10 · **Status:** CLOSED 2026-08-11 — ruled, with the
+premise below corrected · **Area:** core modularization / ownership ratchet
+(LLP 0225 §4 continuing item 1)
+
+## Resolution (2026-08-11)
+
+Ruled under LLP 0225 §5/§6 authority and recorded as LLP 0225 revision (n),
+§4 "Item-3 remainder — the provider split, ruled".
+
+**The ruling rejects this ticket's framing.** The analysis below was built from
+`auth_catalog_ops.rs`'s *import list*. Reading the function *bodies* inverts
+the picture: `auth_catalog_ops.rs` is the **transaction-scoping** half, not the
+SQL half. Its operations open the connection or immediate transaction — §3.1's
+commit primitive, correctly kernel-owned — and hand the borrowed
+`&Transaction` to a function in `src/auth/provider.rs`, where the SQL actually
+lives. `planned_revocation_transaction`, `plan_exchange_read`,
+`plan_session_issuance_read`, `lookup_presented_session`, and
+`reconcile_planned_revocation` all take a `&Connection`/`&Transaction` plus an
+already-composed typed plan and run `UPDATE`/`SELECT` against `_auth_sessions`,
+`_auth_identities`, and `_auth_session_tokens` — several of them calling *down*
+into `crate::storage::auth::*_in` helpers. The `plan_*` names describe what the
+returned value is for, not what the function does.
+
+So **both candidate resolutions below are wrong**, and the "opposite failure
+modes" that made this look like a ruling were an artifact of the inverted
+premise. (a) would move the transaction primitive out of the kernel while
+leaving canonical-store SQL in a domain service — strictly worse on §3.1.
+(b) is the right direction named at the wrong module: the wrappers are already
+typed kernel operations.
+
+The split runs through `src/auth/provider.rs`: SQL bodies down to the kernel,
+plan/outcome value shapes down to the leaf, plan composition and refusal
+classification staying in sync — with the read-and-classify functions
+(`plan_exchange_read`, `plan_session_issuance_read`) cut so the kernel returns
+the durable facts it read and `provider.rs` classifies them. Implementation is
+sequenced A1/A2/A3 in
+`issues/20260811-llp0225-item-3-provider-split-implementation.md`.
+
+**Lesson worth carrying:** on this program, histogram the edges by target file
+and crossing symbol *and then read the bodies*. An import list tells you which
+module names cross; it does not tell you which side the behavior is on.
+
+---
+
+*Original analysis follows, retained for provenance. Its finding (the module
+pair and the 24 functions) is accurate; its interpretation of which side holds
+the SQL is the part the ruling corrects.*
 
 ## Why this is filed rather than implemented
 
