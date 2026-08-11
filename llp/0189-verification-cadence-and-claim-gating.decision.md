@@ -37,7 +37,9 @@ local persistent-store, relation/activity, or sequence-allocation publication
 chains; their registered LLP 0175 drift gates retain integrity custody, while
 post-C carrier regeneration is reported as ordinary scoped evolution.)
 **Related:** LLP 0005, LLP 0010, LLP 0061, LLP 0154, LLP 0158, LLP 0162, LLP
-0175, LLP 0185,
+0175, LLP 0185, LLP 0232 (D-4 health projection and ticket transitions
+cross-reference D-1's battery-red tickets without weakening fix-forward or
+claim rules),
 issues/20260807-derived-fork-publication-wave-drift-requalification.md,
 issues/20260803-wave3-program.md,
 issues/20260806-main-red-agent-safe-leaf-set-drift.md

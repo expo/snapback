@@ -5,6 +5,13 @@
 **Systems:** Testing, Developer experience, Build, Tooling, CI
 **Author:** Claude (Opus 5) / Codex (GPT-5) / Charlie Cheever
 **Date:** 2026-08-05
+**Revised:** 2026-08-11 (LLP 0232 accepting change, author ruling in session:
+the 2026-08-07 D2.1 ruling gains four narrowings — baseline-corroborated
+infrastructure fail-open, receipt-validated reuse for trigger-matched gates,
+content-caused prepare failures reclassified as content, and runner ticket
+requests via an authorized source-ticket publisher — each effective only when
+its implementing change lands; registry contract gains per-gate semantic
+input closures and execution receipts. See the dated ruling block in D2.1.)
 **Revised:** 2026-08-05 (first implementation tranche: Phase 0's named timed
 gate runner, dependency-aware keep-going, dependency inventory, and retained
 JSONL artifact land together with D3.1 doctor reuse, D3.2 clean exact-
@@ -426,6 +433,30 @@ The registered set is:
 > never wrap the runner or gate command in `volta run`: Volta can translate a
 > child's exit 1 into exit 126, which this runner correctly classifies as an
 > unavailable-command infrastructure error.
+
+> **Author ruling — 2026-08-11 (Charlie Cheever, in session), amending the
+> 2026-08-07 ruling above per LLP 0232's accepting change.** Four narrowings,
+> each effective only when its implementing change lands; the 2026-08-07
+> behavior stands until then. (1) "Infrastructure ambiguity still blocks" is
+> reversed only for a runner-controlled setup/provision failure whose
+> normalized signature is corroborated at every resolved merge-base (LLP 0232
+> D-3); a green, different, or unavailable baseline does not corroborate, and
+> all other ambiguity — content reds, unknown classification, nondeterminism —
+> continues to block. (2) "Trigger-matched gates always run" is amended to
+> permit receipt-validated reuse: a selected gate may be satisfied by a
+> validated per-gate execution receipt whose verified semantic input closure
+> is byte-identical (LLP 0232 D-1); absent a valid receipt the gate runs.
+> (3) "Failed prepare commands are exit-2 infrastructure errors" is narrowed:
+> only runner-controlled, baseline-corroborated setup/provision failures are
+> infrastructure; a content-caused prepare failure (for example, the pushed
+> revision breaking the build a prepare performs) is content evidence and
+> blocks. (4) "File no backstop ticket" is amended: the runner emits durable,
+> idempotent, signature-keyed ticket requests for inherited-red,
+> corroborated-infrastructure, and nondeterministic outcomes, projected onto
+> `main` by an explicitly authorized source-ticket publisher (LLP 0232 D-3/
+> D-8). The registry contract additionally gains per-gate versioned
+> `semanticInputClosure` declarations with admission checks, execution
+> receipts, and derived validation receipts (LLP 0232 D-1).
 
 The tracked `.githooks/pre-push` consumes Git's ref-update stream, computes the
 union of paths in every committed landing being introduced (plus the net diff

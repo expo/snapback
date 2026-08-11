@@ -1,13 +1,14 @@
 # LLP 0232: Landing economics and the green pointer
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Source control, CI, Testing, Developer experience, Agent operations
 **Author:** Charlie Cheever / GPT-5.6 (codex, lead author rev2) / Claude (Fable 5, rev1)
 **Date:** 2026-08-11
 **Revised:** 2026-08-11 (round-1 dual-family NOT READY; codex lead-author rewrite recenters content-keyed landing economics, makes `green` health state, and constrains sheriff authority)
 **Revised:** 2026-08-11 (round-2 dual NOT READY; contract repair for per-gate reuse, closed outcome typing, proof-producer boundaries, and deferred revert activation)
 **Revised:** 2026-08-11 (round-3 delta convergence — pre-existing text clean across families; in-delta punch-list repair; this revision unreviewed per LLP 0010 §2 delta rule)
+**Revised:** 2026-08-11 (Accepted by author ruling, Charlie Cheever in session: all three requested rulings granted as specified — 24h owner priority then fix-forward-by-anyone; narrow baseline-corroborated reversal of LLP 0175 D2.1 infrastructure fail-closed; future separately-reviewed revert-activation decision permitted. Acceptance recorded with the rev4-unreviewed label acknowledged; final review verdicts bind to rev3. LLP 0175 amendments landed in the accepting change.)
 **Related:** LLP 0189, LLP 0175, LLP 0041, LLP 0005, `issues/20260810-prepush-gate-battery-landing-livelock.md`
 
 ## Summary
@@ -225,14 +226,16 @@ Any false receipt reuse, content red admitted by reuse, content failure admitted
 the responsible automation, restores full gate execution or fail-closed classification as
 applicable, and opens an incident ticket before re-enable.
 
-## Author ruling required before acceptance
+## Author ruling (recorded 2026-08-11, Charlie Cheever in session)
 
-Please rule on three points: preserve the 2026-08-10 24-hour landing-author priority and
-then allow fix-forward-by-anyone for unclaimed/inactive tickets; approve the narrow reversal
-of LLP 0175 D2.1's “infrastructure ambiguity still blocks” ruling only when the same
-runner-controlled failure is corroborated at every merge-base; and decide whether a later,
-separately reviewed automated-revert activation decision may proceed under D-7 after pilot
-evidence. That last ruling does not activate revert here. Admitting nondeterministic outcomes non-blocking would be a separate future carve-out requiring its own ruling and amendment to LLP 0175; this RFC does not request it. Urgent security exposure, ongoing destructive data corruption, or complete publication inability triggers immediate author escalation, never autonomous action under this RFC.
+All three points ruled as specified: (1) the 2026-08-10 24-hour landing-author
+priority is preserved, after which an unclaimed or inactive ticket becomes
+fix-forward-by-anyone; (2) the narrow reversal of LLP 0175 D2.1's
+“infrastructure ambiguity still blocks” ruling is approved only when the same
+runner-controlled failure is corroborated at every merge-base — effective when
+the D-3 implementation lands, with fail-closed behavior standing until then;
+(3) a later, separately reviewed automated-revert activation decision may
+proceed under D-7 after pilot evidence. That last ruling activates nothing here. Admitting nondeterministic outcomes non-blocking would be a separate future carve-out requiring its own ruling and amendment to LLP 0175; this RFC does not request it. Urgent security exposure, ongoing destructive data corruption, or complete publication inability triggers immediate author escalation, never autonomous action under this RFC.
 
 ## Portability
 
