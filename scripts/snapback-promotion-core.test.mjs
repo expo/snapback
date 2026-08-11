@@ -12,9 +12,14 @@ import {
   signPublicationLease,
 } from '../packages/snapback-publication-authority/protocol.mjs';
 import {
+  BARRIER_STABILITY_RESERVE_MS,
   CURRENT_LEASE_SCHEMA_VERSION,
+  LATEST_PROOF_COLLECTION_RESERVE_MS,
+  LATEST_PROOF_MIN_DISPATCH_GRANT_MS,
+  PROMOTION_ROLLBACK_RESERVE_MS,
   buildPostPromotionLedger,
   canonicalJcs,
+  latestProofDispatchGrantMs,
   leaseSha256,
   publicationAuthorityTransition,
   promoteDefaultVector,
@@ -1742,6 +1747,110 @@ test('latest proof plan cannot inject a local command or substitute GitHub ident
       /closed package-owned plan|normalized and relative/u,
     );
   }
+});
+
+test('dispatch grant clamps the plan ceiling to the live lease and reserves once', () => {
+  const plan = { dispatchTimeoutMs: 400_000, verifyTimeoutMs: 30_000 };
+  // Plenty of lease: the ceiling is granted whole.
+  assert.equal(
+    latestProofDispatchGrantMs({ plan, remainingMs: 700_000 }),
+    400_000,
+  );
+  // Tight lease: the grant is remaining minus (collection + verify +
+  // rollback), each reserved exactly once.
+  assert.equal(
+    latestProofDispatchGrantMs({ plan, remainingMs: 580_000 }),
+    580_000 - (90_000 + 30_000 + 120_000),
+  );
+  // Below the minimum viable window the dispatch refuses.
+  assert.throws(
+    () => latestProofDispatchGrantMs({
+      plan,
+      remainingMs: LATEST_PROOF_MIN_DISPATCH_GRANT_MS + 90_000 + 30_000 + 120_000 - 1,
+    }),
+    /reserved proof and rollback budget/u,
+  );
+  // Exact boundary is granted.
+  assert.equal(
+    latestProofDispatchGrantMs({
+      plan,
+      remainingMs: LATEST_PROOF_MIN_DISPATCH_GRANT_MS + 90_000 + 30_000 + 120_000,
+    }),
+    LATEST_PROOF_MIN_DISPATCH_GRANT_MS,
+  );
+  // A ceiling below the floor can never dispatch.
+  assert.throws(
+    () => latestProofDispatchGrantMs({
+      plan: { dispatchTimeoutMs: 299_999, verifyTimeoutMs: 30_000 },
+      remainingMs: 900_000,
+    }),
+    /reserved proof and rollback budget/u,
+  );
+  assert.throws(
+    () => latestProofDispatchGrantMs({ plan, remainingMs: Number.NaN }),
+    TypeError,
+  );
+});
+
+test('measured r3 promotion timeline fits the once-reserved budget model', () => {
+  const plan = { dispatchTimeoutMs: 400_000, verifyTimeoutMs: 30_000 };
+  const leaseLifetimeMs = 900_000;
+  const preflightMs = 200_000; // telemetry gate + closures + acquire + 11 tag moves
+  const runWallMs = 280_000; // observed hosted run wall (created -> success)
+  // Barrier entry: what the promote driver now requires to remain.
+  const barrierEntryNeedMs =
+    LATEST_PROOF_MIN_DISPATCH_GRANT_MS
+    + LATEST_PROOF_COLLECTION_RESERVE_MS
+    + plan.verifyTimeoutMs
+    + PROMOTION_ROLLBACK_RESERVE_MS
+    + BARRIER_STABILITY_RESERVE_MS;
+  const remainingAtBarrierEntryMs = leaseLifetimeMs - preflightMs;
+  assert.ok(remainingAtBarrierEntryMs >= barrierEntryNeedMs);
+  // The barrier spends its full stability reserve, then dispatch is granted a
+  // window the measured run fits inside.
+  const remainingAtDispatchMs =
+    remainingAtBarrierEntryMs - BARRIER_STABILITY_RESERVE_MS;
+  const grantMs = latestProofDispatchGrantMs({
+    plan,
+    remainingMs: remainingAtDispatchMs,
+  });
+  assert.equal(grantMs, 340_000);
+  assert.ok(runWallMs <= grantMs);
+  // Even at full exhaustion of wait + collection, verify and rollback keep
+  // their complete reserves inside the lease.
+  assert.ok(
+    remainingAtDispatchMs - grantMs - LATEST_PROOF_COLLECTION_RESERVE_MS
+      >= plan.verifyTimeoutMs + PROMOTION_ROLLBACK_RESERVE_MS,
+  );
+});
+
+test('the r4 dispatch ceiling no longer double-reserves the wait', () => {
+  const plan = { dispatchTimeoutMs: 510_000, verifyTimeoutMs: 30_000 };
+  const leaseLifetimeMs = 900_000;
+  const preflightMs = 200_000;
+  const runWallMs = 280_000;
+  const barrierEntryNeedMs =
+    LATEST_PROOF_MIN_DISPATCH_GRANT_MS
+    + LATEST_PROOF_COLLECTION_RESERVE_MS
+    + plan.verifyTimeoutMs
+    + PROMOTION_ROLLBACK_RESERVE_MS
+    + BARRIER_STABILITY_RESERVE_MS;
+  const remainingAtBarrierEntryMs = leaseLifetimeMs - preflightMs;
+  assert.equal(barrierEntryNeedMs, 660_000);
+  assert.ok(remainingAtBarrierEntryMs >= barrierEntryNeedMs);
+  const remainingAtDispatchMs =
+    remainingAtBarrierEntryMs - BARRIER_STABILITY_RESERVE_MS;
+  const grantMs = latestProofDispatchGrantMs({
+    plan,
+    remainingMs: remainingAtDispatchMs,
+  });
+  assert.equal(grantMs, 340_000);
+  assert.ok(runWallMs <= grantMs);
+  // This is the pre-fix formula that refused a fitting ceremony.
+  assert.ok(
+    510_000 + 30_000 + 120_000 + 120_000
+      > leaseLifetimeMs - preflightMs,
+  );
 });
 
 test('post-promotion ledger closes candidate lineage, tags, and final receipts', () => {
