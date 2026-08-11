@@ -602,8 +602,11 @@ function executeLatestProofPlan(plan) {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     if (result.status !== 0) {
+      const helperTail = `${result.stderr ?? ''}\n${result.stdout ?? ''}`
+        .trim().slice(-2000);
       throw new Error(
-        `latest-root package-owned ${mode} failed with ${result.status ?? result.signal ?? 'unknown'}`,
+        `latest-root package-owned ${mode} failed with ${result.status ?? result.signal ?? 'unknown'}`
+        + (helperTail ? `\nhelper output tail:\n${helperTail}` : ''),
       );
     }
   }
