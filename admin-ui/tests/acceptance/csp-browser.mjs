@@ -66,6 +66,7 @@ const origin = `http://127.0.0.1:${port}`;
 const serverStateDir = mkdtempSync(join(tmpdir(), 'snapback-admin-server-'));
 const readyFile = join(serverStateDir, 'ready.json');
 const server = spawn(snapbackBin, [
+  'start',
   // LLP 0017 permits browser-console credential minting only on a loopback
   // local target; non-loopback refusal has dedicated route/unit coverage.
   '--host', '127.0.0.1',
