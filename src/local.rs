@@ -22,7 +22,9 @@ use crate::auth::lease::{
 use crate::auth::mode::{
     AuthModeStateRecord, DeploymentIdentity, STARTUP_ARTIFACT_FORMAT_VERSION, StartupArtifacts,
 };
-use crate::auth::service_fence::{ServiceAuthorityActResolution, ServiceAuthorityDisposition};
+use crate::auth::service_authority_contract::{
+    ServiceAuthorityActResolution, ServiceAuthorityDisposition,
+};
 use crate::config::{ConfigStore, VerificationRecord};
 use crate::cron::{
     CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,

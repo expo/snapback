@@ -31,6 +31,7 @@ pub(crate) mod rehearsal;
 pub(crate) mod rescue;
 pub mod runtime;
 pub mod sender_proof;
+pub(crate) mod service_authority_contract;
 pub(crate) mod service_fence;
 #[allow(dead_code)] // Published by the ENG-24603 coordinator integration lane.
 pub(crate) mod session_projection;

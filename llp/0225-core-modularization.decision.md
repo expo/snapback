@@ -25,6 +25,9 @@ history)
 **Revised:** 2026-08-10 (j — Accepted: OQ-A superseded-with-pointer, OQ-B
 confirmed, OQ-C inert-until-reload (author rulings); same-landing handoff
 applied)
+**Revised:** 2026-08-10 (k — §4 migration sequence records the item-3 first
+cut: kernel auth authority shapes to the leaf, six frozen kernel→sync edges
+inverted)
 **Revised:** 2026-08-10 (l — merge-wave reconciliation of the §5 enforcement
 landing; see Revision history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
@@ -399,6 +402,83 @@ would-be second split (`auth/coordinator → writer_gate` via the re-export
 chain) was avoided structurally: `with_snapback` remains a delegating
 `server.rs` item so the frozen item-4 edge keeps its key until that
 inversion lands. The module's other new edges are allowed downward edges.
+
+### Item-3 first cut — kernel auth authority shapes to the leaf (executed)
+
+Landed 2026-08-10: the first cut of ratchet worklist item 3
+(`kernel→sync/auth-core ×~24`) under continuing-sequence item 1, scoped by
+`issues/20260810-owner2-kernel-auth-authority-shapes-slice.md`. Item 3's edges
+are not one shape — some kernel files import auth **value shapes** from
+sync-owned modules, others genuinely **call up** into sync behavior
+(`lookup_presented_session`, `planned_family_alarm_transaction`,
+`presented_token_has_sender_family_binding` — the `with_auth_*` escape-hatch
+shape). Only the first family is in this cut; the call-ups need typed kernel
+operations and ride a later slice.
+
+The move follows the pattern worklist item 7 established for
+`auth/descriptor.rs` — **the shape goes down, the behavior that consumes
+non-leaf state stays up**, as a same-crate inherent `impl` block on the
+relocated type:
+
+- the step-up proof shapes (`StepUpProof`, `StepUpConsumption`,
+  `step_up_required_error`) moved to the leaf-owned `src/auth/crypto.rs`,
+  whose module already defines every field type they carry, while
+  `impl StepUpProof { reconcile_consumed_on, reconcile_unconsumed_on,
+  consume_on }` stayed in `src/auth/provider.rs` — those take a `&Connection`
+  and are behavior, not shape;
+- the service-authority fence value shapes (`ServiceAuthorityDisposition`,
+  `ServiceAuthorityWitness`, `ServiceAuthorityActResolution`,
+  `ServiceAuthorityDeadlineTerminal`) moved to the new leaf module
+  `src/auth/service_authority_contract.rs`, while the fence traits,
+  publication, permits, terminal gate, and registry stayed in
+  `src/auth/service_fence.rs`.
+
+Six frozen kernel→sync edges inverted:
+`storage/auth_agent_credentials → auth/service_fence`,
+`storage/auth_agents → auth/{provider,service_fence}`,
+`storage/auth_grants → auth/{provider,service_fence}`, and
+`storage/pending_effects → auth/provider`. `storage/auth.rs →
+auth/service_fence` deliberately **stays** — it imports the two retained fence
+traits, and inverts when prepared-terminal custody becomes a typed kernel
+operation.
+
+One structural decision earned the clean result:
+`ServiceAuthorityWitness::from_resolved` became
+`ResolvedScopedToken::service_authority_witness` in
+`src/storage/auth_agent_credentials.rs`, where `ResolvedScopedToken` is
+defined. The kernel owning the conversion from its own token type into a leaf
+shape is kernel→leaf; more importantly, callers now project the witness *by
+method* rather than naming the leaf module, which keeps `src/local/tests.rs`
+off the new module entirely and avoids a second edge-key split.
+
+Baseline disposition: 7 frozen forbidden edges removed, 1 added — 388 → 382.
+The addition is `src/local.rs → src/auth/service_authority_contract.rs`, a
+**downward re-key** of the `src/local.rs → src/auth/service_fence.rs` edge the
+same landing removes (local.rs genuinely matches on the resolution and
+disposition enums). It is recorded as a time-bounded waiver with inversion
+owner `transport-adapters` and deadline 2026-09-15 only because the arm's
+`relocation` disposition asserts the predecessor **owner pair is retained**
+and therefore cannot express a shape moving *down a layer* — the same
+vocabulary gap as the owner-#5 split, tracked in
+`issues/20260810-owngate-split-relocation-disposition-gap.md`. The prose here
+carries the true disposition; the coupling drains with `local.rs`.
+
+Characterization envelope: pure relocation, so the claim is behavioral
+identity rather than new tests — the `auth`, `storage`, and `server` lib-test
+subsets returned failure sets **byte-identical** to the merge-base at
+`3d1553975` (56, 50, and 24 pre-existing named failures respectively), with
+`cargo build --all-targets` and `./ref-check --verbose` green.
+
+Two lint gates are red on main independently of this slice, both filed rather
+than absorbed: the clippy gate fails in the untouched auth identity floor
+(`issues/20260810-main-red-clippy-auth-identity-floor.md`), and `cargo fmt
+--all` is **not** idempotent on main under rustfmt 1.9.0 — running it rewrites
+~400 lines across a dozen modules this slice never touches
+(`issues/20260810-main-rustfmt-drift-under-1-9-0.md`). This landing therefore
+deliberately does not carry a repo-wide reformat; its own edits are kept in
+the surrounding style by hand. A relocation slice that reformats every file it
+passes through would make exactly the kind of review-opaque diff §6 warns
+about.
 
 ### Continuing sequence (order of intent, not a schedule)
 

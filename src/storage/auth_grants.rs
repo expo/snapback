@@ -10,7 +10,7 @@ use super::auth_agent_credentials::{
     require_agent_clock_on,
 };
 use crate::auth::crypto::{AgentCredential, PairingCode, RandomSource};
-use crate::auth::provider::{StepUpConsumption, StepUpProof, step_up_required_error};
+use crate::auth::crypto::{StepUpConsumption, StepUpProof, step_up_required_error};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::FunctionKind;
 use crate::storage::auth::{AuthTransactionAttempt, ServiceAuthTransactionAttempt};
@@ -737,7 +737,7 @@ impl LocalDatabase {
         self.observe_agent_authorization_clock(now_ms)?;
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
             |tx| planned_grant_revocation_token_ids(tx, effective_user_id, grant_id, now_ms),
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
@@ -829,7 +829,7 @@ impl LocalDatabase {
         self.observe_agent_authorization_clock(now_ms)?;
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
             |tx| {
                 planned_bulk_grant_revocation_token_ids(
                     tx,

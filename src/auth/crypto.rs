@@ -13,6 +13,8 @@ use subtle::ConstantTimeEq as _;
 use unicode_normalization::UnicodeNormalization as _;
 use zeroize::{Zeroize as _, Zeroizing};
 
+use crate::diagnostic::SnapbackError;
+
 const CHALLENGE_PREFIX: &str = "sbc_";
 const KEY_PREFIX: &str = "sbak_";
 const RESUME_KEY_PREFIX: &str = "sbrq_";
@@ -332,6 +334,33 @@ impl CodeDigest {
 /// cryptographically non-interchangeable even though they share the bounded
 /// durable challenge table and process-local capture mailbox.
 pub(crate) struct StepUpDigest(Zeroizing<[u8; 32]>);
+
+pub(crate) struct StepUpProof {
+    pub(crate) challenge_id: ChallengeId,
+    pub(crate) address: CanonicalAddress,
+    pub(crate) key_id: Option<AuthKeyId>,
+    pub(crate) submitted_digest: StepUpDigest,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum StepUpConsumption {
+    Verified,
+    Rejected,
+}
+
+impl fmt::Debug for StepUpProof {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("StepUpProof([REDACTED])")
+    }
+}
+
+pub(crate) fn step_up_required_error() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_STEP_UP_REQUIRED",
+        "auth",
+        "authority-creating consent requires fresh step-up authentication",
+    )
+}
 
 impl StepUpDigest {
     #[allow(clippy::too_many_arguments)]

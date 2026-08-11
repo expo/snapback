@@ -116,6 +116,7 @@
       "src/auth/mod.rs",
       "src/auth/mode.rs",
       "src/auth/rehearsal.rs",
+      "src/auth/service_authority_contract.rs",
       "src/auth/wire.rs",
       "src/authoring_suggestion.rs",
       "src/commit_envelope.rs",

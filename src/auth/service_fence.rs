@@ -11,8 +11,11 @@
 //! external native-effect initiation cut share this one process registry.
 
 use crate::auth::provider::AuthProvider;
+use crate::auth::service_authority_contract::{
+    ServiceAuthorityActResolution, ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition,
+    ServiceAuthorityWitness,
+};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::storage::auth_agent_credentials::ResolvedScopedToken;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeSet, HashMap};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -38,67 +41,6 @@ thread_local! {
     static ACTIVE_SERVICE_TERMINAL_GATE: RefCell<Option<ServiceAuthorityTerminalGate>> =
         const { RefCell::new(None) };
     static SERVICE_TERMINAL_GATE_SCOPE_ACTIVE: Cell<bool> = const { Cell::new(false) };
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ServiceAuthorityDisposition {
-    Carrier,
-    DurableDelete,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct ServiceAuthorityWitness {
-    token_id: String,
-    grant_id: String,
-    actor_user_id: String,
-    effective_user_id: Option<String>,
-    credential_id: String,
-    credential_generation: u64,
-    expires_at_ms: u64,
-    grant_expires_at_ms: Option<u64>,
-}
-
-impl ServiceAuthorityWitness {
-    pub(crate) fn from_resolved(token: &ResolvedScopedToken) -> Self {
-        Self {
-            token_id: token.token_id.clone(),
-            grant_id: token.grant_id.clone(),
-            actor_user_id: token.actor_user_id.clone(),
-            effective_user_id: token.effective_user_id.clone(),
-            credential_id: token.credential_id.clone(),
-            credential_generation: token.credential_generation,
-            expires_at_ms: token.expires_at_ms,
-            grant_expires_at_ms: token.grant_expires_at_ms,
-        }
-    }
-
-    pub(crate) fn token_id(&self) -> &str {
-        &self.token_id
-    }
-
-    pub(crate) fn expires_at_ms(&self) -> u64 {
-        self.expires_at_ms
-    }
-
-    pub(crate) fn grant_id(&self) -> &str {
-        &self.grant_id
-    }
-
-    pub(crate) fn actor_user_id(&self) -> &str {
-        &self.actor_user_id
-    }
-
-    pub(crate) fn effective_user_id(&self) -> Option<&str> {
-        self.effective_user_id.as_deref()
-    }
-
-    pub(crate) fn credential_id(&self) -> &str {
-        &self.credential_id
-    }
-
-    pub(crate) fn credential_generation(&self) -> u64 {
-        self.credential_generation
-    }
 }
 
 #[derive(Debug)]
@@ -131,25 +73,6 @@ pub(crate) struct ServiceAuthorityPublication {
     /// publication so later server/local cuts cannot accidentally sample a
     /// different clock domain.
     clock: Option<Arc<AuthProvider>>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum ServiceAuthorityActResolution {
-    Current(ServiceAuthorityWitness),
-    Terminal(ServiceAuthorityDisposition),
-    Unavailable,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct ServiceAuthorityDeadlineTerminal {
-    pub(crate) token_id: String,
-    pub(crate) grant_id: String,
-    pub(crate) deadline_ms: u64,
-    pub(crate) disposition: ServiceAuthorityDisposition,
-    /// Hard socket-close deadline selected when expiry is first observed.
-    /// Monotonic expiry spends the grace budget from the projected deadline;
-    /// a forward wall-clock jump starts that budget at its observation cut.
-    pub(crate) close_by: Instant,
 }
 
 #[derive(Debug)]

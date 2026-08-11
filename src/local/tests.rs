@@ -10630,7 +10630,7 @@ fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
         let publication = db
             .service_authority_fence_registry()
             .register(
-                crate::auth::service_fence::ServiceAuthorityWitness::from_resolved(&resolved),
+                resolved.service_authority_witness(),
                 now_ms,
                 Instant::now(),
             )
@@ -21758,7 +21758,7 @@ fn service_mutation_authority(
     };
     let publication = service_fences
         .register(
-            crate::auth::service_fence::ServiceAuthorityWitness::from_resolved(&resolved),
+            resolved.service_authority_witness(),
             now_millis(),
             Instant::now(),
         )

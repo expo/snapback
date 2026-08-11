@@ -14,8 +14,10 @@ use crate::auth::descriptor::{
     validate_descriptor_values,
 };
 use crate::auth::provider::ResolvedSession;
-use crate::auth::service_fence::{
+use crate::auth::service_authority_contract::{
     ServiceAuthorityActResolution, ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition,
+};
+use crate::auth::service_fence::{
     ServiceAuthorityExternalEffectPermit, ServiceAuthorityPublication,
 };
 use crate::auth::session_projection::FencedPublication;

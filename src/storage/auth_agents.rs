@@ -22,7 +22,7 @@ use super::auth_agent_credentials::{
 };
 use crate::admin::ServerProfile;
 use crate::auth::crypto::{CreationInvitation, RandomSource};
-use crate::auth::provider::{StepUpConsumption, StepUpProof, step_up_required_error};
+use crate::auth::crypto::{StepUpConsumption, StepUpProof, step_up_required_error};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{AgentsMode, AuthMode, MembershipScope, SchemaManifest};
 use rusqlite::{Connection, OptionalExtension, Transaction, params, types::Value as SqlValue};
@@ -430,7 +430,7 @@ impl LocalDatabase {
     ) -> SnapbackResult<()> {
         self.observe_agent_authorization_clock(now_ms)?;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 token_ids_for_user(tx, user_id)

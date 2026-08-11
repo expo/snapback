@@ -492,7 +492,7 @@ impl LocalDatabase {
         approver_principal_id: &str,
         approve: bool,
         requires_step_up: bool,
-        step_up: Option<&crate::auth::provider::StepUpProof>,
+        step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<PendingEffectRecord> {
         self.with_auth_transaction(|tx| {
@@ -512,11 +512,11 @@ impl LocalDatabase {
                 return Err(approval_denied());
             }
             if approve && requires_step_up {
-                let proof = step_up.ok_or_else(crate::auth::provider::step_up_required_error)?;
+                let proof = step_up.ok_or_else(crate::auth::crypto::step_up_required_error)?;
                 if proof.consume_on(tx, now_ms)?
-                    != crate::auth::provider::StepUpConsumption::Verified
+                    != crate::auth::crypto::StepUpConsumption::Verified
                 {
-                    return Err(crate::auth::provider::step_up_required_error());
+                    return Err(crate::auth::crypto::step_up_required_error());
                 }
             }
             let status = if approve { "approved" } else { "refused" };

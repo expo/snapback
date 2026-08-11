@@ -13,7 +13,9 @@ use super::auth_grants::{ExactGrantScope, current_grant_scopes_on};
 use super::auth_invalidation::{AUTH_CLOCK_META_KEY, strict_meta_u64, write_meta_u64};
 use super::{LocalDatabase, MAX_AUTHORIZATION_EPOCH, new_id};
 use crate::auth::crypto::{AgentCredential, RandomSource, ScopedToken};
-use crate::auth::service_fence::{ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition};
+use crate::auth::service_authority_contract::{
+    ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition, ServiceAuthorityWitness,
+};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth::{AuthTransactionAttempt, ServiceAuthTransactionAttempt};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
@@ -86,6 +88,29 @@ pub(crate) struct ResolvedScopedToken {
     pub expires_at_ms: u64,
     pub grant_expires_at_ms: Option<u64>,
     pub integration_status: Option<super::auth_integrations::IntegrationStatus>,
+}
+
+impl ResolvedScopedToken {
+    /// Project this kernel-owned token into the leaf-owned fence witness.
+    ///
+    /// The kernel owns `ResolvedScopedToken`, so it owns the conversion into
+    /// the shared shape; callers reach it by method, which keeps them from
+    /// naming the leaf module just to build a witness.
+    ///
+    /// @ref LLP 0225#1-ownership-map — kernel→leaf is the allowed direction
+    ///   for this projection; the sync engine keeps the fence behavior.
+    pub(crate) fn service_authority_witness(&self) -> ServiceAuthorityWitness {
+        ServiceAuthorityWitness {
+            token_id: self.token_id.clone(),
+            grant_id: self.grant_id.clone(),
+            actor_user_id: self.actor_user_id.clone(),
+            effective_user_id: self.effective_user_id.clone(),
+            credential_id: self.credential_id.clone(),
+            credential_generation: self.credential_generation,
+            expires_at_ms: self.expires_at_ms,
+            grant_expires_at_ms: self.grant_expires_at_ms,
+        }
+    }
 }
 
 pub(crate) struct RetainedServiceAuthority<'a> {
@@ -208,7 +233,7 @@ impl LocalDatabase {
         let predecessor_hash = credential.token_hash();
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
             |tx| planned_agent_credential_rotation_token_ids(tx, credential, now_ms),
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
@@ -342,7 +367,7 @@ impl LocalDatabase {
         let manifest = self.schema.clone();
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
             |tx| planned_agent_credential_family_token_ids(tx, attributable, now_ms),
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
@@ -457,7 +482,7 @@ impl LocalDatabase {
         let manifest = self.schema.clone();
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 let row = credential_row_by_hash(tx, hash.as_bytes())?
@@ -504,7 +529,7 @@ impl LocalDatabase {
         let principal_user_id = principal_user_id.to_owned();
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            crate::auth::service_authority_contract::ServiceAuthorityDisposition::DurableDelete,
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 super::auth_integrations::require_record_on(tx, &principal_user_id)?;
@@ -804,7 +829,7 @@ impl LocalDatabase {
         let token_id = crate::ids::mint_time_ordered(crate::ids::Kind::AgentToken);
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_fence::ServiceAuthorityDisposition::Carrier,
+            crate::auth::service_authority_contract::ServiceAuthorityDisposition::Carrier,
             |tx| planned_scoped_token_terminal_token_ids(tx, credential, grant_id, now_ms),
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
@@ -932,7 +957,7 @@ impl LocalDatabase {
         let token_id = format!("{pairing_request_id}:{}", new_id());
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
-            crate::auth::service_fence::ServiceAuthorityDisposition::Carrier,
+            crate::auth::service_authority_contract::ServiceAuthorityDisposition::Carrier,
             |tx| planned_pairing_terminal_token_ids(tx, credential, pairing_request_id, now_ms),
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
@@ -1190,8 +1215,9 @@ impl LocalDatabase {
             require_agent_clock_on(tx, now_ms)?;
             let generation = i64::try_from(authority.credential_generation)
                 .map_err(|_| agent_credential_state_corrupt())?;
-            let row = tx.query_row(
-                "SELECT t.id, g.id, g.actor_user_id, g.effective_user_id,
+            let row = tx
+                .query_row(
+                    "SELECT t.id, g.id, g.actor_user_id, g.effective_user_id,
                         t.credential_id, t.credential_generation, g.scopes,
                         t.expires_at_ms, g.expires_at_ms
                  FROM _auth_grant_tokens AS t
@@ -1207,26 +1233,39 @@ impl LocalDatabase {
                    AND c.revoked_at_ms IS NULL AND c.generation = ?4
                    AND c.user_id = ?5 AND u.kind = 'agent'
                    AND u.deactivated_at_ms IS NULL",
-                params![
-                    authority.token_id, authority.grant_id, authority.credential_id,
-                    generation, authority.actor_user_id, authority.effective_user_id,
-                    now_ms as i64,
-                ],
-                |row| Ok(StoredScopedToken {
-                    token_id: row.get(0)?, grant_id: row.get(1)?,
-                    actor_user_id: row.get(2)?, effective_user_id: row.get(3)?,
-                    credential_id: row.get(4)?, credential_generation: row.get(5)?,
-                    scopes_json: row.get(6)?, expires_at_ms: row.get(7)?,
-                    grant_expires_at_ms: row.get(8)?,
-                }),
-            ).optional()?;
+                    params![
+                        authority.token_id,
+                        authority.grant_id,
+                        authority.credential_id,
+                        generation,
+                        authority.actor_user_id,
+                        authority.effective_user_id,
+                        now_ms as i64,
+                    ],
+                    |row| {
+                        Ok(StoredScopedToken {
+                            token_id: row.get(0)?,
+                            grant_id: row.get(1)?,
+                            actor_user_id: row.get(2)?,
+                            effective_user_id: row.get(3)?,
+                            credential_id: row.get(4)?,
+                            credential_generation: row.get(5)?,
+                            scopes_json: row.get(6)?,
+                            expires_at_ms: row.get(7)?,
+                            grant_expires_at_ms: row.get(8)?,
+                        })
+                    },
+                )
+                .optional()?;
             let Some(row) = row else {
-                return Err(scoped_token_invalid(ScopedTokenAuthorityDisposition::Carrier));
+                return Err(scoped_token_invalid(
+                    ScopedTokenAuthorityDisposition::Carrier,
+                ));
             };
             let scopes = current_grant_scopes_on(tx, &row.scopes_json)?;
-            let integration_status = super::auth_integrations::record_for_principal_on(
-                tx, &row.actor_user_id,
-            )?.map(|record| record.status);
+            let integration_status =
+                super::auth_integrations::record_for_principal_on(tx, &row.actor_user_id)?
+                    .map(|record| record.status);
             Ok(ResolvedScopedToken {
                 token_id: row.token_id,
                 grant_id: row.grant_id,
@@ -1236,8 +1275,10 @@ impl LocalDatabase {
                 credential_generation: row.credential_generation as u64,
                 scopes,
                 expires_at_ms: row.expires_at_ms as u64,
-                grant_expires_at_ms: row.grant_expires_at_ms
-                    .map(u64::try_from).transpose()
+                grant_expires_at_ms: row
+                    .grant_expires_at_ms
+                    .map(u64::try_from)
+                    .transpose()
                     .map_err(|_| agent_credential_state_corrupt())?,
                 integration_status,
             })
@@ -3183,11 +3224,7 @@ mod tests {
             let monotonic = std::time::Instant::now();
             let publication = db
                 .service_authority_fence_registry()
-                .register(
-                    crate::auth::service_fence::ServiceAuthorityWitness::from_resolved(&resolved),
-                    1_001,
-                    monotonic,
-                )
+                .register(resolved.service_authority_witness(), 1_001, monotonic)
                 .expect("register resolved service authority");
             let deadline = publication
                 .expired_deadline_terminal(1_001, monotonic + std::time::Duration::from_millis(9))
@@ -3197,7 +3234,7 @@ mod tests {
                 publication
                     .resolve_act(1_001, monotonic + std::time::Duration::from_millis(9))
                     .unwrap(),
-                crate::auth::service_fence::ServiceAuthorityActResolution::Unavailable,
+                crate::auth::service_authority_contract::ServiceAuthorityActResolution::Unavailable,
                 "an unpersisted deadline is unavailable, never terminal"
             );
             db.terminalize_expired_service_authority(&deadline)
@@ -3206,7 +3243,7 @@ mod tests {
                 publication
                     .resolve_act(1_001, monotonic + std::time::Duration::from_millis(9))
                     .unwrap(),
-                crate::auth::service_fence::ServiceAuthorityActResolution::Terminal(
+                crate::auth::service_authority_contract::ServiceAuthorityActResolution::Terminal(
                     ServiceAuthorityDisposition::Carrier
                 )
             );

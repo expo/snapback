@@ -136,7 +136,7 @@ async fn prepare_original_authority(
                         ));
                     }
                     let publication = fences.register(
-                        ServiceAuthorityWitness::from_resolved(&resolved),
+                        resolved.service_authority_witness(),
                         now_ms,
                         monotonic_now,
                     )?.with_provider_clock(service_clock);

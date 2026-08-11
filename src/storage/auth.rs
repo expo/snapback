@@ -1504,7 +1504,7 @@ impl LocalDatabase {
     /// planned read-only and premarked before the first durable ending write.
     pub(crate) fn attempt_auth_transaction_with_service_terminal<T>(
         &mut self,
-        disposition: crate::auth::service_fence::ServiceAuthorityDisposition,
+        disposition: crate::auth::service_authority_contract::ServiceAuthorityDisposition,
         plan: impl FnOnce(&Transaction<'_>) -> SnapbackResult<Vec<String>>,
         operation: impl FnOnce(&Transaction<'_>) -> SnapbackResult<T>,
     ) -> ServiceAuthTransactionAttempt<T> {
@@ -3217,7 +3217,7 @@ mod tests {
         inject_service_rollback_uncertainty_for_test();
         let attempt: ServiceAuthTransactionAttempt<()> = db
             .attempt_auth_transaction_with_service_terminal(
-                crate::auth::service_fence::ServiceAuthorityDisposition::Carrier,
+                crate::auth::service_authority_contract::ServiceAuthorityDisposition::Carrier,
                 |_tx| Ok(vec!["token-exact".to_owned()]),
                 |tx| {
                     tx.execute(
@@ -3236,11 +3236,11 @@ mod tests {
         };
         assert_eq!(
             exact.resolve_act(101, monotonic).unwrap(),
-            crate::auth::service_fence::ServiceAuthorityActResolution::Unavailable
+            crate::auth::service_authority_contract::ServiceAuthorityActResolution::Unavailable
         );
         assert!(matches!(
             unrelated.resolve_act(101, monotonic).unwrap(),
-            crate::auth::service_fence::ServiceAuthorityActResolution::Current(_)
+            crate::auth::service_authority_contract::ServiceAuthorityActResolution::Current(_)
         ));
         assert_eq!(
             db.conn
@@ -3259,7 +3259,7 @@ mod tests {
             .expect("exact durable predecessor settles only its ticket");
         assert!(matches!(
             exact.resolve_act(101, monotonic).unwrap(),
-            crate::auth::service_fence::ServiceAuthorityActResolution::Current(_)
+            crate::auth::service_authority_contract::ServiceAuthorityActResolution::Current(_)
         ));
     }
 

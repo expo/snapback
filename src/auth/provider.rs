@@ -28,7 +28,7 @@ use zeroize::{Zeroize as _, Zeroizing};
 
 use super::crypto::{
     AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, CodeDigest, OsRandom, RandomSource,
-    SessionBearer, StepUpDigest, TokenHash, VerificationCode,
+    SessionBearer, StepUpConsumption, StepUpDigest, StepUpProof, TokenHash, VerificationCode,
 };
 use super::keyring::AuthKeyringStore;
 use super::lease::{
@@ -295,25 +295,6 @@ impl StepUpProofAdmission {
 impl fmt::Debug for StepUpProofAdmission {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("StepUpProofAdmission([REDACTED])")
-    }
-}
-
-pub(crate) struct StepUpProof {
-    challenge_id: ChallengeId,
-    address: CanonicalAddress,
-    key_id: Option<AuthKeyId>,
-    submitted_digest: StepUpDigest,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum StepUpConsumption {
-    Verified,
-    Rejected,
-}
-
-impl fmt::Debug for StepUpProof {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("StepUpProof([REDACTED])")
     }
 }
 
@@ -5238,14 +5219,6 @@ fn step_up_delivery_unavailable() -> ProviderError {
         "auth",
         "fresh authentication delivery is unavailable for this deployment profile",
     ))
-}
-
-pub(crate) fn step_up_required_error() -> SnapbackError {
-    SnapbackError::error(
-        "SNAPBACK_AUTH_STEP_UP_REQUIRED",
-        "auth",
-        "authority-creating consent requires fresh step-up authentication",
-    )
 }
 
 fn authorized_lease_key_unavailable() -> SnapbackError {

@@ -35,10 +35,12 @@ use crate::auth::sender_proof::{
     SENDER_ISSUANCE_PROTOCOL, SenderIssuanceCommitment, SenderIssuanceExpectation,
     verify_sender_issuance_proof,
 };
-use crate::auth::service_fence::{
+use crate::auth::service_authority_contract::{
     ServiceAuthorityActResolution, ServiceAuthorityDisposition,
-    ServiceAuthorityExternalEffectPermit, ServiceAuthorityPublication, ServiceAuthorityWitness,
-    ServiceAuthorityWorkPermit, with_service_authority_terminal_gate,
+};
+use crate::auth::service_fence::{
+    ServiceAuthorityExternalEffectPermit, ServiceAuthorityPublication, ServiceAuthorityWorkPermit,
+    with_service_authority_terminal_gate,
 };
 use crate::auth::session_projection::{
     AUTH_LOCK_RANK_CONNECTION_REGISTRY, FencedAuthorityWorkPermit, FencedPublication,
@@ -10846,7 +10848,7 @@ async fn prepare_registered_route_authority(
                                         .resolve_scoped_token(&token, now_ms)?;
                                     let publication = service_fences
                                         .register(
-                                            ServiceAuthorityWitness::from_resolved(&resolved),
+                                            resolved.service_authority_witness(),
                                             now_ms,
                                             service_monotonic_now,
                                         )?
@@ -14022,7 +14024,7 @@ async fn auth_agent_invitation(
     let request: AgentInvitationRequest = parse_auth_json(&headers, body)?;
     let step_up = request
         .step_up
-        .ok_or_else(|| ApiError::from(crate::auth::provider::step_up_required_error()))?;
+        .ok_or_else(|| ApiError::from(crate::auth::crypto::step_up_required_error()))?;
     let binding = agent_invitation_step_up_binding(&authority)?;
     let admission = provider.admit().await;
     let challenge_id = step_up.challenge_id.clone();
@@ -14910,11 +14912,7 @@ async fn prepare_connection_open_authority_with_scoped_token(
                 .auth_database_mut()
                 .resolve_scoped_token(&token, now_ms)?;
             let publication = service_fences
-                .register(
-                    ServiceAuthorityWitness::from_resolved(&resolved),
-                    now_ms,
-                    monotonic_now,
-                )?
+                .register(resolved.service_authority_witness(), now_ms, monotonic_now)?
                 .with_provider_clock(service_clock);
             Ok::<_, SnapbackError>((resolved, publication))
         })

@@ -423,9 +423,11 @@ use crate::auth::provider::{
     AUTH_SESSION_SLIDING_WINDOW_MS, AUTH_SESSION_SUPERSESSION_GRACE_MS,
     AUTH_SESSION_USE_COALESCE_MS, AuthClock, AuthProvider, AuthProviderProfile,
 };
+use crate::auth::service_authority_contract::{
+    ServiceAuthorityActResolution, ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition,
+};
 use crate::auth::service_fence::{
-    ServiceAuthorityActResolution, ServiceAuthorityCommitInterlock,
-    ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition, ServiceAuthorityFenceRegistry,
+    ServiceAuthorityCommitInterlock, ServiceAuthorityFenceRegistry,
     with_service_authority_terminal_gate,
 };
 use crate::auth::session_projection::RevocationReason;

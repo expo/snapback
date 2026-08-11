@@ -25,7 +25,9 @@ down the grandfathered ones.
    `search/{ast,sqlite} -> rqs`, `vector/{profile,query,rebuild,sqlite,storage}
    -> rqs`, `search/sqlite -> membership_rules` (membership_rules no longer
    imports rqs).
-3. **kernel→sync/auth-core ×~24.** storage/auth_* files call up into
+3. **kernel→sync/auth-core ×~24.** **First cut DONE 2026-08-10** — the value-shape
+   half (6 edges) inverted; see the item-3 entry at the end of this file. The
+   remaining edges are the genuine behavior call-ups. storage/auth_* files call up into
    session_projection ×5, service_fence ×5, sender_proof ×4, invalidation ×2,
    lease ×2, provider ×2, coordinator, invocation ×2, admission (via
    proof_checkpoint). This is exactly the with_auth_* escape-hatch shape:
@@ -277,3 +279,37 @@ the frozen item-4 edge on its existing key until item 4 inverts.
 
 <!-- module-ownership-frozen-edge: {"fingerprint":"src/auth/rehearsal.rs (shared-contract-types-leaf) → src/secure_file.rs (storage-migration-kernel)","disposition":"time-bounded-waiver","observationRevision":"eefe4e446","provenance":"Item 9: live main-red from the LLP 0213 slice-C wave, frozen by the fleet at the slice-1 re-application landing; carried into the v2 frozen set as item 9 machine records.","inversionOwner":"storage-migration-kernel","deadline":"2026-08-11"} -->
 <!-- module-ownership-frozen-edge: {"fingerprint":"src/storage/auth_rehearsal.rs (storage-migration-kernel) → src/admin.rs (transport-adapters)","disposition":"time-bounded-waiver","observationRevision":"eefe4e446","provenance":"Item 9: live main-red from the LLP 0213 slice-C wave, frozen by the fleet at the slice-1 re-application landing; carried into the v2 frozen set as item 9 machine records.","inversionOwner":"transport-adapters","deadline":"2026-08-11"} -->
+
+**Item 3 first cut, 2026-08-10 (kernel auth authority shapes → leaf).** Six
+frozen kernel→sync edges inverted by moving value shapes down, with the
+behavior left in the sync engine
+(`issues/20260810-owner2-kernel-auth-authority-shapes-slice.md`): the step-up
+proof shapes to the leaf-owned `src/auth/crypto.rs`, and the service-authority
+fence value shapes to the new leaf module
+`src/auth/service_authority_contract.rs`. Removed:
+`storage/auth_agent_credentials → auth/service_fence`,
+`storage/auth_agents → auth/{provider,service_fence}`,
+`storage/auth_grants → auth/{provider,service_fence}`, and
+`storage/pending_effects → auth/provider`. `storage/auth.rs →
+auth/service_fence` deliberately stays — it imports the two retained fence
+traits, which invert when prepared-terminal custody becomes a typed kernel
+operation. `ServiceAuthorityWitness::from_resolved` became
+`ResolvedScopedToken::service_authority_witness` in
+`src/storage/auth_agent_credentials.rs` so callers project the witness by
+method instead of naming the leaf module — which is what keeps
+`src/local/tests.rs` off the new module entirely.
+
+One waiver, below: `src/local.rs` genuinely matches on
+`ServiceAuthorityActResolution`/`ServiceAuthorityDisposition` (local.rs:3842-3856),
+so the shape move re-keys its frozen `src/local.rs → src/auth/service_fence.rs`
+edge (which this landing removes) onto the new leaf module. That is a strict
+*layer improvement* — unassigned→sync becomes unassigned→leaf — but the tool's
+`relocation` disposition asserts the predecessor owner pair is retained, so it
+cannot express a re-key that moves a shape down a layer. This is the same
+vocabulary gap already filed as
+`issues/20260810-owngate-split-relocation-disposition-gap.md`; until that lane
+widens the vocabulary, the honest machine record available is a waiver, and
+the prose here carries the real disposition. It inverts with the `local.rs`
+drainage slices, not by a separate inversion.
+
+<!-- module-ownership-frozen-edge: {"fingerprint":"src/local.rs (unassigned) → src/auth/service_authority_contract.rs (shared-contract-types-leaf)","disposition":"time-bounded-waiver","observationRevision":"3d1553975","provenance":"Item 3 first cut: downward re-key of the frozen src/local.rs → src/auth/service_fence.rs edge that this same landing removes, because the service-authority value shapes moved from the sync engine to the contract leaf. Recorded as a waiver only because the relocation disposition requires the predecessor owner pair to be retained and cannot express a shape moving down a layer (issues/20260810-owngate-split-relocation-disposition-gap.md). Inverts with local.rs drainage.","inversionOwner":"transport-adapters","deadline":"2026-09-15"} -->
