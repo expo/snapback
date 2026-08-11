@@ -55,10 +55,11 @@ fragment. The page removes the fragment before boot and stores the derived
 record through the same `snapback_console_credential_v1` path used by the paste
 fallback.
 
-<!-- since: 0.1.18 unreleased -->
+<!-- since: 0.1.19 unreleased -->
 > **Unreleased.** Automatic build-matched console packaging is newer than the
-> newest published closure, 0.1.17. Use a contributor source build until 0.1.18
-> is published.
+> newest published closure, 0.1.18 (it landed on `main` after the 0.1.18
+> candidate was frozen). Use a contributor source build until the next
+> qualified closure is published.
 
 The server serves the immutable console snapshot at `/_snapback/admin/`.
 Published `@expo/snapback-cli` installs carry a build-matched snapshot inside

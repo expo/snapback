@@ -1234,10 +1234,11 @@ does not persist the summary, and does not promote popular mistakes into
 aliases. Regenerate or reload your artifacts when the diagnostic's generation
 does not match the artifact you used.
 
-<!-- since: 0.1.18 unreleased -->
+<!-- since: 0.1.19 unreleased -->
 > **Unreleased.** The remediation carrier and apply operation are newer than
-> the newest published closure, 0.1.17. Use a source build until 0.1.18 is
-> published.
+> the newest published closure, 0.1.18 (they landed on `main` after the 0.1.18
+> candidate was frozen). Use a source build until the next qualified closure
+> is published.
 
 ## Apply a remediation safely
 
@@ -1590,10 +1591,11 @@ fragment. The page removes the fragment before boot and stores the derived
 record through the same `snapback_console_credential_v1` path used by the paste
 fallback.
 
-<!-- since: 0.1.18 unreleased -->
+<!-- since: 0.1.19 unreleased -->
 > **Unreleased.** Automatic build-matched console packaging is newer than the
-> newest published closure, 0.1.17. Use a contributor source build until 0.1.18
-> is published.
+> newest published closure, 0.1.18 (it landed on `main` after the 0.1.18
+> candidate was frozen). Use a contributor source build until the next
+> qualified closure is published.
 
 The server serves the immutable console snapshot at `/_snapback/admin/`.
 Published `@expo/snapback-cli` installs carry a build-matched snapshot inside

@@ -98,3 +98,29 @@ receipts, and ledgers are untouched until the qualified lane runs.
   owns updating that phrasing.
 - Ticket stays open until a promotion publishes the 11-package
   closure and clears the fences.
+
+## Closure — 2026-08-11
+
+The open condition — "a promotion publishes the 11-package closure and clears
+the fences" — is met by qualified 0.1.18, checked against the four items:
+
+1. **Name availability** — moot since 0.1.14 first published the unscoped
+   name; 0.1.18 is now its `latest` (promotion receipt
+   `tests/acceptance/publication/promotion-receipt-0.1.18.json`, finalVector
+   `create-snapback-app: 0.1.18`).
+2. **Closure inclusion** — the 0.1.18 candidate ledger
+   (`tests/acceptance/publication/candidate-0.1.18.json`) is the 11-package
+   closure with a `create-snapback-app` row, published and promoted
+   `latest` through the full qualified ceremony (epochs 4–15, operation
+   `release-0.1.18-20260811-r12`, `promoted-and-closed`).
+3. **Cold-install coverage executed end to end** — both sha256-pinned staged
+   platform receipts for candidate `2d28570daa14` carry
+   `packedCreateSnapbackAppScaffoldFromCleanDirectory: true` (EAS staging run
+   `019fed99-00d6-71d4-92c3-27dd7b738664`, 8/8), and the post-promotion
+   hosted proof (runs 31449958810 / 31451683450) re-proved the same leg on
+   both platforms against the public 0.1.18 `latest` vector.
+4. **Guide fence** — swept at 0.1.12; `guide/getting-started/the-authoring-loop.md`
+   now records the package as published ("first published with the 0.1.15
+   closure" phrasing landed with the fast-path era) and
+   `guide/published-closure.json` records 0.1.18 as
+   newestPublished/newestQualified. Closed.

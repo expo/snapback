@@ -79,3 +79,23 @@ template harness likewise asserts those facts and now performs a no-server
 static Expo web export in addition to codegen, static acceptance, and strict
 typecheck. The monolithic packed qualification was not executed in this lane,
 so the ticket remains open under its existing end-to-end criterion.
+
+## Closure — 2026-08-11
+
+The remaining condition — "a staged qualification run (or the next
+promotion's proof) actually executes the expo-chat leg end to end" — is met
+twice over by qualified 0.1.18 (candidate `2d28570daa14`):
+
+- The EAS staged qualification (run `019fed99-00d6-71d4-92c3-27dd7b738664`,
+  8/8) executed the leg on both platforms; both sha256-pinned staged
+  receipts in `tests/acceptance/publication/candidate-0.1.18.json` carry
+  `packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance: true`, alongside
+  the LLP 0196 T3/T0 fail-closed assertions this ticket accumulated (verify
+  proof command, web platform/script/dependencies).
+- The post-promotion hosted proof (GitHub-hosted runs 31449958810 /
+  31451683450) re-executed it against the published 0.1.18 `latest` vector
+  on both platforms after the leased promotion closed
+  (`release-0.1.18-20260811-r12`, `promoted-and-closed`).
+
+Item 2's recurring template typecheck has been standing in
+`scripts/verify-local-proof` since 2026-08-07. Closed.

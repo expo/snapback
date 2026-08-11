@@ -6,6 +6,13 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (first completed qualified promotion):** 2026-08-11 (0.1.18 is the
+first closure to travel the full qualified ceremony end to end — frozen
+candidate, EAS-provenance staged receipts, leased `latest` promotion,
+post-promotion hosted proof — and `newestQualified` advances from 0.1.7 to
+0.1.18; the ceremony's operational record and standing facts are in
+§"0.1.18 (2026-08-11)".)
+
 **Revised (published admin-console closure):** 2026-08-10 (the static
 Contract/Exact admin snapshot is now a required, build-matched member of every
 platform runtime package; runtime sealing, staged-tarball qualification, and
@@ -1576,3 +1583,74 @@ Unchanged by this ruling: the in-project bin name is still `snapback`; the
 source/import dialect is the same `@expo/snapback-*` names (no third dialect
 returns); and the recorded `@ccheever/snapback-*` publication lineage stays
 read-side valid per §Decision-9 terminal-scope migration.
+
+## 0.1.18 (2026-08-11): the first completed qualified ceremony
+
+The 0.1.18 closure is the first release to complete the **full qualified
+ceremony** — every prior published closure either predated the ceremony
+(≤ 0.1.7, the last `newestQualified` until now), shipped via the fast path
+(0.1.8–0.1.13, 0.1.15–0.1.17), or was refused at promotion and rolled back
+(0.1.14, the ICU refusal recorded above). All eleven packages'
+`latest` now points at 0.1.18, and `guide/published-closure.json` records
+`newestQualified: 0.1.18` for the first time since 0.1.7.
+
+**The record.** Candidate revision `2d28570daa14`, frozen on
+`release/qualified-0.1.18` (not an ancestor of `main`; `main` had moved on
+before the ceremony finished — the fences that landed after the freeze stayed
+honest as `0.1.19 unreleased`). Staged qualification ran on EAS
+(`qualified-package-staging.yml@2d28570daa14`, run
+`019fed99-00d6-71d4-92c3-27dd7b738664`, 8/8 green) and produced
+per-platform staged receipts **with EAS provenance** (`easProof`: build id,
+project id, workflow ref pinned to the candidate revision), sha256-pinned
+into the committed candidate ledger
+(`tests/acceptance/publication/candidate-0.1.18.json`). Both staged receipts
+prove the cold-install legs end to end, including
+`packedExpoChatScaffoldTypecheckStaticAndLiveAcceptance` and
+`packedCreateSnapbackAppScaffoldFromCleanDirectory`. The leased promotion
+closed as operation `release-0.1.18-20260811-r12` at publication epoch 15:
+status `promoted-and-closed`, all eleven tag events ok, the
+`promoted-installability-barrier.v2` passed, and the post-promotion hosted
+proof (GitHub run 31449958810 and successor 31451683450) launched the
+published closure on stock GitHub-hosted runners on both platforms against
+the live `latest` vector, its latest-root receipts bound into the promotion
+finalization via the authorized lease sha256. The promotion receipt and the
+`snapback.package-post-promotion-ledger.v2` are retained at
+`tests/acceptance/publication/promotion-receipt-0.1.18.json` and
+`post-promotion-ledger-0.1.18.json` — the first ceremony's receipts are
+historically significant.
+
+**Twelve attempts (r1–r12, epochs 4–15).** The promotion lane refused eleven
+times before it passed, and each refusal was a real defect in the lane, not
+in the closure. The defect classes fixed along the way, so the next operator
+inherits none of them:
+
+- **Lease clock skew** — lease validity compared against the publisher's
+  wall clock; skew between authority and publisher invalidated a live lease.
+- **Budget double-reservation** — a retried acquisition reserved promotion
+  budget twice, exhausting the epoch's allowance on its own retry.
+- **Run-correlation quiet-main assumption** — correlating the hosted proof
+  run to the candidate assumed no concurrent `main` pushes; the fleet's
+  continuous landing rate falsified it (the standing CLAUDE.md warning about
+  quiet-`main` designs, proven again).
+- **Unpassable `run.path` clause** — a proof-plan clause unsatisfiable since
+  2026-07-28 meant no run could ever have passed it; it had never been
+  exercised until the first real ceremony reached it.
+- **Self-hosted runner receipts** — receipts minted on self-hosted runners
+  were refused; the proof must run github-hosted to model a consumer.
+- **GH timestamp precision** — GitHub API timestamps truncate to seconds;
+  strict ordering comparisons flapped on same-second events.
+- **Authority autostop cold-start** — the Fly authority autostopping between
+  attempts made each reopen revalidate the full epoch history from the
+  volume, adding cold-start latency per attempt.
+
+**Standing operational facts** for the next ceremony operator:
+
+- The publication authority now runs with **autostop=off**. Reopen
+  revalidation cost grows with the epoch count (the volume currently holds
+  all 15 epochs), so letting the machine stop between attempts makes every
+  retry slower than the last; keep it running for the ceremony's duration.
+- The promotion runs **from the release branch checkout**, not `main` — the
+  telemetry-currentness gate binds the receipt to the frozen candidate
+  revision, and `main` has always moved by promotion time.
+- The hosted-proof dispatch targets the **release-branch ref**, for the same
+  reason: the workflow file and the proof harness must be the candidate's.

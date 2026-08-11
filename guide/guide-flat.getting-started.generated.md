@@ -83,15 +83,7 @@ partial: specialized validators — typed asset references (`v.assetRef`,
 [assets](../backend/assets.md)), result-side `v.doc(table)` references
 ([queries](../backend/queries.md)) — are taught with their features.
 
-<!-- since: 0.1.18 unreleased -->
-
-> **Unreleased.** The typed-structured declaration grammar (stored
-> `v.object`/`v.array`/non-literal unions) is newer than the newest
-> published closure, 0.1.17, and is available on contributor-source local
-> builds. Structured storage is experimental with local support ON
-> (the reviewed flip landed with LLP 0211's acceptance, 2026-08-10).
-> Stored enum fields shipped in the published
-> closure and are not fenced.
+<!-- since: 0.1.18 -->
 
 **Closed string domains (enums).** A field whose values come from a fixed set
 — a role, a status, a visibility — declares that set directly, instead of

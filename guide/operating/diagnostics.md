@@ -71,10 +71,11 @@ does not persist the summary, and does not promote popular mistakes into
 aliases. Regenerate or reload your artifacts when the diagnostic's generation
 does not match the artifact you used.
 
-<!-- since: 0.1.18 unreleased -->
+<!-- since: 0.1.19 unreleased -->
 > **Unreleased.** The remediation carrier and apply operation are newer than
-> the newest published closure, 0.1.17. Use a source build until 0.1.18 is
-> published.
+> the newest published closure, 0.1.18 (they landed on `main` after the 0.1.18
+> candidate was frozen). Use a source build until the next qualified closure
+> is published.
 
 ## Apply a remediation safely
 

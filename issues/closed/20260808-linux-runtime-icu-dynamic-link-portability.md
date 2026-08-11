@@ -126,3 +126,25 @@ in `issues/20260810-linux-runtime-glibc-symbol-version-baseline.md`.
 
 This ticket **REMAINS OPEN** until a successor version ships through the full
 ceremony and its `latest` promotion completes.
+
+## Closure — 2026-08-11
+
+The open condition — "a successor version ships through the full ceremony and
+its `latest` promotion completes" — is met. Qualified 0.1.18 (candidate
+`2d28570daa14`, `release/qualified-0.1.18`) ships the self-contained runtime
+this ticket's mechanism built: bundled ICU closure in package `lib/`,
+`$ORIGIN/../lib` RPATH, static curl/OpenSSL, and the fail-closed ELF soname
+allowlist gate in every staging path. The leased promotion completed
+(operation `release-0.1.18-20260811-r12`, epoch 15, `promoted-and-closed`,
+receipt at `tests/acceptance/publication/promotion-receipt-0.1.18.json`) and
+`latest` is 0.1.18 for all eleven packages — including
+`create-snapback-app`, whose broken 0.1.14 first-publish `latest` exposure is
+thereby retired. The post-promotion hosted proof (runs 31449958810 /
+31451683450) launched the published `@expo/snapback-runtime-linux-x64` on a
+stock GitHub-hosted runner — the exact consumer-shaped launch that refused
+0.1.14 — green.
+
+Residual exposure stays where it was already filed: the builder-glibc symbol
+floor (Ubuntu 22.04-class hosts) is
+`issues/20260810-linux-runtime-glibc-symbol-version-baseline.md`, not this
+ticket. Closed.

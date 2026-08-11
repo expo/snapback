@@ -1490,11 +1490,12 @@ stale references and production builds keep the strict
 Regression witness: `packages/snapback-react/hmr-generation-handoff.test.mjs`;
 governing design: LLP 0114 (mounted-provider HMR generation handoff).
 
-<!-- since: 0.1.18 unreleased -->
+<!-- since: 0.1.19 unreleased -->
 
 > **Unreleased.** The static React core entry is newer than the newest
-> published Snapback closure, 0.1.17. Use it from this source checkout until
-> the next qualified closure is published.
+> published Snapback closure, 0.1.18 (it landed on `main` after the 0.1.18
+> candidate was frozen). Use it from this source checkout until the next
+> qualified closure is published.
 
 ## Keep query-only application bundles narrow
 
@@ -2827,7 +2828,7 @@ npm create snapback-app my-app
 #               bun create snapback-app my-app
 #               pnpm create snapback-app my-app
 # scoped CLI spelling, same scaffolder:
-#   npx --yes @expo/snapback-cli@0.1.17 new my-app --template expo-chat
+#   npx --yes @expo/snapback-cli@0.1.18 new my-app --template expo-chat
 ```
 
 `expo-chat` is `create-snapback-app`'s default template, so `--template` is
@@ -2851,11 +2852,11 @@ published closure is the checked-in record in
 
 ```sh
 npx expo install \
-  @expo/snapback-cli@0.1.17 \
-  @expo/snapback-client@0.1.17 \
-  @expo/snapback-codegen@0.1.17 \
-  @expo/snapback-expo@0.1.17 \
-  @expo/snapback-react@0.1.17 \
+  @expo/snapback-cli@0.1.18 \
+  @expo/snapback-client@0.1.18 \
+  @expo/snapback-codegen@0.1.18 \
+  @expo/snapback-expo@0.1.18 \
+  @expo/snapback-react@0.1.18 \
   expo-file-system expo-crypto expo-image-picker
 ```
 
