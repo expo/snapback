@@ -11,7 +11,7 @@ use super::{
     MaintenanceOperation, PendingLiveFanout, PendingLiveLane, PendingLiveScheduler,
     PendingLiveWork, PublicInspect, RetryEpisodeKey, RetryReservationKind, SEARCH_ANALYZER,
     SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1, SearchIndexManifestV1,
-    SearchQueryPlanV1, SearchTextFieldV1, SnapbackError, SnapbackResult,
+    SearchQueryPlanV1, SearchTextFieldV1, SearchVisibilityV1, SnapbackError, SnapbackResult,
     StagedMutationExecution, StagedNestedMutation, StagedRecordedMutation,
     bounded_projection_result_contract, enforce_snapshot_batch_cursor_budget,
     next_secret_read_reset_generation, now_millis, order_field_bounds_from_functions,
@@ -51,7 +51,6 @@ use crate::manifest::{
     TableManifest, ValueExpr, ctx_ledger_version,
 };
 use crate::runtime::ExecutedIbexMutation;
-use crate::search::SearchVisibilityV1;
 use crate::storage::auth_grants::{ExactGrantScope, ScopedFunctionKind};
 use crate::storage::{BufferedWrite, DbRead};
 use crate::vector::{

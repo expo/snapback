@@ -67,7 +67,7 @@ use crate::runtime::{
 #[cfg(test)]
 pub(crate) use crate::search::sqlite::{
     SEARCH_ANALYZER, SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1, SearchIndexManifestV1,
-    SearchQueryPlanV1, SearchTextFieldV1,
+    SearchQueryPlanV1, SearchTextFieldV1, SearchVisibilityV1,
 };
 use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit, NetworkSeedOutcome};
 use crate::storage::{
