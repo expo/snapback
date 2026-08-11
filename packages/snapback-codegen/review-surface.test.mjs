@@ -32,7 +32,9 @@ mkdirSync(backend);
 
 const schemaSource = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ items: defineTable({ value: v.string() }) });
+export default defineSchema({
+  items: defineTable({ value: v.string() }).visibility({ kind: 'public-read' }),
+});
 `;
 const functionsSource = `
 import { defineJsQuery } from '${defineUrl}';
