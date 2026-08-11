@@ -5,8 +5,8 @@
   ],
   "appId": "competitive-checkpoint",
   "artifactKind": "functionManifest",
-  "authoredSourceHash": "sha256:7d22c88fe560ac4284475774b5a37e389b93932576dffe7ce98ce03109fe2803",
-  "bundleHash": "sha256:4f090f6225c0bfaa",
+  "authoredSourceHash": "sha256:e5540be9ac4b1e2368f2c8889222a87ed2d35e7be4c500198847f874d7d27367",
+  "bundleHash": "sha256:e9ba202cba6107e0",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -2779,7 +2779,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "6779fd9d70aedf5648d157ceda1155a0cbe1e49ffc37dfaef804e94d851ef882",
+  "inputsHash": "0bdf6c8cbd63809b0aede8f9448d6f8c094ce808737b4005c11bffd0cc1617c0",
   "projections": [
     {
       "fanOutLimit": 64,
