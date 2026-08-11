@@ -20679,14 +20679,17 @@ async fn host_ops_handler(
     let ring = runtime.recent_invocations.clone();
     let started_at = crate::host_ops::iso8601_utc_ms(now_millis());
     let started = std::time::Instant::now();
-    let result = host_ops_handler_inner(
+    // The inner dispatcher is a large branch union; pin it on the heap so
+    // middleware/observation frames do not duplicate that size on the poll
+    // stack for every host operation.
+    let result = Box::pin(host_ops_handler_inner(
         State(runtime.clone()),
         route_admission,
         authority,
         impersonation,
         headers,
         Json(request),
-    )
+    ))
     .await;
     if matches!(
         operation.as_str(),
@@ -20879,7 +20882,10 @@ async fn host_ops_handler_inner(
             | "auth.integrationSuspend"
             | "auth.integrationResume"
     ) {
-        let result = execute_auth_host_operation(
+        // Keep the large, closed auth-operation state machine out of the
+        // surrounding Axum/Tower poll stack. Rehearsal variants make this
+        // future materially larger than the other host-operation branches.
+        let result = Box::pin(execute_auth_host_operation(
             &runtime,
             &headers,
             impersonation.as_ref().map(|Extension(verified)| verified),
@@ -20892,7 +20898,7 @@ async fn host_ops_handler_inner(
             })?,
             request,
             server_url,
-        )
+        ))
         .await?;
         return Ok(Json(result));
     }

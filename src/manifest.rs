@@ -10430,7 +10430,9 @@ impl TargetCapabilityId {
             | Self::AssetReferenceGcV1
             | Self::AgentSafeStorageV1
             | Self::AgentSafeDerivedDeploymentForkV1 => CapabilityMaturity::Experimental,
-            // LLP 0222 remains in Review while this implementation lands.
+            // @ref LLP 0134#1-maturity-semantics-and-the-two-routes — LLP
+            //   0222 is Implemented, but no evidence-bound stable-promotion
+            //   act has landed for this capability.
             Self::ConnectedClientPredicate => CapabilityMaturity::Experimental,
             Self::AuthSessionsV1
             | Self::BoundedResponseStreamV1
@@ -16263,6 +16265,10 @@ mod membership_manifest_grammar_tests {
             // claim boundary bars any stable/capability-class reading).
             (
                 TargetCapabilityId::JobsOneOffV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::ConnectedClientPredicate,
                 CapabilityMaturity::Experimental,
             ),
             (
