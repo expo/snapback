@@ -16,12 +16,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../../../../packages/snapback-client/index.mjs';
 import { SnapbackAssetClient } from '../../../../packages/snapback-client/assets.mjs';
-import {
-  AuthCoordinator,
-  createMemoryAuthCustodyStorage,
-} from '../../../../packages/snapback-contract/index.mjs';
 import { cpSync, mkdtempSync as mkdtempSync2 } from 'node:fs';
 import { generate } from '../../../../packages/snapback-codegen/index.mjs';
+import { asUser } from '../../../_kit/as-user.mjs';
 import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 import { assert as suiteAssert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
@@ -68,43 +65,14 @@ await runAcceptance(suite, async () => {
   const appId = schemaManifest.appId;
 
   async function mintSession(email) {
-    const coordinator = new AuthCoordinator({
-      appId,
-      storage: createMemoryAuthCustodyStorage({ state: { custody: {} } }),
-      broadcastChannelFactory: null,
-      hintStorage: null,
-    });
-    const client = new SnapbackClient(server.baseUrl, {
-      authCoordinator: coordinator,
-      authInvalidationProtocol: 1,
-      authorityDescriptorProtocol: 1,
-      authorizedLeaseProtocol: 1,
+    const session = await asUser(server, appId, email, {
       clientStoreId: `pw-${email.split('@')[0]}`,
     });
-    const requested = await client.authRequestCode(email);
-    const mailboxResponse = await fetch(
-      `${server.baseUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(requested.challengeId)}`,
-      {
-        headers: {
-          'x-snapback-admin-token': server.adminToken,
-          'x-snapback-impersonation-capability': server.impersonationCapability,
-        },
-      },
-    );
-    const mailbox = await mailboxResponse.json();
-    assert.equal(mailboxResponse.status, 200, JSON.stringify(mailbox));
-    const credential = await client.authExchange({
-      challengeId: requested.challengeId,
-      code: mailbox.code,
-    });
-    cleanups.push(() => client.dispose?.());
+    cleanups.push(session.dispose);
     return {
-      client,
-      coordinator,
-      credential,
-      userId: credential.session.userId,
-      assets: new SnapbackAssetClient(client),
-      bearer: () => coordinator.credentialFor(coordinator.capture()).bearer,
+      ...session,
+      assets: new SnapbackAssetClient(session.client),
+      bearer: () => session.coordinator.credentialFor(session.coordinator.capture()).bearer,
     };
   }
 

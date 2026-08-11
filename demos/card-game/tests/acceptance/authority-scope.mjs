@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 
+import { asUser } from '../../../_kit/as-user.mjs';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 import {
@@ -93,37 +94,7 @@ async function eventually(assertion, message, timeoutMs = 5_000) {
 }
 
 async function mintSession(server, appId, email, clientStoreId) {
-  const custodyState = { custody: {} };
-  const coordinator = new AuthCoordinator({
-    appId,
-    storage: createMemoryAuthCustodyStorage({ state: custodyState }),
-    broadcastChannelFactory: null,
-    hintStorage: null,
-  });
-  const client = new SnapbackClient(server.baseUrl, {
-    authCoordinator: coordinator,
-    authInvalidationProtocol: 1,
-    authorityDescriptorProtocol: 1,
-    authorizedLeaseProtocol: 1,
-    clientStoreId,
-  });
-  const requested = await client.authRequestCode(email);
-  const mailboxResponse = await fetch(
-    `${server.baseUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(requested.challengeId)}`,
-    {
-      headers: {
-        'x-snapback-admin-token': server.adminToken,
-        'x-snapback-impersonation-capability': server.impersonationCapability,
-      },
-    },
-  );
-  const mailbox = await mailboxResponse.json();
-  assert.equal(mailboxResponse.status, 200, JSON.stringify(mailbox));
-  const credential = await client.authExchange({
-    challengeId: requested.challengeId,
-    code: mailbox.code,
-  });
-  return { client, coordinator, credential, custodyState, clientStoreId };
+  return asUser(server, appId, email, { clientStoreId });
 }
 
 async function contractOptions({

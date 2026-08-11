@@ -4,12 +4,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { SnapbackClient } from '../../../_kit/client.mjs';
+import { asUser } from '../../../_kit/as-user.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
-import {
-  AuthCoordinator,
-  createMemoryAuthCustodyStorage,
-} from '../../../../packages/snapback-contract/index.mjs';
 import {
   closeAcceptanceSession,
   OwnedLiveSubscriptions,
@@ -163,39 +159,16 @@ async function assertRemainsEmpty(live, quietMs, label) {
 }
 
 async function mintSession(appId, email, clientStoreId) {
-  const coordinator = new AuthCoordinator({
-    appId,
-    storage: createMemoryAuthCustodyStorage(),
-    broadcastChannelFactory: null,
-    hintStorage: null,
-  });
-  const client = new SnapbackClient(server.baseUrl, {
-    authCoordinator: coordinator,
-    authInvalidationProtocol: 1,
-    authorityDescriptorProtocol: 1,
+  return asUser(server, appId, email, {
     clientStoreId,
-  });
-  const session = { client, coordinator, closePromise: null };
-  // Own the local resources before starting any request. If minting fails or
-  // the outer watchdog cuts a non-settling server, finally still closes both.
-  sessions.push(session);
-  const requested = await client.authRequestCode(email);
-  const mailboxResponse = await fetch(
-    `${server.baseUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(requested.challengeId)}`,
-    {
-      headers: {
-        'x-snapback-admin-token': server.adminToken,
-        'x-snapback-impersonation-capability': server.impersonationCapability,
-      },
+    clientOptions: { authorizedLeaseProtocol: null },
+    // Own the local resources before starting any request. If minting fails or
+    // the outer watchdog cuts a non-settling server, finally still closes both.
+    register(session) {
+      session.closePromise = null;
+      sessions.push(session);
     },
-  );
-  const mailbox = await mailboxResponse.json();
-  assert.equal(mailboxResponse.status, 200, JSON.stringify(mailbox));
-  session.credential = await client.authExchange({
-    challengeId: requested.challengeId,
-    code: mailbox.code,
   });
-  return session;
 }
 
 async function disposeLiveSubscription(session, connectionId, subscriptionId) {

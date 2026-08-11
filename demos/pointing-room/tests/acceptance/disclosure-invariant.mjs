@@ -12,13 +12,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { asUser } from '../../../_kit/as-user.mjs';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { importGeneratedModule, readGeneratedJson } from '../../../_kit/generated-artifacts.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
-import {
-  AuthCoordinator,
-  createMemoryAuthCustodyStorage,
-} from '../../../../packages/snapback-contract/index.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
@@ -56,37 +53,12 @@ const realFetch = globalThis.fetch;
 const RealWebSocket = globalThis.WebSocket;
 
 async function mintSession(email, clientStoreId) {
-  const coordinator = new AuthCoordinator({
-    appId: schema.appId,
-    storage: createMemoryAuthCustodyStorage({ state: { custody: {} } }),
-    broadcastChannelFactory: null,
-    hintStorage: null,
-  });
-  const client = new SnapbackClient(server.baseUrl, {
-    authCoordinator: coordinator,
-    authInvalidationProtocol: 1,
-    authorityDescriptorProtocol: 1,
-    authorizedLeaseProtocol: 1,
+  const session = await asUser(server, schema.appId, email, {
     clientStoreId,
+    fetchImpl: realFetch,
   });
-  const requested = await client.authRequestCode(email);
-  const mailboxResponse = await realFetch(
-    `${server.baseUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(requested.challengeId)}`,
-    {
-      headers: {
-        'x-snapback-admin-token': server.adminToken,
-        'x-snapback-impersonation-capability': server.impersonationCapability,
-      },
-    },
-  );
-  const mailbox = await mailboxResponse.json();
-  assert.equal(mailboxResponse.status, 200, JSON.stringify(mailbox));
-  const credential = await client.authExchange({
-    challengeId: requested.challengeId,
-    code: mailbox.code,
-  });
-  clients.push(client);
-  return { client, coordinator, credential };
+  clients.push(session.client);
+  return session;
 }
 
 function capture(session) {

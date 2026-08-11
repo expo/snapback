@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { asUser } from '../../../_kit/as-user.mjs';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 import { freePort } from '../../../_kit/provenance.mjs';
@@ -77,24 +78,11 @@ const clientForCustody = (custodyState, rqsStore = store) => {
 
 async function mintSession(email, { rqsStore = null } = {}) {
   const custodyState = { custody: {} };
-  const session = clientForCustody(custodyState, rqsStore);
-  const requested = await session.client.authRequestCode(email);
-  const mailboxResponse = await fetch(
-    `${server.baseUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(requested.challengeId)}`,
-    {
-      headers: {
-        'x-snapback-admin-token': server.adminToken,
-        'x-snapback-impersonation-capability': server.impersonationCapability,
-      },
-    },
-  );
-  const mailbox = await mailboxResponse.json();
-  assertEqual(mailboxResponse.status, 200, 'mailbox response');
-  const credential = await session.client.authExchange({
-    challengeId: requested.challengeId,
-    code: mailbox.code,
+  return asUser(server, schema.appId, email, {
+    clientStoreId: 'offline-sessions-custody',
+    custodyState,
+    clientOptions: { rqsStore },
   });
-  return { ...session, credential };
 }
 
 const suite = createSuite('card-game / offline sessions custody (JS arm)', {
