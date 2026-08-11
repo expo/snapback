@@ -1,12 +1,12 @@
 # LLP 0231: Entity and permissioning — recommendation
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Auth, Security/authorization, Storage, Live queries, Code generation, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-10
 **Revised:** 2026-08-11
-**Related:** LLP 0011, LLP 0039, LLP 0043, LLP 0046, LLP 0053, LLP 0056, LLP 0082, LLP 0100, LLP 0170, LLP 0172, LLP 0173, LLP 0187, LLP 0230
+**Related:** LLP 0011, LLP 0035, LLP 0043, LLP 0046, LLP 0053, LLP 0056, LLP 0070, LLP 0073, LLP 0080, LLP 0085, LLP 0170, LLP 0172, LLP 0173, LLP 0187, LLP 0230
 
 ## Summary
 
@@ -87,7 +87,7 @@ This is the part that makes the recommendation small rather than large.
   0172 *proposes* two phases — a warning naming the exact edit, then a
   generation failure — and the warning phase is what is implemented today
   (`packages/snapback-codegen/index.mjs` emits the diagnostic with
-  machine-applicable remediations; generation does not yet fail). The precedent
+  reviewer-gated remediations (each marked `machineApplicable: false`); generation does not yet fail). The precedent
   is a proposed and partially executed trajectory, not a completed one.
 
 **The policy language is built and analyzable, and one surface already refuses
@@ -149,14 +149,15 @@ recounts:
 | `define*Query` call sites | 96 (102 generated query operations after `*KeysetPages` expansion) |
 | Queries gated by a declared `membership:` | **10** generated (9 textual declarations) |
 | Source-level `authUserId()` uses in query `filter:` lists | **12**, across 8 demos (16 generated uses after owned-page expansion) |
-| Call sites carrying a declared `visibility` union | **10**, across 5 demos (plus one `authScopeField` site; the four generated owned pages also carry `visibility: { kind: 'owner' }` but are counted once, under the `authUserId()` row above) |
+| Call sites carrying a declared `visibility` union | **10**, across 5 demos (plus three `authScopeField` sites, two of them the only scoping token on their query; the four generated owned pages also carry `visibility: { kind: 'owner' }` but are counted once, under the `authUserId()` row above) |
 
 An earlier revision reported "31 uses vs 9 declarations, 3–4×"; that conflated
 write-side owner stamping with read-side scoping and is withdrawn. The
 next revision's "two scoping paths, ~75 of 102 carry neither" was also wrong:
 there are **three** declared mechanisms, and the exact "neither of the first
-two" figure is 76 of 102, dropping to **roughly 66 of 102 that carry none of
-the three**. The denominator is itself conservative: kit-generated queries
+two" figure is 76 of 102, dropping to **roughly 65 of 102 that carry none of
+the three** (65 counts effective generated policy: signal-desk's search query
+inherits its index's mandatory visibility declaration). The denominator is itself conservative: kit-generated queries
 (owned-CRUD `list`/`get`, unique lookups) are invisible to a `define*Query`
 count and all carry declared visibility.
 
@@ -310,7 +311,10 @@ final projection is not a boundary:**
   rule. Restricting the fence to already-masked tables would let an explicitly
   public table silently expose a newly sensitive field through existing
   queries — recreating at field granularity the omission hazard D2 exists to
-  remove. The price is one declaration per new field (§Costs).
+  remove. The price is one declaration per new field (§Costs). The fence activates
+  with D2's second phase — a new field is declarable as disclosed-with-row or
+  as a `fieldBoundary:` residual from day one, so it does not wait for the
+  class-M sibling.
 - **Re-masking is security-negative and rides the conservative path.** A
   disclosed→masked transition is treated like a revocation: it takes the
   obligation-backed conservative delivery route (LLP 0053's `live_replace`
@@ -332,7 +336,11 @@ weaker than the envelope in one way that must be said plainly: a
 `fieldBoundary:` carries **no noninterference guarantee** — the handler sees
 raw values, so a concealed value can still influence ordering or computed
 output until the sibling spec ships. That is exactly why the declaration is
-mandatory and projected rather than optional.
+mandatory and projected rather than optional. And during the interim the
+declaration obligation is a norm, not a fence: an author who writes a masking
+ternary *without* declaring `fieldBoundary:` passes generation undetected,
+because JS is opaque (LLP 0170) — undeclared field boundaries stay invisible
+until the class-M sibling ships, and nothing cheaper can detect them.
 
 A class R/M visibility expression that cannot be composed remains a
 **generate-time refusal** — not a silent post-filter, and not LLP 0011's
@@ -416,7 +424,7 @@ census. Not all seven are equally silent — public-dashboard and latency-kanban
 declare `auth: 'public'` on every query, the declared public-by-design intent
 D2 wants, one level up.) The seven-demo count is not the honest denominator
 either: per the
-corrected census, roughly 66 of 102 queries carry no scoping mechanism, and
+corrected census, roughly 65 of 102 queries carry no scoping mechanism, and
 demos outside these seven contribute most of them. What fraction of those are
 public-by-design versus scoping-forgotten is exactly what nobody can currently
 say — which is the strongest form of the argument for D2, and also the reason
@@ -602,7 +610,10 @@ encryption dismissal.
    decided: waiver authority, separation so a widening change cannot approve
    itself, expiry, ratchet. The no-principal population (scheduled functions,
    seeds, sweeps) makes this a prerequisite for D2's second phase — and
-   overrides are where the leaks will live.
+   overrides are where the leaks will live. The sibling must also distinguish
+   LLP 0070's scheduled-authority modes — `system`, `revalidatePrincipal`,
+   `capturedGrant` — rather than treating every scheduled execution as one
+   waiver class; only `system` is intrinsically principal-free.
 
 ## Acceptance
 
@@ -620,8 +631,9 @@ encryption dismissal.
   obligation-backed re-masking). This gates the class-M sibling spec; until it
   ships, pointing-room carries a declared `fieldBoundary:` with an
   identity-switching test, and this RFC does not claim class M is enforced.
-- Every override and every declared `fieldBoundary:` appears on the projection
-  and carries an identity-switching acceptance test.
+- Every declared `fieldBoundary:` appears on the projection and carries an
+  identity-switching acceptance test; the same holds for every override once
+  the governance sibling makes overrides generatable (post-governance).
 - A membership or reveal change never leaves a subscription reflecting
   visibility its viewer no longer has (no false negatives); conservative extra
   invalidation is permitted; any exact-suppression claim ships with its own
@@ -637,7 +649,10 @@ encryption dismissal.
 
 ## Status
 
-Review. No implementation and no capability claim. The census figures are
+Accepted — author ruling 2026-08-11, implementation directed in-session and
+recorded by the orchestrator; implementation running as ship run
+`llp0231-visibility-20260811`. No capability claim until scoped post-landing
+evidence exists (LLP 0189). The census figures are
 reproducible at `5373238eb`; they were corrected three times by review (raw
 counts, taxonomy, then the no-scoping roster), so treat them as re-derived per
 round rather than settled — re-derive before citing them outside this
@@ -678,3 +693,10 @@ document. Diary citations are quoted exactly.
   narrowing labeled opaque); the `fieldBoundary:` interim's missing
   noninterference stated plainly; the card-game acceptance gate restated as a
   generation failure; "the whole gap" wording narrowed to the authoring gap.
+- 2026-08-11 — post-convergence editorial revision (unreviewed): the seven
+  round-4 DETAIL punch-list items applied (authScopeField count, 65-of-102
+  effective figure, reviewer-gated remediation adjective, interim
+  norm-not-fence candor, fence activation timing, post-governance acceptance
+  qualifier, Related-header hygiene, LLP 0070 authority modes in OQ6). Status
+  Review → Accepted per author ruling. The dual-READY verdicts bind to
+  `sha256 09c2a342…`, which precedes these edits.
