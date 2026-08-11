@@ -928,7 +928,7 @@ title: Protecting live and retained data
 id: auth.protecting-data
 order: 4
 audience: agent-first
-capabilities: [auth.invalidation-barrier, auth.authorized-leases]
+capabilities: [auth.table-visibility, auth.invalidation-barrier, auth.authorized-leases]
 authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/manifest.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
 examples: [demos/card-game, demos/card-game/snapback/schema.mjs, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
@@ -956,8 +956,9 @@ what happens after private data becomes live or retained.
 ## Declare who can read each table
 
 Add one `.visibility(...)` declaration to each `defineTable(...)` chain. The
-closed choices are `{ kind: 'public-read' }`, `{ kind: 'owner', field }`, and
-`{ kind: 'membership', declaration, resourceField, roles }`. There is no
+closed choices are `{ kind: 'public-read' }`, `{ kind: 'owner', field }`,
+`{ kind: 'membership', declaration, resourceField, roles }`, and one bounded
+top-level `anyOf([...])` over owner and membership arms. There is no
 `public()` helper: use the literal public-read record so intentionally public
 data stays explicit and greppable.
 
@@ -969,8 +970,42 @@ Card-game declares the hidden-hand boundary on the table itself:
 
 The owner field must exist. A membership declaration must resolve to a
 `.membership(...)` declaration, its `resourceField` must exist on the governed
-table, and every named role must be in that declaration's non-pending role
-vocabulary. Public-read is a policy decision, not a development fallback.
+table as a required `v.id(...)` of that membership's resource table, and every
+named role must be in that declaration's non-pending role vocabulary.
+Public-read is a policy decision, not a development fallback.
+
+Use `anyOf` for the common “owner or relationship” row boundary:
+
+```js fragment reason="bounded relationship visibility declaration"
+followingFeedEntries: defineTable({
+  authorPrincipalId: v.principal(),
+  authorProfileId: v.id('profiles'),
+  body: v.string(),
+}).visibility(anyOf([
+  owner('authorPrincipalId'),
+  {
+    kind: 'membership',
+    declaration: followings,
+    resourceField: 'authorProfileId',
+    roles: ['following'],
+  },
+]))
+```
+
+The disjunction has 2–8 distinct arms, preserves authored order, and cannot
+nest. `public-read` is not an arm: it would make the entire boundary public.
+The compiler carries this exact predicate into generated query plans. Storage
+evaluates the arms as one grouped OR, then ANDs authored query filters. A
+membership-containing policy records all membership dependencies and uses the
+conservative live-replace lane on relationship insert or delete. Anonymous
+callers satisfy neither arm. All restricted table policies are deliberately
+ineligible for authority-independent RQS digests.
+
+Model a follow graph as a dedicated resource-scoped membership projection,
+for example `(follower principal, followed profile, 'following')`. The owner
+arm includes an author's own rows without inventing a persisted self-follow
+edge. Keep the projection focused on authorization facts; do not use a public
+roster query as the feed boundary.
 
 This release is the warn phase. A table without the declaration still
 generates, but codegen reports `SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT` with
@@ -985,10 +1020,11 @@ checks most useful while adopting it are
 manifest and `artifacts.json` summary project declared and implicit tables for
 review.
 
-`.visibility(...)` and `.assetSharing(...)` are independent declarations in
-this slice. Declaring one does not declare, infer, or conflict with the other.
-The visibility policy is recorded and activation-validated now; composition
-into query plans and `ctx.db` reads belongs to the next implementation slice.
+`.visibility(...)` and `.assetSharing(...)` are independent declarations.
+Declaring one does not declare, infer, or conflict with the other. This slice
+composes table policy only into generated direct query/live-query plans. It
+does not claim composition for `ctx.db`, search, relational queries, class-M
+field masking, writes, or egress; those boundaries remain separate work.
 
 ## Check the negotiated capability, not route existence
 
