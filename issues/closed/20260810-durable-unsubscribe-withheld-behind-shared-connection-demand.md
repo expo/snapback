@@ -1,7 +1,7 @@
 # durable unsubscribe is withheld while another lane holds connection demand
 
-**Status:** Open
-**Opened:** 2026-08-10 · **Severity:** P2 · **Area:** Client kit · realtime · Contract adapter
+**Status:** Closed
+**Opened:** 2026-08-10 · **Resolved:** 2026-08-10 · **Severity:** P2 · **Area:** Client kit · realtime · Contract adapter
 **Related:** LLP 0034 §10.11, LLP 0013, LLP 0090, `demos/pointing-room`
 
 ## Problem
@@ -66,3 +66,25 @@ durable subscription; that is an absence of exercise, not evidence of safety.
   Chrome. A sibling session's axis parity harness is the natural home.
 - Once the kit rule is settled, revisit whether the keyed surface should go back
   to one shared connection.
+
+## Resolution
+
+LLP 0189 D-8's host-independent axis harness now covers the two connection
+topologies at the raw frame and `admin.inspect()` registration boundary. The
+isolated keyed durable registration disappears on binding disposal. With an
+ephemeral consumer holding the same `connectionId`, disposal emits no durable
+unsubscribe request, the registration remains present, and it receives the
+next commit's `authorization_invalidation` frame. Releasing the final ephemeral
+demand closes the owned socket and reaps the retained registration.
+
+The empirical verdict is therefore a composition constraint, not an unresolved
+adapter workaround: an independently re-keyed or disposed durable subscription
+must not share its connection id with an ephemeral demand holder. LLP 0034
+§10.11 now states that rule. The keyed Contract surface keeps separate durable
+and ephemeral connection ids; it must not return to one connection under the
+current lifecycle contract.
+
+Evidence: `tests/acceptance/axis-parity-harness.mjs`, registered as the
+complete-battery-only `axis-parity-harness` run in
+`scripts/verify-local-proof`. The confirming run reported `PASS axis parity
+harness — 8/8`.

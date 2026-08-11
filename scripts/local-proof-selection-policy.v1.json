@@ -1094,6 +1094,7 @@
         "cargo-audit",
         "rust-tests",
         "auth-invalidation-report",
+        "axis-parity-harness",
         "cargo-test-profile-clean",
         "current-binary-build",
         "current-binary-readiness",
