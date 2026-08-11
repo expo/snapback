@@ -1581,7 +1581,7 @@ fn session_expired(reason: RevocationReason) -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::admin::ServerProfile;
+    use crate::contract_types::ServerProfile;
     use crate::auth::crypto::{CryptoError, RandomSource};
     use crate::auth::invocation::{InvocationGate, InvocationSource, WireAuthorityFields};
     use crate::auth::provider::PlannedTokenSource;

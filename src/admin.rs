@@ -28,6 +28,7 @@ use crate::server::{
     SharedSnapback, committed_mode_terminal_reason, static_public_content_security_policy,
     system_api_route, system_static_route,
 };
+pub use crate::contract_types::ServerProfile;
 use anyhow::Context as _;
 use axum::Json;
 use axum::body::{Body, Bytes};
@@ -107,22 +108,6 @@ cargo run -- start --memory</pre>
 /// not a second implementation; it never reads a value back.
 const SETUP_HTML: &str = include_str!("admin/setup.html");
 
-/// The positive environment/profile capability (LLP 0034 §5 D4 residual,
-/// ENG-22527): auth (`AdminWrite`) answers "may this principal?"; the profile
-/// answers "is this operation appropriate in this environment?". Destructive
-/// and provisioning operations require BOTH. Resolution: `SNAPBACK_PROFILE`
-/// (dev|demo|test|prod) wins; otherwise loopback binds default to `dev` (the
-/// zero-config local posture — OQ7 stands; since ENG-23443 the AdminWrite side
-/// of that posture is a minted token rather than loopback-open) and
-/// non-loopback binds default to `prod`.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ServerProfile {
-    Dev,
-    Demo,
-    Test,
-    Prod,
-}
-
 /// One local-plaintext transport decision shared by pre-bind CLI composition
 /// and request middleware used by embedded/test routers.
 ///
@@ -167,19 +152,6 @@ pub(crate) fn validate_plaintext_auth_transport(
 }
 
 impl ServerProfile {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Dev => "dev",
-            Self::Demo => "demo",
-            Self::Test => "test",
-            Self::Prod => "prod",
-        }
-    }
-
-    pub fn allows_provisioning(self) -> bool {
-        !matches!(self, Self::Prod)
-    }
-
     /// Resolve the profile from the concrete address startup will bind. The
     /// CLI resolves hostnames once before auth composition and binds this same
     /// address, so aliases cannot produce a pre-bind/post-bind policy split.

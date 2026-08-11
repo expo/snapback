@@ -10,7 +10,7 @@
 //!   source of truth for `hostOpsResult`; the committed schema in `schemas/`
 //!   is generated from them (tests/artifact_schemas_v0.rs).
 
-use crate::admin::ServerProfile;
+use crate::contract_types::ServerProfile;
 use crate::auth::invocation::{InvocationSource, PreparedAuthority};
 use crate::diagnostic::{Diagnostic, SnapbackError};
 use crate::local::LocalSnapback;
@@ -553,7 +553,7 @@ fn host_ops_result(
     request_id: String,
     operation: String,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
     mut ok: bool,
     authority: Option<HostOpsAuthority>,
     data: Value,
@@ -582,7 +582,7 @@ fn host_ops_result(
             app_id: snapback.loaded_app_id(),
             app_root: None,
             target_profile: match profile {
-                crate::admin::ServerProfile::Dev => TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                crate::contract_types::ServerProfile::Dev => TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
                 other => format!("local-{}-sqlite-ibex", other.as_str()),
             },
             server_url,
@@ -611,7 +611,7 @@ pub(crate) fn auth_operator_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
     outcome: Result<Value, SnapbackError>,
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
@@ -662,7 +662,7 @@ pub(crate) fn telemetry_query_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
     outcome: Result<Value, SnapbackError>,
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
@@ -723,7 +723,7 @@ pub(crate) fn network_profile_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
     outcome: Result<Value, SnapbackError>,
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
@@ -765,7 +765,7 @@ pub(crate) fn data_patch_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
     authority: Option<crate::data_patch::DataPatchAuthorityV1>,
     outcome: Result<Value, SnapbackError>,
 ) -> HostOpsResult {
@@ -815,7 +815,7 @@ pub(crate) fn force_live_resync_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
     outcome: Result<Value, SnapbackError>,
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
@@ -912,7 +912,7 @@ pub(crate) fn coordinated_reset_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
     outcome: crate::diagnostic::SnapbackResult<Option<crate::manifest::MutationOutput>>,
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
@@ -961,7 +961,7 @@ pub(crate) fn coordinated_versioned_seed_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
     outcome: crate::diagnostic::SnapbackResult<crate::seed_identity::SeedInstallReceiptV1>,
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
@@ -1000,7 +1000,7 @@ pub(crate) fn coordinated_functions_load_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
     function_count: usize,
     outcome: Result<Vec<Diagnostic>, SnapbackError>,
 ) -> HostOpsResult {
@@ -1045,7 +1045,7 @@ pub(crate) fn coordinated_function_run_mutation_result(
     snapback: &LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
     outcome: Result<crate::manifest::MutationOutput, SnapbackError>,
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
@@ -1104,7 +1104,7 @@ pub fn execute_host_op(
         snapback,
         request,
         server_url,
-        crate::admin::ServerProfile::Dev,
+        crate::contract_types::ServerProfile::Dev,
     )
 }
 
@@ -1115,7 +1115,7 @@ pub fn execute_host_op_with_profile(
     snapback: &mut LocalSnapback,
     request: HostOpsRequest,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
 ) -> HostOpsResult {
     let prepared_authority = match legacy_host_op_authority(snapback, &request, profile) {
         Ok(authority) => authority,
@@ -1149,7 +1149,7 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
     snapback: &mut LocalSnapback,
     request: HostOpsRequest,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
     prepared_authority: Option<PreparedAuthority>,
 ) -> HostOpsResult {
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
@@ -1903,7 +1903,7 @@ pub(crate) fn execute_host_op_inspect_core(
     snapback: &mut LocalSnapback,
     request: &HostOpsRequest,
     server_url: Option<String>,
-    profile: crate::admin::ServerProfile,
+    profile: crate::contract_types::ServerProfile,
 ) -> HostOpsResult {
     debug_assert_eq!(request.operation, "app.inspect");
     let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
@@ -2738,7 +2738,7 @@ mod tests {
             &snapback,
             &request,
             None,
-            crate::admin::ServerProfile::Test,
+            crate::contract_types::ServerProfile::Test,
             Ok(json!({
                 "tokenType": "Bearer",
                 "token": TOKEN_SENTINEL,
@@ -2760,7 +2760,7 @@ mod tests {
                 ..HostOpsRequest::default()
             },
             None,
-            crate::admin::ServerProfile::Test,
+            crate::contract_types::ServerProfile::Test,
             Ok(json!({})),
         );
         let authority = result.authority.expect("rehearsal authority envelope");

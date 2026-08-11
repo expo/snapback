@@ -6,7 +6,8 @@
 
 // @ref LLP 0057#reachability — a declared physical auth-table collision may expose only typed health and the selected, doubly-gated rescue host operation.
 
-use crate::admin::{ServerContext, ServerProfile};
+use crate::admin::ServerContext;
+use crate::contract_types::ServerProfile;
 use crate::admin_impersonation::{
     IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
 };

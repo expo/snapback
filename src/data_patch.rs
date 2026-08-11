@@ -4,7 +4,7 @@
 //! capability, not a durable receipt field; only its one-way identifier is
 //! projected after consumption.
 
-use crate::admin::ServerProfile;
+use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::HandlerInput;
 use base64::Engine as _;

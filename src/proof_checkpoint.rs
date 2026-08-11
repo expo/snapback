@@ -4,7 +4,8 @@
 //! schemas is deliberately not a capability claim: LLP 0162's corpus and
 //! performance rows still gate advertisement.
 
-use crate::admin::{ProtectedErasureAdminCredentialBinding, ServerProfile};
+use crate::admin::ProtectedErasureAdminCredentialBinding;
+use crate::contract_types::ServerProfile;
 use crate::auth::invocation::{InvocationSource, PreparedAuthority, ResolvedAppAuthority};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{AuthMode, SchemaManifest};

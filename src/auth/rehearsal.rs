@@ -559,7 +559,7 @@ impl ExternalEgressGate {
     ///   declared simulator/test adapters on non-production profiles.
     pub fn prepare(
         provenance: Option<&AuthRehearsalProvenanceV1>,
-        profile: crate::admin::ServerProfile,
+        profile: crate::contract_types::ServerProfile,
         _channel: RegisteredEgressChannel,
         adapter: RegisteredEgressAdapter,
     ) -> SnapbackResult<ExternalEgressPermit> {
@@ -570,7 +570,7 @@ impl ExternalEgressGate {
                 RegisteredEgressAdapter::DeclaredSimulator
                     | RegisteredEgressAdapter::DeclaredTestAdapter
             );
-            if profile == crate::admin::ServerProfile::Prod || !declared_test_adapter {
+            if profile == crate::contract_types::ServerProfile::Prod || !declared_test_adapter {
                 return Err(egress_refused());
             }
         }
@@ -945,12 +945,12 @@ pub enum RehearsalDeploymentProfile {
 }
 
 impl RehearsalDeploymentProfile {
-    pub fn from_server(profile: crate::admin::ServerProfile) -> Self {
+    pub fn from_server(profile: crate::contract_types::ServerProfile) -> Self {
         match profile {
-            crate::admin::ServerProfile::Dev => Self::Dev,
-            crate::admin::ServerProfile::Test => Self::Test,
-            crate::admin::ServerProfile::Demo => Self::Demo,
-            crate::admin::ServerProfile::Prod => Self::Prod,
+            crate::contract_types::ServerProfile::Dev => Self::Dev,
+            crate::contract_types::ServerProfile::Test => Self::Test,
+            crate::contract_types::ServerProfile::Demo => Self::Demo,
+            crate::contract_types::ServerProfile::Prod => Self::Prod,
         }
     }
 
@@ -2526,7 +2526,7 @@ mod tests {
         assert_eq!(
             ExternalEgressGate::prepare(
                 Some(&provenance),
-                crate::admin::ServerProfile::Test,
+                crate::contract_types::ServerProfile::Test,
                 RegisteredEgressChannel::RuntimeFetch,
                 RegisteredEgressAdapter::Real,
             )
@@ -2537,7 +2537,7 @@ mod tests {
         );
         ExternalEgressGate::prepare(
             Some(&provenance),
-            crate::admin::ServerProfile::Test,
+            crate::contract_types::ServerProfile::Test,
             RegisteredEgressChannel::NotificationProvider,
             RegisteredEgressAdapter::DeclaredSimulator,
         )
@@ -2545,7 +2545,7 @@ mod tests {
         assert_eq!(
             ExternalEgressGate::prepare(
                 Some(&provenance),
-                crate::admin::ServerProfile::Prod,
+                crate::contract_types::ServerProfile::Prod,
                 RegisteredEgressChannel::Webhook,
                 RegisteredEgressAdapter::DeclaredTestAdapter,
             )
@@ -2556,7 +2556,7 @@ mod tests {
         );
         ExternalEgressGate::prepare(
             None,
-            crate::admin::ServerProfile::Prod,
+            crate::contract_types::ServerProfile::Prod,
             RegisteredEgressChannel::ExternalQueue,
             RegisteredEgressAdapter::Real,
         )

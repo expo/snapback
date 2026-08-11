@@ -689,12 +689,12 @@ fn startup_provider_unavailable_diagnostic(path: &Path, error: KeyringError) -> 
 
 /// Profile conversion stays explicit so production capture cannot be enabled
 /// by a lossy boolean or a default branch.
-pub(crate) fn provider_profile(profile: crate::admin::ServerProfile) -> AuthProviderProfile {
+pub(crate) fn provider_profile(profile: crate::contract_types::ServerProfile) -> AuthProviderProfile {
     match profile {
-        crate::admin::ServerProfile::Dev => AuthProviderProfile::Dev,
-        crate::admin::ServerProfile::Test => AuthProviderProfile::Test,
-        crate::admin::ServerProfile::Demo => AuthProviderProfile::Demo,
-        crate::admin::ServerProfile::Prod => AuthProviderProfile::Prod,
+        crate::contract_types::ServerProfile::Dev => AuthProviderProfile::Dev,
+        crate::contract_types::ServerProfile::Test => AuthProviderProfile::Test,
+        crate::contract_types::ServerProfile::Demo => AuthProviderProfile::Demo,
+        crate::contract_types::ServerProfile::Prod => AuthProviderProfile::Prod,
     }
 }
 

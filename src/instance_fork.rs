@@ -6476,7 +6476,7 @@ mod tests {
             .expect("fork push app state");
         let error = crate::server::drive_push_maintenance_once(
             &state.snapback,
-            crate::admin::ServerProfile::Test,
+            crate::contract_types::ServerProfile::Test,
             43,
         )
         .await

@@ -15,6 +15,40 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
+/// The positive environment/profile capability (LLP 0034 §5 D4 residual,
+/// ENG-22527): auth (`AdminWrite`) answers "may this principal?"; the profile
+/// answers "is this operation appropriate in this environment?". Destructive
+/// and provisioning operations require BOTH. Resolution: `SNAPBACK_PROFILE`
+/// (dev|demo|test|prod) wins; otherwise loopback binds default to `dev` (the
+/// zero-config local posture — OQ7 stands; since ENG-23443 the AdminWrite side
+/// of that posture is a minted token rather than loopback-open) and
+/// non-loopback binds default to `prod`.
+///
+/// @ref LLP 0225#1-ownership-map — deployment-posture vocabulary is leaf-owned;
+///   environment and bind-address resolution remain in the transport adapter.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ServerProfile {
+    Dev,
+    Demo,
+    Test,
+    Prod,
+}
+
+impl ServerProfile {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Dev => "dev",
+            Self::Demo => "demo",
+            Self::Test => "test",
+            Self::Prod => "prod",
+        }
+    }
+
+    pub fn allows_provisioning(self) -> bool {
+        !matches!(self, Self::Prod)
+    }
+}
+
 /// The closed audience reference carried by push requests and deferred jobs.
 ///
 /// @ref LLP 0143#d2-the-send-lane — deferred sends bind the exact audience

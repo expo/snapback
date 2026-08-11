@@ -278,7 +278,11 @@ the frozen item-4 edge on its existing key until item 4 inverts.
 <!-- module-ownership-frozen-edge: {"fingerprint":"src/storage/auth_logical_transfer.rs (storage-migration-kernel) → src/auth/logical_transfer.rs (sync-realtime-engine)","disposition":"time-bounded-waiver","observationRevision":"eefe4e446","provenance":"Item 11: the logical-transfer wave landed both modules unmanifested; the fleet assigned them and froze these edges at its --update-baseline. Carried into the v2 frozen set as item 11 machine records.","inversionOwner":"sync-realtime-engine","deadline":"2026-09-15"} -->
 
 <!-- module-ownership-frozen-edge: {"fingerprint":"src/auth/rehearsal.rs (shared-contract-types-leaf) → src/secure_file.rs (storage-migration-kernel)","disposition":"time-bounded-waiver","observationRevision":"eefe4e446","provenance":"Item 9: live main-red from the LLP 0213 slice-C wave, frozen by the fleet at the slice-1 re-application landing; carried into the v2 frozen set as item 9 machine records.","inversionOwner":"storage-migration-kernel","deadline":"2026-08-11"} -->
-<!-- module-ownership-frozen-edge: {"fingerprint":"src/storage/auth_rehearsal.rs (storage-migration-kernel) → src/admin.rs (transport-adapters)","disposition":"time-bounded-waiver","observationRevision":"eefe4e446","provenance":"Item 9: live main-red from the LLP 0213 slice-C wave, frozen by the fleet at the slice-1 re-application landing; carried into the v2 frozen set as item 9 machine records.","inversionOwner":"transport-adapters","deadline":"2026-08-11"} -->
+<!-- Item 9's kernel->transport half RETIRED 2026-08-10: the edge
+     src/storage/auth_rehearsal.rs -> src/admin.rs no longer exists (ServerProfile
+     moved to the contract leaf; see the items-4/5 entry below), so its waiver
+     record is removed rather than left to expire on 2026-08-11. The leaf->kernel
+     half above still stands. -->
 
 **Item 3 first cut, 2026-08-10 (kernel auth authority shapes → leaf).** Six
 frozen kernel→sync edges inverted by moving value shapes down, with the
@@ -313,3 +317,32 @@ the prose here carries the real disposition. It inverts with the `local.rs`
 drainage slices, not by a separate inversion.
 
 <!-- module-ownership-frozen-edge: {"fingerprint":"src/local.rs (unassigned) → src/auth/service_authority_contract.rs (shared-contract-types-leaf)","disposition":"time-bounded-waiver","observationRevision":"3d1553975","provenance":"Item 3 first cut: downward re-key of the frozen src/local.rs → src/auth/service_fence.rs edge that this same landing removes, because the service-authority value shapes moved from the sync engine to the contract leaf. Recorded as a waiver only because the relocation disposition requires the predecessor owner pair to be retained and cannot express a shape moving down a layer (issues/20260810-owngate-split-relocation-disposition-gap.md). Inverts with local.rs drainage.","inversionOwner":"transport-adapters","deadline":"2026-09-15"} -->
+
+
+**Items 4-5 first cut, 2026-08-10 (`ServerProfile` -> contract leaf).** Items 4
+and 5 looked like two families; six of their twelve edges actually crossed on a
+single type, `crate::admin::ServerProfile` — a four-variant deployment-posture
+enum that transport owned while the kernel and sync engine both had to consult
+it. Moving the enum plus its two pure methods (`as_str`, `allows_provisioning`)
+to `src/contract_types.rs` — with `for_bind_ip` left behind in `admin.rs`
+because it reads `SNAPBACK_PROFILE` and the bind address — removed **12** frozen
+forbidden edges and added none (382 -> 370).
+
+It cleared more than the six scoped, because `ServerProfile` turned out to be
+the *sole* admin import of six further modules: `src/auth/rehearsal.rs` and
+`src/data_patch.rs` (leaf->transport, the worst direction in the graph),
+`src/local.rs`, `src/local/tests.rs`,
+`src/local/authorization_acceptance.rs` (unassigned->transport), and
+`src/push.rs` (background->transport). Retires the kernel->transport half of
+waiver item 9 the day before its deadline.
+
+Zero baseline growth: `src/contract_types.rs` was already a dependency of every
+consumer, so no re-key needed a disposition. `snapback::admin::ServerProfile`
+still resolves via a `pub use` kept for the public surface only; internal
+callers were repointed so the edges genuinely re-key.
+
+Still open in items 4-5: `src/proof_checkpoint.rs -> src/admin.rs`
+(`ProtectedErasureAdminCredentialBinding`), `src/store_state.rs -> src/admin.rs`
+(`admin_token_sibling` / `console_credential_sibling`), the `store_state ->
+auth/{lifecycle,runtime}` composition edges, and `storage/hosted_admission ->
+auth/hosted_edge`.

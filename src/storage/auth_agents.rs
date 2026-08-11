@@ -20,7 +20,7 @@ use super::auth_agent_credentials::{
     IssuedAgentCredential, advance_agent_clock_on, issue_initial_agent_credential_on,
     reconcile_issued_agent_credential, require_agent_clock_on, token_ids_for_user,
 };
-use crate::admin::ServerProfile;
+use crate::contract_types::ServerProfile;
 use crate::auth::crypto::{CreationInvitation, RandomSource};
 use crate::auth::crypto::{StepUpConsumption, StepUpProof, step_up_required_error};
 use crate::diagnostic::{SnapbackError, SnapbackResult};

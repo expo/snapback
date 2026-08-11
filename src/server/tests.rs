@@ -114,7 +114,7 @@ async fn asset_signed_url_route_empty_and_omitted_body_issue_primary() {
 async fn network_profile_http_release_marks_delay_and_keeps_normal_identity() {
     let profiles = crate::network_profile::NetworkProfileState::new();
     let authority = crate::network_profile::NetworkProfileAuthority::classified(
-        crate::admin::ServerProfile::Test,
+        crate::contract_types::ServerProfile::Test,
         crate::auth::deployment::AuthDeploymentTarget::Local,
         false,
         false,
@@ -395,7 +395,8 @@ async fn network_profile_admin_api_uses_shared_authorizer_and_activation_gate() 
         crate::network_profile::NETWORK_PROFILE_FORBIDDEN_CODE
     );
 }
-use crate::admin::{AppState, ServerContext, ServerProfile};
+use crate::admin::{AppState, ServerContext};
+use crate::contract_types::ServerProfile;
 use crate::admin_impersonation::{
     IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
 };

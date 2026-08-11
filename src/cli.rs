@@ -1,4 +1,5 @@
-use crate::admin::{AppState, ResolvedAdminToken, ServerContext, ServerProfile};
+use crate::admin::{AppState, ResolvedAdminToken, ServerContext};
+use crate::contract_types::ServerProfile;
 use crate::admin_secret_read::{
     SecretReadMintBridge, SecretReadMintSpec, SecretReadScope, secret_read_root_sibling,
     sign_secret_read_mint,
@@ -7247,7 +7248,7 @@ async fn run_composed(
         (None, None)
     };
     let (agent_destroy_capabilities, agent_destroy_operator) =
-        if server_context.profile == crate::admin::ServerProfile::Prod {
+        if server_context.profile == crate::contract_types::ServerProfile::Prod {
             let (registry, operator) =
                 crate::admin_agent_destroy::AgentDestroyCapabilityRegistry::generate(
                     startup_nonce.clone(),
@@ -7998,7 +7999,7 @@ async fn run_auth_collision_recovery(
     // other startup publication.
     if matches!(
         server_context.profile,
-        crate::admin::ServerProfile::Demo | crate::admin::ServerProfile::Prod
+        crate::contract_types::ServerProfile::Demo | crate::contract_types::ServerProfile::Prod
     ) {
         crate::auth::recovery::validate_startup_context(&server_context)?;
     }
@@ -8095,11 +8096,11 @@ async fn run_auth_collision_recovery(
                 app_id: String::new(),
                 app_root: None,
                 target_profile: match profile {
-                    crate::admin::ServerProfile::Dev => {
+                    crate::contract_types::ServerProfile::Dev => {
                         crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
                     }
-                    crate::admin::ServerProfile::Test => "local-test-sqlite-ibex".to_owned(),
-                    crate::admin::ServerProfile::Demo | crate::admin::ServerProfile::Prod => {
+                    crate::contract_types::ServerProfile::Test => "local-test-sqlite-ibex".to_owned(),
+                    crate::contract_types::ServerProfile::Demo | crate::contract_types::ServerProfile::Prod => {
                         unreachable!("recovery context rejected this profile before bind")
                     }
                 },

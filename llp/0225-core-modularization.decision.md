@@ -28,6 +28,8 @@ applied)
 **Revised:** 2026-08-10 (k — §4 migration sequence records the item-3 first
 cut: kernel auth authority shapes to the leaf, six frozen kernel→sync edges
 inverted)
+**Revised:** 2026-08-10 (l — §4 records the items-4/5 first cut: `ServerProfile`
+to the contract leaf, twelve frozen edges removed and none added)
 **Revised:** 2026-08-10 (l — merge-wave reconciliation of the §5 enforcement
 landing; see Revision history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
@@ -479,6 +481,54 @@ deliberately does not carry a repo-wide reformat; its own edits are kept in
 the surrounding style by hand. A relocation slice that reformats every file it
 passes through would make exactly the kind of review-opaque diff §6 warns
 about.
+
+### Items-4/5 first cut — `ServerProfile` to the contract leaf (executed)
+
+Landed 2026-08-10, immediately after the item-3 first cut and reusing its
+shape-down/behavior-up pattern; scoped by
+`issues/20260810-worklist-items-4-5-server-profile-leaf.md`.
+
+Ratchet items 4 (`sync→transport ×4`) and 5 (`kernel→transport ×8`) read as two
+families, but **six of those twelve edges crossed on one type**:
+`crate::admin::ServerProfile`, a four-variant deployment-posture enum
+(`Dev`/`Demo`/`Test`/`Prod`) with no serde derive and no generated-artifact
+exposure. Transport owning the environment vocabulary that the kernel and the
+sync engine must both consult is precisely the inversion those items describe.
+
+The enum and its two pure methods (`as_str`, `allows_provisioning`) moved to
+`src/contract_types.rs`; `for_bind_ip` stayed in `src/admin.rs` as an inherent
+impl block because it resolves `SNAPBACK_PROFILE` against the bind address —
+transport behavior, not shape. `admin.rs` keeps a `pub use` so the public
+`snapback::admin::ServerProfile` path (`pub mod admin` in `lib.rs`) is
+unchanged; internal callers were repointed at the leaf so the edges genuinely
+re-key instead of resolving through the re-export.
+
+**12 frozen forbidden edges removed, none added — 382 → 370.** The cut reached
+twice its scoped six because `ServerProfile` was the *sole* admin import of six
+further modules: `src/auth/rehearsal.rs` and `src/data_patch.rs`
+(**leaf→transport**, the direction §2 forbids most emphatically — the leaf is
+supposed to depend on nothing), `src/local.rs`, `src/local/tests.rs`, and
+`src/local/authorization_acceptance.rs` (unassigned→transport), and
+`src/push.rs` (background→transport). It also retires the kernel→transport half
+of ratchet waiver item 9 one day before that waiver's 2026-08-11 deadline.
+
+Baseline growth: **none**, and no disposition was needed. `contract_types.rs`
+was chosen on charter grounds — a language-neutral posture vocabulary is what
+the leaf is for — and only then checked against the graph, where it happened to
+be the one leaf module every consumer (including all four unassigned residues)
+already depended on. Had the charter pointed elsewhere, the waiver would have
+been the honest answer rather than a destination chosen to dodge the record.
+
+Characterization envelope: pure relocation, so behavioral identity is the
+claim — the `admin`, `auth`, `storage`, and `server` lib-test subsets returned
+failure **name sets** byte-identical to the merge-base `ca86e671c` (2, 56, 50,
+and 24 pre-existing failures), with `cargo build --all-targets` and
+`./ref-check --verbose` green, and no repo-wide reformat (see the item-3 entry
+for why `cargo fmt --all` is not safe on main today).
+
+Still open in items 4-5: `proof_checkpoint → admin` and `store_state → admin`
+(both import other admin items), the `store_state → auth/{lifecycle,runtime}`
+composition edges, and `storage/hosted_admission → auth/hosted_edge`.
 
 ### Continuing sequence (order of intent, not a schedule)
 

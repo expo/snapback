@@ -7,7 +7,7 @@
 
 // @ref LLP 0058#shared-invocation-authority — one closed gate separates wire authority, resolved authority, and the immutable handler projection.
 
-use crate::admin::ServerProfile;
+use crate::contract_types::ServerProfile;
 use crate::auth::admission::{AdmissionEffectGuard, AdmissionLease};
 use crate::auth::descriptor::{
     AUTHORITY_DESCRIPTOR_VERSION, canonical_uuid_v7, service_authority_instance_id,
@@ -3407,7 +3407,7 @@ mod tests {
             InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority,
             WireAuthorityFields, descriptor_for_authority, descriptor_for_resolved_authority,
         };
-        use crate::admin::ServerProfile;
+        use crate::contract_types::ServerProfile;
         use crate::manifest::AuthMode;
 
         const INCARNATION: &str = "018f0d90-7b21-7a22-8c33-445566778899";

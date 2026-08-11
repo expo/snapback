@@ -1,4 +1,5 @@
-use crate::admin::{AppState, ServerContext, ServerProfile};
+use crate::admin::{AppState, ServerContext};
+use crate::contract_types::ServerProfile;
 use crate::admin_secret_read::{
     SECRET_READ_LEASE_HEADER, SecretReadLeaseRegistry, SecretReadMintEnvelope, SecretReadScope,
 };
@@ -10053,7 +10054,7 @@ async fn select_http_operation(
             let Some(operation) = fields.get("operation").and_then(Value::as_str) else {
                 return HttpOperationSelection::Indeterminate;
             };
-            if runtime.server.profile == crate::admin::ServerProfile::Prod
+            if runtime.server.profile == crate::contract_types::ServerProfile::Prod
                 && operation.starts_with("auth.rehearsal.")
             {
                 return host_ops_operation_spec(operation, None, false)
@@ -12673,7 +12674,7 @@ async fn enforce_registered_route_policy_inner(
         let public_rehearsal_class = spec.path == "/_snapback/api/host-ops"
             && selected_name.is_some_and(|operation| {
                 operation == "auth.rehearsal.exercise"
-                    || (runtime.server.profile == crate::admin::ServerProfile::Prod
+                    || (runtime.server.profile == crate::contract_types::ServerProfile::Prod
                         && operation.starts_with("auth.rehearsal."))
             });
         if let Err(error) = authorize_deferred_operation_preflight(
@@ -12961,7 +12962,7 @@ async fn enforce_registered_route_policy_inner(
             HttpOperationSelection::Selected(operation) => {
                 let operation_policy = operation.effective_for(policy_mode);
                 selected_operation = Some((operation, operation_policy));
-                if runtime.server.profile == crate::admin::ServerProfile::Prod
+                if runtime.server.profile == crate::contract_types::ServerProfile::Prod
                     && operation.operation.starts_with("host_ops.auth.rehearsal.")
                 {
                     // The typed handler emits the one profile refusal. This
@@ -13035,7 +13036,7 @@ async fn enforce_registered_route_policy_inner(
         .map(|(_, operation_policy)| operation_policy)
         .unwrap_or(effective);
     let production_rehearsal_operation = runtime.server.profile
-        == crate::admin::ServerProfile::Prod
+        == crate::contract_types::ServerProfile::Prod
         && selected_operation.is_some_and(|(operation, _)| {
             operation.operation.starts_with("host_ops.auth.rehearsal.")
         });
@@ -13158,7 +13159,7 @@ async fn enforce_registered_route_policy_inner(
         }
     }
     if selected_policy.effect_policy == EffectPolicy::AgentDestroyCapability
-        && runtime.server.profile == crate::admin::ServerProfile::Prod
+        && runtime.server.profile == crate::contract_types::ServerProfile::Prod
     {
         let verified = runtime
             .agent_destroy_capabilities
@@ -19209,7 +19210,7 @@ pub(crate) fn project_auth_runtime_facts(inspect: &mut InspectState, runtime: &A
             serde_json::to_value(runtime.auth_program_readiness())
                 .expect("AuthProgramReadiness is infallibly serializable"),
         );
-    let rehearsal_status = if runtime.server.profile == crate::admin::ServerProfile::Prod {
+    let rehearsal_status = if runtime.server.profile == crate::contract_types::ServerProfile::Prod {
         "absent"
     } else {
         let mode = runtime.auth_mode_state();
@@ -19701,7 +19702,7 @@ async fn rehearsal_binding_facts(
 fn rehearsal_carrier_hash(runtime: &AppState, headers: &HeaderMap) -> SnapbackResult<[u8; 32]> {
     // @ref LLP 0213#prefix-class-refusal — production classifies the `sbrc_`
     //   operation and refuses before CRC parsing, hashing, or protected lookup.
-    if runtime.server.profile == crate::admin::ServerProfile::Prod {
+    if runtime.server.profile == crate::contract_types::ServerProfile::Prod {
         return Err(crate::auth::rehearsal::profile_forbidden());
     }
     let presented = single_header_value(
@@ -19764,7 +19765,7 @@ async fn execute_auth_host_operation(
     // provider inspection, or protected lookup. This keeps absent,
     // malformed, expired, and unknown carriers indistinguishable.
     // @ref LLP 0213#prefix-class-refusal
-    if runtime.server.profile == crate::admin::ServerProfile::Prod
+    if runtime.server.profile == crate::contract_types::ServerProfile::Prod
         && request.operation.starts_with("auth.rehearsal.")
     {
         return Ok(auth_host_result(
@@ -19821,7 +19822,7 @@ async fn execute_auth_host_operation(
                     return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
                 }
             };
-            if runtime.server.profile == crate::admin::ServerProfile::Prod {
+            if runtime.server.profile == crate::contract_types::ServerProfile::Prod {
                 return Ok(auth_host_result(
                     runtime,
                     request,

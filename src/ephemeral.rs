@@ -9559,7 +9559,7 @@ mod tests {
                     jitter_ms: 0,
                 },
                 crate::network_profile::NetworkProfileAuthority::classified(
-                    crate::admin::ServerProfile::Test,
+                    crate::contract_types::ServerProfile::Test,
                     crate::auth::deployment::AuthDeploymentTarget::Local,
                     false,
                     false,
@@ -9618,7 +9618,7 @@ mod tests {
                     jitter_ms: 0,
                 },
                 crate::network_profile::NetworkProfileAuthority::classified(
-                    crate::admin::ServerProfile::Test,
+                    crate::contract_types::ServerProfile::Test,
                     crate::auth::deployment::AuthDeploymentTarget::Local,
                     false,
                     false,
@@ -9664,7 +9664,7 @@ mod tests {
     fn live_socket_marker_uses_admission_snapshot_and_normal_preserves_bytes() {
         let profiles = crate::network_profile::NetworkProfileState::new();
         let authority = crate::network_profile::NetworkProfileAuthority::classified(
-            crate::admin::ServerProfile::Test,
+            crate::contract_types::ServerProfile::Test,
             crate::auth::deployment::AuthDeploymentTarget::Local,
             false,
             false,
@@ -9712,7 +9712,7 @@ mod tests {
                     jitter_ms: 0,
                 },
                 crate::network_profile::NetworkProfileAuthority::classified(
-                    crate::admin::ServerProfile::Test,
+                    crate::contract_types::ServerProfile::Test,
                     crate::auth::deployment::AuthDeploymentTarget::Local,
                     false,
                     false,

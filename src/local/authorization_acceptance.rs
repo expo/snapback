@@ -8,7 +8,7 @@ use super::{
     AuthorizationInvalidationAckInput, LiveInvalidationAdmission, LiveSubscribeInput,
     LocalSnapback, live_stream_text,
 };
-use crate::admin::ServerProfile;
+use crate::contract_types::ServerProfile;
 use crate::auth::admission::AdmissionLease;
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, LiveInvalidationIssuer, QueryNamespace,

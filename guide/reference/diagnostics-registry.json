@@ -2,8 +2,8 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "commit": "d23e02ec0fbd8ab95d099c3282d1407b08190f18",
-    "sourceDigest": "sha256:e7ef743082b6077cfe467558a68fcbb7a27c9329d8c1bf4929e609db65715922"
+    "commit": "eecd369e9d3c5ad0ea6eeb33fc1eb886e7989afa",
+    "sourceDigest": "sha256:5e2439158914a7d9c1b7e082a3a3e0aa002c0a4c4db28bf3f43340cbef82094b"
   },
   "limits": {
     "lookupBytes": 16384
@@ -27,7 +27,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 277,
+          "line": 278,
           "column": 14
         },
         {
@@ -102,17 +102,17 @@
         },
         {
           "file": "src/server.rs",
-          "line": 2395,
+          "line": 2396,
           "column": 10
         },
         {
           "file": "src/server.rs",
-          "line": 2658,
+          "line": 2659,
           "column": 20
         },
         {
           "file": "src/server.rs",
-          "line": 2707,
+          "line": 2708,
           "column": 30
         },
         {
@@ -147,7 +147,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 233,
+          "line": 234,
           "column": 28
         }
       ],
@@ -217,12 +217,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 1238,
+          "line": 1239,
           "column": 13
         },
         {
           "file": "src/server.rs",
-          "line": 1251,
+          "line": 1252,
           "column": 22
         },
         {
@@ -362,7 +362,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 2006,
+          "line": 2007,
           "column": 46
         },
         {
@@ -399,17 +399,17 @@
         },
         {
           "file": "src/server.rs",
-          "line": 1641,
+          "line": 1642,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 2036,
+          "line": 2037,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 2132,
+          "line": 2133,
           "column": 22
         },
         {
@@ -477,47 +477,47 @@
         },
         {
           "file": "src/server.rs",
-          "line": 1452,
+          "line": 1453,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 1471,
+          "line": 1472,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 1483,
+          "line": 1484,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 1499,
+          "line": 1500,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 1511,
+          "line": 1512,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 1528,
+          "line": 1529,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 2018,
+          "line": 2019,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 2085,
+          "line": 2086,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 2213,
+          "line": 2214,
           "column": 14
         },
         {
@@ -579,17 +579,17 @@
         },
         {
           "file": "src/server.rs",
-          "line": 1460,
+          "line": 1461,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 1540,
+          "line": 1541,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 2178,
+          "line": 2179,
           "column": 18
         },
         {
@@ -627,12 +627,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 2027,
+          "line": 2028,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 2105,
+          "line": 2106,
           "column": 22
         },
         {
@@ -717,7 +717,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 1651,
+          "line": 1652,
           "column": 26
         },
         {
@@ -749,17 +749,17 @@
         },
         {
           "file": "src/server.rs",
-          "line": 1646,
+          "line": 1647,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 2115,
+          "line": 2116,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 2141,
+          "line": 2142,
           "column": 22
         },
         {
@@ -782,22 +782,22 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 2781,
+          "line": 2782,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 2808,
+          "line": 2809,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 2944,
+          "line": 2945,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 25926,
+          "line": 25927,
           "column": 30
         }
       ],
@@ -812,7 +812,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 2762,
+          "line": 2763,
           "column": 14
         }
       ],
@@ -872,27 +872,27 @@
         },
         {
           "file": "src/server.rs",
-          "line": 2375,
+          "line": 2376,
           "column": 10
         },
         {
           "file": "src/server.rs",
-          "line": 2383,
+          "line": 2384,
           "column": 10
         },
         {
           "file": "src/server.rs",
-          "line": 2661,
+          "line": 2662,
           "column": 42
         },
         {
           "file": "src/server.rs",
-          "line": 2701,
+          "line": 2702,
           "column": 61
         },
         {
           "file": "src/server.rs",
-          "line": 2840,
+          "line": 2841,
           "column": 18
         },
         {
@@ -917,7 +917,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 2525,
+          "line": 2526,
           "column": 18
         }
       ],
@@ -932,7 +932,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 531,
+          "line": 532,
           "column": 50
         }
       ],
@@ -1786,12 +1786,12 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 1264,
+          "line": 1236,
           "column": 10
         },
         {
           "file": "src/admin.rs",
-          "line": 7438,
+          "line": 7410,
           "column": 18
         },
         {
@@ -1811,37 +1811,37 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 1092,
+          "line": 1064,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 1112,
+          "line": 1084,
           "column": 22
         },
         {
           "file": "src/admin.rs",
-          "line": 1156,
+          "line": 1128,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 1195,
+          "line": 1167,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 1208,
+          "line": 1180,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 7447,
+          "line": 7419,
           "column": 14
         },
         {
           "file": "src/admin.rs",
-          "line": 7634,
+          "line": 7606,
           "column": 14
         },
         {
@@ -1861,12 +1861,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5885,
+          "line": 5886,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 5890,
+          "line": 5891,
           "column": 10
         }
       ],
@@ -1881,7 +1881,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5221,
+          "line": 5193,
           "column": 14
         },
         {
@@ -1901,7 +1901,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6083,
+          "line": 6084,
           "column": 18
         }
       ],
@@ -1916,7 +1916,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6071,
+          "line": 6072,
           "column": 10
         }
       ],
@@ -1931,7 +1931,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5684,
+          "line": 5685,
           "column": 10
         }
       ],
@@ -1946,27 +1946,27 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 2000,
+          "line": 1972,
           "column": 10
         },
         {
           "file": "src/admin.rs",
-          "line": 7494,
+          "line": 7466,
           "column": 48
         },
         {
           "file": "src/admin.rs",
-          "line": 7534,
+          "line": 7506,
           "column": 59
         },
         {
           "file": "src/admin.rs",
-          "line": 7649,
+          "line": 7621,
           "column": 14
         },
         {
           "file": "src/admin.rs",
-          "line": 7697,
+          "line": 7669,
           "column": 18
         },
         {
@@ -1986,32 +1986,32 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 651,
+          "line": 623,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 1364,
+          "line": 1336,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 1379,
+          "line": 1351,
           "column": 22
         },
         {
           "file": "src/admin.rs",
-          "line": 1427,
+          "line": 1399,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 7664,
+          "line": 7636,
           "column": 60
         },
         {
           "file": "src/admin.rs",
-          "line": 7711,
+          "line": 7683,
           "column": 14
         },
         {
@@ -2031,12 +2031,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5462,
+          "line": 5463,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 5469,
+          "line": 5470,
           "column": 10
         }
       ],
@@ -2051,7 +2051,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 2007,
+          "line": 1979,
           "column": 10
         },
         {
@@ -2071,12 +2071,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5385,
+          "line": 5386,
           "column": 30
         },
         {
           "file": "src/cli.rs",
-          "line": 5701,
+          "line": 5702,
           "column": 14
         }
       ],
@@ -2091,17 +2091,17 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 4952,
+          "line": 4924,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 5193,
+          "line": 5165,
           "column": 10
         },
         {
           "file": "src/admin.rs",
-          "line": 5205,
+          "line": 5177,
           "column": 14
         },
         {
@@ -2121,22 +2121,22 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5767,
+          "line": 5768,
           "column": 10
         },
         {
           "file": "src/cli.rs",
-          "line": 5771,
+          "line": 5772,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 5777,
+          "line": 5778,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 5786,
+          "line": 5787,
           "column": 10
         }
       ],
@@ -2151,12 +2151,12 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 590,
+          "line": 562,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 7884,
+          "line": 7856,
           "column": 14
         },
         {
@@ -2176,7 +2176,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 932,
+          "line": 904,
           "column": 10
         }
       ],
@@ -2191,52 +2191,52 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 470,
+          "line": 442,
           "column": 26
         },
         {
           "file": "src/admin.rs",
-          "line": 474,
+          "line": 446,
           "column": 22
         },
         {
           "file": "src/admin.rs",
-          "line": 479,
+          "line": 451,
           "column": 22
         },
         {
           "file": "src/admin.rs",
-          "line": 483,
+          "line": 455,
           "column": 22
         },
         {
           "file": "src/admin.rs",
-          "line": 489,
+          "line": 461,
           "column": 30
         },
         {
           "file": "src/admin.rs",
-          "line": 504,
+          "line": 476,
           "column": 26
         },
         {
           "file": "src/admin.rs",
-          "line": 523,
+          "line": 495,
           "column": 34
         },
         {
           "file": "src/admin.rs",
-          "line": 528,
+          "line": 500,
           "column": 34
         },
         {
           "file": "src/admin.rs",
-          "line": 542,
+          "line": 514,
           "column": 26
         },
         {
           "file": "src/admin.rs",
-          "line": 566,
+          "line": 538,
           "column": 22
         }
       ],
@@ -2251,12 +2251,12 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5154,
+          "line": 5126,
           "column": 10
         },
         {
           "file": "src/admin.rs",
-          "line": 5163,
+          "line": 5135,
           "column": 14
         },
         {
@@ -2276,7 +2276,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5179,
+          "line": 5151,
           "column": 14
         },
         {
@@ -2296,27 +2296,27 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5456,
+          "line": 5457,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 5497,
+          "line": 5498,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 5695,
+          "line": 5696,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 5822,
+          "line": 5823,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 5879,
+          "line": 5880,
           "column": 18
         }
       ],
@@ -2331,12 +2331,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5828,
+          "line": 5829,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 5834,
+          "line": 5835,
           "column": 10
         }
       ],
@@ -2529,12 +2529,12 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 3861,
+          "line": 3833,
           "column": 14
         },
         {
           "file": "src/admin.rs",
-          "line": 3889,
+          "line": 3861,
           "column": 14
         },
         {
@@ -2564,17 +2564,17 @@
         },
         {
           "file": "src/admin.rs",
-          "line": 93,
+          "line": 94,
           "column": 141
         },
         {
           "file": "src/admin.rs",
-          "line": 2058,
+          "line": 2030,
           "column": 54
         },
         {
           "file": "src/admin.rs",
-          "line": 2364,
+          "line": 2336,
           "column": 27
         }
       ],
@@ -2591,7 +2591,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6050,
+          "line": 6051,
           "column": 21
         }
       ],
@@ -2621,7 +2621,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5210,
+          "line": 5211,
           "column": 22
         }
       ],
@@ -2711,7 +2711,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 5325,
+          "line": 5326,
           "column": 36
         }
       ],
@@ -2771,7 +2771,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5162,
+          "line": 5163,
           "column": 10
         }
       ],
@@ -2786,7 +2786,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5172,
+          "line": 5173,
           "column": 10
         }
       ],
@@ -2801,7 +2801,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5158,
+          "line": 5159,
           "column": 10
         }
       ],
@@ -2816,7 +2816,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5176,
+          "line": 5177,
           "column": 10
         }
       ],
@@ -2846,7 +2846,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5297,
+          "line": 5298,
           "column": 18
         }
       ],
@@ -2861,7 +2861,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 1656,
+          "line": 1628,
           "column": 18
         },
         {
@@ -2881,22 +2881,22 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 1939,
+          "line": 1911,
           "column": 14
         },
         {
           "file": "src/admin.rs",
-          "line": 1946,
+          "line": 1918,
           "column": 14
         },
         {
           "file": "src/admin.rs",
-          "line": 1966,
+          "line": 1938,
           "column": 14
         },
         {
           "file": "src/admin.rs",
-          "line": 7832,
+          "line": 7804,
           "column": 18
         },
         {
@@ -2916,7 +2916,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5100,
+          "line": 5072,
           "column": 18
         },
         {
@@ -2936,12 +2936,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5958,
+          "line": 5959,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 5964,
+          "line": 5965,
           "column": 14
         }
       ],
@@ -2956,7 +2956,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5939,
+          "line": 5940,
           "column": 10
         }
       ],
@@ -2971,12 +2971,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5943,
+          "line": 5944,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 5952,
+          "line": 5953,
           "column": 18
         }
       ],
@@ -3091,32 +3091,32 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 1696,
+          "line": 1668,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 1711,
+          "line": 1683,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 1746,
+          "line": 1718,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 1818,
+          "line": 1790,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 7853,
+          "line": 7825,
           "column": 14
         },
         {
           "file": "src/admin.rs",
-          "line": 7862,
+          "line": 7834,
           "column": 14
         },
         {
@@ -3136,12 +3136,12 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 1771,
+          "line": 1743,
           "column": 26
         },
         {
           "file": "src/admin.rs",
-          "line": 1827,
+          "line": 1799,
           "column": 18
         },
         {
@@ -3161,12 +3161,12 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 1702,
+          "line": 1674,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 1740,
+          "line": 1712,
           "column": 18
         },
         {
@@ -3186,12 +3186,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5503,
+          "line": 5504,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 5522,
+          "line": 5523,
           "column": 10
         }
       ],
@@ -3206,22 +3206,22 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 1755,
+          "line": 1727,
           "column": 26
         },
         {
           "file": "src/admin.rs",
-          "line": 1762,
+          "line": 1734,
           "column": 30
         },
         {
           "file": "src/admin.rs",
-          "line": 1788,
+          "line": 1760,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 5038,
+          "line": 5010,
           "column": 14
         }
       ],
@@ -3236,22 +3236,22 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 1781,
+          "line": 1753,
           "column": 22
         },
         {
           "file": "src/admin.rs",
-          "line": 1812,
+          "line": 1784,
           "column": 18
         },
         {
           "file": "src/admin.rs",
-          "line": 7771,
+          "line": 7743,
           "column": 44
         },
         {
           "file": "src/admin.rs",
-          "line": 7809,
+          "line": 7781,
           "column": 14
         }
       ],
@@ -3753,7 +3753,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5609,
+          "line": 5581,
           "column": 10
         }
       ],
@@ -3790,7 +3790,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6210,
+          "line": 6211,
           "column": 10
         }
       ],
@@ -3825,7 +3825,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 3698,
+          "line": 3670,
           "column": 14
         }
       ],
@@ -3845,7 +3845,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 5570,
+          "line": 5571,
           "column": 26
         }
       ],
@@ -4090,7 +4090,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 5222,
+          "line": 5223,
           "column": 30
         }
       ],
@@ -4170,112 +4170,112 @@
         },
         {
           "file": "src/admin.rs",
-          "line": 2043,
+          "line": 2015,
           "column": 25
         },
         {
           "file": "src/admin.rs",
-          "line": 2112,
+          "line": 2084,
           "column": 10
         },
         {
           "file": "src/admin.rs",
-          "line": 2186,
+          "line": 2158,
           "column": 26
         },
         {
           "file": "src/admin.rs",
-          "line": 2223,
+          "line": 2195,
           "column": 20
         },
         {
           "file": "src/admin.rs",
-          "line": 2232,
+          "line": 2204,
           "column": 46
         },
         {
           "file": "src/admin.rs",
-          "line": 2283,
+          "line": 2255,
           "column": 6
         },
         {
           "file": "src/admin.rs",
-          "line": 3901,
+          "line": 3873,
           "column": 57
         },
         {
           "file": "src/admin.rs",
-          "line": 3912,
+          "line": 3884,
           "column": 20
         },
         {
           "file": "src/cli.rs",
-          "line": 153,
+          "line": 154,
           "column": 87
         },
         {
           "file": "src/cli.rs",
-          "line": 2236,
+          "line": 2237,
           "column": 51
         },
         {
           "file": "src/cli.rs",
-          "line": 4296,
+          "line": 4297,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 4368,
+          "line": 4369,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 4575,
+          "line": 4576,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 4760,
+          "line": 4761,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 4791,
+          "line": 4792,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 5927,
+          "line": 5928,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 5931,
+          "line": 5932,
           "column": 74
         },
         {
           "file": "src/cli.rs",
-          "line": 6174,
+          "line": 6175,
           "column": 36
         },
         {
           "file": "src/cli.rs",
-          "line": 7761,
+          "line": 7762,
           "column": 62
         },
         {
           "file": "src/cli.rs",
-          "line": 7767,
+          "line": 7768,
           "column": 71
         },
         {
           "file": "src/cli.rs",
-          "line": 7770,
+          "line": 7771,
           "column": 41
         },
         {
           "file": "src/cli.rs",
-          "line": 8151,
+          "line": 8152,
           "column": 49
         },
         {
@@ -4351,27 +4351,27 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 3909,
+          "line": 3881,
           "column": 27
         },
         {
           "file": "src/admin.rs",
-          "line": 4918,
+          "line": 4890,
           "column": 18
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 847,
+          "line": 848,
           "column": 18
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 859,
+          "line": 860,
           "column": 18
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 865,
+          "line": 866,
           "column": 18
         },
         {
@@ -4393,12 +4393,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 5931,
+          "line": 5932,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 5975,
+          "line": 5976,
           "column": 14
         }
       ],
@@ -4598,7 +4598,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 22826,
+          "line": 22827,
           "column": 10
         },
         {
@@ -4790,17 +4790,17 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 22850,
+          "line": 22851,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 22857,
+          "line": 22858,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 22891,
+          "line": 22892,
           "column": 22
         },
         {
@@ -4820,7 +4820,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 22884,
+          "line": 22885,
           "column": 22
         },
         {
@@ -4840,7 +4840,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 22866,
+          "line": 22867,
           "column": 22
         },
         {
@@ -4860,7 +4860,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 22718,
+          "line": 22719,
           "column": 18
         },
         {
@@ -5025,12 +5025,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 22729,
+          "line": 22730,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 22873,
+          "line": 22874,
           "column": 22
         },
         {
@@ -5135,12 +5135,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 22981,
+          "line": 22982,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 23033,
+          "line": 23034,
           "column": 22
         },
         {
@@ -5215,12 +5215,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 23368,
+          "line": 23369,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 23375,
+          "line": 23376,
           "column": 42
         },
         {
@@ -5245,12 +5245,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 23106,
+          "line": 23107,
           "column": 34
         },
         {
           "file": "src/server.rs",
-          "line": 23117,
+          "line": 23118,
           "column": 60
         },
         {
@@ -5272,12 +5272,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 23192,
+          "line": 23193,
           "column": 34
         },
         {
           "file": "src/server.rs",
-          "line": 23216,
+          "line": 23217,
           "column": 26
         },
         {
@@ -5342,12 +5342,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 23079,
+          "line": 23080,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 23261,
+          "line": 23262,
           "column": 14
         },
         {
@@ -5367,7 +5367,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 23359,
+          "line": 23360,
           "column": 14
         },
         {
@@ -5387,7 +5387,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 23144,
+          "line": 23145,
           "column": 56
         },
         {
@@ -5432,7 +5432,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 23057,
+          "line": 23058,
           "column": 22
         },
         {
@@ -5452,32 +5452,32 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 22968,
+          "line": 22969,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 23004,
+          "line": 23005,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 23022,
+          "line": 23023,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 23069,
+          "line": 23070,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 23175,
+          "line": 23176,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 23533,
+          "line": 23534,
           "column": 58
         },
         {
@@ -5657,7 +5657,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 16469,
+          "line": 16470,
           "column": 22
         },
         {
@@ -5682,7 +5682,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 23829,
+          "line": 23830,
           "column": 14
         },
         {
@@ -5727,7 +5727,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 23849,
+          "line": 23850,
           "column": 14
         },
         {
@@ -6159,7 +6159,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 23880,
+          "line": 23881,
           "column": 14
         },
         {
@@ -6201,7 +6201,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 23757,
+          "line": 23758,
           "column": 22
         },
         {
@@ -6221,7 +6221,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 23728,
+          "line": 23729,
           "column": 18
         },
         {
@@ -6266,7 +6266,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 12380,
+          "line": 12381,
           "column": 18
         },
         {
@@ -6291,7 +6291,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 12753,
+          "line": 12754,
           "column": 22
         },
         {
@@ -6560,7 +6560,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 22649,
+          "line": 22650,
           "column": 18
         },
         {
@@ -6580,7 +6580,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 22631,
+          "line": 22632,
           "column": 18
         },
         {
@@ -6615,7 +6615,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 22590,
+          "line": 22591,
           "column": 14
         },
         {
@@ -6685,12 +6685,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 19109,
+          "line": 19110,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 19117,
+          "line": 19118,
           "column": 14
         },
         {
@@ -6715,7 +6715,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 19131,
+          "line": 19132,
           "column": 14
         },
         {
@@ -6750,47 +6750,47 @@
         },
         {
           "file": "src/server.rs",
-          "line": 18946,
+          "line": 18947,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 19004,
+          "line": 19005,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 19036,
+          "line": 19037,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 19047,
+          "line": 19048,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 19076,
+          "line": 19077,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 19164,
+          "line": 19165,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 19174,
+          "line": 19175,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 22748,
+          "line": 22749,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 22756,
+          "line": 22757,
           "column": 14
         },
         {
@@ -6850,7 +6850,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 18938,
+          "line": 18939,
           "column": 14
         },
         {
@@ -9579,7 +9579,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 25943,
+          "line": 25944,
           "column": 50
         },
         {
@@ -10632,7 +10632,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 2172,
+          "line": 2173,
           "column": 9
         },
         {
@@ -11644,12 +11644,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 874,
+          "line": 875,
           "column": 519
         },
         {
           "file": "src/cli.rs",
-          "line": 7823,
+          "line": 7824,
           "column": 40
         },
         {
@@ -11659,7 +11659,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 18540,
+          "line": 18541,
           "column": 16
         }
       ],
@@ -13640,7 +13640,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 2376,
+          "line": 2377,
           "column": 66
         }
       ],
@@ -13810,7 +13810,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 13786,
+          "line": 13787,
           "column": 14
         },
         {
@@ -13990,7 +13990,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 14018,
+          "line": 14019,
           "column": 14
         },
         {
@@ -14045,7 +14045,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 13798,
+          "line": 13799,
           "column": 14
         },
         {
@@ -14607,37 +14607,37 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 3083,
+          "line": 3084,
           "column": 26
         },
         {
           "file": "src/cli.rs",
-          "line": 3118,
+          "line": 3119,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 3355,
+          "line": 3356,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 6893,
+          "line": 6894,
           "column": 10
         },
         {
           "file": "src/cli.rs",
-          "line": 7140,
+          "line": 7141,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 7173,
+          "line": 7174,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 9507,
+          "line": 9508,
           "column": 14
         },
         {
@@ -14712,7 +14712,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 9779,
+          "line": 9780,
           "column": 10
         },
         {
@@ -14839,7 +14839,7 @@
       "sites": [
         {
           "file": "src/auth/recovery.rs",
-          "line": 1186,
+          "line": 1187,
           "column": 14
         },
         {
@@ -15384,7 +15384,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 5570,
+          "line": 5571,
           "column": 30
         },
         {
@@ -15986,7 +15986,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 603,
+          "line": 604,
           "column": 39
         },
         {
@@ -16023,7 +16023,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 11842,
+          "line": 11843,
           "column": 18
         },
         {
@@ -16143,7 +16143,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 13810,
+          "line": 13811,
           "column": 14
         },
         {
@@ -16588,7 +16588,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 2886,
+          "line": 2858,
           "column": 18
         },
         {
@@ -16718,7 +16718,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 644,
+          "line": 645,
           "column": 18
         }
       ],
@@ -16988,17 +16988,17 @@
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 853,
+          "line": 854,
           "column": 18
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 871,
+          "line": 872,
           "column": 18
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 877,
+          "line": 878,
           "column": 18
         },
         {
@@ -17225,12 +17225,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 23662,
+          "line": 23663,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 23743,
+          "line": 23744,
           "column": 18
         },
         {
@@ -17420,32 +17420,32 @@
         },
         {
           "file": "src/server.rs",
-          "line": 10483,
+          "line": 10484,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 24791,
+          "line": 24792,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 26232,
+          "line": 26233,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 26310,
+          "line": 26311,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 28401,
+          "line": 28402,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 28603,
+          "line": 28604,
           "column": 18
         },
         {
@@ -17844,17 +17844,17 @@
         },
         {
           "file": "src/server.rs",
-          "line": 5128,
+          "line": 5129,
           "column": 25
         },
         {
           "file": "src/server.rs",
-          "line": 7176,
+          "line": 7177,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 24762,
+          "line": 24763,
           "column": 14
         },
         {
@@ -18299,27 +18299,27 @@
         },
         {
           "file": "src/server.rs",
-          "line": 10471,
+          "line": 10472,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 28414,
+          "line": 28415,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 28437,
+          "line": 28438,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 28469,
+          "line": 28470,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 28830,
+          "line": 28831,
           "column": 18
         },
         {
@@ -18394,7 +18394,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 2994,
+          "line": 2995,
           "column": 10
         },
         {
@@ -18469,7 +18469,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 3028,
+          "line": 3029,
           "column": 10
         },
         {
@@ -18584,7 +18584,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 12302,
+          "line": 12303,
           "column": 18
         },
         {
@@ -18634,7 +18634,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 572,
+          "line": 573,
           "column": 18
         },
         {
@@ -18799,47 +18799,47 @@
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4323,
+          "line": 4324,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 9857,
+          "line": 9858,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 9997,
+          "line": 9998,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 10154,
+          "line": 10155,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 10266,
+          "line": 10267,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 20704,
+          "line": 20705,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 21429,
+          "line": 21430,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 21476,
+          "line": 21477,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 26748,
+          "line": 26749,
           "column": 53
         },
         {
@@ -18894,12 +18894,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 9868,
+          "line": 9869,
           "column": 44
         },
         {
           "file": "src/server.rs",
-          "line": 26076,
+          "line": 26077,
           "column": 26
         },
         {
@@ -18989,7 +18989,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 312,
+          "line": 313,
           "column": 18
         },
         {
@@ -19650,7 +19650,7 @@
         },
         {
           "file": "src/admin.rs",
-          "line": 2967,
+          "line": 2939,
           "column": 18
         },
         {
@@ -19760,7 +19760,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 78,
+          "line": 79,
           "column": 10
         },
         {
@@ -19820,117 +19820,117 @@
         },
         {
           "file": "src/server.rs",
-          "line": 1014,
+          "line": 1015,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 1021,
+          "line": 1022,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 1036,
+          "line": 1037,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 1198,
+          "line": 1199,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 1216,
+          "line": 1217,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 6259,
+          "line": 6260,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 6409,
+          "line": 6410,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 10016,
+          "line": 10017,
           "column": 10
         },
         {
           "file": "src/server.rs",
-          "line": 10277,
+          "line": 10278,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 10375,
+          "line": 10376,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 10712,
+          "line": 10713,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 11130,
+          "line": 11131,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 12297,
+          "line": 12298,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 12771,
+          "line": 12772,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 12796,
+          "line": 12797,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 13061,
+          "line": 13062,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 13827,
+          "line": 13828,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 18034,
+          "line": 18035,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 18077,
+          "line": 18078,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 19730,
+          "line": 19731,
           "column": 10
         },
         {
           "file": "src/server.rs",
-          "line": 21313,
+          "line": 21314,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 25167,
+          "line": 25168,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 28800,
+          "line": 28801,
           "column": 18
         },
         {
@@ -20000,17 +20000,17 @@
         },
         {
           "file": "src/server.rs",
-          "line": 10399,
+          "line": 10400,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 10721,
+          "line": 10722,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 25181,
+          "line": 25182,
           "column": 14
         },
         {
@@ -20248,7 +20248,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 7862,
+          "line": 7863,
           "column": 22
         },
         {
@@ -20278,57 +20278,57 @@
         },
         {
           "file": "src/server.rs",
-          "line": 416,
+          "line": 417,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 6427,
+          "line": 6428,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 11110,
+          "line": 11111,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 14824,
+          "line": 14825,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 14964,
+          "line": 14965,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 15163,
+          "line": 15164,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 15265,
+          "line": 15266,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 16138,
+          "line": 16139,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 22089,
+          "line": 22090,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 22213,
+          "line": 22214,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 27914,
+          "line": 27915,
           "column": 18
         },
         {
@@ -20403,12 +20403,12 @@
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 300,
+          "line": 301,
           "column": 22
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 331,
+          "line": 332,
           "column": 22
         },
         {
@@ -20438,7 +20438,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 13566,
+          "line": 13567,
           "column": 10
         },
         {
@@ -21518,12 +21518,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 13502,
+          "line": 13503,
           "column": 10
         },
         {
           "file": "src/server.rs",
-          "line": 19567,
+          "line": 19568,
           "column": 10
         },
         {
@@ -21606,42 +21606,42 @@
         },
         {
           "file": "src/server.rs",
-          "line": 5510,
+          "line": 5511,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 5522,
+          "line": 5523,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 5578,
+          "line": 5579,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 5591,
+          "line": 5592,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 5625,
+          "line": 5626,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 10745,
+          "line": 10746,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 12101,
+          "line": 12102,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 14878,
+          "line": 14879,
           "column": 18
         },
         {
@@ -21751,7 +21751,7 @@
       "sites": [
         {
           "file": "src/auth/recovery.rs",
-          "line": 1121,
+          "line": 1122,
           "column": 14
         },
         {
@@ -21891,7 +21891,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 2366,
+          "line": 2367,
           "column": 27
         },
         {
@@ -22089,22 +22089,22 @@
         },
         {
           "file": "src/server.rs",
-          "line": 16148,
+          "line": 16149,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 22256,
+          "line": 22257,
           "column": 61
         },
         {
           "file": "src/server.rs",
-          "line": 22262,
+          "line": 22263,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 22283,
+          "line": 22284,
           "column": 14
         },
         {
@@ -22189,17 +22189,17 @@
         },
         {
           "file": "src/server.rs",
-          "line": 1006,
+          "line": 1007,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 2708,
+          "line": 2709,
           "column": 36
         },
         {
           "file": "src/server.rs",
-          "line": 15449,
+          "line": 15450,
           "column": 27
         },
         {
@@ -22526,12 +22526,12 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 2894,
+          "line": 2866,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 11772,
+          "line": 11773,
           "column": 14
         },
         {
@@ -22591,42 +22591,42 @@
         },
         {
           "file": "src/server.rs",
-          "line": 11604,
+          "line": 11605,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 11611,
+          "line": 11612,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 11630,
+          "line": 11631,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 11637,
+          "line": 11638,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 11649,
+          "line": 11650,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 11660,
+          "line": 11661,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 11764,
+          "line": 11765,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 13511,
+          "line": 13512,
           "column": 10
         },
         {
@@ -22646,7 +22646,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 11768,
+          "line": 11769,
           "column": 14
         },
         {
@@ -22691,7 +22691,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 11760,
+          "line": 11761,
           "column": 14
         },
         {
@@ -22871,12 +22871,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 11748,
+          "line": 11749,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 15467,
+          "line": 15468,
           "column": 27
         },
         {
@@ -23099,32 +23099,32 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 49,
+          "line": 50,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 182,
+          "line": 183,
           "column": 10
         },
         {
           "file": "src/cli.rs",
-          "line": 213,
+          "line": 214,
           "column": 10
         },
         {
           "file": "src/cli.rs",
-          "line": 326,
+          "line": 327,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 382,
+          "line": 383,
           "column": 26
         },
         {
           "file": "src/cli.rs",
-          "line": 500,
+          "line": 501,
           "column": 22
         },
         {
@@ -23156,17 +23156,17 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 42,
+          "line": 43,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 58,
+          "line": 59,
           "column": 10
         },
         {
           "file": "src/cli.rs",
-          "line": 182,
+          "line": 183,
           "column": 54
         },
         {
@@ -23345,17 +23345,17 @@
         },
         {
           "file": "src/server.rs",
-          "line": 2709,
+          "line": 2710,
           "column": 36
         },
         {
           "file": "src/server.rs",
-          "line": 3822,
+          "line": 3823,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 11369,
+          "line": 11370,
           "column": 18
         },
         {
@@ -23377,12 +23377,12 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 2813,
+          "line": 2785,
           "column": 57
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 417,
+          "line": 418,
           "column": 27
         },
         {
@@ -23392,7 +23392,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 8035,
+          "line": 8036,
           "column": 10
         },
         {
@@ -23507,22 +23507,22 @@
         },
         {
           "file": "src/server.rs",
-          "line": 12620,
+          "line": 12621,
           "column": 65
         },
         {
           "file": "src/server.rs",
-          "line": 12637,
+          "line": 12638,
           "column": 63
         },
         {
           "file": "src/server.rs",
-          "line": 12718,
+          "line": 12719,
           "column": 59
         },
         {
           "file": "src/server.rs",
-          "line": 12863,
+          "line": 12864,
           "column": 59
         },
         {
@@ -23552,12 +23552,12 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 2907,
+          "line": 2879,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 11819,
+          "line": 11820,
           "column": 18
         },
         {
@@ -23597,17 +23597,17 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 144,
+          "line": 129,
           "column": 14
         },
         {
           "file": "src/admin.rs",
-          "line": 156,
+          "line": 141,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 10240,
+          "line": 10241,
           "column": 22
         }
       ],
@@ -24026,7 +24026,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 2928,
+          "line": 2929,
           "column": 30
         },
         {
@@ -26204,12 +26204,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 8303,
+          "line": 8304,
           "column": 47
         },
         {
           "file": "src/server.rs",
-          "line": 8346,
+          "line": 8347,
           "column": 47
         },
         {
@@ -26294,7 +26294,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 24720,
+          "line": 24721,
           "column": 20
         }
       ],
@@ -26671,7 +26671,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 91,
+          "line": 92,
           "column": 10
         },
         {
@@ -26953,7 +26953,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 24160,
+          "line": 24161,
           "column": 18
         },
         {
@@ -26973,12 +26973,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 24177,
+          "line": 24178,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 24186,
+          "line": 24187,
           "column": 22
         },
         {
@@ -27003,7 +27003,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 23995,
+          "line": 23996,
           "column": 14
         },
         {
@@ -27063,12 +27063,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 23944,
+          "line": 23945,
           "column": 10
         },
         {
           "file": "src/server.rs",
-          "line": 24061,
+          "line": 24062,
           "column": 18
         },
         {
@@ -27093,7 +27093,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 23704,
+          "line": 23705,
           "column": 22
         },
         {
@@ -27133,7 +27133,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 24080,
+          "line": 24081,
           "column": 18
         },
         {
@@ -27183,7 +27183,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 6890,
+          "line": 6891,
           "column": 10
         },
         {
@@ -27493,12 +27493,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2042,
+          "line": 2043,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2410,
+          "line": 2411,
           "column": 14
         },
         {
@@ -27518,7 +27518,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2454,
+          "line": 2455,
           "column": 26
         },
         {
@@ -27538,7 +27538,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2482,
+          "line": 2483,
           "column": 14
         },
         {
@@ -27558,7 +27558,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2332,
+          "line": 2333,
           "column": 14
         },
         {
@@ -27578,17 +27578,17 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2248,
+          "line": 2249,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2326,
+          "line": 2327,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2343,
+          "line": 2344,
           "column": 18
         },
         {
@@ -27608,7 +27608,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2266,
+          "line": 2267,
           "column": 18
         },
         {
@@ -27628,12 +27628,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3059,
+          "line": 3060,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4614,
+          "line": 4615,
           "column": 14
         },
         {
@@ -27653,22 +27653,22 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1717,
+          "line": 1718,
           "column": 22
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1731,
+          "line": 1732,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3135,
+          "line": 3136,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3141,
+          "line": 3142,
           "column": 18
         },
         {
@@ -27688,12 +27688,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3037,
+          "line": 3038,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3569,
+          "line": 3570,
           "column": 14
         },
         {
@@ -27713,12 +27713,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3163,
+          "line": 3164,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4641,
+          "line": 4642,
           "column": 14
         },
         {
@@ -27738,37 +27738,37 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2627,
+          "line": 2628,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3366,
+          "line": 3367,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3382,
+          "line": 3383,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3391,
+          "line": 3392,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4356,
+          "line": 4357,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 5489,
+          "line": 5490,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 5547,
+          "line": 5548,
           "column": 41
         },
         {
@@ -27788,7 +27788,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2639,
+          "line": 2640,
           "column": 18
         },
         {
@@ -27808,22 +27808,22 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2599,
+          "line": 2600,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4437,
+          "line": 4438,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4464,
+          "line": 4465,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4581,
+          "line": 4582,
           "column": 18
         },
         {
@@ -27843,7 +27843,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1507,
+          "line": 1508,
           "column": 10
         },
         {
@@ -27863,37 +27863,37 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2584,
+          "line": 2585,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2590,
+          "line": 2591,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2666,
+          "line": 2667,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2672,
+          "line": 2673,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3326,
+          "line": 3327,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3332,
+          "line": 3333,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3591,
+          "line": 3592,
           "column": 18
         },
         {
@@ -27913,37 +27913,37 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1868,
+          "line": 1869,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2006,
+          "line": 2007,
           "column": 10
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2147,
+          "line": 2148,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2192,
+          "line": 2193,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4786,
+          "line": 4787,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 5080,
+          "line": 5081,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 5172,
+          "line": 5173,
           "column": 14
         },
         {
@@ -27963,12 +27963,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1522,
+          "line": 1523,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3376,
+          "line": 3377,
           "column": 18
         },
         {
@@ -27988,62 +27988,62 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1572,
+          "line": 1573,
           "column": 22
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1595,
+          "line": 1596,
           "column": 22
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1619,
+          "line": 1620,
           "column": 22
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1633,
+          "line": 1634,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1643,
+          "line": 1644,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1656,
+          "line": 1657,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1691,
+          "line": 1692,
           "column": 22
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1911,
+          "line": 1912,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1941,
+          "line": 1942,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1991,
+          "line": 1992,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2176,
+          "line": 2177,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2183,
+          "line": 2184,
           "column": 14
         },
         {
@@ -28063,12 +28063,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1498,
+          "line": 1499,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3548,
+          "line": 3549,
           "column": 14
         },
         {
@@ -28088,7 +28088,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1429,
+          "line": 1430,
           "column": 34
         },
         {
@@ -28108,12 +28108,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1471,
+          "line": 1472,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4382,
+          "line": 4383,
           "column": 18
         },
         {
@@ -28133,12 +28133,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2260,
+          "line": 2261,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2402,
+          "line": 2403,
           "column": 14
         },
         {
@@ -28158,7 +28158,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2353,
+          "line": 2354,
           "column": 18
         },
         {
@@ -28198,7 +28198,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2057,
+          "line": 2058,
           "column": 18
         },
         {
@@ -28218,22 +28218,22 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1549,
+          "line": 1550,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2551,
+          "line": 2552,
           "column": 34
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 5322,
+          "line": 5323,
           "column": 48
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 5372,
+          "line": 5373,
           "column": 44
         },
         {
@@ -28253,12 +28253,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 5588,
+          "line": 5589,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 5598,
+          "line": 5599,
           "column": 14
         }
       ],
@@ -28273,37 +28273,37 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2273,
+          "line": 2274,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2282,
+          "line": 2283,
           "column": 22
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2417,
+          "line": 2418,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2427,
+          "line": 2428,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2442,
+          "line": 2443,
           "column": 22
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2465,
+          "line": 2466,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 5641,
+          "line": 5642,
           "column": 14
         },
         {
@@ -28967,17 +28967,17 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 6851,
+          "line": 6852,
           "column": 7
         },
         {
           "file": "src/server.rs",
-          "line": 6941,
+          "line": 6942,
           "column": 38
         },
         {
           "file": "src/server.rs",
-          "line": 6948,
+          "line": 6949,
           "column": 50
         }
       ],
@@ -29007,12 +29007,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 6852,
+          "line": 6853,
           "column": 7
         },
         {
           "file": "src/server.rs",
-          "line": 12180,
+          "line": 12181,
           "column": 37
         }
       ],
@@ -29077,7 +29077,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 25404,
+          "line": 25405,
           "column": 22
         },
         {
@@ -29237,7 +29237,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 22447,
+          "line": 22448,
           "column": 18
         },
         {
@@ -30295,17 +30295,17 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 2374,
+          "line": 2375,
           "column": 17
         },
         {
           "file": "src/cli.rs",
-          "line": 2493,
+          "line": 2494,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 3395,
+          "line": 3396,
           "column": 14
         },
         {
@@ -30350,7 +30350,7 @@
         },
         {
           "file": "src/cli.rs",
-          "line": 2429,
+          "line": 2430,
           "column": 25
         }
       ],
@@ -32762,7 +32762,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 2477,
+          "line": 2478,
           "column": 18
         },
         {
@@ -32862,7 +32862,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 19427,
+          "line": 19428,
           "column": 10
         },
         {
@@ -33024,7 +33024,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 19450,
+          "line": 19451,
           "column": 18
         },
         {
@@ -33191,7 +33191,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 1420,
+          "line": 1421,
           "column": 18
         }
       ],
@@ -33206,7 +33206,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 5792,
+          "line": 5793,
           "column": 26
         },
         {
@@ -33226,17 +33226,17 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 4372,
+          "line": 4373,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 4375,
+          "line": 4376,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 29722,
+          "line": 29723,
           "column": 18
         }
       ],
@@ -33251,7 +33251,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 4701,
+          "line": 4702,
           "column": 14
         },
         {
@@ -33346,12 +33346,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 5772,
+          "line": 5773,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 6699,
+          "line": 6700,
           "column": 14
         },
         {
@@ -33396,42 +33396,42 @@
         },
         {
           "file": "src/server.rs",
-          "line": 6093,
+          "line": 6094,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 6357,
+          "line": 6358,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 6367,
+          "line": 6368,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 6503,
+          "line": 6504,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 6615,
+          "line": 6616,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 11969,
+          "line": 11970,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 13251,
+          "line": 13252,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 26704,
+          "line": 26705,
           "column": 18
         },
         {
@@ -33463,12 +33463,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 6337,
+          "line": 6338,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 6485,
+          "line": 6486,
           "column": 18
         },
         {
@@ -34309,7 +34309,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 4826,
+          "line": 4827,
           "column": 22
         }
       ],
@@ -34446,37 +34446,37 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 807,
+          "line": 808,
           "column": 29
         },
         {
           "file": "src/cli.rs",
-          "line": 874,
+          "line": 875,
           "column": 463
         },
         {
           "file": "src/cli.rs",
-          "line": 7795,
+          "line": 7796,
           "column": 58
         },
         {
           "file": "src/cli.rs",
-          "line": 7800,
+          "line": 7801,
           "column": 52
         },
         {
           "file": "src/server.rs",
-          "line": 219,
+          "line": 220,
           "column": 16
         },
         {
           "file": "src/server.rs",
-          "line": 3326,
+          "line": 3327,
           "column": 56
         },
         {
           "file": "src/server.rs",
-          "line": 18706,
+          "line": 18707,
           "column": 59
         }
       ],
@@ -34500,7 +34500,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 3049,
+          "line": 3050,
           "column": 30
         },
         {
@@ -34520,17 +34520,17 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 2999,
+          "line": 3000,
           "column": 28
         },
         {
           "file": "src/server.rs",
-          "line": 3155,
+          "line": 3156,
           "column": 32
         },
         {
           "file": "src/server.rs",
-          "line": 18723,
+          "line": 18724,
           "column": 28
         }
       ],
@@ -35531,7 +35531,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 21671,
+          "line": 21672,
           "column": 10
         }
       ],
@@ -35606,17 +35606,17 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 2709,
+          "line": 2681,
           "column": 14
         },
         {
           "file": "src/admin.rs",
-          "line": 6383,
+          "line": 6355,
           "column": 14
         },
         {
           "file": "src/admin.rs",
-          "line": 6416,
+          "line": 6388,
           "column": 14
         },
         {
@@ -37307,7 +37307,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 25791,
+          "line": 25792,
           "column": 14
         },
         {
@@ -37334,17 +37334,17 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 25669,
+          "line": 25670,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 25681,
+          "line": 25682,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 25727,
+          "line": 25728,
           "column": 30
         },
         {
@@ -37434,7 +37434,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 25754,
+          "line": 25755,
           "column": 22
         },
         {
@@ -37504,12 +37504,12 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 2594,
+          "line": 2566,
           "column": 26
         },
         {
           "file": "src/admin.rs",
-          "line": 5903,
+          "line": 5875,
           "column": 14
         }
       ],
@@ -37524,17 +37524,17 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 2581,
+          "line": 2553,
           "column": 22
         },
         {
           "file": "src/admin.rs",
-          "line": 2804,
+          "line": 2776,
           "column": 22
         },
         {
           "file": "src/admin.rs",
-          "line": 5887,
+          "line": 5859,
           "column": 43
         }
       ],
@@ -37549,12 +37549,12 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 3340,
+          "line": 3312,
           "column": 14
         },
         {
           "file": "src/admin.rs",
-          "line": 5911,
+          "line": 5883,
           "column": 44
         }
       ],
@@ -37609,17 +37609,17 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 4079,
+          "line": 4080,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 5854,
+          "line": 5855,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 5876,
+          "line": 5877,
           "column": 30
         },
         {
@@ -37649,17 +37649,17 @@
         },
         {
           "file": "src/server.rs",
-          "line": 4068,
+          "line": 4069,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 4073,
+          "line": 4074,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 5747,
+          "line": 5748,
           "column": 18
         },
         {
@@ -37684,7 +37684,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 28485,
+          "line": 28486,
           "column": 10
         },
         {
@@ -37709,12 +37709,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 5862,
+          "line": 5863,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 5869,
+          "line": 5870,
           "column": 30
         },
         {
@@ -37744,27 +37744,27 @@
         },
         {
           "file": "src/server.rs",
-          "line": 4060,
+          "line": 4061,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 5740,
+          "line": 5741,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 5845,
+          "line": 5846,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 7185,
+          "line": 7186,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 7203,
+          "line": 7204,
           "column": 14
         },
         {
@@ -37784,7 +37784,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5789,
+          "line": 5761,
           "column": 14
         },
         {
@@ -37804,7 +37804,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5810,
+          "line": 5782,
           "column": 22
         },
         {
@@ -37824,7 +37824,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5773,
+          "line": 5745,
           "column": 14
         },
         {
@@ -37844,7 +37844,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5780,
+          "line": 5752,
           "column": 14
         },
         {
@@ -37884,12 +37884,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 5885,
+          "line": 5886,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 5892,
+          "line": 5893,
           "column": 30
         },
         {
@@ -37944,7 +37944,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 7215,
+          "line": 7216,
           "column": 14
         },
         {
@@ -38149,17 +38149,17 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 3910,
+          "line": 3911,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 3914,
+          "line": 3915,
           "column": 10
         },
         {
           "file": "src/cli.rs",
-          "line": 3934,
+          "line": 3935,
           "column": 10
         }
       ],
@@ -38174,7 +38174,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 29783,
+          "line": 29784,
           "column": 14
         },
         {
@@ -38194,7 +38194,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 29822,
+          "line": 29823,
           "column": 14
         }
       ],
@@ -38209,7 +38209,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 29791,
+          "line": 29792,
           "column": 14
         },
         {
@@ -38229,7 +38229,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 29749,
+          "line": 29750,
           "column": 14
         },
         {
@@ -38249,7 +38249,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 29757,
+          "line": 29758,
           "column": 14
         },
         {
@@ -38624,7 +38624,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 28424,
+          "line": 28425,
           "column": 18
         },
         {
@@ -38724,17 +38724,17 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 21098,
+          "line": 21099,
           "column": 34
         },
         {
           "file": "src/server.rs",
-          "line": 21120,
+          "line": 21121,
           "column": 34
         },
         {
           "file": "src/server.rs",
-          "line": 21138,
+          "line": 21139,
           "column": 30
         },
         {
@@ -40020,12 +40020,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 596,
+          "line": 597,
           "column": 36
         },
         {
           "file": "src/server.rs",
-          "line": 613,
+          "line": 614,
           "column": 27
         }
       ],
@@ -41549,7 +41549,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7331,
+          "line": 7332,
           "column": 45
         },
         {
@@ -44051,12 +44051,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 2664,
+          "line": 2665,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 2667,
+          "line": 2668,
           "column": 61
         },
         {
@@ -45236,12 +45236,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1339,
+          "line": 1340,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3970,
+          "line": 3971,
           "column": 14
         },
         {
@@ -45261,7 +45261,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1367,
+          "line": 1368,
           "column": 30
         },
         {
@@ -45281,12 +45281,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1333,
+          "line": 1334,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4102,
+          "line": 4103,
           "column": 14
         },
         {
@@ -45306,7 +45306,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1315,
+          "line": 1316,
           "column": 14
         },
         {
@@ -45326,12 +45326,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1098,
+          "line": 1099,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1164,
+          "line": 1165,
           "column": 18
         },
         {
@@ -45356,7 +45356,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1127,
+          "line": 1128,
           "column": 14
         },
         {
@@ -45376,7 +45376,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1113,
+          "line": 1114,
           "column": 14
         },
         {
@@ -45676,7 +45676,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 7245,
+          "line": 7246,
           "column": 26
         }
       ],
@@ -45956,7 +45956,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 2973,
+          "line": 2974,
           "column": 24
         }
       ],
@@ -46906,12 +46906,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 1833,
+          "line": 1834,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 1846,
+          "line": 1847,
           "column": 18
         },
         {
@@ -46936,22 +46936,22 @@
         },
         {
           "file": "src/server.rs",
-          "line": 1747,
+          "line": 1748,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 1757,
+          "line": 1758,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 1771,
+          "line": 1772,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 1795,
+          "line": 1796,
           "column": 18
         },
         {
@@ -46981,7 +46981,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 1858,
+          "line": 1859,
           "column": 18
         },
         {
@@ -47013,12 +47013,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 444,
+          "line": 445,
           "column": 6
         },
         {
           "file": "src/server.rs",
-          "line": 1852,
+          "line": 1853,
           "column": 18
         },
         {
@@ -47040,7 +47040,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 1785,
+          "line": 1786,
           "column": 18
         },
         {
@@ -47227,7 +47227,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 17722,
+          "line": 17723,
           "column": 13
         },
         {
@@ -47289,7 +47289,7 @@
       "sites": [
         {
           "file": "src/auth/recovery.rs",
-          "line": 288,
+          "line": 289,
           "column": 26
         },
         {
@@ -47364,42 +47364,42 @@
         },
         {
           "file": "src/server.rs",
-          "line": 20770,
+          "line": 20771,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 20830,
+          "line": 20831,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 20841,
+          "line": 20842,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 20853,
+          "line": 20854,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 20865,
+          "line": 20866,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 20877,
+          "line": 20878,
           "column": 26
         },
         {
           "file": "src/server.rs",
-          "line": 21228,
+          "line": 21229,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 21390,
+          "line": 21391,
           "column": 26
         },
         {
@@ -47439,7 +47439,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 17721,
+          "line": 17722,
           "column": 45
         },
         {
@@ -47461,17 +47461,17 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 3640,
+          "line": 3612,
           "column": 14
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 266,
+          "line": 267,
           "column": 18
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 926,
+          "line": 927,
           "column": 14
         },
         {
@@ -47491,7 +47491,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 13009,
+          "line": 13010,
           "column": 26
         },
         {
@@ -47511,12 +47511,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6346,
+          "line": 6347,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 6379,
+          "line": 6380,
           "column": 22
         }
       ],
@@ -47531,22 +47531,22 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6570,
+          "line": 6571,
           "column": 41
         },
         {
           "file": "src/cli.rs",
-          "line": 6615,
+          "line": 6616,
           "column": 26
         },
         {
           "file": "src/cli.rs",
-          "line": 6625,
+          "line": 6626,
           "column": 26
         },
         {
           "file": "src/cli.rs",
-          "line": 6663,
+          "line": 6664,
           "column": 14
         }
       ],
@@ -47561,27 +47561,27 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6576,
+          "line": 6577,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 6602,
+          "line": 6603,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 6634,
+          "line": 6635,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 6640,
+          "line": 6641,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 6673,
+          "line": 6674,
           "column": 18
         }
       ],
@@ -47596,7 +47596,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6649,
+          "line": 6650,
           "column": 18
         }
       ],
@@ -47611,7 +47611,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6421,
+          "line": 6422,
           "column": 18
         }
       ],
@@ -47626,12 +47626,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6794,
+          "line": 6795,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 6812,
+          "line": 6813,
           "column": 14
         }
       ],
@@ -47646,12 +47646,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6784,
+          "line": 6785,
           "column": 14
         },
         {
           "file": "src/cli.rs",
-          "line": 6820,
+          "line": 6821,
           "column": 14
         }
       ],
@@ -48485,7 +48485,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5446,
+          "line": 5418,
           "column": 14
         },
         {
@@ -48600,22 +48600,22 @@
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4312,
+          "line": 4313,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 13922,
+          "line": 13923,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 13937,
+          "line": 13938,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 16069,
+          "line": 16070,
           "column": 14
         }
       ],
@@ -49155,17 +49155,17 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 874,
+          "line": 875,
           "column": 491
         },
         {
           "file": "src/cli.rs",
-          "line": 7808,
+          "line": 7809,
           "column": 9
         },
         {
           "file": "src/cli.rs",
-          "line": 7812,
+          "line": 7813,
           "column": 58
         },
         {
@@ -49175,12 +49175,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 3326,
+          "line": 3327,
           "column": 6
         },
         {
           "file": "src/server.rs",
-          "line": 3376,
+          "line": 3377,
           "column": 16
         }
       ],
@@ -49620,7 +49620,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5737,
+          "line": 5709,
           "column": 14
         },
         {
@@ -49705,17 +49705,17 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 874,
+          "line": 875,
           "column": 555
         },
         {
           "file": "src/cli.rs",
-          "line": 7554,
+          "line": 7555,
           "column": 28
         },
         {
           "file": "src/server.rs",
-          "line": 18580,
+          "line": 18581,
           "column": 6
         }
       ],
@@ -49745,7 +49745,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 18667,
+          "line": 18668,
           "column": 42
         }
       ],
@@ -49780,7 +49780,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 18678,
+          "line": 18679,
           "column": 42
         }
       ],
@@ -49795,7 +49795,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 6709,
+          "line": 6710,
           "column": 10
         }
       ],
@@ -49850,7 +49850,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 20884,
+          "line": 20885,
           "column": 22
         },
         {
@@ -49890,7 +49890,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7566,
+          "line": 7567,
           "column": 32
         }
       ],
@@ -50070,12 +50070,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7559,
+          "line": 7560,
           "column": 28
         },
         {
           "file": "src/server.rs",
-          "line": 18587,
+          "line": 18588,
           "column": 6
         }
       ],
@@ -50090,12 +50090,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 27737,
+          "line": 27738,
           "column": 10
         },
         {
           "file": "src/server.rs",
-          "line": 27741,
+          "line": 27742,
           "column": 10
         }
       ],
@@ -51263,7 +51263,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 18850,
+          "line": 18851,
           "column": 13
         },
         {
@@ -54865,7 +54865,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 1782,
+          "line": 1783,
           "column": 32
         },
         {
@@ -54996,7 +54996,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 1819,
+          "line": 1820,
           "column": 9
         },
         {
@@ -55351,17 +55351,17 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 874,
+          "line": 875,
           "column": 425
         },
         {
           "file": "src/cli.rs",
-          "line": 7448,
+          "line": 7449,
           "column": 60
         },
         {
           "file": "src/cli.rs",
-          "line": 7455,
+          "line": 7456,
           "column": 18
         },
         {
@@ -55385,7 +55385,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 20757,
+          "line": 20758,
           "column": 46
         }
       ],
@@ -56200,7 +56200,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5480,
+          "line": 5452,
           "column": 22
         },
         {
@@ -56220,7 +56220,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5462,
+          "line": 5434,
           "column": 14
         },
         {
@@ -56405,7 +56405,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 25304,
+          "line": 25305,
           "column": 14
         },
         {
@@ -56470,12 +56470,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 25296,
+          "line": 25297,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 25336,
+          "line": 25337,
           "column": 14
         },
         {
@@ -56565,7 +56565,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 25265,
+          "line": 25266,
           "column": 14
         },
         {
@@ -59148,7 +59148,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 3453,
+          "line": 3454,
           "column": 33
         }
       ],
@@ -59163,7 +59163,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 3451,
+          "line": 3452,
           "column": 34
         }
       ],
@@ -59248,7 +59248,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 3452,
+          "line": 3453,
           "column": 31
         }
       ],
@@ -59993,52 +59993,52 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 113,
-          "column": 60
-        },
-        {
-          "file": "src/admin.rs",
-          "line": 146,
+          "line": 131,
           "column": 149
         },
         {
           "file": "src/admin.rs",
-          "line": 149,
+          "line": 134,
           "column": 31
         },
         {
           "file": "src/admin.rs",
-          "line": 158,
+          "line": 143,
           "column": 69
         },
         {
           "file": "src/admin.rs",
-          "line": 161,
+          "line": 146,
           "column": 31
         },
         {
           "file": "src/admin.rs",
-          "line": 297,
+          "line": 269,
           "column": 71
         },
         {
           "file": "src/admin.rs",
-          "line": 304,
+          "line": 276,
           "column": 36
         },
         {
           "file": "src/admin.rs",
-          "line": 307,
+          "line": 279,
           "column": 46
         },
         {
+          "file": "src/contract_types.rs",
+          "line": 21,
+          "column": 60
+        },
+        {
           "file": "src/server.rs",
-          "line": 10242,
+          "line": 10243,
           "column": 145
         },
         {
           "file": "src/server.rs",
-          "line": 10245,
+          "line": 10246,
           "column": 39
         }
       ],
@@ -60060,7 +60060,7 @@
         },
         {
           "file": "src/admin.rs",
-          "line": 294,
+          "line": 266,
           "column": 10
         },
         {
@@ -60277,17 +60277,17 @@
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 360,
+          "line": 361,
           "column": 26
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 382,
+          "line": 383,
           "column": 26
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 404,
+          "line": 405,
           "column": 26
         },
         {
@@ -60392,22 +60392,22 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 366,
+          "line": 367,
           "column": 26
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 388,
+          "line": 389,
           "column": 26
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 410,
+          "line": 411,
           "column": 26
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3843,
+          "line": 3844,
           "column": 14
         },
         {
@@ -61322,7 +61322,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 350,
+          "line": 351,
           "column": 18
         },
         {
@@ -61407,7 +61407,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 300,
+          "line": 301,
           "column": 22
         },
         {
@@ -61427,7 +61427,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 123,
+          "line": 124,
           "column": 14
         },
         {
@@ -61447,7 +61447,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 247,
+          "line": 248,
           "column": 18
         },
         {
@@ -61467,12 +61467,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 254,
+          "line": 255,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3736,
+          "line": 3737,
           "column": 14
         },
         {
@@ -61492,12 +61492,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 286,
+          "line": 287,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3782,
+          "line": 3783,
           "column": 14
         },
         {
@@ -61545,27 +61545,27 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 3833,
+          "line": 3805,
           "column": 14
         },
         {
           "file": "src/admin.rs",
-          "line": 5427,
+          "line": 5399,
           "column": 22
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 678,
+          "line": 679,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 692,
+          "line": 693,
           "column": 26
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4296,
+          "line": 4297,
           "column": 14
         },
         {
@@ -61585,7 +61585,7 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2782,
+          "line": 2783,
           "column": 14
         },
         {
@@ -61605,22 +61605,22 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2768,
+          "line": 2769,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2776,
+          "line": 2777,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4797,
+          "line": 4798,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 4957,
+          "line": 4958,
           "column": 14
         },
         {
@@ -61640,37 +61640,37 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1778,
+          "line": 1779,
           "column": 22
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1792,
+          "line": 1793,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1892,
+          "line": 1893,
           "column": 22
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1964,
+          "line": 1965,
           "column": 22
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2030,
+          "line": 2031,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2942,
+          "line": 2943,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2952,
+          "line": 2953,
           "column": 18
         },
         {
@@ -61690,22 +61690,22 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 1835,
+          "line": 1836,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2789,
+          "line": 2790,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2840,
+          "line": 2841,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3560,
+          "line": 3561,
           "column": 14
         },
         {
@@ -61725,12 +61725,12 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2802,
+          "line": 2803,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 5129,
+          "line": 5130,
           "column": 14
         },
         {
@@ -61750,27 +61750,27 @@
       "sites": [
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2905,
+          "line": 2906,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2926,
+          "line": 2927,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2979,
+          "line": 2980,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 3014,
+          "line": 3015,
           "column": 14
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 5006,
+          "line": 5007,
           "column": 18
         },
         {
@@ -62560,7 +62560,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 884,
+          "line": 885,
           "column": 22
         },
         {
@@ -62580,12 +62580,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 846,
+          "line": 847,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 857,
+          "line": 858,
           "column": 18
         },
         {
@@ -62625,7 +62625,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 5673,
+          "line": 5645,
           "column": 14
         },
         {
@@ -62800,12 +62800,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 18338,
+          "line": 18339,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 18379,
+          "line": 18380,
           "column": 14
         },
         {
@@ -62825,7 +62825,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 603,
+          "line": 604,
           "column": 14
         },
         {
@@ -63120,17 +63120,17 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 1905,
+          "line": 1906,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 15971,
+          "line": 15972,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 16007,
+          "line": 16008,
           "column": 18
         },
         {
@@ -63242,12 +63242,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 16035,
+          "line": 16036,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 16049,
+          "line": 16050,
           "column": 14
         },
         {
@@ -65788,7 +65788,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 3730,
+          "line": 3731,
           "column": 10
         },
         {
@@ -65810,7 +65810,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 8375,
+          "line": 8376,
           "column": 22
         }
       ],
@@ -67373,7 +67373,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 6898,
+          "line": 6899,
           "column": 10
         },
         {
@@ -67413,7 +67413,7 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 3182,
+          "line": 3183,
           "column": 18
         },
         {
@@ -67453,12 +67453,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 3177,
+          "line": 3178,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 3191,
+          "line": 3192,
           "column": 18
         }
       ],
@@ -67637,17 +67637,17 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 874,
+          "line": 875,
           "column": 751
         },
         {
           "file": "src/cli.rs",
-          "line": 3177,
+          "line": 3178,
           "column": 101
         },
         {
           "file": "src/cli.rs",
-          "line": 3191,
+          "line": 3192,
           "column": 98
         },
         {
@@ -68127,12 +68127,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7920,
+          "line": 7921,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 7924,
+          "line": 7925,
           "column": 18
         }
       ],
@@ -68297,17 +68297,17 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 874,
+          "line": 875,
           "column": 685
         },
         {
           "file": "src/cli.rs",
-          "line": 3177,
+          "line": 3178,
           "column": 69
         },
         {
           "file": "src/cli.rs",
-          "line": 3191,
+          "line": 3192,
           "column": 66
         },
         {
@@ -68390,7 +68390,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 1239,
+          "line": 1240,
           "column": 30
         }
       ],
@@ -68438,7 +68438,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 9851,
+          "line": 9852,
           "column": 14
         },
         {
@@ -68478,17 +68478,17 @@
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 224,
+          "line": 225,
           "column": 14
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 242,
+          "line": 243,
           "column": 14
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 953,
+          "line": 954,
           "column": 18
         },
         {
@@ -68503,7 +68503,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 23093,
+          "line": 23094,
           "column": 60
         },
         {
@@ -69858,12 +69858,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 16599,
+          "line": 16600,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 16610,
+          "line": 16611,
           "column": 15
         },
         {
@@ -71325,52 +71325,52 @@
       "sites": [
         {
           "file": "src/auth/recovery.rs",
-          "line": 20,
+          "line": 21,
           "column": 23
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 351,
+          "line": 352,
           "column": 25
         },
         {
           "file": "src/cli.rs",
-          "line": 9,
+          "line": 10,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 2442,
+          "line": 2443,
           "column": 26
         },
         {
           "file": "src/cli.rs",
-          "line": 6262,
+          "line": 6263,
           "column": 29
         },
         {
           "file": "src/cli.rs",
-          "line": 6486,
+          "line": 6487,
           "column": 25
         },
         {
           "file": "src/cli.rs",
-          "line": 6514,
+          "line": 6515,
           "column": 25
         },
         {
           "file": "src/cli.rs",
-          "line": 6687,
+          "line": 6688,
           "column": 25
         },
         {
           "file": "src/cli.rs",
-          "line": 7695,
+          "line": 7696,
           "column": 29
         },
         {
           "file": "src/cli.rs",
-          "line": 8083,
+          "line": 8084,
           "column": 29
         },
         {
@@ -72737,32 +72737,32 @@
         },
         {
           "file": "src/server.rs",
-          "line": 21380,
+          "line": 21381,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 21399,
+          "line": 21400,
           "column": 34
         },
         {
           "file": "src/server.rs",
-          "line": 21418,
+          "line": 21419,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 22317,
+          "line": 22318,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 22372,
+          "line": 22373,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 22394,
+          "line": 22395,
           "column": 14
         },
         {
@@ -73591,17 +73591,17 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 874,
+          "line": 875,
           "column": 592
         },
         {
           "file": "src/cli.rs",
-          "line": 7895,
+          "line": 7896,
           "column": 22
         },
         {
           "file": "src/cli.rs",
-          "line": 7897,
+          "line": 7898,
           "column": 43
         },
         {
@@ -73621,22 +73621,22 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 7909,
+          "line": 7910,
           "column": 32
         },
         {
           "file": "src/cli.rs",
-          "line": 7913,
+          "line": 7914,
           "column": 18
         },
         {
           "file": "src/cli.rs",
-          "line": 7937,
+          "line": 7938,
           "column": 26
         },
         {
           "file": "src/cli.rs",
-          "line": 7943,
+          "line": 7944,
           "column": 18
         },
         {
@@ -75215,12 +75215,12 @@
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2827,
+          "line": 2828,
           "column": 18
         },
         {
           "file": "src/proof_checkpoint.rs",
-          "line": 2834,
+          "line": 2835,
           "column": 14
         },
         {
@@ -75332,12 +75332,12 @@
       "sites": [
         {
           "file": "src/cli.rs",
-          "line": 3276,
+          "line": 3277,
           "column": 26
         },
         {
           "file": "src/cli.rs",
-          "line": 3311,
+          "line": 3312,
           "column": 14
         },
         {
@@ -75511,7 +75511,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 779,
+          "line": 780,
           "column": 22
         },
         {
@@ -75611,12 +75611,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 2286,
+          "line": 2287,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 2304,
+          "line": 2305,
           "column": 18
         },
         {
@@ -75676,7 +75676,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 2686,
+          "line": 2687,
           "column": 30
         },
         {
@@ -75716,12 +75716,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 25882,
+          "line": 25883,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 26015,
+          "line": 26016,
           "column": 14
         },
         {
@@ -75766,12 +75766,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 730,
+          "line": 731,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 25865,
+          "line": 25866,
           "column": 18
         },
         {
@@ -75811,7 +75811,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 2279,
+          "line": 2280,
           "column": 18
         },
         {
@@ -75891,12 +75891,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 755,
+          "line": 756,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 23290,
+          "line": 23291,
           "column": 14
         },
         {
@@ -75936,7 +75936,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 786,
+          "line": 787,
           "column": 18
         },
         {
@@ -75996,7 +75996,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 26000,
+          "line": 26001,
           "column": 14
         },
         {
@@ -76021,7 +76021,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 25992,
+          "line": 25993,
           "column": 14
         },
         {
@@ -76041,7 +76041,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 827,
+          "line": 828,
           "column": 22
         }
       ],
@@ -78476,7 +78476,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 21185,
+          "line": 21186,
           "column": 26
         },
         {
@@ -78516,7 +78516,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 4593,
+          "line": 4565,
           "column": 18
         },
         {
@@ -78536,7 +78536,7 @@
       "sites": [
         {
           "file": "src/admin.rs",
-          "line": 4464,
+          "line": 4436,
           "column": 14
         },
         {
@@ -78676,12 +78676,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 19611,
+          "line": 19612,
           "column": 14
         },
         {
           "file": "src/server.rs",
-          "line": 19624,
+          "line": 19625,
           "column": 18
         },
         {
@@ -78711,17 +78711,17 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 21055,
+          "line": 21056,
           "column": 34
         },
         {
           "file": "src/server.rs",
-          "line": 21078,
+          "line": 21079,
           "column": 34
         },
         {
           "file": "src/server.rs",
-          "line": 21154,
+          "line": 21155,
           "column": 30
         },
         {
@@ -79111,7 +79111,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 11490,
+          "line": 11491,
           "column": 10
         }
       ],
@@ -79889,7 +79889,7 @@
         },
         {
           "file": "src/auth/recovery.rs",
-          "line": 234,
+          "line": 235,
           "column": 18
         },
         {
@@ -79914,7 +79914,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 9794,
+          "line": 9795,
           "column": 14
         },
         {
@@ -81067,12 +81067,12 @@
         },
         {
           "file": "src/server.rs",
-          "line": 3263,
+          "line": 3264,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 3263,
+          "line": 3264,
           "column": 65
         },
         {
@@ -81242,7 +81242,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 24406,
+          "line": 24407,
           "column": 18
         },
         {
@@ -81417,7 +81417,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 3265,
+          "line": 3266,
           "column": 35
         },
         {
@@ -81467,7 +81467,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 3240,
+          "line": 3241,
           "column": 40
         },
         {
@@ -81512,17 +81512,17 @@
         },
         {
           "file": "src/server.rs",
-          "line": 3248,
+          "line": 3249,
           "column": 36
         },
         {
           "file": "src/server.rs",
-          "line": 3252,
+          "line": 3253,
           "column": 64
         },
         {
           "file": "src/server.rs",
-          "line": 3254,
+          "line": 3255,
           "column": 34
         },
         {
@@ -81542,12 +81542,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 3264,
+          "line": 3265,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 3264,
+          "line": 3265,
           "column": 65
         },
         {
@@ -81607,12 +81607,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 3247,
+          "line": 3248,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 3256,
+          "line": 3257,
           "column": 34
         },
         {
@@ -81637,12 +81637,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 28723,
+          "line": 28724,
           "column": 22
         },
         {
           "file": "src/server.rs",
-          "line": 28760,
+          "line": 28761,
           "column": 22
         },
         {
@@ -81662,7 +81662,7 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 28705,
+          "line": 28706,
           "column": 18
         },
         {
@@ -81687,7 +81687,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 28873,
+          "line": 28874,
           "column": 18
         },
         {
@@ -81707,12 +81707,12 @@
       "sites": [
         {
           "file": "src/server.rs",
-          "line": 5835,
+          "line": 5836,
           "column": 30
         },
         {
           "file": "src/server.rs",
-          "line": 26622,
+          "line": 26623,
           "column": 18
         },
         {
@@ -81742,7 +81742,7 @@
         },
         {
           "file": "src/server.rs",
-          "line": 26638,
+          "line": 26639,
           "column": 18
         },
         {
@@ -81782,17 +81782,17 @@
         },
         {
           "file": "src/server.rs",
-          "line": 5137,
+          "line": 5138,
           "column": 11
         },
         {
           "file": "src/server.rs",
-          "line": 7231,
+          "line": 7232,
           "column": 18
         },
         {
           "file": "src/server.rs",
-          "line": 26629,
+          "line": 26630,
           "column": 18
         },
         {

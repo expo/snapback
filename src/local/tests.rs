@@ -20,7 +20,7 @@ use super::{
     telemetry_correlation, validate_bounded_children_node_schema_references,
     validate_bounded_children_schema_plan, validate_function_schema_references,
 };
-use crate::admin::ServerProfile;
+use crate::contract_types::ServerProfile;
 use crate::auth::admission::AdmissionController;
 use crate::auth::crypto::{CryptoError, RandomSource};
 use crate::auth::invalidation::{
@@ -19109,7 +19109,7 @@ fn cursor_negatives_hold_under_sessions_authorities() {
         crate::auth::invocation::InvocationGate::prepare_authority(
             crate::auth::invocation::InvocationSource::HttpQuery,
             AuthMode::Sessions,
-            crate::admin::ServerProfile::Test,
+            crate::contract_types::ServerProfile::Test,
             1,
             1,
             &crate::auth::invocation::WireAuthorityFields::default(),
@@ -22822,7 +22822,7 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
     let session_authority = crate::auth::invocation::InvocationGate::prepare_authority(
         crate::auth::invocation::InvocationSource::LiveInitialQuery,
         AuthMode::Sessions,
-        crate::admin::ServerProfile::Test,
+        crate::contract_types::ServerProfile::Test,
         1,
         1,
         &crate::auth::invocation::WireAuthorityFields::default(),
@@ -27831,7 +27831,7 @@ fn job_completion_fanout_shares_one_profiled_commit_carrier() {
                 jitter_ms: 1_000,
             },
             crate::network_profile::NetworkProfileAuthority::classified(
-                crate::admin::ServerProfile::Test,
+                crate::contract_types::ServerProfile::Test,
                 crate::auth::deployment::AuthDeploymentTarget::Local,
                 false,
                 false,

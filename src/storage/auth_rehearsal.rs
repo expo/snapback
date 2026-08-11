@@ -853,20 +853,20 @@ impl LocalDatabase {
         &mut self,
         artifact: &AuthRehearsalLogicalExportArtifactV1,
         verification_key: &crate::auth::rehearsal::RehearsalExportVerificationKey,
-        destination_profile: crate::admin::ServerProfile,
+        destination_profile: crate::contract_types::ServerProfile,
     ) -> SnapbackResult<serde_json::Value> {
         let payload = crate::auth::rehearsal::verify_export_envelope(
             &artifact.envelope,
             &artifact.payload,
             verification_key,
         )?;
-        if destination_profile == crate::admin::ServerProfile::Prod
+        if destination_profile == crate::contract_types::ServerProfile::Prod
             && (artifact.envelope.marker_state.disposable_at_creation
                 || artifact.envelope.marker_state.rehearsal_admitted)
         {
             return Err(state_present());
         }
-        if destination_profile != crate::admin::ServerProfile::Prod {
+        if destination_profile != crate::contract_types::ServerProfile::Prod {
             self.with_auth_transaction(|transaction| {
                 ensure_tables(transaction)?;
                 preserve_imported_markers_in(transaction, &artifact.envelope)?;
@@ -3291,7 +3291,7 @@ mod tests {
                 .auth_rehearsal_import_logical_export(
                     &clean,
                     &transferred_key,
-                    crate::admin::ServerProfile::Prod,
+                    crate::contract_types::ServerProfile::Prod,
                 )
                 .unwrap(),
             serde_json::json!({ "rows": ["clean"] })
@@ -3303,7 +3303,7 @@ mod tests {
                 .auth_rehearsal_import_logical_export(
                     &clean,
                     &transferred_key,
-                    crate::admin::ServerProfile::Prod,
+                    crate::contract_types::ServerProfile::Prod,
                 )
                 .unwrap(),
             serde_json::json!({ "rows": ["clean"] })
@@ -3313,7 +3313,7 @@ mod tests {
                 .auth_rehearsal_import_logical_export(
                     &tainted,
                     &tainted_key,
-                    crate::admin::ServerProfile::Prod,
+                    crate::contract_types::ServerProfile::Prod,
                 )
                 .unwrap_err()
                 .diagnostic
@@ -3328,7 +3328,7 @@ mod tests {
                 .auth_rehearsal_import_logical_export(
                     &payload_edit,
                     &clean_key,
-                    crate::admin::ServerProfile::Prod,
+                    crate::contract_types::ServerProfile::Prod,
                 )
                 .unwrap_err()
                 .diagnostic
@@ -3350,7 +3350,7 @@ mod tests {
                 .auth_rehearsal_import_logical_export(
                     &splice,
                     &clean_key,
-                    crate::admin::ServerProfile::Prod,
+                    crate::contract_types::ServerProfile::Prod,
                 )
                 .unwrap_err()
                 .diagnostic
@@ -3366,7 +3366,7 @@ mod tests {
                 .auth_rehearsal_import_logical_export(
                     &envelope_edit,
                     &clean_key,
-                    crate::admin::ServerProfile::Prod,
+                    crate::contract_types::ServerProfile::Prod,
                 )
                 .unwrap_err()
                 .diagnostic
@@ -3380,7 +3380,7 @@ mod tests {
                 .auth_rehearsal_import_logical_export(
                     &clean,
                     &wrong_key,
-                    crate::admin::ServerProfile::Prod,
+                    crate::contract_types::ServerProfile::Prod,
                 )
                 .unwrap_err()
                 .diagnostic
