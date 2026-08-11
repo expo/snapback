@@ -63,3 +63,123 @@ I complied with the blindness requirement. I read both targets in full and did n
 ## Verdict: 0231 — NOT READY
 ## Verdict: 0230 — NOT READY
 ## Verdict: SET — NOT READY
+
+---
+
+## Round 2 — 2026-08-10/11
+
+**Reviewer family:** gpt-5
+**Provider / runtime:** local `codex exec --ignore-user-config -m gpt-5.6-sol -c model_reasoning_effort=xhigh --sandbox read-only`, fresh process, no prior session context
+**Round:** 2
+**Redacted:** no
+**Cluster:** lockstep; 0231 primary, 0230 secondary (0230's single author-scoped sanity round)
+**Bound to revisions:**
+- 0231 `sha256 6330152a1935f35a8ac64b913cce07e93d059338c868478dc2754d3f879b1978`
+- 0230 `sha256 f74b0723d06c2158dc9dce52d2292f89c356b1e46f035482b1b829588400c296`
+
+Blindness: instruction-based, self-attested; compliance confirmed in the reviewer's first line. Round-1 findings were not disclosed to this reviewer. Body below is verbatim.
+
+---
+
+Blindness compliance: I did not read any `llp/reviews/0230-*` or `llp/reviews/0231-*` file, and I did not read any super-refine run journal.
+
+Review binding: 0231 `6330152a1935f35a8ac64b913cce07e93d059338c868478dc2754d3f879b1978`; 0230 `f74b0723d06c2158dc9dce52d2292f89c356b1e46f035482b1b829588400c296`.
+
+## MATERIAL findings
+
+1. **0231 — Class J contradicts the unbypassable table-policy locus and substitutes testing for enforcement.** D1 and D6 say every read automatically composes the table policy. D3 instead says a class-J handler enforces its own boundary, with `visibility: handler(...)` and an identity-switching test as “the only enforcement their declaration gets.” These cannot both describe the same data-access path. If `ctx.db` returns policy-filtered and field-masked data, class J cannot bypass table visibility and its remaining problem is output/egress information flow, which needs a different contract. If it receives raw data, `handler(...)` is a self-authorized waiver of D1. A finite acceptance test is evidence, not production enforcement or proof over arbitrary data and branches. This is not a rare escape hatch: 20 of the 96 direct query call sites in the bound census revision are JavaScript queries. The separately governed override is likewise left as open question 6, despite LLP 0170 making waiver authority a prerequisite. The RFC needs a fundamental decomposition: policy-aware reads plus a distinct egress contract, or an explicitly governed exception system with authority, scope, baseline/ratchet, and expiry semantics.
+
+2. **0231 — Class M does not yet define a safe field-authorization class.** Nulling a field at final projection prevents direct release of its value, but does not prevent the hidden value from influencing row presence, ordering, joins, aggregates, counts, or another computed output. A new query can therefore disclose facts about a masked field without selecting it—the same omitted-boundary failure the RFC is intended to prevent. D2 also makes row-policy intent mandatory only at table granularity: adding a sensitive field to a public or broadly visible table silently inherits disclosure unless the field-policy structure has an exhaustive or fail-closed default. Finally, a disclosed→masked transition is a security-negative field update. LLP 0053’s proved add/update path is best-effort, whereas durable obligations are attached to removals and conservative `live_replace`; the RFC neither forces Class M through `live_replace` nor extends the obligation classifier to redactions. Pointing-room proves only the monotonic masked→revealed direction. Before Class M is accepted, the design must pin operator-level noninterference/restrictions, field-addition defaults, and obligation-backed re-masking—or split field authorization into a sibling RFC and keep this one row-only.
+
+3. **0231/0230 — S1 rejects Rego and CEL on a false equivalence between source-language openness and runtime post-evaluation.** OPA has a first-party Compile API and a defined data-filtering fragment that partially evaluates Rego into SQL predicates, refusing unsupported constructs rather than requiring per-row runtime evaluation ([OPA SQL filtering](https://www.openpolicyagent.org/docs/filtering/tutorial-sql-filtering), [supported fragment](https://www.openpolicyagent.org/docs/filtering/fragment)). CEL similarly exposes checked ASTs, host-defined environments, validators, and partial evaluation ([CEL overview](https://cel.dev/overview/cel-overview)). Neither fact proves Snapback should adopt those languages, but it disproves “Rego/CEL implies post-query evaluation.” The relevant decision is whether a language has a closed, statically admissible pushdown fragment—the exact model this RFC wants. Since 0231 leaves the grammar open, it should evaluate these existing compilation approaches before declaring the family a siren. 0230 identifies OPA as a corpus gap but never actually surveys it.
+
+4. **0230 — Hasura is a major missing direct comparator, making the survey’s central landscape claim incomplete.** Hasura has long shipped model/table-scoped row and column authorization, relationship predicates and session variables, compiles those rules into SQL, and applies them to live and streaming GraphQL subscriptions ([Hasura’s authorization and streaming architecture](https://hasura.io/blog/instant-streaming-api-built-in-authorization-new-existing-postgres)). That is substantially closer to 0231’s proposed table locus, field surface, relationship composition, and durable live-query execution than most systems in Tiers 2–4. It may still have limitations around policy-metadata activation, offline retention, conditional cell masking, and revocation delivery, but those are precisely the questions the survey claims only Zero/IVM/Instant engage structurally. The research and recommendation should study Hasura before treating Zero’s deprecated RLS API as the strongest shipped table-locus precedent.
+
+5. **0230/0231 — Policy-fact changes and policy-program changes are conflated.** The Noria/DBSP section says composing policy into a query makes a policy change and data change “the same kind of event.” That is true only when the changing permission fact—membership, role, reveal bit—is modeled as an input row. Changing the policy expression itself changes the dataflow/query program and requires control-plane activation, plan replacement, and reauthorization; it is not an ordinary input delta. LLP 0053 already records authorization-metadata activation as a distinct event for this reason. D4 and its acceptance criteria mention membership/reveal changes but do not explicitly bind policy activation to that existing fail-closed event and fresh-result path. The survey must narrow the IVM claim, and the RFC must cover both data-backed policy dependencies and policy-program activation.
+
+## DETAIL findings
+
+1. **0231 census recount:** the principal counts at `5373238eb` are correct. I found 96 direct `define*Query` call sites; three `*KeysetPages` declarations generate six additional operations, yielding 102. Eight direct membership-bearing queries plus one membership-pages declaration yield 9 textual declarations and 10 generated operations. Twelve direct query-filter uses of `authUserId()` plus two owned-pages declarations yield 16 generated uses. Those generated membership and caller-filter sets are disjoint, so the exact “neither declared mechanism” number is **76 of 102**, rather than “roughly 75.” The five named no-authorization demos total 14 queries as stated.
+
+2. **0230 Zero needs a current/legacy split.** Zero 0.25 removed the first-class RLS permission system; current authorization is expressed in authenticated named-query definitions, while the table-scoped RLS API is deprecated ([Zero 0.25](https://zero.rocicorp.dev/docs/release-notes/0.25), [current authentication and permission patterns](https://zero.rocicorp.dev/docs/auth)). Current Zero also documents query re-transformation on reconnect/token refresh and a configurable interval for out-of-band role or membership changes ([zero-cache auth re-transformation](https://zero.rocicorp.dev/docs/zero-cache-config)). Open question 2 is therefore partly answerable now and should distinguish relational permission-data changes, auth-context changes, policy-code deployment, and the deprecated live-replicated policy-table mechanism.
+
+3. **0230 Zanzibar confidence is internally inconsistent.** The paper description merits high confidence; the claim that Snapback’s per-app commit version is a viable zookie does not. The body correctly labels it a candidate and leaves jurisdictional/multi-object ordering open, while the confidence sentence says “high” on the correspondence. Split this into high confidence on Zanzibar and low/medium confidence on the Snapback mapping.
+
+4. **0230 is missing a recent provenance/egress result relevant to Class M and D6.** The June 2026 Data Flow Control/Passant paper specifies tuple-level flow policies and query rewriting without materializing provenance ([Data Flow Control](https://arxiv.org/abs/2606.05679)). It is preliminary and broader than authorization, but directly addresses the hidden-field-through-derived-output problem that row predicates and final projection masks do not solve. It belongs near Blockaid or Meta PAI with an appropriately cautious confidence label.
+
+5. **0230 overstates the Meta inference.** Meta’s public material says point checks plus lineage were inadequate for scalable purpose-limitation enforcement and motivated runtime information-flow controls; it does not specifically establish that Ent-style per-load authorization was judged insufficient ([Meta PAI/Policy Zones](https://engineering.fb.com/2024/08/27/security/privacy-aware-infrastructure-purpose-limitation-meta/)). Mark the connection to Ent as an inference rather than Meta’s own verdict.
+
+6. Apart from the findings above, the characterizations of Blockaid, Zanzibar itself, Cedar, PostgreSQL RLS, Firebase rules, Expo Entity, and the Jeeves/Jacqueline line are directionally accurate at their stated confidence. The overall “medium-high” survey confidence is nevertheless too strong until the Hasura and OPA omissions and the current Zero behavior are reconciled.
+
+## Verdict: 0231 — NOT READY
+## Verdict: 0230 — NOT READY
+## Verdict: SET — NOT READY
+
+---
+
+## Round 3 — 2026-08-10/11 (delta round, 0231 only)
+
+**Reviewer family:** gpt-5
+**Provider / runtime:** local `codex exec --ignore-user-config -m gpt-5.6-sol -c model_reasoning_effort=xhigh --sandbox read-only`, fresh process, no prior session context
+**Round:** 3 — delta round per LLP 0010 §2 addendum; capsule enumerated the round-2 delta; concerns classified IN-DELTA vs PRE-EXISTING
+**Topology:** 0231 only (0230 exited the cluster after its author-scoped single round; provided as disclosed-unreviewed context)
+**Redacted:** no
+**Bound to revision:** 0231 `sha256 161bab9158489422b05d046029aa0511340935f65c7fb95e408b7575816538f7`
+
+Blindness: instruction-based, self-attested; compliance confirmed in the reviewer's first line. Prior-round findings not disclosed. Body below is verbatim.
+
+---
+
+Blindness compliance: I did not read any `llp/reviews/0230-*` or `llp/reviews/0231-*` file, nor any super-refine run journal.
+
+Review bound to sha256 `161bab9158489422b05d046029aa0511340935f65c7fb95e408b7575816538f7`.
+
+## MATERIAL findings
+
+1. **IN-DELTA — The sole policy bypass remains ungoverned.** D1 calls overrides “separately governed,” but leaves waiver authority, expiry, and ratchet semantics open. Schema placement, justification, projection, and a breadth test make a bypass visible; they do not establish who may authorize it or prevent the same change that introduces a widening from approving itself. This directly leaves unresolved LLP 0170 §4’s prerequisite. Because overrides are the only route outside the table policy, either their authority and lifecycle must be decided here, or overrides must remain unavailable/fail generation until a sibling governance decision lands.
+
+2. **IN-DELTA — Class M does not actually fail closed on the first sensitive field.** The field-addition fence applies only to a table “carrying any masking rule.” A table with no existing mask—including an explicitly public table—can therefore add a newly sensitive field and silently expose it through existing queries and `ctx.db` reads. That recreates the omission hazard D2 removes at table level and contradicts “disclosure-with-row must be said, not inherited silently” plus Acceptance’s claim of the full safety envelope. The fence needs to cover the transition from zero masks to differentiated field visibility, such as through explicit treatment of every new field or an equivalently closed schema classification.
+
+No PRE-EXISTING material findings.
+
+## DETAIL findings
+
+1. **IN-DELTA — The census conclusion is phrased too absolutely.** “Nothing today distinguishes public by design from scoping forgotten” conflicts with the later acknowledgment that some unscoped queries explicitly declare `auth: 'public'`. That is operation-level rather than table-level intent, so it does not defeat D2, but the load-bearing sentence should say that no row/table visibility declaration distinguishes them.
+
+2. **PRE-EXISTING — Exact effective-policy projection is impossible for opaque JS filters.** D2 promises the table policy composed with “the query’s own filters” for every query, while LLP 0170/0173 establish that JS handler filtering is opaque. The projection can soundly show the enforced table policy and declared refinements, with handler-local narrowing labeled opaque; it cannot claim to render the exact composed filter.
+
+3. **IN-DELTA — “The policy language is built … that is the whole gap” understates the new surface.** The shipped visibility forms are strong precedents, but universal table-policy injection into `ctx.db`, class-M masking, and their invalidation semantics are new machinery. Narrowing this wording would make implementation risk and feasibility clearer without changing the recommendation.
+
+## Verdict: 0231 — NOT READY
+
+---
+
+## Round 4 — 2026-08-10/11 (delta round, 0231 only)
+
+**Reviewer family:** gpt-5
+**Provider / runtime:** local `codex exec --ignore-user-config -m gpt-5.6-sol -c model_reasoning_effort=xhigh --sandbox read-only`, fresh process, no prior session context
+**Round:** 4 — delta round; capsule enumerated the round-3 delta; concerns classified IN-DELTA vs PRE-EXISTING
+**Redacted:** no
+**Bound to revision:** 0231 `sha256 09c2a3426acbf200c7e2143fe78383d346a523c9b9bb75ec87a85e37ade254db`
+
+Blindness: instruction-based, self-attested; compliance confirmed in the reviewer's first line. Prior-round findings not disclosed. Body below is verbatim.
+
+---
+
+Blindness compliance: I did not read any `llp/reviews/0230-*` or `llp/reviews/0231-*` artifact or any super-refine run journal.
+
+The reviewed bytes match `sha256 09c2a3426acbf200c7e2143fe78383d346a523c9b9bb75ec87a85e37ade254db`.
+
+## MATERIAL findings
+
+None.
+
+## DETAIL findings
+
+1. **IN-DELTA — The census mixes call-site syntax with effective generated policy.** The 96 direct call sites and 102 generated operations re-derive, but `signal-desk`’s `defineSearchQuery` inherits mandatory `public-read` visibility from its search-index declaration even though its function call contains no `visibility:` property. Counting effective generated policies therefore yields 65, not roughly 66, operations carrying none of the three mechanisms. This does not change the “roughly two-thirds” conclusion.
+
+   The same parenthetical says “plus one `authScopeField` site”; the pinned tree has three such query sites—two in `competitive-checkpoint` and one in `todo`, with one overlapping an `authUserId()` filter. Since `authScopeField` is correctly excluded as authorization proof, this is only an inventory correction.
+
+2. **IN-DELTA — The override sibling should distinguish scheduled authority modes.** LLP 0070 separates `system`, `revalidatePrincipal`, and `capturedGrant`; only the first is intrinsically principal-free. The sibling should decide whether revalidated-principal reads evaluate ordinary table policy and whether captured grants are a first-class policy authority or a governed override subtype. Treating every scheduled execution as a routine waiver would weaken override-review signal, but D1’s current fail-closed blocking posture prevents this from being a safety defect in this RFC.
+
+## Verdict: 0231 — READY

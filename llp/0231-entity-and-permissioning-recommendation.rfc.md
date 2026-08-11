@@ -5,11 +5,14 @@
 **Systems:** Auth, Security/authorization, Storage, Live queries, Code generation, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-10
+**Revised:** 2026-08-11
 **Related:** LLP 0011, LLP 0039, LLP 0043, LLP 0046, LLP 0053, LLP 0056, LLP 0082, LLP 0100, LLP 0170, LLP 0172, LLP 0173, LLP 0187, LLP 0230
 
 ## Summary
 
-**Recommendation: visibility becomes a declaration, not a filter.**
+**Recommendation: visibility becomes a declared policy, not an undifferentiated
+filter — a mandatory table-level default, refined per query, composed into the
+plan.**
 
 Snapback does not need an entity framework. It needs to make the authorization
 vocabulary it *already built* impossible to omit.
@@ -26,17 +29,26 @@ filter: [
 ```
 
 Two entries in one list. One decides who may see a card; the other decides which
-game is on screen. **Nothing in the manifest distinguishes them.** Delete the
-first and the demo still runs, still passes every test that does not
-specifically probe cross-player visibility, and leaks every hand at the table.
+game is on screen. The generated manifest records their *mechanism* — one
+predicate is `AuthUserId`, the other `Arg: gameId` — but nothing records their
+*obligation*: nothing marks the first as a security boundary that generation
+must refuse to lose. Delete the first and the demo still runs, still passes
+every test that does not specifically probe cross-player visibility, and leaks
+every hand at the table.
 
 That is [LLP 0170](./0170-authorization-obligation-feasibility.research.md)'s
 conclusion made concrete — "the handler must still enforce the caller filter" —
 and it is Ent's thesis demonstrated in our own flagship authorization demo.
 
-The proposal is small: give the security predicate its own declared position,
-make declaring it mandatory, compile it into the query, and project it for
-review. Three of those four use machinery that already exists.
+The proposal: give visibility a declared position with the table as the
+mandatory locus, compile it into the query, and project it for review. This is
+a *generalization*, not an invention: Snapback's search, relational,
+bounded-children, and owned-CRUD surfaces already ship a declared visibility
+union, mandatory-or-fail on search (§What already exists). This RFC extends
+that obligation to the table locus and to every read surface. One honest
+exception (§D3): the shipped grammar cannot express a common class of
+field-level boundaries, and this document carries the counter-example that
+sizes the missing piece.
 
 ## What already exists
 
@@ -52,25 +64,59 @@ This is the part that makes the recommendation small rather than large.
 - **An optional membership slot on queries**: `queryDef` in
   `packages/snapback-codegen/define.mjs` accepts `spec.membership`, an array of
   those declaration-bound predicates.
-- **An authorization review projection** ([LLP 0173](./0173-authorization-review-projection.rfc.md)).
+- **A shipped declared-visibility union — the strongest item in this
+  inventory, missed by this document's first two revisions.** Search indexes,
+  relational queries, bounded-children queries, and the owned-CRUD/keyset kits
+  already accept a `visibility` declaration:
+  `{ kind: 'public-read' } | { kind: 'owner', field } | { kind: 'membership', … }`,
+  plus `owner()` / `throughParent()` / `throughScope()` forms and per-side
+  `root/joined/output` visibility on relational queries (LLP 0073, LLP 0080).
+  On the search surface it is **mandatory-or-fail today**: `define.mjs`
+  refuses to generate a search index without an explicit declaration
+  (`SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED`, with the instruction to "use
+  `{ kind: 'public-read' }` only for intentionally public data"). Ten of the
+  96 direct query call sites in the demo corpus carry it. So the
+  explicit-`public`-or-fail move D2 wants is not an unshipped aspiration — it
+  is already executed, at generate time, on one read surface; D2 extends it to
+  the rest.
+- **An authorization review projection**
+  ([LLP 0173](./0173-authorization-review-projection.rfc.md)) — **specified,
+  not built**. D5 extends its design, not existing machinery.
 - **An explicitness precedent** ([LLP 0172](./0172-explicit-function-authorization.rfc.md)):
-  function-level auth moved from implicit default to explicit-or-fail across two
-  published phases — warn with the exact edit, then fail generation.
+  function-level auth moving from implicit default to explicit-or-fail.
+  0172 *proposes* two phases — a warning naming the exact edit, then a
+  generation failure — and the warning phase is what is implemented today
+  (`packages/snapback-codegen/index.mjs` emits the diagnostic with
+  machine-applicable remediations; generation does not yet fail). The precedent
+  is a proposed and partially executed trajectory, not a completed one.
 
-**The policy language is built and analyzable. Applying it is voluntary.** That
-is the whole gap.
+**The policy language is built and analyzable, and one surface already refuses
+to generate without it. Everywhere else, applying it is voluntary.** That is
+the *authoring* gap this RFC closes. It is not the whole implementation: the
+vocabulary, the composition machinery, and the mandatory-or-fail precedent
+exist, but universal policy composition at `ctx.db`, class-M masking, and
+their invalidation semantics are new machinery with real feasibility work —
+and the shipped language speaks only row predicates, not field masking.
 
 ## Evidence
 
 **The demo that exists to prove visibility leaks if you delete one line.**
-`demos/card-game/snapback/functions.mjs:42-45`, above.
+`demos/card-game/snapback/functions.mjs:42-45`, above. Reproducible: the
+acceptance fixture installs both players' hands and asserts disjoint results;
+remove the owner predicate and both principals receive both hands.
 
-**We recorded the shape of the right answer, from InstantDB.** LLP 0011 §462:
+**We recorded the shape of the wrong implementation, from InstantDB.**
+LLP 0011 §462 records that InstantDB evaluates CEL `view` rules post-query on
+every object, including during live invalidation, and that Instant itself
+flagged CEL-to-`where` pushdown as needed in 2024 without verifiably shipping
+it by mid-2026. Read precisely, that is a vendor's own report of an
+implementation shape it considered inadequate — per-object post-evaluation on
+the live path — not an observed production failure, and this document leans on
+it only in that weaker sense. Note also that LLP 0011's recorded fallback for
+inexpressible rules was *online-only, non-syncable execution*; D3 deliberately
+departs from that recorded choice (see D3).
 
-> InstantDB evaluates CEL `view` rules **post-query on every object, including
-> during live invalidation**; it flagged CEL-to-`where` [pushdown]
-
-**And the shape of the wrong one, from Firebase.** Diary 0031:296:
+**And the shape of the wrong authoring model, from Firebase.** Diary 0031:296:
 
 > Rules are authorization, not filters. Query structure must be designed
 > alongside policy and indexes; **a natural client query can fail even when each
@@ -85,189 +131,398 @@ illegitimate rows disappear. We want the second.
 > end-state targets**: authorization should **compose across relationships**, and
 > tests should switch identities without bespoke token plumbing.
 
-**And real demos need per-viewer visibility, not just per-caller.** Card-game
-hidden hands; pointing-room, where votes are concealed until the round reveals
-(diary 0074:10). Both were hand-built.
+**And real demos need per-viewer visibility that row predicates cannot express.**
+Card-game's hidden hands are a row predicate. Pointing-room's concealed votes
+(diary 0074:10) are not — the boundary is field-level and disjunctive, and §D3
+treats it as the worked counter-example that sizes the grammar.
 
-### The card-game case is the pattern, not an outlier
+### The census: three scoping paths, and a silent majority
 
-Counted across `demos/*/snapback/functions.mjs` at `5373238eb`:
+Counted across `demos/*/snapback/functions.mjs` at `5373238eb`. This section's
+numbers have been overturned by review twice — first the raw counts, then the
+taxonomy, which had missed the shipped visibility union entirely. Current
+figures, cross-checked between the orchestrator and two independent review
+recounts:
 
 | | count |
 | --- | ---: |
-| Query definitions | ~90 |
-| Carrying a declared `membership:` | **9** |
-| Uses of `authUserId()` inside a `filter` | **31**, across 12 demos |
+| `define*Query` call sites | 96 (102 generated query operations after `*KeysetPages` expansion) |
+| Queries gated by a declared `membership:` | **10** generated (9 textual declarations) |
+| Source-level `authUserId()` uses in query `filter:` lists | **12**, across 8 demos (16 generated uses after owned-page expansion) |
+| Call sites carrying a declared `visibility` union | **10**, across 5 demos (plus one `authScopeField` site; the four generated owned pages also carry `visibility: { kind: 'owner' }` but are counted once, under the `authUserId()` row above) |
 
-So caller scoping happens roughly **3–4× more often through the undeclared path
-than the declared one**. Authors are not ignoring authorization; they are
-reaching for the mechanism that is natural to type, and that mechanism is the
-one the manifest cannot see as a security boundary.
+An earlier revision reported "31 uses vs 9 declarations, 3–4×"; that conflated
+write-side owner stamping with read-side scoping and is withdrawn. The
+next revision's "two scoping paths, ~75 of 102 carry neither" was also wrong:
+there are **three** declared mechanisms, and the exact "neither of the first
+two" figure is 76 of 102, dropping to **roughly 66 of 102 that carry none of
+the three**. The denominator is itself conservative: kit-generated queries
+(owned-CRUD `list`/`get`, unique lookups) are invisible to a `define*Query`
+count and all carry declared visibility.
 
-Two honest caveats: not every `authUserId()` is a security boundary — some
-legitimately scope "my items" over data that is public anyway — and one query
-may use it more than once, so these are uses rather than queries. Neither
-changes the direction. The declared, analyzable path exists and is the minority
-path.
+What survives, stated carefully:
 
-This is what makes D2 (mandatory declaration) the load-bearing clause rather
-than D1 (a new slot). The slot without the obligation would just be a third
-option that authors also skip.
+1. Caller scoping is spread across three mechanisms — membership slots,
+   `authUserId()` filters, and the visibility union — of which only the first
+   and third are visible to the manifest as declared security boundaries, and
+   only one surface (search) makes any of them mandatory.
+2. Roughly two-thirds of queries carry *no* scoping mechanism, and no row- or
+   table-level visibility declaration distinguishes "public by design" from
+   "scoping forgotten" among them (a few declare function-level
+   `auth: 'public'` intent — the right idea, one level up).
+   A demo having `authUserId()` somewhere is no assurance: partiful-matrix's
+   four read queries are all unscoped; its `authUserId()` uses are write-side
+   owner stamps.
 
-## Recommendation: declared row scope
+Point 2 is the load-bearing observation for D2. The danger is not chiefly that
+authors typed the less-analyzable mechanism; it is that the *absence* of any
+mechanism is silent. Point 1 now cuts the other way as well: the declared,
+composed, generate-time-refused shape is not speculative — it ships and demos
+use it — which strengthens feasibility and turns the design question into
+unification (open question 2) rather than invention.
 
-### D1 — visibility gets its own position
+One honest caveat stands: not every `authUserId()` filter is a security
+boundary — some legitimately scope "my items" over data that is public anyway.
+That is an argument for making intent declarable, not against it.
 
-A query declares `visibility:` separately from `filter:`. Same expression
-vocabulary (`authUserId()`, `memberOf()`, `hasRole()`, and field comparisons);
-different slot, different meaning, different review treatment.
+## Recommendation: declared visibility policy
+
+A correction from review shapes this section: the first revision framed
+"fail-closed versus reviewable" as the central tradeoff between table-level and
+per-query declaration. That was a false tradeoff. A missing per-query
+declaration that fails generation and a missing table policy that denies reads
+are *both* fail-closed, and codegen can project the effective policy beside
+every query, so reviewability does not depend on where the declaration lives.
+With the tradeoff dissolved, the fail-closed-at-runtime locus wins: the table.
+
+### D1 — the table is the policy locus; queries refine
+
+Every table declares a visibility policy in the existing declaration-bound
+vocabulary (`authUserId()`, `memberOf()`, `hasRole()`, field comparisons), or
+an explicit `public()`. Every read of that table composes the policy in. A
+query may declare a **refinement** — composed by conjunction with the table
+policy, hence structurally narrowing with nothing to verify; anything
+non-conjunctive is by definition an **override**, the explicitly marked escape
+for cross-cutting reads (admin views, moderation, aggregates, and the
+no-principal paths below).
+
+**The policy composes at the data layer, for every access path.** `ctx.db` and
+the declarative plan compiler apply the table policy to all reads — declarative
+plans, JS handlers, mutations, and actions alike. There is no handler-level
+bypass: a JS handler computes over data it was already entitled to see. The
+*only* way to read outside the table policy is an override, and this revision
+makes overrides **fail closed until governed**: the declaration shape is
+specified here — schema-level (never inline in a query), naming scope and
+justification, projected as its own section of D5's surface, each carrying an
+acceptance test demonstrating intended breadth — but *no override is
+generatable under this RFC alone*, because waiver authority, protection
+against a widening change approving itself, expiry, and ratchet are not yet
+designed. That is LLP 0170's waiver-authority prerequisite honored fail-closed
+rather than deferred open. The governance sibling is urgent, not optional:
+the largest override population will likely be **no-principal access paths** —
+scheduled functions (LLP 0070 `runAfter`), seeds, maintenance sweeps — which
+see nothing under a caller-keyed table policy.
 
 The point is not new syntax. It is that a security predicate stops being
-textually indistinguishable from a convenience predicate — for the compiler, for
-LLP 0173's review projection, for a diff, and for an agent reading the manifest.
+textually indistinguishable from a convenience predicate — and that a *new*
+query over `hands` is owner-scoped before its author has thought about
+authorization at all, rather than merely refused.
 
-### D2 — declaring it is mandatory, via LLP 0172's exact precedent
+### D2 — a table without a policy fails generation
 
-Every query declares visibility or fails generation. `visibility: public()` is
-valid, explicit, greppable, and reviewable — the same move 0172 made with
-`optional-user`.
+Every table declares visibility or generation fails. `visibility: public()` is
+valid, explicit, greppable, and reviewable. The end state is already shipped
+on one surface: search indexes fail generation today without an explicit
+visibility declaration (`SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED`), which is
+the exact explicit-`public`-or-fail obligation D2 wants, executed. The rollout
+to the remaining surfaces follows the trajectory LLP 0172 proposed for
+`optional-user` — a per-table warning naming the exact edit, then a generation
+failure — noting honestly that 0172's own second phase has not shipped yet:
+0172 supplies the *migration process* precedent, and the search surface
+supplies the *end-state* precedent.
 
-Two phases, as 0172 ran them: a per-query warning naming the exact edit, then a
-generation failure. This is the single highest-value clause in this document,
-and it is process we have already executed once.
+Per-query declarations stay optional in steady state (the table default covers
+them). Codegen projects the **effective policy** for every query — the
+enforced table policy composed with declared refinements and overrides, with
+any handler-local narrowing labeled *opaque* rather than rendered, since JS
+filtering is not statically derivable (LLP 0170) — per LLP 0011's rule that
+effective permission is a composition, so review reads what is actually
+enforced rather than what is locally written.
 
-### D3 — the predicate is composed into the query, never applied after
+### D3 — composed into the plan, sized by a plan-class model
 
-Per LLP 0011 §462 and diary 0031:296. Composition preserves the matcher's skip
-path, keeps LLP 0035's per-subscription costs, and avoids Firebase's
-natural-query-fails failure mode.
+Composition, never post-evaluation: the policy predicate is compiled into the
+query plan, preserving the matcher's skip path and LLP 0035's per-subscription
+costs, and avoiding both Firebase's natural-query-fails mode and InstantDB's
+per-object live-path evaluation.
 
-A visibility expression that cannot be composed is a **generate-time refusal**,
-not a runtime fallback. That cap on expressiveness is deliberate and is the
-central tradeoff of this proposal (see §Costs).
+**But a recommendation that speaks only row predicates fails on a demo this
+repository already ships.** Pointing-room's disclosure boundary
+(`demos/pointing-room/snapback/functions.mjs:70`) is:
 
-### D4 — visibility change is an invalidation event
+```js
+value: round.revealed || vote.userId === ctx.auth.userId ? vote.value : null
+```
 
-Memberships are already wired into LLP 0053. D1's declaration makes the
-dependency explicit per query, so a membership change invalidates exactly the
-subscriptions whose visibility depends on it — the revocation correctness 0056
-already argues is the reason to own this rather than bolt it on.
+Field-level (every voter's row is returned; only `value` is masked),
+disjunctive, and cross-table (the reveal bit lives on `rounds`, ownership on
+`votes`). No row predicate expresses it. Under this RFC's first revision that
+query's only options were `visibility: public()` — leaving the handler as the
+real boundary, the exact situation this RFC exists to end — or refusal. Hidden
+votes, hidden hands, and redacted columns are ordinary workloads, so that was a
+hole in the mechanism, not an acceptable expressiveness cap.
+
+The shape is a **plan-class model**, per LLP 0170's conclusion that future
+enforcement must be plan-class-specific — but with only two policy classes,
+both enforced at the data layer:
+
+- **Class R — row scoping.** Visibility is a row predicate composed into the
+  plan's filters, or applied to `ctx.db` reads inside JS handlers, mutations,
+  and actions. Card-game's hidden hands. The composition machinery — and the
+  declaration vocabulary, via the shipped visibility union — exists.
+- **Class M — field masking.** Visibility may additionally include per-field
+  masking rules: a field is disclosed only when a declared condition over the
+  row and declared related rows holds — pointing-room's `revealed || owner`
+  reveal pattern, with the dependency on `rounds.revealed` becoming an
+  explicit D4 invalidation edge. This RFC commits to the class and to its
+  **safety envelope**, and defers the grammar to a sibling spec (see below).
+
+**There is no handler policy class.** An earlier revision of this document
+proposed "class J": JS handlers declaring `visibility: handler(...)` and
+enforcing their own boundary, checked only by tests. That contradicted D1 — a
+self-declared waiver of an unbypassable policy is not unbypassable, and a
+finite acceptance test is evidence, not enforcement. It is withdrawn. JS
+handlers read policy-composed, mask-applied data through `ctx.db` like every
+other consumer; what they do *with* visible data is the egress problem (D6),
+not a visibility class.
+
+**The class-M safety envelope, pinned now because masking that only nulls the
+final projection is not a boundary:**
+
+- **Noninterference.** A masked field may not participate in the filter,
+  ordering, join, or aggregate positions of any plan unless the plan's
+  composed predicate entails the field's disclosure condition; otherwise
+  generate-time refusal. Inside JS handlers, masked values are withheld from
+  handler view entirely (the handler receives the masked form), so a hidden
+  value cannot influence row presence, ordering, or any computed output.
+- **Field addition fails closed — on every table.** A newly added field fails
+  generation until its treatment is declared: disclosed-with-row or a masking
+  rule. Restricting the fence to already-masked tables would let an explicitly
+  public table silently expose a newly sensitive field through existing
+  queries — recreating at field granularity the omission hazard D2 exists to
+  remove. The price is one declaration per new field (§Costs).
+- **Re-masking is security-negative and rides the conservative path.** A
+  disclosed→masked transition is treated like a revocation: it takes the
+  obligation-backed conservative delivery route (LLP 0053's `live_replace`
+  semantics), never best-effort update delivery. Pointing-room's reveal only
+  exercises the benign masked→disclosed direction; the reverse direction is
+  the one that must not be best-effort.
+
+The class-M *grammar* is deliberately not pinned here: review established that
+the prior-art survey (LLP 0230) contains no field-level enforcement literature
+yet — column privileges, dynamic data masking, masking side channels — so the
+grammar goes to a sibling spec grounded in that reading, with pointing-room as
+its acceptance-gated worked case. Until that spec ships, a field-level
+boundary lives in handler code over row-authorized data and **must be
+declared** — a `fieldBoundary:` declaration naming the concealed fields and
+condition — so it appears on D5's projection as handler-enforced (not proven)
+and carries a mandatory identity-switching test. That is a declared residual,
+not a policy waiver: row scoping still applies underneath it. And it is
+weaker than the envelope in one way that must be said plainly: a
+`fieldBoundary:` carries **no noninterference guarantee** — the handler sees
+raw values, so a concealed value can still influence ordering or computed
+output until the sibling spec ships. That is exactly why the declaration is
+mandatory and projected rather than optional.
+
+A class R/M visibility expression that cannot be composed remains a
+**generate-time refusal** — not a silent post-filter, and not LLP 0011's
+recorded fallback of online-only execution, which this RFC explicitly
+supersedes for visibility expressions: a policy that silently changes a query's
+sync semantics is a worse failure than one that refuses with an edit to make.
+
+### D4 — visibility change is an invalidation event, conservatively
+
+Memberships are already wired into LLP 0053, and D1's declaration makes each
+query's visibility dependencies explicit. But the existing substrate provides
+revocation *correctness*, not exact blast radius: LLP 0056's membership queries
+re-check via conservative re-query/`live_replace`, and LLP 0053 v1 still rides
+the global epoch, with subject-scoped suppression computed but unused. So the
+safety property this RFC requires is **no false-negative invalidation** — a
+membership or reveal change never leaves a subscription reflecting visibility
+its viewer no longer has — while conservative extra wakes are permitted. Exact
+per-subscription suppression is an optimization to be separately specified and
+proved, not assumed here.
+
+Two kinds of change must not be conflated. A **policy-fact** change — a
+membership row, a reveal bit — is a data-plane event: the fact is an input row
+and the composed plan reacts through the ordinary invalidation machinery
+above. A **policy-program** change — editing a table's visibility expression
+itself — changes the compiled plans and is *not* an input delta: it is an
+authorization-metadata **activation** event, which LLP 0053 already models as
+distinct and fail-closed. Activating a changed policy replaces affected plans
+and re-delivers fresh results; it is never applied as an incremental diff
+against results computed under the old policy.
 
 ### D5 — project it, and test it by identity
 
-Extend LLP 0173 so every query's visibility declaration appears in one reviewable
-surface: an auditor reads one page rather than N handlers. And adopt diary
-0031's second target — `asUser`-style identity switching in acceptance, so
-"Bob cannot see Alice's hand" is a test rather than a hope.
+Extend LLP 0173's proposed projection so every table policy, refinement,
+override, and declared `fieldBoundary:` residual appears on one reviewable
+surface: an auditor reads one page rather than N handlers. Adopt diary 0031's
+second target — `asUser`-style identity switching in acceptance, so "Bob
+cannot see Alice's hand" is a test rather than a hope. For overrides and
+declared field boundaries the identity-switching test is mandatory: those are
+the two places where enforcement is weaker than composition, so the test is
+load-bearing there rather than advisory.
+
+### D6 — reads and writes share the locus and the IR
+
+This RFC specifies read visibility only, but decides one architectural point
+now so a sibling write RFC cannot fork the model: **the table-level policy
+declaration is the shared locus for read visibility and write checks, over one
+policy IR.** LLP 0011 requires two-sided enforcement; LLP 0056 places the full
+two-sided contract with declarative rules; Postgres RLS demonstrates the
+single-locus shape working in production. Mutations, actions, and JS handlers
+evaluate the same read policy whenever they read (D1). What remains for the
+sibling RFC (open question 4) is the write and egress side: insert checks,
+old-row update/delete checks, post-update checks, and what a function may
+*return or copy outward* — the residual that used to hide inside "class J" is
+exactly this egress question, since a handler computing over visible data can
+still send it somewhere broader. What the sibling may *not* do is introduce a
+second policy system.
 
 ### Why this and not an entity framework
 
 Ent's transferable insight is **unbypassable**, not **per-row policy objects**.
-The object model is how Ent achieves it in a request/response system; in a system
-with durable subscriptions, per-row evaluation is precisely the InstantDB failure
-we already documented. We can take the insight without the mechanism, because we
-already own the query compiler and the sync layer.
+The object model is how Ent achieves it in a request/response system; in a
+system with durable subscriptions, per-row evaluation is precisely the
+InstantDB shape we already documented as vendor-flagged. We can take the
+insight without the mechanism, because we already own the query compiler and
+the sync layer.
 
 ### Counter-evidence: how much of this is no-op typing?
 
-The case above is one-sided unless we ask how many queries have no scoping story
-at all, because those gain a declaration that says nothing.
+The case above is one-sided unless we ask how many queries have no scoping
+story at all, because those gain a declaration that says nothing.
 
-Five demos carry no authorization concept whatsoever — `all-aboard` (8 queries),
-`public-dashboard` (4), `chat-matrix` (3), `latency-kanban` (3), and
-`pulse-monitor` (2). That is **20 of ~90 queries, roughly one in five**, that
-would acquire `visibility: public()` and be no better off for it.
+Seven demos carry no *row-scoping* concept — `all-aboard` (6 queries),
+`campfire` (4), `public-dashboard` (3), `chirp` (3), `chat-matrix` (2),
+`latency-kanban` (2), and `pulse-monitor` (1): **21 of 102 generated
+queries.** (This list has been corrected three times by review: the raw counts
+first, then the taxonomy, then the roster — the last round added campfire,
+whose public-by-design intent lives only in a schema comment, and chirp, whose
+only scoping is a client-asserted handle argument. Both are gifts to D2:
+intent recorded in comments and argument conventions is invisible to any
+census. Not all seven are equally silent — public-dashboard and latency-kanban
+declare `auth: 'public'` on every query, the declared public-by-design intent
+D2 wants, one level up.) The seven-demo count is not the honest denominator
+either: per the
+corrected census, roughly 66 of 102 queries carry no scoping mechanism, and
+demos outside these seven contribute most of them. What fraction of those are
+public-by-design versus scoping-forgotten is exactly what nobody can currently
+say — which is the strongest form of the argument for D2, and also the reason
+the original "four in five queries have a real scoping story" conclusion is
+withdrawn: it did not follow from the count.
 
-That is the honest cost of D2, and it is worth stating in the direction that
-weakens the proposal. It is also a *favourable* ratio: if 80% of queries were
-legitimately public, mandatory declaration would be mostly noise. At ~20%, four
-in five queries have a real scoping story that today is either undeclared or
-invisible.
+An explicit `public()` is still not worthless — LLP 0172 made the same trade
+for `optional-user`, on the reasoning that an intentional anonymous surface
+should be distinguishable from a forgotten one. And under D1's table locus the
+no-op cost shrinks: a public table declares `public()` once, not once per
+query.
 
-And an explicit `public()` is not worthless — LLP 0172 made the same trade for
-`optional-user`, on the reasoning that an intentional anonymous surface should be
-distinguishable from a forgotten one. A public dashboard *should* say it is
-public.
-
-*Method note: this is my own count at `5373238eb`, not a diary sweep. A
-delegated pass over all 85 diaries was attempted and produced no report, so the
-qualitative counter-evidence — authors reporting the current model as sufficient
-— remains ungathered. Open question 6.*
+*Method note: counts derived at `5373238eb`, cross-checked across the
+orchestrator and two independent review recounts (which twice corrected this
+section). The qualitative counter-evidence — authors reporting the current
+model as sufficient — remains ungathered (open question 5).*
 
 ## Costs, stated plainly
 
-- **Expressiveness is capped** by what the matcher can compose. Policies needing
-  arbitrary joins or computed values will be refused at generate time. Some
-  apps will find this genuinely limiting.
-- **Every existing query must be touched** during the D2 migration.
-- **`visibility: public()` can be cargo-culted.** Explicitness makes a wrong
-  choice *visible*, not impossible — LLP 0187's confident-and-wrong failure mode
-  applies, which is what D5's projection is for.
-- **This does not close the write side.** Mutation authorization is a sibling
-  problem this RFC does not address.
+- **Expressiveness is capped** by what the plan can compose. Class M sets the
+  floor at reveal-style field masking; until its sibling spec ships, declared
+  `fieldBoundary:` residuals are handler-enforced and must stay visibly so.
+- **Migration touches every table** (one policy each), every query whose
+  caller filter should become a refinement (open question 3), **every new
+  field thereafter** (one treatment declaration, per the field-addition
+  fence), and **every no-principal access path** — scheduled functions, seeds,
+  maintenance sweeps cannot read caller-keyed tables until override governance
+  lands, which makes that sibling a migration prerequisite, not a nicety.
+- **`visibility: public()`, overrides, and `fieldBoundary:` declarations can
+  be cargo-culted.** Explicitness makes a wrong choice *visible*, not
+  impossible — LLP 0187's confident-and-wrong failure mode applies, which is
+  what D5's projection is for.
+- **The write side is located, not specified.** D6 fixes the locus and IR;
+  write-check semantics and egress control need their own RFC.
 
 ## Alternatives worth considering
 
-### A1 — table-level default visibility (the RLS shape)
+### A1 — per-query declaration only (this RFC's first-revision shape)
 
-Attach the predicate to the **table** rather than the query. Every read of
-`hands` gets `ownerId = caller` unless a query explicitly opts out.
-
-**Genuinely may be better than the recommendation.** It is strictly safer: a
-forgotten declaration fails closed rather than open, so a new query is safe by
-default instead of merely refused. It also lowers cleanly to Postgres RLS
-(LLP 0046) — one model, two backends.
-
-Against it: cross-cutting reads (admin views, aggregates, moderation) need an
-escape hatch, and escape hatches are where leaks live. Per-query declaration
-also makes the *review* surface better, because the policy sits where the query
-sits. **If the author prefers fail-closed over reviewable, take A1.**
+Visibility declared on each query, no table default — the original
+recommendation. Against it: a forgotten declaration on a new query is merely
+refused rather than safe; N declarations where one table policy suffices; and
+the "reviewable beats fail-closed" argument that justified it dissolves once
+codegen projects effective policy per query. Superseded by D1 during review.
 
 ### A2 — full entity objects (the expo/entity shape)
 
 Entities with policy classes, loaders, mutators; authorization inside the data
 accessor. Maximum expressiveness and a proven model.
 
-Against: it is the post-query per-row evaluation LLP 0011 §462 recorded failing
-on Instant's live path, and it introduces a second data-access layer beside the
-query compiler we already own. Right answer for a request/response backend;
-wrong shape for this one.
+Against: it is per-row post-query evaluation — the shape LLP 0011 §462 records
+InstantDB's own vendor flagging as inadequate on the live path — and it
+introduces a second data-access layer beside the query compiler we already own.
+Right answer for a request/response backend; wrong shape for this one.
 
 ### A3 — Zanzibar-style relationship tuples
 
 Authorization as a separate relation graph with userset rewrites. Buys exactly
 what diary 0031 asked for — composition across relationships — plus
-inheritance, and our commit version is structurally a zookie (LLP 0230).
+inheritance; LLP 0230 records the (unverified) hypothesis that our commit
+version could serve as the zookie.
 
 Against: a second data plane with its own consistency problem, and LLP 0056
 deliberately chose "roles are app data, in a system-recognized shape" instead.
 Worth revisiting only if relationship composition becomes the binding
 constraint; the tuple store is the expensive half and 0056 already avoids it.
 
-### A4 — verify instead of declare (Blockaid shape)
+### A4 — verify instead of declare (the Blockaid direction)
 
-Leave handlers as they are and prove non-leakage at generate time with a solver.
-Zero authoring burden if it works.
+Leave handlers as they are and prove non-leakage against declared policy views.
+Note what Blockaid actually is (LLP 0230): *runtime* SQL interception verified
+in request-trace context with cached generalized decisions, assuming the
+application keeps its own access checks — an amortized runtime verifier, not a
+generate-time proof with zero authoring burden. The zero-burden version is a
+hypothetical stronger cousin, not the shipped system.
 
-Against: LLP 0170 already concluded the manifest cannot support the discharge,
-and a JS handler's `reads` list is a dependency declaration rather than result
-provenance. LLP 0230 open question 1 asks whether Blockaid changes that
-assessment — worth answering before dismissing, but not a plan today.
+Against: LLP 0170 already concluded the manifest cannot support the discharge
+(a JS handler's `reads` list is a dependency declaration, not result
+provenance), and the runtime shape re-introduces per-evaluation work on the
+live path. LLP 0230 open question 1 asks whether Blockaid changes 0170's
+assessment — worth answering before final dismissal, but not a plan today.
 
 ## Sirens — attractive and wrong
 
-### S1 — a general policy language (Rego, CEL, arbitrary predicates)
+### S1 — unrestricted runtime policy evaluation
 
 **Why it looks right:** principled, expressive, industry-standard, and it
 future-proofs against policies nobody has thought of.
 
-**Why it is a trap:** it is exactly what LLP 0011 §462 watched fail. Arbitrary
-predicates cannot be composed into a query, so they run post-query per object,
-including during live invalidation. You would trade the analyzability that makes
-matcher skip, invalidation, and generate-time review possible — the substrate
-this whole system rests on — for expressiveness most apps never use. Cap
-expressiveness deliberately (LLP 0230 on Cedar) rather than discovering the cap
-after it is load-bearing.
+**Why it is a trap:** a predicate that can only be evaluated at runtime, per
+object, runs post-query on the live path — the shape LLP 0011 §462 records
+InstantDB's own vendor flagging as needing pushdown it never verifiably
+shipped. You would trade the analyzability that makes matcher skip,
+invalidation, and generate-time review possible for expressiveness most apps
+never use.
+
+**Stated precisely, because the first framing of this siren was wrong:** the
+trap is *unrestricted runtime evaluation*, not the policy languages
+themselves. OPA ships a Compile API and a defined data-filtering fragment that
+partially evaluates Rego into SQL predicates and refuses unsupported
+constructs; CEL exposes checked ASTs and partial evaluation. Those are
+closed, statically admissible pushdown fragments — structurally the same move
+D3 makes — and they are candidate inputs to open question 1's grammar design,
+not sirens. The siren is adopting an open language *without* committing to
+such a fragment, and discovering the cap after it is load-bearing. Cap
+expressiveness deliberately (LLP 0230 on Cedar) either way.
 
 ### S2 — treat sync partitioning as authorization
 
@@ -277,10 +532,11 @@ solve authorization and bandwidth in one move.
 
 **Why it is a trap:** it conflates *what we chose to send* with *what they are
 allowed to see*. Any bug in partition assignment becomes a data breach rather
-than a display bug. Worse, LLP 0043's offline retention means revocation cannot
-reach data already on the device — the card-game work already had to reason
-about lease-authorized retention for exactly this. Authorization must be a
-property of the read, with partitioning as an optimization *underneath* it.
+than a display bug, and LLP 0043's offline retention means revocation cannot
+reach data already on the device (a limitation shared by all plaintext sync,
+but partitioning-as-authorization makes it the *only* line of defense).
+Authorization must be a property of the read; partitioning derived *from* the
+policy is a legitimate enforcement and bandwidth optimization underneath it.
 
 ### S3 — infer visibility from the schema
 
@@ -304,49 +560,121 @@ sophistication repeats a documented mistake — and inference failures fail
 **Why it looks right:** makes leakage cryptographically impossible rather than
 merely enforced, and Jazz demonstrates it working (LLP 0085).
 
-**Why it is a trap for us:** revocation and live queries both become very hard —
-you re-key on every membership change, and the server can no longer evaluate the
-predicate it needs for matcher skip, so live fan-out degrades toward broadcast.
-Jazz pays for this in a currency it can afford because its whole architecture is
-built around it. Retrofitting it here would fight both the matcher and LLP 0053.
+**Why the encryption half is a trap for us:** revocation and live queries both
+become very hard — you re-key on every membership change, and the server can no
+longer evaluate the predicate it needs for matcher skip, so live fan-out
+degrades toward broadcast. Jazz pays for this in a currency it can afford
+because its whole architecture is built around it. Capability tokens are a
+separable idea that does not require ciphertext or re-keying; the objection to
+them here is narrower — they authorize outside the declared policy surface D5
+projects — and they should be evaluated on that ground, not bundled into the
+encryption dismissal.
 
 ## Open questions
 
-1. **D1 or A1 — per-query declaration or table-level default?** The real
-   decision in this document. Reviewability against fail-closed.
-2. **What exactly can a composable visibility expression contain?** The
-   expressiveness cap is the central tradeoff and this RFC does not pin it.
-3. **Does `visibility` subsume `authScopeField`,** or do both persist with
-   different jobs? Two overlapping concepts would be worse than either.
-4. **What is the migration shape** for existing queries whose caller filter is
-   already in `filter:` — mechanical lift, or author review each one?
-5. **The write side.** Mutation authorization is unaddressed here and needs its
-   own treatment.
-6. **Qualitative counter-evidence is ungathered.** §Counter-evidence measures
-   how many queries would gain a no-op declaration, but nobody has read the 85
+1. **The visibility grammar.** The plan-class model sets the floor — row
+   predicates (class R) plus reveal-style disjunctive field masking (class M
+   with its safety envelope), with pointing-room as the sibling spec's worked
+   case — but the exact contents are unpinned. What may a class-M condition
+   reference: same-row fields, declared related rows, app singletons? The
+   design should start from the shipped visibility union and evaluate the
+   existing compiled-fragment approaches (OPA's data-filtering fragment, CEL
+   partial evaluation) rather than inventing from zero.
+2. **Unify the vocabularies.** The proposed table-level grammar and the
+   *shipped* `visibility` union (search/relational/bounded-children/kits) use
+   the same keyword and overlapping shapes; `authScopeField` overlaps both.
+   Three coexisting visibility concepts would be worse than any one of them —
+   the grammar must reconcile with (ideally: grow out of) the shipped union,
+   and decide `authScopeField`'s fate.
+3. **What is the migration shape** for existing queries whose caller filter is
+   already in `filter:` — mechanical lift into refinements, or author review of
+   each one?
+4. **Write-check semantics and egress.** D6 fixes the locus and single IR;
+   insert/update/delete checks, post-update checks, and what a mutation or
+   action may return or copy outward remain for the sibling RFC.
+5. **Qualitative counter-evidence is ungathered.** Nobody has read the 85
    diaries for authors reporting the function-level model as *sufficient*, or
-   for authorization incidents caught by review rather than by the system. A
-   delegated sweep produced no report. If that reading turns up authors
-   routing around memberships deliberately rather than by default, D2's scope
-   should narrow before it is ratified.
+   for authorization incidents caught by review rather than by the system. If
+   that reading turns up authors routing around memberships deliberately
+   rather than by default, D2's scope should narrow before it is ratified.
+6. **Override governance — a blocking sibling, not a refinement.** D1 pins the
+   declaration shape and fails all overrides closed until governance is
+   decided: waiver authority, separation so a widening change cannot approve
+   itself, expiry, ratchet. The no-principal population (scheduled functions,
+   seeds, sweeps) makes this a prerequisite for D2's second phase — and
+   overrides are where the leaks will live.
 
 ## Acceptance
 
-- Every query declares visibility or fails generation, per D2's second phase.
-- A query whose visibility expression cannot be composed into the query is
+- Every table declares visibility or generation fails, per D2's second phase.
+- A class R/M visibility expression that cannot be composed into the plan is
   refused at generate time with a stable `SNAPBACK_*` code, not silently
-  post-filtered.
-- Deleting the visibility declaration from the card-game hidden-hand query fails
-  a test, rather than passing and leaking.
-- A membership change invalidates exactly the subscriptions whose visibility
-  depends on it, and no others.
-- LLP 0173's projection lists every query's visibility declaration on one
-  surface.
+  post-filtered and not executed online-only.
+- Removing the visibility policy that hides card-game hands is a **generation
+  failure** (a table without a policy does not generate, per D2 — the
+  data-layer refusal, not merely a test); edits that keep a policy but widen
+  disclosure are caught by the identity-switching acceptance tests.
+- **The pointing-room reveal boundary is expressible as class M** — vote value
+  masked unless the round is revealed or the caller owns the vote — under the
+  full safety envelope (noninterference, fail-closed field addition,
+  obligation-backed re-masking). This gates the class-M sibling spec; until it
+  ships, pointing-room carries a declared `fieldBoundary:` with an
+  identity-switching test, and this RFC does not claim class M is enforced.
+- Every override and every declared `fieldBoundary:` appears on the projection
+  and carries an identity-switching acceptance test.
+- A membership or reveal change never leaves a subscription reflecting
+  visibility its viewer no longer has (no false negatives); conservative extra
+  invalidation is permitted; any exact-suppression claim ships with its own
+  proof.
+- A policy-*program* change (editing a table's visibility expression)
+  activates via LLP 0053's fail-closed authorization-metadata activation with
+  fresh results — never as an incremental diff over results computed under the
+  old policy.
+- The projection lists every table policy, refinement, override, and
+  `fieldBoundary:` declaration on one surface.
 - Acceptance can switch identity (`asUser`) without bespoke token plumbing, per
   diary 0031:565.
 
 ## Status
 
-Draft. No implementation and no capability claim. The card-game observation and
-the codegen/manifest findings are reproducible at `5373238eb`; the diary
-citations are quoted exactly.
+Review. No implementation and no capability claim. The census figures are
+reproducible at `5373238eb`; they were corrected three times by review (raw
+counts, taxonomy, then the no-scoping roster), so treat them as re-derived per
+round rather than settled — re-derive before citing them outside this
+document. Diary citations are quoted exactly.
+
+## Revision history
+
+- 2026-08-10 — first revision (Draft).
+- 2026-08-11 — set to Review at super-refine loop start. Round-1 revision:
+  census and counter-evidence counts corrected and their conclusions narrowed;
+  recommendation restructured to the table-locus hybrid (absorbing A1; the old
+  per-query-only shape moved to alternatives); D3 rebuilt around a plan-class
+  model with pointing-room as the worked counter-example; D4 weakened to
+  no-false-negative with conservative wakes; D6 added (shared read/write locus
+  and IR); authority claims corrected (0172 phase status, 0011 §462 context and
+  fallback supersession, manifest mechanism-vs-obligation distinction, 0173
+  proposed-not-built).
+- 2026-08-11 — round-2 revision. Census taxonomy corrected again: the shipped
+  `visibility` union (search/relational/bounded-children/kits) added as the
+  third declared mechanism and the strongest existing precedent
+  (`SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED` is explicit-or-fail today);
+  "class J" withdrawn as self-contradictory — `ctx.db` is policy-composed for
+  every access path, with declared `fieldBoundary:` residuals until the
+  class-M sibling spec ships; class-M safety envelope pinned
+  (noninterference, fail-closed field addition, obligation-backed re-masking);
+  D4 split policy-fact vs policy-program changes and bound the latter to
+  LLP 0053 activation; override governance minimums moved into D1; S1
+  restated to target unrestricted runtime evaluation rather than the
+  Rego/CEL languages (OPA/CEL compiled fragments are grammar candidates).
+- 2026-08-11 — round-3 revision (delta-round fixes; no pre-existing MATERIAL
+  found by either family). Overrides now **fail generation until the
+  governance sibling lands** (waiver authority, self-approval separation,
+  expiry, ratchet), with no-principal paths named as the driving population;
+  the field-addition fence extended to **every** table, not only masked ones;
+  the no-scoping roster corrected to seven demos / 21 of 102 (campfire, chirp
+  added); refinements defined as conjunction-composed hence structurally
+  narrowing; effective-policy projection scoped honestly (handler-local
+  narrowing labeled opaque); the `fieldBoundary:` interim's missing
+  noninterference stated plainly; the card-game acceptance gate restated as a
+  generation failure; "the whole gap" wording narrowed to the authoring gap.
