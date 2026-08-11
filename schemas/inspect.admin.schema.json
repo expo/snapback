@@ -2329,6 +2329,17 @@
           "description": "Maturity annotations over `supportedCapabilities` (LLP 0058\n§Capability maturity, amendment 2026-07-24). Only emitted ids whose\nregistry maturity is not `stable` appear here; an id absent from this\nmap is stable, and a manifest omitting the field predates the maturity\ndimension. The map is derived from the same closed Rust registry as\n`supportedCapabilities` — it is reporting, never accepted as authority\nfrom a posted artifact.",
           "type": "object"
         },
+        "connectedClientPredicate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConnectedClientPredicateFactsV2"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Advisory connected-client predicate facts. `single-authority-routing`\nmeans every relevant client act and handler must reach this exact app\nauthority; multi-instance targets may not infer aggregation from it."
+        },
         "cron": {
           "type": "boolean"
         },
@@ -2715,6 +2726,46 @@
       },
       "required": [
         "name"
+      ],
+      "type": "object"
+    },
+    "ConnectedClientPredicateFactsV2": {
+      "additionalProperties": false,
+      "description": "Machine-readable semantics for LLP 0222's advisory connectivity fact.",
+      "properties": {
+        "aggregationMode": {
+          "type": "string"
+        },
+        "authorityScope": {
+          "type": "string"
+        },
+        "capabilityId": {
+          "type": "string"
+        },
+        "freshnessBudgetMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "semanticsVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "transport": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "semanticsVersion",
+        "freshnessBudgetMs",
+        "transport",
+        "authorityScope",
+        "aggregationMode"
       ],
       "type": "object"
     },
@@ -4418,6 +4469,13 @@
             "$ref": "#/$defs/AssetUploadIntentDefinition"
           },
           "type": "array"
+        },
+        "authoredSourceHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "bundleHash": {
           "default": null,
@@ -7484,6 +7542,13 @@
             }
           ]
         },
+        "authoredSourceHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "ephemeralCollections": {
           "default": [],
           "items": {
@@ -8456,6 +8521,7 @@
             "ibex_ctx_db_host_bridge",
             "inline_handler_v1",
             "notifications.expoPushSeam",
+            "realtime.connected-client-predicate",
             "live_subscriptions",
             "mutation_read_set_validation",
             "mixed_bundle_boot_v2",

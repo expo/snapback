@@ -2445,6 +2445,13 @@
           },
           "type": "array"
         },
+        "authoredSourceHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "bundleHash": {
           "default": null,
           "type": [
@@ -4851,6 +4858,13 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "authoredSourceHash": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
           ]
         },
         "ephemeralCollections": {

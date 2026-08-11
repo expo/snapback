@@ -5,7 +5,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { generate, serializeMutationPlan } from './index.mjs';
+import {
+  generate,
+  generateInProcess,
+  serializeMutationPlan,
+  validateTrustedCompositionActivationV1,
+} from './index.mjs';
 import { canonicalJson } from './result-contracts.mjs';
 
 const compositionHash = (domain, value) => `sha256:${createHash('sha256')
@@ -281,6 +286,166 @@ export const baseline = defineLiveQuery({
   );
   assert.equal(Object.isFrozen(activatedApi.artifacts.trustedCompositionActivation), true);
   assert.equal(Object.isFrozen(activatedApi.api.incidentTasks.composition), true);
+
+  // @ref LLP 0157#amendment--2026-08-10-toolchain-stable-activation-identity-ruled
+  // — a toolchain-only isolated-evaluation rotation advances provenance
+  // without invalidating a v2 authored-byte ceremony; authored edits still
+  // refuse, and all closed-root/proof-key checks remain in force.
+  const v2Identity = {
+    format: 'snapback.composition-activation.v2',
+    databaseId: 'database-fixture',
+    deploymentId: 'deployment-fixture-v2',
+    targetProfileId: 'local-dev-sqlite-ibex',
+    authMode: 'dev',
+    authoredSourceHash: result.authoredSourceHash,
+    mintedGeneration: activation.expectedGeneration,
+    proofKeyManifestDigest: compositionHash('snapback:completeness-proof-keys:v1:', proofKeys),
+  };
+  const trustedV2 = {
+    format: 'snapback.trusted-composition-activation.v1',
+    activation: v2Identity,
+    activationHash: compositionHash('snapback:composition-activation:v2:', v2Identity),
+    proofKeys,
+  };
+  const v2Context = {
+    expectedGeneration: activation.expectedGeneration,
+    authoredSourceHash: result.authoredSourceHash,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    authMode: 'dev',
+  };
+  assert.equal(validateTrustedCompositionActivationV1(trustedV2, v2Context), trustedV2);
+  assert.throws(
+    () => validateTrustedCompositionActivationV1({ ...trustedV2, unexpected: true }, v2Context),
+    /invalid closed root record/u,
+  );
+  assert.throws(
+    () => validateTrustedCompositionActivationV1({
+      ...trustedV2,
+      activation: { ...v2Identity, unexpected: true },
+    }, v2Context),
+    /does not bind this generated deployment/u,
+  );
+  assert.throws(
+    () => validateTrustedCompositionActivationV1({
+      ...trustedV2,
+      proofKeys: {
+        ...proofKeys,
+        keys: [{ ...proofKeys.keys[0], publicKeyBase64url: 'not-canonical' }],
+      },
+    }, v2Context),
+    /public key is not canonical/u,
+  );
+  assert.throws(
+    () => validateTrustedCompositionActivationV1({
+      ...trustedV2,
+      proofKeys: { ...proofKeys, keys: [] },
+    }, v2Context),
+    /invalid proof-key manifest/u,
+  );
+  assert.throws(
+    () => validateTrustedCompositionActivationV1({
+      ...trustedV2,
+      proofKeys: {
+        ...proofKeys,
+        keys: [{ ...proofKeys.keys[0], unexpected: true }],
+      },
+    }, v2Context),
+    /proof keys are not closed/u,
+  );
+  assert.throws(
+    () => validateTrustedCompositionActivationV1({
+      ...trustedV2,
+      proofKeys: {
+        ...proofKeys,
+        keys: [proofKeys.keys[0], proofKeys.keys[0]],
+      },
+    }, v2Context),
+    /proof keys are not closed/u,
+  );
+  const wrongProofDigestIdentity = {
+    ...v2Identity,
+    proofKeyManifestDigest: `sha256:${'0'.repeat(64)}`,
+  };
+  assert.throws(
+    () => validateTrustedCompositionActivationV1({
+      ...trustedV2,
+      activation: wrongProofDigestIdentity,
+      activationHash: compositionHash(
+        'snapback:composition-activation:v2:',
+        wrongProofDigestIdentity,
+      ),
+    }, v2Context),
+    /proof-key manifest digest does not reproduce/u,
+  );
+  assert.throws(
+    () => validateTrustedCompositionActivationV1({
+      ...trustedV2,
+      activationHash: `sha256:${'0'.repeat(64)}`,
+    }, v2Context),
+    /activation hash does not reproduce/u,
+  );
+  assert.throws(
+    () => validateTrustedCompositionActivationV1({
+      ...trustedV2,
+      activation: {
+        ...v2Identity,
+        mintedGeneration: { ...v2Identity.mintedGeneration, unexpected: true },
+      },
+    }, v2Context),
+    /does not bind this generated deployment/u,
+  );
+  assert.throws(
+    () => validateTrustedCompositionActivationV1({
+      ...trustedV2,
+      activation: { ...v2Identity, format: 'snapback.composition-activation.v3' },
+    }, v2Context),
+    /does not bind this generated deployment/u,
+  );
+
+  writeFileSync(
+    join(dir, 'trusted-composition-activation.json'),
+    `${JSON.stringify(trustedV2, null, 2)}\n`,
+  );
+  const v2Current = await generate(dir);
+  assert.equal(v2Current.ok, true, JSON.stringify(v2Current.diagnostics));
+  assert.equal(v2Current.artifactIndex.activationGenerationAdvanced, undefined);
+  assert.equal(v2Current.schemaManifest.authoredSourceHash, result.authoredSourceHash);
+  assert.equal(v2Current.functionManifest.authoredSourceHash, result.authoredSourceHash);
+  assert.equal(v2Current.contractManifest.authoredSourceHash, result.authoredSourceHash);
+  assert.equal(
+    v2Current.providerIntrospection.source.authoredSourceHash,
+    result.authoredSourceHash,
+  );
+  const rotated = await generateInProcess(dir, {}, {
+    identity: { isolatedEvaluationSuffix: '\ntoolchain-rotation-fixture' },
+  });
+  assert.equal(rotated.ok, true, JSON.stringify(rotated.diagnostics));
+  assert.equal(rotated.authoredSourceHash, result.authoredSourceHash);
+  assert.notDeepEqual(
+    rotated.artifactIndex.activationGenerationAdvanced.current,
+    activation.expectedGeneration,
+  );
+  assert.deepEqual(rotated.artifactIndex.activationGenerationAdvanced, {
+    minted: activation.expectedGeneration,
+    current: {
+      schemaVersion: rotated.schemaManifest.schemaVersion,
+      appId: rotated.schemaManifest.appId,
+      schemaHash: rotated.schemaManifest.schemaHash,
+      bundleHash: rotated.functionManifest.bundleHash,
+      inputsHash: rotated.functionManifest.inputsHash,
+    },
+    at: rotated.schemaManifest.generatedAt,
+  });
+  assert.equal(
+    rotated.appDescriptor.api.queries.incidentTasks.authoredSourceHash,
+    result.authoredSourceHash,
+  );
+
+  writeFileSync(join(dir, 'functions.mjs'), `${profileSource}\n// authored-byte-edit\n`);
+  const edited = await generate(dir);
+  assert.equal(edited.ok, false);
+  assert(edited.diagnostics.some(({ code }) => code === 'TRUSTED_COMPOSITION_ACTIVATION_INVALID'));
+  writeFileSync(join(dir, 'functions.mjs'), profileSource);
 
   const activityPlan = authored.addTask.writeWithActivityPlan;
   assert.equal(activityPlan.requiredCapability, 'write_activity_v1');

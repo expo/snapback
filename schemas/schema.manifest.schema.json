@@ -2465,6 +2465,13 @@
         }
       ]
     },
+    "authoredSourceHash": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "ephemeralCollections": {
       "default": [],
       "items": {

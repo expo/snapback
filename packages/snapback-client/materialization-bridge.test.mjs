@@ -123,6 +123,35 @@ function applicationFixture() {
   return { privateKey, ref, trustedCompositionActivation };
 }
 
+function v2ApplicationFixture() {
+  const fixture = applicationFixture();
+  const authoredSourceHash = digest('a');
+  const activation = {
+    format: 'snapback.composition-activation.v2',
+    databaseId: fixture.trustedCompositionActivation.activation.databaseId,
+    deploymentId: fixture.trustedCompositionActivation.activation.deploymentId,
+    targetProfileId: fixture.trustedCompositionActivation.activation.targetProfileId,
+    authMode: fixture.trustedCompositionActivation.activation.authMode,
+    authoredSourceHash,
+    mintedGeneration: {
+      ...fixture.ref.expectedGeneration,
+      inputsHash: digest('b'),
+    },
+    proofKeyManifestDigest: fixture.trustedCompositionActivation.activation.proofKeyManifestDigest,
+  };
+  const trustedCompositionActivation = {
+    ...fixture.trustedCompositionActivation,
+    activation,
+    activationHash: hashRecord('snapback:composition-activation:v2:', activation),
+  };
+  const ref = { ...fixture.ref, authoredSourceHash };
+  Object.defineProperty(ref, 'artifacts', {
+    value: Object.freeze({ trustedCompositionActivation }),
+    enumerable: false,
+  });
+  return { ...fixture, ref, trustedCompositionActivation };
+}
+
 const session = (fixture) => ({
   activeMode: 'sessions',
   authorizationStreamIncarnation: INCARNATION,
@@ -145,7 +174,7 @@ const session = (fixture) => ({
     timeBasis: 'server-absolute+client-request-elapsed',
     clockRollback: 'delete-before-read',
   },
-  deploymentIdentity: fixture.trustedCompositionActivation.activation.expectedGeneration,
+  deploymentIdentity: fixture.ref.expectedGeneration,
 });
 
 const scope = () => ({
@@ -283,6 +312,38 @@ test('single_table_v1 maps to durable no-lease retention without consuming Autho
     authorizedLeaseHash: null,
     witness: null,
   });
+});
+
+test('composition activation v2 uses current generated identity after minted-generation drift', () => {
+  const fixture = v2ApplicationFixture();
+  const bridge = deriveGeneratedMaterializationBridge({
+    ref: fixture.ref,
+    args: {},
+    clientStoreId: 'v2-rotation-store',
+    authorizationScope: { ...scope(), session: session(fixture) },
+    durableCarrier: true,
+    persistResume: true,
+    authorizedLeaseAvailable: true,
+  });
+  assert(bridge, 'matching authoredSourceHash admits the v2 generated reference');
+  assert.notDeepEqual(
+    fixture.trustedCompositionActivation.activation.mintedGeneration,
+    fixture.ref.expectedGeneration,
+  );
+  const wrongRef = { ...fixture.ref, authoredSourceHash: digest('c') };
+  Object.defineProperty(wrongRef, 'artifacts', {
+    value: fixture.ref.artifacts,
+    enumerable: false,
+  });
+  assert.equal(deriveGeneratedMaterializationBridge({
+    ref: wrongRef,
+    args: {},
+    clientStoreId: 'v2-authored-drift-store',
+    authorizationScope: { ...scope(), session: session(fixture) },
+    durableCarrier: true,
+    persistResume: true,
+    authorizedLeaseAvailable: true,
+  }), null);
 });
 
 test('single-table connected prove arm atomically adopts legacy bytes and discards its token', async (t) => {

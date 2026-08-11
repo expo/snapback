@@ -3549,7 +3549,7 @@ fn prepare_composition_activation_source(
         schema.app_id == functions.app_id && schema.inputs_hash == functions.inputs_hash,
         "generated schema/functions are not one coherent artifact pair"
     );
-    let expected_generation = crate::manifest::ArtifactGeneration {
+    let minted_generation = crate::manifest::ArtifactGeneration {
         schema_version: schema.schema_version.clone(),
         app_id: schema.app_id.clone(),
         schema_hash: schema
@@ -3565,13 +3565,21 @@ fn prepare_composition_activation_source(
             .clone()
             .context("generated pair has no inputsHash")?,
     };
+    let authored_source_hash = schema
+        .authored_source_hash
+        .clone()
+        .filter(|value| functions.authored_source_hash.as_ref() == Some(value))
+        .context("generated pair has no coherent authoredSourceHash")?;
     let mut database = crate::storage::LocalDatabase::open(database_path)?;
     let database_id = database.data_version_stream()?;
     let keyring = crate::completeness::ProofKeyring::load_or_create(
         database_path.with_file_name(crate::completeness::PROOF_KEYRING_FILE_NAME),
         crate::server::now_millis(),
     )?;
-    let artifact = crate::completeness::TrustedCompositionActivationV1::prepare(
+    // @ref LLP 0157#amendment--2026-08-10-toolchain-stable-activation-identity-ruled
+    // — every new keyring-backed preparation mints v2; committed v1 sources
+    // remain readable until their next ceremony.
+    let artifact = crate::completeness::TrustedCompositionActivationV1::prepare_v2(
         database_id,
         deployment_id,
         schema
@@ -3582,7 +3590,8 @@ fn prepare_composition_activation_source(
             crate::manifest::AuthMode::Dev => "dev",
             crate::manifest::AuthMode::Sessions => "sessions",
         },
-        expected_generation,
+        authored_source_hash,
+        minted_generation,
         keyring.manifest(),
     )?;
     let backend_dir = generated_dir.parent().context(

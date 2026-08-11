@@ -91,6 +91,7 @@ export interface GeneratedMutationIrV1 {
   readonly sourceIdentity: Readonly<{
     functionId: string;
     implementationHash: string;
+    authoredSourceHash?: `sha256:${string}`;
     activation: ArtifactGeneration;
   }>;
   readonly schemaIdentity: Readonly<{
@@ -130,6 +131,7 @@ export interface SnapbackFunctionReference<
   readonly implementationHash: string;
   readonly argsContractHash: string;
   readonly resultContractHash: string;
+  readonly authoredSourceHash?: `sha256:${string}`;
   readonly searchRequestContractHash?: string;
   readonly searchResourceArg?: string | null;
   readonly expectedGeneration?: ArtifactGeneration;

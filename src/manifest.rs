@@ -466,6 +466,11 @@ pub struct SchemaManifest {
     pub schema_hash: Option<String>,
     #[serde(default, rename = "inputsHash", alias = "inputs_hash")]
     pub inputs_hash: Option<String>,
+    // @ref LLP 0157#amendment--2026-08-10-toolchain-stable-activation-identity-ruled
+    // — the artifact pair carries the authored-byte admission identity beside
+    // its toolchain-sensitive generation identity.
+    #[serde(default, rename = "authoredSourceHash", alias = "authored_source_hash")]
+    pub authored_source_hash: Option<String>,
     #[serde(default, rename = "generatedAt", alias = "generated_at")]
     pub generated_at: Option<u64>,
     #[serde(default, rename = "sourceHash", alias = "source_hash")]
@@ -504,6 +509,7 @@ impl Default for SchemaManifest {
             strict_declarations: false,
             schema_hash: None,
             inputs_hash: None,
+            authored_source_hash: None,
             generated_at: None,
             source_hash: None,
             artifact_diagnostics: Vec::new(),
@@ -1030,6 +1036,8 @@ pub struct PublicSchemaManifest {
     pub schema_hash: Option<String>,
     #[serde(rename = "inputsHash")]
     pub inputs_hash: Option<String>,
+    #[serde(rename = "authoredSourceHash")]
+    pub authored_source_hash: Option<String>,
     #[serde(rename = "generatedAt")]
     pub generated_at: Option<u64>,
     #[serde(rename = "sourceHash")]
@@ -1062,6 +1070,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             strict_declarations: _,
             schema_hash,
             inputs_hash,
+            authored_source_hash,
             generated_at,
             source_hash,
             artifact_diagnostics,
@@ -1082,6 +1091,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             required_capabilities,
             schema_hash,
             inputs_hash,
+            authored_source_hash,
             generated_at,
             source_hash,
             artifact_diagnostics: artifact_diagnostics.into_iter().map(Into::into).collect(),
@@ -1542,6 +1552,8 @@ pub struct FunctionManifest {
     pub bundle_hash: Option<String>,
     #[serde(default, rename = "inputsHash", alias = "inputs_hash")]
     pub inputs_hash: Option<String>,
+    #[serde(default, rename = "authoredSourceHash", alias = "authored_source_hash")]
+    pub authored_source_hash: Option<String>,
     #[serde(default, rename = "generatedAt", alias = "generated_at")]
     pub generated_at: Option<u64>,
     #[serde(
@@ -1740,6 +1752,7 @@ impl Default for FunctionManifest {
             app_id: local_app_id(),
             bundle_hash: None,
             inputs_hash: None,
+            authored_source_hash: None,
             generated_at: None,
             unsupported_dependency_diagnostics: Vec::new(),
             acknowledged_experimental_capabilities: Vec::new(),
@@ -7598,6 +7611,8 @@ pub struct PublicFunctionManifest {
     pub bundle_hash: Option<String>,
     #[serde(rename = "inputsHash")]
     pub inputs_hash: Option<String>,
+    #[serde(rename = "authoredSourceHash")]
+    pub authored_source_hash: Option<String>,
     #[serde(rename = "generatedAt")]
     pub generated_at: Option<u64>,
     #[serde(rename = "unsupportedDependencyDiagnostics")]
@@ -7774,6 +7789,7 @@ impl From<FunctionManifest> for PublicFunctionManifest {
             app_id,
             bundle_hash,
             inputs_hash,
+            authored_source_hash,
             generated_at,
             unsupported_dependency_diagnostics,
             acknowledged_experimental_capabilities,
@@ -7798,6 +7814,7 @@ impl From<FunctionManifest> for PublicFunctionManifest {
             app_id,
             bundle_hash,
             inputs_hash,
+            authored_source_hash,
             generated_at,
             unsupported_dependency_diagnostics: unsupported_dependency_diagnostics
                 .into_iter()

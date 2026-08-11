@@ -20520,6 +20520,10 @@ impl LocalSnapback {
                     invalid("active artifact pair has no coherent inputsHash".to_owned())
                 })?,
         };
+        let coherent_authored_source_hash = schema
+            .authored_source_hash
+            .clone()
+            .filter(|value| self.functions.authored_source_hash.as_ref() == Some(value));
         let database_id = self.db.data_version_stream()?;
         let target_profile_id = self
             .db
@@ -20531,15 +20535,35 @@ impl LocalSnapback {
             AuthMode::Dev => "dev",
             AuthMode::Sessions => "sessions",
         };
-        if artifact.activation.database_id != database_id
-            || artifact.activation.target_profile_id != target_profile_id
-            || artifact.activation.auth_mode != auth_mode
-            || artifact.activation.expected_generation != expected_generation
+        if artifact.activation.database_id() != database_id
+            || artifact.activation.target_profile_id() != target_profile_id
+            || artifact.activation.auth_mode() != auth_mode
         {
             return Err(invalid(
-                "trusted activation does not exact-match the active database/profile/generation"
-                    .to_owned(),
+                "trusted activation does not exact-match the active database/profile".to_owned(),
             ));
+        }
+        // @ref LLP 0157#amendment--2026-08-10-toolchain-stable-activation-identity-ruled
+        // — v1 keeps exact-generation admission. V2 admits an exact authored
+        // source identity and deliberately treats its minted generation as
+        // provenance rather than a runtime gate.
+        if let Some(minted) = artifact.activation.expected_generation_v1() {
+            if minted != &expected_generation {
+                return Err(invalid(
+                    "v1 trusted activation does not exact-match the active generation".to_owned(),
+                ));
+            }
+        } else {
+            let authored_source_hash =
+                coherent_authored_source_hash.as_deref().ok_or_else(|| {
+                    invalid("active artifact pair has no coherent authoredSourceHash".to_owned())
+                })?;
+            if artifact.activation.authored_source_hash_v2() != Some(authored_source_hash) {
+                return Err(invalid(
+                    "v2 trusted activation does not exact-match the active authored source"
+                        .to_owned(),
+                ));
+            }
         }
         let manifest_matches = self
             .proof_keyring
@@ -20769,9 +20793,9 @@ impl LocalSnapback {
                         let body = crate::bounded_children_cursor::decode(
                             cursor,
                             &roots,
-                            &activation.activation.expected_generation.app_id,
-                            &activation.activation.database_id,
-                            &activation.activation.target_profile_id,
+                            &self.db.schema().app_id,
+                            activation.activation.database_id(),
+                            activation.activation.target_profile_id(),
                             now_millis(),
                         )
                         .map_err(|_| {
@@ -20806,9 +20830,9 @@ impl LocalSnapback {
                         let body = crate::snapshot_batch_cursor::decode(
                             cursor,
                             &roots,
-                            &activation.activation.expected_generation.app_id,
-                            &activation.activation.database_id,
-                            &activation.activation.target_profile_id,
+                            &self.db.schema().app_id,
+                            activation.activation.database_id(),
+                            activation.activation.target_profile_id(),
                             now_millis(),
                         )
                         .map_err(|_| {
@@ -20867,9 +20891,9 @@ impl LocalSnapback {
                         let body = crate::snapshot_batch_cursor_v2::decode(
                             cursor,
                             &roots,
-                            &activation.activation.expected_generation.app_id,
-                            &activation.activation.database_id,
-                            &activation.activation.target_profile_id,
+                            &self.db.schema().app_id,
+                            activation.activation.database_id(),
+                            activation.activation.target_profile_id(),
                             now_millis(),
                         )
                         .map_err(|_| {
@@ -20969,7 +20993,7 @@ impl LocalSnapback {
         // database's durable stream. Reusing the bound immutable value keeps
         // finite read issuance compatible with `&self` and cannot lazily mint
         // a new stream at response time.
-        let version_stream = activation.activation.database_id.clone();
+        let version_stream = activation.activation.database_id().to_owned();
         let witness = self
             .auth_invalidation
             .as_ref()

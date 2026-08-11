@@ -83,7 +83,7 @@ function ownerTransition(record, disposition, { lifecycle = 'active', generation
   };
 }
 
-function makeFixture(label = 'fixture') {
+function makeFixture(label = 'fixture', { activationVersion = 1 } = {}) {
   const { publicKey, privateKey } = generateKeyPairSync('ed25519');
   const publicJwk = publicKey.export({ format: 'jwk' });
   const proofKeys = {
@@ -94,25 +94,38 @@ function makeFixture(label = 'fixture') {
       publicKeyBase64url: publicJwk.x,
     }],
   };
-  const activation = {
+  const expectedGeneration = {
+    schemaVersion: 'snapback.v1',
+    appId: 'app-1',
+    schemaHash: 'schema-hash',
+    bundleHash: 'bundle-hash',
+    inputsHash: 'inputs-hash',
+  };
+  const activation = activationVersion === 1 ? {
     format: 'snapback.composition-activation.v1',
     databaseId: 'db-1',
     deploymentId: 'deployment-1',
     targetProfileId: 'native.v1',
     authMode: 'sessions',
-    expectedGeneration: {
-      schemaVersion: 'snapback.v1',
-      appId: 'app-1',
-      schemaHash: 'schema-hash',
-      bundleHash: 'bundle-hash',
-      inputsHash: 'inputs-hash',
-    },
+    expectedGeneration,
+    proofKeyManifestDigest: hashRecord('snapback:completeness-proof-keys:v1:', proofKeys),
+  } : {
+    format: 'snapback.composition-activation.v2',
+    databaseId: 'db-1',
+    deploymentId: 'deployment-1',
+    targetProfileId: 'native.v1',
+    authMode: 'sessions',
+    authoredSourceHash: digest('a'),
+    mintedGeneration: { ...expectedGeneration, inputsHash: 'minted-inputs-hash' },
     proofKeyManifestDigest: hashRecord('snapback:completeness-proof-keys:v1:', proofKeys),
   };
   const trustedActivation = {
     format: 'snapback.trusted-composition-activation.v1',
     activation,
-    activationHash: hashRecord('snapback:composition-activation:v1:', activation),
+    activationHash: hashRecord(
+      `snapback:composition-activation:v${activationVersion}:`,
+      activation,
+    ),
     proofKeys,
   };
   const materializationKey = qmk(label);
@@ -529,6 +542,29 @@ test('finite carriers verify Rust-minted proof bytes and reject tamper or wrong 
     }),
     (error) => error?.code === 'SNAPBACK_COMPLETENESS_BINDING_INVALID',
   );
+});
+
+test('v2 trusted activation verifies proof custody with provenance generation drift', async (t) => {
+  const handle = await setupCarrier(t, 'memory', 'v2-trusted-activation');
+  const fixture = makeFixture('v2-trusted-activation', { activationVersion: 2 });
+  fixture.identities.storageProfile = 'volatile-online-v1';
+  const store = await openSemantic(handle, fixture);
+  let record = await store.initialize(fixture.address, fixture.identities, null);
+  const valid = fixture.makeProof(record);
+  fixture.context.authorizationWitness = valid.witness;
+  record = await store.beginEstablishment(
+    fixture.address,
+    { kind: 'page', input: { kind: 'first' } },
+    fence(record),
+  );
+  record = await store.commitPage(
+    fixture.address,
+    fixture.fragmentFor(valid),
+    valid.proof,
+    null,
+    fence(record),
+  );
+  assert.equal(deriveCompletenessStatusV1(record), 'complete');
 });
 
 for (const carrier of ['memory', 'file', 'indexeddb']) {

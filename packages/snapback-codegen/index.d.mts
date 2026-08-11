@@ -47,6 +47,7 @@ export function validateTrustedCompositionActivationV1<
   candidate: Activation,
   options: Readonly<{
     expectedGeneration: unknown;
+    authoredSourceHash: string;
     targetProfileId: string;
     authMode: string;
   }>,
@@ -375,6 +376,7 @@ export interface GenerateSuccess {
   readonly ok: true;
   readonly diagnostics: readonly CodegenDiagnostic[];
   readonly inputsHash: string;
+  readonly authoredSourceHash: string;
   readonly outDir: string;
   readonly schemaManifest: Readonly<Record<string, unknown>>;
   readonly functionManifest: Readonly<{
@@ -394,10 +396,10 @@ export interface GenerateSuccess {
 
 export type GenerateResult = GenerateFailure | GenerateSuccess;
 
-/** The closed `snapback.trusted-composition-activation.v1` record. */
+/** The closed trusted activation root carrying a v1 or v2 activation identity. */
 export interface TrustedCompositionActivationV1 {
   format: 'snapback.trusted-composition-activation.v1';
-  activation: {
+  activation: ({
     format: 'snapback.composition-activation.v1';
     databaseId: string;
     deploymentId: string;
@@ -405,7 +407,16 @@ export interface TrustedCompositionActivationV1 {
     authMode: string;
     expectedGeneration: unknown;
     proofKeyManifestDigest: string;
-  };
+  } | {
+    format: 'snapback.composition-activation.v2';
+    databaseId: string;
+    deploymentId: string;
+    targetProfileId: string;
+    authMode: string;
+    authoredSourceHash: string;
+    mintedGeneration: unknown;
+    proofKeyManifestDigest: string;
+  });
   activationHash: string;
   proofKeys: {
     format: 'snapback.completeness-proof-keys.v1';
@@ -425,6 +436,7 @@ export function validateTrustedCompositionActivationV1(
   candidate: unknown,
   options: Readonly<{
     expectedGeneration: unknown;
+    authoredSourceHash: string;
     targetProfileId: string;
     authMode: string;
   }>,
@@ -535,21 +547,26 @@ export function computeArtifactIdentityStrings(options: Readonly<{
   sharedInputItems: readonly string[];
   schemaContentItems: readonly string[];
   bundleContentItems: readonly string[];
-}>): Readonly<{ inputsHash: string; schemaHash: string; bundleHash: string }>;
+  authoredSourceItems?: readonly (string | Uint8Array)[];
+}>): Readonly<{
+  inputsHash: string;
+  schemaHash: string;
+  bundleHash: string;
+  authoredSourceHash: string;
+}>;
 
 /** CLI entry (`[--json] [--target-profile <profile>] [backendDir]`). */
 export function runCodegenCli(argv?: readonly string[]): Promise<void>;
 
 /**
- * Validates a `snapback.trusted-composition-activation.v1` artifact against
- * the expected generation/target/auth identities and returns the frozen
- * activation record. Throws `TypeError` on any closed-record or identity
- * mismatch.
+ * Validates the closed trusted activation artifact using v1 exact-generation
+ * rules or v2 exact-authored-source rules. Throws `TypeError` on mismatch.
  */
 export function validateTrustedCompositionActivationV1(
   candidate: unknown,
   context: Readonly<{
     expectedGeneration: Readonly<Record<string, unknown>>;
+    authoredSourceHash: string;
     targetProfileId: string;
     authMode: string;
   }>,

@@ -35,7 +35,8 @@ const PROOF_KEYRING_MAX_BYTES: usize = 64 * 1024;
 const PROOF_SIGNATURE_DOMAIN: &[u8] = b"snapback:completeness-proof:v1:";
 const PROOF_DIGEST_DOMAIN: &[u8] = b"snapback:completeness-proof-digest:v1:";
 const PROOF_KEY_MANIFEST_DOMAIN: &[u8] = b"snapback:completeness-proof-keys:v1:";
-const ACTIVATION_DOMAIN: &[u8] = b"snapback:composition-activation:v1:";
+const ACTIVATION_V1_DOMAIN: &[u8] = b"snapback:composition-activation:v1:";
+const ACTIVATION_V2_DOMAIN: &[u8] = b"snapback:composition-activation:v2:";
 const AUTHORIZATION_WITNESS_DOMAIN: &[u8] = b"snapback:authorization-witness:v1:";
 const ESTABLISHED_RESULT_DOMAIN: &[u8] = b"snapback:established-result:v1:";
 const OPAQUE_CREDENTIAL_DOMAIN: &[u8] = b"snapback:opaque-credential:v1:";
@@ -135,7 +136,94 @@ impl CompositionActivationIdentityV1 {
         {
             bail!("invalid composition activation identity")
         }
-        domain_digest(ACTIVATION_DOMAIN, self)
+        domain_digest(ACTIVATION_V1_DOMAIN, self)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CompositionActivationIdentityV2 {
+    pub format: String,
+    pub database_id: String,
+    pub deployment_id: String,
+    pub target_profile_id: String,
+    pub auth_mode: String,
+    pub authored_source_hash: String,
+    pub minted_generation: ArtifactGeneration,
+    pub proof_key_manifest_digest: String,
+}
+
+impl CompositionActivationIdentityV2 {
+    pub fn activation_hash(&self) -> Result<String> {
+        if self.format != "snapback.composition-activation.v2"
+            || !matches!(self.auth_mode.as_str(), "dev" | "sessions")
+            || !self.proof_key_manifest_digest.starts_with("sha256:")
+            || !is_sha256_digest(&self.authored_source_hash)
+        {
+            bail!("invalid composition activation identity")
+        }
+        domain_digest(ACTIVATION_V2_DOMAIN, self)
+    }
+}
+
+// @ref LLP 0157#amendment--2026-08-10-toolchain-stable-activation-identity-ruled
+// — the trusted root remains the v1 proof-key carrier while its closed
+// activation identity validates under exactly one of the two versioned rules.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(untagged)]
+pub enum CompositionActivationIdentity {
+    V1(CompositionActivationIdentityV1),
+    V2(CompositionActivationIdentityV2),
+}
+
+impl CompositionActivationIdentity {
+    pub fn activation_hash(&self) -> Result<String> {
+        match self {
+            Self::V1(activation) => activation.activation_hash(),
+            Self::V2(activation) => activation.activation_hash(),
+        }
+    }
+
+    pub fn database_id(&self) -> &str {
+        match self {
+            Self::V1(activation) => &activation.database_id,
+            Self::V2(activation) => &activation.database_id,
+        }
+    }
+
+    pub fn target_profile_id(&self) -> &str {
+        match self {
+            Self::V1(activation) => &activation.target_profile_id,
+            Self::V2(activation) => &activation.target_profile_id,
+        }
+    }
+
+    pub fn auth_mode(&self) -> &str {
+        match self {
+            Self::V1(activation) => &activation.auth_mode,
+            Self::V2(activation) => &activation.auth_mode,
+        }
+    }
+
+    pub fn proof_key_manifest_digest(&self) -> &str {
+        match self {
+            Self::V1(activation) => &activation.proof_key_manifest_digest,
+            Self::V2(activation) => &activation.proof_key_manifest_digest,
+        }
+    }
+
+    pub fn expected_generation_v1(&self) -> Option<&ArtifactGeneration> {
+        match self {
+            Self::V1(activation) => Some(&activation.expected_generation),
+            Self::V2(_) => None,
+        }
+    }
+
+    pub fn authored_source_hash_v2(&self) -> Option<&str> {
+        match self {
+            Self::V1(_) => None,
+            Self::V2(activation) => Some(&activation.authored_source_hash),
+        }
     }
 }
 
@@ -143,12 +231,13 @@ impl CompositionActivationIdentityV1 {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TrustedCompositionActivationV1 {
     pub format: String,
-    pub activation: CompositionActivationIdentityV1,
+    pub activation: CompositionActivationIdentity,
     pub activation_hash: String,
     pub proof_keys: ProofKeyManifestV1,
 }
 
 impl TrustedCompositionActivationV1 {
+    /// Compatibility constructor for committed v1 fixtures and activations.
     pub fn prepare(
         database_id: impl Into<String>,
         deployment_id: impl Into<String>,
@@ -157,7 +246,7 @@ impl TrustedCompositionActivationV1 {
         expected_generation: ArtifactGeneration,
         proof_keys: ProofKeyManifestV1,
     ) -> Result<Self> {
-        let activation = CompositionActivationIdentityV1 {
+        let activation = CompositionActivationIdentity::V1(CompositionActivationIdentityV1 {
             format: "snapback.composition-activation.v1".to_owned(),
             database_id: database_id.into(),
             deployment_id: deployment_id.into(),
@@ -165,7 +254,35 @@ impl TrustedCompositionActivationV1 {
             auth_mode: auth_mode.into(),
             expected_generation,
             proof_key_manifest_digest: proof_keys.digest()?,
-        };
+        });
+        let activation_hash = activation.activation_hash()?;
+        Ok(Self {
+            format: "snapback.trusted-composition-activation.v1".to_owned(),
+            activation,
+            activation_hash,
+            proof_keys,
+        })
+    }
+
+    pub fn prepare_v2(
+        database_id: impl Into<String>,
+        deployment_id: impl Into<String>,
+        target_profile_id: impl Into<String>,
+        auth_mode: impl Into<String>,
+        authored_source_hash: impl Into<String>,
+        minted_generation: ArtifactGeneration,
+        proof_keys: ProofKeyManifestV1,
+    ) -> Result<Self> {
+        let activation = CompositionActivationIdentity::V2(CompositionActivationIdentityV2 {
+            format: "snapback.composition-activation.v2".to_owned(),
+            database_id: database_id.into(),
+            deployment_id: deployment_id.into(),
+            target_profile_id: target_profile_id.into(),
+            auth_mode: auth_mode.into(),
+            authored_source_hash: authored_source_hash.into(),
+            minted_generation,
+            proof_key_manifest_digest: proof_keys.digest()?,
+        });
         let activation_hash = activation.activation_hash()?;
         Ok(Self {
             format: "snapback.trusted-composition-activation.v1".to_owned(),
@@ -179,7 +296,7 @@ impl TrustedCompositionActivationV1 {
         if self.format != "snapback.trusted-composition-activation.v1" {
             bail!("unsupported trusted composition activation format")
         }
-        if self.proof_keys.digest()? != self.activation.proof_key_manifest_digest {
+        if self.proof_keys.digest()? != self.activation.proof_key_manifest_digest() {
             bail!("trusted activation proof-key manifest digest mismatch")
         }
         if self.activation.activation_hash()? != self.activation_hash {
@@ -991,7 +1108,40 @@ mod tests {
         .unwrap();
         artifact.validate().unwrap();
         let mut missing = artifact.activation.clone();
-        missing.proof_key_manifest_digest.clear();
+        match &mut missing {
+            CompositionActivationIdentity::V1(identity) => {
+                identity.proof_key_manifest_digest.clear()
+            }
+            CompositionActivationIdentity::V2(_) => unreachable!("v1 fixture"),
+        }
         assert!(missing.activation_hash().is_err());
+    }
+
+    #[test]
+    fn activation_v2_binds_authored_source_and_retains_minted_generation() {
+        let ring = ProofKeyring::from_fixed_seed("fixture-key", [9; 32]).unwrap();
+        let minted_generation = ArtifactGeneration {
+            schema_version: "snapback.v1".to_owned(),
+            app_id: "app".to_owned(),
+            schema_hash: "sha256:schema".to_owned(),
+            bundle_hash: "sha256:bundle".to_owned(),
+            inputs_hash: "sha256:inputs".to_owned(),
+        };
+        let artifact = TrustedCompositionActivationV1::prepare_v2(
+            "db",
+            "deployment",
+            "local",
+            "sessions",
+            format!("sha256:{}", "ab".repeat(32)),
+            minted_generation.clone(),
+            ring.manifest(),
+        )
+        .unwrap();
+        artifact.validate().unwrap();
+        let CompositionActivationIdentity::V2(identity) = &artifact.activation else {
+            unreachable!("v2 constructor")
+        };
+        assert_eq!(identity.minted_generation, minted_generation);
+        assert_eq!(identity.format, "snapback.composition-activation.v2");
     }
 }

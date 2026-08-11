@@ -32,7 +32,8 @@
       "properties": {
         "inputsHash": { "$ref": "#/$defs/nonEmptyString" },
         "schemaHash": { "$ref": "#/$defs/nonEmptyString" },
-        "implementationHash": { "$ref": "#/$defs/nonEmptyString" }
+        "implementationHash": { "$ref": "#/$defs/nonEmptyString" },
+        "authoredSourceHash": { "$ref": "#/$defs/nonEmptyString" }
       }
     },
     "capabilities": {

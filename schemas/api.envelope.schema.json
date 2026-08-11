@@ -785,6 +785,12 @@
         "artifactKind": {
           "type": "string"
         },
+        "authoredSourceHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "bundleHash": {
           "type": [
             "string",

@@ -53,6 +53,9 @@ const generatedFunctionIdentity = (ref) => ({
   implementationHash: ref.implementationHash,
   argsContractHash: ref.argsContractHash,
   resultContractHash: ref.resultContractHash,
+  ...(ref.authoredSourceHash === undefined ? {} : {
+    authoredSourceHash: ref.authoredSourceHash,
+  }),
   expectedGeneration: structuredClone(ref.expectedGeneration),
 });
 
@@ -114,11 +117,18 @@ const generatedInputs = (ref, args) => {
     || ref?.artifactKind !== 'functionReference'
     || ref?.kind !== 'LiveQuery'
   ) return null;
-  const expected = activation.activation?.expectedGeneration;
+  const activationIdentity = activation.activation;
+  // @ref LLP 0157#amendment--2026-08-10-toolchain-stable-activation-identity-ruled
+  // — legacy references bind v1's exact generation; v2 references bind the
+  // authored-byte identity and keep their current generation for transport.
+  const v1Matches = activationIdentity?.format === 'snapback.composition-activation.v1'
+    && JSON.stringify(activationIdentity.expectedGeneration) === JSON.stringify(ref.expectedGeneration);
+  const v2Matches = activationIdentity?.format === 'snapback.composition-activation.v2'
+    && activationIdentity.authoredSourceHash === ref.authoredSourceHash;
   if (
     activation.format !== 'snapback.trusted-composition-activation.v1'
-    || JSON.stringify(expected) !== JSON.stringify(ref.expectedGeneration)
-    || expected?.appId !== ref.appId
+    || (!v1Matches && !v2Matches)
+    || ref.expectedGeneration?.appId !== ref.appId
   ) return null;
   const canonicalArgs = JSON.parse(canonicalizeClientValueV1(args));
   return {
@@ -230,12 +240,12 @@ export function deriveGeneratedMaterializationBridge({
     leaseExpectation: leaseRequired ? {
       principalId: session?.authority?.userId ?? null,
       activationHash: authorizedLeaseActivationHash({
-        schemaVersion: activation.activation.expectedGeneration.schemaVersion,
+        schemaVersion: ref.expectedGeneration.schemaVersion,
         authMode: activation.activation.authMode,
-        appId: activation.activation.expectedGeneration.appId,
-        schemaHash: activation.activation.expectedGeneration.schemaHash,
-        bundleHash: activation.activation.expectedGeneration.bundleHash,
-        inputsHash: activation.activation.expectedGeneration.inputsHash,
+        appId: ref.expectedGeneration.appId,
+        schemaHash: ref.expectedGeneration.schemaHash,
+        bundleHash: ref.expectedGeneration.bundleHash,
+        inputsHash: ref.expectedGeneration.inputsHash,
       }),
       authorityInstanceId: authorizationScope.authorityDescriptor.authorityInstanceId,
     } : null,
@@ -316,12 +326,12 @@ export async function findRetainedGeneratedMaterializationBridge({
     leaseExpectation: leaseRequired ? {
       principalId: custody?.lease?.principalId ?? null,
       activationHash: authorizedLeaseActivationHash({
-        schemaVersion: activation.activation.expectedGeneration.schemaVersion,
+        schemaVersion: ref.expectedGeneration.schemaVersion,
         authMode: activation.activation.authMode,
-        appId: activation.activation.expectedGeneration.appId,
-        schemaHash: activation.activation.expectedGeneration.schemaHash,
-        bundleHash: activation.activation.expectedGeneration.bundleHash,
-        inputsHash: activation.activation.expectedGeneration.inputsHash,
+        appId: ref.expectedGeneration.appId,
+        schemaHash: ref.expectedGeneration.schemaHash,
+        bundleHash: ref.expectedGeneration.bundleHash,
+        inputsHash: ref.expectedGeneration.inputsHash,
       }),
       authorityInstanceId: record.authorityState.authority_instance_id,
     } : null,

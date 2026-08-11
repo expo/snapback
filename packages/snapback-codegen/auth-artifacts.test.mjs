@@ -79,6 +79,7 @@ const vectorInput = {
   sharedInputItems: ['alpha', 'βeta'],
   schemaContentItems: ['schema-source', '{}'],
   bundleContentItems: ['function-source', '[]'],
+  authoredSourceItems: ['schema-source', '{}', 'function-source', '[]'],
 };
 assert.deepEqual(
   computeArtifactIdentityStrings({ artifactVersion: 'snapback.v0', authMode: 'dev', ...vectorInput }),
@@ -86,6 +87,7 @@ assert.deepEqual(
     inputsHash: 'e68fa67402c7456616c3114c2618e782dbf7ea85f6c5258c2ad0159fc3eb07a6',
     schemaHash: 'sha256:b96a1a0ff7f1ad59',
     bundleHash: 'sha256:98f69379a4caeee4',
+    authoredSourceHash: 'sha256:656d96371b255e8f038a304acc8bb714feb9b23fdf10a764c09ab4269d2192ed',
   },
 );
 assert.deepEqual(
@@ -94,6 +96,7 @@ assert.deepEqual(
     inputsHash: 'snapback.v1:sessions:inputs:sha256:98b7ef54d181f80dcc0ca44a76f1e4a1ce8cf5df3670339f6872710af40c3446',
     schemaHash: 'snapback.v1:sessions:schema:sha256:9b696dcdb46833979823201437168432a8a445e73bccb6b7795a8ea492abfe51',
     bundleHash: 'snapback.v1:sessions:function:sha256:c3d4907b4ebace0ac0e5a6e126e17fc87b4c1f9e288d1cf1c4baf93ea4bd8e1e',
+    authoredSourceHash: 'sha256:656d96371b255e8f038a304acc8bb714feb9b23fdf10a764c09ab4269d2192ed',
   },
 );
 assert.throws(

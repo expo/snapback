@@ -3792,6 +3792,13 @@
       },
       "type": "array"
     },
+    "authoredSourceHash": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "bundleHash": {
       "default": null,
       "type": [

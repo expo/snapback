@@ -480,11 +480,36 @@ function prepareTrustedActivation(value) {
   if (value.format !== 'snapback.trusted-composition-activation.v1') {
     refuse('SNAPBACK_COMPLETENESS_TRUST_INVALID', 'trusted activation format is invalid');
   }
-  exact(value.activation, [
-    'format', 'databaseId', 'deploymentId', 'targetProfileId', 'authMode',
-    'expectedGeneration', 'proofKeyManifestDigest',
-  ], 'trustedActivation.activation');
-  if (value.activation.format !== 'snapback.composition-activation.v1') {
+  // @ref LLP 0157#amendment--2026-08-10-toolchain-stable-activation-identity-ruled
+  // — v1 and v2 are separately closed and hashed; no third format enters
+  // proof-key custody through a permissive compatibility path.
+  let activationDomain;
+  if (!plain(value.activation)) {
+    refuse('SNAPBACK_COMPLETENESS_TRUST_INVALID', 'activation identity must be an object');
+  } else if (value.activation.format === 'snapback.composition-activation.v1') {
+    exact(value.activation, [
+      'format', 'databaseId', 'deploymentId', 'targetProfileId', 'authMode',
+      'expectedGeneration', 'proofKeyManifestDigest',
+    ], 'trustedActivation.activation');
+    exact(value.activation.expectedGeneration, [
+      'schemaVersion', 'appId', 'schemaHash', 'bundleHash', 'inputsHash',
+    ], 'activation.expectedGeneration');
+    Object.entries(value.activation.expectedGeneration)
+      .forEach(([key, entry]) => nonempty(entry, `activation.expectedGeneration.${key}`));
+    activationDomain = 'snapback:composition-activation:v1:';
+  } else if (value.activation.format === 'snapback.composition-activation.v2') {
+    exact(value.activation, [
+      'format', 'databaseId', 'deploymentId', 'targetProfileId', 'authMode',
+      'authoredSourceHash', 'mintedGeneration', 'proofKeyManifestDigest',
+    ], 'trustedActivation.activation');
+    digest(value.activation.authoredSourceHash, 'activation.authoredSourceHash');
+    exact(value.activation.mintedGeneration, [
+      'schemaVersion', 'appId', 'schemaHash', 'bundleHash', 'inputsHash',
+    ], 'activation.mintedGeneration');
+    Object.entries(value.activation.mintedGeneration)
+      .forEach(([key, entry]) => nonempty(entry, `activation.mintedGeneration.${key}`));
+    activationDomain = 'snapback:composition-activation:v2:';
+  } else {
     refuse('SNAPBACK_COMPLETENESS_TRUST_INVALID', 'activation identity format is invalid');
   }
   boundedId(value.activation.databaseId, 'activation.databaseId');
@@ -493,10 +518,6 @@ function prepareTrustedActivation(value) {
   if (!['dev', 'sessions'].includes(value.activation.authMode)) {
     refuse('SNAPBACK_COMPLETENESS_TRUST_INVALID', 'activation auth mode is invalid');
   }
-  exact(value.activation.expectedGeneration, [
-    'schemaVersion', 'appId', 'schemaHash', 'bundleHash', 'inputsHash',
-  ], 'activation.expectedGeneration');
-  Object.entries(value.activation.expectedGeneration).forEach(([key, entry]) => nonempty(entry, `activation.expectedGeneration.${key}`));
   digest(value.activation.proofKeyManifestDigest, 'activation.proofKeyManifestDigest');
   exact(value.proofKeys, ['format', 'keys'], 'trustedActivation.proofKeys');
   if (value.proofKeys.format !== 'snapback.completeness-proof-keys.v1' || !Array.isArray(value.proofKeys.keys)) {
@@ -518,7 +539,7 @@ function prepareTrustedActivation(value) {
   if (manifestDigest !== value.activation.proofKeyManifestDigest) {
     refuse('SNAPBACK_COMPLETENESS_TRUST_INVALID', 'proof key manifest digest does not reproduce');
   }
-  const activationHash = hashRecord('snapback:composition-activation:v1:', value.activation);
+  const activationHash = hashRecord(activationDomain, value.activation);
   if (activationHash !== value.activationHash) {
     refuse('SNAPBACK_COMPLETENESS_TRUST_INVALID', 'activation hash does not reproduce');
   }

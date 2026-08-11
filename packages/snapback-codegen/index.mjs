@@ -207,10 +207,11 @@ function codegenError(code, message, {
 // codegen then validates it against the generation it just derived and emits
 // the byte-stable trust root through the ordinary transactional artifact graph.
 // The source is deliberately outside `inputsHash`: including the activation,
-// which embeds `expectedGeneration`, would make that identity recursive.
+// which embeds its minted generation, would make that identity recursive.
 // @ref LLP 0157#d3--the-completeness-witness — trusted activation and proof-key manifest are generated/deployment output, never mutable client-store state.
 export function validateTrustedCompositionActivationV1(candidate, {
   expectedGeneration,
+  authoredSourceHash,
   targetProfileId,
   authMode,
 }) {
@@ -219,23 +220,55 @@ export function validateTrustedCompositionActivationV1(candidate, {
     throw new TypeError('trusted composition activation has an invalid closed root record');
   }
   const activation = candidate.activation;
-  if (!exactKeys(activation, [
-    'format',
-    'databaseId',
-    'deploymentId',
-    'targetProfileId',
-    'authMode',
-    'expectedGeneration',
-    'proofKeyManifestDigest',
-  ])
-    || activation.format !== 'snapback.composition-activation.v1'
-    || typeof activation.databaseId !== 'string'
+  if (typeof activation?.databaseId !== 'string'
     || activation.databaseId === ''
     || typeof activation.deploymentId !== 'string'
     || activation.deploymentId === ''
     || activation.targetProfileId !== targetProfileId
-    || activation.authMode !== authMode
-    || canonicalResultJson(activation.expectedGeneration) !== canonicalResultJson(expectedGeneration)) {
+    || activation.authMode !== authMode) {
+    throw new TypeError('trusted composition activation does not bind this generated deployment');
+  }
+  // @ref LLP 0157#amendment--2026-08-10-toolchain-stable-activation-identity-ruled
+  // — v1 retains exact-generation admission; v2 instead admits only the exact
+  // authored bytes and keeps its minted generation as provenance.
+  let activationDomain;
+  if (activation.format === 'snapback.composition-activation.v1') {
+    if (!exactKeys(activation, [
+      'format',
+      'databaseId',
+      'deploymentId',
+      'targetProfileId',
+      'authMode',
+      'expectedGeneration',
+      'proofKeyManifestDigest',
+    ])
+      || canonicalResultJson(activation.expectedGeneration) !== canonicalResultJson(expectedGeneration)) {
+      throw new TypeError('trusted composition activation does not bind this generated deployment');
+    }
+    activationDomain = 'snapback:composition-activation:v1:';
+  } else if (activation.format === 'snapback.composition-activation.v2') {
+    if (!exactKeys(activation, [
+      'format',
+      'databaseId',
+      'deploymentId',
+      'targetProfileId',
+      'authMode',
+      'authoredSourceHash',
+      'mintedGeneration',
+      'proofKeyManifestDigest',
+    ])
+      || !exactKeys(activation.mintedGeneration, [
+        'schemaVersion', 'appId', 'schemaHash', 'bundleHash', 'inputsHash',
+      ])
+      || Object.values(activation.mintedGeneration).some((value) => (
+        typeof value !== 'string' || value === ''
+      ))
+      || !/^sha256:[0-9a-f]{64}$/u.test(activation.authoredSourceHash)
+      || activation.authoredSourceHash !== authoredSourceHash) {
+      throw new TypeError('trusted composition activation does not bind this generated deployment');
+    }
+    activationDomain = 'snapback:composition-activation:v2:';
+  } else {
     throw new TypeError('trusted composition activation does not bind this generated deployment');
   }
   const manifest = candidate.proofKeys;
@@ -269,7 +302,7 @@ export function validateTrustedCompositionActivationV1(candidate, {
     throw new TypeError('trusted composition activation proof-key manifest digest does not reproduce');
   }
   const activationHash = compositionDomainHash(
-    'snapback:composition-activation:v1:',
+    activationDomain,
     activation,
   );
   if (candidate.activationHash !== activationHash) {
@@ -4754,29 +4787,51 @@ async function generateInProcessLocked({
   // emits different definitions from identical source under an old hash.
   const schemaEvaluation = stableJson(schemaDef);
   const functionsEvaluation = stableJson(functionsModule);
+  const isolatedEvaluationSuffix = testHooks?.identity?.isolatedEvaluationSuffix ?? '';
+  if (typeof isolatedEvaluationSuffix !== 'string') {
+    throw new TypeError('testHooks.identity.isolatedEvaluationSuffix must be a string');
+  }
+  const schemaEvaluationIdentity = `${schemaEvaluation}${isolatedEvaluationSuffix}`;
+  const functionsEvaluationIdentity = `${functionsEvaluation}${isolatedEvaluationSuffix}`;
+  const routesEvaluationIdentity = routesBuild
+    ? `${stableJson(routesModule)}${isolatedEvaluationSuffix}`
+    : null;
   const routesGraphInputs = routesBuild ? moduleGraphIdentity(routesBuild.graph, backendRoot) : null;
   const inputs = [
     'schema-graph',
     ...schemaGraphInputs,
     'schema-isolated-evaluation',
-    schemaEvaluation,
+    schemaEvaluationIdentity,
     'functions-graph',
     ...functionsGraphInputs,
     'functions-isolated-evaluation',
-    functionsEvaluation,
+    functionsEvaluationIdentity,
     // Routes participate in the staleness marker only (never in schemaHash /
     // bundleHash — the manifest has its own canonical routeManifestHash
     // identity, LLP 0091 §0A.6); apps without routes.mjs hash identically to
     // before the artifact existed.
     ...(routesGraphInputs === null
       ? []
-      : ['routes-graph', ...routesGraphInputs, 'routes-isolated-evaluation', stableJson(routesModule)]),
+      : ['routes-graph', ...routesGraphInputs, 'routes-isolated-evaluation', routesEvaluationIdentity]),
     ...(seedSource === null ? [] : [seedSource]),
     ...(demoMetadata.source === null ? [] : [demoMetadata.source]),
     ...(codegenPolicy.source === null ? [] : [codegenPolicy.source]),
     contractCapabilitiesSource,
     canonicalCapability.source,
     ...(remoteServiceInputs?.identityInputs ?? []),
+    ...handlerInputs,
+  ];
+  // @ref LLP 0157#amendment--2026-08-10-toolchain-stable-activation-identity-ruled
+  // — this separate identity covers only the existing authored byte items;
+  // isolated-evaluation and artifact-schema framing remain generation-only.
+  const authoredSourceItems = [
+    ...schemaGraphInputs,
+    ...functionsGraphInputs,
+    ...(routesGraphInputs ?? []),
+    ...(seedSource === null ? [] : [seedSource]),
+    ...(demoMetadata.source === null ? [] : [demoMetadata.source]),
+    ...(codegenPolicy.source === null ? [] : [codegenPolicy.source]),
+    contractCapabilitiesSource,
     ...handlerInputs,
   ];
   // @ref LLP 0010#generated-artifacts — every identity item is framed
@@ -4789,23 +4844,24 @@ async function generateInProcessLocked({
   const schemaContentItems = [
     ...schemaGraphInputs,
     'schema-isolated-evaluation',
-    schemaEvaluation,
+    schemaEvaluationIdentity,
   ];
   const bundleContentItems = [
     ...functionsGraphInputs,
     'functions-isolated-evaluation',
-    functionsEvaluation,
+    functionsEvaluationIdentity,
     ...handlerInputs,
   ];
   const generatedAt = generatedAtMillis();
   const appIdentity = demoMetadata.identity;
-  const { inputsHash, schemaHash, bundleHash } = computeArtifactIdentityStrings({
+  const { inputsHash, schemaHash, bundleHash, authoredSourceHash } = computeArtifactIdentityStrings({
     artifactVersion,
     authMode,
     appId,
     sharedInputItems: inputs,
     schemaContentItems,
     bundleContentItems,
+    authoredSourceItems,
   });
   // @ref LLP 0093#mutation-wire-artifact-identity-amendment--2026-08-10 —
   // generated references, rather than a server handshake echo, are the
@@ -4819,6 +4875,7 @@ async function generateInProcessLocked({
   };
   const trustedActivationPath = join(backendRoot, TRUSTED_COMPOSITION_ACTIVATION_FILE);
   let trustedCompositionActivation = null;
+  let activationGenerationAdvanced = null;
   if (existsSync(trustedActivationPath)) {
     try {
       const capability = resolveFileReadCapability(trustedActivationPath, {
@@ -4828,9 +4885,18 @@ async function generateInProcessLocked({
       const candidate = JSON.parse(capability.read().toString('utf8'));
       trustedCompositionActivation = validateTrustedCompositionActivationV1(candidate, {
         expectedGeneration,
+        authoredSourceHash,
         targetProfileId: targetProfile,
         authMode,
       });
+      if (candidate.activation.format === 'snapback.composition-activation.v2'
+        && canonicalResultJson(candidate.activation.mintedGeneration) !== canonicalResultJson(expectedGeneration)) {
+        activationGenerationAdvanced = {
+          minted: candidate.activation.mintedGeneration,
+          current: expectedGeneration,
+          at: generatedAt,
+        };
+      }
     } catch (error) {
       err(
         'TRUSTED_COMPOSITION_ACTIVATION_INVALID',
@@ -4861,6 +4927,7 @@ async function generateInProcessLocked({
       : {}),
     schemaHash,
     inputsHash,
+    authoredSourceHash,
     generatedAt,
     targetProfile,
     portabilityFlags: [],
@@ -4890,6 +4957,7 @@ async function generateInProcessLocked({
     appId,
     bundleHash,
     inputsHash,
+    authoredSourceHash,
     generatedAt,
     unsupportedDependencyDiagnostics: infoDiagnostics,
     ...(acknowledgedExperimentalCapabilities.length > 0
@@ -4929,6 +4997,7 @@ async function generateInProcessLocked({
     inputsHash,
     schemaHash,
     bundleHash,
+    authoredSourceHash,
     capabilities: {
       localReplica: false,
       subscriptions: true,
@@ -4976,6 +5045,7 @@ async function generateInProcessLocked({
     inputsHash,
     schemaHash,
     bundleHash,
+    authoredSourceHash,
     capabilities: legacyContractManifest.capabilities,
     receipts: legacyContractManifest.receipts,
     ...introspectionSource,
@@ -5049,6 +5119,7 @@ async function generateInProcessLocked({
     routesManifest,
     assetUploadIntents,
     { schemaVersion: artifactVersion, appId, schemaHash, bundleHash, inputsHash },
+    authoredSourceHash,
     functionDefinitionSourceSpans,
   );
   const generatedCommands = buildGeneratedCommands({
@@ -5153,6 +5224,7 @@ async function generateInProcessLocked({
       bundleHash,
       inputsHash,
     },
+    authoredSourceHash,
     err,
   });
   if (diagnostics.some((d) => d.severity === 'error')) {
@@ -5265,6 +5337,8 @@ async function generateInProcessLocked({
     generatedAt,
     schemaHash,
     bundleHash,
+    authoredSourceHash,
+    ...(activationGenerationAdvanced === null ? {} : { activationGenerationAdvanced }),
     artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
@@ -5364,6 +5438,7 @@ async function generateInProcessLocked({
     ok: true,
     diagnostics,
     inputsHash,
+    authoredSourceHash,
     outDir,
     schemaManifest,
     functionManifest,
@@ -6441,7 +6516,7 @@ function collectGeneratedMutationBindingFields(expression, binding, fields) {
 // @ref LLP 0155#execution-contract — the generated reference is the sole
 // authored write carrier: exact plan/source identity, effect ceiling, read
 // requirements, and capability class travel together to the browser.
-function generatedMutationIrV1(fn, schemaManifest, expectedGeneration) {
+function generatedMutationIrV1(fn, schemaManifest, expectedGeneration, authoredSourceHash) {
   if (fn.kind !== 'Mutation') return null;
   const hostPlan = fn.runtime?.HostPlan;
   const plan = hostPlan?.Mutation ?? hostPlan?.WriteWithActivity?.mutation ?? null;
@@ -6536,6 +6611,7 @@ function generatedMutationIrV1(fn, schemaManifest, expectedGeneration) {
       functionId: fn.id,
       implementationHash: fn.implementationHash,
       activation: expectedGeneration,
+      authoredSourceHash,
     },
     schemaIdentity: {
       schemaVersion: expectedGeneration.schemaVersion,
@@ -9918,7 +9994,13 @@ function mixedQueryGroupDefinitionHash(routeEntry) {
   return `sha256:${sha256(`snapback:query-group-reference:v2\n${canonicalDefinition}`)}`;
 }
 
-function renderQueryGroupReferences(appId, functions, routesManifest, expectedGeneration) {
+function renderQueryGroupReferences(
+  appId,
+  functions,
+  routesManifest,
+  expectedGeneration,
+  authoredSourceHash,
+) {
   const byName = new Map(functions.map((fn) => [fn.name, fn]));
   const groups = dict();
   for (const routeEntry of generatedQueryGroupRoutes(functions, routesManifest)) {
@@ -9947,6 +10029,7 @@ function renderQueryGroupReferences(appId, functions, routesManifest, expectedGe
           argsContractHash: fn.argsContractHash,
           resultContractHash: fn.resultContractHash,
           expectedGeneration,
+          authoredSourceHash,
         },
         args: query.args ?? {},
         ...(mixed ? {
@@ -10092,6 +10175,7 @@ function buildMicroArtifacts({
   functionsModule,
   schemaDef,
   expectedGeneration,
+  authoredSourceHash,
   err,
 }) {
   const path = join(backendRoot, MICRO_PROFILE_INPUT_FILE);
@@ -10303,6 +10387,7 @@ function buildMicroArtifacts({
       resultContractHash: fn.resultContractHash,
     })),
     expectedGeneration,
+    authoredSourceHash,
     modules,
     arm: 'local-dev',
     lane: 'poll',
@@ -11014,6 +11099,7 @@ function buildGeneratedReferences(
   routesManifest,
   assetUploadIntents = [],
   expectedGeneration,
+  authoredSourceHash,
   functionSourceSpans = {},
 ) {
   const queries = dict();
@@ -11034,7 +11120,12 @@ function buildGeneratedReferences(
   }
   for (const fn of functions) {
     const composition = functionCompositionIdentityV1(fn);
-    const mutationIr = generatedMutationIrV1(fn, schemaManifest, expectedGeneration);
+    const mutationIr = generatedMutationIrV1(
+      fn,
+      schemaManifest,
+      expectedGeneration,
+      authoredSourceHash,
+    );
     const searchPlan = fn.runtime?.HostPlan?.SearchQuery;
     // @ref LLP 0131#amendment-2026-08-09-typed-search-selector-witness-for-resource-scoped-references
     // — argsContractHash continues to identify the complete operation contract,
@@ -11062,6 +11153,7 @@ function buildGeneratedReferences(
         searchResourceArg: searchPlan.resourceArg ?? null,
       }),
       expectedGeneration,
+      authoredSourceHash,
       sourceSpan: generatedReferenceSourceSpan(functionSourceSpans, fn.name, 'functions.mjs'),
       resultContract: fn.resultContract,
       ...(mutationIr ? { mutationIr } : {}),
@@ -11116,6 +11208,7 @@ function buildGeneratedReferences(
     functions,
     routesManifest,
     expectedGeneration,
+    authoredSourceHash,
   );
   return {
     api: {
@@ -11444,7 +11537,7 @@ function renderApiTypes(
     "export interface GeneratedMutationIrV1 {",
     "  readonly format: 'snapback.generated-mutation-ir.v1';",
     "  readonly operationHash: `sha256:${string}`;",
-    "  readonly sourceIdentity: Readonly<{ functionId: string; implementationHash: string; activation: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }> }> ;",
+    "  readonly sourceIdentity: Readonly<{ functionId: string; implementationHash: string; authoredSourceHash: `sha256:${string}`; activation: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }> }> ;",
     "  readonly schemaIdentity: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string }> ;",
     "  readonly capabilityClass: 'local-executable' | 'server-only';",
     "  readonly capabilityCode: string;",
@@ -11468,6 +11561,7 @@ function renderApiTypes(
     '  argsContractHash: string;',
     '  resultContractHash: string;',
     '  expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;',
+    '  authoredSourceHash: `sha256:${string}`;',
     '  sourceSpan?: Readonly<{ file: string; line?: number; column?: number }>;',
     '  resultContract?: Readonly<Record<string, unknown>>;',
     '  mutationIr?: GeneratedMutationIrV1;',
@@ -12621,7 +12715,12 @@ export function computeArtifactIdentityStrings({
   sharedInputItems,
   schemaContentItems,
   bundleContentItems,
+  authoredSourceItems = sharedInputItems,
 }) {
+  const authoredSourceHash = `sha256:${sha256Framed(
+    'snapback-codegen/authored-source-hash/v1',
+    authoredSourceItems,
+  )}`;
   // @ref LLP 0058#disjoint-v1-identity-strings — preserve v0's domains and
   // truncation; v1 sessions uses the three exact full-digest namespaces.
   if (artifactVersion === SCHEMA_VERSION && authMode === 'dev') {
@@ -12629,6 +12728,7 @@ export function computeArtifactIdentityStrings({
       inputsHash: sha256Framed('snapback-codegen/inputs-hash/v1', sharedInputItems),
       schemaHash: `sha256:${sha256Framed('snapback-codegen/schema-content-hash/v1', schemaContentItems).slice(0, 16)}`,
       bundleHash: `sha256:${sha256Framed('snapback-codegen/bundle-content-hash/v1', bundleContentItems).slice(0, 16)}`,
+      authoredSourceHash,
     };
   }
   if (artifactVersion !== SESSIONS_SCHEMA_VERSION || authMode !== 'sessions') {
@@ -12654,6 +12754,7 @@ export function computeArtifactIdentityStrings({
     inputsHash: `${SESSIONS_SCHEMA_VERSION}:sessions:inputs:sha256:${inputsDigest}`,
     schemaHash: `${SESSIONS_SCHEMA_VERSION}:sessions:schema:sha256:${schemaDigest}`,
     bundleHash: `${SESSIONS_SCHEMA_VERSION}:sessions:function:sha256:${bundleDigest}`,
+    authoredSourceHash,
   };
 }
 

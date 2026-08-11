@@ -68,6 +68,9 @@ function publicReference(
     implementationHash: definition?.implementationHash,
     argsContractHash: definition?.argsContractHash,
     resultContractHash: definition?.resultContractHash,
+    ...(definition?.authoredSourceHash === undefined ? {} : {
+      authoredSourceHash: definition.authoredSourceHash,
+    }),
     expectedGeneration,
   };
   for (const field of Object.keys(reference).filter((field) => field !== 'expectedGeneration')) {

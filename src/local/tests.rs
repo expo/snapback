@@ -27038,11 +27038,14 @@ fn single_table_proof_snapback() -> LocalSnapback {
     schema.app_id = "single-table-proof-app".to_owned();
     schema.schema_hash = Some(format!("sha256:{}", "1".repeat(64)));
     schema.inputs_hash = Some(format!("sha256:{}", "2".repeat(64)));
+    let authored_source_hash = format!("sha256:{}", "a".repeat(64));
+    schema.authored_source_hash = Some(authored_source_hash.clone());
     let mut functions = rqs_functions();
     functions.app_id = schema.app_id.clone();
     functions.schema_version = schema.schema_version.clone();
     functions.bundle_hash = Some(format!("sha256:{}", "3".repeat(64)));
     functions.inputs_hash = schema.inputs_hash.clone();
+    functions.authored_source_hash = Some(authored_source_hash.clone());
     let function = functions
         .functions
         .iter_mut()
@@ -27061,13 +27064,15 @@ fn single_table_proof_snapback() -> LocalSnapback {
     functions
         .acknowledged_experimental_capabilities
         .push("args_contract_v1".to_owned());
-    let expected_generation = ArtifactGeneration {
+    let current_generation = ArtifactGeneration {
         schema_version: schema.schema_version.clone(),
         app_id: schema.app_id.clone(),
         schema_hash: schema.schema_hash.clone().unwrap(),
         bundle_hash: functions.bundle_hash.clone().unwrap(),
         inputs_hash: schema.inputs_hash.clone().unwrap(),
     };
+    let mut minted_generation = current_generation.clone();
+    minted_generation.bundle_hash = format!("sha256:{}", "4".repeat(64));
     let mut snapback = LocalSnapback::memory().expect("single-table proof instance");
     snapback
         .apply_schema(schema)
@@ -27079,12 +27084,16 @@ fn single_table_proof_snapback() -> LocalSnapback {
             .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
         "single-table proof fixture activates: {diagnostics:?}"
     );
-    let activation = crate::completeness::TrustedCompositionActivationV1::prepare(
+    // @ref LLP 0157#amendment--2026-08-10-toolchain-stable-activation-identity-ruled
+    // — a v2 activation minted for an older generated triple remains trusted
+    // when the currently loaded pair proves the same authored byte identity.
+    let activation = crate::completeness::TrustedCompositionActivationV1::prepare_v2(
         snapback.db.data_version_stream().expect("data stream"),
         "single-table-proof-deployment",
         crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
         "dev",
-        expected_generation,
+        authored_source_hash,
+        minted_generation,
         snapback
             .proof_keyring
             .read()

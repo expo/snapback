@@ -141,6 +141,7 @@ export interface ProviderIntrospection {
     inputsHash: string;
     schemaHash?: string;
     implementationHash?: string;
+    authoredSourceHash?: string;
   }>;
   readonly capabilities: Readonly<{
     claims: Readonly<Record<string, boolean>>;
@@ -216,6 +217,7 @@ export function createSnapbackProviderIntrospection(options: Readonly<{
   inputsHash: string;
   schemaHash?: string;
   bundleHash?: string;
+  authoredSourceHash?: string;
   capabilities: Readonly<Record<string, boolean>>;
   receipts: 'none' | 'mutation' | 'mutation+subscription';
   queries: Readonly<Record<string, SnapbackOperationBinding>>;
@@ -233,6 +235,7 @@ export interface ContractDataManifest {
   readonly inputsHash?: string;
   readonly schemaHash?: string;
   readonly bundleHash?: string;
+  readonly authoredSourceHash?: string;
   readonly capabilities?: Readonly<Record<string, boolean>>;
   readonly receipts: 'none' | 'mutation' | 'mutation+subscription';
   readonly queries: Readonly<Record<string, Readonly<Record<string, unknown>>>>;

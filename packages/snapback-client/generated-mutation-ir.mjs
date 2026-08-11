@@ -76,6 +76,7 @@ export function prepareGeneratedMutationIrV1({
   if (
     mutationIr.sourceIdentity?.functionId !== reference.id
     || mutationIr.sourceIdentity?.implementationHash !== reference.implementationHash
+    || mutationIr.sourceIdentity?.authoredSourceHash !== reference.authoredSourceHash
     || !same(mutationIr.sourceIdentity?.activation, reference.expectedGeneration)
   ) fail('SNAPBACK_GENERATED_IR_SOURCE_MISMATCH', 'generated IR source identity drifted');
   if (

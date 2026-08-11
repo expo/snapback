@@ -63,6 +63,7 @@ export function createSnapbackProviderIntrospection({
   inputsHash,
   schemaHash,
   bundleHash,
+  authoredSourceHash,
   capabilities,
   receipts,
   queries,
@@ -99,6 +100,7 @@ export function createSnapbackProviderIntrospection({
       inputsHash,
       schemaHash,
       implementationHash: bundleHash,
+      authoredSourceHash,
     },
     capabilities: {
       claims: capabilities,
@@ -144,6 +146,7 @@ export function projectContractDataManifest(introspection) {
     inputsHash: introspection?.source?.inputsHash,
     schemaHash: introspection?.source?.schemaHash,
     bundleHash: introspection?.source?.implementationHash,
+    authoredSourceHash: introspection?.source?.authoredSourceHash,
     capabilities: introspection?.capabilities?.claims,
     receipts: introspection?.capabilities?.receipts?.subscription === true
       ? 'mutation+subscription'
@@ -183,12 +186,12 @@ export function validateProviderIntrospection(introspection) {
   closedObject(
     introspection.source,
     '$.source',
-    ['inputsHash', 'schemaHash', 'implementationHash'],
+    ['inputsHash', 'schemaHash', 'implementationHash', 'authoredSourceHash'],
     ['inputsHash'],
     add,
   );
   nonEmptyString(introspection.source?.inputsHash, '$.source.inputsHash', add);
-  for (const key of ['schemaHash', 'implementationHash']) {
+  for (const key of ['schemaHash', 'implementationHash', 'authoredSourceHash']) {
     if (introspection.source?.[key] !== undefined) {
       nonEmptyString(introspection.source[key], `$.source.${key}`, add);
     }
