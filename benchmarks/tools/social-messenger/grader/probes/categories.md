@@ -21,6 +21,7 @@ out until the wave publishes (see `README.md`).
 | `tb-expired-edit-window` | An edit attempted after the 15-minute window (shortened-windows config) is rejected server-side; window checks run against server time — caller-supplied timestamps must not pass (Global rulings). |
 | `tb-session-invalidation` | A logged-out session's token no longer works against the backend (M1). |
 | `tb-offline-bypass` | Server-side denials survive the offline cache: revoked/expired/view-once content never renders from the offline cache after the client has synced the revocation; view-once media is never durably cached at all (Global revocation ruling). |
+| `tb-digest-authorization` | A scheduled digest never counts chats its target cannot read: activity in a chat the target user is not a member of, and expired/tombstoned content, never contributes to that user's digest counts (M8, 2026-08-11 amendment). |
 
 ## Performance categories (feed O5, at the replay checkpoints)
 
@@ -37,12 +38,19 @@ predicates frozen with the probe set).
 | `perf-receipt-aggregation` | Receipt aggregation in the 50-member busy group (g0001) must not visibly stall message send/render. |
 | `perf-cold-start-sync` | Cold-start initial sync of the probe user's account (100 conversations) completes without timeout or unbounded memory growth; wall time recorded. |
 | `perf-envelope-stability` | No probe may time out, error, or OOM at the envelope. |
+| `perf-celebrity-fanout` | M8 celebrity rules: the celebrity's post-create acknowledgement p95 ≤ 3× a 5-follower author's, and Following-feed load p95 for the named celebrity-follower ≤ 3× the 5-follow comparison user's — neither fan-out-on-write nor read-time filtering may hide its cost (2026-08-11 amendment). |
+| `perf-aggregate-scaling` | M8 aggregate rules: the probe user's Insights load and the Trending query at the full corpus ≤ 3× the 10% checkpoint, 50% on or below the line between them; an Insights load that pages the corpus to the client fails structurally (2026-08-11 amendment). |
 
 ## Notes
 
-- Named fixtures (u0500, u0005, g0001) are checked **exactly, at each
+- Named fixtures (u0500, u0005, g0001, and from the 2026-08-11 M8
+  amendment the celebrity and celebrity-follower — ids pinned in the
+  fixture pack) are checked **exactly, at each
   checkpoint, before probes run**; a fixture mismatch caps O5 at 0
   (brief, replay contract).
+- The two M8 categories join the rotation at the next wave; their
+  first anchor instances are minted with that wave's probe set
+  (anchors are cross-wave from their first appearance).
 - Absolute p95 ceilings per rotated probe are calibrated at P3 from
   the pilot and recorded with the budget caps; ceilings feed O5's 60
   and 90 bands, degradation rules feed its 30 band.

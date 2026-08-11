@@ -24,36 +24,73 @@
       "description": "Version of this extension schema."
     },
     "runScope": {
-      "enum": ["reduced", "full"],
-      "description": "reduced = M1-M3 (per-dimension scores only, no overall total, no L4 evidence); full = M1-M7 plus the scale replay and the M7 fresh session."
+      "enum": [
+        "reduced",
+        "full"
+      ],
+      "description": "reduced = M1-M3 (per-dimension scores only, no overall total, no L4 evidence); full = M1-M8 plus the scale replay and the M7 fresh session (M8 runs in the continuous session after M6; numbering is identity, not execution order)."
     },
     "capFamily": {
-      "enum": ["claude-frontier", "gpt-frontier", "mid-tier", "kimi-advisory", "grok-advisory"],
+      "enum": [
+        "claude-frontier",
+        "gpt-frontier",
+        "mid-tier",
+        "kimi-advisory",
+        "grok-advisory"
+      ],
       "description": "Cap family per LLP 0201 D2: cap families enumerate the model matrix exactly. The wall cap is keyed by milestone and shared by every lane in every family of a wave; the token cap is keyed by (cap family, milestone). kimi-advisory and grok-advisory are cap-advisory: wall caps recorded for reference, token caps recorded as inapplicable, never enforced, with the P2 safety limits as hard stops."
     },
     "deploymentPosture": {
-      "enum": ["local-binary", "local-dev-server", "hosted-dev-deployment"],
+      "enum": [
+        "local-binary",
+        "local-dev-server",
+        "hosted-dev-deployment"
+      ],
       "description": "The lane's backend deployment posture, a pinned record field per the replay contract - postures differ across backends, which is why O5 is a scale-safety gate and never a cross-backend speed comparison."
     },
     "milestones": {
       "type": "object",
-      "description": "Per-milestone execution record. Reduced runs record M1-M3; full runs record M1-M7. Full-run milestones stay in the completeness denominator regardless of status.",
-      "required": ["M1", "M2", "M3"],
+      "description": "Per-milestone execution record. Reduced runs record M1-M3; full runs record M1-M8. Full-run milestones stay in the completeness denominator regardless of status.",
+      "required": [
+        "M1",
+        "M2",
+        "M3"
+      ],
       "additionalProperties": false,
       "properties": {
-        "M1": { "$ref": "#/$defs/milestoneRecord" },
-        "M2": { "$ref": "#/$defs/milestoneRecord" },
-        "M3": { "$ref": "#/$defs/milestoneRecord" },
-        "M4": { "$ref": "#/$defs/milestoneRecord" },
-        "M5": { "$ref": "#/$defs/milestoneRecord" },
-        "M6": { "$ref": "#/$defs/milestoneRecord" },
-        "M7": { "$ref": "#/$defs/milestoneRecord" }
+        "M1": {
+          "$ref": "#/$defs/milestoneRecord"
+        },
+        "M2": {
+          "$ref": "#/$defs/milestoneRecord"
+        },
+        "M3": {
+          "$ref": "#/$defs/milestoneRecord"
+        },
+        "M4": {
+          "$ref": "#/$defs/milestoneRecord"
+        },
+        "M5": {
+          "$ref": "#/$defs/milestoneRecord"
+        },
+        "M6": {
+          "$ref": "#/$defs/milestoneRecord"
+        },
+        "M7": {
+          "$ref": "#/$defs/milestoneRecord"
+        },
+        "M8": {
+          "$ref": "#/$defs/milestoneRecord"
+        }
       }
     },
     "termination": {
       "type": "object",
-      "description": "Lane termination. Two consecutive capability-failure/aborted results (blocks do not count) end the lane; milestones after a termination record not-run. The reason is orthogonal to the status machine. When M6 never runs, the lane's authoring wall ends at the last runnable milestone's terminal status.",
-      "required": ["terminatedEarly", "reason"],
+      "description": "Lane termination. Two consecutive capability-failure/aborted results (blocks do not count) end the lane; milestones after a termination record not-run. The reason is orthogonal to the status machine. When M8 never runs, the lane's authoring wall ends at the last runnable milestone's terminal status.",
+      "required": [
+        "terminatedEarly",
+        "reason"
+      ],
       "additionalProperties": false,
       "properties": {
         "terminatedEarly": {
@@ -61,12 +98,28 @@
           "description": "True when the lane ended before completing its scope."
         },
         "reason": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Orthogonal termination reason, free-form but stable phrasing preferred, e.g. 'two-consecutive-capability-failures', 'environment', 'operator', 'safety-limit'. Null when the lane ran to the end of its scope."
         },
         "afterMilestone": {
-          "type": ["string", "null"],
-          "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", null],
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "M1",
+            "M2",
+            "M3",
+            "M4",
+            "M5",
+            "M6",
+            "M7",
+            "M8",
+            null
+          ],
           "description": "The last milestone that reached a terminal status before termination; null when not terminated early."
         }
       }
@@ -74,7 +127,10 @@
     "compaction": {
       "type": "object",
       "description": "Context-compaction accounting (LLP 0201 D1): a 1-3M-token session will compact; the harness's compaction policy is pinned per family and compaction events are logged, so within-family variance attributable to context loss can be inspected rather than guessed at.",
-      "required": ["policy", "events"],
+      "required": [
+        "policy",
+        "events"
+      ],
       "additionalProperties": false,
       "properties": {
         "policy": {
@@ -86,20 +142,41 @@
           "description": "Every compaction event during the lane, in order.",
           "items": {
             "type": "object",
-            "required": ["at", "milestone"],
+            "required": [
+              "at",
+              "milestone"
+            ],
             "additionalProperties": false,
             "properties": {
-              "at": { "type": "string", "format": "date-time" },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              },
               "milestone": {
-                "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "scale-replay"],
+                "enum": [
+                  "M1",
+                  "M2",
+                  "M3",
+                  "M4",
+                  "M5",
+                  "M6",
+                  "M7",
+                  "M8",
+                  "scale-replay"
+                ],
                 "description": "Which milestone's authoring (or the replay) was in progress when compaction fired."
               },
               "contextTokensBefore": {
-                "type": ["integer", "null"],
+                "type": [
+                  "integer",
+                  "null"
+                ],
                 "minimum": 0,
                 "description": "Context size at compaction where the harness exposes it; null otherwise."
               },
-              "note": { "type": "string" }
+              "note": {
+                "type": "string"
+              }
             }
           }
         }
@@ -108,35 +185,69 @@
     "coverageManifest": {
       "type": "object",
       "description": "The lane's assertion-coverage manifest (LLP 0201 D2): maps every suite-required assertion (by stable ID from benchmarks/schema/social-messenger/assertions.json) to a test. A milestone's suite pass is honored only if this manifest validates. The grader later spot-verifies the mapping is honest; the spot-verification verdict lives in the grader report, and a dishonest mapping adjudicates the milestone (see milestoneRecord.adjudication).",
-      "required": ["path", "validated"],
+      "required": [
+        "path",
+        "validated"
+      ],
       "additionalProperties": false,
       "properties": {
-        "path": { "type": "string", "description": "Repo-relative path to the lane's coverage manifest." },
-        "sha256": { "type": ["string", "null"], "description": "Content hash of the manifest as validated." },
-        "validated": { "type": "boolean", "description": "Harness validation result: every suite-required assertion in the run's scope maps to a test." }
+        "path": {
+          "type": "string",
+          "description": "Repo-relative path to the lane's coverage manifest."
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Content hash of the manifest as validated."
+        },
+        "validated": {
+          "type": "boolean",
+          "description": "Harness validation result: every suite-required assertion in the run's scope maps to a test."
+        }
       }
     },
     "assertionManifest": {
       "type": "object",
       "description": "Pin of the frozen assertion-ID manifest version this run was graded against.",
-      "required": ["path"],
+      "required": [
+        "path"
+      ],
       "additionalProperties": false,
       "properties": {
-        "path": { "type": "string" },
-        "version": { "type": ["string", "null"], "description": "manifestVersion of assertions.json, e.g. '0.2.0-p2'." },
-        "sha256": { "type": ["string", "null"] }
+        "path": {
+          "type": "string"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "manifestVersion of assertions.json, e.g. '0.2.0-p2'."
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "clocks": {
       "type": "object",
       "description": "The separately recorded clocks (LLP 0201 D2). Per-milestone authoring clocks live in milestones.*.authoring; this object records the non-authoring clocks. None of these are ever included in the authoring statistic.",
-      "required": ["grading"],
+      "required": [
+        "grading"
+      ],
       "additionalProperties": false,
       "properties": {
         "grading": {
           "type": "object",
           "description": "Grader execution clock, per grading session (a re-run or other-family regrade appends a session).",
-          "required": ["sessions"],
+          "required": [
+            "sessions"
+          ],
           "additionalProperties": false,
           "properties": {
             "sessions": {
@@ -144,18 +255,34 @@
               "minItems": 1,
               "items": {
                 "type": "object",
-                "required": ["wallSeconds", "tokens"],
+                "required": [
+                  "wallSeconds",
+                  "tokens"
+                ],
                 "additionalProperties": false,
                 "properties": {
-                  "wallSeconds": { "type": "number", "minimum": 0 },
-                  "tokens": { "$ref": "#/$defs/tokenCounts" },
+                  "wallSeconds": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "tokens": {
+                    "$ref": "#/$defs/tokenCounts"
+                  },
                   "dollarCost": {
-                    "type": ["number", "null"],
+                    "type": [
+                      "number",
+                      "null"
+                    ],
                     "description": "Per-grader-session dollar cost at the pinned model's published prices; recorded, not a claim statistic."
                   },
-                  "graderModel": { "type": "string" },
+                  "graderModel": {
+                    "type": "string"
+                  },
                   "outcome": {
-                    "enum": ["completed", "grader-abort"],
+                    "enum": [
+                      "completed",
+                      "grader-abort"
+                    ],
                     "description": "grader-abort = the grader's own environment or tooling failed twice (one re-run allowed); not a lane defect."
                   }
                 }
@@ -166,15 +293,51 @@
         "replay": {
           "type": "object",
           "description": "Scale-replay clock (full runs, after M6). Exhausting the replay cap scores O5 - never the lane's completion statuses. Probe wall time at checkpoints is excluded from the replay cap.",
-          "required": ["attempted"],
+          "required": [
+            "attempted"
+          ],
           "additionalProperties": false,
           "properties": {
-            "attempted": { "type": "boolean" },
-            "wallSeconds": { "type": ["number", "null"], "minimum": 0 },
-            "capSeconds": { "type": ["number", "null"], "minimum": 0, "description": "The replay's own wall cap, pilot-calibrated at P3." },
-            "capFractionUsed": { "type": ["number", "null"], "minimum": 0, "description": "wallSeconds / capSeconds; an O5 band input (>0.8 caps at 60; <=0.5 required for 90)." },
-            "capExhausted": { "type": ["boolean", "null"] },
-            "probeWallSecondsExcluded": { "type": ["number", "null"], "minimum": 0, "description": "Checkpoint-probe wall time excluded from the cap." }
+            "attempted": {
+              "type": "boolean"
+            },
+            "wallSeconds": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "capSeconds": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "description": "The replay's own wall cap, pilot-calibrated at P3."
+            },
+            "capFractionUsed": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "description": "wallSeconds / capSeconds; an O5 band input (>0.8 caps at 60; <=0.5 required for 90)."
+            },
+            "capExhausted": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "probeWallSecondsExcluded": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "description": "Checkpoint-probe wall time excluded from the cap."
+            }
           }
         },
         "m7Session": {
@@ -182,18 +345,43 @@
           "description": "The M7 fresh session's own recorded clock (its per-milestone authoring detail also lands in milestones.M7.authoring). M7 runs against the pre-replay starter state under the same aid condition as the lane it continues, and writes its own diary entry and essay under the same essay-before-numbers sequencing.",
           "additionalProperties": false,
           "properties": {
-            "wallSeconds": { "type": ["number", "null"], "minimum": 0 },
-            "tokens": { "$ref": "#/$defs/tokenCounts" },
-            "dollarCost": { "type": ["number", "null"] },
+            "wallSeconds": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "tokens": {
+              "$ref": "#/$defs/tokenCounts"
+            },
+            "dollarCost": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
             "preM7SnapshotPath": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "description": "The pre-M7 snapshot exported through the M6 custom-client API over the pinned message field manifest, taken before the session starts."
             },
             "preExistingCountStructures": {
-              "type": ["boolean", "null"],
+              "type": [
+                "boolean",
+                "null"
+              ],
               "description": "Whether the pre-M7 schema already carried count structures (keeps B8's forced-migration signal honest)."
             },
-            "diary": { "type": ["string", "null"], "description": "Path to the M7 session's diary entry." }
+            "diary": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Path to the M7 session's diary entry."
+            }
           }
         }
       }
@@ -203,22 +391,45 @@
       "description": "Dollar cost per lane, computed from tokens at the pinned models' published prices; recorded, not a claim statistic (it matters once the model matrix compares across tiers). Grader-session cost is per session under clocks.grading.",
       "additionalProperties": false,
       "properties": {
-        "lane": { "type": ["number", "null"], "minimum": 0 },
-        "pricingSource": { "type": ["string", "null"], "description": "Where the prices were read, with date." }
+        "lane": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "pricingSource": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Where the prices were read, with date."
+        }
       }
     },
     "grading": {
       "type": "object",
       "description": "Grading outcome pointers (D3). The grader report itself validates against benchmarks/tools/social-messenger/grader/grader-report.schema.json.",
-      "required": ["graderReportPath", "graderFamily", "sameFamilyGraded", "usableGradingRecord"],
+      "required": [
+        "graderReportPath",
+        "graderFamily",
+        "sameFamilyGraded",
+        "usableGradingRecord"
+      ],
       "additionalProperties": false,
       "properties": {
         "graderReportPath": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Path to the grader report; null only when every grading attempt aborted."
         },
         "graderFamily": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "The grading model family actually used, normally the other scored family (D5); for Kimi/Grok builders the wave-chosen scored family."
         },
         "sameFamilyGraded": {
@@ -245,62 +456,213 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["probeId", "category", "checkpoint", "outcome"],
+            "required": [
+              "probeId",
+              "category",
+              "checkpoint",
+              "outcome"
+            ],
             "additionalProperties": false,
             "properties": {
-              "probeId": { "type": "string" },
-              "category": { "type": "string", "description": "Published probe category (benchmarks/tools/social-messenger/grader/probes/categories.md)." },
-              "checkpoint": { "enum": ["10%", "50%", "100%"] },
+              "probeId": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string",
+                "description": "Published probe category (benchmarks/tools/social-messenger/grader/probes/categories.md)."
+              },
+              "checkpoint": {
+                "enum": [
+                  "10%",
+                  "50%",
+                  "100%"
+                ]
+              },
               "outcome": {
-                "enum": ["pass", "fail", "not-passed-never-built", "excluded-with-note"],
+                "enum": [
+                  "pass",
+                  "fail",
+                  "not-passed-never-built",
+                  "excluded-with-note"
+                ],
                 "description": "Probes whose target behavior a failed milestone never built score under the preregistered rule frozen with the probe set: not-passed or excluded-with-note."
               },
-              "k": { "type": ["integer", "null"], "minimum": 1, "description": "Sample count (contract: 20 requests after 3 warm-ups, sequential, 30 s timeout)." },
-              "p95Ms": { "type": ["number", "null"], "minimum": 0 },
-              "ceilingMs": { "type": ["number", "null"], "minimum": 0, "description": "The P3-frozen absolute ceiling for this probe." },
-              "ceilingUtilization": { "type": ["number", "null"], "minimum": 0, "description": "p95Ms / ceilingMs; O5's 90 band requires <=0.5 for every probe." },
-              "timedOutErroredOrOom": { "type": ["boolean", "null"] },
-              "anchor": { "type": ["boolean", "null"], "description": "True for the category's unchanged cross-wave anchor probe - a non-scored continuity diagnostic that never bears on O3/O5." },
-              "note": { "type": "string" }
+              "k": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "description": "Sample count (contract: 20 requests after 3 warm-ups, sequential, 30 s timeout)."
+              },
+              "p95Ms": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "ceilingMs": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "description": "The P3-frozen absolute ceiling for this probe."
+              },
+              "ceilingUtilization": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "description": "p95Ms / ceilingMs; O5's 90 band requires <=0.5 for every probe."
+              },
+              "timedOutErroredOrOom": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "anchor": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "True for the category's unchanged cross-wave anchor probe - a non-scored continuity diagnostic that never bears on O3/O5."
+              },
+              "note": {
+                "type": "string"
+              }
             }
           }
         },
         "o5Inputs": {
           "type": "object",
           "description": "The exact inputs to O5's band function, in first-match order 0, 30, 60, 90, 75.",
-          "required": ["invariantManifestConforms", "replayCapExhausted", "degradationRules"],
+          "required": [
+            "invariantManifestConforms",
+            "replayCapExhausted",
+            "degradationRules"
+          ],
           "additionalProperties": false,
           "properties": {
             "invariantManifestConforms": {
-              "type": ["boolean", "null"],
+              "type": [
+                "boolean",
+                "null"
+              ],
               "description": "End state verified against the log's invariant manifest via settle-receipt accounting plus the hidden seeded deterministic sample; a nonconforming end state (including a named O5 fixture mismatch at any checkpoint) caps O5 at 0."
             },
             "namedFixtureChecks": {
-              "type": ["object", "null"],
+              "type": [
+                "object",
+                "null"
+              ],
               "description": "Exact pre-probe checks at each checkpoint: probe user's 500 follows, the 5-follow comparison user's count, the busy group's 50-member roster. Keys are checkpoint labels; values true/false.",
-              "additionalProperties": { "type": "boolean" }
+              "additionalProperties": {
+                "type": "boolean"
+              }
             },
-            "replayCapExhausted": { "type": ["boolean", "null"] },
+            "replayCapExhausted": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
             "degradationRules": {
               "type": "object",
               "description": "Pass/fail per hardware-independent degradation rule (the measurable p95 predicates over k=20 samples are frozen with the probe set).",
-              "required": ["deepPaging", "feedFollowScaling", "searchScaling", "receiptAggregation", "coldStartSync", "noTimeoutErrorOom"],
+              "required": [
+                "deepPaging",
+                "feedFollowScaling",
+                "searchScaling",
+                "receiptAggregation",
+                "coldStartSync",
+                "noTimeoutErrorOom"
+              ],
               "additionalProperties": false,
               "properties": {
-                "deepPaging": { "type": ["boolean", "null"], "description": "p95 of page 50 of the 10k-message chat <= 3x p95 of page 1." },
-                "feedFollowScaling": { "type": ["boolean", "null"], "description": "Following-feed load for the 500-follow probe user <= 3x the 5-follow user." },
-                "searchScaling": { "type": ["boolean", "null"], "description": "Global search at full corpus <= 3x the 10% checkpoint, 50% on or below the line between them." },
-                "receiptAggregation": { "type": ["boolean", "null"], "description": "Receipt aggregation in the 50-member group does not visibly stall send/render." },
-                "coldStartSync": { "type": ["boolean", "null"], "description": "Cold-start initial sync of the 100-conversation probe user completes without timeout or unbounded memory growth; wall time recorded." },
-                "noTimeoutErrorOom": { "type": ["boolean", "null"], "description": "No probe timed out, errored, or OOMed at the envelope." }
+                "deepPaging": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ],
+                  "description": "p95 of page 50 of the 10k-message chat <= 3x p95 of page 1."
+                },
+                "feedFollowScaling": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ],
+                  "description": "Following-feed load for the 500-follow probe user <= 3x the 5-follow user."
+                },
+                "searchScaling": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ],
+                  "description": "Global search at full corpus <= 3x the 10% checkpoint, 50% on or below the line between them."
+                },
+                "receiptAggregation": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ],
+                  "description": "Receipt aggregation in the 50-member group does not visibly stall send/render."
+                },
+                "coldStartSync": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ],
+                  "description": "Cold-start initial sync of the 100-conversation probe user completes without timeout or unbounded memory growth; wall time recorded."
+                },
+                "noTimeoutErrorOom": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ],
+                  "description": "No probe timed out, errored, or OOMed at the envelope."
+                }
               }
             },
-            "anyCeilingExceeded": { "type": ["boolean", "null"] },
-            "maxCeilingUtilization": { "type": ["number", "null"], "minimum": 0 },
-            "replayCapFractionUsed": { "type": ["number", "null"], "minimum": 0 },
-            "coldStartSyncWallSeconds": { "type": ["number", "null"], "minimum": 0 },
+            "anyCeilingExceeded": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "maxCeilingUtilization": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "replayCapFractionUsed": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "coldStartSyncWallSeconds": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
             "o5Band": {
-              "enum": [0, 30, 60, 75, 90, null],
+              "enum": [
+                0,
+                30,
+                60,
+                75,
+                90,
+                null
+              ],
               "description": "The resulting band, first-match in the order 0, 30, 60, 90, 75; null when the replay was never attempted."
             }
           }
@@ -312,10 +674,34 @@
       "description": "Holdout-probe custody for the wave (D3.5): the probe-set file is committed as a sha256 hash before the wave's first lane starts, published after the wave, rotated for the next.",
       "additionalProperties": false,
       "properties": {
-        "sha256Commitment": { "type": ["string", "null"], "description": "The pre-wave hash commitment (also in the wave record and probes/rotation-log.md)." },
-        "committedAt": { "type": ["string", "null"], "format": "date-time" },
-        "wave": { "type": ["string", "null"], "description": "Wave identifier the commitment belongs to." },
-        "publishedPath": { "type": ["string", "null"], "description": "Path to the published probe set after the wave; null while the wave is open." }
+        "sha256Commitment": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The pre-wave hash commitment (also in the wave record and probes/rotation-log.md)."
+        },
+        "committedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "wave": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Wave identifier the commitment belongs to."
+        },
+        "publishedPath": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Path to the published probe set after the wave; null while the wave is open."
+        }
       }
     }
   },
@@ -323,46 +709,121 @@
     "tokenCounts": {
       "type": "object",
       "description": "Token usage (input/output/cache) from the orchestration harness; nulls record an un-metered phase honestly, per benchmarks/protocol.md.",
-      "required": ["input", "output"],
+      "required": [
+        "input",
+        "output"
+      ],
       "additionalProperties": false,
       "properties": {
-        "input": { "type": ["integer", "null"], "minimum": 0 },
-        "output": { "type": ["integer", "null"], "minimum": 0 },
-        "cacheRead": { "type": ["integer", "null"], "minimum": 0 },
-        "cacheWrite": { "type": ["integer", "null"], "minimum": 0 }
+        "input": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "output": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "cacheRead": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "cacheWrite": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
       }
     },
     "milestoneRecord": {
       "type": "object",
       "description": "One milestone's execution record. Status semantics per the brief's Statuses paragraph; the prerequisite DAG is M2<-M1, M3<-M1, M4<-M3, M5<-M3, M6<-M2+M3+M4+M5, M7<-M6.",
-      "required": ["status", "authoring", "charging"],
+      "required": [
+        "status",
+        "authoring",
+        "charging"
+      ],
       "additionalProperties": false,
       "properties": {
         "status": {
-          "enum": ["green", "capability-failure", "aborted", "blocked", "not-run"],
+          "enum": [
+            "green",
+            "capability-failure",
+            "aborted",
+            "blocked",
+            "not-run"
+          ],
           "description": "Execution-time status. green: harness-recorded passing suite run (coverage-validated) plus passing choreography segment. capability-failure: cap exhausted; the lane proceeds to the next non-blocked milestone. aborted: abandoned mid-attempt before cap exhaustion - treated as a capability failure for proceed/completeness purposes, distinct in the record. blocked: a prerequisite failed (the brief's blocked-by-M{n}; blockedBy carries the set, lowest member is the headline n). not-run: the lane terminated before reaching it."
         },
         "blockedBy": {
           "type": "array",
-          "items": { "enum": ["M1", "M2", "M3", "M4", "M5", "M6"] },
+          "items": {
+            "enum": [
+              "M1",
+              "M2",
+              "M3",
+              "M4",
+              "M5",
+              "M6"
+            ]
+          },
           "minItems": 1,
           "description": "Required when status is blocked: the complete failed-prerequisite set, including the transitive failed set when a prerequisite was itself blocked. Never counted as an additional independent capability failure."
         },
         "authoring": {
           "type": "object",
           "description": "The milestone's authoring clock. It stops when the harness records both a passing coverage-validated suite run AND a passing run of the milestone's choreography segment; the green receipt is a neutral harness artifact, not a builder assertion. Grader execution, replay, and the M7 session never charge here.",
-          "required": ["wallSeconds", "tokens", "firstGreenAt"],
+          "required": [
+            "wallSeconds",
+            "tokens",
+            "firstGreenAt"
+          ],
           "additionalProperties": false,
           "properties": {
-            "wallSeconds": { "type": ["number", "null"], "minimum": 0 },
-            "tokens": { "$ref": "#/$defs/tokenCounts" },
+            "wallSeconds": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "tokens": {
+              "$ref": "#/$defs/tokenCounts"
+            },
             "firstGreenAt": {
-              "type": ["string", "null"],
+              "type": [
+                "string",
+                "null"
+              ],
               "format": "date-time",
               "description": "Per-milestone first-green timestamp (generalizes LLP 0198 P0.0(b)); null when the milestone never went green."
             },
-            "suitePassAt": { "type": ["string", "null"], "format": "date-time", "description": "Timestamp of the passing coverage-validated suite run." },
-            "choreoPassAt": { "type": ["string", "null"], "format": "date-time", "description": "Timestamp of the passing choreography-segment run." }
+            "suitePassAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time",
+              "description": "Timestamp of the passing coverage-validated suite run."
+            },
+            "choreoPassAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time",
+              "description": "Timestamp of the passing choreography-segment run."
+            }
           }
         },
         "caps": {
@@ -370,21 +831,55 @@
           "description": "The caps in force for this milestone (wall keyed by milestone; tokens keyed by (cap family, milestone); pilot-calibrated at P3). Advisory families record tokenCap null (inapplicable).",
           "additionalProperties": false,
           "properties": {
-            "wallCapSeconds": { "type": ["number", "null"], "minimum": 0 },
-            "tokenCap": { "type": ["integer", "null"], "minimum": 0 }
+            "wallCapSeconds": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "tokenCap": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            }
           }
         },
         "charging": {
           "type": "object",
           "description": "Charged figures per LLP 0201 D2 / the brief's Charging rule: wall-exhausted capability-failure charges the full wall cap plus actual tokens (flag capped-wall); token-exhausted charges the token cap plus actual wall (flag capped-tokens); aborted charges the full wall cap plus actual tokens (flag aborted - the abort never improves the capped axis). An adjudicated milestone's published authoring wall recharges to its cap. Green milestones charge actuals with no flags.",
-          "required": ["chargedWallSeconds", "chargedTokens", "flags"],
+          "required": [
+            "chargedWallSeconds",
+            "chargedTokens",
+            "flags"
+          ],
           "additionalProperties": false,
           "properties": {
-            "chargedWallSeconds": { "type": ["number", "null"], "minimum": 0 },
-            "chargedTokens": { "type": ["integer", "null"], "minimum": 0 },
+            "chargedWallSeconds": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "chargedTokens": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
             "flags": {
               "type": "array",
-              "items": { "enum": ["capped-wall", "capped-tokens", "aborted"] },
+              "items": {
+                "enum": [
+                  "capped-wall",
+                  "capped-tokens",
+                  "aborted"
+                ]
+              },
               "uniqueItems": true,
               "description": "Empty for green milestones charged at actuals."
             }
@@ -395,8 +890,13 @@
           "description": "Grading-time adjudication (dishonest coverage mapping): scoring-only and non-retroactive - execution-time statuses, dependencies, termination history, and other milestones' clocks stand as run; the published authoring wall recharges this milestone to its cap; O1 scores its checklist not-passed.",
           "additionalProperties": false,
           "properties": {
-            "adjudicatedCapabilityFailure": { "type": "boolean" },
-            "reason": { "type": "string", "description": "e.g. 'dishonest-coverage-mapping', with the grader-report pointer." }
+            "adjudicatedCapabilityFailure": {
+              "type": "boolean"
+            },
+            "reason": {
+              "type": "string",
+              "description": "e.g. 'dishonest-coverage-mapping', with the grader-report pointer."
+            }
           }
         }
       }

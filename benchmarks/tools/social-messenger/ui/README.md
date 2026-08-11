@@ -2,7 +2,7 @@
 
 Presentational UI kit for the **social-messenger** canonical
 benchmark (app name: **Clique**). Version: see [`VERSION`](./VERSION)
-(`0.2.0-p2`; the P3 freeze bumps to `1.0.0` and pins hashes in the
+(`0.3.0-m8`; the P3 freeze bumps to `1.0.0` and pins hashes in the
 brief). Governing design: LLP 0201 D6
 (`llp/0201-social-messenger-canonical-benchmark.plan.md`);
 coordination pins: `benchmarks/tools/social-messenger/CONTRACT.md`;
@@ -20,8 +20,9 @@ the brief at P3.
 Components: `MessageBubble`, `ChatListRow`, `Composer`, `FeedCard`,
 `Avatar`, `ProfileForm`, `ReactionPicker`, `TypingIndicator`,
 `ReceiptTicks`, `QuotedReply`, `PollCompose`, `PollDisplay`,
-`FeedTabs`, `SearchBar`, `ChatSettingsForm`, `AuthForm` — plus the
-design tokens in `src/tokens.ts` (spacing, radii, type scale,
+`FeedTabs`, `SearchBar`, `ChatSettingsForm`, `AuthForm`,
+`InsightsSummary`, `InsightsBarList`, `TrendingRow`, `TrendingEmpty` —
+plus the design tokens in `src/tokens.ts` (spacing, radii, type scale,
 palette, and the pinned 8 chat accent colors: indigo, teal, coral,
 amber, violet, emerald, rose, slate). Screen composition notes:
 [`screens.md`](./screens.md). Neutrality posture and the pre-freeze
@@ -95,7 +96,8 @@ they are peers supplied by the lane's app.)
 ## Versioning
 
 `VERSION`, `package.json`, and the brief's pinned kit version move together.
-`0.2.0-p2` adds the accessible state consumed by the hardened choreography;
-the P3 freeze bumps to `1.0.0` after the cross-backend neutrality review and
+`0.3.0-m8` adds the M8 Insights and Trending surfaces; `0.2.0-p2` added the
+accessible state consumed by the hardened choreography. The P3 freeze bumps
+to `1.0.0` after the cross-backend neutrality review and
 pilot shakedown, and the frozen hash is recorded in the brief. Post-freeze
 changes require a version bump and re-disclosure per LLP 0197.

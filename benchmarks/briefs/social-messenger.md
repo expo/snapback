@@ -24,8 +24,10 @@ Accounts, profiles, a follow graph and post feeds, WhatsApp-shaped
 messaging
 (DMs and groups, typing, receipts, quoted replies, reactions,
 media, edit/delete, disappearing and view-once), per-chat
-customization, search, offline-first behavior, push emission at the
-provider seam, and a documented third-party client API.
+customization, search, engagement insights and a trending view, a
+server-scheduled daily digest, offline-first behavior (including
+multi-device convergence), push emission at the provider seam, and a
+documented third-party client API.
 
 Lanes use the frozen presentational UI kit and fixture pack (LLP 0201
 P1 artifacts; versions pinned at freeze). All test media and personas
@@ -54,6 +56,12 @@ These apply across all milestones.
   enforcement is always server-side against server time — a backend
   that accepts caller-supplied timestamps for window checks fails the
   relevant probe.
+- **Digest schedule** (M8): the app reads its digest schedule from a
+  config file with the production default (one digest per user per
+  day, computed at 08:00 UTC); grading runs the fixture pack's
+  **shortened digest config** (one period every 2 minutes) so
+  scheduled emission is testable in minutes. Like the time windows,
+  the schedule is evaluated server-side against server time.
 - **Revocation semantics** (applies to view-once, delete-for-everyone,
   and disappearing expiry): the guarantee is
   **server-authoritative refusal plus client purge at the next sync**.
@@ -97,7 +105,9 @@ These apply across all milestones.
   also produces an iOS Hermes bundle export as a build artifact. M6's
   offline proofs additionally run on the iOS simulator as a separately
   recorded native/O4 artifact; absence of that artifact cannot support a
-  native claim but does not block the web authoring-green clock. Android is a
+  native claim but does not block the web authoring-green clock. M8's
+  offline queued-write restart proof is the same class of separately
+  recorded native artifact, under the same rule. Android is a
   spot-check outside scored runs, not a per-run requirement.
 - **Seeding:** a versioned, idempotent seed installs the fixture
   personas and starter content. Both seeds — the small starter seed
@@ -129,7 +139,13 @@ what the benchmark measures):
 
 - ~1,000 registered users; ~50,000 posts; ~100,000 messages total;
   one "busy" group chat with 10,000 messages and 50 members; a probe
-  user who follows 500 accounts and belongs to 100 conversations.
+  user who follows 500 accounts and belongs to 100 conversations; one
+  **celebrity** account followed by 900 of the 1,000 users, authoring
+  ~200 posts spread through the log (M8's fan-out fixture — whether a
+  lane fans out on write or filters at read time, the celebrity is
+  where that decision's cost becomes visible); and a named
+  **celebrity-follower** who follows the celebrity plus 4 small
+  accounts (the read-path comparison fixture).
 - The fixture pack provides the envelope as an **action log**: one
   action per line, human-readable but structured (e.g.
   `2026-01-03T10:15:00Z u0117 post "Coffee time"`,
@@ -190,7 +206,9 @@ what the benchmark measures):
   quoted replies on named messages via the field manifest. In
   addition, the **named O5 fixtures are checked exactly, at each
   checkpoint, before probes run**: the probe user's 500 follows, the
-  5-follow comparison user's count, and the busy group's 50-member
+  5-follow comparison user's count, the celebrity's follower count
+  (exactly 900) and post count, the celebrity-follower's 5-account
+  following list, and the busy group's 50-member
   roster — a fixture mismatch, like any **manifest nonconformance,
   caps O5 at its failure band (0)** — performance is never scored on
   an artifact that did not validly reach the envelope, nor against
@@ -225,6 +243,20 @@ signal is pathological growth, not milliseconds:
 - Cold-start initial sync of the probe user's account (100
   conversations) completes without timeout or unbounded memory
   growth; its wall time is recorded.
+- **Celebrity write path (M8):** the celebrity's post-create
+  acknowledgement p95 ≤ 3× a 5-follower author's post-create p95 —
+  fan-out-on-write must not make the write path scale visibly with
+  follower count.
+- **Celebrity read path (M8):** Following-feed load p95 for the named
+  celebrity-follower ≤ 3× the 5-follow comparison user's feed load —
+  read-time filtering must not push the fan-out cost onto followers.
+- **Insights (M8):** the probe user's Insights load at the full
+  corpus ≤ 3× the same load at the 10% checkpoint, with the 50%
+  checkpoint on or below the line between them; the load must not
+  transfer the corpus to the client (a page-and-count-client-side
+  implementation fails structurally, not just on latency).
+- **Trending (M8):** Trending at the full corpus ≤ 3× the 10%
+  checkpoint, under the same mid-curve rule.
 - No probe may time out, error, or OOM at the envelope.
 
 The exact probe queries rotate with the holdout set; the envelope
@@ -234,9 +266,10 @@ future leg once a hosted service exists (LLP 0201 D2).
 
 ## Screens (pinned)
 
-Auth (sign up / sign in) · Feed (Following / Global tabs) · Post
-thread · Compose post · Own profile (view + edit, follower/following
-counts) · Other-user profile (follow toggle, counts) · Chats list ·
+Auth (sign up / sign in) · Feed (Following / Global / Trending
+tabs) · Post thread · Compose post · Own profile (view + edit,
+follower/following counts) · Insights (reached from own profile) ·
+Other-user profile (follow toggle, counts) · Chats list ·
 Conversation · Chat settings · New chat / new group · Search (people /
 this chat / all messages) · Settings (account, log out).
 
@@ -259,9 +292,14 @@ driven by the choreography script.
 
 ## Milestones
 
-Reduced run = M1–M3. Full run = M1–M7. Each milestone lists its spec
+Reduced run = M1–M3. Full run = M1–M8. Each milestone lists its spec
 and its acceptance checklist — observable behaviors the grader
-executes independently.
+executes independently. Numbering is identity, not execution order:
+the continuous session runs M1–M6 and then M8; M7 remains the
+fresh-session day-2 milestone, run after the continuous session is
+graded (M8 was added by the 2026-08-11 amendment — LLP 0201's dated
+amendments — and keeps prior records comparable: runs that predate it
+record M8 `not-run`).
 
 **Budgets.** Cap keys (LLP 0201 D2): the **wall cap** is keyed by
 milestone and shared by every lane in every family of a wave; the
@@ -280,7 +318,10 @@ pilot milestones, with the safety limit standing in as the *figure*
 where a pilot lane has no green one — the ordinary 2× formula then
 applies, the same rule as LLP 0201 D2/P2 (numbers recorded in the
 table at the end at P3). Unused budget
-does not roll over.
+does not roll over. M8 postdates the P2 pilot: its caps calibrate
+from the P2b M8 pilot extension (LLP 0201, dated amendment
+2026-08-11) under the same formulas, with the safety limits standing
+in until those figures exist.
 
 **Executors.** At P1 every checklist item is split into atomic
 assertions with stable IDs, and every assertion (not merely every
@@ -299,7 +340,9 @@ choreography segment** — realtime behavior gates green too; only
 authoring green; missing evidence leaves native/O4 proof absent rather than
 passing it. The grader
 spot-verifies the coverage mapping is honest. Tags below mark items
-whose class is not obvious from phrasing.
+whose class is not obvious from phrasing. M8 assertions marked
+`native-artifact` follow the M6 rule: separately recorded and scored,
+never gating web authoring green.
 
 **Statuses and dependencies.** A milestone ends in exactly one
 execution-time status: `green` (harness-recorded passing suite run
@@ -324,7 +367,9 @@ stand as run; the published wall recharges that milestone to its
 cap; O1 scores its checklist not-passed. The prerequisite DAG: M2
 requires M1; M3 requires M1; M4, M5 require M3; **M6 requires M2,
 M3, M4, and M5** (its checklist re-verifies likes, media,
-view-once, and search behavior offline); M7 requires M6. Two
+view-once, and search behavior offline); **M8 requires M6** (it
+extends M6's offline and push obligations and reads M2's social
+graph); M7 requires M6. Two
 consecutive `capability-failure`/`aborted` results (blocks do not
 count) end the lane; the record carries an orthogonal termination
 reason. All full-run milestones stay in the completeness
@@ -611,7 +656,7 @@ Acceptance:
    coverage manifest, cap, and authoring clock, not deferrable
    off-clock.
 
-### M7 — Day-2 evolution (fresh session, after M1–M6 grading)
+### M7 — Day-2 evolution (fresh session, after the continuous session — M1–M6 plus M8 — is graded)
 
 Run by a **fresh agent session** with no builder context. **Data
 environment (author ruling, 2026-08-08): the pre-replay starter
@@ -659,6 +704,100 @@ Acceptance:
 5. The acceptance suites of previously-green milestones still pass
    (prior failures are preserved, not repaired under M7's budget).
 
+### M8 — Insights, digest, and multi-device offline (continuous session, after M6)
+
+Added by the 2026-08-11 amendment (LLP 0201, dated amendments) to
+close the coverage holes the instrument otherwise leaves open:
+aggregation/reporting, genuinely scheduled server-side work, high
+fan-out, and offline depth. Authored in the same continuous session
+as M1–M6, immediately after M6; requires M6. M7 is unchanged: still
+fresh-session, still requiring only M6, its regression item covering
+whatever milestones were previously green (including M8). M8 adds no
+starter-log segment — its acceptance creates the activity it
+measures, over content the existing segments already seed.
+
+Spec:
+
+- **Insights screen** (reached from own profile):
+  - Lifetime totals, exactly these six: posts, likes received,
+    reposts received, replies received, followers, following.
+  - Seven-day activity: for each of the trailing 7 UTC days (server
+    time), posts created and likes received that day. Days with no
+    activity render as zero, not omitted.
+  - Freshness pinned: values reflect server state as of screen load;
+    pull-to-refresh re-queries; live update is not required. Whether
+    counts are maintained (counters, read models) or computed
+    (aggregate queries) is backend-shaped — the scale envelope's
+    Insights degradation rules are the only constraint.
+  - Totals are server-computed: the client never derives a total by
+    paging the corpus (structurally enforced by the Insights
+    degradation rule at the envelope).
+- **Trending** (third feed tab, after Following and Global): the top
+  10 original posts (replies excluded, reposts count toward nothing
+  here) from the trailing 24 h of server time, ranked by like count
+  descending, ties newest-first. Recomputed on load and
+  pull-to-refresh; live update is not required; an empty trailing
+  window shows the kit's empty state.
+- **Daily digest** (scheduled, server-side): on the digest-config
+  schedule (see Global rulings), the backend computes, per user,
+  activity since that user's previous digest period and emits one
+  payload through the M6 push seam (logged, like all seam traffic):
+  `{targetUserId, kind: "digest", periodStart, periodEnd,
+  newFollowers, newPostsInFollowing, unreadMessages, unreadChats}`.
+  Rules: emission is driven by the schedule alone — it requires no
+  connected client and no client interaction, so lazy read-triggered
+  evaluation cannot satisfy it; a user whose counts are all zero
+  gets no digest; exactly one digest per user per period, idempotent
+  under retry and backend restart; counts respect authorization —
+  activity in chats the user is not a member of, and
+  expired/tombstoned content, never contributes. The push seam's
+  replay-mode flag also disables digests during the scale replay.
+- **Multi-device and deeper offline** (one account on two clients;
+  the global last-write-wins ruling applies unchanged — M8 adds no
+  merge semantics):
+  - Signed in on two clients: messages sent, edited, and reacted-to
+    on one appear live on the other, and **read state syncs across
+    the account's own devices** — opening a conversation on one
+    client clears its unread indication on the other.
+  - Both clients offline: each composes in the same chat; on
+    reconnect both messages flush and settle in server-arrival
+    order, no loss, no duplicates, receipts advancing normally.
+  - Queued writes survive restart: composing offline, killing the
+    app, and relaunching still offline shows the queued messages
+    still pending; they flush in order on reconnect. (M6 requires
+    the queue while the app stays running; M8 requires the queue to
+    be durable.)
+
+Acceptance:
+
+1. Alice's Insights totals match the seeded content; Bob likes one
+   of Alice's posts; after refresh her likes-received total
+   increments.
+2. The 7-day breakdown buckets a post created today under today and
+   renders days with no activity as zero.
+3. Trending ranks the post with the most likes in the trailing 24 h
+   first; an older heavily-liked post (>24 h) is absent; a tie
+   breaks newest-first.
+4. [grader] Under the shortened digest config with every client
+   closed: seeded activity produces exactly one logged digest per
+   active user with correct counts; a persona with no activity in
+   the period gets none; a following period with no new activity
+   emits none; a backend restart mid-period does not double-emit.
+5. [grader] Digest authorization: activity in a chat the target
+   user is not a member of never contributes to that user's digest
+   counts.
+6. Same-account convergence: Alice signs in on two clients; a
+   message sent on client 1 appears on client 2 live; opening the
+   conversation on client 1 clears the unread indication on
+   client 2.
+7. Both of Alice's clients go warm-offline; each composes one
+   message in the same chat; on reconnect both settle in
+   server-arrival order, no duplicates, and receipts advance
+   normally.
+8. [native-artifact] Compose offline; kill and relaunch the app
+   still offline; the queued messages render as pending; on
+   reconnect they flush in order and reach `read` normally.
+
 ---
 
 ## Holdout probes
@@ -666,8 +805,11 @@ Acceptance:
 A rotated probe set — trust-boundary shaped (cross-user DM access via
 the API, removed-member delivery, view-once re-fetch, expired edit
 window, session invalidation after logout, **server-side denials
-surviving the offline cache**) and performance shaped (the exact
-queries measured against the scale envelope's degradation rules) —
+surviving the offline cache**, scheduled-digest authorization — a
+digest must never count chats its target cannot read) and
+performance shaped (the exact
+queries measured against the scale envelope's degradation rules,
+including the M8 celebrity and aggregate rules) —
 is maintained outside this brief, run by the grader, and **published
 after each scored wave, rotated for the next** (LLP 0201 D3).
 Builders never see the current wave's **scored** probes; the trust
@@ -694,10 +836,11 @@ holistic → numbers revealed.
 **Applicability (frozen; author ruling 2026-08-08 — nulls block
 totals):** a run scores only the dimensions it exercises. Each
 dimension's **observing milestones**: O1/O2 — all in-scope; O3 —
-M6 green plus M1–M5 attempted; O4 — M6 green; O5 — the replay; B1 — M1–M3;
-B2 — M1; B3 — M2–M3; B4 — M6; B5 — M1–M2 on reduced runs, plus
-M4–M5 on full runs; B6 — M5; B7 — M6; B8 — M7; B9/B10/B11 — the
-whole run. Per-dimension rules (these govern; there is no blanket
+M6 green plus M1–M5 attempted; O4 — M6 green; O5 — the replay; B1 —
+M1–M3, plus M8 on full runs; B2 — M1; B3 — M2–M3, plus M8 on full
+runs; B4 — M6, plus M8 on full runs; B5 — M1–M2 on reduced runs,
+plus M4–M5 on full runs; B6 — M5; B7 — M6, plus M8 on full runs;
+B8 — M7; B9/B10/B11 — the whole run. Per-dimension rules (these govern; there is no blanket
 O-rule): O1 and O2 score whenever the grading phase ran, over every
 in-scope milestone regardless of status (failed/blocked checklists
 score not-passed — the partial-credit design); O3 and O4 require M6
@@ -758,7 +901,8 @@ guarantee. *30:* cold-start offline shows an empty or broken app.
 *60:* reads work; offline writes lost or mis-ordered, or receipts
 wrong after flush. *90:* reads, ordered queued writes, receipt
 transitions, and offline search all behave as specced on the native
-proof.
+proof — on full runs including M8's durable-queue restart and
+multi-device convergence evidence.
 
 **O5. Performance at the scale envelope — 8.** A **scale-safety
 gate**, mapped by an exact function of the frozen invariants — never
@@ -782,7 +926,9 @@ k=20 samples) is frozen with the probe set.
 
 **B1. Schema and data-model ergonomics — 6.** Declaring this app's
 model: chats, membership, messages, receipts, reactions, posts, and
-the follow graph with its two feed read-models.
+the follow graph with its feed read-models — on full runs including
+M8's aggregate read-models (insights totals, 7-day buckets,
+trending).
 *30:* fought the model layer; workarounds encode the model in blobs
 or duplicate state. *60:* workable with boilerplate or missing
 constructs (e.g., no clean unique constraint). *90:* the model
@@ -824,10 +970,13 @@ a second parallel implementation. *90:* one coherent approach covered
 online and offline search.
 
 **B7. Push/actions ergonomics — 3.** Detecting no-connected-client
-and emitting through the seam. *30:* no server-side hook existed;
-polling or external infra required. *60:* doable with plumbing
-(connection tracking hand-built). *90:* presence/connectivity and a
-notification seam were first-class.
+and emitting through the seam; on full runs, also authoring M8's
+scheduled digest. *30:* no server-side hook existed;
+polling or external infra required, or the digest needed an external
+scheduler. *60:* doable with plumbing
+(connection tracking or scheduling hand-built). *90:*
+presence/connectivity, a notification seam, and scheduled server-side
+work were first-class.
 
 **B8. Day-2 evolution experience — 6.** Scored by the M7 session: the
 schema-change-against-live-data loop. *30:* migration risked or
@@ -880,7 +1029,8 @@ family.
 | Milestone | Wall cap | Token cap |
 |---|---|---|
 | M1–M7 | *pilot-calibrated* | *pilot-calibrated* |
-| Scale replay (own clock) | *pilot-calibrated* | n/a |
+| M8 | *P2b-extension-calibrated* | *P2b-extension-calibrated* |
+| Scale replay (own clock) | *pilot-calibrated (rerun after the M8 scale-log regeneration)* | n/a |
 
 | Performance probe | Absolute p95 ceiling |
 |---|---|

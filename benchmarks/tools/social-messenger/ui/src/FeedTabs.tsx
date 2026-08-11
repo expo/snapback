@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { palette, spacing, typeScale } from './tokens';
 
-export type FeedTab = 'following' | 'global';
+export type FeedTab = 'following' | 'global' | 'trending';
 
 export interface FeedTabsProps {
   /** The active tab. Following is the brief's default feed. */
@@ -10,23 +10,27 @@ export interface FeedTabsProps {
   onChange: (tab: FeedTab) => void;
   followingLabel?: string;
   globalLabel?: string;
+  trendingLabel?: string;
 }
 
 const TAB_IDS: Record<FeedTab, string> = {
   following: 'sm-feed-tab-following',
   global: 'sm-feed-tab-global',
+  trending: 'sm-feed-tab-trending',
 };
 
-/** The two-tab feed switcher (brief M2): Following | Global. */
+/** The feed switcher (brief M2/M8): Following | Global | Trending. */
 export function FeedTabs({
   active,
   onChange,
   followingLabel = 'Following',
   globalLabel = 'Global',
+  trendingLabel = 'Trending',
 }: FeedTabsProps): React.JSX.Element {
   const tabs: readonly { key: FeedTab; label: string }[] = [
     { key: 'following', label: followingLabel },
     { key: 'global', label: globalLabel },
+    { key: 'trending', label: trendingLabel },
   ];
   return (
     <View accessibilityRole="tablist" style={styles.container}>

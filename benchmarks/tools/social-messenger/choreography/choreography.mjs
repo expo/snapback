@@ -6,8 +6,12 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
 
-const VERSION = "0.2.0-p2";
-const SEGMENTS = ["m1", "m2", "m3", "m4", "m5", "m6"];
+const VERSION = "0.3.0-m8";
+const SEGMENTS = ["m1", "m2", "m3", "m4", "m5", "m6", "m8"];
+const SIMULATOR_IDS = {
+  m6: "ios-simulator-m6",
+  m8: "ios-simulator-m8",
+};
 const DEFAULT_FIXTURES_DIR = fileURLToPath(
   new URL("../../../fixtures/social-messenger", import.meta.url),
 );
@@ -22,6 +26,7 @@ const DEFAULT_ADAPTER = {
     profileEdit: "/profile/edit",
     settings: "/settings",
     search: "/search",
+    insights: "/insights",
   },
   fixtures: {
     directory: DEFAULT_FIXTURES_DIR,
@@ -60,6 +65,7 @@ const CONTRACT_TEST_IDS = new Set([
   "sm-profile-field-displayname",
   "sm-profile-field-bio",
   "sm-chats-item",
+  "sm-chats-unread",
   "sm-convo-input",
   "sm-convo-send",
   "sm-convo-bubble",
@@ -89,12 +95,13 @@ const CONTRACT_TEST_IDS = new Set([
   "sm-search-input",
   "sm-search-result",
   "sm-search-offline",
+  "sm-insights-total-likes-received",
   "sm-poll-option",
   "sm-poll-tally",
 ]);
 
 function usage() {
-  return `Usage: node choreography.mjs [all|m1|m2|m3|m4|m5|m6|m1,m3,...] [options]
+  return `Usage: node choreography.mjs [all|m1|m2|m3|m4|m5|m6|m8|m1,m3,...] [options]
 
 Options:
   --browser <name>       chromium, firefox, or webkit (default: chromium)
@@ -103,13 +110,14 @@ Options:
   --suite-status <path>  JSON suite-status input used for green summaries
   --adapter <path>       lane navigation/fixture adapter JSON
   --simulator-status <path>
-                         optional separately recorded M6 simulator status
+                         optional separately recorded M6/M8 simulator status
   --timeout <ms>         ordinary assertion timeout (default: 10000)
   --help                  show this help
 
 Required environment:
   CHOREO_BASE_URL
-  CHOREO_PASSWORD, or per-persona passwords (Carol is required for M5)
+  CHOREO_PASSWORD, or per-persona passwords (Carol is required for M5;
+  Alice's password is reused by her second M8 browser context)
 
 See README.md for every environment variable and the suite-status shape.`;
 }
@@ -233,7 +241,7 @@ async function loadSuiteStatuses(path) {
   if (!path) return {};
   const parsed = JSON.parse(await readFile(path, "utf8"));
   if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
-    throw new Error("suite-status input must be an object keyed by m1..m6");
+    throw new Error("suite-status input must be an object keyed by m1..m6 or m8");
   }
   for (const [segment, status] of Object.entries(parsed)) {
     if (!SEGMENTS.includes(segment)) {
@@ -315,20 +323,23 @@ async function loadAdapter(path) {
   return adapter;
 }
 
-async function loadSimulatorStatus(path) {
-  if (!path) {
-    return {
-      id: "ios-simulator-m6",
-      pass: null,
-      receipt: null,
-      status: "not-recorded",
-      reason: "simulator evidence is recorded separately from M6 web green",
-    };
+function missingSimulatorStatus(segment) {
+  return {
+    id: SIMULATOR_IDS[segment],
+    pass: null,
+    receipt: null,
+    status: "not-recorded",
+    reason: `${segment.toUpperCase()} simulator evidence is recorded separately from web green`,
+  };
+}
+
+function normalizeSimulatorStatus(parsed, expectedId = null) {
+  assertPlainObject(parsed, "simulator status entry");
+  if (!Object.values(SIMULATOR_IDS).includes(parsed.id)) {
+    throw new Error("simulator status id must be ios-simulator-m6 or ios-simulator-m8");
   }
-  const parsed = JSON.parse(await readFile(path, "utf8"));
-  assertPlainObject(parsed, "simulator status");
-  if (parsed.id !== "ios-simulator-m6") {
-    throw new Error("simulator status id must be ios-simulator-m6");
+  if (expectedId && parsed.id !== expectedId) {
+    throw new Error(`simulator status entry must use id ${expectedId}`);
   }
   if (![true, false, null].includes(parsed.pass)) {
     throw new Error("simulator status pass must be boolean or null");
@@ -359,6 +370,47 @@ async function loadSimulatorStatus(path) {
       parsed.reason ??
       (parsed.pass === null ? "simulator evidence is not recorded" : null),
   };
+}
+
+async function loadSimulatorStatuses(path) {
+  const statuses = Object.fromEntries(
+    Object.keys(SIMULATOR_IDS).map((segment) => [segment, missingSimulatorStatus(segment)]),
+  );
+  if (!path) return statuses;
+
+  const parsed = JSON.parse(await readFile(path, "utf8"));
+  let entries;
+  if (Array.isArray(parsed)) {
+    entries = parsed.map((entry) => ({ entry, expectedId: null }));
+  } else {
+    assertPlainObject(parsed, "simulator status");
+    if (Object.hasOwn(parsed, "id")) {
+      entries = [{ entry: parsed, expectedId: null }];
+    } else {
+      const unknown = Object.keys(parsed).filter((key) => !Object.hasOwn(SIMULATOR_IDS, key));
+      if (unknown.length > 0) {
+        throw new Error(`simulator status bundle has unknown segment: ${unknown[0]}`);
+      }
+      entries = Object.entries(parsed).map(([segment, entry]) => ({
+        entry,
+        expectedId: SIMULATOR_IDS[segment],
+      }));
+    }
+  }
+
+  const seen = new Set();
+  for (const { entry, expectedId } of entries) {
+    const status = normalizeSimulatorStatus(entry, expectedId);
+    if (seen.has(status.id)) {
+      throw new Error(`simulator status contains duplicate entry: ${status.id}`);
+    }
+    seen.add(status.id);
+    const segment = Object.keys(SIMULATOR_IDS).find(
+      (candidate) => SIMULATOR_IDS[candidate] === status.id,
+    );
+    statuses[segment] = status;
+  }
+  return statuses;
 }
 
 function createCheckRunner(emit) {
@@ -506,6 +558,38 @@ async function visibleTexts(locator) {
   return values;
 }
 
+async function setContextsOffline(contexts, offline) {
+  const active = contexts.filter(Boolean);
+  const outcomes = await Promise.allSettled(
+    active.map((context) => context.setOffline(offline)),
+  );
+  const failure = outcomes.find((outcome) => outcome.status === "rejected");
+  if (failure) {
+    if (offline) {
+      await Promise.allSettled(active.map((context) => context.setOffline(false)));
+    }
+    throw failure.reason;
+  }
+}
+
+async function expectExactlyOnceInOrder(page, first, second) {
+  const texts = await visibleTexts(testId(page, "sm-convo-bubble"));
+  const firstMatches = texts
+    .map((text, index) => ({ text, index }))
+    .filter(({ text }) => text.includes(first));
+  const secondMatches = texts
+    .map((text, index) => ({ text, index }))
+    .filter(({ text }) => text.includes(second));
+  if (firstMatches.length !== 1 || secondMatches.length !== 1) {
+    throw new Error(
+      `offline convergence rendered duplicate/lost messages: first=${firstMatches.length} second=${secondMatches.length}`,
+    );
+  }
+  if (secondMatches[0].index <= firstMatches[0].index) {
+    throw new Error("offline convergence did not render messages in server-arrival order");
+  }
+}
+
 async function clickVisible(locator, timeoutMs) {
   const target = locator.first();
   await target.waitFor({ state: "visible", timeout: timeoutMs });
@@ -547,20 +631,21 @@ async function openConversation(page, counterpart, timeoutMs) {
   await testId(page, "sm-convo-input").waitFor({ state: "visible", timeout: timeoutMs });
 }
 
+async function openConversationFromAnySurface(ctx, page, counterpart) {
+  if (await testId(page, "sm-convo-input").isVisible()) return;
+  if (!(await testId(page, "sm-chats-item").first().isVisible())) {
+    await page.goto(ctx.baseUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: ctx.timeoutMs,
+    });
+  }
+  await openConversation(page, counterpart, ctx.timeoutMs);
+}
+
 async function openAliceBobConversation(ctx) {
-  const openFromAnySurface = async (page, counterpart) => {
-    if (await testId(page, "sm-convo-input").isVisible()) return;
-    if (!(await testId(page, "sm-chats-item").first().isVisible())) {
-      await page.goto(ctx.baseUrl, {
-        waitUntil: "domcontentloaded",
-        timeout: ctx.timeoutMs,
-      });
-    }
-    await openConversation(page, counterpart, ctx.timeoutMs);
-  };
   await Promise.all([
-    openFromAnySurface(ctx.alicePage, "Bob"),
-    openFromAnySurface(ctx.bobPage, "Alice"),
+    openConversationFromAnySurface(ctx, ctx.alicePage, "Bob"),
+    openConversationFromAnySurface(ctx, ctx.bobPage, "Alice"),
   ]);
 }
 
@@ -1382,7 +1467,7 @@ async function m5(ctx) {
       state: "visible",
       timeout: ctx.timeoutMs,
     });
-    await ctx.aliceContext.setOffline(true);
+    await setContextsOffline([ctx.aliceContext], true);
     try {
       await testId(ctx.alicePage, "sm-search-input").fill(ctx.adapter.fixtures.searchToken);
       await testId(ctx.alicePage, "sm-search-result")
@@ -1394,7 +1479,7 @@ async function m5(ctx) {
         timeout: ctx.timeoutMs,
       });
     } finally {
-      await ctx.aliceContext.setOffline(false);
+      await setContextsOffline([ctx.aliceContext], false);
     }
     return {};
   });
@@ -1453,7 +1538,7 @@ async function m6(ctx) {
       await openAliceBobConversation(ctx);
       const first = `choreo-${ctx.runId}-m6-offline-1`;
       const second = `choreo-${ctx.runId}-m6-offline-2`;
-      await ctx.aliceContext.setOffline(true);
+      await setContextsOffline([ctx.aliceContext], true);
       let firstBubble;
       let secondBubble;
       try {
@@ -1468,7 +1553,7 @@ async function m6(ctx) {
           }
         }
       } finally {
-        await ctx.aliceContext.setOffline(false);
+        await setContextsOffline([ctx.aliceContext], false);
       }
 
       const flushStarted = performance.now();
@@ -1501,7 +1586,267 @@ async function m6(ctx) {
   );
 }
 
-const SEGMENT_FUNCTIONS = { m1, m2, m3, m4, m5, m6 };
+async function findLikesReceivedStat(page, timeoutMs) {
+  const stat = testId(page, "sm-insights-total-likes-received");
+  await stat.waitFor({ state: "visible", timeout: timeoutMs });
+  return stat;
+}
+
+async function numericStatValue(locator) {
+  const value = await locator.evaluate((element) => {
+    for (const name of ["data-count", "aria-valuenow", "data-stat-value"]) {
+      const raw = element.getAttribute(name);
+      if (raw !== null && /^\d[\d,]*$/u.test(raw.trim())) {
+        return Number(raw.replaceAll(",", ""));
+      }
+    }
+    const matches = (element.textContent ?? "").match(/\d[\d,]*/gu) ?? [];
+    if (matches.length !== 1) return null;
+    return Number(matches[0].replaceAll(",", ""));
+  });
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error("likes-received Insights tile did not expose one non-negative integer");
+  }
+  return value;
+}
+
+async function toggleSelection(locator) {
+  return locator.evaluate((element) => {
+    for (const name of ["aria-pressed", "aria-selected", "data-selected", "data-liked"]) {
+      const value = element.getAttribute(name)?.toLowerCase();
+      if (["true", "1", "liked"].includes(value)) return true;
+      if (["false", "0", "unliked"].includes(value)) return false;
+    }
+    const label = `${element.getAttribute("aria-label") ?? ""} ${element.textContent ?? ""}`;
+    if (/\bunlike\b/iu.test(label)) return true;
+    if (/\blike\b/iu.test(label)) return false;
+    return null;
+  });
+}
+
+async function findUnlikedAlicePost(page, timeoutMs) {
+  const cards = testId(page, "sm-feed-item");
+  await cards.first().waitFor({ state: "visible", timeout: timeoutMs });
+  for (let index = 0; index < (await cards.count()); index += 1) {
+    const card = cards.nth(index);
+    if (!(await card.isVisible()) || !/alice/iu.test(await card.innerText())) continue;
+    const like = testId(card, "sm-post-like");
+    if ((await like.count()) === 0 || !(await like.first().isVisible())) continue;
+    const selected = await toggleSelection(like.first());
+    if (selected === false) return like.first();
+  }
+  throw new Error("Global feed exposed no observably unliked Alice post for Bob");
+}
+
+async function m8(ctx) {
+  await ctx.check("m8", "m8-a02-insights-like-refresh", {}, async () => {
+    await ctx.alicePage.goto(routeUrl(ctx, "insights"), {
+      waitUntil: "domcontentloaded",
+      timeout: ctx.timeoutMs,
+    });
+    const before = await numericStatValue(
+      await findLikesReceivedStat(ctx.alicePage, ctx.timeoutMs),
+    );
+
+    await openGlobalFeed(ctx.bobPage, ctx.timeoutMs);
+    const bobLike = await findUnlikedAlicePost(ctx.bobPage, ctx.timeoutMs);
+    const likeState = await observableState(bobLike);
+    await bobLike.click();
+    await waitForStateChange(
+      bobLike,
+      likeState,
+      ctx.timeoutMs,
+      "Bob's committed like toggle",
+    );
+
+    const refreshStarted = performance.now();
+    await ctx.alicePage.reload({
+      waitUntil: "domcontentloaded",
+      timeout: ctx.timeoutMs,
+    });
+    const after = await numericStatValue(
+      await findLikesReceivedStat(ctx.alicePage, ctx.timeoutMs),
+    );
+    if (after !== before + 1) {
+      throw new Error(`likes-received did not increment exactly once: before=${before} after=${after}`);
+    }
+    return {
+      metrics: {
+        beforeLikes: before,
+        afterLikes: after,
+        refreshMs: rounded(performance.now() - refreshStarted),
+      },
+    };
+  });
+
+  await ctx.check("m8", "m8-a13-same-account-message-live", {}, async () => {
+    if (!ctx.alice2Page) throw new Error("Alice's second browser context is required for M8");
+    await Promise.all([
+      openConversationFromAnySurface(ctx, ctx.alicePage, "Bob"),
+      openConversationFromAnySurface(ctx, ctx.alice2Page, "Bob"),
+    ]);
+    const text = `choreo-${ctx.runId}-m8-live`;
+    const started = performance.now();
+    await sendConversationText(ctx.alicePage, text, ctx.timeoutMs);
+    await testId(ctx.alice2Page, "sm-convo-bubble")
+      .filter({ hasText: text })
+      .last()
+      .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    return {
+      metrics: { visibleMs: rounded(performance.now() - started) },
+    };
+  });
+
+  await ctx.check("m8", "m8-a14-cross-device-read-state", {}, async () => {
+    if (!ctx.alice2Page) throw new Error("Alice's second browser context is required for M8");
+    await openConversationFromAnySurface(ctx, ctx.bobPage, "Alice");
+    await Promise.all([
+      ctx.alicePage.goto(ctx.baseUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: ctx.timeoutMs,
+      }),
+      ctx.alice2Page.goto(ctx.baseUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: ctx.timeoutMs,
+      }),
+    ]);
+    const alice1Chat = testId(ctx.alicePage, "sm-chats-item")
+      .filter({ hasText: /bob/iu })
+      .first();
+    const alice2Chat = testId(ctx.alice2Page, "sm-chats-item")
+      .filter({ hasText: /bob/iu })
+      .first();
+    await Promise.all([
+      alice1Chat.waitFor({ state: "visible", timeout: ctx.timeoutMs }),
+      alice2Chat.waitFor({ state: "visible", timeout: ctx.timeoutMs }),
+    ]);
+
+    const text = `choreo-${ctx.runId}-m8-unread`;
+    await sendConversationText(ctx.bobPage, text, ctx.timeoutMs);
+    const alice2Unread = testId(alice2Chat, "sm-chats-unread");
+    await alice2Unread.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+    const clearStarted = performance.now();
+    await alice1Chat.click();
+    await testId(ctx.alicePage, "sm-convo-input").waitFor({
+      state: "visible",
+      timeout: ctx.timeoutMs,
+    });
+    await alice2Unread.waitFor({ state: "hidden", timeout: ctx.timeoutMs });
+    return {
+      metrics: { clearVisibleMs: rounded(performance.now() - clearStarted) },
+    };
+  });
+
+  const convergence = await ctx.check(
+    "m8",
+    "m8-a15-dual-offline-convergence",
+    {},
+    async () => {
+      if (!ctx.alice2Page || !ctx.alice2Context) {
+        throw new Error("Alice's second browser context is required for M8");
+      }
+      await Promise.all([
+        openConversationFromAnySurface(ctx, ctx.alicePage, "Bob"),
+        openConversationFromAnySurface(ctx, ctx.alice2Page, "Bob"),
+        openConversationFromAnySurface(ctx, ctx.bobPage, "Alice"),
+      ]);
+      const first = `choreo-${ctx.runId}-m8-offline-alice1`;
+      const second = `choreo-${ctx.runId}-m8-offline-alice2`;
+      await setContextsOffline([ctx.aliceContext, ctx.alice2Context], true);
+      let firstBubble;
+      let secondBubble;
+      try {
+        [firstBubble, secondBubble] = await Promise.all([
+          sendConversationText(ctx.alicePage, first, ctx.timeoutMs),
+          sendConversationText(ctx.alice2Page, second, ctx.timeoutMs),
+        ]);
+        for (const bubble of [firstBubble, secondBubble]) {
+          const receipt = testId(bubble, "sm-convo-receipt");
+          await receipt.waitFor({ state: "visible", timeout: ctx.timeoutMs });
+          const state = await observableState(receipt);
+          if (!/\bpending\b/iu.test(state)) {
+            throw new Error(`warm-offline message did not expose pending state: ${state}`);
+          }
+        }
+
+        const firstFlushStarted = performance.now();
+        await setContextsOffline([ctx.aliceContext], false);
+        await testId(ctx.bobPage, "sm-convo-bubble")
+          .filter({ hasText: first })
+          .last()
+          .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+        const firstFlushMs = rounded(performance.now() - firstFlushStarted);
+
+        const secondFlushStarted = performance.now();
+        await setContextsOffline([ctx.alice2Context], false);
+        await testId(ctx.bobPage, "sm-convo-bubble")
+          .filter({ hasText: second })
+          .last()
+          .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+        const secondFlushMs = rounded(performance.now() - secondFlushStarted);
+
+        for (const page of [ctx.alicePage, ctx.alice2Page, ctx.bobPage]) {
+          await testId(page, "sm-convo-bubble")
+            .filter({ hasText: first })
+            .last()
+            .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+          await testId(page, "sm-convo-bubble")
+            .filter({ hasText: second })
+            .last()
+            .waitFor({ state: "visible", timeout: ctx.timeoutMs });
+          await expectExactlyOnceInOrder(page, first, second);
+        }
+        return {
+          metrics: { firstFlushMs, secondFlushMs },
+          data: { first, second },
+        };
+      } finally {
+        await setContextsOffline([ctx.aliceContext, ctx.alice2Context], false);
+      }
+    },
+  );
+
+  await ctx.check("m8", "m8-a16-dual-offline-receipts", {}, async () => {
+    if (!ctx.alice2Page || !convergence.data?.first || !convergence.data?.second) {
+      throw new Error("dual-offline convergence did not yield receipted messages");
+    }
+    const started = performance.now();
+    const firstReceipt = testId(
+      testId(ctx.alicePage, "sm-convo-bubble")
+        .filter({ hasText: convergence.data.first })
+        .last(),
+      "sm-convo-receipt",
+    );
+    const secondReceipt = testId(
+      testId(ctx.alice2Page, "sm-convo-bubble")
+        .filter({ hasText: convergence.data.second })
+        .last(),
+      "sm-convo-receipt",
+    );
+    const [firstRead, secondRead] = await Promise.all(
+      [firstReceipt, secondReceipt].map((receipt) =>
+        waitForValue(
+          receipt,
+          async (target) => {
+            const value = await observableState(target);
+            return { matched: /\bread\b/iu.test(value), value };
+          },
+          ctx.timeoutMs,
+          "normal read receipt after dual-offline flush",
+        ),
+      ),
+    );
+    return {
+      metrics: {
+        firstReadMs: firstRead.elapsedMs,
+        secondReadMs: secondRead.elapsedMs,
+        totalMs: rounded(performance.now() - started),
+      },
+    };
+  });
+}
+
+const SEGMENT_FUNCTIONS = { m1, m2, m3, m4, m5, m6, m8 };
 
 // @ref LLP 0201#d2--quantitative-instrument — milestone green is the
 // fail-closed conjunction of suite evidence and the full choreography segment.
@@ -1534,7 +1879,7 @@ async function emitSegmentSummary({
   assertionReceipts,
   durationMs,
   suiteStatus,
-  simulatorStatus,
+  simulatorStatuses,
 }) {
   const { counts, browserPass, reason } = aggregateChoreography(assertionReceipts);
   const requiredExternal = [];
@@ -1574,8 +1919,8 @@ async function emitSegmentSummary({
       requiredExternal,
       externalPass,
       supplementalExternal:
-        segment === "m6"
-          ? [{ ...simulatorStatus, requiredForGreen: false }]
+        Object.hasOwn(SIMULATOR_IDS, segment)
+          ? [{ ...simulatorStatuses[segment], requiredForGreen: false }]
           : [],
       pass: choreographyPass,
     },
@@ -1615,7 +1960,7 @@ async function main() {
   }
 
   const adapter = await loadAdapter(options.adapterPath);
-  const simulatorStatus = await loadSimulatorStatus(options.simulatorStatusPath);
+  const simulatorStatuses = await loadSimulatorStatuses(options.simulatorStatusPath);
 
   let playwright;
   try {
@@ -1642,9 +1987,11 @@ async function main() {
   const aliceContext = await browser.newContext();
   const bobContext = await browser.newContext();
   const carolContext = options.segments.includes("m5") ? await browser.newContext() : null;
+  const alice2Context = options.segments.includes("m8") ? await browser.newContext() : null;
   const alicePage = await aliceContext.newPage();
   const bobPage = await bobContext.newPage();
   const carolPage = carolContext ? await carolContext.newPage() : null;
+  const alice2Page = alice2Context ? await alice2Context.newPage() : null;
   const summaries = [];
   const personas = {
     alice: {
@@ -1667,6 +2014,7 @@ async function main() {
       login(bobPage, baseUrl, personas.bob, options.timeoutMs),
     ];
     if (carolPage) loginTasks.push(login(carolPage, baseUrl, personas.carol, options.timeoutMs));
+    if (alice2Page) loginTasks.push(login(alice2Page, baseUrl, personas.alice, options.timeoutMs));
     await Promise.all(loginTasks);
 
     const context = {
@@ -1678,9 +2026,11 @@ async function main() {
       aliceContext,
       bobContext,
       carolContext,
+      alice2Context,
       alicePage,
       bobPage,
       carolPage,
+      alice2Page,
       check,
     };
 
@@ -1693,7 +2043,7 @@ async function main() {
         assertionReceipts: bySegment.get(segment) ?? [],
         durationMs: performance.now() - started,
         suiteStatus: suiteStatuses[segment],
-        simulatorStatus,
+        simulatorStatuses,
       });
       summaries.push(summary);
       if (segment !== options.segments.at(-1)) {
@@ -1709,12 +2059,20 @@ async function main() {
             }),
           );
         }
+        if (alice2Page) {
+          resets.push(
+            alice2Page.goto(baseUrl, {
+              waitUntil: "domcontentloaded",
+              timeout: options.timeoutMs,
+            }),
+          );
+        }
         await Promise.allSettled(resets);
       }
     }
   } finally {
     await Promise.allSettled(
-      [aliceContext, bobContext, carolContext]
+      [aliceContext, bobContext, carolContext, alice2Context]
         .filter(Boolean)
         .map((context) => context.close()),
     );

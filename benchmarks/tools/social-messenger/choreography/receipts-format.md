@@ -1,6 +1,6 @@
 # Social-messenger choreography receipts
 
-Version `0.2.0-p2` writes newline-delimited JSON to `receipts.jsonl`. The same
+Version `0.3.0-m8` writes newline-delimited JSON to `receipts.jsonl`. The same
 objects are written to stdout with the literal prefix `STRUCTURED RECEIPT ` so
 an outer run harness can separate proof records from ordinary process output.
 Each line validates independently against `receipts.schema.json`.
@@ -10,7 +10,7 @@ Each line validates independently against `receipts.schema.json`.
 Every browser check emits one `type: "assertion"` object. Its stable identity
 is `(segment, assertion)`. The required proof fields are:
 
-- `segment`: one of `m1` through `m6`.
+- `segment`: one of `m1` through `m6`, or `m8`.
 - `assertion`: the stable choreography assertion name.
 - `implemented`: whether this harness version actually attempted the check.
 - `required`: whether leaving this assertion unimplemented blocks the segment.
@@ -84,9 +84,10 @@ The normative aggregation is:
    required assertion remains unimplemented. Optional skips therefore stay
    explicit without becoming silent failed attempts.
 2. `externalPass` is true when every external leg required for web green passes.
-   In `0.2.0-p2` there are no such legs. M6's `ios-simulator-m6` status is
-   recorded under `supplementalExternal` with `requiredForGreen:false`; it is a
-   distinct native/O4 artifact governed by `simulator.md`.
+   In `0.3.0-m8` there are no such legs. M6's `ios-simulator-m6` and M8's
+   `ios-simulator-m8` statuses are recorded in their matching summaries under
+   `supplementalExternal` with `requiredForGreen:false`; they are distinct
+   native/O4 artifacts governed by `simulator.md`.
 3. `choreography.pass` (and the summary's top-level `pass`) is
    `browserPass && externalPass === true`.
 4. `green` is true only when `suite.pass === true && choreography.pass === true`.
@@ -98,7 +99,8 @@ The optional suite-status input is an object keyed by milestone:
 ```json
 {
   "m1": { "pass": true, "receipt": "acceptance/m1.json" },
-  "m2": { "pass": false, "receipt": "acceptance/m2.json" }
+  "m2": { "pass": false, "receipt": "acceptance/m2.json" },
+  "m8": { "pass": true, "receipt": "acceptance/m8.json" }
 }
 ```
 

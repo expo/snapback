@@ -7,14 +7,25 @@ import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const GENERATOR_VERSION = "0.1.0-p1";
+const GENERATOR_VERSION = "0.2.0-m8";
 const SEED = 20260808;
 const EPOCH_MS = Date.parse("2026-01-01T00:00:00Z");
-const SCALE_ACTION_COUNT = 166053;
+const SCALE_ACTION_COUNT = 167157;
 const CHECKPOINT_ACTIONS = new Map([
-  [23853, "10%"],
-  [87053, "50%"]
+  [24777, "10%"],
+  [88057, "50%"]
 ]);
+const CELEBRITY_USER_ID = "u0900";
+const CELEBRITY_FOLLOWER_USER_ID = "u0901";
+const CELEBRITY_FOLLOWER_FOLLOWING = Object.freeze([
+  "u0001",
+  "u0002",
+  "u0003",
+  "u0004",
+  CELEBRITY_USER_ID
+]);
+const CELEBRITY_FOLLOWER_COUNT = 900;
+const CELEBRITY_POST_COUNT = 200;
 const personas = JSON.parse(readFileSync(join(ROOT, "personas.json"), "utf8"));
 
 function mulberry32(seed) {
@@ -335,17 +346,50 @@ function* scaleActionLines() {
   for (const target of ["u0001", "u0002", "u0003", "u0004", "u0006"]) {
     yield* emitFollow("u0005", target, `mf-u0005-${target}`);
   }
+  const baselineFollowEdges = new Set(followEdges);
+
+  // Keep the existing u0500 and u0005 comparison fixtures exact while making
+  // the celebrity graph exact too. u0901's celebrity edge is included in the
+  // 900; its four small-account edges complete the five-follow read fixture.
+  for (let number = 1; number <= 903; number += 1) {
+    if (number === 5 || number === 500 || number === 900) continue;
+    const actorId = scaleUser(number);
+    yield* emitFollow(actorId, CELEBRITY_USER_ID, `mf-${actorId}-${CELEBRITY_USER_ID}`);
+  }
+  for (const target of CELEBRITY_FOLLOWER_FOLLOWING) {
+    if (target === CELEBRITY_USER_ID) continue;
+    yield* emitFollow(
+      CELEBRITY_FOLLOWER_USER_ID,
+      target,
+      `mf-${CELEBRITY_FOLLOWER_USER_ID}-${target}`
+    );
+  }
+
+  const resolveExtendedRandomFollow = (actorNumber, targetNumber) => {
+    for (let actorOffset = 0; actorOffset < 1000; actorOffset += 1) {
+      const candidateActorNumber = ((actorNumber - 1 + actorOffset) % 1000) + 1;
+      if ([5, 500, 901].includes(candidateActorNumber)) continue;
+      for (let targetOffset = 0; targetOffset < 1000; targetOffset += 1) {
+        const candidateTargetNumber = ((targetNumber - 1 + targetOffset) % 1000) + 1;
+        if (candidateTargetNumber === 900 || candidateActorNumber === candidateTargetNumber) continue;
+        const actorId = scaleUser(candidateActorNumber);
+        const target = scaleUser(candidateTargetNumber);
+        if (!followEdges.has(`${actorId}>${target}`)) return { actorId, target };
+      }
+    }
+    throw new Error("could not place deterministic random follow edge");
+  };
 
   let randomFollows = 0;
   while (randomFollows < 4500) {
     const actorNumber = 1 + Math.floor(random() * 1000);
     const targetNumber = 1 + Math.floor(random() * 1000);
     if (actorNumber === 5 || actorNumber === 500 || actorNumber === targetNumber) continue;
-    const actorId = scaleUser(actorNumber);
-    const target = scaleUser(targetNumber);
-    const key = `${actorId}>${target}`;
-    if (followEdges.has(key)) continue;
-    followEdges.add(key);
+    const baselineKey = `${scaleUser(actorNumber)}>${scaleUser(targetNumber)}`;
+    if (baselineFollowEdges.has(baselineKey)) continue;
+    baselineFollowEdges.add(baselineKey);
+    const { actorId, target } = resolveExtendedRandomFollow(actorNumber, targetNumber);
+    followEdges.add(`${actorId}>${target}`);
     randomFollows += 1;
     yield action(clock, actorId, "follow", target, "set", `mf-${actorId}-${target}`);
   }
@@ -387,19 +431,23 @@ function* scaleActionLines() {
   const likedPairs = new Set();
   const repostedPairs = new Set();
   const phases = [
-    { label: "10%", topPosts: 4800, replies: 200, likes: 500, reposts: 100, busyMessages: 1000, dmMessagesPerChat: 10, reactions: 200 },
-    { label: "50%", topPosts: 24000, replies: 1000, likes: 2500, reposts: 500, busyMessages: 5000, dmMessagesPerChat: 50, reactions: 1000 },
-    { label: "100%", topPosts: 48000, replies: 2000, likes: 5000, reposts: 1000, busyMessages: 10000, dmMessagesPerChat: 100, reactions: 2000 }
+    { label: "10%", topPosts: 4800, celebrityPosts: 20, replies: 200, likes: 500, reposts: 100, busyMessages: 1000, dmMessagesPerChat: 10, reactions: 200 },
+    { label: "50%", topPosts: 24000, celebrityPosts: 100, replies: 1000, likes: 2500, reposts: 500, busyMessages: 5000, dmMessagesPerChat: 50, reactions: 1000 },
+    { label: "100%", topPosts: 48000, celebrityPosts: 200, replies: 2000, likes: 5000, reposts: 1000, busyMessages: 10000, dmMessagesPerChat: 100, reactions: 2000 }
   ];
-  let previous = { topPosts: 0, replies: 0, likes: 0, reposts: 0, busyMessages: 0, dmMessagesPerChat: 0, reactions: 0 };
+  let previous = { topPosts: 0, celebrityPosts: 0, replies: 0, likes: 0, reposts: 0, busyMessages: 0, dmMessagesPerChat: 0, reactions: 0 };
 
   // Each marker represents that fraction of every scalable content class,
   // after the fixed registration/graph/conversation setup. This makes the
   // 10% and 50% probe states genuine smaller corpora rather than phase-order
   // artifacts with (for example) zero messages.
   for (const phase of phases) {
+    const regularPostsThisPhase = phase.topPosts - previous.topPosts;
+    const celebrityPostsThisPhase = phase.celebrityPosts - previous.celebrityPosts;
+    let celebrityPostsEmitted = 0;
     for (let postNumber = previous.topPosts + 1; postNumber <= phase.topPosts; postNumber += 1) {
-      const actorId = scaleUser(1 + Math.floor(random() * 1000));
+      const actorNumber = 1 + Math.floor(random() * 1000);
+      const actorId = scaleUser(actorNumber === 900 ? 899 : actorNumber);
       const postId = `p${pad(postNumber, 6)}`;
       const body = `Scale ${words[Math.floor(random() * words.length)]} dispatch ${pad(postNumber, 6)}.`;
       if (postNumber % 5000 === 0) {
@@ -411,10 +459,28 @@ function* scaleActionLines() {
       } else {
         yield action(clock, actorId, "post", postId, "text", quote(body));
       }
+
+      const regularPostsEmitted = postNumber - previous.topPosts;
+      const celebrityTarget = Math.floor(
+        (regularPostsEmitted * celebrityPostsThisPhase) / regularPostsThisPhase
+      );
+      while (celebrityPostsEmitted < celebrityTarget) {
+        celebrityPostsEmitted += 1;
+        const celebrityPostNumber = previous.celebrityPosts + celebrityPostsEmitted;
+        yield action(
+          clock,
+          CELEBRITY_USER_ID,
+          "post",
+          `cp${pad(celebrityPostNumber, 6)}`,
+          "text",
+          quote(`Celebrity dispatch ${pad(celebrityPostNumber, 6)}.`)
+        );
+      }
     }
 
     for (let replyNumber = previous.replies + 1; replyNumber <= phase.replies; replyNumber += 1) {
-      const actorId = scaleUser(1 + Math.floor(random() * 1000));
+      const actorNumber = 1 + Math.floor(random() * 1000);
+      const actorId = scaleUser(actorNumber === 900 ? 899 : actorNumber);
       const parentNumber = 1 + Math.floor(random() * phase.topPosts);
       yield action(
         clock,
@@ -710,6 +776,10 @@ function perUserCount(state, selector) {
 function namedO5Fixtures(state) {
   if (!state.users.has("u0500")) return null;
   const group = requireEntity(state.conversations, "g0001", "busy group");
+  const celebrityFollowerFollowing = [...state.follows]
+    .filter((edge) => edge.startsWith(`${CELEBRITY_FOLLOWER_USER_ID}>`))
+    .map((edge) => edge.slice(edge.indexOf(">") + 1))
+    .sort();
   return {
     u0500: {
       followingCount: countWhere(state.follows, (edge) => edge.startsWith("u0500>")),
@@ -717,6 +787,17 @@ function namedO5Fixtures(state) {
     },
     u0005: {
       followingCount: countWhere(state.follows, (edge) => edge.startsWith("u0005>"))
+    },
+    [CELEBRITY_USER_ID]: {
+      followerCount: countWhere(state.follows, (edge) => edge.endsWith(`>${CELEBRITY_USER_ID}`)),
+      postCount: countWhere(
+        state.posts.values(),
+        (post) => post.authorId === CELEBRITY_USER_ID && post.parentPostId === null
+      )
+    },
+    [CELEBRITY_FOLLOWER_USER_ID]: {
+      followingCount: celebrityFollowerFollowing.length,
+      following: celebrityFollowerFollowing
     },
     g0001: {
       memberCount: group.members.size,
@@ -822,8 +903,8 @@ function spotEntities(state, includeScale) {
   const messages = ["sm0001", "sm0002", "sm0007", "sm0008"];
   const conversations = ["d-alice-bob", "g-starter"];
   if (includeScale) {
-    profiles.push("u0005", "u0500");
-    posts.push("p000001", "p048000", "pr000001");
+    profiles.push("u0005", "u0500", CELEBRITY_USER_ID, CELEBRITY_FOLLOWER_USER_ID);
+    posts.push("p000001", "p048000", "pr000001", "cp000001", "cp000200");
     messages.push("mg0001-00001", "mg0001-10000", "md0001-001", "md0900-100");
     conversations.push("g0001", "g0100", "d0001", "d0900");
   }
@@ -867,6 +948,25 @@ function assertFullNamedFixtures(summary) {
   if (named.u0500.followingCount !== 500) failures.push(`u0500 follows ${named.u0500.followingCount}`);
   if (named.u0500.conversationMembershipCount !== 100) failures.push(`u0500 conversations ${named.u0500.conversationMembershipCount}`);
   if (named.u0005.followingCount !== 5) failures.push(`u0005 follows ${named.u0005.followingCount}`);
+  if (named[CELEBRITY_USER_ID].followerCount !== CELEBRITY_FOLLOWER_COUNT) {
+    failures.push(`${CELEBRITY_USER_ID} followers ${named[CELEBRITY_USER_ID].followerCount}`);
+  }
+  if (named[CELEBRITY_USER_ID].postCount !== CELEBRITY_POST_COUNT) {
+    failures.push(`${CELEBRITY_USER_ID} posts ${named[CELEBRITY_USER_ID].postCount}`);
+  }
+  if (named[CELEBRITY_FOLLOWER_USER_ID].followingCount !== CELEBRITY_FOLLOWER_FOLLOWING.length) {
+    failures.push(
+      `${CELEBRITY_FOLLOWER_USER_ID} follows ${named[CELEBRITY_FOLLOWER_USER_ID].followingCount}`
+    );
+  }
+  if (
+    JSON.stringify(named[CELEBRITY_FOLLOWER_USER_ID].following) !==
+    JSON.stringify(CELEBRITY_FOLLOWER_FOLLOWING)
+  ) {
+    failures.push(
+      `${CELEBRITY_FOLLOWER_USER_ID} following list ${named[CELEBRITY_FOLLOWER_USER_ID].following.join(",")}`
+    );
+  }
   if (named.g0001.memberCount !== 50) failures.push(`g0001 members ${named.g0001.memberCount}`);
   if (named.g0001.messageCount !== 10000) failures.push(`g0001 messages ${named.g0001.messageCount}`);
   if (failures.length > 0) throw new Error(`named fixture drift: ${failures.join(", ")}`);
@@ -926,7 +1026,7 @@ function generateManifests() {
     throw new Error(`scale line-count drift: ${scaleActionCount} actions, ${scaleLineCount} lines`);
   }
   if (finalSummary.perEntityCounts.users !== 1008) throw new Error("combined user count drift");
-  if (finalSummary.perEntityCounts.posts !== 50028) throw new Error("combined post count drift");
+  if (finalSummary.perEntityCounts.posts !== 50228) throw new Error("combined post count drift");
   if (finalSummary.perEntityCounts.messages !== 100015) throw new Error("combined message count drift");
 
   const combinedManifest = {
@@ -957,7 +1057,13 @@ function generateManifests() {
     checkpoints
   };
 
-  writeFileSync(join(ROOT, "invariant-manifest-starter.json"), `${JSON.stringify(starterManifest, null, 2)}\n`);
+  const starterManifestPath = join(ROOT, "invariant-manifest-starter.json");
+  const committedStarterManifest = JSON.parse(readFileSync(starterManifestPath, "utf8"));
+  for (const field of ["stateBase", "artifacts", "expectedState", "namedSpotEntities"]) {
+    if (JSON.stringify(committedStarterManifest[field]) !== JSON.stringify(starterManifest[field])) {
+      throw new Error(`starter manifest ${field} drifted; M8 must not alter starter output`);
+    }
+  }
   writeFileSync(join(ROOT, "invariant-manifest-combined.json"), `${JSON.stringify(combinedManifest, null, 2)}\n`);
   writeFileSync(join(ROOT, "scale-log.sha256"), `${scaleDigest}  scale.log\n`);
 }

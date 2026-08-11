@@ -59,7 +59,7 @@ Scheme `sm-<area>-<element>`:
 `sm-compose-input`, `sm-compose-submit`,
 `sm-profile-follow`, `sm-profile-edit`, `sm-profile-save`, `sm-profile`,
 `sm-profile-field-displayname`, `sm-profile-field-bio`,
-`sm-chats-item`, `sm-convo-input`, `sm-convo-send`,
+`sm-chats-item`, `sm-chats-unread`, `sm-convo-input`, `sm-convo-send`,
 `sm-convo-bubble`, `sm-convo-typing`, `sm-convo-receipt`,
 `sm-convo-reaction`, `sm-convo-reaction-chip`, `sm-convo-react`,
 `sm-convo-quote`, `sm-convo-file`, `sm-convo-attach`, `sm-convo-media`,
@@ -71,6 +71,29 @@ Scheme `sm-<area>-<element>`:
 `sm-chatsettings-disappearing`, `sm-search-input`, `sm-search-result`,
 `sm-search-offline`,
 `sm-poll-option`, `sm-poll-tally`.
+
+### M8 UI-kit additions
+
+`sm-feed-tab-trending`,
+`sm-insights-summary`, `sm-insights-total-posts`,
+`sm-insights-total-likes-received`,
+`sm-insights-total-reposts-received`,
+`sm-insights-total-replies-received`,
+`sm-insights-total-followers`, `sm-insights-total-following`,
+`sm-insights-bar-list`, `sm-insights-day-row`,
+`sm-insights-day-posts-bar`, `sm-insights-day-likes-bar`,
+`sm-trending-row`, `sm-trending-rank`, `sm-trending-empty`.
+
+`sm-chats-unread` (the chat-list unread indicator, present in
+`ChatListRow` since P1) is registered above because M8's cross-device
+read-state choreography observes it; it was previously an
+unregistered internal ID.
+
+The six `sm-insights-total-*` IDs identify the lifetime stat tiles.
+`sm-insights-day-row` and its two bar IDs repeat once per trailing UTC day.
+Each `sm-trending-row` composes the existing `sm-feed-item` and post-action
+IDs; ranks use `sm-trending-rank`. An empty 24-hour window renders
+`sm-trending-empty` instead of rows.
 
 The P2 choreography hardening also freezes these accessible-state semantics:
 
@@ -95,7 +118,9 @@ The P2 choreography hardening also freezes these accessible-state semantics:
 
 ## Versioning
 
-The choreography and UI-kit subdirectories are `0.2.0-p2` after pilot
-hardening; other P1 artifacts remain at their existing pre-freeze versions.
+The choreography subdirectory and the UI kit are both `0.3.0-m8`
+after the additive M8 surfaces (the choreography's P2 hardening
+history is retained in its README). Other P1 artifacts remain at
+their existing pre-freeze versions.
 The P3 freeze bumps the complete instrument to `1.0.0` and pins hashes in the
 brief.

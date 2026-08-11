@@ -1,6 +1,6 @@
 # Social-messenger fixture pack
 
-Version: `0.1.0-p1`
+Version: `0.2.0-m8`
 
 Provenance: LLP 0201 D7 P1 — the canonical `social-messenger` benchmark's
 fixture-pack prerequisite.
@@ -30,6 +30,10 @@ mutation paths; the logs are not database imports.
   sub-manifests.
 - `scale-log.sha256` pins the derived scale log. The scale log itself is not
   committed; its line and action counts are pinned in the combined manifest.
+- `config/digest.production.json` schedules one digest period per day, anchored
+  at 08:00 UTC. `config/digest.shortened.json` schedules one period every 2
+  minutes for grading. Both configs require at most one digest per user per
+  period and server-authoritative schedule evaluation.
 - `config/windows.production.json` carries 15-minute edit, 60-minute
   delete-for-everyone, and off/24-hour/7-day disappearance values.
   `config/windows.shortened.json` freezes grading values at 1 minute, 2
@@ -38,6 +42,19 @@ mutation paths; the logs are not database imports.
 - `media/` contains six labeled 640×480 PNGs, two labeled 256×256 avatars, one
   five-second 320×240 H.264/AAC MP4, the deterministic generator, and an
   adjacent content-hash manifest.
+
+## Named scale fixtures
+
+- `u0500` follows exactly 500 accounts and belongs to exactly 100
+  conversations; `u0005` is the existing 5-follow comparison account.
+- `u0900` is the celebrity: exactly 900 scale users follow it, and it authors
+  exactly 200 top-level posts spread evenly through the scale log.
+- `u0901` is the celebrity-follower read-path probe. It follows exactly
+  `u0001`, `u0002`, `u0003`, `u0004`, and celebrity `u0900`.
+- `g0001` remains the 50-member busy group with exactly 10,000 messages.
+
+The combined manifest records these fixtures at the 10%, 50%, and final
+states; celebrity post counts at those states are 20, 100, and 200.
 
 ## Regeneration
 
@@ -50,6 +67,11 @@ node media/media-gen.mjs
 node generate.mjs manifests
 ```
 
+The manifest command recomputes the starter state and refuses any drift from
+the committed starter manifest before writing the combined manifest. Additive
+fixture milestones therefore retain the starter manifest's original bytes and
+provenance.
+
 Generate the intentionally uncommitted scale artifact with:
 
 ```sh
@@ -58,7 +80,7 @@ shasum -a 256 -c scale-log.sha256
 ```
 
 Delete the derived `scale.log` after use. It is deliberately omitted from the
-repository because it is about 166,000 human-readable lines and is fully
+repository because it is about 167,000 human-readable lines and is fully
 reconstructible from the committed generator.
 
 Validate the committed action logs with:
@@ -88,7 +110,7 @@ contains no captured user data.
 
 The two invariant manifests record generator version/source hash and content
 hashes for their adjacent generated logs. The combined manifest pins the scale
-log's SHA-256, 166,053-action count, 166,055-line count, and checkpoint prefix
+log's SHA-256, 167,157-action count, 167,159-line count, and checkpoint prefix
 hashes. Regenerating twice on the same toolchain must produce the same bytes;
 the checked scale SHA-256 is the cross-run authority.
 

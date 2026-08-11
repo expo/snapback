@@ -1,12 +1,14 @@
-# M6 iOS-simulator choreography segment
+# M6 and M8 iOS-simulator choreography artifacts
 
 This is the frozen specification for the separate native M6 proof. The P2
 hardening re-scopes milestone green to the implemented web queue/flush segment
 and records this artifact separately: a lane may pass its M6 authoring green
 without claiming native cold-offline behavior, while O4/native scoring remains
-null or failed until this artifact exists. `choreography.mjs` accepts the
-artifact status through `--simulator-status` and retains it under
-`choreography.supplementalExternal` with `requiredForGreen:false`.
+null or failed until this artifact exists. M8 follows the same separation for
+its durable offline queue across app termination. `choreography.mjs` accepts
+either artifact status through `--simulator-status` and retains it in the
+matching segment's `choreography.supplementalExternal` with
+`requiredForGreen:false`.
 
 The re-scope is deliberate. P1 specified `simctl` process mechanics but did not
 freeze an app-side event/receipt protocol that a generic driver could use to
@@ -120,3 +122,74 @@ the outer run records a status file such as:
 The native artifact is then scored and published separately. Missing evidence
 uses `pass:null` and an explanatory reason; it is never inferred from web
 behavior or silently reported as a native pass.
+
+## M8 durable-queue proof
+
+M8 assertions `m8-a17` and `m8-a18` are native artifacts, not web choreography
+obligations. A lane-native driver starts from an online-synced Alice session and
+the named Alice/Bob fixture conversation, then records this uninterrupted
+sequence:
+
+1. With the app warm, take the simulator offline and compose two uniquely named
+   messages. Both render immediately, in compose order, with visible `pending`
+   receipts.
+2. Terminate the app process while the simulator remains offline. Verify the
+   process is absent, then relaunch the same installed build without restoring
+   connectivity.
+3. Open the same conversation and observe both exact queued bodies still
+   present once each, still pending, and still in compose order. This is the
+   `m8-a17` observation; a screenshot taken before process termination cannot
+   satisfy it.
+4. Restore connectivity without reinstalling or resetting app storage. Observe
+   both writes flush exactly once and in order. Bob opens the conversation; the
+   sender receipts advance through the lane's normal states and finish at
+   `read`. This is the `m8-a18` observation.
+5. Stop recording only after the final receipt state is visible, export the
+   structured receipts and run manifest, and validate them before reporting the
+   simulator status.
+
+A qualifying M8 run directory contains:
+
+- `m8-ios-screen.mp4` — uninterrupted recording from warm-offline composition
+  through termination, offline relaunch, reconnect, ordered flush, and final
+  receipts.
+- `m8-ios-receipts.jsonl` — schema-valid `m8-a17` and `m8-a18` receipts with
+  exact message bodies, pre/post-relaunch pending observations, occurrence
+  counts, ordering, and final receipt states.
+- `m8-ios-run.json` — the same build/simulator/backend/fixture/timestamp and
+  SHA-256 bindings required by M6, plus termination and relaunch timestamps.
+
+The M8 status entry is:
+
+```json
+{
+  "id": "ios-simulator-m8",
+  "pass": true,
+  "receipt": "artifacts/m8-ios-run.json",
+  "reason": null
+}
+```
+
+One `--simulator-status` file may bundle both native statuses under `m6` and
+`m8`; the original single-object M6 form remains accepted:
+
+```json
+{
+  "m6": {
+    "id": "ios-simulator-m6",
+    "pass": true,
+    "receipt": "artifacts/m6-ios-run.json",
+    "reason": null
+  },
+  "m8": {
+    "id": "ios-simulator-m8",
+    "pass": null,
+    "receipt": null,
+    "reason": "native durable-queue proof not run"
+  }
+}
+```
+
+As with M6, recordings without bound passing receipts and a run manifest do not
+pass. Missing M8 evidence remains visible as `not-recorded` and never gates or
+inherits a pass from the M8 web segment.

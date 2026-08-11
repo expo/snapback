@@ -8,6 +8,9 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 const schema = JSON.parse(readFileSync(resolve(ROOT, "action-schema.json"), "utf8"));
 const verbSpecs = new Map(schema.verbs.map((verb) => [verb.name, verb]));
 const checkpointMarkers = new Set(schema.lexicalGrammar.checkpointMarkers);
+const CELEBRITY_USER_ID = "u0900";
+const CELEBRITY_FOLLOWER_USER_ID = "u0901";
+const CELEBRITY_FOLLOWER_FOLLOWING = ["u0001", "u0002", "u0003", "u0004", CELEBRITY_USER_ID];
 
 function tokenize(line) {
   const tokens = [];
@@ -179,12 +182,103 @@ function validateActionLine(line) {
   for (const variant of spec.variants) {
     try {
       validateVariant(argumentTokens, variant);
-      return { timestamp: timestamp.value, verb: verb.value };
+      return {
+        timestamp: timestamp.value,
+        actorId: actor.value,
+        verb: verb.value,
+        args: argumentTokens.map((token) => token.value)
+      };
     } catch (error) {
       errors.push(error.message);
     }
   }
   throw new Error(`${verb.value} does not match any variant: ${errors.join("; ")}`);
+}
+
+function makeFixtureTracker() {
+  return {
+    scaleUsers: new Set(),
+    follows: new Set(),
+    topLevelPostsByAuthor: new Map(),
+    conversations: new Map(),
+    messagesByConversation: new Map()
+  };
+}
+
+function trackFixtureAction(tracker, action) {
+  const { actorId, verb, args } = action;
+  if (verb === "register" && /^u\d{4}$/.test(actorId)) {
+    tracker.scaleUsers.add(actorId);
+  } else if (verb === "follow") {
+    const edge = `${actorId}>${args[0]}`;
+    if (args[1] === "set") tracker.follows.add(edge);
+    else tracker.follows.delete(edge);
+  } else if (verb === "post") {
+    tracker.topLevelPostsByAuthor.set(
+      actorId,
+      (tracker.topLevelPostsByAuthor.get(actorId) ?? 0) + 1
+    );
+  } else if (verb === "dm-create") {
+    tracker.conversations.set(args[0], new Set([actorId, args[1]]));
+  } else if (verb === "group-create") {
+    tracker.conversations.set(args[0], new Set([actorId, args[1]]));
+  } else if (verb === "member-add") {
+    tracker.conversations.get(args[0])?.add(args[1]);
+  } else if (verb === "send" || verb === "send-media") {
+    tracker.messagesByConversation.set(
+      args[1],
+      (tracker.messagesByConversation.get(args[1]) ?? 0) + 1
+    );
+  }
+}
+
+function followingTargets(tracker, actorId) {
+  return [...tracker.follows]
+    .filter((edge) => edge.startsWith(`${actorId}>`))
+    .map((edge) => edge.slice(edge.indexOf(">") + 1))
+    .sort();
+}
+
+function validateNamedFixtures(tracker, markerCount) {
+  if (markerCount === 0) return null;
+  const failures = [];
+  const u0500Following = followingTargets(tracker, "u0500");
+  const u0005Following = followingTargets(tracker, "u0005");
+  const celebrityFollowing = [...tracker.follows].filter((edge) =>
+    edge.endsWith(`>${CELEBRITY_USER_ID}`)
+  );
+  const celebrityPostCount = tracker.topLevelPostsByAuthor.get(CELEBRITY_USER_ID) ?? 0;
+  const celebrityFollowerFollowing = followingTargets(tracker, CELEBRITY_FOLLOWER_USER_ID);
+  const u0500Conversations = [...tracker.conversations.values()].filter((members) =>
+    members.has("u0500")
+  );
+  const busyMembers = tracker.conversations.get("g0001");
+  const busyMessages = tracker.messagesByConversation.get("g0001") ?? 0;
+
+  if (tracker.scaleUsers.size !== 1000) {
+    failures.push(`scale users ${tracker.scaleUsers.size}`);
+  }
+  if (u0500Following.length !== 500) failures.push(`u0500 follows ${u0500Following.length}`);
+  if (u0500Conversations.length !== 100) {
+    failures.push(`u0500 conversations ${u0500Conversations.length}`);
+  }
+  if (u0005Following.length !== 5) failures.push(`u0005 follows ${u0005Following.length}`);
+  if (celebrityFollowing.length !== 900) {
+    failures.push(`${CELEBRITY_USER_ID} followers ${celebrityFollowing.length}`);
+  }
+  if (celebrityPostCount !== 200) {
+    failures.push(`${CELEBRITY_USER_ID} posts ${celebrityPostCount}`);
+  }
+  if (JSON.stringify(celebrityFollowerFollowing) !== JSON.stringify(CELEBRITY_FOLLOWER_FOLLOWING)) {
+    failures.push(
+      `${CELEBRITY_FOLLOWER_USER_ID} follows ${celebrityFollowerFollowing.join(",")}`
+    );
+  }
+  if (busyMembers?.size !== 50) failures.push(`g0001 members ${busyMembers?.size ?? 0}`);
+  if (busyMessages !== 10000) failures.push(`g0001 messages ${busyMessages}`);
+
+  if (failures.length > 0) throw new Error(`named fixture drift: ${failures.join(", ")}`);
+  return `u0500/u0005/${CELEBRITY_USER_ID}/${CELEBRITY_FOLLOWER_USER_ID}/g0001`;
 }
 
 function validateFile(filename) {
@@ -195,6 +289,7 @@ function validateFile(filename) {
   let markerCount = 0;
   let previousTimestamp = null;
   const verbs = new Set();
+  const fixtureTracker = makeFixtureTracker();
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
@@ -212,12 +307,19 @@ function validateFile(filename) {
       previousTimestamp = action.timestamp;
       actionCount += 1;
       verbs.add(action.verb);
+      trackFixtureAction(fixtureTracker, action);
     } catch (error) {
       throw new Error(`${filename}:${index + 1}: ${error.message}`);
     }
   }
 
-  return { filename, actionCount, markerCount, verbs: [...verbs].sort() };
+  return {
+    filename,
+    actionCount,
+    markerCount,
+    verbs: [...verbs].sort(),
+    namedFixtures: validateNamedFixtures(fixtureTracker, markerCount)
+  };
 }
 
 const filenames = process.argv.slice(2);
@@ -234,6 +336,9 @@ try {
     process.stdout.write(
       `valid ${input}: ${result.actionCount} actions, ${result.markerCount} markers, ${result.verbs.length} verbs\n`
     );
+    if (result.namedFixtures) {
+      process.stdout.write(`valid ${input}: named fixtures ${result.namedFixtures}\n`);
+    }
   }
   process.stdout.write(`validated ${filenames.length} logs and ${totalActions} actions against ${schema.schemaVersion}\n`);
 } catch (error) {

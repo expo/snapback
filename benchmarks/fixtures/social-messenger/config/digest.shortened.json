@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "profile": "shortened-grading",
+  "periodSeconds": 120,
+  "periodAnchorUtc": "00:00:00",
+  "oneDigestPerUserPerPeriod": true,
+  "serverTimeAuthoritative": true
+}

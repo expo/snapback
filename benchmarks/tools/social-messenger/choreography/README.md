@@ -1,9 +1,10 @@
 # Social-messenger choreography harness
 
 This directory contains the P2-hardened Playwright harness for Clique's
-milestone choreography. It launches isolated Alice and Bob browser contexts
-(plus Carol for M5), signs the personas in through the contract's `sm-auth-*` IDs, runs selected
-`m1()` through `m6()` segments, and writes structured JSONL receipts.
+milestone choreography, extended for M8. It launches isolated Alice and Bob
+browser contexts, adds Carol for M5 and a second same-account Alice context for
+M8, signs them in through the contract's `sm-auth-*` IDs, runs selected `m1()`
+through `m6()` and `m8()` segments, and writes structured JSONL receipts.
 
 The harness consumes only test IDs frozen in `../CONTRACT.md`. A runtime guard
 rejects any other ID. It never turns missing automation surface into a pass.
@@ -25,15 +26,18 @@ volta run --node 24.18.0 node choreography.mjs m3 \
   --suite-status /absolute/path/suite-status.json
 ```
 
-`npm test` starts a tiny two-persona calibration app, executes M1 through the
-real two-context harness, validates every emitted receipt against
-`receipts.schema.json`, and requires an honest segment green. It also exercises
-the pure aggregation edge cases: optional skip, required skip, and implemented
-failure.
+`npm test` starts a tiny calibration app, executes M1 and M8 through the real
+multi-context harness, validates every emitted receipt against
+`receipts.schema.json`, and requires honest segment greens. The app implements
+the M8 likes, multi-device unread, live-message, and warm-offline queue surfaces
+instead of short-circuiting browser observations. A second M8 run deliberately
+serves stale Insights and must exit non-green. The test also exercises the pure
+aggregation edge cases: optional skip, required skip, and implemented failure.
 
 The positional segment argument is optional and defaults to `all`. It accepts
-`all`, one milestone (`m1` ... `m6`), or a comma-separated ordered subset such
-as `m1,m3,m6`.
+`all`, one milestone (`m1` ... `m6` or `m8`), or a comma-separated ordered
+subset such as `m1,m3,m8`. `all` runs M1–M6 followed by M8; M7 remains the
+brief's separate fresh-session milestone and has no web choreography segment.
 
 Every implemented CLI flag is:
 
@@ -48,11 +52,14 @@ Every implemented CLI flag is:
 - `--adapter <path>` — optional lane navigation/fixture adapter. It carries
   route paths and fixture choices only; it cannot report outcomes or bypass
   browser observations. The built-in adapter uses `/profile/{handle}`,
-  `/profile/edit`, `/settings`, and `/search` plus the committed fixture pack.
-- `--simulator-status <path>` — optional separately recorded M6 simulator
-  status: `{ "id":"ios-simulator-m6", "pass":true|false|null,
-  "receipt":string|null, "reason":string|null }`. It is retained in the M6
-  summary but does not gate web green; see `simulator.md`.
+  `/profile/edit`, `/settings`, `/search`, and `/insights` plus the committed
+  fixture pack. `routes.insights` may override the M8 Insights route.
+- `--simulator-status <path>` — optional separately recorded M6/M8 simulator
+  statuses. A single legacy status object is accepted, as is a bundle keyed by
+  `m6` and/or `m8`; entries use `{ "id":"ios-simulator-m6"|
+  "ios-simulator-m8", "pass":true|false|null, "receipt":string|null,
+  "reason":string|null }`. Each entry is retained only in its matching summary
+  and never gates web green; see `simulator.md`.
 - `--timeout <ms>` — positive integer timeout for ordinary UI observations;
   default `10000`. The M3 2-second appearance and 5-second expiry ceilings are
   fixed by the brief and are not relaxed by this flag.
@@ -67,7 +74,8 @@ configuration or fatal harness failure.
 ## Environment variables
 
 - `CHOREO_BASE_URL` — required lane web URL.
-- `CHOREO_PASSWORD` — shared fixture password fallback for Alice, Bob, and Carol.
+- `CHOREO_PASSWORD` — shared fixture password fallback for Alice, Bob, and Carol;
+  Alice's M8 second context uses the same Alice credential.
 - `CHOREO_ALICE_PASSWORD`, `CHOREO_BOB_PASSWORD` — per-persona passwords;
   `CHOREO_CAROL_PASSWORD` is also required for M5 unless the shared fallback is
   set. Passwords have no CLI flags so
@@ -103,6 +111,11 @@ when the lane does not satisfy them:
   view behavior, warm-offline search, and shortened-window disappearing purge.
 - M6 web: two offline messages expose pending state, reconnect, arrive exactly
   in order, and reach read receipts.
+- M8 web: Bob's like increments Alice's refreshed Insights total; a second
+  Alice context receives a same-account message live; opening the conversation
+  on Alice client 1 clears `sm-chats-unread` on client 2; and two warm-offline
+  Alice clients each queue a message, reconnect in an observed server-arrival
+  order, converge without duplicates, and reach normal read receipts.
 
 Remaining unsupported assertions are emitted as `status:"skipped"`, with
 `pass:null`, a reason, and whether they are required. Required skips keep the
@@ -135,7 +148,7 @@ machine schema. Milestone green is fail-closed:
 green = suite.pass === true && choreography.pass === true
 ```
 
-M6 web green is intentionally distinct from the simulator artifact after the
-ticket's P2 ruling. `simulator.md` remains the native proof contract; its status
-is recorded under `choreography.supplementalExternal` and scored as native/O4
-evidence rather than silently making every web milestone unreachable.
+M6 and M8 web green are intentionally distinct from their simulator artifacts.
+`simulator.md` remains the native proof contract; each matching status is
+recorded under `choreography.supplementalExternal` and scored as native/O4
+evidence rather than silently making web milestones unreachable.

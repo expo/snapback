@@ -5,7 +5,10 @@
 **Systems:** Competitive evaluation, Benchmarks, Publishing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-10 (k — P2 F2 choreography hardening: M6 native
+**Revised:** 2026-08-11 (l — additive milestone M8: insights/aggregation,
+scheduled digest, celebrity fan-out envelope extension, multi-device and
+durable-offline obligations; author direction, recorded in the dated
+amendments); 2026-08-10 (k — P2 F2 choreography hardening: M6 native
 evidence is separately recorded from web authoring green, while required web
 checks remain fail-closed); 2026-08-09 (j — author clarification for future benchmark
 runs: the Following feed always includes the viewer's own posts and reposts
@@ -36,7 +39,7 @@ third-party API surface. This Plan defines the **canonical full-app
 benchmark**: one super-specified social-messenger application
 — named Clique: WhatsApp-shaped group messaging plus a follow-graph
 social feed — built as
-an Expo app on each competing backend, structured as **seven ordered
+an Expo app on each competing backend, structured as **eight ordered
 milestones with per-milestone acceptance, budgets, and metrics**, so
 variance localizes, partial credit exists, and per-capability
 comparison falls out of the record.
@@ -70,7 +73,9 @@ API surface. Screens, fields, behavior windows, group semantics, the
 receipt state machine, media constraints, and conflict policy
 (last-write-wins) are all pinned in the brief.
 
-Milestones (reduced run = M1–M3; full run = M1–M7):
+Milestones (reduced run = M1–M3; full run = M1–M8; numbering is
+identity, not execution order — the continuous session runs M1–M6
+then M8, with M7 fresh-session after grading):
 
 - **M1 — Accounts and profiles.** Real email+password auth (no email
   sending; verification out of scope), sessions surviving restart,
@@ -129,6 +134,29 @@ Milestones (reduced run = M1–M3; full run = M1–M7):
   clock, writes its own diary entry and essay under the same
   sequencing rules, and its session scores rubric dimension B8
   (recorded null by the M1–M6 builder).
+- **M8 — Insights, digest, and multi-device offline** (2026-08-11
+  amendment; authored in the continuous session immediately after
+  M6, requires M6; M7 unchanged). Three coverage holes the first
+  seven milestones left open, deliberately closed as one additive
+  milestone so prior records stay comparable (they record M8
+  `not-run`): **aggregation read-models** (an Insights screen with
+  six lifetime totals and a 7-day activity breakdown, plus a
+  24-hour Trending feed tab — the app's first group-by/ranking
+  surfaces, with degradation rules at the envelope so client-side
+  corpus paging fails structurally); **genuinely scheduled work**
+  (a per-user daily digest emitted through the M6 push seam on a
+  config-driven schedule with no client connected — the first
+  obligation lazy read-triggered enforcement cannot satisfy, so
+  the cron row can no longer go unexercised); **fan-out under
+  load** (the scale envelope gains a celebrity followed by 900 of
+  the 1,000 users with write-path and read-path degradation rules,
+  so the M2 fan-out decision's cost becomes measurable); and
+  **offline depth** (same-account multi-device convergence
+  including cross-device read state, dual-offline compose
+  converging under the unchanged last-write-wins ruling, and
+  queued writes surviving app restart as a separately recorded
+  native artifact). The brief pins the full spec and 8-item
+  checklist.
 
 M7 prices the edit-loop story LLP 0198 flags as plausibly Convex's
 second advantage — but as an **integrated, artifact-coupled
@@ -145,16 +173,21 @@ double-spend.
 Coverage rationale: against `guide/capabilities.md`, the app exercises
 schema/functions/codegen, live queries, ephemeral state, assets,
 expiry enforcement (disappearing messages — schedulable or lazily
-enforced, a backend-shaped choice, so the cron row may go unexercised
-by some lanes; view-once is deny-after-first-view access revocation),
+enforced, a backend-shaped choice; view-once is
+deny-after-first-view access revocation),
 text search, offline reads *and writes*, real sessions and
 scoped auth, actions and the notification seam, migrations and record
 history, the client protocol/headless arm, and acceptance testing.
+The 2026-08-11 M8 amendment adds the previously-uncovered rows:
+aggregation/reporting read-models, scheduled server-side execution
+(the digest closes the loophole by which the cron row could go
+entirely unexercised), high fan-out, and durable-offline/multi-device
+behavior.
 Deliberately out of scope: vector search, the Swift client, Cloudflare
 deploy (lanes run local, like the series), and `operating.*` features
 (priced by the operations rubric dimension, not app features).
 
-Session shape: one continuous session through M1–M6 (context
+Session shape: one continuous session through M1–M6 and M8 (context
 accumulation is part of the product experience), per-milestone
 timestamps and token phases stamped by the harness; M7 runs fresh by
 design. A 1–3M-token session will compact; the harness's compaction
@@ -197,14 +230,15 @@ invocations, and correction loops under the protocol's attribution rule
   authoring wall recharges that milestone to its cap; O1 scores its
   checklist not-passed). The green receipt is a neutral harness
   artifact, not a builder assertion. The lane's authoring wall ends
-  at M6 green or final cap; a `capability-failure` milestone
+  at M8 green or final cap (M8 closes the continuous session per the
+  2026-08-11 amendment); a `capability-failure` milestone
   contributes its full wall cap **and its actual tokens, flagged
   capped-wall**; when tokens were the exhausted axis it charges the
   token cap plus actual wall, flagged capped-tokens; an `aborted`
   milestone charges exactly like a capability failure (full wall
   cap plus actual tokens, flagged `aborted`) — the abort never
   improves the capped axis.
-  When M6 never runs, the lane's authoring wall ends at the last
+  When M8 never runs, the lane's authoring wall ends at the last
   runnable milestone's terminal status. Grader
   execution, scale replay and probes, and the M7 session each run on
   **separately recorded clocks** never included in the authoring
@@ -492,7 +526,10 @@ Provided, but **purely presentational**: MessageBubble, ChatListRow,
 Composer, FeedCard, Avatar, ProfileForm, ReactionPicker, poll
 compose/display (M7's polls are in the frozen brief, so the frozen
 kit covers them — M7 sessions should not pixel-push), and the
-like — dumb props in (plain arrays and values), callbacks out, zero
+like — plus, from the 2026-08-11 M8 amendment, the insights stat
+tiles, the naive 7-day bar list, and the trending row (M8 is in the
+brief, so the frozen kit covers it and M8 sessions do not
+pixel-push) — dumb props in (plain arrays and values), callbacks out, zero
 data dependencies, built against bare React Native primitives, plus
 fixed design tokens and a screen list with wireframe descriptions in
 the brief. Lanes do all data wiring. Rationale: a full app shell with
@@ -734,3 +771,45 @@ evidence. Lane-native drivers still follow the frozen artifact contract;
 missing evidence cannot support native/O4 claims. Required web choreography
 continues to fail closed: every implemented check must pass and no required
 check may remain unimplemented.
+
+**2026-08-11 — M8 additive milestone (author direction).** The
+instrument gains **M8 — Insights, digest, and multi-device offline**,
+pinned in the brief: aggregation read-models (Insights totals, 7-day
+buckets, 24 h Trending), a config-scheduled per-user digest through
+the push seam (no connected client — the first obligation that
+forces real scheduled execution), a celebrity fan-out extension to
+the scale envelope (900 followers, write- and read-path degradation
+rules, new named O5 fixtures), and multi-device/durable-offline
+obligations (cross-device read state, dual-offline convergence under
+unchanged LWW, queued writes surviving restart as a native
+artifact). Design constraints honored: **additive only** — M1–M7
+text is untouched except where the milestone set is enumerated, so
+prior records (including the P2 pilot) stay comparable, recording M8
+`not-run` with its dimensions null; conflict policy stays pinned
+LWW (M8 deepens offline without opening merge semantics); every M8
+feature is expressible by each tier-1 backend. Consequences:
+
+- **Caps (P2b):** M8 postdates the pilot, so its wall/token caps
+  calibrate from a **P2b M8 pilot extension** — one M8 session per
+  tier-1 pilot artifact, primary family, continuing the pilot lane
+  under its aid condition and the P2 safety limits — before P3
+  freezes M8 caps; the safety limits stand in until then. The GPT
+  mini-pilot is unaffected (its scope is M1–M3).
+- **Scale replay:** regenerating the scale log for the celebrity is
+  a **material change** under P2's rule — the pilot replay reruns
+  against the regenerated log before O5 ceilings freeze at P3. The
+  registration carve-out (F1) is unaffected.
+- **Scoring:** no new rubric dimensions. Observing-milestone sets
+  extend on full runs only (B1, B3, B4, B7 read M8; O1/O2 include
+  it as in-scope; O4 reads its native evidence; O5 reads the
+  extended rules); reduced-run nulls are unchanged, so reduced runs
+  still publish per-dimension scores exactly as before. A complete
+  lane now includes M8 attempted.
+- **Deliverables** (this amendment's landing): brief M8 section and
+  envelope/applicability updates; assertion + applicability +
+  run-record manifest updates; kit insights/trending components
+  with wireframes, contract test IDs, and neutrality notes; fixture
+  digest configs and the celebrity generator extension with
+  regenerated invariant manifests; the M8 web choreography segment.
+  Grader-side probe instances for the new categories join the next
+  probe rotation (they are wave artifacts, not brief artifacts).

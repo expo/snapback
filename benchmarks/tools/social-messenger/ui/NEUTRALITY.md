@@ -57,7 +57,7 @@ findings land.
 | **QuotedReply** | message linkage | `senderName` + pre-truncated `excerpt` + `onPress`. No message-id pointer prop, so no assumption about id shape or how "jump to original" is resolved. |
 | **PollCompose** | poll creation | Controlled question/options arrays; submit emits `(question, options)`. No poll-message schema implied. |
 | **PollDisplay** | live tallies, votes | Options are `{label, count, mine}` snapshots; `onVote(index)` reports the tap. Live tallies are re-renders; offline vote queuing is invisible to the kit. |
-| **FeedTabs** | feed read-models | Two static tabs + `onChange`. Nothing about how Following is computed (fan-out, query-time join, view) leaks into the UI. |
+| **FeedTabs** | feed read-models | Three static tabs + `onChange`. Nothing about how Following or Trending is computed (fan-out, query-time join, materialized view, aggregate query) leaks into the UI. |
 | **SearchBar** | search backend | Input + optional flat results with pre-computed `groupLabel` strings. Matching semantics (word-prefix, NFC), scoping, ordering, pagination, and the online/offline split are entirely the lane's; server search and local-store search feed the identical prop shape. |
 | **ChatSettingsForm** | permissions, sync | `canEdit` is a display flag only — the brief requires server-side enforcement, and the kit's docs say so. Accent selection emits the picked `{name, value}`; syncing it to members is the lane's. The 8 accents are fixed token data, identical for every lane. |
 | **AuthForm** | auth flow | Email/password strings + `onSubmit(email, password)`. No session, token, or provider concept; built-in auth (Snapback/Supabase/Convex auth) and hand-rolled KDF flows drive it identically. |
@@ -89,3 +89,20 @@ reviewer hat per backend, checking that wiring each backend to these
 props requires no adapter layer the others don't) have not run yet.
 Findings, prop-shape changes they force, and the reviewer verdicts
 must be appended here before the kit version freezes at P3.
+
+## M8 component neutrality addition
+
+`InsightsSummary` takes only `{label, value}` totals,
+`InsightsBarList` takes only `{dayLabel, posts, likesReceived}` day
+snapshots, and `TrendingRow` composes an unchanged `FeedCardProps`
+snapshot with a numeric rank. The kit cannot tell whether totals and
+buckets are maintained counters/read models or computed aggregates,
+nor how the top-10 list was produced.
+
+- **Snapback:** a live query, ordinary query, or server-computed read
+  model maps directly to the plain values; no Snapback handle enters
+  the components.
+- **Convex:** reactive query results map to the same values; the kit
+  requires no hook or subscription-shaped prop.
+- **Supabase:** a fetch, view, or RPC result maps to the same values;
+  the kit requires no promise, response, or pagination-shaped prop.
