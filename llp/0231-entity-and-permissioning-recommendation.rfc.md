@@ -89,6 +89,31 @@ illegitimate rows disappear. We want the second.
 hidden hands; pointing-room, where votes are concealed until the round reveals
 (diary 0074:10). Both were hand-built.
 
+### The card-game case is the pattern, not an outlier
+
+Counted across `demos/*/snapback/functions.mjs` at `5373238eb`:
+
+| | count |
+| --- | ---: |
+| Query definitions | ~90 |
+| Carrying a declared `membership:` | **9** |
+| Uses of `authUserId()` inside a `filter` | **31**, across 12 demos |
+
+So caller scoping happens roughly **3–4× more often through the undeclared path
+than the declared one**. Authors are not ignoring authorization; they are
+reaching for the mechanism that is natural to type, and that mechanism is the
+one the manifest cannot see as a security boundary.
+
+Two honest caveats: not every `authUserId()` is a security boundary — some
+legitimately scope "my items" over data that is public anyway — and one query
+may use it more than once, so these are uses rather than queries. Neither
+changes the direction. The declared, analyzable path exists and is the minority
+path.
+
+This is what makes D2 (mandatory declaration) the load-bearing clause rather
+than D1 (a new slot). The slot without the obligation would just be a third
+option that authors also skip.
+
 ## Recommendation: declared row scope
 
 ### D1 — visibility gets its own position
