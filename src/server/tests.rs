@@ -4643,22 +4643,59 @@ async fn effect_approval_refuses_generation_rotation() {
     for function in &mut successor.functions {
         function.api_exposure = Some(ApiFunctionExposure::default());
     }
-    successor
+    let queued_write = successor
         .functions
         .iter_mut()
         .find(|function| function.name == "queuedWrite")
-        .unwrap()
-        .api_exposure = Some(ApiFunctionExposure {
+        .unwrap();
+    queued_write.api_exposure = Some(ApiFunctionExposure {
         expose: true,
         since: None,
         approval: Some(ApiFunctionApproval::Required),
     });
+    let queued_write_id = queued_write.id.clone();
+    let queued_write_name = queued_write.name.clone();
+    assert_eq!(queued_write_id, "fn:queuedWrite");
+    let args_schema = json!({ "type": "object", "additionalProperties": true });
+    let operations = BTreeMap::from([(
+        queued_write_id.clone(),
+        crate::api_envelope::ApiEnvelopeOperationV1 {
+            name: queued_write_name,
+            args_schema: args_schema.clone(),
+        },
+    )]);
+    let app_bindings = "export {};".to_owned();
+    let api_envelope = crate::api_envelope::ApiEnvelopeMembersV1 {
+        operations,
+        declarations: crate::api_envelope::ApiEnvelopeDeclarationsV1 {
+            app_bindings: app_bindings.clone(),
+        },
+        member_digests: BTreeMap::from([
+            (
+                crate::api_envelope::operation_member_key(&queued_write_id),
+                crate::api_envelope::member_digest(
+                    &crate::api_envelope::canonicalize(&args_schema)
+                        .expect("successor args schema canonicalizes"),
+                ),
+            ),
+            (
+                crate::api_envelope::DECLARATION_MEMBER_KEY.to_owned(),
+                crate::api_envelope::member_digest(&app_bindings),
+            ),
+        ]),
+    };
     let activated = router
         .clone()
         .oneshot(auth_http_request(
             "POST",
-            "/_snapback/api/functions/load",
-            serde_json::to_vec(&successor).unwrap(),
+            "/app/ensure",
+            serde_json::to_vec(&json!({
+                "intent": "provision",
+                "requestedMode": "sessions",
+                "functions": successor,
+                "apiEnvelope": api_envelope,
+            }))
+            .unwrap(),
             true,
             Some("auth-http-admin"),
             None,
@@ -19584,6 +19621,11 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_API_OAUTH_REQUIRES_API",
     "SNAPBACK_API_PAGINATION_RECOMMENDED",
     "SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED",
+    // LLP 0204 #4 compatibility classifier: manifest/activation validation
+    // (breaking exposed-contract change) + its two advisory diagnostics.
+    "SNAPBACK_API_AUTH_REQUIREMENT_LOOSENED",
+    "SNAPBACK_API_COMPATIBILITY_BASELINE_UNAVAILABLE",
+    "SNAPBACK_API_INCOMPATIBLE_CHANGE",
     // LLP 0158/0163/0164/0165 experimental control-plane request shapes.
     "SNAPBACK_BRANCH_NESTING_UNSUPPORTED",
     "SNAPBACK_BRANCH_OPERATION_KIND_UNSUPPORTED",

@@ -32,6 +32,7 @@ pub mod admin_link;
 #[doc(hidden)]
 pub mod admin_secret_read;
 pub(crate) mod agent_safe_publication;
+mod api_compat;
 #[doc(hidden)]
 pub mod api_envelope;
 #[doc(hidden)]

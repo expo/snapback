@@ -105,6 +105,7 @@
   ],
   "modulesByOwner": {
     "shared-contract-types-leaf": [
+      "src/api_compat.rs",
       "src/api_envelope.rs",
       "src/app_data_result.rs",
       "src/args_contract.rs",

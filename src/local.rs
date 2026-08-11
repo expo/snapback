@@ -5689,6 +5689,70 @@ impl LocalSnapback {
             None => None,
         };
 
+        // @ref LLP 0204#d2--surface-1-the-third-party-api — compare only the
+        // currently served predecessor with the self-verified candidate and
+        // refuse a breaking exposed-contract change before the durable cut.
+        // @ref LLP 0225#1-ownership-map — storage supplies retained bytes;
+        // pure compatibility policy remains with the API-envelope contract.
+        let prior_digest = self
+            .db
+            .api_envelope_read()
+            .load_api_envelope_state()
+            .map_err(ModeCommitFailure::RolledBack)?
+            .and_then(|state| state.current)
+            .filter(|current| {
+                before.state.active == AuthMode::Sessions
+                    && before
+                        .state
+                        .active_deployment
+                        .as_ref()
+                        .is_some_and(|deployment| deployment.inputs_hash == current.inputs_hash)
+            })
+            .map(|current| current.digest);
+        let prior_envelope = match prior_digest {
+            Some(digest) => self
+                .db
+                .api_envelope_read()
+                .load_api_envelope_bytes(&digest)
+                .map_err(ModeCommitFailure::RolledBack)?
+                .and_then(|canonical| {
+                    crate::api_envelope::parse_and_validate(canonical.as_bytes())
+                        .ok()
+                        .and_then(|(envelope, actual)| (actual == digest).then_some(envelope))
+                }),
+            None => None,
+        };
+        let next_envelope = composed_envelope
+            .as_ref()
+            .map(|composed| crate::api_envelope::parse_and_validate(composed.canonical.as_bytes()))
+            .transpose()
+            .map_err(|refusal| {
+                ModeCommitFailure::RolledBack(
+                    SnapbackError::error(
+                        "SNAPBACK_APP_API_COMPOSITION_FAILED",
+                        "app-api",
+                        "the api envelope failed composition self-verification; activation refused",
+                    )
+                    .with_details(serde_json::json!({ "refusal": refusal.to_string() })),
+                )
+            })?
+            .map(|(envelope, _)| envelope);
+        let compatibility = crate::api_envelope::ApiEnvelopeV1::classify_compatibility(
+            prior_envelope.as_ref(),
+            next_envelope.as_ref(),
+        );
+        if !compatibility.is_compatible() {
+            return Err(ModeCommitFailure::RolledBack(
+                SnapbackError::error(
+                    "SNAPBACK_API_INCOMPATIBLE_CHANGE",
+                    "app-api",
+                    "the exposed API contract contains a breaking change; activation refused",
+                )
+                .with_details(serde_json::json!({ "breaking": compatibility.breaking() })),
+            ));
+        }
+        let compatibility_advisories = compatibility.into_advisories();
+
         let comparison = if prepared.requested_mode == before.state.active {
             before.state.active_deployment.as_ref()
         } else {
@@ -5708,7 +5772,7 @@ impl LocalSnapback {
             incoming_routes_hash.is_some() && incoming_routes_hash == self.routes_manifest_hash;
         let requested_mode_is_active = prepared.requested_mode == before.state.active;
 
-        let (seed_outcome, state, diagnostics) = if requested_mode_is_active {
+        let (seed_outcome, state, mut diagnostics) = if requested_mode_is_active {
             let publication_generation = self
                 .reserve_function_publication_generation()
                 .map_err(ModeCommitFailure::RolledBack)?;
@@ -5810,6 +5874,7 @@ impl LocalSnapback {
                 Vec::new(),
             )
         };
+        diagnostics.extend(compatibility_advisories);
         // Persist the envelope disposition after the successful cut. Failure
         // here is Uncertain, not silent: the activation is durable and the
         // envelope record is not, which the verify-on-read rule tolerates,
