@@ -1610,18 +1610,33 @@ function requireExactObjectKeys(value, keys, label) {
   }
 }
 
-function validateLatestTagVector(ledger, tagVector) {
+// Every observed tag must be a value the publication lease authorizes at
+// this instant: the package's candidate version or the signed prior root
+// version. npm's read replicas serve the two authorized values in any mix
+// while a promotion propagates (release-0.1.18-20260811-r7 observed one
+// package still on the prior tag seconds after the tag moves); any other
+// value is genuine drift and stays terminal.
+function classifyLatestTagVector(ledger, tagVector, expectedPriorRootVersion) {
   if (tagVector === null || typeof tagVector !== 'object' || Array.isArray(tagVector)) {
     throw new TypeError('latest-root proof has no complete default-tag vector');
   }
   if (Object.keys(tagVector).length !== ledger.packages.length) {
     throw new TypeError('latest-root proof default-tag vector is not closed');
   }
+  let priorTagCount = 0;
   for (const row of ledger.packages) {
-    if (tagVector[row.name] !== row.version) {
-      throw new TypeError(`latest default-tag vector drifted for ${row.name}`);
+    const observed = tagVector[row.name];
+    if (observed === row.version) continue;
+    // The prior match must be an explicit authorized version: with no
+    // authorized prior (the final-resolution call passes null) a missing
+    // tag must never satisfy null === null and slip through.
+    if (expectedPriorRootVersion !== null && observed === expectedPriorRootVersion) {
+      priorTagCount += 1;
+      continue;
     }
+    throw new TypeError(`latest default-tag vector drifted for ${row.name}`);
   }
+  return { priorTagCount };
 }
 
 function validatePlatformRuntimeOmission(
@@ -1649,9 +1664,11 @@ function validatePlatformRuntimeOmission(
 
 /**
  * Classify one successful npm alias install structurally. Only a complete
- * candidate closure succeeds and only the plan-bound prior CLI root may ask
- * the caller to wait. Missing, malformed, third-root, tag-drift, and malformed
- * candidate observations throw and are never retryable.
+ * candidate closure can finish; the plan-bound prior CLI closure and a
+ * candidate closure whose tag vector stays inside the lease-authorized
+ * prior/candidate pair may ask the caller to wait as 'signed-prior-stale' or
+ * 'tag-vector-propagating'. Every other tag value, missing, malformed,
+ * third-root, and malformed candidate observations stay terminal.
  *
  * @ref LLP 0041#nine-package-candidate-promotion--2026-07-28 — cross-host
  * cache propagation may retry the signed prior root without broadening the
@@ -1677,7 +1694,11 @@ export function classifyLatestRootObservation({
   ) {
     throw new TypeError('latest-root proof has no distinct exact prior root');
   }
-  validateLatestTagVector(ledger, tagVector);
+  const { priorTagCount } = classifyLatestTagVector(
+    ledger,
+    tagVector,
+    expectedPriorRootVersion,
+  );
   if (tree === null || typeof tree !== 'object' || Array.isArray(tree)) {
     throw new TypeError('latest-root npm tree is malformed');
   }
@@ -1734,6 +1755,13 @@ export function classifyLatestRootObservation({
   if (topLevelRoot.version !== ledger.version) {
     throw new TypeError(`latest-root npm tree selected third root ${topLevelRoot.version}`);
   }
+  if (priorTagCount > 0) {
+    return {
+      classification: 'tag-vector-propagating',
+      rootVersion: topLevelRoot.version,
+      resolution: null,
+    };
+  }
   return {
     classification: 'candidate-complete',
     rootVersion: topLevelRoot.version,
@@ -1779,7 +1807,7 @@ export function validateLatestRootResolution({
       throw new TypeError(`latest root escaped the candidate ledger at ${sourceName}`);
     }
   }
-  validateLatestTagVector(ledger, tagVector);
+  classifyLatestTagVector(ledger, tagVector, null);
   return {
     root: generation.cli,
     selected: ledger.version,
@@ -1898,16 +1926,18 @@ export function validateLatestRootPropagationWitness({
     const attemptStartedAt = Date.parse(attempt.startedAt);
     const attemptCompletedAt = Date.parse(attempt.completedAt);
     const isFinal = index === witness.attempts.length - 1;
-    const expectedClassification = isFinal
-      ? 'candidate-complete'
-      : 'signed-prior-stale';
-    const expectedRootVersion = isFinal
-      ? witness.candidateRootVersion
-      : witness.expectedPriorRootVersion;
+    const classificationAndRootMatch = isFinal
+      ? attempt.classification === 'candidate-complete'
+        && attempt.rootVersion === witness.candidateRootVersion
+      : (
+        attempt.classification === 'signed-prior-stale'
+          && attempt.rootVersion === witness.expectedPriorRootVersion
+        || attempt.classification === 'tag-vector-propagating'
+          && attempt.rootVersion === witness.candidateRootVersion
+      );
     if (
       attempt.attempt !== index + 1
-      || attempt.classification !== expectedClassification
-      || attempt.rootVersion !== expectedRootVersion
+      || !classificationAndRootMatch
       || !/^[0-9a-f]{64}$/u.test(attempt.cacheIdentitySha256 ?? '')
       || !/^[0-9a-f]{64}$/u.test(attempt.npmTreeSha256 ?? '')
       || !/^[0-9a-f]{64}$/u.test(attempt.tagVectorSha256 ?? '')

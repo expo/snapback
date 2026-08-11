@@ -260,8 +260,7 @@ function collection(bytesByPlatform, runHeadSha = CONTEXT.runHeadSha) {
     repository: CONTEXT.repository,
     workflow: CONTEXT.workflow,
     workflowId: 42,
-    workflowPath:
-      `.github/workflows/${CONTEXT.workflow}@refs/heads/${CONTEXT.ref}`,
+    workflowPath: `.github/workflows/${CONTEXT.workflow}`,
     ref: CONTEXT.ref,
     expectedHeadSha: CONTEXT.expectedHeadSha,
     runHeadSha,
@@ -369,6 +368,10 @@ test('collection binds run attempt, artifact ids/digests, receipt bytes, and fre
     (candidate) => { candidate.runHeadSha = 'not-40-hex'; },
     (candidate) => { candidate.candidateLedgerSha256 = 'f'.repeat(64); },
     (candidate) => { candidate.candidateRootVersion = '0.1.2'; },
+    (candidate) => {
+      candidate.workflowPath =
+        `.github/workflows/${CONTEXT.workflow}@refs/heads/${CONTEXT.ref}`;
+    },
     (candidate) => { candidate.artifacts[0].artifactId = 0; },
     (candidate) => { candidate.artifacts[1].artifactId = candidate.artifacts[0].artifactId; },
     (candidate) => { candidate.artifacts[0].apiDigest = `sha256:${'f'.repeat(64)}`; },

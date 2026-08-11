@@ -2233,13 +2233,88 @@ test('latest-root host classification retries only one coherent signed prior roo
       expectedPriorRootVersion: '0.1.0',
     }), pattern);
   }
-  assert.throws(() => classifyLatestRootObservation({
-    tree: makeTree('0.1.0'),
+});
+
+test('a mid-propagation tag vector retries inside the authorized prior/candidate envelope', () => {
+  const candidate = closedCandidateFixture();
+  const expectedPriorRootVersion = '0.1.0';
+  const makeTree = (version) => ({
+    dependencies: {
+      '@expo/snapback-cli': {
+        version,
+        dependencies: {
+          '@expo/snapback-client': {
+            version,
+            dependencies: {
+              '@expo/snapback-contract': { version },
+            },
+          },
+          '@expo/snapback-codegen': { version },
+          '@expo/snapback-runtime-darwin-arm64': { version },
+          '@expo/snapback-runtime-linux-x64': {},
+        },
+      },
+    },
+  });
+  const candidateTagVector = Object.fromEntries(candidate.packages.map((row) => [
+    row.name,
+    row.version,
+  ]));
+  const mixedTagVector = {
+    ...candidateTagVector,
+    [candidate.packages[0].name]: expectedPriorRootVersion,
+  };
+  assert.deepEqual(classifyLatestRootObservation({
+    tree: makeTree(candidate.version),
     ledger: candidate,
     hostRuntime: '@expo/snapback-runtime-darwin-arm64',
-    tagVector: { ...tagVector, [candidate.packages[0].name]: '0.1.0' },
-    expectedPriorRootVersion: '0.1.0',
-  }), /default-tag vector drifted/u);
+    tagVector: mixedTagVector,
+    expectedPriorRootVersion,
+  }), {
+    classification: 'tag-vector-propagating',
+    rootVersion: candidate.version,
+    resolution: null,
+  });
+  assert.deepEqual(classifyLatestRootObservation({
+    tree: makeTree(expectedPriorRootVersion),
+    ledger: candidate,
+    hostRuntime: '@expo/snapback-runtime-darwin-arm64',
+    tagVector: mixedTagVector,
+    expectedPriorRootVersion,
+  }), {
+    classification: 'signed-prior-stale',
+    rootVersion: expectedPriorRootVersion,
+    resolution: null,
+  });
+  for (const observed of ['0.0.9', null]) {
+    assert.throws(() => classifyLatestRootObservation({
+      tree: makeTree(candidate.version),
+      ledger: candidate,
+      hostRuntime: '@expo/snapback-runtime-darwin-arm64',
+      tagVector: {
+        ...candidateTagVector,
+        [candidate.packages[0].name]: observed,
+      },
+      expectedPriorRootVersion,
+    }), /latest default-tag vector drifted/u);
+  }
+  assert.throws(() => validateLatestRootResolution({
+    tree: makeTree(candidate.version),
+    ledger: candidate,
+    hostRuntime: '@expo/snapback-runtime-darwin-arm64',
+    tagVector: mixedTagVector,
+  }), /latest default-tag vector drifted/u);
+  // The final resolution has no authorized prior: a missing tag must never
+  // satisfy null === null inside the classification envelope.
+  assert.throws(() => validateLatestRootResolution({
+    tree: makeTree(candidate.version),
+    ledger: candidate,
+    hostRuntime: '@expo/snapback-runtime-darwin-arm64',
+    tagVector: {
+      ...candidateTagVector,
+      [candidate.packages[0].name]: null,
+    },
+  }), /latest default-tag vector drifted/u);
 });
 
 function latestRootPropagationFixture({
@@ -2262,9 +2337,9 @@ function latestRootPropagationFixture({
       durationMs: 1_000,
       installTimeoutMs: LATEST_ROOT_PROPAGATION_ATTEMPT_TIMEOUT_MS,
       cacheIdentitySha256: String(index + 1).repeat(64),
-      rootVersion: classification === 'candidate-complete'
-        ? candidate.version
-        : '0.1.0',
+      rootVersion: classification === 'signed-prior-stale'
+        ? '0.1.0'
+        : candidate.version,
       classification,
       npmTreeSha256: String(index + 3).repeat(64),
       tagVectorSha256: '9'.repeat(64),
@@ -2332,6 +2407,26 @@ test('latest-root propagation witness closes policy, authority, caches, and time
     resolution,
     propagationStartGapMs: 1,
   })).status, 'candidate-complete');
+  const tagVectorPropagatingWitness = latestRootPropagationFixture({
+    candidate,
+    operationId,
+    platform,
+    resolution,
+    attempts: ['tag-vector-propagating', 'candidate-complete'],
+  });
+  assert.equal(validate(tagVectorPropagatingWitness), tagVectorPropagatingWitness);
+  const tagVectorWrongRoot = structuredClone(tagVectorPropagatingWitness);
+  tagVectorWrongRoot.attempts[0].rootVersion = '0.1.0';
+  assert.throws(
+    () => validate(tagVectorWrongRoot),
+    /propagation attempt .* drifted/u,
+  );
+  const signedPriorWrongRoot = structuredClone(witness);
+  signedPriorWrongRoot.attempts[0].rootVersion = candidate.version;
+  assert.throws(
+    () => validate(signedPriorWrongRoot),
+    /propagation attempt .* drifted/u,
+  );
   for (const mutate of [
     (value) => { value.retryDelayMs = 0; },
     (value) => { value.wallBoundMs = 1; },
