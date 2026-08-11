@@ -62,14 +62,14 @@ function assertCommandDescriptor(command) {
     || command.mutation.kind !== 'Mutation'
     || !Array.isArray(command.passthroughArgs)
     || !(command.asset === null || (command.asset && typeof command.asset === 'object'))) {
-    throw new TypeError('command start requires a generated asset-bearing-command.v1 descriptor');
+    throw new TypeError('invalid asset-bearing-command.v1 descriptor');
   }
 }
 
 function assertAssetSource(source) {
   if (!source || typeof source !== 'object' || Array.isArray(source)
     || typeof source.size !== 'number' || typeof source.slice !== 'function') {
-    throw new TypeError('command asset input must be the File/Blob-like structural source accepted by the asset client');
+    throw new TypeError('command asset input must be a File/Blob-like structural source');
   }
 }
 
@@ -82,7 +82,7 @@ function normalizeAdaptedAssetSource(adapted) {
   for (const field of ['declaredFilename', 'declaredContentType', 'previewUrl']) {
     if (envelope[field] !== undefined && envelope[field] !== null
       && typeof envelope[field] !== 'string') {
-      throw new TypeError(`command asset source adapter returned a non-string ${field}`);
+      throw new TypeError(`non-string asset ${field}`);
     }
   }
   return Object.freeze({
@@ -101,20 +101,20 @@ function commandCall(command, input) {
   if (command.asset) allowed.add(command.asset.input);
   const unknown = Object.keys(input).filter((name) => !allowed.has(name));
   if (unknown.length > 0) {
-    throw new TypeError(`command input has unknown members: ${unknown.join(', ')}`);
+    throw new TypeError(`unknown input: ${unknown.join(', ')}`);
   }
   const required = new Set(command.mutation.argumentSchema?.required ?? []);
   if (command.asset) required.delete(command.asset.mutationArg);
   const missing = [...required].filter((name) => !Object.hasOwn(input, name));
   if (missing.length > 0) {
-    throw new TypeError(`command input is missing required members: ${missing.join(', ')}`);
+    throw new TypeError(`missing input: ${missing.join(', ')}`);
   }
   let source = null;
   if (command.asset && Object.hasOwn(input, command.asset.input)
     && input[command.asset.input] !== undefined && input[command.asset.input] !== null) {
     source = input[command.asset.input];
   } else if (command.asset && command.asset.optional !== true) {
-    throw new TypeError(`command input requires asset source ${command.asset.input}`);
+    throw new TypeError(`missing asset source ${command.asset.input}`);
   }
   const mutationArgs = Object.fromEntries(
     command.passthroughArgs
@@ -189,7 +189,7 @@ class CommandTaskImpl {
   snapshot() { return this.#snapshot; }
 
   subscribe(listener) {
-    if (typeof listener !== 'function') throw new TypeError('command task listener must be a function');
+    if (typeof listener !== 'function') throw new TypeError('invalid command listener');
     this.#listeners.add(listener);
     listener();
     return () => this.#listeners.delete(listener);
@@ -547,7 +547,7 @@ export class SnapbackCommandClient {
   #disposePromise = null;
 
   constructor(client, { assets = null, invokeMutation = null, assetSourceAdapter = null } = {}) {
-    if (!client || typeof client !== 'object') throw new TypeError('SnapbackCommandClient requires a SnapbackClient-like owner');
+    if (!client || typeof client !== 'object') throw new TypeError('invalid command client owner');
     this.client = client;
     this.assets = assets ?? createAssetClient(client);
     this.assetSourceAdapter = assetSourceAdapter;
@@ -573,7 +573,7 @@ export class SnapbackCommandClient {
     }
     if (typeof this.assetSourceAdapter !== 'function') {
       assertAssetSource(source);
-      throw new TypeError('unreachable asset source validation state');
+      throw new TypeError('invalid asset source');
     }
     const adapted = await this.assetSourceAdapter(source);
     return normalizeAdaptedAssetSource(adapted);
@@ -597,7 +597,7 @@ export class SnapbackCommandClient {
       this.#activeCommandTasks.delete(task);
       return;
     }
-    if (event !== 'started') throw new TypeError(`unknown command task event ${String(event)}`);
+    if (event !== 'started') throw new TypeError(`unknown event ${String(event)}`);
     this.#activeCommandTasks.add(task);
     if (this.#disposed) void task[commandTaskHooks]();
   }
