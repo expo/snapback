@@ -1886,6 +1886,7 @@ fn auth_projection_http_fixture(
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -2104,6 +2105,7 @@ fn protected_room_server_fixture() -> (AppState, tempfile::TempDir) {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ephemeral_collections: vec![collection],
@@ -3383,6 +3385,7 @@ fn sessions_activation_server_fixture_with_api(
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -8800,6 +8803,7 @@ fn dev_downgrade_pair() -> (SchemaManifest, FunctionManifest) {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -9783,6 +9787,7 @@ async fn item5_live_gate_preserves_only_manifest_proved_independent_exception() 
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 }],
                 ..SchemaManifest::default()
@@ -11093,6 +11098,7 @@ fn hosted_function_route_state() -> AppState {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 }],
                 ..SchemaManifest::default()
@@ -19953,6 +19959,11 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_FUNCTION_KIND_RUNTIME_MISMATCH",
     "SNAPBACK_FUNCTION_NOT_LIVE",
     "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+    "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_UNKNOWN",
+    "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLES_INVALID",
+    "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLE_UNKNOWN",
+    "SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN",
+    "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN",
     "SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED",
     "SNAPBACK_RESULT_CONTRACT_KIND_MISMATCH",
     "SNAPBACK_APP_REFUSAL",
@@ -22231,6 +22242,7 @@ fn jobs_test_state() -> SharedSnapback {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -22517,6 +22529,7 @@ async fn enqueue_validates_callee_args_contract_transactionally() {
                         search_live_limits: None,
                         membership: None,
                         asset_sharing: None,
+                        visibility: None,
                         history: None,
                     }],
                     ..SchemaManifest::default()
@@ -22794,6 +22807,7 @@ async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()

@@ -5559,6 +5559,7 @@ mod tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..crate::manifest::SchemaManifest::default()
@@ -8143,6 +8144,7 @@ mod tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         };
         let conn = Connection::open_in_memory().unwrap();

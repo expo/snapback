@@ -108,6 +108,7 @@ fn schema(corpus: &Corpus) -> SchemaManifest {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -140,6 +141,7 @@ fn edge_schema() -> SchemaManifest {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -432,6 +434,7 @@ fn local_declared_field_types_consume_the_shared_boundary_corpus() {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 }],
                 ..SchemaManifest::default()

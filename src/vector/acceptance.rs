@@ -158,6 +158,7 @@ fn manifest_with_index(index: VectorIndexManifestV1) -> SchemaManifest {
             permission_fields: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -903,6 +904,7 @@ fn scale_schema() -> SchemaManifest {
             permission_fields: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()

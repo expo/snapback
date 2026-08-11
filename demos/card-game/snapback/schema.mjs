@@ -16,7 +16,12 @@ export default defineSchema({
     ownerId: v.string(),
     position: v.integer(),
     card: v.string(),
-  }).index('by_owner_game', ['ownerId', 'gameId']).sync(),
+  })
+    .index('by_owner_game', ['ownerId', 'gameId'])
+    // @ref LLP 0231#d1--the-table-is-the-policy-locus-queries-refine — hidden
+    //   hands declare their owner boundary at the table locus.
+    .visibility({ kind: 'owner', field: 'ownerId' })
+    .sync(),
   readySignals: defineTable({
     gameId: v.string(),
     userId: v.string(),

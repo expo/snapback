@@ -3455,6 +3455,7 @@ mod tests {
                 permission_fields: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: Some(crate::manifest::HistoryRetentionManifestV1 {
                     retain_ms: 10_000,
                     max_versions_per_record: 10,

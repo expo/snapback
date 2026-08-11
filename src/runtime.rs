@@ -5808,6 +5808,7 @@ mod membership_bridge_tests {
                         principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
                 TableManifest {
@@ -5826,6 +5827,7 @@ mod membership_bridge_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
                 TableManifest {
@@ -5851,6 +5853,7 @@ mod membership_bridge_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
                 TableManifest {
@@ -5869,6 +5872,7 @@ mod membership_bridge_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
                 TableManifest {
@@ -5887,6 +5891,7 @@ mod membership_bridge_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
                 TableManifest {
@@ -5937,6 +5942,7 @@ mod membership_bridge_tests {
                         principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
             ],

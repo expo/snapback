@@ -42,6 +42,22 @@ export interface ImplicitAuthRequirementEntry {
   readonly guideAnchor: string;
 }
 
+export interface TableVisibilitySummary {
+  readonly declared: ReadonlyArray<Readonly<{
+    table: string;
+    kind: 'public-read' | 'owner' | 'membership';
+  }>>;
+  readonly implicit: readonly string[];
+  readonly counts: Readonly<{
+    total: number;
+    declared: number;
+    implicit: number;
+    publicRead: number;
+    owner: number;
+    membership: number;
+  }>;
+}
+
 export interface CodegenSummary {
   readonly schemaVersion: 'snapback.codegen-summary.v1';
   readonly appId: string;
@@ -68,6 +84,7 @@ export interface CodegenSummary {
     degradedResults: number;
     seedRows?: number | null;
   }>;
+  readonly tableVisibility: TableVisibilitySummary;
   readonly implicitAuthRequirements: readonly ImplicitAuthRequirementEntry[];
   readonly degradedResults: readonly DegradedResultEntry[];
   readonly seed?: Readonly<{ version: string; digest: `sha256:${string}`; rows: number | null }>;
@@ -76,7 +93,10 @@ export interface CodegenSummary {
 export function createCodegenSummary(options: Readonly<{
   appId: string;
   inputsHash: string;
-  tables: Readonly<Record<string, unknown>>;
+  tables: Readonly<Record<string, Readonly<{
+    visibility?: Readonly<{ kind: 'public-read' | 'owner' | 'membership' }>;
+    [fact: string]: unknown;
+  }>>>;
   functions: readonly CodegenSummaryFunction[];
   ephemeralCollections: readonly unknown[];
   fileRecords: ReadonlyArray<Readonly<{ custody: string; [fact: string]: unknown }>>;

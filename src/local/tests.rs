@@ -570,6 +570,7 @@ fn mixed_bundle_v2_pins_rows_and_registers_only_identity_live_children() {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -730,6 +731,46 @@ fn mixed_bundle_v2_pins_rows_and_registers_only_identity_live_children() {
 }
 
 #[test]
+fn table_visibility_activation_validates_owner_field() {
+    let mut schema = SchemaManifest {
+        tables: vec![TableManifest {
+            name: "hands".to_owned(),
+            fields: vec![FieldManifest {
+                name: "ownerId".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            }],
+            indexes: Vec::new(),
+            syncable: false,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            asset_sharing: None,
+            visibility: Some(SearchVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            }),
+            history: None,
+        }],
+        ..SchemaManifest::default()
+    };
+    validate_function_schema_references(&FunctionManifest::default(), &schema)
+        .expect("declared owner field resolves at activation");
+
+    schema.tables[0].visibility = Some(SearchVisibilityV1::Owner {
+        field: "missingOwner".to_owned(),
+    });
+    let error = validate_function_schema_references(&FunctionManifest::default(), &schema)
+        .expect_err("unknown table visibility owner field fails activation");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN"
+    );
+}
+
+#[test]
 fn direct_live_and_retainable_membership_readers_fail_closed_at_load() {
     let schema = SchemaManifest {
         tables: vec![TableManifest {
@@ -771,6 +812,7 @@ fn direct_live_and_retainable_membership_readers_fail_closed_at_load() {
                 principal_addressed_writes: None,
             }),
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -817,6 +859,7 @@ fn hand_written_membership_arg_with_wrong_nominal_table_fails_at_load() {
         search_live_limits: None,
         membership: None,
         asset_sharing: None,
+        visibility: None,
         history: None,
     };
     let members = TableManifest {
@@ -865,6 +908,7 @@ fn hand_written_membership_arg_with_wrong_nominal_table_fails_at_load() {
             principal_addressed_writes: None,
         }),
         asset_sharing: None,
+        visibility: None,
         history: None,
     };
     let schema = SchemaManifest {
@@ -959,6 +1003,7 @@ fn membership_search_without_resource_arg_fails_at_manifest_load() {
             permission_fields: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -1030,6 +1075,7 @@ fn live_search_authority_fact_is_exactly_schema_public_read() {
             permission_fields: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -1282,6 +1328,7 @@ fn owner_vector_query_requires_authenticated_pair_authority() {
             permission_fields: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -3264,6 +3311,7 @@ fn asset_reference_schema() -> SchemaManifest {
             search_live_limits: None,
             membership: None,
             asset_sharing: sharing,
+            visibility: None,
             history: None,
         }
     };
@@ -3890,6 +3938,7 @@ fn asset_callback_snapback() -> LocalSnapback {
         search_live_limits: None,
         membership: None,
         asset_sharing: None,
+        visibility: None,
         history: None,
     };
     snapback
@@ -4859,6 +4908,7 @@ fn my_memberships_snapback() -> LocalSnapback {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
             crate::manifest::TableManifest {
@@ -4877,6 +4927,7 @@ fn my_memberships_snapback() -> LocalSnapback {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
             crate::manifest::TableManifest {
@@ -4925,6 +4976,7 @@ fn my_memberships_snapback() -> LocalSnapback {
                     principal_addressed_writes: None,
                 }),
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
         ],
@@ -6561,6 +6613,7 @@ fn asset_profiles_schema() -> SchemaManifest {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -8970,6 +9023,7 @@ fn authorization_reservation_data_and_auth_frontiers_share_one_snapshot() {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -9044,6 +9098,7 @@ fn sessions_activation_pair(
         search_live_limits: None,
         membership: None,
         asset_sharing: None,
+        visibility: None,
         history: None,
     }];
     functions.bundle_hash = Some(format!(
@@ -9682,6 +9737,7 @@ fn publication_refuses_a_function_set_that_does_not_bind_the_successor() {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -9944,6 +10000,7 @@ fn compatibility_posture_ordering_is_proven_not_declared() {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -10167,6 +10224,7 @@ fn restore_derived_rehearsal_gates_production_apply() {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -11614,6 +11672,7 @@ fn data_only_same_mode_seed_refreshes_auth_scoped_live_before_reopening() {
         search_live_limits: None,
         membership: None,
         asset_sharing: None,
+        visibility: None,
         history: None,
     });
     let function = functions
@@ -12095,6 +12154,7 @@ fn relational_query_validates_and_invokes_end_to_end() {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
             TableManifest {
@@ -12118,6 +12178,7 @@ fn relational_query_validates_and_invokes_end_to_end() {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
         ],
@@ -12250,6 +12311,7 @@ fn relational_query_validates_and_invokes_end_to_end() {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         },
         TableManifest {
@@ -12273,6 +12335,7 @@ fn relational_query_validates_and_invokes_end_to_end() {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         },
     ];
@@ -12336,6 +12399,7 @@ fn relational_cursor_pages_and_refuses_end_to_end() {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
             TableManifest {
@@ -12359,6 +12423,7 @@ fn relational_cursor_pages_and_refuses_end_to_end() {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
         ],
@@ -12626,6 +12691,7 @@ fn relational_lanes_share_bytes_and_cursors() {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
             TableManifest {
@@ -12649,6 +12715,7 @@ fn relational_lanes_share_bytes_and_cursors() {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
         ],
@@ -12800,6 +12867,7 @@ fn relational_live_fixture_functions(plan_take: u32) -> (SchemaManifest, Functio
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
             TableManifest {
@@ -12823,6 +12891,7 @@ fn relational_live_fixture_functions(plan_take: u32) -> (SchemaManifest, Functio
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
         ],
@@ -13179,6 +13248,7 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         };
     let schema = SchemaManifest {
@@ -16476,6 +16546,7 @@ fn projection_fixture(
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         };
     let schema = SchemaManifest {
@@ -16774,6 +16845,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -17864,6 +17936,7 @@ fn membership_keyset_artifacts() -> (SchemaManifest, FunctionManifest) {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         };
     let schema = SchemaManifest {
@@ -17973,6 +18046,7 @@ fn membership_keyset_artifacts() -> (SchemaManifest, FunctionManifest) {
                     principal_addressed_writes: None,
                 }),
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
         ],
@@ -18875,6 +18949,7 @@ fn standard_pattern_live_is_conservative_and_recorded() {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -19257,6 +19332,7 @@ fn standard_pattern_keyset_cursor_pages_and_refuses_end_to_end() {
         search_live_limits: None,
         membership: None,
         asset_sharing: None,
+        visibility: None,
         history: None,
     };
     let schema = SchemaManifest {
@@ -19683,6 +19759,7 @@ fn reload_schema(hash: &str, include_extra: bool) -> SchemaManifest {
         search_live_limits: None,
         membership: None,
         asset_sharing: None,
+        visibility: None,
         history: None,
     }];
     if include_extra {
@@ -19702,6 +19779,7 @@ fn reload_schema(hash: &str, include_extra: bool) -> SchemaManifest {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         });
     }
@@ -20511,6 +20589,7 @@ fn lane_settlement_snapback() -> LocalSnapback {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
             TableManifest {
@@ -20536,6 +20615,7 @@ fn lane_settlement_snapback() -> LocalSnapback {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
         ],
@@ -21582,6 +21662,7 @@ fn split_vector_argument_contract_commits_valid_and_refuses_invalid_nested_paylo
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -21825,6 +21906,7 @@ fn dynamic_ephemeral_registration_preserves_permission_projection_closure() {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -22199,6 +22281,7 @@ fn live_limit_snapback() -> LocalSnapback {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -23611,6 +23694,7 @@ fn permission_backing_event_quarantines_even_a_positive_delta() {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -23721,6 +23805,7 @@ fn authorization_expectation_advances_without_live_subscribers() {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -23953,6 +24038,7 @@ fn retainable_sessions_snapback() -> LocalSnapback {
         search_live_limits: None,
         membership: None,
         asset_sharing: None,
+        visibility: None,
         history: None,
     };
 
@@ -23989,6 +24075,7 @@ fn retainable_sessions_snapback() -> LocalSnapback {
         search_live_limits: None,
         membership: None,
         asset_sharing: None,
+        visibility: None,
         history: None,
     };
     let authors = TableManifest {
@@ -24024,6 +24111,7 @@ fn retainable_sessions_snapback() -> LocalSnapback {
         search_live_limits: None,
         membership: None,
         asset_sharing: None,
+        visibility: None,
         history: None,
     };
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
@@ -24975,6 +25063,7 @@ fn service_principal_host_plan_permission_backing_write_is_refused_without_prove
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -26815,6 +26904,7 @@ fn rqs_schema() -> SchemaManifest {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -29289,6 +29379,7 @@ fn vector_runtime_uses_resolved_owner_and_quarantines_read_lane_drift() {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         required_capabilities: vec![VECTOR_CAPABILITY.to_owned()],
@@ -29520,6 +29611,7 @@ fn managed_branch_carrier_fixture() -> LocalSnapback {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()

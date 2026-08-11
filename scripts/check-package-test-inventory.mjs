@@ -311,6 +311,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'standard-patterns.test.mjs',
       'stored-enum-authoring.test.mjs',
       'structured-stored-values.test.mjs',
+      'table-visibility-authoring.test.mjs',
       'typed-search-wrapper.test.mjs',
       'vector-authoring.test.mjs',
       'vector-distance-profile.test.mjs',
@@ -463,7 +464,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 252,
+  expectedTotal = 253,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -793,6 +794,9 @@ export function checkPackageTestInventories(options = {}) {
 // app-shaped Clique churn and silent queued-wedge acceptance bar.
 // 251 -> 252 (2026-08-10, LLP 0224 Phase 1): @expo/snapback-cli gains the
 // application-ready receipt lifecycle and native-wait process suite.
+// 252 -> 253 (2026-08-11, LLP 0231 D1/D2 warn phase):
+// @expo/snapback-codegen gains the table visibility union, strict declaration
+// refusals, implicit-policy warning/remediation, and summary projection suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

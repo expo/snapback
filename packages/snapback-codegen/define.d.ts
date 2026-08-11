@@ -502,6 +502,16 @@ export type AssetSharingSpec<Fields extends Record<string, Validator> = Record<s
   | { kind: 'owner'; field: keyof Fields & string }
   | { kind: 'membership'; membership: string; roles?: readonly string[] };
 
+export type TableVisibilitySpec<Fields extends Record<string, Validator> = Record<string, Validator>> =
+  | { kind: 'public-read' }
+  | { kind: 'owner'; field: keyof Fields & string }
+  | {
+    kind: 'membership';
+    declaration: string | MembershipTableBuilder;
+    resourceField: keyof Fields & string;
+    roles?: readonly string[];
+  };
+
 /** Finite schema authority for retained record history. Runtime validation
  * enforces retainMs in 1..2,592,000,000 and maxVersionsPerRecord in 1..1,000. */
 export interface HistoryRetentionSpec {
@@ -517,6 +527,8 @@ export interface TableBuilder<Fields extends Record<string, Validator> = Record<
   sync(): TableBuilder<Fields>;
   permissionBacking(fields?: Array<keyof Fields & string>): TableBuilder<Fields>;
   membership<const Spec extends MembershipSpec>(spec: Spec): MembershipTableBuilder<Fields, RolesOf<Spec>, ScopeOf<Spec>>;
+  /** Declare this table's default row-visibility policy (LLP 0231 D1). */
+  visibility(spec: TableVisibilitySpec<Fields>): TableBuilder<Fields>;
   /** Declare this table's row-visibility policy sufficient for asset
    * sharing (LLP 0044 §Asset read authorization; LLP 0007 dated amendment
    * 2026-07-31). Without it a typed reference confers no via-references
@@ -726,7 +738,7 @@ export interface RelationalQuerySpec {
   retention?: 'none' | 'opaque-authorized-snapshot-v1' | 'result-transform-snapshot-v1';
 }
 export declare function defineRelationalQuery(spec: RelationalQuerySpec): unknown;
-export declare function owner(field: string): { kind: 'owner'; field: string };
+export declare function owner<const Field extends string>(field: Field): { kind: 'owner'; field: Field };
 export declare function throughParent(): { kind: 'through-parent.v1' };
 export declare function throughScope(spec: {
   scopeField: string;

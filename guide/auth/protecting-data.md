@@ -4,13 +4,13 @@ id: auth.protecting-data
 order: 4
 audience: agent-first
 capabilities: [auth.invalidation-barrier, auth.authorized-leases]
-authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
-examples: [demos/card-game, demos/_kit/tests/auth-invalidation-client.mjs]
+authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/manifest.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
+examples: [demos/card-game, demos/card-game/snapback/schema.mjs, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-08
-reviewed-commit: eac098a99fb89b07e67cb72430106117b7fee86b
+reviewed: 2026-08-11
+reviewed-commit: HEAD
 ---
 
 # Protecting live and retained data
@@ -23,6 +23,47 @@ Start with [sessions and principals](./sessions-and-principals.md) to sign in
 and scope a query, or the [hidden-hands recipe](../recipes/hidden-hands.md) for
 the shortest end-to-end example. This page is the systematic reference for
 what happens after private data becomes live or retained.
+
+<!-- since: 0.1.19 unreleased -->
+> **Unreleased.** Table visibility declarations are newer than the newest
+> published `@expo/snapback-*` closure, `0.1.18`.
+
+## Declare who can read each table
+
+Add one `.visibility(...)` declaration to each `defineTable(...)` chain. The
+closed choices are `{ kind: 'public-read' }`, `{ kind: 'owner', field }`, and
+`{ kind: 'membership', declaration, resourceField, roles }`. There is no
+`public()` helper: use the literal public-read record so intentionally public
+data stays explicit and greppable.
+
+Card-game declares the hidden-hand boundary on the table itself:
+
+```js source=demos/card-game/snapback/schema.mjs
+    .visibility({ kind: 'owner', field: 'ownerId' })
+```
+
+The owner field must exist. A membership declaration must resolve to a
+`.membership(...)` declaration, its `resourceField` must exist on the governed
+table, and every named role must be in that declaration's non-pending role
+vocabulary. Public-read is a policy decision, not a development fallback.
+
+This release is the warn phase. A table without the declaration still
+generates, but codegen reports `SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT` with
+one reviewer-gated remediation per policy kind and a guide pointer. Invalid
+declared policies fail generation with stable `SNAPBACK_TABLE_VISIBILITY_*`
+codes. The reference registry lists the complete family; the cross-reference
+checks most useful while adopting it are
+`SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN`,
+`SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_UNKNOWN`,
+`SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLE_UNKNOWN`, and
+`SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN`. The generated schema
+manifest and `artifacts.json` summary project declared and implicit tables for
+review.
+
+`.visibility(...)` and `.assetSharing(...)` are independent declarations in
+this slice. Declaring one does not declare, infer, or conflict with the other.
+The visibility policy is recorded and activation-validated now; composition
+into query plans and `ctx.db` reads belongs to the next implementation slice.
 
 ## Check the negotiated capability, not route existence
 
@@ -235,3 +276,5 @@ product tradeoff.
 - **Do not treat reconnect as manual retry or lease renewal.**
 - **Do not cache authorized rows outside the lease-enforcing client store.**
 - **Do not infer hosted guarantees from the local readiness projection.**
+- **Do not treat `.assetSharing(...)` as a table visibility declaration.**
+- **Do not use public-read merely to silence the implicit-visibility warning.**

@@ -1842,6 +1842,10 @@ async function generateInProcessLocked({
   }
   const schemaGraph = schemaBuild.graph;
   const functionsGraph = functionsBuild.graph;
+  const schemaPropertySourceSpans = authoredPropertySourceSpans(
+    graphEntrySource(schemaGraph, schemaPath),
+    'schema.mjs',
+  );
   const schemaModule = { default: evaluated.schema };
   const functionsModule = evaluated.functions;
   for (const [name, kind] of Object.entries(evaluated.schemaMisplacedDefinitions ?? {})) {
@@ -2473,6 +2477,85 @@ async function generateInProcessLocked({
       }
     }
 
+    const visibility = table.visibilityDeclaration
+      ? { ...table.visibilityDeclaration }
+      : undefined;
+    if (visibility === undefined) {
+      const authoredSpan = schemaPropertySourceSpans[`table:${name}`];
+      const precondition = { table: name, authoredVisibility: 'omitted' };
+      // @ref LLP 0231#d2--a-table-without-a-policy-fails-generation — warn phase; fail phase blocked on override governance
+      diagnostics.push({
+        code: 'SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT',
+        severity: 'warning',
+        subsystem: 'auth',
+        message: `${name}: table visibility is implicit. Add .visibility({ kind: 'public-read' }), .visibility({ kind: 'owner', field: 'ownerId' }), or .visibility({ kind: 'membership', declaration: 'members', resourceField: 'resourceId', roles: ['member'] }) to the ${name} defineTable(...) chain (guide/auth/protecting-data.md#declare-who-can-read-each-table).`,
+        table: name,
+        ...(authoredSpan
+          ? {
+              sourceSpan: {
+                file: authoredSpan.path,
+                line: authoredSpan.line,
+                column: authoredSpan.column,
+              },
+            }
+          : {}),
+        details: {
+          table: name,
+          authoredVisibility: 'omitted',
+          allowed: ['public-read', 'owner', 'membership'],
+          guideAnchor: 'guide/auth/protecting-data.md#declare-who-can-read-each-table',
+          remediations: [
+            {
+              kind: 'setTableVisibility',
+              visibilityKind: 'public-read',
+              edit: ".visibility({ kind: 'public-read' })",
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'widens-or-confirms-public',
+              precondition,
+              description: `Declare ${name} public-read only when every row is intentionally readable through all future data-layer paths.`,
+            },
+            {
+              kind: 'setTableVisibility',
+              visibilityKind: 'owner',
+              edit: ".visibility({ kind: 'owner', field: '<ownerField>' })",
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'narrows',
+              precondition,
+              description: `Declare ${name} owner-visible after choosing the field whose value is the caller principal.`,
+            },
+            {
+              kind: 'setTableVisibility',
+              visibilityKind: 'membership',
+              edit: ".visibility({ kind: 'membership', declaration: '<membershipId>', resourceField: '<resourceField>', roles: ['<role>'] })",
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'narrows',
+              precondition,
+              description: `Declare ${name} membership-visible after choosing the declaration, resource field, and admitted roles.`,
+            },
+            {
+              kind: 'guidePointer',
+              pageId: 'auth.protecting-data',
+              path: 'guide/auth/protecting-data.md',
+              anchor: 'declare-who-can-read-each-table',
+              reason: 'Choose the table visibility policy that matches the intended row authority.',
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'none',
+              precondition,
+              description: 'Read the data-protection guide before choosing the table visibility policy.',
+            },
+          ],
+        },
+      });
+    }
+
     tables[name] = {
       name,
       fields,
@@ -2487,6 +2570,7 @@ async function generateInProcessLocked({
       ...(Array.isArray(table.permissionFields) ? { permissionFields: table.permissionFields } : {}),
       ...(membership ? { membership } : {}),
       ...(assetSharing ? { assetSharing } : {}),
+      ...(visibility ? { visibility } : {}),
       ...(table.historyDeclaration ? { history: { ...table.historyDeclaration } } : {}),
     };
   }
@@ -5404,7 +5488,7 @@ async function generateInProcessLocked({
       fileRecords: files,
       diagnostics: [...diagnostics, ...infoDiagnostics],
       sourceSpans: functionDefinitionSourceSpans,
-      schemaFieldSpans: authoredPropertySourceSpans(graphEntrySource(schemaGraph, schemaPath), 'schema.mjs'),
+      schemaFieldSpans: schemaPropertySourceSpans,
       outputDirectory: targetConfig.outputDirectory,
       seedArtifact,
       seedRowCount,
@@ -12671,6 +12755,11 @@ function authoredPropertySourceSpans(source, label) {
     const tableCall = findCall(tableProperty.value, 'defineTable');
     const fields = tableCall?.arguments?.[0];
     if (!tableName || fields?.type !== 'ObjectExpression') continue;
+    spans[`table:${tableName}`] = {
+      path: label,
+      line: tableProperty.key.loc.start.line,
+      column: tableProperty.key.loc.start.column + 1,
+    };
     for (const fieldProperty of fields.properties) {
       if (fieldProperty.type !== 'Property') continue;
       const fieldName = propertyName(fieldProperty);
@@ -12791,6 +12880,17 @@ const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
   'SNAPBACK_DELETE_WHERE_FILTER_INVALID',
   'SNAPBACK_DELETE_WHERE_FILTER_REQUIRED',
   'SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED',
+  'SNAPBACK_TABLE_VISIBILITY_ALREADY_DECLARED',
+  'SNAPBACK_TABLE_VISIBILITY_KIND_INVALID',
+  'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_INVALID',
+  'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_UNKNOWN',
+  'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLES_INVALID',
+  'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLE_UNKNOWN',
+  'SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_INVALID',
+  'SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN',
+  'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_INVALID',
+  'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN',
+  'SNAPBACK_TABLE_VISIBILITY_SPEC_INVALID',
   'SNAPBACK_VECTOR_INDEX_VISIBILITY_REQUIRED',
 ]);
 

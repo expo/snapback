@@ -1214,6 +1214,14 @@ pub struct TableManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub asset_sharing: Option<AssetSharingManifest>,
+    /// The table-wide default row-visibility declaration. This foundation
+    /// slice records and validates the existing closed search-visibility
+    /// union without yet composing it into query plans or `ctx.db` reads.
+    ///
+    /// @ref LLP 0231#d1--the-table-is-the-policy-locus-queries-refine — the
+    ///   table is the mandatory policy locus; query composition lands later.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<SearchVisibilityV1>,
     /// Optional bounded record-history policy. Absence disables product
     /// history for this table; v1 deliberately has no unbounded spelling.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1240,6 +1248,32 @@ pub enum AssetSharingManifest {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         roles: Option<Vec<String>>,
     },
+}
+
+#[cfg(test)]
+mod table_visibility_manifest_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn table_visibility_round_trips_the_existing_closed_union() {
+        for visibility in [
+            json!({ "kind": "public-read" }),
+            json!({ "kind": "owner", "field": "ownerId" }),
+            json!({
+                "kind": "membership",
+                "declaration": "room-members",
+                "resourceField": "roomId",
+                "roles": ["member"],
+            }),
+        ] {
+            let authored = json!({ "name": "messages", "visibility": visibility });
+            let parsed: TableManifest =
+                serde_json::from_value(authored.clone()).expect("table manifest parses");
+            let emitted = serde_json::to_value(parsed).expect("table manifest serializes");
+            assert_eq!(emitted["visibility"], authored["visibility"]);
+        }
+    }
 }
 
 impl TableManifest {
@@ -4955,6 +4989,7 @@ mod stored_enum_result_contract_tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }
     }
@@ -14885,6 +14920,7 @@ mod membership_manifest_grammar_tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         };
         let index = VectorIndexManifestV1 {

@@ -2842,6 +2842,7 @@ fn todo_schema() -> SchemaManifest {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()
@@ -5035,6 +5036,7 @@ fn l3_prune_preserves_cold_table_validation_version() {
         search_live_limits: None,
         membership: None,
         asset_sharing: None,
+        visibility: None,
         history: None,
     });
     snapback
@@ -5120,6 +5122,7 @@ fn l3_retention_floor_boundary_still_allows_precise_query_validation() {
         search_live_limits: None,
         membership: None,
         asset_sharing: None,
+        visibility: None,
         history: None,
     });
     let mut db = LocalDatabase::memory().unwrap();
@@ -5914,6 +5917,7 @@ fn single_index_schema(hash: &str, table: &str, field: &str, index: &str) -> Sch
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }],
         ..SchemaManifest::default()

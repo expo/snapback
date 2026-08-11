@@ -2349,6 +2349,7 @@ mod tests {
                     permission_fields: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
                 TableManifest {
@@ -2367,6 +2368,7 @@ mod tests {
                     permission_fields: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
                 TableManifest {
@@ -2422,6 +2424,7 @@ mod tests {
                         principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
             ],
@@ -3822,6 +3825,7 @@ mod tests {
                 permission_fields: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()

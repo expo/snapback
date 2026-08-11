@@ -84,6 +84,7 @@ mod vector_storage_carrier_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 }],
                 ..SchemaManifest::default()
@@ -162,6 +163,7 @@ mod stored_enum_tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -773,6 +775,7 @@ mod stored_structured_value_tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -1387,6 +1390,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 }],
                 ..SchemaManifest::default()
@@ -1824,6 +1828,7 @@ mod guarded_commit_tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -1884,6 +1889,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 }],
                 ..SchemaManifest::default()
@@ -2428,6 +2434,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
                 TableManifest {
@@ -2477,6 +2484,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
                 TableManifest {
@@ -2534,6 +2542,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
             ],
@@ -3536,6 +3545,7 @@ mod guarded_commit_tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         });
         let tx = simultaneous.conn.transaction().unwrap();
@@ -5370,6 +5380,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
                 TableManifest {
@@ -5396,6 +5407,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
             ],
@@ -10947,6 +10959,7 @@ mod guarded_commit_tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         };
         let projection = crate::ephemeral::RoomPermissionProjection {
@@ -11025,6 +11038,7 @@ mod guarded_commit_tests {
                         search_live_limits: None,
                         membership: None,
                         asset_sharing: None,
+                        visibility: None,
                         history: None,
                     }],
                     ..SchemaManifest::default()
@@ -12813,6 +12827,7 @@ mod membership_write_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
                 TableManifest {
@@ -12931,6 +12946,7 @@ mod membership_write_tests {
                         principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
             ],
@@ -13003,6 +13019,7 @@ mod membership_write_tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             });
             let mut db = ready_db_with_schema(schema);
@@ -14798,6 +14815,7 @@ mod membership_write_tests {
                     principal_addressed_writes: None,
                 }),
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }],
             ..SchemaManifest::default()

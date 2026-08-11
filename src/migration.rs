@@ -1865,6 +1865,7 @@ pub fn migration_vector_fixture() -> SnapbackResult<(
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         };
     let string_field = |name: &str, optional: bool| FieldManifest {
@@ -2098,6 +2099,7 @@ mod tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             }
         };
@@ -2293,6 +2295,7 @@ mod tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
                 TableManifest {
@@ -2323,6 +2326,7 @@ mod tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    visibility: None,
                     history: None,
                 },
             ],

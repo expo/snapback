@@ -636,13 +636,13 @@ function normalizeAskBudgets(value) {
   };
 }
 
-function stringArray(value, where, { allowEmpty = false } = {}) {
-  assert(Array.isArray(value), `${where} must be an array`);
-  assert(allowEmpty || value.length > 0, `${where} must not be empty`);
+function stringArray(value, where, { allowEmpty = false, code = undefined } = {}) {
+  assert(Array.isArray(value), `${where} must be an array`, code);
+  assert(allowEmpty || value.length > 0, `${where} must not be empty`, code);
   const seen = new Set();
   for (const item of value) {
-    assert(typeof item === 'string' && item.length > 0, `${where} entries must be non-empty strings`);
-    assert(!seen.has(item), `${where} repeats ${item}`);
+    assert(typeof item === 'string' && item.length > 0, `${where} entries must be non-empty strings`, code);
+    assert(!seen.has(item), `${where} repeats ${item}`, code);
     seen.add(item);
   }
   return REFLECT_APPLY(ARRAY_SLICE, value, []);
@@ -1220,6 +1220,86 @@ class TableBuilder {
     });
   }
 
+  /** Declare this table's default row-visibility policy. The declaration is
+   * independent of assetSharing(): this slice records policy authority but
+   * does not unify the two consumers.
+   *
+   * @ref LLP 0231#d1--the-table-is-the-policy-locus-queries-refine — every
+   *   table policy has one explicit, reviewable declaration locus. */
+  visibility(spec) {
+    assert(
+      !this.visibilityDeclaration,
+      'visibility() may be declared only once per table',
+      'SNAPBACK_TABLE_VISIBILITY_ALREADY_DECLARED',
+    );
+    assert(
+      spec && typeof spec === 'object' && !Array.isArray(spec),
+      'visibility() expects a spec object',
+      'SNAPBACK_TABLE_VISIBILITY_SPEC_INVALID',
+    );
+    assert(
+      ASSET_SHARING_KINDS.has(spec.kind),
+      "visibility() kind must be 'public-read', 'owner', or 'membership'",
+      'SNAPBACK_TABLE_VISIBILITY_KIND_INVALID',
+    );
+    if (spec.kind === 'public-read') {
+      exactObject(
+        spec,
+        'visibility()',
+        new Set(['kind']),
+        'SNAPBACK_TABLE_VISIBILITY_SPEC_INVALID',
+      );
+      this.visibilityDeclaration = { kind: 'public-read' };
+    } else if (spec.kind === 'owner') {
+      exactObject(
+        spec,
+        'visibility()',
+        new Set(['kind', 'field']),
+        'SNAPBACK_TABLE_VISIBILITY_SPEC_INVALID',
+      );
+      assert(
+        typeof spec.field === 'string' && spec.field.length > 0,
+        'visibility() owner requires a non-empty field',
+        'SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_INVALID',
+      );
+      this.visibilityDeclaration = { kind: 'owner', field: spec.field };
+    } else {
+      exactObject(
+        spec,
+        'visibility()',
+        new Set(['kind', 'declaration', 'resourceField', 'roles']),
+        'SNAPBACK_TABLE_VISIBILITY_SPEC_INVALID',
+      );
+      const declaration = typeof spec.declaration === 'string'
+        ? spec.declaration
+        : spec.declaration?.__table === true
+          ? spec.declaration.membershipDeclaration?.id ?? spec.declaration.__tableName
+          : null;
+      assert(
+        typeof declaration === 'string' && declaration.length > 0,
+        'visibility() membership declaration must be a non-empty membership declaration id or a membership() object carrying an id',
+        'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_INVALID',
+      );
+      assert(
+        typeof spec.resourceField === 'string' && spec.resourceField.length > 0,
+        'visibility() membership requires a non-empty resourceField',
+        'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_INVALID',
+      );
+      const roles = spec.roles === undefined
+        ? undefined
+        : stringArray(spec.roles, 'visibility() membership roles', {
+            code: 'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLES_INVALID',
+          });
+      this.visibilityDeclaration = {
+        kind: 'membership',
+        declaration,
+        resourceField: spec.resourceField,
+        ...(roles ? { roles } : {}),
+      };
+    }
+    return this;
+  }
+
   /** Declare this table's analyzable row-visibility policy sufficient for
    * asset sharing: anyone the spec admits may also read assets referenced
    * from these rows, independent of any function-level gate a query adds.
@@ -1604,6 +1684,39 @@ export function defineSchema(tables, options = {}) {
     assert(table && table.__table, `table ${name} must be defineTable(...)`);
     assert(!table.__tableName || table.__tableName === name, `one table builder cannot be installed as both ${table.__tableName} and ${name}`);
     table.__tableName = name;
+  }
+  for (const [name, table] of Object.entries(tables)) {
+    const visibility = table.visibilityDeclaration;
+    if (visibility?.kind === 'owner') {
+      assert(
+        Object.hasOwn(table.fields, visibility.field),
+        `table ${name} visibility owner field ${visibility.field} does not exist`,
+        'SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN',
+      );
+    } else if (visibility?.kind === 'membership') {
+      assert(
+        Object.hasOwn(table.fields, visibility.resourceField),
+        `table ${name} visibility membership resource field ${visibility.resourceField} does not exist`,
+        'SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN',
+      );
+      const declaredMembership = Object.entries(tables).find(([membershipTableName, candidate]) => (
+        candidate.membershipDeclaration
+        && (candidate.membershipDeclaration.id ?? membershipTableName) === visibility.declaration
+      ));
+      assert(
+        declaredMembership !== undefined,
+        `table ${name} visibility names unknown membership declaration ${visibility.declaration}`,
+        'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_UNKNOWN',
+      );
+      const declaredRoles = new Set(declaredMembership?.[1].membershipDeclaration?.roles ?? []);
+      for (const role of visibility.roles ?? []) {
+        assert(
+          declaredRoles.has(role),
+          `table ${name} visibility names undeclared membership role ${role}`,
+          'SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLE_UNKNOWN',
+        );
+      }
+    }
   }
   const ephemeralDef = options.ephemeral ?? null;
   if (ephemeralDef !== null) {

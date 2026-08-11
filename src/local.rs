@@ -56,9 +56,9 @@ use crate::manifest::{
     FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest, FunctionRuntime,
     HandlerInput, HandlerPlan, MutationOutput, MutationSettlement, MutationStep,
     PermissionScopeExpr, PublicFunctionManifest, PublicSchemaManifest, QueryOutput, QueryPlan,
-    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, SettlementLane, SettlementMintObservation,
-    SettlementTimeObservation, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint,
-    ctx_ledger_version, legacy_auth_fingerprint,
+    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SearchVisibilityV1, SeedData, SettlementLane,
+    SettlementMintObservation, SettlementTimeObservation, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    ValueExpr, auth_fingerprint, ctx_ledger_version, legacy_auth_fingerprint,
 };
 use crate::runtime::{
     CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
@@ -67,7 +67,7 @@ use crate::runtime::{
 #[cfg(test)]
 pub(crate) use crate::search::sqlite::{
     SEARCH_ANALYZER, SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1, SearchIndexManifestV1,
-    SearchQueryPlanV1, SearchTextFieldV1, SearchVisibilityV1,
+    SearchQueryPlanV1, SearchTextFieldV1,
 };
 use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit, NetworkSeedOutcome};
 use crate::storage::{
@@ -27074,6 +27074,81 @@ fn sequence_declarations_from_functions(
         .collect()
 }
 
+fn validate_table_visibility_schema_references(schema: &SchemaManifest) -> SnapbackResult<()> {
+    for table in &schema.tables {
+        match &table.visibility {
+            None | Some(SearchVisibilityV1::PublicRead) => {}
+            Some(SearchVisibilityV1::Owner { field }) => {
+                if table.field(field).is_none() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN",
+                        "auth",
+                        format!(
+                            "table {} visibility owner field {} does not exist",
+                            table.name, field
+                        ),
+                    ));
+                }
+            }
+            Some(SearchVisibilityV1::Membership {
+                declaration,
+                resource_field,
+                roles,
+            }) => {
+                if table.field(resource_field).is_none() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN",
+                        "auth",
+                        format!(
+                            "table {} visibility membership resource field {} does not exist",
+                            table.name, resource_field
+                        ),
+                    ));
+                }
+                let Some((_membership_table, membership)) =
+                    crate::manifest::find_membership_declaration(schema, declaration)
+                else {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_UNKNOWN",
+                        "auth",
+                        format!(
+                            "table {} visibility names unknown membership declaration {}",
+                            table.name, declaration
+                        ),
+                    ));
+                };
+                if let Some(roles) = roles {
+                    let distinct = roles.iter().collect::<BTreeSet<_>>();
+                    if roles.is_empty() || distinct.len() != roles.len() {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLES_INVALID",
+                            "auth",
+                            format!(
+                                "table {} visibility membership roles must be non-empty and unique",
+                                table.name
+                            ),
+                        ));
+                    }
+                    if let Some(role) = roles
+                        .iter()
+                        .find(|role| !membership.roles.iter().any(|declared| declared == *role))
+                    {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLE_UNKNOWN",
+                            "auth",
+                            format!(
+                                "table {} visibility names undeclared membership role {}",
+                                table.name, role
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Whole-manifest schema-reference preflight. Invocation-time checks remain as
 /// defense in depth, but a malformed direct artifact must not replace a known
 /// good function/config/cron generation and fail only on its first call.
@@ -27081,6 +27156,7 @@ fn validate_function_schema_references(
     manifest: &FunctionManifest,
     schema: &SchemaManifest,
 ) -> SnapbackResult<()> {
+    validate_table_visibility_schema_references(schema)?;
     order_field_bounds_from_functions(manifest, schema)?;
     let table = |name: &str| {
         schema.table(name).ok_or_else(|| {

@@ -3,6 +3,7 @@ import {
   type AppMembershipSpec,
   type InferValidator,
   defineTable,
+  owner,
   v,
 } from '@expo/snapback-codegen/define';
 
@@ -55,6 +56,21 @@ resourceMembers.memberOf();
 resourceMembers.hasRole('host');
 // @ts-expect-error The declaration's closed role union excludes viewer.
 resourceMembers.hasRole(membershipResource.arg('eventId'), 'viewer');
+
+defineTable({ title: v.string() }).visibility({ kind: 'public-read' });
+defineTable({ ownerId: v.principal(), title: v.string() })
+  .visibility(owner('ownerId'));
+defineTable({ eventId: v.id('events'), title: v.string() }).visibility({
+  kind: 'membership',
+  declaration: resourceMembers,
+  resourceField: 'eventId',
+  roles: ['host'],
+});
+defineTable({ ownerId: v.principal() }).visibility({
+  kind: 'owner',
+  // @ts-expect-error owner visibility must name a declared table field.
+  field: 'missingOwner',
+});
 
 const appMembers = defineTable({
   userId: v.principal(),

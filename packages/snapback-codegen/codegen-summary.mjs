@@ -45,6 +45,28 @@ export function createCodegenSummary({
     .sort((left, right) => (
       left.operation < right.operation ? -1 : left.operation > right.operation ? 1 : 0
     ));
+  const declaredTableVisibility = Object.entries(tables)
+    .filter(([, table]) => table.visibility !== undefined)
+    .map(([table, definition]) => ({ table, kind: definition.visibility.kind }))
+    .sort((left, right) => (
+      left.table < right.table ? -1 : left.table > right.table ? 1 : 0
+    ));
+  const implicitTableVisibility = Object.entries(tables)
+    .filter(([, table]) => table.visibility === undefined)
+    .map(([table]) => table)
+    .sort();
+  const tableVisibility = {
+    declared: declaredTableVisibility,
+    implicit: implicitTableVisibility,
+    counts: {
+      total: Object.keys(tables).length,
+      declared: declaredTableVisibility.length,
+      implicit: implicitTableVisibility.length,
+      publicRead: declaredTableVisibility.filter(({ kind }) => kind === 'public-read').length,
+      owner: declaredTableVisibility.filter(({ kind }) => kind === 'owner').length,
+      membership: declaredTableVisibility.filter(({ kind }) => kind === 'membership').length,
+    },
+  };
   const degradedByOperation = new Map();
   for (const diagnostic of diagnostics) {
     if (diagnostic.code !== 'SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED') continue;
@@ -133,6 +155,7 @@ export function createCodegenSummary({
       degradedResults: degradedResults.length,
       ...(seedArtifact ? { seedRows: seedRowCount } : {}),
     },
+    tableVisibility,
     implicitAuthRequirements,
     degradedResults,
     ...(seedArtifact
@@ -166,6 +189,17 @@ export function formatCodegenSummary(summary) {
       `  auth ${item.operation}: ${item.source.path}:${item.source.line}:${item.source.column} omits auth and currently uses ${item.effectiveLegacyRequirement}`,
       `    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see ${item.guideAnchor}`,
     );
+  }
+  const visibility = summary.tableVisibility;
+  if (visibility) {
+    lines.push(
+      `  table visibility ${visibility.counts.declared} declared; ${visibility.counts.implicit} implicit`,
+    );
+    for (const table of visibility.implicit) {
+      lines.push(
+        `    ${table}: add .visibility(...) to the table definition; see guide/auth/protecting-data.md#declare-who-can-read-each-table`,
+      );
+    }
   }
   return lines.join('\n');
 }

@@ -890,6 +890,7 @@ mod tests {
             search_live_limits: None,
             membership: Some(event_members()),
             asset_sharing: None,
+            visibility: None,
             history: None,
         };
         table.membership = Some(event_members());
@@ -909,6 +910,7 @@ mod tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         };
         schema.tables = vec![table, events.clone()];
@@ -1038,6 +1040,7 @@ mod tests {
                 principal_addressed_writes: None,
             }),
             asset_sharing: None,
+            visibility: None,
             history: None,
         }
     }

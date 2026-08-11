@@ -2026,6 +2026,17 @@
             "$ref": "#/$defs/VectorIndexManifestV1"
           },
           "type": "array"
+        },
+        "visibility": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SearchVisibilityV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The table-wide default row-visibility declaration. This foundation\nslice records and validates the existing closed search-visibility\nunion without yet composing it into query plans or `ctx.db` reads.\n\n@ref LLP 0231#d1--the-table-is-the-policy-locus-queries-refine — the\n  table is the mandatory policy locus; query composition lands later."
         }
       },
       "required": [

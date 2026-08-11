@@ -2079,6 +2079,7 @@ mod tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            visibility: None,
             history: None,
         }
     }
@@ -2152,6 +2153,7 @@ mod tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
             TableManifest {
@@ -2202,6 +2204,7 @@ mod tests {
                     principal_addressed_writes: None,
                 }),
                 asset_sharing: None,
+                visibility: None,
                 history: None,
             },
         ];
