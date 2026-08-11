@@ -53,6 +53,7 @@ const PRESENCE_PUBLISHER_CAP = 64;
 const OPTIMISTIC_LAYER_CAP = 256;
 const REACT_RUNTIME_FALLBACK_RETRY_MS = 250;
 const QUEUED_MUTATION_WEDGE_WARNING_MS = 30_000;
+const DEFAULT_OUTBOX_DRAIN_OPTIONS = Object.freeze({});
 const providerContext = createContext(null);
 let providerSequence = 0;
 // Local-uniqueness labels (provider instances, optimistic-layer ids): NOT
@@ -65,6 +66,7 @@ let localLabelSequence = 0;
 const localUniqueLabel = () => globalThis.crypto?.randomUUID?.()
   ?? `${Date.now().toString(36)}-${(localLabelSequence += 1).toString(36)}-${Math.random().toString(36).slice(2)}`;
 const preparedGroupReadersByRegistry = new WeakMap();
+const providerOutboxDrainStates = new WeakMap();
 
 function preparedGroupForProvider(provider) {
   return preparedGroupReadersByRegistry.get(provider.registry)?.() ?? null;
@@ -124,6 +126,10 @@ function diagnosticError(code, message, details = {}) {
   return error;
 }
 
+/**
+ * @deprecated Queued React mutations resolve a discriminated union. LLP 0218
+ * P6 removes this throw-site-free compatibility export.
+ */
 export class SnapbackQueuedMutationError extends Error {
   constructor(mutation, outcome) {
     const message = `mutation "${mutation}" was durably queued; settlement is still pending`;
@@ -550,6 +556,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
 
   const releaseLayerPin = (store, layer) => {
+    if (typeof layer.mutationSubscription === 'function') {
+      const unsubscribe = layer.mutationSubscription;
+      layer.mutationSubscription = null;
+      try { unsubscribe(); } catch { /* observation teardown cannot own layer state */ }
+    }
     if (layer.pinReleased) return;
     layer.pinReleased = true;
     store.pins = Math.max(0, store.pins - 1);
@@ -587,6 +598,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         );
       } catch (error) {
         layer.failed = true;
+        layer.retired = true;
+        store.pendingMutations.delete(layer.id);
         releaseLayerPin(store, layer);
         recordDiagnostic(diagnosticError(
           'SNAPBACK_REACT_OPTIMISTIC_REBASE_FAILED',
@@ -1259,18 +1272,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     );
   };
 
-  // @ref LLP 0043#raw-settlement-facts-and-projection-ownership-2026-07-20-llp-0063-step-1 — a
-  // connectivity-refused dispatch that crossed the durable enqueue cut is a
-  // pending settlement fact, never a result-contract installation failure.
-  // React keeps its result-only resolved type by rejecting one distinct
-  // queued class, while development warnings make the deferred outcome loud.
-  const queuedMutationError = (mutationReference, outcome) => {
-    if (outcome?.queued !== true) return null;
-    const error = new SnapbackQueuedMutationError(mutationReference.name, outcome);
-    if (!positiveDevelopmentEnvironment()) return error;
-
+  // @ref LLP 0218#41-the-dispatch-union-headless-contract — durable enqueue
+  // followed by foreground relinquishment resolves a pending branch. React
+  // re-stamps presentation because this registry owns the install decision;
+  // the deprecated queued error remains export-only with no throw site.
+  const promoteQueuedMutationDiagnostic = (mutationReference, outcome) => {
+    if (!positiveDevelopmentEnvironment()) return;
     console.warn(
-      `${error.code}: mutation "${mutationReference.name}" was durably queued as `
+      `SNAPBACK_REACT_MUTATION_QUEUED: mutation "${mutationReference.name}" was durably queued as `
       + `${outcome.clientMutationId} (sequence ${outcome.sequence}); keep pending UI until `
       + 'replay settles it, and roll back only for a declared server refusal carrying appCode.',
     );
@@ -1303,10 +1312,161 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }, queuedMutationWedgeWarningMs);
     timer?.unref?.();
     queuedMutationWarningTimers.add(timer);
-    return error;
   };
 
-  const runMutation = async (mutationReference, mutationArgs, optimistic = null) => {
+  const emitQueuedPresentationDiagnostic = (mutationReference, outcome, code, cause) => {
+    const event = Object.freeze({
+      code,
+      mutation: mutationReference.name,
+      clientMutationId: outcome.clientMutationId,
+      sequence: outcome.sequence,
+      presentation: 'unavailable',
+      causeCode: cause?.diagnostic?.code ?? cause?.code ?? null,
+    });
+    try { client.__emitDevDiagnosticsEvent?.(event); } catch { /* diagnostics are observational */ }
+    recordDiagnostic(diagnosticError(
+      code,
+      'accepted queued intent could not retain its local presentation bookkeeping',
+      event,
+    ));
+  };
+
+  const queuedMutationOutcome = (
+    mutationReference,
+    outcome,
+    presentation,
+    diagnosticCode = null,
+  ) => {
+    const queued = Object.freeze({
+      ...outcome,
+      status: 'queued',
+      queued: true,
+      presentation,
+      ...(diagnosticCode === null ? {} : { diagnosticCode }),
+    });
+    try { promoteQueuedMutationDiagnostic(mutationReference, queued); } catch {
+      // A development diagnostic can never turn accepted durable intent into
+      // a rejected dispatch.
+    }
+    return queued;
+  };
+
+  const retireOptimisticLayer = (store, layer, { failed = false } = {}) => {
+    if (layer.retired) return;
+    layer.retired = true;
+    layer.failed = failed;
+    store.pendingMutations.delete(layer.id);
+    store.optimisticLayers = store.optimisticLayers.filter((entry) => entry !== layer);
+    releaseLayerPin(store, layer);
+    publishMaterialized(store);
+  };
+
+  // The foreground response and the durable status channel converge here, so
+  // replay settlement (including another writer context) runs the exact same
+  // LLP 0107 matcher/record-absence path as an immediate response.
+  // @ref LLP 0218#42-the-optimistic-contract-exact — retained queued layers
+  // are correlated by clientMutationId and retire only from authoritative
+  // disposition evidence or authority loss.
+  const confirmOptimisticLayer = (store, layer, result) => {
+    if (layer.retired) return;
+    layer.result = result;
+    layer.confirmed = true;
+    layer.orphaned = false;
+    layer.confirmedRevision = store.authoritativeRevision;
+    store.pendingMutations.delete(layer.id);
+    try {
+      const matched = layer.isAuthoritative?.(
+        immutableClone(store.authoritativeData),
+        immutableClone(result),
+      ) === true;
+      const recordAbsent = !matched
+        && layer.recordProjection !== null
+        && store.freshness === 'current'
+        && !store.authoritativeData.some(
+          (row) => row?.[layer.recordProjection.idField] === layer.recordProjection.recordId,
+        );
+      if (matched || recordAbsent) retireOptimisticLayer(store, layer);
+    } catch (error) {
+      recordDiagnostic(diagnosticError(
+        'SNAPBACK_REACT_OPTIMISTIC_REBASE_FAILED',
+        'an optimistic authority matcher failed after dispatch',
+        { attemptId: layer.id, cause: error?.code ?? error?.message ?? String(error) },
+      ));
+      retireOptimisticLayer(store, layer, { failed: true });
+    }
+  };
+
+  const installQueuedLayerSubscription = (
+    store,
+    layer,
+    mutationReference,
+    mutationContract,
+    outcome,
+  ) => {
+    if (typeof client.subscribeMutation !== 'function') {
+      throw diagnosticError(
+        'SNAPBACK_REACT_QUEUED_PRESENTATION_UNAVAILABLE',
+        'queued optimistic presentation requires subscribeMutation',
+      );
+    }
+    layer.clientMutationId = outcome.clientMutationId;
+    layer.dispositionTask = Promise.resolve();
+    let active = true;
+    const off = client.subscribeMutation(outcome.clientMutationId, (disposition) => {
+      layer.dispositionTask = layer.dispositionTask.then(async () => {
+        if (!active || layer.retired || terminal) return;
+        layer.disposition = disposition.status;
+        if (disposition.status === 'pending') {
+          layer.orphaned = false;
+          return;
+        }
+        if (disposition.status === 'unknown') {
+          // Absence of a durable record licenses no settlement inference. Keep
+          // the visible layer and expose the orphaned fact for inspection.
+          layer.orphaned = true;
+          return;
+        }
+        if (disposition.status === 'settled') {
+          const result = validateResultContract(
+            mutationContract,
+            disposition.settlement?.result,
+            { violationCode: 'SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED' },
+          );
+          confirmOptimisticLayer(store, layer, result);
+          return;
+        }
+        if (disposition.status === 'failed') {
+          retireOptimisticLayer(store, layer, { failed: true });
+          return;
+        }
+        if (['stranded', 'quarantined', 'resultGone'].includes(disposition.status)) {
+          // Custody-terminal outcomes retire the local claim while their
+          // durable facts and recovery affordances remain visible in outbox.
+          retireOptimisticLayer(store, layer);
+          return;
+        }
+        // A future/invalid status is not settlement evidence. Fail closed like
+        // unknown: retain the layer and make the orphan visible for inspection.
+        layer.orphaned = true;
+      }).catch((error) => {
+        if (!active || layer.retired) return;
+        recordDiagnostic(error);
+        retireOptimisticLayer(store, layer, { failed: true });
+      });
+    });
+    layer.mutationSubscription = () => {
+      if (!active) return;
+      active = false;
+      off();
+    };
+  };
+
+  const runMutation = async (
+    mutationReference,
+    mutationArgs,
+    optimistic = null,
+    dispatchOptions = {},
+  ) => {
     if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
     if (mutationReference?.[HANDOFF_DEFERRED_REFERENCE] === true) {
       mutationReference = mutationReference.reference;
@@ -1327,21 +1487,39 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
     }
     canonicalizeClientValueV1(mutationArgs);
+    if (
+      dispatchOptions === null
+      || typeof dispatchOptions !== 'object'
+      || Array.isArray(dispatchOptions)
+    ) throw new TypeError('mutation dispatch options must be an object');
+    if (dispatchOptions.queue !== undefined && dispatchOptions.queue !== false) {
+      throw new TypeError('React mutation queue option must be false when supplied');
+    }
+    const queue = dispatchOptions.queue === false ? false : 'auto';
     const mutationContract = preparedReactResultContract(binding, admittedMutation);
     if (optimistic === null) {
       // @ref LLP 0100#product-receipt — the admitted local-dev
       // persona must bind writes at the same product boundary as live reads.
       const output = await client.mutate(admittedMutation, {
         args: mutationArgs,
+        queue,
         ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
       });
-      const queued = queuedMutationError(admittedMutation, output);
-      if (queued !== null) throw queued;
-      return validateResultContract(
+      if (output?.status === 'queued' || output?.queued === true) {
+        if (queue === false) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_QUEUE_FALSE_VIOLATED',
+            'headless client returned queued after queue:false',
+          );
+        }
+        return queuedMutationOutcome(admittedMutation, output, 'withheld');
+      }
+      const result = validateResultContract(
         mutationContract,
         output.result,
         { violationCode: 'SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED' },
       );
+      return queue === false ? result : Object.freeze({ status: 'settled', result });
     }
 
     if (
@@ -1418,6 +1596,10 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       confirmedRevision: null,
       failed: false,
       retired: false,
+      orphaned: false,
+      disposition: null,
+      dispositionTask: null,
+      mutationSubscription: null,
       pinReleased: false,
     };
 
@@ -1463,10 +1645,34 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         args: mutationArgs,
         clientMutationId: id,
         authorityCapture: capture,
+        queue,
         ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
       });
-      const queued = queuedMutationError(admittedMutation, output);
-      if (queued !== null) throw queued;
+      if (output?.status === 'queued' || output?.queued === true) {
+        if (queue === false) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_QUEUE_FALSE_VIOLATED',
+            'headless client returned queued after queue:false',
+          );
+        }
+        let presentation = 'installed';
+        let diagnosticCode = null;
+        try {
+          installQueuedLayerSubscription(
+            store,
+            layer,
+            admittedMutation,
+            mutationContract,
+            output,
+          );
+        } catch (error) {
+          presentation = 'unavailable';
+          diagnosticCode = 'SNAPBACK_REACT_QUEUED_PRESENTATION_UNAVAILABLE';
+          layer.orphaned = true;
+          emitQueuedPresentationDiagnostic(admittedMutation, output, diagnosticCode, error);
+        }
+        return queuedMutationOutcome(admittedMutation, output, presentation, diagnosticCode);
+      }
       const result = validateResultContract(
         mutationContract,
         output.result,
@@ -1478,42 +1684,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           'optimistic mutation completed under stale authority',
         );
       }
-      layer.result = result;
-      layer.confirmed = true;
-      layer.confirmedRevision = store.authoritativeRevision;
-      store.pendingMutations.delete(id);
-      try {
-        const matched = layer.isAuthoritative?.(
-          immutableClone(store.authoritativeData),
-          immutableClone(result),
-        ) === true;
-        // Retained Channel B frames may replace authoritativeData for display,
-        // but only a current authoritative delivery can prove row absence.
-        const recordAbsent = !matched
-          && layer.recordProjection !== null
-          && store.freshness === 'current'
-          && !store.authoritativeData.some(
-            (row) => row?.[layer.recordProjection.idField] === layer.recordProjection.recordId,
-          );
-        if (matched || recordAbsent) {
-          layer.retired = true;
-          releaseLayerPin(store, layer);
-          store.optimisticLayers = store.optimisticLayers.filter((entry) => entry !== layer);
-          publishMaterialized(store);
-        }
-      } catch (error) {
-        layer.retired = true;
-        layer.failed = true;
-        releaseLayerPin(store, layer);
-        store.optimisticLayers = store.optimisticLayers.filter((entry) => entry !== layer);
-        recordDiagnostic(diagnosticError(
-          'SNAPBACK_REACT_OPTIMISTIC_REBASE_FAILED',
-          'an optimistic authority matcher failed after dispatch',
-          { attemptId: id, cause: error?.code ?? error?.message ?? String(error) },
-        ));
-        publishMaterialized(store);
-      }
-      return result;
+      confirmOptimisticLayer(store, layer, result);
+      return queue === false ? result : Object.freeze({ status: 'settled', result });
     } catch (error) {
       store.pendingMutations.delete(id);
       store.optimisticLayers = store.optimisticLayers.filter((entry) => entry !== layer);
@@ -2408,6 +2580,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         store.snapshot = pending('idle');
         store.freshness = 'unknown';
         store.retention = null;
+        // @ref LLP 0107#resync-authority-and-lifecycle — authority
+        // replacement blanks every predecessor projection; queued layers may
+        // survive enqueue, but never cross into a successor authority.
+        for (const layer of store.optimisticLayers) {
+          layer.retired = true;
+          releaseLayerPin(store, layer);
+        }
+        store.optimisticLayers = [];
+        store.pendingMutations.clear();
         for (const listener of [...store.listeners.values()]) {
           try { listener(); } catch { /* observational */ }
         }
@@ -2807,15 +2988,25 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         'optimistic create completed under stale authority',
       );
     }
-    const queued = queuedMutationError(admittedMutation, output);
-    if (queued !== null) {
-      await view.refresh({
-        connected: connectedForOptimisticCreate(store),
-        cause: 'react-provider-create-queued',
-      });
-      notifyOptimisticCreate(store, state);
-      await applyOptimisticCreateAuthority(store, state, 'react-provider-queued-rebase');
-      throw queued;
+    if (output?.status === 'queued' || output?.queued === true) {
+      // @ref LLP 0218#42-the-optimistic-contract-exact — durable acceptance
+      // cannot become a rejected intent because local presentation refresh
+      // failed after enqueue.
+      let presentation = 'installed';
+      let diagnosticCode = null;
+      try {
+        await view.refresh({
+          connected: connectedForOptimisticCreate(store),
+          cause: 'react-provider-create-queued',
+        });
+        notifyOptimisticCreate(store, state);
+        await applyOptimisticCreateAuthority(store, state, 'react-provider-queued-rebase');
+      } catch (error) {
+        presentation = 'unavailable';
+        diagnosticCode = 'SNAPBACK_REACT_QUEUED_PRESENTATION_UNAVAILABLE';
+        emitQueuedPresentationDiagnostic(admittedMutation, output, diagnosticCode, error);
+      }
+      return queuedMutationOutcome(admittedMutation, output, presentation, diagnosticCode);
     }
     const result = validateResultContract(
       mutationContract,
@@ -2838,7 +3029,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     });
     notifyOptimisticCreate(store, state);
     await applyOptimisticCreateAuthority(store, state, 'react-provider-confirmation-rebase');
-    return result;
+    return Object.freeze({ status: 'settled', result });
   };
 
   const registry = Object.freeze({
@@ -2930,6 +3121,17 @@ function createRegistry(binding, providerInstanceId, options = {}) {
               storeRevision: store.authoritativeRevision,
             }))
         ))),
+        orphanedOptimisticLayers: Object.freeze([...stores.values()].flatMap((store) => (
+          store.optimisticLayers
+            .filter((layer) => layer.orphaned === true)
+            .map((layer) => Object.freeze({
+              attemptId: layer.id,
+              clientMutationId: layer.clientMutationId ?? layer.id,
+              mutationId: layer.mutationId,
+              queryId: layer.queryId,
+              disposition: 'unknown',
+            }))
+        ))),
         consumers,
         serverSubscriptions: activeStores().length,
         leases: leases.size,
@@ -2976,6 +3178,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         if (store.optimisticCreate !== null) {
           closeOptimisticCreate(store, store.optimisticCreate, { force: true });
         }
+        for (const layer of store.optimisticLayers) {
+          layer.retired = true;
+          releaseLayerPin(store, layer);
+        }
+        store.optimisticLayers = [];
+        store.pendingMutations.clear();
         stopStore(store, { blank: true });
       }
       for (const room of rooms.values()) stopRoom(room);
@@ -3024,11 +3232,112 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
 export function createSnapbackReactFullProvider(binding, options = {}) {
   const prepared = assertPreparedReactBinding(binding);
+  const client = preparedReactBindingClient(prepared);
   const providerInstanceId = `provider-${++providerSequence}-${localUniqueLabel()}`;
   let registry = null;
   let disposePromise = null;
+  const initialDrainMode = options.outboxDrain ?? 'auto';
+  if (!['auto', 'manual'].includes(initialDrainMode)) {
+    throw new TypeError("outboxDrain must be 'auto' or 'manual'");
+  }
+  const drainState = {
+    mode: initialDrainMode,
+    options: options.outboxDrainOptions ?? {},
+    handle: null,
+    cleanups: [],
+  };
+  if (
+    drainState.options === null
+    || typeof drainState.options !== 'object'
+    || Array.isArray(drainState.options)
+  ) throw new TypeError('outboxDrainOptions must be an object');
+
+  const stopOutboxDrain = () => {
+    for (const cleanup of drainState.cleanups.splice(0)) {
+      try { cleanup(); } catch { /* deterministic best-effort host teardown */ }
+    }
+    try { drainState.handle?.stop(); } catch { /* controller cleanup remains idempotent */ }
+    drainState.handle = null;
+  };
+  const wakeOutboxDrain = () => {
+    if (drainState.mode !== 'auto' || drainState.handle?.status?.().running !== true) return;
+    void drainState.handle.drainNow().catch(() => {});
+  };
+  const startOutboxDrain = () => {
+    if (drainState.handle?.status?.().running === true) return drainState.handle;
+    if (
+      client.rqsStoreInfo?.durable !== true
+      || typeof client.startOutboxDrain !== 'function'
+    ) return null;
+    const drainOptions = drainState.options;
+    try {
+      // @ref LLP 0218#43-the-platform-owned-drain — the provider owns one P2
+      // controller for its durable writer store. Manual mode disables only
+      // automatic scheduling; timer/eventTarget carrier seams pass through.
+      drainState.handle = client.startOutboxDrain({
+        ...drainOptions,
+        automatic: drainState.mode === 'auto',
+      });
+    } catch (error) {
+      if (![
+        'SNAPBACK_OFFLINE_QUEUE_DISABLED',
+        'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE',
+      ].includes(error?.code)) {
+        try { options.onDiagnostic?.(serializeError(error)); } catch { /* observational */ }
+      }
+      drainState.handle = null;
+      return null;
+    }
+    if (drainState.mode === 'auto') {
+      const focusTarget = drainOptions.eventTarget === undefined
+        ? (typeof globalThis.addEventListener === 'function' ? globalThis : null)
+        : drainOptions.eventTarget;
+      const visibilityTarget = focusTarget === null
+        ? null
+        : focusTarget?.document
+          ?? (focusTarget?.visibilityState === undefined ? globalThis.document ?? null : focusTarget);
+      if (
+        focusTarget !== null
+        && typeof focusTarget?.addEventListener === 'function'
+        && typeof focusTarget?.removeEventListener === 'function'
+      ) {
+        focusTarget.addEventListener('focus', wakeOutboxDrain);
+        drainState.cleanups.push(() => focusTarget.removeEventListener('focus', wakeOutboxDrain));
+      }
+      if (
+        visibilityTarget !== null
+        && typeof visibilityTarget?.addEventListener === 'function'
+        && typeof visibilityTarget?.removeEventListener === 'function'
+      ) {
+        const onVisibility = () => {
+          if (visibilityTarget.visibilityState !== 'hidden') wakeOutboxDrain();
+        };
+        visibilityTarget.addEventListener('visibilitychange', onVisibility);
+        drainState.cleanups.push(
+          () => visibilityTarget.removeEventListener('visibilitychange', onVisibility),
+        );
+      }
+    }
+    return drainState.handle;
+  };
+  const configureOutboxDrain = (mode = 'auto', drainOptions = {}) => {
+    if (!['auto', 'manual'].includes(mode)) {
+      throw new TypeError("outboxDrain must be 'auto' or 'manual'");
+    }
+    if (drainOptions === null || typeof drainOptions !== 'object' || Array.isArray(drainOptions)) {
+      throw new TypeError('outboxDrainOptions must be an object');
+    }
+    const changed = drainState.mode !== mode || drainState.options !== drainOptions;
+    drainState.mode = mode;
+    drainState.options = drainOptions;
+    if (changed) stopOutboxDrain();
+    if (registry !== null) startOutboxDrain();
+  };
   const start = () => {
-    if (registry !== null) return provider;
+    if (registry !== null) {
+      startOutboxDrain();
+      return provider;
+    }
     const preparedGroup = options.preparedGroup == null
       ? null
       : consumePreparedReactQueryGroup(prepared, options.preparedGroup);
@@ -3041,6 +3350,7 @@ export function createSnapbackReactFullProvider(binding, options = {}) {
       if (preparedGroup !== null) void abandonConsumedReactQueryGroup(preparedGroup);
       throw error;
     }
+    startOutboxDrain();
     return provider;
   };
   const activeRegistry = () => (start(), registry);
@@ -3057,14 +3367,19 @@ export function createSnapbackReactFullProvider(binding, options = {}) {
       return preparedReactBindingClient(prepared).registerEphemeralRepublisher(reference, callback);
     },
     pause: () => activeRegistry().pause(),
-    resume: () => activeRegistry().resume(),
+    resume: async () => {
+      await activeRegistry().resume();
+      wakeOutboxDrain();
+    },
     inspection: () => Object.freeze({
       ...activeRegistry().inspection(),
       commandTasks: commandClients.get(provider)?.inspection().activeCommandTasks ?? 0,
+      outboxDrain: drainState.handle?.status?.() ?? null,
     }),
     dispose() {
       if (registry === null) return Promise.resolve();
       return disposePromise ??= (async () => {
+        stopOutboxDrain();
         await disposeCommandClientFor(provider);
         await disposeAssetRegistryFor(provider);
         return registry.dispose();
@@ -3074,12 +3389,19 @@ export function createSnapbackReactFullProvider(binding, options = {}) {
   provider.surface = (surface, params, surfaceOptions = {}) => (
     bindSnapbackSurface(provider, surface, params, surfaceOptions)
   );
+  providerOutboxDrainStates.set(provider, Object.freeze({
+    configure: configureOutboxDrain,
+    stop: stopOutboxDrain,
+    async drainNow() {
+      if (drainState.handle?.status?.().running === true) {
+        return drainState.handle.drainNow();
+      }
+      return client.replayQueuedMutations();
+    },
+  }));
   return Object.freeze(provider);
 }
 
-// The narrow entry owns no alternate provider or registry. It selects this
-// undecorated constructor over the exact same createRegistry owner the root
-// uses; only the small provider facade differs.
 export function createSnapbackReactCoreProvider(binding, options = {}) {
   const prepared = assertPreparedReactBinding(binding);
   const providerInstanceId = `provider-${++providerSequence}-${localUniqueLabel()}`;
@@ -3172,7 +3494,13 @@ export function SnapbackCoreProvider(props) {
   return renderSnapbackProvider(props, createSnapbackReactCoreProvider);
 }
 
-export function SnapbackFullProvider({ binding = null, provider = null, children = null }) {
+export function SnapbackFullProvider({
+  binding = null,
+  provider = null,
+  children = null,
+  outboxDrain = 'auto',
+  outboxDrainOptions = DEFAULT_OUTBOX_DRAIN_OPTIONS,
+}) {
   const supplied = provider === null ? null : assertProvider(provider);
   const prepared = supplied === null ? assertPreparedReactBinding(binding) : null;
   const lifecycle = useMemo(() => {
@@ -3198,16 +3526,19 @@ export function SnapbackFullProvider({ binding = null, provider = null, children
   useEffect(() => {
     if (supplied !== null) {
       supplied.start();
-      return undefined;
+      // @ref LLP 0218#43-the-platform-owned-drain — the full provider owns the
+      // drain lifecycle even when the provider instance is caller-supplied.
+      providerOutboxDrainStates.get(supplied)?.configure(outboxDrain, outboxDrainOptions);
+      return () => providerOutboxDrainStates.get(supplied)?.stop();
     }
-    const next = createSnapbackReactFullProvider(prepared);
+    const next = createSnapbackReactFullProvider(prepared, { outboxDrain, outboxDrainOptions });
     next.start();
     lifecycle.publish(next);
     return () => {
       lifecycle.publish(null);
       void next.dispose();
     };
-  }, [lifecycle, prepared, supplied]);
+  }, [lifecycle, outboxDrain, outboxDrainOptions, prepared, supplied]);
   const active = supplied ?? current;
   if (active === null) return null;
   return React.createElement(providerContext.Provider, { value: active }, children);
@@ -3503,10 +3834,17 @@ export function useSnapbackMutation(reference, options = {}) {
     [provider, reference],
   );
   const optimistic = options?.optimistic ?? null;
+  const queue = options?.queue;
   return useCallback(
-    (args) => provider.registry.runMutation(admitted, args, optimistic),
-    [provider, admitted, optimistic],
+    (args) => provider.registry.runMutation(admitted, args, optimistic, { queue }),
+    [provider, admitted, optimistic, queue],
   );
+}
+
+/** Explicit connectivity-required mutation surface retaining the historical
+ * bare validated-result resolution. */
+export function useSnapbackSettledMutation(reference, options = {}) {
+  return useSnapbackMutation(reference, { ...options, queue: false });
 }
 
 const selectOptimisticCreateState = (state, select) => {
@@ -4151,7 +4489,12 @@ export async function invokeSnapbackMutation(providerValue, reference, args, opt
   // runMutation owns admission (including the development generation-handoff
   // wait), so adapters get the exact hook-path behavior: a strict rejection
   // stays a rejected promise here, never a synchronous throw.
-  return provider.registry.runMutation(reference, args, options.optimistic ?? null);
+  return provider.registry.runMutation(
+    reference,
+    args,
+    options.optimistic ?? null,
+    { queue: options.queue },
+  );
 }
 
 export function invokeSnapbackCommand(providerValue, reference, args) {
@@ -4162,19 +4505,29 @@ export function invokeSnapbackCommand(providerValue, reference, args) {
 
 // ---------------------------------------------------------------------------
 // Outbox (LLP 0043 M2 queue on the JS arm — LLP 0129 Phase 0). The React
-// projection of the headless client's OWN facts: `outboxStatus()` counts and
-// the `subscribeOutbox` seam. The hook surfaces queued/failed/result-gone/
-// replaying state; it never derives an overlay, reorders replay, or claims settlement
-// — LLP 0090 D3's full-resync-before-replay ordering stays entirely the
-// headless client's.
+// projection of the headless client's OWN facts: `outboxStatus()` counts,
+// drain-controller phase, custody affordances, and the `subscribeOutbox` seam.
+// It never derives an overlay, reorders replay, or claims settlement — LLP
+// 0090 D3's full-resync-before-replay ordering stays entirely the headless
+// client's.
+// @ref LLP 0218#41-the-dispatch-union-headless-contract — React mirrors the
+// total durable disposition and recovery surface without inventing outcomes.
 
 const OUTBOX_LOADING = Object.freeze({
   status: 'loading',
   supported: false,
   pending: 0,
   failed: 0,
+  stranded: 0,
+  quarantined: 0,
   resultGone: 0,
+  depth: 0,
   replaying: false,
+  oldestPendingAtMs: null,
+  drainPhase: 'idle',
+  lastAttemptAtMs: null,
+  nextRetryAtMs: null,
+  blockedReason: null,
 });
 
 const outboxStores = new WeakMap();
@@ -4213,7 +4566,12 @@ function outboxStoreFor(provider) {
     }
     refreshing = true;
     void client.outboxStatus().then((status) => {
-      snapshot = Object.freeze({ status: 'ready', ...status });
+      snapshot = Object.freeze({
+        status: 'ready',
+        ...status,
+        depth: status.pending + status.failed + status.stranded
+          + status.quarantined + status.resultGone,
+      });
       notify();
     }).catch(() => { /* the durable store stays the authority */ }).finally(() => {
       refreshing = false;
@@ -4239,12 +4597,36 @@ function outboxStoreFor(provider) {
         }
       };
     },
-    async replay() {
-      const outcome = await client.replayQueuedMutations();
+    async drainNow() {
+      const owner = providerOutboxDrainStates.get(provider);
+      const outcome = owner === undefined
+        ? await client.replayQueuedMutations()
+        : await owner.drainNow();
       refresh();
       return outcome;
     },
   };
+  store.replay = store.drainNow;
+  const action = (name) => async (...args) => {
+    if (typeof client[name] !== 'function') {
+      throw diagnosticError(
+        'SNAPBACK_REACT_OUTBOX_AFFORDANCE_UNSUPPORTED',
+        `the bound client does not expose ${name}`,
+      );
+    }
+    try {
+      return await client[name](...args);
+    } finally {
+      refresh();
+    }
+  };
+  store.mutationStatus = action('mutationStatus');
+  store.strandedMutations = action('strandedMutations');
+  store.discardStrandedMutations = action('discardStrandedMutations');
+  store.reRecordStrandedMutation = action('reRecordStrandedMutation');
+  store.quarantinedMutations = action('quarantinedMutations');
+  store.reenterQuarantinedMutations = action('reenterQuarantinedMutations');
+  store.acknowledgeResultGoneMutations = action('acknowledgeResultGoneMutations');
   outboxStores.set(provider, store);
   return store;
 }
@@ -4254,7 +4636,18 @@ export function useSnapbackOutbox() {
   const store = useMemo(() => outboxStoreFor(provider), [provider]);
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   return useMemo(
-    () => Object.freeze({ ...state, replay: store.replay }),
+    () => Object.freeze({
+      ...state,
+      drainNow: store.drainNow,
+      replay: store.replay,
+      mutationStatus: store.mutationStatus,
+      strandedMutations: store.strandedMutations,
+      discardStrandedMutations: store.discardStrandedMutations,
+      reRecordStrandedMutation: store.reRecordStrandedMutation,
+      quarantinedMutations: store.quarantinedMutations,
+      reenterQuarantinedMutations: store.reenterQuarantinedMutations,
+      acknowledgeResultGoneMutations: store.acknowledgeResultGoneMutations,
+    }),
     [state, store],
   );
 }
@@ -4271,7 +4664,15 @@ export function observeSnapbackOutbox(providerValue, listener) {
   listener(store.getSnapshot());
   return Object.freeze({
     snapshot: () => store.getSnapshot(),
+    drainNow: () => store.drainNow(),
     replay: () => store.replay(),
+    mutationStatus: (...args) => store.mutationStatus(...args),
+    strandedMutations: (...args) => store.strandedMutations(...args),
+    discardStrandedMutations: (...args) => store.discardStrandedMutations(...args),
+    reRecordStrandedMutation: (...args) => store.reRecordStrandedMutation(...args),
+    quarantinedMutations: (...args) => store.quarantinedMutations(...args),
+    reenterQuarantinedMutations: (...args) => store.reenterQuarantinedMutations(...args),
+    acknowledgeResultGoneMutations: (...args) => store.acknowledgeResultGoneMutations(...args),
     dispose() {
       if (closed) return;
       closed = true;

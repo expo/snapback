@@ -24,6 +24,7 @@ export {
   useSnapbackPresence,
   useSnapbackQueries,
   useSnapbackQuery,
+  useSnapbackSettledMutation,
 } from './index.mjs';
 
 export type {

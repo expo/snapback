@@ -142,10 +142,10 @@ export function WarbleScreen({ api, storeInfo }: WarbleScreenProps) {
         body: draft.trim(),
         authorHandle: viewer.handle,
         authorName: viewer.displayName,
-      }) as { queued?: true; postId?: string };
+      });
       // A queued response is a successful offline capture. The timeline stays
       // pre-intent and the outbox badge is the sole representation until replay.
-      if (outcome.queued === true || typeof outcome.postId === 'string') setDraft('');
+      if (outcome.status === 'queued' || typeof outcome.result.postId === 'string') setDraft('');
     } catch (error) {
       setComposerError(textFromError(error));
     } finally {

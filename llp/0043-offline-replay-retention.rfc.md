@@ -5,7 +5,9 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-10 (JS/React M1 lease-custody implementation leg:
+**Revised:** 2026-08-10 (LLP 0218 P3 React dispatch handoff: a queued React
+resolution relinquishes foreground settlement to this RFC's durable status,
+custody, recovery, and acknowledgement lifecycle). 2026-08-10 (JS/React M1 lease-custody implementation leg:
 generated protected live queries now use an owned atomic RQS-v3 sibling
 record for never-reused query identity, authorization witness, exact
 AuthorizedLease bytes/hash, request-start-derived deadline, and retained
@@ -406,6 +408,14 @@ current id. Acknowledgement and GC are idempotent and auth-bound, so one
 principal cannot delete another's replay result.
 
 #### Raw settlement facts and projection ownership (2026-07-20, LLP 0063 Step 1)
+
+**React dispatch handoff (2026-08-10 — LLP 0218 P3).** LLP 0218 owns the
+foreground dispatch union and React presentation stamp. Once that facade
+resolves `status: 'queued'`, this RFC continues to own the durable mutation
+record, retained settlement result, total disposition/status observation,
+replay ordering, custody recovery affordances, and result acknowledgement.
+Retiring a process-local optimistic layer never discards or rewrites those
+durable facts.
 
 The provider exposes facts; it does not collapse uncertainty into a product
 state. The raw Snapback facts are the effect-call settlement (pending,

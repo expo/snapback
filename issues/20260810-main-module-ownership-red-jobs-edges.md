@@ -24,3 +24,17 @@ convert to fix-forward-by-anyone after 24h). Fix the edges (move the shared
 shape down to the leaf / invert with a port) or record explicit reviewed
 waivers per LLP 0225 §2. Do not absorb them via `--update-baseline` without
 that record — that is the laundering path LLP 0225 §2 forbids.
+
+## Attribution analysis — LLP 0218 program (2026-08-10)
+
+The LLP 0218 candidate is cleared by construction: both 0218 landings in
+the wave window — 9f62b14e2 (P1 headless union) and e6d0fe270 (P2 outbox
+drain controller) — contain **zero `.rs` paths** (`git show --name-only`
+each; the program is JS-client/React/docs only, and "outbox" in its titles
+refers to the JS-arm outbox, not `src/jobs.rs`). Neither edge can
+originate there. `git log -S 'crate::jobs' -- src/storage.rs` places the
+kernel→jobs coupling lineage in the jobs-kernel commits (d9f3d4046
+owner-#2 jobs/cron facade slice, bfd4b437c LLP 0188 G1/G2 self-hosted
+lane, da67ba627 ratchet slice 1), and the LLP 0214 catalog-v3 wave
+(961b8be8c) touched `src/storage.rs` in the same window. Routing should
+focus there; the LLP 0218 program takes no further action on this ticket.

@@ -179,7 +179,7 @@ export class SnapbackAdapter implements BackendAdapter {
     return String(await invokeSnapbackMutation(this.provider, api.createIncident, {
       ...input,
       now: Date.now(),
-    }));
+    }, { queue: false }));
   }
   async addTask(input: { actorId: string; incidentId: string; body: string }) {
     if (!this.provider) throw new Error('Snapback React provider is not prepared');

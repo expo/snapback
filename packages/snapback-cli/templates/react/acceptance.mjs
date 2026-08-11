@@ -161,7 +161,8 @@ try {
 
   const title = `Generated acceptance ${process.pid}`;
   const created = await invokeSnapbackMutation(provider, api.createTodo, { title });
-  assert.equal(typeof created, 'string');
+  assert.equal(created.status, 'settled');
+  assert.equal(typeof created.result, 'string');
   await until(
     () => latest?.queries.todos.status === 'ready'
       && latest.queries.todos.data.some((row) => row.title === title),

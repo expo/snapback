@@ -8,6 +8,7 @@ import {
 import {
   SnapbackProvider,
   createSnapbackReactProvider,
+  invokeSnapbackMutation,
   useSnapbackOutbox,
   useSnapbackQuery,
 } from '@expo/snapback-react';
@@ -409,13 +410,17 @@ globalThis.snapbackBrowserLocalFirst = Object.freeze({
     return observation;
   },
   async queueScenario() {
+    // @ref LLP 0218#41-the-dispatch-union-headless-contract — the system
+    // witness queues through the React facade and records its resolved union.
     const operations = [];
-    operations.push(await client.mutate(api.addTodo, {
-      args: { listId: LIST_ID, title: 'C queued browser row' },
+    operations.push(await invokeSnapbackMutation(provider, api.addTodo, {
+      listId: LIST_ID,
+      title: 'C queued browser row',
     }));
     for (const done of [true, false, true]) {
-      operations.push(await client.mutate(api.toggleTodo, {
-        args: { id: 'todo_anchor', done },
+      operations.push(await invokeSnapbackMutation(provider, api.toggleTodo, {
+        id: 'todo_anchor',
+        done,
       }));
     }
     await outboxObservation;

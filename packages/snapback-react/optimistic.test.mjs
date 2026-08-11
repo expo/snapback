@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
 import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import {
-  SnapbackQueuedMutationError,
   createSnapbackReactProvider,
   invokeSnapbackMutation,
   observeSnapbackQueries,
@@ -71,9 +70,24 @@ const functions = Object.freeze({
 function fakeClient() {
   const handles = new Set();
   const attempts = [];
+  const devDiagnosticsEvents = [];
+  const mutationListeners = new Map();
+  const mutationDispositions = new Map();
+  let barrier = null;
+  let authorityEpoch = 1;
   let dispatches = 0;
-  return {
+  const publishDisposition = (clientMutationId, disposition) => {
+    mutationDispositions.set(clientMutationId, disposition);
+    for (const listener of [...(mutationListeners.get(clientMutationId) ?? [])]) {
+      listener(disposition);
+    }
+  };
+  const client = {
     liveQuery() {},
+    authorityFence: {
+      capture: () => authorityEpoch,
+      isCurrent: (capture) => capture === authorityEpoch,
+    },
     async inspect() {
       return {
         targetProfileId: 'local-dev-sqlite-ibex',
@@ -89,7 +103,11 @@ function fakeClient() {
       };
     },
     async authSession() { return { activeMode: 'dev' }; },
-    registerAuthBarrierParticipant() { return async () => {}; },
+    __emitDevDiagnosticsEvent(event) { devDiagnosticsEvents.push(event); },
+    registerAuthBarrierParticipant(participant) {
+      barrier = participant;
+      return async () => { if (barrier === participant) barrier = null; };
+    },
     liveStreamManager() { return { async settled() {} }; },
     startLiveQuery(_reference, options) {
       const current = {
@@ -112,20 +130,84 @@ function fakeClient() {
     },
     mutate(_reference, options) {
       dispatches += 1;
+      const clientMutationId = options.clientMutationId ?? `plain-${dispatches}`;
       let resolve;
       let reject;
       const promise = new Promise((yes, no) => {
         resolve = (result) => yes({ result, version: dispatches });
         reject = no;
-        attempts.push({ options, resolve, resolveOutput: yes, reject });
+        attempts.push({
+          options,
+          clientMutationId,
+          resolve,
+          resolveOutput: yes,
+          reject,
+          queue(sequence = dispatches) {
+            publishDisposition(clientMutationId, { status: 'pending', blockedReason: null });
+            yes({
+              status: 'queued', queued: true, presentation: 'withheld',
+              clientMutationId, sequence,
+            });
+          },
+          disposition(status, result = null) {
+            if (status === 'settled') {
+              publishDisposition(clientMutationId, {
+                status: 'settled',
+                settlement: { status: 'settled', result, version: dispatches },
+                settledAt: 1,
+              });
+            } else if (status === 'failed') {
+              publishDisposition(clientMutationId, {
+                status: 'failed',
+                failure: { code: 'SNAPBACK_TYPED_REFUSAL', message: 'typed refusal' },
+              });
+            } else {
+              publishDisposition(clientMutationId, { status });
+            }
+          },
+        });
       });
       return promise;
+    },
+    subscribeMutation(clientMutationId, listener) {
+      let listeners = mutationListeners.get(clientMutationId);
+      if (listeners === undefined) {
+        listeners = new Set();
+        mutationListeners.set(clientMutationId, listeners);
+      }
+      listeners.add(listener);
+      queueMicrotask(() => {
+        if (listeners.has(listener)) {
+          listener(mutationDispositions.get(clientMutationId) ?? { status: 'unknown' });
+        }
+      });
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0) mutationListeners.delete(clientMutationId);
+      };
     },
     emit(rows) {
       for (const handle of handles) handle.emit(rows);
     },
-    inspection() { return { attempts, dispatches, handles: handles.size }; },
+    async cutAuthority() {
+      await barrier.quiesce();
+      barrier.blank();
+      barrier.clearMemory();
+      authorityEpoch += 1;
+      await barrier.resume();
+    },
+    inspection() {
+      return {
+        attempts,
+        dispatches,
+        handles: handles.size,
+        mutationSubscriptions: [...mutationListeners.values()]
+          .reduce((sum, listeners) => sum + listeners.size, 0),
+        devDiagnosticsEvents,
+      };
+    },
   };
+  return client;
 }
 
 const client = fakeClient();
@@ -164,7 +246,7 @@ client.inspection().attempts[0].reject(new Error('rejected'));
 assert.equal((await firstObserved).message, 'rejected');
 assert.equal(observer.snapshot().queries.feed.data[0].count, 1);
 client.inspection().attempts[1].resolve({ targetCount: 1 });
-assert.deepEqual(await second, { targetCount: 1 });
+assert.deepEqual(await second, { status: 'settled', result: { targetCount: 1 } });
 assert.equal(observer.snapshot().queries.feed.data[0].count, 1);
 client.emit([{ id: 'counter', count: 1 }]);
 assert.equal(observer.snapshot().queries.feed.data[0].count, 1);
@@ -218,7 +300,7 @@ assert.equal(
   'SNAPBACK_REACT_OPTIMISTIC_REBASE_FAILED',
 );
 client.inspection().attempts[4].resolve({ targetCount: 5 });
-assert.deepEqual(await rebaseFailure, { targetCount: 5 });
+assert.deepEqual(await rebaseFailure, { status: 'settled', result: { targetCount: 5 } });
 
 await assert.rejects(
   invokeSnapbackMutation(provider, increment, { amount: 1 }, {
@@ -232,26 +314,21 @@ await assert.rejects(
 );
 assert.equal(client.inspection().dispatches, 5, 'invalid projection refuses before dispatch');
 
-// A connectivity refusal that crossed the durable enqueue cut is pending
-// settlement, not a malformed mutation result. The React arm preserves its
-// result-only resolved type with one distinct queued rejection class instead
-// of misreporting SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED.
+// Plain path: a connectivity refusal that crossed the durable enqueue cut
+// resolves pending and records that no optimistic install was attempted.
 const queuedSettlement = invokeSnapbackMutation(provider, increment, { amount: 1 });
 client.inspection().attempts[5].resolveOutput({
+  status: 'queued',
   queued: true,
   clientMutationId: 'queued-increment-1',
   sequence: 7,
 });
-await assert.rejects(queuedSettlement, (error) => {
-  assert(error instanceof SnapbackQueuedMutationError);
-  assert.equal(error.name, 'SnapbackQueuedMutationError');
-  assert.equal(error.code, 'SNAPBACK_REACT_MUTATION_QUEUED');
-  assert.equal(error.queued, true);
-  assert.equal(error.mutation, 'increment');
-  assert.equal(error.clientMutationId, 'queued-increment-1');
-  assert.equal(error.sequence, 7);
-  assert.equal(error.diagnostic.details.appCode, undefined);
-  return true;
+assert.deepEqual(await queuedSettlement, {
+  status: 'queued',
+  queued: true,
+  clientMutationId: 'queued-increment-1',
+  sequence: 7,
+  presentation: 'withheld',
 });
 assert.equal(client.inspection().dispatches, 6);
 
@@ -266,6 +343,158 @@ observer.dispose();
 await flush();
 await provider.dispose();
 assert.equal(client.inspection().handles, 0);
+
+async function queuedLayerHarness({ disableStatusSubscription = false } = {}) {
+  const queuedClient = fakeClient();
+  if (disableStatusSubscription) {
+    queuedClient.subscribeMutation = () => {
+      const error = new Error('local status bookkeeping failed');
+      error.code = 'SNAPBACK_TEST_STATUS_SUBSCRIBE_FAILED';
+      throw error;
+    };
+  }
+  const queuedBinding = await prepareReactBindingForClient(
+    queuedClient,
+    { generatedManifest: functions },
+  );
+  const queuedProvider = createSnapbackReactProvider(queuedBinding, {
+    connectionId: `queued-layer-${Math.random()}`,
+  });
+  const queuedObserver = observeSnapbackQueries(
+    queuedProvider,
+    { feed: { ref: feed, args: {} } },
+    () => {},
+  );
+  await flush();
+  const dispatch = invokeSnapbackMutation(
+    queuedProvider,
+    increment,
+    { amount: 1 },
+    {
+      optimistic: optimistic(1, {
+        update: (current) => current.map((row) => ({ ...row, count: 1 })),
+      }),
+    },
+  );
+  const attempt = queuedClient.inspection().attempts[0];
+  return { queuedClient, queuedProvider, queuedObserver, dispatch, attempt };
+}
+
+// M7 regression: queued dispatch resolves; a generic rollback-on-error
+// handler cannot erase the pending layer. Replay settlement then retires it
+// through the same matcher path using the retained settlement result.
+async function queuedDispatchResolvesGenericRollbackCannotErasePendingLayer() {
+  const harness = await queuedLayerHarness();
+  let genericRollbackRan = false;
+  const guarded = harness.dispatch.catch((error) => {
+    genericRollbackRan = true;
+    throw error;
+  });
+  harness.attempt.queue(41);
+  assert.deepEqual(await guarded, {
+    status: 'queued',
+    queued: true,
+    presentation: 'installed',
+    clientMutationId: harness.attempt.clientMutationId,
+    sequence: 41,
+  });
+  await flush();
+  assert.equal(genericRollbackRan, false);
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 1);
+  assert.equal(harness.queuedObserver.snapshot().queries.feed.data[0].count, 1);
+  harness.queuedClient.emit([{ id: 'counter', count: 1 }]);
+  assert.equal(harness.queuedObserver.snapshot().queries.feed.data[0].count, 1);
+  harness.attempt.disposition('settled', { targetCount: 1 });
+  await flush();
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 0);
+  assert.equal(harness.queuedObserver.snapshot().queries.feed.data[0].count, 1);
+  assert.equal(harness.queuedClient.inspection().mutationSubscriptions, 0);
+  harness.queuedObserver.dispose();
+  await harness.queuedProvider.dispose();
+}
+await queuedDispatchResolvesGenericRollbackCannotErasePendingLayer();
+
+for (const disposition of ['failed', 'stranded', 'quarantined', 'resultGone']) {
+  const harness = await queuedLayerHarness();
+  harness.attempt.queue();
+  const outcome = await harness.dispatch;
+  assert.equal(outcome.status, 'queued');
+  assert.equal(outcome.presentation, 'installed');
+  await flush();
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 1);
+  harness.attempt.disposition(disposition);
+  await flush();
+  assert.equal(
+    harness.queuedProvider.inspection().optimisticLayers,
+    0,
+    `${disposition} retires the retained layer`,
+  );
+  assert.equal(harness.queuedClient.inspection().mutationSubscriptions, 0);
+  harness.queuedObserver.dispose();
+  await harness.queuedProvider.dispose();
+}
+
+// Settlement performed by another writer context arrives only through the
+// durable status notification and still executes the matcher path.
+{
+  const harness = await queuedLayerHarness();
+  harness.attempt.queue();
+  await harness.dispatch;
+  harness.queuedClient.emit([{ id: 'counter', count: 1 }]);
+  harness.attempt.disposition('settled', { targetCount: 1 });
+  await flush();
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 0);
+  harness.queuedObserver.dispose();
+  await harness.queuedProvider.dispose();
+}
+
+// Unknown is not settlement evidence: retain and expose an orphan until the
+// existing LLP 0107 authority-loss blank supplies a terminal ownership cut.
+{
+  const harness = await queuedLayerHarness();
+  harness.attempt.queue();
+  await harness.dispatch;
+  harness.attempt.disposition('unknown');
+  await flush();
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 1);
+  assert.equal(harness.queuedProvider.inspection().orphanedOptimisticLayers.length, 1);
+  await harness.queuedClient.cutAuthority();
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 0);
+  assert.equal(harness.queuedClient.inspection().mutationSubscriptions, 0);
+  harness.queuedObserver.dispose();
+  await harness.queuedProvider.dispose();
+}
+
+// Accepted intent is never rejected by local queued-path bookkeeping.
+{
+  const harness = await queuedLayerHarness({ disableStatusSubscription: true });
+  harness.attempt.queue();
+  const outcome = await harness.dispatch;
+  assert.equal(outcome.status, 'queued');
+  assert.equal(outcome.presentation, 'unavailable');
+  assert.equal(outcome.diagnosticCode, 'SNAPBACK_REACT_QUEUED_PRESENTATION_UNAVAILABLE');
+  assert.equal(
+    harness.queuedClient.inspection().devDiagnosticsEvents.at(-1).code,
+    'SNAPBACK_REACT_QUEUED_PRESENTATION_UNAVAILABLE',
+  );
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 1);
+  assert.equal(harness.queuedProvider.inspection().orphanedOptimisticLayers.length, 1);
+  await harness.queuedClient.cutAuthority();
+  harness.queuedObserver.dispose();
+  await harness.queuedProvider.dispose();
+}
+
+// Provider teardown releases a still-pending durable-status subscription.
+{
+  const harness = await queuedLayerHarness();
+  harness.attempt.queue();
+  await harness.dispatch;
+  await flush();
+  assert.equal(harness.queuedClient.inspection().mutationSubscriptions, 1);
+  harness.queuedObserver.dispose();
+  await harness.queuedProvider.dispose();
+  assert.equal(harness.queuedClient.inspection().mutationSubscriptions, 0);
+}
 
 // The optimistic toggle recipe (guide/recipes/optimistic-toggle.md): one
 // viewer-aware query supplies both `liked` and `likeCount`, one replayable
@@ -414,7 +643,7 @@ assert.equal(view().timeline.data[0].likeCount, 11, 'partial delivery keeps the 
 // Response-before-query: the HTTP receipt settles the mutation promise, but
 // the layer retires only after a live delivery matches the complete receipt.
 likeClient.inspection().attempts[0].resolve({ liked: true, likeCount: 11 });
-assert.deepEqual(await like, { liked: true, likeCount: 11 });
+assert.deepEqual(await like, { status: 'settled', result: { liked: true, likeCount: 11 } });
 assert.equal(view().timeline.data[0].likeCount, 11, 'settled response alone does not retire the layer');
 likeClient.emit('timeline', [{ id: 'p1', liked: true, likeCount: 11 }]);
 assert.equal(view().timeline.data[0].likeCount, 11);
@@ -476,7 +705,7 @@ assert.equal(helperView().liked, true, 'helper projection does not invert on rep
 assert.equal(helperView().likeCount, 4, 'partial delivery keeps the helper layer installed');
 
 helperClient.inspection().attempts[0].resolve({ liked: true, likeCount: 4 });
-assert.deepEqual(await helperLike, { liked: true, likeCount: 4 });
+assert.deepEqual(await helperLike, { status: 'settled', result: { liked: true, likeCount: 4 } });
 helperClient.emit('timeline', [{ id: 'p2', liked: true, likeCount: 4 }]);
 helperClient.emit('timeline', [{ id: 'p2', liked: true, likeCount: 5 }]);
 assert.equal(helperView().likeCount, 5, 'helper matcher retired on the complete receipt');

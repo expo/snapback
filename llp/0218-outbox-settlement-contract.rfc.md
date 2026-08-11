@@ -5,6 +5,9 @@
 **Systems:** Client integration, Sync, React arm
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-10 (P3 implemented: React union, durable optimistic
+disposition lifecycle, provider drain, outbox projection, caller sweep, and
+browser witness source)
 **Revised:** 2026-08-10 (Review → Accepted — accepted to begin implementation (author direction in-session, 2026-08-10); final verdicts bind revision (c), the (d) tail is unreviewed and disclosed)
 **Revised:** 2026-08-10 (a — initial draft, synthesized from the Clique P2
 pilot evidence and a GPT-5.6-sol design consultation)
@@ -412,9 +415,16 @@ registrations itself, then falls back to the connection-readiness
 handshake for the empty set; capped jittered backoff; observable pause
 reasons in `outboxStatus()` (`drainPhase`/`lastAttemptAtMs`/
 `nextRetryAtMs`/`blockedReason`); public `replayQueuedMutations()`
-redirects through a running controller. P3 React contract, P4
-propagation + diagnostic, P5 docs: see the dated notes below as they
-land. P6 deprecation closure is window-gated: it runs after the
+redirects through a running controller. P3 React contract: implemented
+(2026-08-10) — the default facade resolves the validated-result union,
+queued optimistic layers follow §4.2 through `subscribeMutation`, the
+provider owns the P2 controller, and the outbox hook mirrors its status
+and custody affordances. The scoped caller sweep and package/static
+proofs land with this phase; the browser witness source now records the
+React queued branch and automatic drain, with its qualified receipt to be
+re-minted by the witness runner. P4 propagation + diagnostic and P5 docs:
+see the dated notes below as they land. P6 deprecation closure is
+window-gated: it runs after the
 deprecation window of the release carrying the union, tracked by a
 filesystem ticket at the P5 landing.
 

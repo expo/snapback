@@ -43,7 +43,10 @@ calendar.create({
   ownerId: 'alice',
   title: 'Planning',
   now: 1_787_000_000_000,
-}).then((id) => requireCanonicalReservation(id));
+}).then((outcome) => {
+  if (outcome.status === 'settled') requireCanonicalReservation(outcome.result);
+  else outcome.clientMutationId.toUpperCase();
+});
 
 // @ts-expect-error generated mutation args remain exact.
 calendar.create({ title: 'missing required fields' });

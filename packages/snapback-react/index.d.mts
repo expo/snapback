@@ -4,13 +4,22 @@ import type {
   EphemeralScope,
   EphemeralValue,
   LiveQueryRetention,
+  MutationDisposition,
+  OutboxDrainControllerStatus,
+  OutboxDrainOptions,
+  OutboxDrainPhase,
   OutboxReplayOutcome,
   PreparedReactQueryGroup,
   PreparedReactBinding,
+  QuarantinedMutationReentryOutcome,
+  QuarantinedMutationTombstone,
   QueryGroupEntries,
+  ResultGoneAcknowledgementOutcome,
   SnapbackProvisionalId,
   SnapbackEphemeralReference,
   SnapbackFunctionReference,
+  StrandedMutation,
+  StrandedMutationDiscardOutcome,
 } from '@expo/snapback-client';
 import type {
   AssetDiagnostic,
@@ -57,9 +66,8 @@ export type {
 } from '@expo/snapback-client/commands';
 export type SnapbackDiagnostic = import('@expo/snapback-client').SnapbackDiagnostic;
 
-/** Distinct rejection from useSnapbackMutation after the headless client has
- * durably queued the intent. This is pending settlement, not server refusal;
- * keep pending UI and reserve rollback for a declared refusal with appCode. */
+/** @deprecated Queued React mutations now resolve `SnapbackMutationDispatchOutcome`.
+ * LLP 0218 P6 removes this throw-site-free compatibility export. */
 export class SnapbackQueuedMutationError extends Error {
   constructor(
     mutation: string,
@@ -84,6 +92,25 @@ export class SnapbackQueuedMutationError extends Error {
     }>;
   }>;
 }
+
+export type SnapbackMutationQueuedOutcome = Readonly<{
+  status: 'queued';
+  clientMutationId: string;
+  sequence: number;
+  presentation: 'installed' | 'withheld' | 'unavailable';
+  /** @deprecated LLP 0218 P6 removes this alias. */
+  queued: true;
+  /** Payload-safe local presentation diagnostic, present for unavailable. */
+  diagnosticCode?: string;
+  operationCoverageDisposition?: string;
+  operationHash?: string;
+}>;
+
+/** React facade dispatch result: the settled branch contains only the LLP
+ * 0101-validated function result, never the raw headless MutationOutput. */
+export type SnapbackMutationDispatchOutcome<Result> =
+  | Readonly<{ status: 'settled'; result: Result }>
+  | SnapbackMutationQueuedOutcome;
 
 export type SnapbackConnection =
   | 'idle'
@@ -262,6 +289,13 @@ export interface SnapbackReactProvider extends SnapbackReactCoreProvider {
       confirmedRevision: number;
       storeRevision: number;
     }>[];
+    orphanedOptimisticLayers: readonly Readonly<{
+      attemptId: string;
+      clientMutationId: string;
+      mutationId: string;
+      queryId: string;
+      disposition: 'unknown';
+    }>[];
     consumers: number;
     serverSubscriptions: number;
     leases: number;
@@ -282,6 +316,7 @@ export interface SnapbackReactProvider extends SnapbackReactCoreProvider {
     preparedGroupBoot: PreparedReactQueryGroup['boot'];
     /** Mounted-provider HMR generation handoff state (development only). */
     generationHandoff: 'active' | 'ok' | 'failed' | null;
+    outboxDrain: OutboxDrainControllerStatus | null;
   }>;
   dispose(): Promise<void>;
 }
@@ -292,6 +327,11 @@ export function createSnapbackReactProvider(
     readonly connectionId?: string;
     readonly onDiagnostic?: (diagnostic: SnapbackDiagnostic) => void;
     readonly preparedGroup?: PreparedReactQueryGroup;
+    /** Automatic is the durable-writer default; manual retains a safety
+     * controller whose cycles are requested only through drainNow. */
+    readonly outboxDrain?: 'auto' | 'manual';
+    /** P2 carrier/test seams passed through to startOutboxDrain. */
+    readonly outboxDrainOptions?: Omit<OutboxDrainOptions, 'automatic'>;
     /** Test/DI seam: a pre-built SnapbackAssetClient-compatible surface. */
     readonly assets?: unknown;
     /** Platform URI/picker conversion installed once by an owning host package. */
@@ -315,6 +355,8 @@ export function SnapbackProvider(props: Readonly<{
   binding?: PreparedReactBinding;
   provider?: SnapbackReactProvider;
   children?: any;
+  outboxDrain?: 'auto' | 'manual';
+  outboxDrainOptions?: Omit<OutboxDrainOptions, 'automatic'>;
 }>): any;
 
 export function useSnapbackQuery<Ref extends QueryReference>(
@@ -436,7 +478,9 @@ export type SurfaceResult<Surface extends SnapbackSurfaceDescriptor> = Readonly<
   }>;
   mutations: Readonly<{
     [Name in keyof SurfaceMutations<Surface>]: SurfaceMemberReference<SurfaceMutations<Surface>[Name]> extends MutationReference
-      ? (input: SurfaceMemberInput<SurfaceMutations<Surface>[Name]>) => Promise<FunctionResult<SurfaceMemberReference<SurfaceMutations<Surface>[Name]>>>
+      ? (input: SurfaceMemberInput<SurfaceMutations<Surface>[Name]>) => Promise<
+          SnapbackMutationDispatchOutcome<FunctionResult<SurfaceMemberReference<SurfaceMutations<Surface>[Name]>>>
+        >
       : never
   }>;
   commands: Readonly<{
@@ -570,28 +614,50 @@ export function projectRecordFields(
   isAuthoritative(current: ReadonlyArray<Record<string, unknown>>, result: unknown): boolean;
 }>;
 
-/** Resolves only with the generated mutation result. A durably queued
- * dispatch rejects with SnapbackQueuedMutationError so it cannot masquerade
- * as a commit or as a result-contract installation failure. */
+export type SnapbackOptimisticMutationOptions<
+  Ref extends MutationReference,
+  Q extends QueryReference = never,
+> = Readonly<{
+  optimistic?: Readonly<{
+    query: Q;
+    args: FunctionArgs<Q>;
+    update(
+      current: FunctionResult<Q>,
+      mutationArgs: FunctionArgs<Ref>,
+    ): FunctionResult<Q>;
+    isAuthoritative?(
+      current: FunctionResult<Q>,
+      result: FunctionResult<Ref>,
+    ): boolean;
+  }>;
+}>;
+
+/** Explicit queue:false compatibility mode: connectivity is required and the
+ * historical bare validated result is retained by choice. */
 export function useSnapbackMutation<
   Ref extends MutationReference,
   Q extends QueryReference = never,
 >(
   reference: Ref,
-  options?: Readonly<{
-    optimistic?: Readonly<{
-      query: Q;
-      args: FunctionArgs<Q>;
-      update(
-        current: FunctionResult<Q>,
-        mutationArgs: FunctionArgs<Ref>,
-      ): FunctionResult<Q>;
-      isAuthoritative?(
-        current: FunctionResult<Q>,
-        result: FunctionResult<Ref>,
-      ): boolean;
-    }>;
-  }>,
+  options: SnapbackOptimisticMutationOptions<Ref, Q> & Readonly<{ queue: false }>,
+): (args: FunctionArgs<Ref>) => Promise<FunctionResult<Ref>>;
+/** Default mutation dispatch resolves the truthful settled-or-queued union. */
+export function useSnapbackMutation<
+  Ref extends MutationReference,
+  Q extends QueryReference = never,
+>(
+  reference: Ref,
+  options?: SnapbackOptimisticMutationOptions<Ref, Q> & Readonly<{ queue?: undefined }>,
+): (args: FunctionArgs<Ref>) => Promise<SnapbackMutationDispatchOutcome<FunctionResult<Ref>>>;
+
+/** Convenience alias for useSnapbackMutation(reference, {...options,
+ * queue:false}); resolves the bare LLP 0101-validated result. */
+export function useSnapbackSettledMutation<
+  Ref extends MutationReference,
+  Q extends QueryReference = never,
+>(
+  reference: Ref,
+  options?: SnapbackOptimisticMutationOptions<Ref, Q>,
 ): (args: FunctionArgs<Ref>) => Promise<FunctionResult<Ref>>;
 
 /** Provider-owned generated-IR insert projected over the exact canonical
@@ -610,7 +676,7 @@ export function useSnapbackOptimisticCreate<
   }>,
 ): Readonly<{
   query: QueryState<Selected>;
-  create(args: FunctionArgs<Ref>): Promise<FunctionResult<Ref>>;
+  create(args: FunctionArgs<Ref>): Promise<SnapbackMutationDispatchOutcome<FunctionResult<Ref>>>;
 }>;
 export function useSnapbackCommand<Command extends AssetBearingCommandReferenceV1>(
   reference: Command,
@@ -627,20 +693,56 @@ export function useSnapbackConnection(): SnapbackConnectionState;
 /** Projection of the headless client's queued-intent facts (LLP 0043 M2 /
  * LLP 0129 Phase 0): 'loading' until the first durable-store read lands. */
 export type SnapbackOutboxState =
-  | Readonly<{ status: 'loading'; supported: false; pending: 0; failed: 0; resultGone: 0; replaying: false }>
-  | Readonly<{ status: 'ready'; supported: boolean; pending: number; failed: number; resultGone: number; replaying: boolean }>;
+  | Readonly<{
+      status: 'loading'; supported: false;
+      pending: 0; failed: 0; stranded: 0; quarantined: 0; resultGone: 0; depth: 0;
+      replaying: false; oldestPendingAtMs: null; drainPhase: 'idle';
+      lastAttemptAtMs: null; nextRetryAtMs: null; blockedReason: null;
+    }>
+  | Readonly<{
+      status: 'ready'; supported: boolean;
+      pending: number; failed: number; stranded: number; quarantined: number;
+      resultGone: number; depth: number; replaying: boolean;
+      oldestPendingAtMs: number | null; drainPhase: OutboxDrainPhase;
+      lastAttemptAtMs: number | null; nextRetryAtMs: number | null;
+      blockedReason: string | null;
+    }>;
 
 export type SnapbackOutboxHandle = SnapbackOutboxState & Readonly<{
-  /** Drain the durable outbox in sequence order (the client's single-flight
-   * replayQueuedMutations; full-resync-before-replay stays client-owned). */
+  /** Request one safety-gated P2 drain cycle. */
+  drainNow(): Promise<OutboxReplayOutcome>;
+  /** @deprecated Use drainNow(). */
   replay(): Promise<OutboxReplayOutcome>;
+  mutationStatus(clientMutationId: string): Promise<MutationDisposition>;
+  strandedMutations(): Promise<readonly StrandedMutation[]>;
+  discardStrandedMutations(
+    clientMutationIds: readonly string[],
+  ): Promise<StrandedMutationDiscardOutcome>;
+  reRecordStrandedMutation(
+    clientMutationId: string,
+    options?: Readonly<Record<string, unknown>>,
+  ): Promise<string>;
+  quarantinedMutations(): Promise<readonly QuarantinedMutationTombstone[]>;
+  reenterQuarantinedMutations(): Promise<QuarantinedMutationReentryOutcome>;
+  acknowledgeResultGoneMutations(
+    clientMutationIds: readonly string[],
+  ): Promise<ResultGoneAcknowledgementOutcome>;
 }>;
 
 export function useSnapbackOutbox(): SnapbackOutboxHandle;
 
 export interface SnapbackOutboxObserver {
   snapshot(): SnapbackOutboxState;
+  drainNow(): Promise<OutboxReplayOutcome>;
+  /** @deprecated Use drainNow(). */
   replay(): Promise<OutboxReplayOutcome>;
+  mutationStatus: SnapbackOutboxHandle['mutationStatus'];
+  strandedMutations: SnapbackOutboxHandle['strandedMutations'];
+  discardStrandedMutations: SnapbackOutboxHandle['discardStrandedMutations'];
+  reRecordStrandedMutation: SnapbackOutboxHandle['reRecordStrandedMutation'];
+  quarantinedMutations: SnapbackOutboxHandle['quarantinedMutations'];
+  reenterQuarantinedMutations: SnapbackOutboxHandle['reenterQuarantinedMutations'];
+  acknowledgeResultGoneMutations: SnapbackOutboxHandle['acknowledgeResultGoneMutations'];
   dispose(): void;
 }
 export function observeSnapbackOutbox(
@@ -662,7 +764,7 @@ export interface SnapbackQueryGroupObserver<Entries extends QueryEntryMap> {
 }
 export interface SnapbackOptimisticCreateObserver<Args, Result, Selected> {
   snapshot(): QueryState<Selected>;
-  create(args: Args): Promise<Result>;
+  create(args: Args): Promise<SnapbackMutationDispatchOutcome<Result>>;
   dispose(): void;
 }
 export interface SnapbackPresenceObserver<Value, Scope> {
@@ -723,15 +825,17 @@ export function invokeSnapbackMutation<
   provider: SnapbackReactCoreProvider,
   reference: Ref,
   args: FunctionArgs<Ref>,
-  options?: Readonly<{
-    optimistic?: Readonly<{
-      query: Q;
-      args: FunctionArgs<Q>;
-      update(current: FunctionResult<Q>, mutationArgs: FunctionArgs<Ref>): FunctionResult<Q>;
-      isAuthoritative?(current: FunctionResult<Q>, result: FunctionResult<Ref>): boolean;
-    }>;
-  }>,
+  options: SnapbackOptimisticMutationOptions<Ref, Q> & Readonly<{ queue: false }>,
 ): Promise<FunctionResult<Ref>>;
+export function invokeSnapbackMutation<
+  Ref extends MutationReference,
+  Q extends QueryReference = never,
+>(
+  provider: SnapbackReactProvider,
+  reference: Ref,
+  args: FunctionArgs<Ref>,
+  options?: SnapbackOptimisticMutationOptions<Ref, Q> & Readonly<{ queue?: undefined }>,
+): Promise<SnapbackMutationDispatchOutcome<FunctionResult<Ref>>>;
 export function invokeSnapbackCommand<Command extends AssetBearingCommandReferenceV1>(
   provider: SnapbackReactProvider,
   reference: Command,

@@ -53,6 +53,7 @@ assert.equal(typeof packageEntry.createExpoAssetSourceAdapter, 'function');
 assert.equal(typeof packageEntry.adaptExpoAssetSource, 'function');
 assert.equal(typeof packageEntry.useSnapbackQuery, 'function');
 assert.equal(typeof packageEntry.useSnapbackMutation, 'function');
+assert.equal(typeof packageEntry.useSnapbackSettledMutation, 'function');
 assert.equal(packageEntry.APP_BINDING_FORMAT, 'snapback.app-binding.v1');
 
 const productionSources = [

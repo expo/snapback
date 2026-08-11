@@ -475,7 +475,7 @@ commit race, and the layer reconciles both orders without double-applying:
 
 ```js source=packages/snapback-react/optimistic.test.mjs
 likeClient.inspection().attempts[0].resolve({ liked: true, likeCount: 11 });
-assert.deepEqual(await like, { liked: true, likeCount: 11 });
+assert.deepEqual(await like, { status: 'settled', result: { liked: true, likeCount: 11 } });
 assert.equal(view().timeline.data[0].likeCount, 11, 'settled response alone does not retire the layer');
 likeClient.emit('timeline', [{ id: 'p1', liked: true, likeCount: 11 }]);
 assert.equal(view().timeline.data[0].likeCount, 11);

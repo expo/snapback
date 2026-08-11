@@ -2424,6 +2424,35 @@ test('mutationStatus maps result-gone and carries its retained outcome facts', a
   });
 });
 
+test('result-gone acknowledgement is payload-free and releases its ordered-successor fence', async () => {
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({ id: 'cm-ack-result-gone', function: 'createThing' });
+  await store.outboxMarkResultGone('cm-ack-result-gone', {
+    outcome: 'committed',
+    receiptDigest: `sha256:${'e'.repeat(64)}`,
+  });
+  await store.outboxEnqueue({ id: 'cm-after-ack-result-gone', function: 'updateThing' });
+  assert.equal(
+    (await store.outboxPrepareSubmission('cm-after-ack-result-gone')).status,
+    'blocked',
+  );
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+
+  assert.deepEqual(await client.acknowledgeResultGoneMutations(['cm-ack-result-gone']), {
+    acknowledged: 1,
+    clientMutationIds: ['cm-ack-result-gone'],
+  });
+  assert.equal((await client.mutationStatus('cm-ack-result-gone')).status, 'unknown');
+  assert.equal(
+    (await store.outboxPrepareSubmission('cm-after-ack-result-gone')).status,
+    'ready',
+  );
+  await assert.rejects(
+    () => client.acknowledgeResultGoneMutations(['cm-after-ack-result-gone']),
+    (error) => error?.code === 'SNAPBACK_OUTBOX_RESULT_GONE_NOT_CURRENT',
+  );
+});
+
 test('mutationStatus reports unknown after ACK consumption and collection', async () => {
   const store = createDurableTestStore();
   await store.outboxEnqueue({ id: 'cm-status-collected', function: 'createThing' });

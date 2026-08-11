@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSnapbackMutation } from '@messenger/snapback-react';
+import { useSnapbackSettledMutation } from '@messenger/snapback-react';
 import { Avatar } from '@/components/avatar';
 import { api } from '@/lib/snapback';
 import { PERSONAS, useIdentity } from '@/lib/identity';
@@ -9,7 +9,7 @@ import { colors } from '@/theme/colors';
 
 export default function PeopleScreen() {
   const { self, setSelf } = useIdentity();
-  const startDirectMessage = useSnapbackMutation(api.startDirectMessage);
+  const startDirectMessage = useSnapbackSettledMutation(api.startDirectMessage);
   const [opening, setOpening] = useState<string | null>(null);
 
   async function openDm(otherHandle: string) {

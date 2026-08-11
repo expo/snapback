@@ -1896,6 +1896,63 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/package.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.outbox-settlement-react-contract.v1.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'llp-0218-react-contract.2026-08-10.v1',
+    profileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-react-binding',
+      'react-core-application',
+      'react-core-capabilities-negative',
+      'react-core-query',
+      'react-external',
+      'react-full-capabilities-positive',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.outbox-drain-controller.v1.json',
+        profileIds: Object.freeze(['external-react-application']),
+      }),
+      Object.freeze({
+        filename: 'baseline.react-core-composition.v1.json',
+        profileIds: Object.freeze([
+          'react-core-application',
+          'react-core-capabilities-negative',
+          'react-core-query',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.react-composition-merge-residue.v1.json',
+        profileIds: Object.freeze([
+          'public-subpath-react-binding',
+          'react-external',
+          'react-full-capabilities-positive',
+        ]),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0218#42-the-optimistic-contract-exact',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-10',
+      summary: 'Advance exactly the two React closures grown by LLP 0218 '
+        + 'P3: the queued/settled dispatch union with provider-stamped '
+        + 'presentation, the subscribeMutation-driven total disposition map '
+        + 'that lets installed layers survive enqueue (the M7 fix), the '
+        + 'provider-owned drain lifecycle, and the extended outbox '
+        + 'projection with custody affordances; LLP 0218 §4.1-4.3 is the '
+        + 'accepted authority for these feature bytes.',
+    }),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-react/offline.test.mjs']],
+      ['node', ['packages/snapback-react/optimistic.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/outbox-drain.test.mjs']],
+    ]),
+  }),
 ]);
 
 function fail(message) {

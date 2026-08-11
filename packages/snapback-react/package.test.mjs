@@ -813,7 +813,9 @@ assert.equal(latestSingle.status, 'refreshing');
 assert.equal(latestSingle.connection, 'stale');
 assert.equal(latestGroup.status, 'refreshing');
 
-assert.equal(await mutate({ value: 'changed' }), 'publish:changed');
+assert.deepEqual(await mutate({ value: 'changed' }), {
+  status: 'settled', result: 'publish:changed',
+});
 assert.equal(fake.inspection().mutations, 1);
 
 await act(async () => {
@@ -1422,7 +1424,9 @@ await act(async () => {
   ));
   await flush();
 });
-assert.equal(await devWriteMutation({ value: 'bound' }), 'publish:bound');
+assert.deepEqual(await devWriteMutation({ value: 'bound' }), {
+  status: 'settled', result: 'publish:bound',
+});
 assert.deepEqual(devWriteFake.inspection().mutationOptions, [
   { function: 'publish', userId: 'dev-write-user' },
 ]);

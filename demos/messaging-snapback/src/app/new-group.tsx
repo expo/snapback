@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { useSnapbackMutation } from '@messenger/snapback-react';
+import { useSnapbackSettledMutation } from '@messenger/snapback-react';
 import { Avatar } from '@/components/avatar';
 import { api } from '@/lib/snapback';
 import { PERSONAS, useIdentity } from '@/lib/identity';
@@ -12,7 +12,7 @@ export default function NewGroupScreen() {
   const [title, setTitle] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
-  const createGroup = useSnapbackMutation(api.createGroup);
+  const createGroup = useSnapbackSettledMutation(api.createGroup);
 
   const others = PERSONAS.filter((p) => p.handle !== self.handle);
 

@@ -134,7 +134,9 @@ async function sourceIdentity() {
     'packages/snapback-vite/proxy.mjs',
     'llp/0043-offline-replay-retention.rfc.md',
     'llp/0053-authorization-invalidation.rfc.md',
+    'llp/0107-react-presence-and-optimistic-lifecycle.spec.md',
     'llp/0114-first-class-react-and-query-groups.spec.md',
+    'llp/0218-outbox-settlement-contract.rfc.md',
   ];
   const files = [];
   for (const path of authoredPaths) {
@@ -643,9 +645,11 @@ function assertRenderObservation(observation) {
 }
 
 const mutationSummary = (operation) => ({
+  status: operation.status,
   queued: operation.queued,
   clientMutationId: operation.clientMutationId,
   sequence: operation.sequence,
+  presentation: operation.presentation,
 });
 
 try {
@@ -704,8 +708,8 @@ try {
     assert.equal(receipt.carrier.storageFacts.store?.durable, true);
     assert.equal(receipt.carrier.storageFacts.writer, true);
 
-    // @ref LLP 0043#milestone-2-queued-mutation-replay — offline is a
-    // transport dispatch rejection.
+    // @ref LLP 0218#41-the-dispatch-union-headless-contract — React resolves
+    // accepted offline intent as queued; durable settlement remains LLP 0043's.
     // Closing both origins makes browser fetch
     // reject; a live Vite relay returning HTTP 502 would not qualify.
     await stopVite();
@@ -713,7 +717,9 @@ try {
     queuedOperations = await page.evaluate(() => globalThis.snapbackBrowserLocalFirst.queueScenario());
     assert.equal(queuedOperations.length, 4);
     for (const operation of queuedOperations) {
+      assert.equal(operation.status, 'queued');
       assert.equal(operation.queued, true);
+      assert.equal(operation.presentation, 'withheld');
       assert.equal(typeof operation.clientMutationId, 'string');
       assert.ok(operation.clientMutationId.length > 0);
     }
@@ -803,6 +809,9 @@ try {
     // Authority is really back: restore normal transport so reconnect,
     // resync, and replay flow through the relay again.
     await secondBrowser.context.unroute('**/__snapback/**');
+    // This is a controller wake-up, not a manual replay. The provider-owned
+    // P2 drain must establish its fresh barrier and settle the queued union.
+    await page.evaluate(() => globalThis.dispatchEvent(new Event('online')));
     // No forced drain here: the product's own resync-first scheduling is the
     // contract under test (drainNow/drainDebug stay available as diagnostic
     // seams but must never run inside the witness path).

@@ -3,6 +3,7 @@ import {
   skip,
   useSnapbackConnection,
   useSnapbackMutation,
+  useSnapbackSettledMutation,
   useSnapbackQuery,
 } from '@expo/snapback-react';
 import api from '../snapback/generated/api.mjs';
@@ -38,7 +39,7 @@ export function App() {
     () => rows.find((row) => row.projectKey === selectedKey),
     [rows, selectedKey],
   );
-  const createProject = useSnapbackMutation(api.createProject);
+  const createProject = useSnapbackSettledMutation(api.createProject);
   const updateProject = useSnapbackMutation(api.updateProject, {
     optimistic: {
       query: api.projectDirectory,

@@ -5,7 +5,10 @@
 **Systems:** React, React/Expo, Ephemeral state, Client integration, Realtime, Auth, Mutation settlement, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-10 (first-class generated optimistic create: one
+**Revised:** 2026-08-10 (LLP 0218 P3 React-contract amendment: accepted
+offline intent resolves through the queued dispatch union instead of rejecting;
+installed optimistic layers survive enqueue and follow LLP 0218 §4.2's total
+durable-disposition map). 2026-08-10 (first-class generated optimistic create: one
 provider-owned hook/view projects a typed durable provisional identity over
 the exact canonical query store, consumes LLP 0133 logical-mint mappings for
 response/query ordering and replay recovery, and preserves authority,
@@ -63,6 +66,14 @@ useSnapbackMutation<Ref extends MutationReference,
       FunctionResult<Q>;
     isAuthoritative?(current: FunctionResult<Q>,
       result: FunctionResult<Ref>): boolean}}
+): (args: FunctionArgs<Ref>) => Promise<
+  | {status: 'settled'; result: FunctionResult<Ref>}
+  | {status: 'queued'; clientMutationId: string; sequence: number;
+      presentation: 'installed' | 'withheld' | 'unavailable'}>
+
+useSnapbackSettledMutation<Ref extends MutationReference>(
+  ref: Ref,
+  options?: {optimistic?: OptimisticOptions<Ref>}
 ): (args: FunctionArgs<Ref>) => Promise<FunctionResult<Ref>>
 
 useSnapbackOptimisticCreate<Ref extends MutationReference,
@@ -72,7 +83,10 @@ useSnapbackOptimisticCreate<Ref extends MutationReference,
   options: {query: Q; args: FunctionArgs<Q>;
     select?(entities: readonly OptimisticCreateEntity<QueryRow<Q>>[]): Selected}
 ): {query: QueryState<Selected>;
-    create(args: FunctionArgs<Ref>): Promise<FunctionResult<Ref>>}
+    create(args: FunctionArgs<Ref>): Promise<
+      | {status: 'settled'; result: FunctionResult<Ref>}
+      | {status: 'queued'; clientMutationId: string; sequence: number;
+          presentation: 'installed' | 'unavailable'}>}
 ```
 
 References match the prepared app/target; scope/value/query args use LLP 0114's
@@ -250,19 +264,21 @@ dispatch/expose/commit/terminal publication (`isCurrent` for expose,
 `compareAndCommit` for durable commit).
 Pending layers cap at 256.
 
-The promise resolves only to the LLP 0101-validated result. React owns no
-offline queue or alternate LLP 0043 settlement identity: it projects the
-headless client's durable outcome. When that client returns
-`{queued:true, clientMutationId, sequence}`, React rejects through the distinct
-`SnapbackQueuedMutationError` class with code
-`SNAPBACK_REACT_MUTATION_QUEUED`, `queued:true`, and the same identity/sequence.
-It never routes the missing `result` through
-`SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED`. This preserves the generated
-result-only resolved type while making queued settlement machine-distinct from
-server refusal; the queued diagnostic carries no application `appCode`, so
-caller-owned pending presentation remains installed and rollback is reserved
-for a declared server refusal. The provider's built-in optimistic query layer
-remains a process-local Online projection, not a durable outbox overlay.
+**Amendment (2026-08-10 — LLP 0218 P3).** Queued acceptance now resolves the
+React dispatch union rather than rejecting: the settled branch carries only
+the LLP 0101-validated result, while the queued branch carries the durable
+identity, sequence, and provider-owned presentation disposition. A queued
+optimistic layer survives enqueue and subscribes to that durable identity.
+`pending` retains it; `settled` retires it through the same matcher/rebase path
+as foreground settlement; `failed` rolls it back; `stranded`, `quarantined`,
+and `resultGone` retire it while LLP 0043 custody remains visible in the
+outbox; and `unknown` retains it as orphaned until evidence or authority loss.
+Authority replacement still synchronously blanks every layer. This supersedes
+the 2026-08-09 queued-rejection projection; `SnapbackQueuedMutationError`
+remains only as a deprecated migration export and has no throw site. Callers
+that explicitly require a result-only promise use
+`useSnapbackSettledMutation` or `{queue:false}`, which makes connectivity
+failure reject before any enqueue.
 
 In a positively identified development build, every queued hook dispatch logs
 `SNAPBACK_REACT_MUTATION_QUEUED` with the mutation name and durable identity.
@@ -430,6 +446,16 @@ rejection, authority cuts, Strict Mode remount, replay recovery, and zero-leak
 cleanup. The existing provider-live conformance gate adds a real served
 drop-after-commit/replay witness with identical protocol identity and one
 canonical rendered row. No new proof gate was introduced.
+
+2026-08-10 (LLP 0218 P3 React contract): queued acceptance resolves the
+dispatch union, installed layers remain pending across enqueue, and
+`subscribeMutation(clientMutationId)` drives them through LLP 0218 §4.2's
+total disposition map. The settled disposition reuses the foreground
+matcher/rebase path; every retirement route releases its durable-status
+subscription; authority replacement keeps the existing synchronous blanking
+rule. `SnapbackQueuedMutationError` is now a deprecated, throw-site-free
+migration export. Provider-owned automatic drain and the expanded outbox
+inspection/actions complete the React lifecycle handoff to LLP 0043.
 
 2026-08-09 (queued-settlement truthfulness,
 `issues/closed/20260809-queued-mutation-settlement-truthfulness.md`): the React

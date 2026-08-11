@@ -12,6 +12,7 @@ import {
   skip,
   useSnapbackCommand,
   useSnapbackMutation,
+  useSnapbackSettledMutation,
   useSnapbackQueries,
   useSnapbackQuery,
   useSurface,
@@ -67,7 +68,19 @@ if (realGeneratedGroup.queries.unreadDeliveries.status === 'ready') {
 realGeneratedGroup.queries.roomMessages;
 
 const create = useSnapbackMutation(createTodo);
-create({ title: 'ship it' }).then((id) => id.toUpperCase());
+create({ title: 'ship it' }).then((outcome) => {
+  if (outcome.status === 'settled') outcome.result.toUpperCase();
+  else {
+    outcome.clientMutationId.toUpperCase();
+    outcome.sequence.toFixed();
+    const presentation: 'installed' | 'withheld' | 'unavailable' = outcome.presentation;
+    void presentation;
+  }
+});
+const createRequired = useSnapbackMutation(createTodo, { queue: false });
+createRequired({ title: 'connectivity required' }).then((id) => id.toUpperCase());
+const createSettled = useSnapbackSettledMutation(createTodo);
+createSettled({ title: 'settled convenience' }).then((id) => id.toUpperCase());
 
 declare const renameTodo: SnapbackFunctionReference<
   'renameTodo',
@@ -84,7 +97,10 @@ const rename = useSnapbackMutation(renameTodo, {
     ...projectRecordFields('todo_1', { title: 'renamed' }),
   },
 });
-rename({ id: 'todo_1', title: 'renamed' }).then((receipt) => receipt.title.toUpperCase());
+rename({ id: 'todo_1', title: 'renamed' }).then((outcome) => {
+  if (outcome.status === 'settled') outcome.result.title.toUpperCase();
+  else outcome.presentation.toUpperCase();
+});
 // @ts-expect-error intended field values must be primitive outcomes.
 projectRecordFields('todo_1', { title: { nested: true } });
 
@@ -119,6 +135,10 @@ const conversation = useSurface(
   { presence: { typing: { displayName: 'Ada' } } },
 );
 conversation.mutations.addReaction({ messageId, userId, emoji: '👍' });
+conversation.mutations.addReaction({ messageId, userId, emoji: '👍' }).then((outcome) => {
+  if (outcome.status === 'settled') outcome.result.reactionId;
+  else outcome.clientMutationId;
+});
 conversation.commands.send({ body: 'hello', image: commandImage });
 conversation.data.messages?.[0]?.text?.toUpperCase();
 conversation.state.messages.retention;

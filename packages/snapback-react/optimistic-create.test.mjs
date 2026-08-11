@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
 import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import {
-  SnapbackQueuedMutationError,
   createSnapbackReactProvider,
   observeSnapbackOptimisticCreate,
 } from './index.mjs';
@@ -303,7 +302,7 @@ assert.deepEqual(
 assert.equal(observer.snapshot().data[0].identity.id, 'mut_1');
 assert.equal(Object.hasOwn(observer.snapshot().data[0].fields, '_id'), false);
 client.inspection().attempts[0].resolve('card_1');
-assert.equal(await responseFirst, 'card_1');
+assert.deepEqual(await responseFirst, { status: 'settled', result: 'card_1' });
 assert.equal(observer.snapshot().data[0].identity.kind, 'provisional');
 client.emit([
   canonical('card_1', 'Bravo', 'todo', 2),
@@ -324,7 +323,7 @@ client.emit([
 assert.equal(observer.snapshot().data.filter((entry) => entry.fields.title === 'Alpha').length, 1);
 assert.equal(observer.snapshot().data[0].identity.kind, 'provisional');
 client.inspection().attempts[1].resolve('card_2');
-assert.equal(await queryFirst, 'card_2');
+assert.deepEqual(await queryFirst, { status: 'settled', result: 'card_2' });
 await flush();
 assert.equal(observer.snapshot().data.filter((entry) => entry.fields.title === 'Alpha').length, 1);
 assert.equal(observer.snapshot().data[0].identity.kind, 'canonical');
@@ -342,7 +341,7 @@ assert.deepEqual(
   ['Charlie'],
 );
 client.inspection().attempts[3].resolve('card_4');
-assert.equal(await surviving, 'card_4');
+assert.deepEqual(await surviving, { status: 'settled', result: 'card_4' });
 client.emit([
   canonical('card_2', 'Alpha', 'todo', 3),
   canonical('card_1', 'Bravo', 'todo', 2),
@@ -368,9 +367,13 @@ assert.equal(client.inspection().viewCreates, sharedViewCreates);
 const queued = observer.create({ title: 'Echo', column: 'todo' });
 await flush();
 client.inspection().attempts[4].queue();
-await assert.rejects(queued, (error) => (
-  error instanceof SnapbackQueuedMutationError && error.clientMutationId === 'mut_5'
-));
+assert.deepEqual(await queued, {
+  status: 'queued',
+  queued: true,
+  presentation: 'installed',
+  clientMutationId: 'mut_5',
+  sequence: 5,
+});
 assert.equal(observer.snapshot().data.filter((entry) => entry.fields.title === 'Echo').length, 1);
 client.emit([
   canonical('card_5', 'Echo', 'todo', 5),

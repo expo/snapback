@@ -982,6 +982,11 @@ export interface StrandedMutationDiscardOutcome {
   readonly clientMutationIds: readonly string[];
 }
 
+export interface ResultGoneAcknowledgementOutcome {
+  readonly acknowledged: number;
+  readonly clientMutationIds: readonly string[];
+}
+
 export type OutboxDrainPhase =
   | 'idle'
   | 'waiting-barrier'
@@ -1498,6 +1503,11 @@ export class SnapbackClient {
     clientMutationId: string,
     listener: (disposition: MutationDisposition) => void,
   ): () => void;
+  /** Release result-gone ordered-successor fences after payload-free
+   * application acknowledgement; never replays or re-records the operation. */
+  acknowledgeResultGoneMutations(
+    clientMutationIds: readonly string[],
+  ): Promise<ResultGoneAcknowledgementOutcome>;
   /** Fires after every outbox transition (queue/replay/settle-failure) and
    * around each drain; returns the unsubscribe. Listeners observe only. */
   subscribeOutbox(listener: () => void): () => void;

@@ -339,7 +339,10 @@ async function waitFor(predicate, label, attempts = 400) {
   await act(async () => {
     result = await mutate({});
   });
-  assert.equal(result, `post:${gen2.post.implementationHash}`);
+  assert.deepEqual(result, {
+    status: 'settled',
+    result: `post:${gen2.post.implementationHash}`,
+  });
   assert.equal(
     client.inspection().mutations[0].ref.implementationHash,
     gen2.post.implementationHash,

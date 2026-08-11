@@ -137,3 +137,22 @@ artifacts alone boot whatever mode the schema declares. The same `todosFeed`
 declaration classifies `NOT_RQS_ELIGIBLE` under dev custody and
 `NOT_RETAINABLE` under sessions — the mode boundary made concrete in one
 query.
+
+## 2026-08-10 — React queued resolution and provider-owned drain
+
+The offline queue leg now dispatches through `invokeSnapbackMutation` instead
+of reaching around React to `client.mutate`. That made the P3 contract directly
+observable in the system-Chrome witness: each accepted intent resolves the
+queued union with `presentation: 'withheld'`, and restoring transport emits
+only an `online` lifecycle wake-up. No witness code calls `drainNow`,
+`replay`, or `replayQueuedMutations`; the provider-owned controller establishes
+the existing full-resync barrier and drains the four durable intents.
+
+This reduced application policy compared with the earlier React-plus-manual-
+outbox shape: the page owns neither retry cadence nor reconnect scheduling.
+The main acceptance complexity remains in proving that automatic convenience
+did not weaken the durable ordering rule, so the event ledger still requires
+the authoritative current snapshot to precede replay and settlement. No new
+guide gap surfaced in this change; the witness could reuse its existing
+receipt schema and eight-check structure, although its source identity must be
+re-minted by rerunning the qualified browser harness.

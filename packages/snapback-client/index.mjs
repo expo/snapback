@@ -6446,6 +6446,50 @@ export class SnapbackClient {
     };
   }
 
+  /// Payload-free application acknowledgement for outcome-known records whose
+  /// retained result is gone. This is deliberately not re-record or replay:
+  /// it releases the local ordered-successor fence only after the application
+  /// has observed and accepted the missing-payload disposition.
+  ///
+  /// @ref LLP 0218#41-the-dispatch-union-headless-contract — resultGone is
+  ///   non-replayable/non-rerecordable and requires one explicit acknowledge cut.
+  async acknowledgeResultGoneMutations(clientMutationIds = []) {
+    if (
+      !Array.isArray(clientMutationIds)
+      || clientMutationIds.some((id) => typeof id !== 'string' || id.length === 0)
+    ) {
+      throw new TypeError('acknowledgeResultGoneMutations requires an array of client mutation ids');
+    }
+    const ids = [...new Set(clientMutationIds)];
+    const store = this.#offlineQueueStore(true);
+    await this.#reconcileQueueCustody(store, { required: true });
+    const records = new Map((await store.outboxRecords()).map((record) => [record?.id, record]));
+    const invalid = ids.find((id) => records.get(id)?.status !== 'result-gone');
+    if (invalid !== undefined) {
+      const error = new Error(
+        'SNAPBACK_OUTBOX_RESULT_GONE_NOT_CURRENT: acknowledge only retained result-gone mutation ids',
+      );
+      error.code = 'SNAPBACK_OUTBOX_RESULT_GONE_NOT_CURRENT';
+      throw error;
+    }
+    const acknowledged = [];
+    for (const id of ids) {
+      if (await store.outboxDiscard(id)) acknowledged.push(id);
+    }
+    if (acknowledged.length > 0) {
+      this.#recordOutboxDiagnostic({
+        code: 'SNAPBACK_OUTBOX_RESULT_GONE_ACKNOWLEDGED',
+        acknowledged: acknowledged.length,
+        clientMutationIds: acknowledged,
+      });
+      this.#notifyOutboxListeners();
+    }
+    return Object.freeze({
+      acknowledged: acknowledged.length,
+      clientMutationIds: Object.freeze(acknowledged),
+    });
+  }
+
   /// Stable, payload-free LLP 0081 tombstones. The durable store privately
   /// retains the complete intent for re-entry, but this public projection never
   /// exposes args, auth context, read sets, generated facts, or optimistic data.

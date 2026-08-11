@@ -488,17 +488,20 @@ calendar.create({
   ownerId: 'alice',
   title: 'Planning',
   now: 1_787_000_000_000,
-}).then((id) => requireCanonicalReservation(id));
+}).then((outcome) => {
+  if (outcome.status === 'settled') requireCanonicalReservation(outcome.result);
+  else outcome.clientMutationId.toUpperCase();
+});
 ```
 
 On a declared rejection, only that mutation's durable layer retires and newer
 layers replay. On success, the provisional entity bridges until authoritative
 delivery consumes the settlement's logical-mint `idMap`; response-first and
 query-first delivery therefore converge without a canonical-plus-provisional
-duplicate. If `create` rejects with
-`SNAPBACK_REACT_MUTATION_QUEUED`, keep rendering the provisional entity:
-durable replay retains the exact `clientMutationId`, and the provider recovers
-the retained settlement and `idMap` after replay.
+duplicate. If `create` resolves the queued branch
+(`{status: 'queued'}` — accepted durable intent, LLP 0218), keep rendering the
+provisional entity: durable replay retains the exact `clientMutationId`, and
+the provider recovers the retained settlement and `idMap` after replay.
 
 The hook accepts only a generated local-executable mutation containing exactly
 one `Insert` into the document query's table. Other shapes refuse with

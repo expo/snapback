@@ -24,6 +24,7 @@ import {
   observeSnapbackQueries,
   useSnapbackOutbox,
   useSnapbackQuery,
+  useSnapbackSettledMutation,
 } from './index.mjs';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -195,8 +196,15 @@ function createOfflineFakeClient({ outbox = null } = {}) {
       supported: outbox.supported,
       pending: outbox.records.filter((entry) => entry.status === 'pending').length,
       failed: outbox.records.filter((entry) => entry.status === 'failed').length,
+      stranded: outbox.records.filter((entry) => entry.status === 'stranded').length,
+      quarantined: outbox.records.filter((entry) => entry.status === 'quarantined').length,
       resultGone: outbox.records.filter((entry) => entry.status === 'result-gone').length,
       replaying: false,
+      oldestPendingAtMs: outbox.records.some((entry) => entry.status === 'pending') ? 123 : null,
+      drainPhase: 'idle',
+      lastAttemptAtMs: null,
+      nextRetryAtMs: null,
+      blockedReason: null,
     });
     client.subscribeOutbox = (listener) => {
       outboxListeners.add(listener);
@@ -209,6 +217,40 @@ function createOfflineFakeClient({ outbox = null } = {}) {
       for (const listener of [...outboxListeners]) listener();
       const remaining = outbox.records.filter((entry) => entry.status === 'result-gone').length;
       return { replayed, failed: 0, remaining };
+    };
+    client.mutationStatus = async (clientMutationId) => {
+      const found = outbox.records.find((entry) => entry.id === clientMutationId);
+      if (found?.status === 'result-gone') {
+        return { status: 'resultGone', disposition: 'result-expired', outcome: 'committed' };
+      }
+      return { status: found?.status ?? 'unknown' };
+    };
+    client.strandedMutations = async () => outbox.records
+      .filter((entry) => entry.status === 'stranded');
+    client.discardStrandedMutations = async (ids) => {
+      const selected = outbox.records.filter(
+        (entry) => entry.status === 'stranded' && ids.includes(entry.id),
+      );
+      outbox.records = outbox.records.filter((entry) => !selected.includes(entry));
+      client.notifyOutbox();
+      return { discarded: selected.length, clientMutationIds: selected.map((entry) => entry.id) };
+    };
+    client.reRecordStrandedMutation = async (id) => `rerecorded-${id}`;
+    client.quarantinedMutations = async () => outbox.records
+      .filter((entry) => entry.status === 'quarantined');
+    client.reenterQuarantinedMutations = async () => {
+      const selected = outbox.records.filter((entry) => entry.status === 'quarantined');
+      for (const entry of selected) entry.status = 'pending';
+      client.notifyOutbox();
+      return { reentered: selected.length, clientMutationIds: selected.map((entry) => entry.id) };
+    };
+    client.acknowledgeResultGoneMutations = async (ids) => {
+      const selected = outbox.records.filter(
+        (entry) => entry.status === 'result-gone' && ids.includes(entry.id),
+      );
+      outbox.records = outbox.records.filter((entry) => !selected.includes(entry));
+      client.notifyOutbox();
+      return { acknowledged: selected.length, clientMutationIds: selected.map((entry) => entry.id) };
     };
     client.notifyOutbox = () => {
       for (const listener of [...outboxListeners]) listener();
@@ -374,6 +416,8 @@ function createOfflineFakeClient({ outbox = null } = {}) {
       { id: 'm2', status: 'pending' },
       { id: 'm3', status: 'failed' },
       { id: 'm4', status: 'result-gone' },
+      { id: 'm5', status: 'stranded' },
+      { id: 'm6', status: 'quarantined' },
     ],
   };
   const fake = createOfflineFakeClient({ outbox });
@@ -399,30 +443,77 @@ function createOfflineFakeClient({ outbox = null } = {}) {
       supported: latest.supported,
       pending: latest.pending,
       failed: latest.failed,
+      stranded: latest.stranded,
+      quarantined: latest.quarantined,
       resultGone: latest.resultGone,
     },
-    { supported: true, pending: 2, failed: 1, resultGone: 1 },
+    {
+      supported: true, pending: 2, failed: 1, stranded: 1, quarantined: 1, resultGone: 1,
+    },
   );
+  assert.equal(latest.depth, 6);
 
   // A queue transition on the client pushes through the subscription seam.
   await act(async () => {
-    outbox.records.push({ id: 'm5', status: 'pending' });
+    outbox.records.push({ id: 'm7', status: 'pending' });
     fake.notifyOutbox();
     await flush();
   });
   assert.equal(latest.pending, 3);
 
-  // replay() drains through the client's replayQueuedMutations.
+  assert.equal(latest.depth, 7);
+  assert.equal(latest.oldestPendingAtMs, 123);
+  assert.equal(latest.drainPhase, 'idle');
+
+  // drainNow() drains through the client's replayQueuedMutations; replay is
+  // retained as the deprecated alias.
   let outcome = null;
   await act(async () => {
-    outcome = await latest.replay();
+    outcome = await latest.drainNow();
     await flush();
   });
   assert.equal(outcome.replayed, 3);
   assert.equal(latest.pending, 0);
   assert.equal(latest.failed, 1, 'failed records remain visible client state');
+  assert.equal(latest.stranded, 1, 'stranded custody remains visible');
+  assert.equal(latest.quarantined, 1, 'quarantined custody remains visible');
   assert.equal(latest.resultGone, 1, 'result-gone remains visible and unreplayed');
   assert.equal(fake.inspection().replays, 1);
+
+  let affordances = null;
+  await act(async () => {
+    affordances = {
+      mutationStatus: await latest.mutationStatus('m4'),
+      stranded: await latest.strandedMutations(),
+      reRecorded: await latest.reRecordStrandedMutation('m5'),
+      quarantined: await latest.quarantinedMutations(),
+      discarded: await latest.discardStrandedMutations(['m5']),
+      reentered: await latest.reenterQuarantinedMutations(),
+      acknowledged: await latest.acknowledgeResultGoneMutations(['m4']),
+    };
+    await flush();
+  });
+  assert.equal(affordances.mutationStatus.status, 'resultGone');
+  assert.equal(affordances.stranded.length, 1);
+  assert.equal(affordances.reRecorded, 'rerecorded-m5');
+  assert.equal(affordances.quarantined.length, 1);
+  assert.equal(affordances.discarded.discarded, 1);
+  assert.equal(affordances.reentered.reentered, 1);
+  assert.equal(affordances.acknowledged.acknowledged, 1);
+  assert.equal(latest.stranded, 0);
+  assert.equal(latest.quarantined, 0);
+  assert.equal(latest.resultGone, 0);
+  assert.equal(latest.pending, 1, 're-entered quarantine returns to pending');
+
+  const frameworkNeutral = observeSnapbackOutbox(provider, () => {});
+  assert.equal(typeof frameworkNeutral.drainNow, 'function');
+  assert.equal(typeof frameworkNeutral.replay, 'function');
+  assert.equal(typeof frameworkNeutral.acknowledgeResultGoneMutations, 'function');
+  await act(async () => {
+    await frameworkNeutral.replay();
+    await flush();
+  });
+  frameworkNeutral.dispose();
   await act(async () => { renderer.unmount(); });
   await provider.dispose();
 }
@@ -443,7 +534,184 @@ function createOfflineFakeClient({ outbox = null } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// 6. A queued hook dispatch is loud in development. A later pending-count
+// 6. Provider-owned P2 drain: auto wakes on online, manual waits for
+//    drainNow, Strict Mode never has more than one live controller, and
+//    teardown stops it. Carrier eventTarget/timer options pass through.
+// ---------------------------------------------------------------------------
+{
+  class FakeEventTarget {
+    listeners = new Map();
+    addEventListener(type, listener) {
+      const listeners = this.listeners.get(type) ?? new Set();
+      listeners.add(listener);
+      this.listeners.set(type, listeners);
+    }
+    removeEventListener(type, listener) { this.listeners.get(type)?.delete(listener); }
+    dispatch(type) { for (const listener of [...(this.listeners.get(type) ?? [])]) listener(); }
+  }
+  const attachDrain = (client) => {
+    client.rqsStoreInfo = Object.freeze({
+      source: 'injected', implementation: 'fixture', durable: true, reason: null,
+    });
+    let controller = null;
+    let active = 0;
+    let maxActive = 0;
+    let starts = 0;
+    let stops = 0;
+    let lastOptions = null;
+    client.startOutboxDrain = (options = {}) => {
+      if (controller?.status().running === true) return controller;
+      starts += 1;
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      lastOptions = options;
+      let running = true;
+      const onOnline = () => {
+        if (options.automatic !== false) void handle.drainNow();
+      };
+      options.eventTarget?.addEventListener('online', onOnline);
+      const handle = Object.freeze({
+        async drainNow() { return client.replayQueuedMutations(); },
+        stop() {
+          if (!running) return;
+          running = false;
+          active -= 1;
+          stops += 1;
+          options.eventTarget?.removeEventListener('online', onOnline);
+        },
+        status: () => Object.freeze({
+          running,
+          automatic: options.automatic !== false,
+          drainPhase: 'idle',
+          lastAttemptAtMs: null,
+          nextRetryAtMs: null,
+          blockedReason: null,
+        }),
+      });
+      controller = handle;
+      return handle;
+    };
+    return () => ({ active, maxActive, starts, stops, lastOptions });
+  };
+
+  const automaticOutbox = { supported: true, records: [{ id: 'auto-1', status: 'pending' }] };
+  const automaticClient = createOfflineFakeClient({ outbox: automaticOutbox });
+  const automaticDrain = attachDrain(automaticClient);
+  const automaticEvents = new FakeEventTarget();
+  const timer = Object.freeze({ now: () => 1 });
+  const automaticBinding = await prepareReactBindingForClient(
+    automaticClient,
+    { generatedManifest },
+  );
+  const automaticProvider = createSnapbackReactProvider(automaticBinding, {
+    connectionId: 'offline-auto-drain',
+    outboxDrainOptions: { eventTarget: automaticEvents, timer },
+  });
+  automaticProvider.start();
+  assert.equal(automaticDrain().active, 1);
+  assert.equal(automaticDrain().lastOptions.eventTarget, automaticEvents);
+  assert.equal(automaticDrain().lastOptions.timer, timer);
+  automaticEvents.dispatch('online');
+  await flush();
+  assert.equal(automaticOutbox.records.some((entry) => entry.status === 'pending'), false);
+  await automaticProvider.dispose();
+  assert.equal(automaticDrain().active, 0);
+  assert.equal(automaticDrain().stops, 1);
+
+  const manualOutbox = { supported: true, records: [{ id: 'manual-1', status: 'pending' }] };
+  const manualClient = createOfflineFakeClient({ outbox: manualOutbox });
+  attachDrain(manualClient);
+  const manualEvents = new FakeEventTarget();
+  const manualBinding = await prepareReactBindingForClient(manualClient, { generatedManifest });
+  const manualProvider = createSnapbackReactProvider(manualBinding, {
+    connectionId: 'offline-manual-drain',
+    outboxDrain: 'manual',
+    outboxDrainOptions: { eventTarget: manualEvents },
+  });
+  manualProvider.start();
+  manualEvents.dispatch('online');
+  await flush();
+  assert.equal(manualOutbox.records.some((entry) => entry.status === 'pending'), true);
+  const manualObserver = observeSnapbackOutbox(manualProvider, () => {});
+  await manualObserver.drainNow();
+  assert.equal(manualOutbox.records.some((entry) => entry.status === 'pending'), false);
+  manualObserver.dispose();
+  await manualProvider.dispose();
+
+  const strictClient = createOfflineFakeClient({ outbox: { supported: true, records: [] } });
+  const strictDrain = attachDrain(strictClient);
+  const strictEvents = new FakeEventTarget();
+  const strictBinding = await prepareReactBindingForClient(strictClient, { generatedManifest });
+  let strictRenderer;
+  await act(async () => {
+    strictRenderer = TestRenderer.create(React.createElement(
+      React.StrictMode,
+      null,
+      React.createElement(SnapbackProvider, {
+        binding: strictBinding,
+        outboxDrainOptions: { eventTarget: strictEvents },
+      }),
+    ));
+    await flush();
+  });
+  assert.equal(strictDrain().maxActive, 1);
+  assert.equal(strictDrain().active, 1);
+  await act(async () => strictRenderer.unmount());
+  assert.equal(strictDrain().active, 0);
+}
+
+// ---------------------------------------------------------------------------
+// 7. Settled-only compatibility is explicit: queue:false preserves the bare
+//    validated result and connectivity rejects with the original error.
+// ---------------------------------------------------------------------------
+{
+  const originalConnectivityError = new TypeError('fixture connectivity refused');
+  const refusing = createOfflineFakeClient();
+  refusing.mutate = async (_reference, options) => {
+    assert.equal(options.queue, false);
+    throw originalConnectivityError;
+  };
+  const refusingBinding = await prepareReactBindingForClient(refusing, { generatedManifest });
+  const refusingProvider = createSnapbackReactProvider(refusingBinding, {
+    connectionId: 'offline-queue-false',
+  });
+  await assert.rejects(
+    invokeSnapbackMutation(
+      refusingProvider,
+      record,
+      { value: 'must-settle' },
+      { queue: false },
+    ),
+    (error) => error === originalConnectivityError,
+  );
+  await refusingProvider.dispose();
+
+  const settled = createOfflineFakeClient();
+  const settledBinding = await prepareReactBindingForClient(settled, { generatedManifest });
+  const settledProvider = createSnapbackReactProvider(settledBinding, {
+    connectionId: 'offline-settled-hook',
+  });
+  let runSettled = null;
+  function SettledProbe() {
+    runSettled = useSnapbackSettledMutation(record);
+    return null;
+  }
+  let renderer;
+  await act(async () => {
+    renderer = TestRenderer.create(React.createElement(
+      SnapbackProvider,
+      { provider: settledProvider },
+      React.createElement(SettledProbe),
+    ));
+    await flush();
+  });
+  assert.equal(await runSettled({ value: 'bare' }), 'record:bare');
+  await act(async () => renderer.unmount());
+  await settledProvider.dispose();
+}
+
+// ---------------------------------------------------------------------------
+// 8. A queued hook dispatch is loud in development. A later pending-count
 //    warning is honest when bounded diagnostics cannot prove that the named
 //    mutation itself is still pending or blocking the queue.
 // ---------------------------------------------------------------------------
@@ -471,10 +739,14 @@ function createOfflineFakeClient({ outbox = null } = {}) {
       __queuedMutationWedgeWarningMs: 5,
     });
 
-    await assert.rejects(
-      invokeSnapbackMutation(provider, record, { value: 'offline' }),
-      (error) => error?.code === 'SNAPBACK_REACT_MUTATION_QUEUED',
-    );
+    const queued = await invokeSnapbackMutation(provider, record, { value: 'offline' });
+    assert.deepEqual(queued, {
+      status: 'queued',
+      queued: true,
+      clientMutationId: 'queued-record-1',
+      sequence: 1,
+      presentation: 'withheld',
+    });
     assert.equal(warnings.length, 1, 'durable queueing warns at the call site');
     assert.match(warnings[0], /SNAPBACK_REACT_MUTATION_QUEUED/);
     assert.match(warnings[0], /mutation "record"/);

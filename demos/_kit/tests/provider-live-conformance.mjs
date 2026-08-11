@@ -976,6 +976,9 @@ export const createRecord = defineMutation({
       const binding = await prepareReactBindingForClient(client, { generatedManifest: functions });
       provider = createSnapbackReactProvider(binding, {
         connectionId: 'provider-optimistic-create',
+        // This gate inspects one explicit replay below; keep provider
+        // scheduling manual so automatic drain cannot race that assertion.
+        outboxDrain: 'manual',
       });
       observer = observeSnapbackOptimisticCreate(
         provider,
@@ -1010,15 +1013,10 @@ export const createRecord = defineMutation({
         return response;
       };
 
-      let queuedError = null;
-      try {
-        await observer.create({ title: 'response-loss', rank: 1 });
-      } catch (error) {
-        queuedError = error;
-      }
+      const queuedOutcome = await observer.create({ title: 'response-loss', rank: 1 });
       assert(
-        queuedError?.code === 'SNAPBACK_REACT_MUTATION_QUEUED',
-        `response loss is a durable pending settlement: ${queuedError?.stack ?? queuedError}`,
+        queuedOutcome.status === 'queued' && queuedOutcome.presentation === 'installed',
+        `response loss is a durable pending settlement: ${JSON.stringify(queuedOutcome)}`,
       );
       assertEqual(requests.length, 1, 'one original wire attempt');
       assert(droppedSettlement?.receipt?.idMap?.length === 1, 'dropped settlement carried one identity mapping');
@@ -1040,7 +1038,7 @@ export const createRecord = defineMutation({
         'retry preserves exact protocol identity',
       );
       const retained = (await client.settledMutations())
-        .find((entry) => entry.clientMutationId === queuedError.clientMutationId)?.settlement;
+        .find((entry) => entry.clientMutationId === queuedOutcome.clientMutationId)?.settlement;
       assert(retained, 'duplicate settlement remains recoverable by durable intent identity');
       assertEqual(retained.receipt.idMap, droppedSettlement.receipt.idMap, 'retry preserves exact idMap');
 
