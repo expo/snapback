@@ -2214,6 +2214,7 @@ impl FunctionManifest {
             validate_effect_ceiling(function)?;
             validate_standard_pattern_identity(function)?;
             validate_result_contract_definition(function)?;
+            validate_field_boundary(function)?;
             validate_args_contract_definition(function)?;
             validate_live_search_contracts(function)?;
             validate_declared_refusals(function)?;
@@ -3435,6 +3436,95 @@ fn validate_result_contract_definition(function: &FunctionDefinition) -> Snapbac
                 function.name
             ),
         ));
+    }
+    Ok(())
+}
+
+fn result_row_contract_has_field(contract: &FunctionResultContract, field: &str) -> Option<bool> {
+    let row = match contract {
+        FunctionResultContract::Documents { document, .. }
+        | FunctionResultContract::Document { document, .. } => document,
+        FunctionResultContract::Records { record, .. } => record,
+        FunctionResultContract::Value { value } => value,
+        FunctionResultContract::LegacyQueryRowsV0 { row } => row,
+        FunctionResultContract::Unknown => return None,
+    };
+    match row {
+        ResultValueContract::Object { fields, .. } => {
+            Some(fields.iter().any(|candidate| candidate.name == field))
+        }
+        ResultValueContract::Union { variants }
+            if !variants.is_empty()
+                && variants
+                    .iter()
+                    .all(|variant| matches!(variant, ResultValueContract::Object { .. })) =>
+        {
+            Some(variants.iter().all(|variant| {
+                let ResultValueContract::Object { fields, .. } = variant else {
+                    unreachable!("guard above admits only object variants")
+                };
+                fields.iter().any(|candidate| candidate.name == field)
+            }))
+        }
+        _ => None,
+    }
+}
+
+fn validate_field_boundary(function: &FunctionDefinition) -> SnapbackResult<()> {
+    let Some(boundary) = &function.field_boundary else {
+        return Ok(());
+    };
+    let invalid = |code: &'static str, reason: String| {
+        SnapbackError::error(
+            code,
+            "function",
+            format!(
+                "function {} declares an invalid fieldBoundary: {reason}",
+                function.name
+            ),
+        )
+        .with_details(serde_json::json!({
+            "function": function.name,
+            "fields": boundary.fields,
+            "condition": boundary.condition,
+            "reason": reason,
+        }))
+    };
+    if !matches!(function.kind, FunctionKind::Query | FunctionKind::LiveQuery)
+        || !matches!(function.runtime, FunctionRuntime::IbexModule(_))
+    {
+        return Err(invalid(
+            "SNAPBACK_FIELD_BOUNDARY_SPEC_INVALID",
+            "only an IbexModule Query or LiveQuery may carry the handler-enforced residual"
+                .to_owned(),
+        ));
+    }
+    let mut seen = BTreeSet::new();
+    if boundary.fields.is_empty()
+        || boundary
+            .fields
+            .iter()
+            .any(|field| field.is_empty() || field.trim() != field || !seen.insert(field.as_str()))
+    {
+        return Err(invalid(
+            "SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID",
+            "fields must be a non-empty list of unique field names without surrounding whitespace"
+                .to_owned(),
+        ));
+    }
+    if boundary.condition.trim().is_empty() {
+        return Err(invalid(
+            "SNAPBACK_FIELD_BOUNDARY_CONDITION_INVALID",
+            "condition must be a non-empty free-text disclosure claim".to_owned(),
+        ));
+    }
+    for field in &boundary.fields {
+        if result_row_contract_has_field(&function.result_contract, field) == Some(false) {
+            return Err(invalid(
+                "SNAPBACK_FIELD_BOUNDARY_FIELD_UNKNOWN",
+                format!("field {field:?} is absent from the effective result row contract"),
+            ));
+        }
     }
     Ok(())
 }
@@ -7178,6 +7268,20 @@ pub fn schema_ref_registry_v1() -> [&'static str; 1] {
     [SCHEMA_REF_SEARCH_QUERY_AST_V1]
 }
 
+/// Interim declaration for field masking that remains inside an opaque
+/// JavaScript query handler. It is review evidence only: the runtime does not
+/// interpret the free-text condition or prove noninterference.
+///
+/// @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model —
+///   field-level boundaries stay declared and visibly handler-enforced until
+///   the class-M sibling replaces this residual with an enforced grammar.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FieldBoundaryDeclaration {
+    pub fields: Vec<String>,
+    pub condition: String,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FunctionDefinition {
@@ -7246,6 +7350,15 @@ pub struct FunctionDefinition {
     pub result_contract: FunctionResultContract,
     #[serde(default, rename = "resultContractHash", alias = "result_contract_hash")]
     pub result_contract_hash: Option<String>,
+    /// Declared field-masking residual for an opaque JS query. This is not
+    /// runtime enforcement and carries no noninterference guarantee.
+    #[serde(
+        default,
+        rename = "fieldBoundary",
+        alias = "field_boundary",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub field_boundary: Option<FieldBoundaryDeclaration>,
     #[serde(
         default,
         rename = "requiredCapabilities",
@@ -7415,6 +7528,7 @@ impl FunctionDefinition {
             sequences: Vec::new(),
             result_contract: FunctionResultContract::Unknown,
             result_contract_hash: None,
+            field_boundary: None,
             required_capabilities: Vec::new(),
             auth_requirement: None,
             api_exposure: None,
@@ -8150,6 +8264,9 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             sequences,
             result_contract,
             result_contract_hash,
+            // The committed codegen summary is LLP 0231 D5's review surface.
+            // Public inspect does not restate this free-text handler claim.
+            field_boundary: _,
             required_capabilities,
             auth_requirement,
             api_exposure,
@@ -14980,6 +15097,64 @@ mod membership_manifest_grammar_tests {
         explicit_unknown.required_capabilities.clear();
         validate_result_contract_definition(&explicit_unknown)
             .expect("legacy manifests may omit the result contract identity");
+    }
+
+    #[test]
+    fn field_boundary_is_an_ibex_query_claim_bound_to_known_result_fields() {
+        let mut function = FunctionDefinition::new(
+            "liveTally",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = {};".to_owned(),
+                export: "liveTally".to_owned(),
+            }),
+        );
+        function.result_contract = FunctionResultContract::Records {
+            record: ResultValueContract::Object {
+                fields: vec![ResultObjectFieldContract {
+                    name: "value".to_owned(),
+                    required: true,
+                    value: ResultValueContract::Union {
+                        variants: vec![
+                            ResultValueContract::Null,
+                            ResultValueContract::String { max_bytes: 8 },
+                        ],
+                    },
+                }],
+                allow_extra: false,
+            },
+            rows: None,
+        };
+        function.field_boundary = Some(FieldBoundaryDeclaration {
+            fields: vec!["value".to_owned()],
+            condition: "round is revealed or caller owns the vote".to_owned(),
+        });
+        validate_field_boundary(&function).expect("known Ibex query field boundary");
+
+        let serialized = serde_json::to_value(&function).expect("serialize declaration");
+        assert_eq!(serialized["fieldBoundary"]["fields"], json!(["value"]));
+        let public = serde_json::to_value(PublicFunctionDefinition::from(function.clone()))
+            .expect("serialize public projection");
+        assert!(
+            public.get("fieldBoundary").is_none(),
+            "the committed codegen summary, not public inspect, owns the review claim"
+        );
+
+        function.field_boundary.as_mut().unwrap().fields = vec!["missing".to_owned()];
+        let unknown = validate_field_boundary(&function)
+            .expect_err("a checkable result contract refuses unknown boundary fields");
+        assert_eq!(
+            unknown.diagnostic.code,
+            "SNAPBACK_FIELD_BOUNDARY_FIELD_UNKNOWN"
+        );
+
+        function.kind = FunctionKind::Action;
+        let wrong_kind = validate_field_boundary(&function)
+            .expect_err("actions cannot self-declare a field-boundary residual");
+        assert_eq!(
+            wrong_kind.diagnostic.code,
+            "SNAPBACK_FIELD_BOUNDARY_SPEC_INVALID"
+        );
     }
 
     #[test]

@@ -4,8 +4,8 @@ id: auth.protecting-data
 order: 4
 audience: agent-first
 capabilities: [auth.table-visibility, auth.invalidation-barrier, auth.authorized-leases]
-authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/manifest.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
-examples: [demos/card-game, demos/card-game/snapback/schema.mjs, demos/_kit/tests/auth-invalidation-client.mjs]
+authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/manifest.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/codegen-summary.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
+examples: [demos/card-game, demos/card-game/snapback/schema.mjs, demos/pointing-room, demos/pointing-room/snapback/functions.mjs, demos/pointing-room/tests/acceptance/disclosure-invariant.mjs, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -100,6 +100,30 @@ Declaring one does not declare, infer, or conflict with the other. This slice
 composes table policy only into generated direct query/live-query plans. It
 does not claim composition for `ctx.db`, search, relational queries, class-M
 field masking, writes, or egress; those boundaries remain separate work.
+
+## Declare field masking that still lives in a JS handler
+
+An opaque `defineJsQuery` or `defineJsLiveQuery` that returns every row but
+conceals selected result fields can add `fieldBoundary: { fields: ['value'],
+condition: 'round is revealed or the caller owns the vote' }`. `fields` must
+be a non-empty unique list, `condition` must be a non-empty free-text claim,
+and codegen refuses a named field absent from a checkable effective result
+contract. The stable refusal family is `SNAPBACK_FIELD_BOUNDARY_SPEC_INVALID`,
+`SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID`,
+`SNAPBACK_FIELD_BOUNDARY_CONDITION_INVALID`, and
+`SNAPBACK_FIELD_BOUNDARY_FIELD_UNKNOWN`.
+
+This is explicitly **handler-enforced, not proven**. It does not compose a
+field policy into the data plan, withhold raw values from the handler, prove
+noninterference, or detect masking code that omitted the declaration. The
+generated `artifacts.json` summary lists every declaration under
+`fieldBoundaries`, and codegen's text summary labels each one
+`handler-enforced (not proven)`. Keep a two-principal acceptance test beside
+the declaration: one principal must observe the concealed form while the
+entitled principal observes the value, then both must observe the value after
+the disclosure condition changes. Pointing Room's `liveTally` is the worked
+case. This residual exists until LLP 0231's class-M sibling supplies an
+enforced field-masking grammar.
 
 ## Check the negotiated capability, not route existence
 

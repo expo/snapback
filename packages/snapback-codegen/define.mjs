@@ -122,7 +122,7 @@ function normalizeStandardPattern(spec, kind) {
 const JS_QUERY_SPEC_FIELDS = new Set([
   'args', 'source', 'exportName', 'handler', 'reads', 'result', 'authScopeField',
   'defaultLive', 'auth', 'authorityIndependent', 'retainable', 'refusals', 'trackedRefusals',
-  'authorizationDependence', 'requires',
+  'authorizationDependence', 'requires', 'fieldBoundary',
 ]);
 const TARGET_CAPABILITIES = new Set([
   'auth.sessions.v1',
@@ -3421,6 +3421,47 @@ function exactRelationalVisibilityObject(visibility) {
 
 function jsQueryDef(kind, spec) {
   assertKnownSpecFields(spec, kind, JS_QUERY_SPEC_FIELDS);
+  let fieldBoundary;
+  if (spec.fieldBoundary !== undefined) {
+    const where = `${kind} fieldBoundary`;
+    exactObject(
+      spec.fieldBoundary,
+      where,
+      new Set(['fields', 'condition']),
+      'SNAPBACK_FIELD_BOUNDARY_SPEC_INVALID',
+    );
+    assert(
+      Array.isArray(spec.fieldBoundary.fields) && spec.fieldBoundary.fields.length > 0,
+      `${where}.fields must be a non-empty array of field names`,
+      'SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID',
+    );
+    const fields = [];
+    const seen = new Set();
+    for (const field of spec.fieldBoundary.fields) {
+      assert(
+        typeof field === 'string' && field.length > 0 && field.trim() === field,
+        `${where}.fields entries must be non-empty field names without surrounding whitespace`,
+        'SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID',
+      );
+      assert(
+        !seen.has(field),
+        `${where}.fields repeats ${field}`,
+        'SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID',
+      );
+      seen.add(field);
+      fields.push(field);
+    }
+    assert(
+      typeof spec.fieldBoundary.condition === 'string'
+        && spec.fieldBoundary.condition.trim().length > 0,
+      `${where}.condition must be a non-empty free-text disclosure claim`,
+      'SNAPBACK_FIELD_BOUNDARY_CONDITION_INVALID',
+    );
+    fieldBoundary = Object.freeze({
+      fields: Object.freeze(fields),
+      condition: spec.fieldBoundary.condition.trim(),
+    });
+  }
   const inline = spec.handler !== undefined;
   const legacy = spec.source !== undefined || spec.exportName !== undefined;
   assert(inline !== legacy, `${kind} requires exactly one handler form: handler or source + exportName`);
@@ -3453,6 +3494,7 @@ function jsQueryDef(kind, spec) {
     ...(spec.result?.__resultContract === true
       ? { resultContract: spec.result }
       : (spec.result !== undefined ? { result: spec.result } : {})),
+    ...(fieldBoundary === undefined ? {} : { fieldBoundary }),
     // LLP 0034 D3: per-definition defaultLive opt-out (see queryDef).
     ...(kind === 'LiveQuery' && spec.defaultLive === false ? { defaultLive: false } : {}),
     js: {

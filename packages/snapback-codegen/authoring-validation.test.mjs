@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generate } from './index.mjs';
+import { formatCodegenSummary } from './codegen-summary.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
@@ -53,6 +54,96 @@ async function validCase({ schema = validSchema, functions, handlers = {} }) {
   const result = await generate(dir);
   assert.equal(result.ok, true, `expected success, got ${JSON.stringify(result.diagnostics)}`);
   return result;
+}
+
+// LLP 0231 D3/D5: an opaque JS query may declare its interim field-masking
+// residual, but codegen projects it as a handler claim rather than proof.
+{
+  const declared = await validCase({
+    functions: `
+import { defineJsLiveQuery, results, v } from '${defineUrl}';
+export const liveTally = defineJsLiveQuery({
+  auth: 'authenticated',
+  args: {},
+  reads: ['todos'],
+  result: results.records(v.object({ value: v.union([v.string(), v.null()]) })),
+  fieldBoundary: {
+    fields: ['value'],
+    condition: 'the round is revealed or the caller owns the vote',
+  },
+  handler: async () => [{ value: null }],
+});
+`,
+  });
+  assert.deepEqual(declared.functionManifest.functions[0].fieldBoundary, {
+    fields: ['value'],
+    condition: 'the round is revealed or the caller owns the vote',
+  });
+  assert.deepEqual(declared.summary.fieldBoundaries, [{
+    function: 'liveTally',
+    fields: ['value'],
+    condition: 'the round is revealed or the caller owns the vote',
+  }]);
+  assert.equal(declared.summary.counts.fieldBoundaries, 1);
+  assert.match(
+    formatCodegenSummary(declared.summary),
+    /field boundary liveTally: value — handler-enforced \(not proven\)/u,
+  );
+
+  const documentRows = await validCase({
+    functions: `
+import { defineJsQuery, results, v } from '${defineUrl}';
+export const privateTodos = defineJsQuery({
+  auth: 'authenticated',
+  args: {},
+  reads: ['todos'],
+  result: results.documents('todos'),
+  fieldBoundary: { fields: ['title'], condition: 'the caller owns the todo' },
+  handler: async () => [],
+});
+`,
+  });
+  assert.deepEqual(documentRows.functionManifest.functions[0].fieldBoundary.fields, ['title']);
+
+  const invalidBoundary = async (fieldBoundary, code, resultField = 'value') => {
+    const diagnostics = await invalidCase({
+      functions: `
+import { defineJsLiveQuery, results, v } from '${defineUrl}';
+export const liveTally = defineJsLiveQuery({
+  auth: 'authenticated',
+  args: {},
+  reads: ['todos'],
+  result: results.records(v.object({ ${resultField}: v.union([v.string(), v.null()]) })),
+  fieldBoundary: ${fieldBoundary},
+  handler: async () => [],
+});
+`,
+    });
+    assert(
+      diagnostics.some((diagnostic) => diagnostic.code === code),
+      `missing ${code}: ${JSON.stringify(diagnostics)}`,
+    );
+  };
+  await invalidBoundary(
+    `{ fields: ['value'], condition: 'owner', extra: true }`,
+    'SNAPBACK_FIELD_BOUNDARY_SPEC_INVALID',
+  );
+  await invalidBoundary(
+    `{ fields: [], condition: 'owner' }`,
+    'SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID',
+  );
+  await invalidBoundary(
+    `{ fields: ['value', 'value'], condition: 'owner' }`,
+    'SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID',
+  );
+  await invalidBoundary(
+    `{ fields: ['value'], condition: '   ' }`,
+    'SNAPBACK_FIELD_BOUNDARY_CONDITION_INVALID',
+  );
+  await invalidBoundary(
+    `{ fields: ['missing'], condition: 'owner' }`,
+    'SNAPBACK_FIELD_BOUNDARY_FIELD_UNKNOWN',
+  );
 }
 
 // Declarative mutation failures use the same closed app-code declaration as

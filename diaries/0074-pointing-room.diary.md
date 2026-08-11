@@ -179,3 +179,23 @@ mounted presence map, successor wiring prewarms behind the barrier, and only a
 fenced commit exposes it. The remaining deliberate limitation is provider-side
 `forceEphemeralState` for keyed mode; ordinary read/publish operation and
 authority swapping no longer need a companion surface.
+
+## Slice 4 — declared field boundary (2026-08-11)
+
+The disclosure rule now has an author-facing review surface as well as a
+handler and a two-principal acceptance proof. `liveTally` declares that
+`value` is concealed until the round is revealed or the caller owns the vote;
+codegen checks the declared field against the result contract, carries the
+claim into the function manifest, and labels it in the committed summary as
+handler-enforced and not proven. That label matters: the declaration makes an
+opaque JavaScript rule reviewable, but does not turn free text into policy or
+noninterference proof.
+
+The shape was pleasantly small compared with reconstructing the same intent
+from a Convex handler review or a Supabase policy plus join analysis. The
+strong evidence still comes from the acceptance test: it reads the declaration
+from the generated manifest and uses two authenticated principals to prove
+that the owner sees `13` while the non-owner sees `null`, then that both see
+`13` after reveal. The main friction was environmental rather than authoring:
+the chartered Lane B binary's readiness receipt had drifted, so verification
+needed a current-tree temporary binary and a fresh coherent receipt.

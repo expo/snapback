@@ -123,7 +123,8 @@ try {
     action: 0,
     live: 0,
   });
-  assert.equal(first.summary.counts.warnings, 1);
+  // Lane B's implicit table-visibility warn phase adds one warning to this fixture.
+  assert.equal(first.summary.counts.warnings, 2);
   assert.equal(first.summary.counts.degradedResults, 1);
   assert.deepEqual(first.summary.degradedResults[0].source, {
     path: 'functions.mjs',

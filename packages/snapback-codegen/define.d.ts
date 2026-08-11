@@ -387,6 +387,13 @@ interface JsQuerySpecBase extends QueryAuthOptions {
   reads: string[];
   result?: Validator | ResultContract;
   authScopeField?: string;
+  /** Interim LLP 0231 field-masking residual. This records the fields the
+   * opaque handler claims to conceal and its disclosure condition; it is
+   * handler-enforced review evidence, not a noninterference proof. */
+  fieldBoundary?: {
+    fields: readonly string[];
+    condition: string;
+  };
   /** Closed declaration for diagnostics. JavaScript remains non-retainable
    * until its ctx.auth and module-state profile is mechanically proved. */
   authorizationDependence?: AuthorizationInputDimension[];

@@ -1576,6 +1576,31 @@ function compileApiExposure(api, functions, err, diagnostics) {
   }
 }
 
+function resultContractRowHasField(contract, field) {
+  const row = contract?.kind === 'documents' || contract?.kind === 'document'
+    ? contract.document
+    : contract?.kind === 'records'
+      ? contract.record
+      : contract?.kind === 'value'
+        ? contract.value
+      : contract?.kind === 'legacyQueryRowsV0'
+        ? contract.row
+        : null;
+  if (row?.kind === 'object') {
+    return row.fields.some((candidate) => candidate.name === field);
+  }
+  if (
+    row?.kind === 'union'
+    && row.variants.length > 0
+    && row.variants.every((variant) => variant.kind === 'object')
+  ) {
+    return row.variants.every(
+      (variant) => variant.fields.some((candidate) => candidate.name === field),
+    );
+  }
+  return null;
+}
+
 function validateAuthoredRequiredCapabilities(required, err) {
   if (required === undefined) return;
   if (!Array.isArray(required)) {
@@ -3546,6 +3571,7 @@ async function generateInProcessLocked({
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: readTables,
         declaredWrites: [],
+        ...(def.fieldBoundary === undefined ? {} : { fieldBoundary: def.fieldBoundary }),
         authScopeField: def.js.authScopeField ?? null,
         authorizationDependence: jsAuthorizationDependence(def),
         syncabilityClass: def.js.syncabilityClass,
@@ -4200,6 +4226,18 @@ async function generateInProcessLocked({
         tables,
       });
       fn.resultContractHash = resultContractHash(fn.resultContract);
+      if (fn.fieldBoundary !== undefined) {
+        for (const field of fn.fieldBoundary.fields) {
+          if (resultContractRowHasField(fn.resultContract, field) === false) {
+            err(
+              'SNAPBACK_FIELD_BOUNDARY_FIELD_UNKNOWN',
+              'function',
+              `${fn.name}: fieldBoundary names ${field}, which is absent from the effective result row contract`,
+              { function: fn.name, field },
+            );
+          }
+        }
+      }
       if (contractQueries[fn.name]) {
         contractQueries[fn.name].result = providerResultDescriptor(fn.resultContract);
       }
@@ -8366,6 +8404,7 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
       ...(Array.isArray(fn.authorizationDependence) && fn.authorizationDependence.length > 0
         ? { authorizationDependence: fn.authorizationDependence }
         : {}),
+      ...(fn.fieldBoundary !== undefined ? { fieldBoundary: fn.fieldBoundary } : {}),
       syncabilityClass: syncabilityClass(fn),
       readSetSummary: reads,
       writeSetSummary: writes,
@@ -12905,6 +12944,9 @@ const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
   'SNAPBACK_API_ASK_REQUIRES_API',
   'SNAPBACK_DELETE_WHERE_FILTER_INVALID',
   'SNAPBACK_DELETE_WHERE_FILTER_REQUIRED',
+  'SNAPBACK_FIELD_BOUNDARY_CONDITION_INVALID',
+  'SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID',
+  'SNAPBACK_FIELD_BOUNDARY_SPEC_INVALID',
   'SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED',
   'SNAPBACK_TABLE_VISIBILITY_ALREADY_DECLARED',
   'SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARMS_INVALID',

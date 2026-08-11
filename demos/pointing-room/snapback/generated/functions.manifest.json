@@ -1,0 +1,631 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "inline_handler_v1",
+    "result_contract_v1"
+  ],
+  "appId": "pointing-room",
+  "artifactKind": "functionManifest",
+  "authoredSourceHash": "sha256:8fbef78c58431ef67a90972523693d6776456592329fe3be6f7088cf7b405f94",
+  "bundleHash": "snapback.v1:sessions:function:sha256:8526fb7e8e3ca77e83ea92e8b511d1dceea37a58f5cab41015b5a9bf22b14856",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "roundId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "rounds"
+            }
+          },
+          {
+            "name": "value",
+            "required": true,
+            "value": {
+              "kind": "union",
+              "variants": [
+                {
+                  "kind": "literal",
+                  "value": "1"
+                },
+                {
+                  "kind": "literal",
+                  "value": "2"
+                },
+                {
+                  "kind": "literal",
+                  "value": "3"
+                },
+                {
+                  "kind": "literal",
+                  "value": "5"
+                },
+                {
+                  "kind": "literal",
+                  "value": "8"
+                },
+                {
+                  "kind": "literal",
+                  "value": "13"
+                },
+                {
+                  "kind": "literal",
+                  "value": "?"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:b86087a0eccac526b9b387c463336a1db5665233f394a9d87e3667c0d1842d54",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "castVote",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rounds"
+          },
+          {
+            "access": "query",
+            "table": "votes"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "votes"
+          }
+        ]
+      },
+      "exportedName": "castVote",
+      "handlerForm": "inline",
+      "id": "pointing-room:castVote",
+      "implementationHash": "sha256:858e36ce3e808611de58d20d5ee308e7e5d12a961e7bd84a87d0b31b7f5f3b4c",
+      "kind": "Mutation",
+      "name": "castVote",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rounds",
+        "tables": [
+          "rounds",
+          "votes"
+        ]
+      },
+      "refusals": [
+        "ROUND_NOT_FOUND",
+        "ROUND_REVEALED"
+      ],
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "id",
+          "table": "votes"
+        }
+      },
+      "resultContractHash": "sha256:d57b0674a5978b65759e54eb6c72114248378eb19245fef504ea1fd665ec7598",
+      "runtime": {
+        "IbexModule": {
+          "export": "castVote",
+          "source": "globalThis.__snapbackHandlers = { \"castVote\": (async (ctx, args) => {\n    const round = await ctx.db.get('rounds', args.roundId);\n    if (!round) ctx.refuse('ROUND_NOT_FOUND');\n    if (round.revealed) ctx.refuse('ROUND_REVEALED', { roundId: round._id });\n    const existing = await ctx.db\n      .query('votes')\n      .withIndex('by_round_user')\n      .eq('roundId', round._id)\n      .eq('userId', ctx.auth.userId)\n      .first();\n    if (existing) {\n      await ctx.db.patch('votes', existing._id, { value: args.value });\n      return existing._id;\n    }\n    return await ctx.db.insert('votes', {\n      roundId: round._id,\n      roomId: round.roomId,\n      userId: ctx.auth.userId,\n      value: args.value,\n    });\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 127
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "votes",
+        "tables": [
+          "votes"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "roomId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "rooms"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:ac69fab370bc35c8e6f3699764ee721a3ae3711567bcd85b84bda74666b458fa",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "liveRound",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rounds"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "liveRound",
+      "handlerForm": "inline",
+      "id": "pointing-room:liveRound",
+      "implementationHash": "sha256:1ef42f98cb02886a580a4bd26892ead9f87b7d874fc809dbf59c9faa722fda19",
+      "kind": "LiveQuery",
+      "name": "liveRound",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rounds",
+        "tables": [
+          "rounds"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "rounds"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "roomId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "rooms"
+              }
+            },
+            {
+              "name": "topic",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "sequence",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "revealed",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "rounds"
+      },
+      "resultContractHash": "sha256:87dbc9463c3a2e0c8e2280c036dbc02479d94da67474f46473b1e73681de7e49",
+      "runtime": {
+        "IbexModule": {
+          "export": "liveRound",
+          "source": "globalThis.__snapbackHandlers = { \"liveRound\": (async (ctx, args) => {\n    const rounds = await ctx.db\n      .query('rounds')\n      .withIndex('by_room_sequence')\n      .eq('roomId', args.roomId)\n      .order('sequence', 'desc')\n      .take(1)\n      .collect();\n    return rounds;\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 25
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "roomId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "rooms"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:ac69fab370bc35c8e6f3699764ee721a3ae3711567bcd85b84bda74666b458fa",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "liveTally",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rounds"
+          },
+          {
+            "access": "query",
+            "table": "votes"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "liveTally",
+      "fieldBoundary": {
+        "condition": "the round is revealed or the caller owns the vote",
+        "fields": [
+          "value"
+        ]
+      },
+      "handlerForm": "inline",
+      "id": "pointing-room:liveTally",
+      "implementationHash": "sha256:45c878754a5ee0e4326e8859d0fac29b8ff2140aa6449df4d36fcce738d6d3d9",
+      "kind": "LiveQuery",
+      "name": "liveTally",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rounds",
+        "tables": [
+          "rounds",
+          "votes"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "records",
+        "record": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "roomId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "rooms"
+              }
+            },
+            {
+              "name": "roundId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "rounds"
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "hasVoted",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "value",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  },
+                  {
+                    "kind": "null"
+                  }
+                ]
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:14299726de9270387b0a47c6cb7ff0e330a0017742fb7ee8d22463c620a7d446",
+      "runtime": {
+        "IbexModule": {
+          "export": "liveTally",
+          "source": "globalThis.__snapbackHandlers = { \"liveTally\": (async (ctx, args) => {\n    const rounds = await ctx.db\n      .query('rounds')\n      .withIndex('by_room_sequence')\n      .eq('roomId', args.roomId)\n      .order('sequence', 'desc')\n      .take(1)\n      .collect();\n    const round = rounds[0];\n    if (!round) return [];\n    const votes = await ctx.db\n      .query('votes')\n      .withIndex('by_room_round')\n      .eq('roomId', args.roomId)\n      .eq('roundId', round._id)\n      .take(512)\n      .collect();\n    return votes.map((vote) => ({\n      roomId: vote.roomId,\n      roundId: vote.roundId,\n      userId: vote.userId,\n      hasVoted: true,\n      value: round.revealed || vote.userId === ctx.auth.userId ? vote.value : null,\n    }));\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 54
+      },
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "roundId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "rounds"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:cc22b5539dfe00a71352d35acb6bd439fce6629c99b44cf6dc1572f35b6c64a2",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "revealRound",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rounds"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "rounds"
+          }
+        ]
+      },
+      "exportedName": "revealRound",
+      "handlerForm": "inline",
+      "id": "pointing-room:revealRound",
+      "implementationHash": "sha256:247c60cc3c1f10c07430af8fdd4e8e5ba953735c03b050b3cf4409bfe5bb8419",
+      "kind": "Mutation",
+      "name": "revealRound",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rounds",
+        "tables": [
+          "rounds"
+        ]
+      },
+      "refusals": [
+        "ROUND_NOT_FOUND"
+      ],
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "null"
+        }
+      },
+      "resultContractHash": "sha256:6a7271e69c8ea471cb72bf6110a4ba9d9629a1ba88343e49afdb6cc5f4406387",
+      "runtime": {
+        "IbexModule": {
+          "export": "revealRound",
+          "source": "globalThis.__snapbackHandlers = { \"revealRound\": (async (ctx, args) => {\n    const round = await ctx.db.get('rounds', args.roundId);\n    if (!round) ctx.refuse('ROUND_NOT_FOUND');\n    if (!round.revealed) {\n      await ctx.db.patch('rounds', round._id, { revealed: true });\n    }\n    return null;\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 157
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "rounds",
+        "tables": [
+          "rounds"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "roomId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "rooms"
+            }
+          },
+          {
+            "name": "topic",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:06b601428ded6064ab3474a5d576024bad9cf2b5c8b8a041a90f74f4054e8e46",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "startRound",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rooms"
+          },
+          {
+            "access": "query",
+            "table": "rounds"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "rounds"
+          }
+        ]
+      },
+      "exportedName": "startRound",
+      "handlerForm": "inline",
+      "id": "pointing-room:startRound",
+      "implementationHash": "sha256:234c5f913b28e7d9104375a5f2fe9bacb21e8ee187e11ee1176b82a5c1b19627",
+      "kind": "Mutation",
+      "name": "startRound",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rooms",
+        "tables": [
+          "rooms",
+          "rounds"
+        ]
+      },
+      "refusals": [
+        "TOPIC_REQUIRED",
+        "ROOM_NOT_FOUND"
+      ],
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "id",
+          "table": "rounds"
+        }
+      },
+      "resultContractHash": "sha256:f39c6527ba09f2809f619208f5ee429b36c5b66bd17dd61f19ea08a28712bfd4",
+      "runtime": {
+        "IbexModule": {
+          "export": "startRound",
+          "source": "globalThis.__snapbackHandlers = { \"startRound\": (async (ctx, args) => {\n    const topic = args.topic.trim();\n    if (!topic) ctx.refuse('TOPIC_REQUIRED');\n    const room = await ctx.db.get('rooms', args.roomId);\n    if (!room) ctx.refuse('ROOM_NOT_FOUND');\n    const prior = await ctx.db\n      .query('rounds')\n      .withIndex('by_room_sequence')\n      .eq('roomId', args.roomId)\n      .order('sequence', 'desc')\n      .take(1)\n      .collect();\n    return await ctx.db.insert('rounds', {\n      roomId: args.roomId,\n      topic,\n      sequence: (prior[0]?.sequence ?? 0) + 1,\n      revealed: false,\n    });\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 88
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "rounds",
+        "tables": [
+          "rounds"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:e42468ddd7531f8f462496918c471466166d12721721c6c0285d31806e34ef8c",
+  "schemaVersion": "snapback.v1",
+  "unsupportedDependencyDiagnostics": []
+}

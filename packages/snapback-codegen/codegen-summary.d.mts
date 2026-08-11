@@ -17,6 +17,10 @@ export interface CodegenSummaryDiagnostic {
 export interface CodegenSummaryFunction {
   readonly name: string;
   readonly kind: string;
+  readonly fieldBoundary?: Readonly<{
+    fields: readonly string[];
+    condition: string;
+  }>;
   readonly readSetSummary?: readonly string[];
   readonly declaredReads?: readonly string[];
   readonly writeSetSummary?: readonly string[];
@@ -59,6 +63,12 @@ export interface TableVisibilitySummary {
   }>;
 }
 
+export interface FieldBoundarySummaryEntry {
+  readonly function: string;
+  readonly fields: readonly string[];
+  readonly condition: string;
+}
+
 export interface CodegenSummary {
   readonly schemaVersion: 'snapback.codegen-summary.v1';
   readonly appId: string;
@@ -83,9 +93,13 @@ export interface CodegenSummary {
     warnings: number;
     implicitAuthRequirements: number;
     degradedResults: number;
+    fieldBoundaries: number;
     seedRows?: number | null;
   }>;
   readonly tableVisibility: TableVisibilitySummary;
+  /** Opaque JavaScript handler claims: handler-enforced review declarations,
+   * not mechanically proven field-level policies. */
+  readonly fieldBoundaries: readonly FieldBoundarySummaryEntry[];
   readonly implicitAuthRequirements: readonly ImplicitAuthRequirementEntry[];
   readonly degradedResults: readonly DegradedResultEntry[];
   readonly seed?: Readonly<{ version: string; digest: `sha256:${string}`; rows: number | null }>;

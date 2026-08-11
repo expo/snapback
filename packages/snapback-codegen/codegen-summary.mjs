@@ -68,6 +68,16 @@ export function createCodegenSummary({
       anyOf: declaredTableVisibility.filter(({ kind }) => kind === 'any-of').length,
     },
   };
+  const fieldBoundaries = functions
+    .filter((fn) => fn.fieldBoundary !== undefined)
+    .map((fn) => ({
+      function: fn.name,
+      fields: [...fn.fieldBoundary.fields],
+      condition: fn.fieldBoundary.condition,
+    }))
+    .sort((left, right) => (
+      left.function < right.function ? -1 : left.function > right.function ? 1 : 0
+    ));
   const degradedByOperation = new Map();
   for (const diagnostic of diagnostics) {
     if (diagnostic.code !== 'SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED') continue;
@@ -154,9 +164,11 @@ export function createCodegenSummary({
       warnings: warnings.length,
       implicitAuthRequirements: implicitAuthRequirements.length,
       degradedResults: degradedResults.length,
+      fieldBoundaries: fieldBoundaries.length,
       ...(seedArtifact ? { seedRows: seedRowCount } : {}),
     },
     tableVisibility,
+    fieldBoundaries,
     implicitAuthRequirements,
     degradedResults,
     ...(seedArtifact
@@ -201,6 +213,12 @@ export function formatCodegenSummary(summary) {
         `    ${table}: add .visibility(...) to the table definition; see guide/auth/protecting-data.md#declare-who-can-read-each-table`,
       );
     }
+  }
+  for (const boundary of summary.fieldBoundaries ?? []) {
+    lines.push(
+      `  field boundary ${boundary.function}: ${boundary.fields.join(', ')} — handler-enforced (not proven)`,
+      `    condition: ${boundary.condition}`,
+    );
   }
   return lines.join('\n');
 }

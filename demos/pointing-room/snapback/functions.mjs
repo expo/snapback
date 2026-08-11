@@ -44,6 +44,12 @@ export const liveTally = defineJsLiveQuery({
     hasVoted: v.boolean(),
     value: v.union([v.string(), v.null()]),
   })),
+  // @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model —
+  //   this interim residual is handler-enforced and projected as not proven.
+  fieldBoundary: {
+    fields: ['value'],
+    condition: 'the round is revealed or the caller owns the vote',
+  },
   reads: ['rounds', 'votes'],
   handler: async (ctx, args) => {
     const rounds = await ctx.db

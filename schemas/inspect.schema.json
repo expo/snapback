@@ -3767,6 +3767,26 @@
       ],
       "type": "string"
     },
+    "FieldBoundaryDeclaration": {
+      "additionalProperties": false,
+      "description": "Interim declaration for field masking that remains inside an opaque\nJavaScript query handler. It is review evidence only: the runtime does not\ninterpret the free-text condition or prove noninterference.\n\n@ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model —\n  field-level boundaries stay declared and visibly handler-enforced until\n  the class-M sibling replaces this residual with an enforced grammar.",
+      "properties": {
+        "condition": {
+          "type": "string"
+        },
+        "fields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "fields",
+        "condition"
+      ],
+      "type": "object"
+    },
     "FieldManifest": {
       "properties": {
         "field_type": {
@@ -4184,6 +4204,17 @@
             "string",
             "null"
           ]
+        },
+        "fieldBoundary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FieldBoundaryDeclaration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Declared field-masking residual for an opaque JS query. This is not\nruntime enforcement and carries no noninterference guarantee."
         },
         "handlerForm": {
           "default": null,

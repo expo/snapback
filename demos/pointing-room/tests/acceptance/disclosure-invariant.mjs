@@ -29,6 +29,20 @@ const seed = JSON.parse(readFileSync(join(backendDir, 'seed.json'), 'utf8'));
 const { default: api } = await importGeneratedModule(generatedRoot, 'api.mjs');
 const PLANNING_ROOM_ID = 'room_planning';
 const PLATFORM_ROOM_ID = 'room_platform';
+const DECLARED_BOUNDARY_ASSERTION =
+  'liveTally fieldBoundary: owner sees value before reveal; non-owner sees null; both see value after reveal';
+const liveTallyDefinition = functions.functions.find(({ name }) => name === 'liveTally');
+assert.ok(liveTallyDefinition, 'generated manifest contains liveTally');
+assert.deepEqual(liveTallyDefinition.fieldBoundary, {
+  fields: ['value'],
+  condition: 'the round is revealed or the caller owns the vote',
+}, `${DECLARED_BOUNDARY_ASSERTION} — manifest declaration`);
+const liveTallyResultFields = new Set(
+  liveTallyDefinition.resultContract.record.fields.map(({ name }) => name),
+);
+for (const field of liveTallyDefinition.fieldBoundary.fields) {
+  assert(liveTallyResultFields.has(field), `${DECLARED_BOUNDARY_ASSERTION} — ${field} is a result field`);
+}
 
 const scratch = mkdtempSync(join(tmpdir(), 'pointing-room-'));
 const carrier = join(scratch, 'startup-artifacts.json');
@@ -119,7 +133,13 @@ try {
   });
   assert.equal(ownBeforeReveal.rows.length, 1);
   assert.equal(ownBeforeReveal.rows[0].userId, a.credential.session.userId);
-  assert.equal(ownBeforeReveal.rows[0].value, '13', 'a caller may see its own card');
+  for (const field of liveTallyDefinition.fieldBoundary.fields) {
+    assert.equal(
+      ownBeforeReveal.rows[0][field],
+      '13',
+      `${DECLARED_BOUNDARY_ASSERTION} — owner ${field} before reveal`,
+    );
+  }
 
   const subscribeBodies = [];
   const websocketFrames = [];
@@ -174,7 +194,13 @@ try {
   assert.equal(bRows[0].roundId, roundId);
   assert.equal(bRows[0].userId, a.credential.session.userId);
   assert.equal(bRows[0].hasVoted, true);
-  assert.equal(bRows[0].value, null);
+  for (const field of liveTallyDefinition.fieldBoundary.fields) {
+    assert.equal(
+      bRows[0][field],
+      null,
+      `${DECLARED_BOUNDARY_ASSERTION} — non-owner ${field} before reveal`,
+    );
+  }
 
   await mutate(a, api.castVote, { roundId: platformRoundId, value: '8' });
   await new Promise((resolveWait) => setTimeout(resolveWait, 300));
@@ -202,6 +228,24 @@ try {
     assert.equal(bRows[0]?.value, '13');
     assert.equal(bRows[0]?.roomId, PLANNING_ROOM_ID);
   }, 'revealed tally did not reach B');
+
+  const ownAfterReveal = await a.client.query(api.liveTally, {
+    args: { roomId: PLANNING_ROOM_ID },
+    authorityCapture: capture(a),
+  });
+  assert.equal(ownAfterReveal.rows.length, 1);
+  for (const field of liveTallyDefinition.fieldBoundary.fields) {
+    assert.equal(
+      ownAfterReveal.rows[0][field],
+      '13',
+      `${DECLARED_BOUNDARY_ASSERTION} — owner ${field} after reveal`,
+    );
+    assert.equal(
+      bRows[0][field],
+      '13',
+      `${DECLARED_BOUNDARY_ASSERTION} — non-owner ${field} after reveal`,
+    );
+  }
 
   assert.equal(
     websocketFrames.some((frame) => frame.includes(PLATFORM_ROOM_ID) || frame.includes('"value":"8"')),
@@ -238,6 +282,7 @@ try {
     isolatedRoomId: PLATFORM_ROOM_ID,
     revealedWireBytes: revealedBytes,
     revealedEnvelopeKind: revealedFrame.kind,
+    declaredFieldBoundary: liveTallyDefinition.fieldBoundary,
   }));
 } finally {
   globalThis.fetch = realFetch;
