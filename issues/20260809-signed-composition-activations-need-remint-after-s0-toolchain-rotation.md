@@ -86,3 +86,17 @@ precedent. The resolution ceremony now owes: fresh activations for all four
 demos at the current toolchain, then triage → fleet → carrier-exit re-mints
 picking up the new client pin, then
 `scripts/finalize-local-persistent-store-publication`.
+
+## Dated note — 2026-08-10 (design question re-routed and drafted)
+
+The toolchain-stable-identity question was mis-routed to LLP 0087 (a
+parked hosted-adoption Plan). The activation format is owned by LLP 0157,
+and a full PROPOSED design now sits there:
+"Proposed amendment — 2026-08-10: toolchain-stable activation identity"
+(`snapback.composition-activation.v2`: bind `authoredSourceHash` for
+admission, demote the minted generation to an audited provenance record).
+One author ruling decides it; if accepted, the v2 implementation lane's
+final ceremony re-mints the four demos and discharges this ticket's
+recurring class — the fourth same-day rotation of this treadmill would
+otherwise keep re-blocking every client-touching landing (five bypass
+landings recorded above as of tonight).

@@ -6,6 +6,7 @@
 Client SDK, Live queries, Wire Protocol, Codegen, Admin console, Testing
 **Author:** Charlie Cheever / Claude (Fable 5) / Codex
 **Date:** 2026-08-02
+**Revised:** 2026-08-10 (PROPOSED amendment appended — toolchain-stable activation identity v2; author ruling required; re-routes the design question the remint ticket sent to parked LLP 0087)
 **Revised:** 2026-08-06, Move-1 closure (the retained qualified Fleet
 Observatory receipt at
 `tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json`
@@ -2698,3 +2699,108 @@ pending outbox intent. Existing result/cursor wire encodings stay unchanged;
 the newly required capability id is part of the plan's declared capability
 classification and therefore rotates the plan identity consistently in
 codegen and host reconstruction.
+
+## Proposed amendment — 2026-08-10: toolchain-stable activation identity (author ruling required)
+
+**Status of this section: PROPOSED. Nothing below is in force until the
+author accepts it with a dated ruling; the v1 exact-equality rule stands
+until then.**
+
+### Problem
+
+`CompositionActivationIdentityV1` binds `expectedGeneration =
+{schemaHash, bundleHash, inputsHash}` and
+`validateTrustedCompositionActivationV1` requires exact JCS equality
+(`packages/snapback-codegen/index.mjs`, the
+`trusted composition activation does not bind this generated deployment`
+refusal). All three hashes incorporate the *isolated evaluation* of the
+authored modules — the canonical meaning of the source under the current
+AST transformer and evaluator — so a routine toolchain change (a manifest
+schema field, an evaluator fix) rotates the identity of every committed
+backend even when the app's authored bytes are untouched.
+
+Consequence, measured on 2026-08-09/10: the four signed demo activations
+were invalidated three times in two days by unrelated landings
+(S0 codegen rotation, `whereApplicable` on `IndexManifest`,
+structured-stored-values). Each invalidation blocks demo regeneration,
+which blocks the triage/fleet Move-1 and local-store carrier-exit receipt
+re-mints, which forced five recorded `SNAPBACK_DRIFT_GATES_BYPASS`
+landings (dated notes in
+`issues/20260809-signed-composition-activations-need-remint-after-s0-toolchain-rotation.md`).
+The signing ceremony re-runs at most days apart while vouching for demos
+whose authored sources did not change. The remint ticket routed this
+design question to LLP 0087, but 0087 is a parked hosted-adoption Plan;
+the activation format is owned here.
+
+### Proposed design: `snapback.composition-activation.v2`
+
+Add one field to the activation identity and split the validation rule:
+
+```ts
+{
+  format: "snapback.composition-activation.v2",
+  databaseId: string,
+  deploymentId: string,
+  targetProfileId: string,
+  authMode: "dev" | "sessions",
+  authoredSourceHash: `sha256:${string}`,   // NEW — see below
+  mintedGeneration: ExpectedGenerationV1,    // renamed from expectedGeneration; provenance record
+  proofKeyManifestDigest: `sha256:${string}`
+}
+```
+
+`authoredSourceHash` is SHA-256 over a new framed domain
+(`snapback-codegen/authored-source-hash/v1`) covering exactly the
+byte-level identity items that already exist inside today's `inputs`
+list: the schema/functions/routes module-graph path+bytes pairs, the
+handler path+bytes pairs, and the seed/demo-metadata/codegen-policy/
+contract-capability sources — **excluding** the `*-isolated-evaluation`
+items and any artifact-schema-version framing. It answers one question:
+"are these the authored bytes the ceremony ran against?", independent of
+what the current toolchain thinks those bytes mean.
+
+Validation under v2:
+
+1. `authoredSourceHash` must exact-match the freshly derived value —
+   fail closed as today (`TRUSTED_COMPOSITION_ACTIVATION_INVALID`).
+2. `mintedGeneration` no longer gates admission. When it differs from
+   the current generation, codegen MUST emit a dated
+   `activationGenerationAdvanced` marker into `artifacts.json`
+   (minted vs. current triple, timestamp) so the drift is auditable and
+   the acceptance layer can see it.
+3. Everything else (closed roots, proof-key manifest canonicality,
+   target profile, auth mode, database/deployment identity) is unchanged.
+
+v1 activations remain valid under v1 rules until their next re-mint;
+re-mints emit v2. No flag day.
+
+### Why this is sound (the custody argument)
+
+The signature's vouching surface becomes "this app's authored bytes
+passed the acceptance ceremony", not "…and the then-current toolchain's
+opinion of them". The end-to-end trust chain does not thin: the
+Move-1/carrier-exit acceptance receipts independently pin the full
+generated-source shas and re-mint under LLP 0189's cadence, the
+completeness proofs still verify against the proof keys at runtime, and
+the toolchain that re-derives the generation is repo-owned, reviewed
+code — the same code v1 already trusts to *compute* the hashes it
+compares. What is given up: a signed activation no longer freezes the
+emitted artifact bytes, only the authored input bytes; the frozen-artifact
+property moves wholly to the receipts, where it already lives.
+
+### The one ruling needed
+
+**Does the signing ceremony vouch for authored bytes (adopt v2 as
+specified), or must it also freeze the toolchain's semantic evaluation
+(keep v1 equality, accept the re-mint treadmill as a deliberate cost)?**
+There is no useful middle: binding the evaluation while tolerating
+"non-semantic" toolchain drift re-creates exactly today's rotations,
+since the rotating changes (manifest fields, evaluator behavior) are the
+semantic ones.
+
+If accepted: implementation is one lane — the v2 identity + framed
+domain and dual-version validation in `packages/snapback-codegen`, the
+mint path in the server keyring, a regression proving a v2 activation
+survives a simulated toolchain rotation while refusing an authored-byte
+edit, and one final ceremony re-minting the four demos to v2 (which also
+discharges the standing remint ticket).
