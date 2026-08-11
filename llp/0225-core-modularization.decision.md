@@ -367,6 +367,39 @@ edges. The same landing carried the unmanifested-module catch-up for the
 2026-08-10 auth-floor landing (`src/auth/identity_core.rs` → contract leaf,
 `src/storage/auth_identity.rs` → kernel; allowed edges only).
 
+### Owner-#5 seam slice — the server writer gate (executed)
+
+Landed 2026-08-10, same day as the second slice: the global-writer
+acquisition family moved out of the `src/server.rs` god file into the
+dedicated transport-owned module `src/server/writer_gate.rs` —
+`with_snapback`, `with_snapback_then`, `lock_managed_snapback`,
+`with_snapback_authorization_write`,
+`with_snapback_staged_authorization_write`,
+`with_snapback_stream_reset_admission_effect`, and the lock-free
+`with_read_lane`, with their private turn/reservation types. Call sites are
+unchanged (re-exported); implementation bytes are unchanged; no
+locking-order or behavior change. The seam's contract is now stated in one
+place: every serving path that can reach Hermes eval or rusqlite acquires
+the writer through this gate (or the read lane), and CPU/network
+preparation belongs outside the guard (§3.6) — the prerequisite for the
+deferred asset render/canonicalize-outside-the-writer move recorded in
+`issues/20260808-assets-finalize-memory-and-cpu-under-global-lock.md`.
+
+Baseline disposition: one **time-bounded waiver** (§2) —
+`src/server/writer_gate.rs → src/local.rs` (transport→unassigned), the
+pre-existing `LocalSnapback` coupling following the moved code while the
+predecessor `src/server.rs → src/local.rs` edge is retained by remaining
+references. This is an edge-key *split*, which the arm's strict `relocation`
+disposition cannot express
+(`issues/20260810-owngate-split-relocation-disposition-gap.md` routes the
+vocabulary gap to the enforcement lane); the waiver record with inversion
+owner `transport-adapters` and deadline 2026-09-15 lives in the ratchet
+worklist, and the coupling drains with the `local.rs` remainder. The
+would-be second split (`auth/coordinator → writer_gate` via the re-export
+chain) was avoided structurally: `with_snapback` remains a delegating
+`server.rs` item so the frozen item-4 edge keeps its key until that
+inversion lands. The module's other new edges are allowed downward edges.
+
 ### Continuing sequence (order of intent, not a schedule)
 
 1. **Kernel typed-operation slices** (co-sequenced with owner 1 per 0199

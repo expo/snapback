@@ -341,6 +341,7 @@
       "src/server/remote_mcp.rs",
       "src/server/response_types.rs",
       "src/server/tests.rs",
+      "src/server/writer_gate.rs",
       "src/workerd_exec.rs"
     ],
     "embed-facade": [

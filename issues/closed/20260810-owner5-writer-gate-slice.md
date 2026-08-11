@@ -42,4 +42,11 @@ hardening (claimed elsewhere); any behavior or locking-order change.
 
 ## Resolution
 
-(pending)
+**Resolved 2026-08-10 — landed with the slice.** `src/server/writer_gate.rs`
+holds the seven-member acquisition family with unchanged implementation
+bytes and unchanged call sites (re-exported); the seam contract is stated in
+the module header with its LLP 0225 §3 @ref. Manifest assignment to
+transport-adapters; one proven relocation re-key
+(`server/writer_gate.rs -> local.rs`, predecessor `server.rs -> local.rs`
+verified in the baseline). Server-test failing sets identical before/after
+(22 pre-existing main reds, diff exit 0). LLP 0225 §4 records the slice.

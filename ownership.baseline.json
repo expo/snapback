@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v2",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 233,
-  "edgeCount": 1714,
+  "moduleCount": 234,
+  "edgeCount": 1728,
   "edges": [
     {
       "from": "src/admin_agent_destroy.rs",
@@ -338,6 +338,12 @@
       "from": "src/admin.rs",
       "fromOwner": "transport-adapters",
       "to": "src/server/response_types.rs",
+      "toOwner": "transport-adapters"
+    },
+    {
+      "from": "src/admin.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/server/writer_gate.rs",
       "toOwner": "transport-adapters"
     },
     {
@@ -6247,6 +6253,12 @@
     {
       "from": "src/server.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/server/writer_gate.rs",
+      "toOwner": "transport-adapters"
+    },
+    {
+      "from": "src/server.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/spike_trace.rs",
       "toOwner": "sync-realtime-engine"
     },
@@ -6871,6 +6883,12 @@
     {
       "from": "src/server/tests.rs",
       "fromOwner": "transport-adapters",
+      "to": "src/server/writer_gate.rs",
+      "toOwner": "transport-adapters"
+    },
+    {
+      "from": "src/server/tests.rs",
+      "fromOwner": "transport-adapters",
       "to": "src/storage.rs",
       "toOwner": "storage-migration-kernel"
     },
@@ -6945,6 +6963,72 @@
       "fromOwner": "transport-adapters",
       "to": "src/wire_version.rs",
       "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/server/writer_gate.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/auth/admission.rs",
+      "toOwner": "sync-realtime-engine"
+    },
+    {
+      "from": "src/server/writer_gate.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/auth/coordinator.rs",
+      "toOwner": "sync-realtime-engine"
+    },
+    {
+      "from": "src/server/writer_gate.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/auth/session_projection.rs",
+      "toOwner": "sync-realtime-engine"
+    },
+    {
+      "from": "src/server/writer_gate.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/diagnostic.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/server/writer_gate.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/ephemeral.rs",
+      "toOwner": "sync-realtime-engine"
+    },
+    {
+      "from": "src/server/writer_gate.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/exec_guard.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/server/writer_gate.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/live_coalesce.rs",
+      "toOwner": "sync-realtime-engine"
+    },
+    {
+      "from": "src/server/writer_gate.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/local.rs",
+      "toOwner": "unassigned"
+    },
+    {
+      "from": "src/server/writer_gate.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/server.rs",
+      "toOwner": "transport-adapters"
+    },
+    {
+      "from": "src/server/writer_gate.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/storage.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/server/writer_gate.rs",
+      "fromOwner": "transport-adapters",
+      "to": "src/storage/auth.rs",
+      "toOwner": "storage-migration-kernel"
     },
     {
       "from": "src/snapshot_batch_cursor_v2.rs",
@@ -10289,7 +10373,7 @@
       "toOwner": "transport-adapters"
     }
   ],
-  "frozenForbiddenEdgeCount": 387,
+  "frozenForbiddenEdgeCount": 388,
   "frozenForbiddenEdges": [
     {
       "fingerprint": "src/admin_secret_read.rs (transport-adapters) → src/local.rs (unassigned)"
@@ -11445,6 +11529,17 @@
     },
     {
       "fingerprint": "src/server/tests.rs (transport-adapters) → src/local/tests.rs (unassigned)"
+    },
+    {
+      "fingerprint": "src/server/writer_gate.rs (transport-adapters) → src/local.rs (unassigned)",
+      "attribution": {
+        "disposition": "time-bounded-waiver",
+        "observationRevision": "c93b17329d56db8af01c9fba6c4dc46f93151fe3",
+        "worklist": "issues/20260809-0199-ownership-ratchet-worklist.md",
+        "provenance": "Edge-key split at the owner-#5 extraction: the moved with_snapback family carries the pre-existing LocalSnapback coupling out of server.rs; the predecessor server.rs -> local.rs edge is retained by remaining references, so the strict relocation disposition cannot apply.",
+        "inversionOwner": "transport-adapters",
+        "deadline": "2026-09-15"
+      }
     },
     {
       "fingerprint": "src/storage.rs (storage-migration-kernel) → src/assets.rs (background-services)"

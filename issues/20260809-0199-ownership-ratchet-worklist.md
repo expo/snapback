@@ -155,6 +155,22 @@ auth/identity_core.rs -> leaf, storage/auth_identity.rs -> kernel, from the
 961b8be8c auth-floor landing) added allowed downward edges only — no
 forbidden growth.
 
+**Waiver (time-bounded) 2026-08-10 (owner-#5 writer-gate slice):** the
+with_snapback/read-lane acquisition family moved from server.rs into
+server/writer_gate.rs. The moved code's LocalSnapback coupling takes the new
+key `server/writer_gate.rs -> local.rs` (transport->unassigned) while the
+predecessor `server.rs -> local.rs` edge is retained by server.rs's
+remaining references — an edge-key SPLIT, which the arm's relocation
+disposition cannot express (predecessor must vanish; see
+issues/20260810-owngate-split-relocation-disposition-gap.md). Recorded as a
+waiver with transparent provenance; drains with the local.rs remainder like
+its sibling god-file edges. The would-be second split
+(`auth/coordinator -> writer_gate` through the re-export chain) was avoided
+structurally: `with_snapback` stays a delegating `server.rs` item, keeping
+the frozen item-4 edge on its existing key until item 4 inverts.
+
+<!-- module-ownership-frozen-edge: {"fingerprint":"src/server/writer_gate.rs (transport-adapters) → src/local.rs (unassigned)","disposition":"time-bounded-waiver","observationRevision":"c93b17329d56db8af01c9fba6c4dc46f93151fe3","provenance":"Edge-key split at the owner-#5 extraction: the moved with_snapback family carries the pre-existing LocalSnapback coupling out of server.rs; the predecessor server.rs -> local.rs edge is retained by remaining references, so the strict relocation disposition cannot apply.","inversionOwner":"transport-adapters","deadline":"2026-09-15"} -->
+
 8. **Waiver (time-bounded): `src/local.rs → src/connected_clients.rs`.**
    Genuinely new god-file-pattern coupling frozen 2026-08-10 at the
    connected-client landing, reclassified as a formal waiver by LLP 0225 §2
