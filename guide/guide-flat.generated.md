@@ -1606,7 +1606,7 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.browser-session-custody, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/browser-auth, demos/card-game, demos/party-wall]
 status: current
 targets: [local]
@@ -1700,23 +1700,19 @@ process.
 
 ## Sign in: email code → session credential
 
-The client requests a code and exchanges it. In tests, the code is read
-from the server's admin-gated mailbox:
+The client requests a code and exchanges it. In tests, the shared `asUser`
+helper owns that complete loop, including the admin-gated mailbox read:
 
 ```js source=demos/card-game/tests/acceptance/authority-scope.mjs
-  const requested = await client.authRequestCode(email);
+async function mintSession(server, appId, email, clientStoreId) {
+  return asUser(server, appId, email, { clientStoreId });
+}
 ```
 
-```js source=demos/card-game/tests/acceptance/authority-scope.mjs
-  const credential = await client.authExchange({
-    challengeId: requested.challengeId,
-    code: mailbox.code,
-  });
-```
-
+The result exposes `client`, the public `session`, `userId`, and an idempotent
+`dispose`, plus the coordinator and custody state needed by lower-level tests.
 From then on the client carries the session credential; `AuthCoordinator`
-(from `@expo/snapback-contract`) owns custody, refresh, and the logout barrier
-for surface-based clients.
+(from `@expo/snapback-contract`) owns custody, refresh, and the logout barrier.
 
 For a browser/Vite surface in local development, keep the privileged mailbox
 read in a serve-only dev-server relay while the browser performs
@@ -1760,19 +1756,32 @@ which bearers are live.
 
 A sessions-mode acceptance suite needs two or more genuine principals. The
 mailbox above is admin-gated **and** impersonation-gated; both carriers are
-required, and both are local-only. The complete loop — client construction,
-code request, mailbox read, exchange — is:
+required, and both are local-only. Call `asUser(server, appId, email, opts)`
+once per persona, passing a distinct `clientStoreId` in `opts`. It creates
+isolated coordinator custody and a fresh client:
 
-```js source=demos/party-wall/tests/acceptance/headless.mjs
-    const client = new SnapbackClient(server.baseUrl, {
-      authCoordinator: coordinator,
-      authInvalidationProtocol: 1,
-      authorityDescriptorProtocol: 1,
-      authorizedLeaseProtocol: 1,
-      clientStoreId: `pw-${email.split('@')[0]}`,
-    });
+```js source=demos/_kit/as-user.mjs
+  const coordinator = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state: custodyState }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const client = new SnapbackClient(server.baseUrl, {
+    authInvalidationProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    authorizedLeaseProtocol: 1,
+    ...clientOptions,
+    authCoordinator: coordinator,
+    clientStoreId,
+  });
+```
+
+It then performs the complete code-request, mailbox-read, and exchange loop:
+
+```js source=demos/_kit/as-user.mjs
     const requested = await client.authRequestCode(email);
-    const mailboxResponse = await fetch(
+    const mailboxResponse = await fetchImpl(
       `${server.baseUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(requested.challengeId)}`,
       {
         headers: {
@@ -1786,6 +1795,11 @@ code request, mailbox read, exchange — is:
     const credential = await client.authExchange({
       challengeId: requested.challengeId,
       code: mailbox.code,
+    });
+    return Object.assign(identity, {
+      credential,
+      session: credential.session,
+      userId: credential.session.userId,
     });
 ```
 
@@ -1806,8 +1820,8 @@ The server-lifecycle kit's `captureImpersonationCapability: true` does this
 read for you and exposes the value as `server.impersonationCapability`.
 
 `SNAPBACK_AUTH_IMPERSONATION_REQUIRED` means the second header is missing.
-Call each persona's loop once per email; the returned
-`credential.session.userId` is the server-issued principal id.
+Call the helper once per email; the returned `userId` (also available as
+`credential.session.userId`) is the server-issued principal id.
 
 **Custody boundaries.** The mailbox route, the admin token, and the
 impersonation capability are local-test material. None may enter browser or
@@ -3387,7 +3401,7 @@ examples: [src/storage/auth_logical_transfer.rs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-10
+reviewed: 2026-08-11
 reviewed-commit: HEAD
 ---
 
@@ -3416,12 +3430,19 @@ snapback auth export \
   --output auth-logical.json
 ```
 
-The command requires an exact current auth catalog (version 2), takes the
-database instance lock, reads one SQLite snapshot, and refuses to overwrite an
-existing output path. The format is
-`snapback.auth-logical-export.v1`; every row set is deterministically sorted
-and validated against the generated
+The command requires an exact auth catalog (version 2 or 3), takes the database
+instance lock, reads one SQLite snapshot, and refuses to overwrite an existing
+output path. Fresh catalogs use version 3; exact version-2 catalogs remain
+supported without migration. The format is `snapback.auth-logical-export.v1`,
+and its `authCatalogVersion` records whether the source was version 2 or 3.
+Every row set is deterministically sorted and validated against the generated
 `schemas/auth.logical-export.v1.schema.json` shape.
+
+Format 1 can reconstruct the current email-code, local-password, and
+agent-credential identity descriptors exactly. Export refuses disabled links
+or any other v3 descriptor rather than guessing at kind, issuer, canonical
+value, or enabled state; import applies the same fail-closed mapping rule for a
+v3 target.
 
 The artifact includes:
 
@@ -3453,8 +3474,9 @@ registration provenance can still be sensitive.
 ## Import into a fresh auth catalog
 
 Prepare the destination through the app's normal sessions-mode activation, so
-its database already contains an exact version-2 auth catalog but no auth rows.
-Stop that server, then import:
+its database already contains an exact auth catalog but no auth rows. Fresh
+destinations use version 3; an exact version-2 destination remains supported
+without migration. Stop that server, then import:
 
 ```sh
 snapback auth import \
@@ -22137,7 +22159,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-diagnostics-registry.mjs. Never hand-edit. -->
@@ -22146,7 +22168,7 @@ reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
 
 This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,035 stable codes** from 424 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
+**3,035 stable codes** from 425 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
 
 | Code | Subsystem | HTTP | Guide | First emitting site | Sites |
 | --- | --- | ---: | --- | --- | ---: |
@@ -22624,7 +22646,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-agent-credential-exists"></a>`SNAPBACK_AUTH_AGENT_CREDENTIAL_EXISTS` | auth | 409 | — | `src/server/api_error.rs:497` | 2 |
 | <a id="diagnostic-snapback-auth-agent-credential-invalid"></a>`SNAPBACK_AUTH_AGENT_CREDENTIAL_INVALID` | auth | 401 | — | `src/server.rs:13787` | 6 |
 | <a id="diagnostic-snapback-auth-agent-credential-rotation-throttled"></a>`SNAPBACK_AUTH_AGENT_CREDENTIAL_ROTATION_THROTTLED` | auth | 429 | — | `src/server/api_error.rs:631` | 3 |
-| <a id="diagnostic-snapback-auth-agent-credential-state-corrupt"></a>`SNAPBACK_AUTH_AGENT_CREDENTIAL_STATE_CORRUPT` | auth | — | — | `src/storage/auth_agent_credentials.rs:2524` | 3 |
+| <a id="diagnostic-snapback-auth-agent-credential-state-corrupt"></a>`SNAPBACK_AUTH_AGENT_CREDENTIAL_STATE_CORRUPT` | auth | — | — | `src/storage/auth_agent_credentials.rs:2540` | 3 |
 | <a id="diagnostic-snapback-auth-agent-deactivated"></a>`SNAPBACK_AUTH_AGENT_DEACTIVATED` | auth | 403 | — | `src/server/api_error.rs:577` | 4 |
 | <a id="diagnostic-snapback-auth-agent-deactivation-would-strand"></a>`SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND` | auth | 409 | — | `src/server/api_error.rs:496` | 5 |
 | <a id="diagnostic-snapback-auth-agent-destroy-capability-required"></a>`SNAPBACK_AUTH_AGENT_DESTROY_CAPABILITY_REQUIRED` | auth | 403 | — | `src/admin_agent_destroy.rs:166` | 3 |
@@ -22750,11 +22772,11 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-last-authenticator"></a>`SNAPBACK_AUTH_LAST_AUTHENTICATOR` | auth | — | — | `src/storage/auth_identity.rs:606` | 2 |
 | <a id="diagnostic-snapback-auth-literal-secret-forbidden"></a>`SNAPBACK_AUTH_LITERAL_SECRET_FORBIDDEN` | auth | — | — | `packages/snapback-codegen/define.mjs:1528` | 1 |
 | <a id="diagnostic-snapback-auth-live-frame-invalid"></a>`SNAPBACK_AUTH_LIVE_FRAME_INVALID` | auth | — | — | `packages/snapback-client/index.mjs:1236` | 1 |
-| <a id="diagnostic-snapback-auth-logical-export-invalid"></a>`SNAPBACK_AUTH_LOGICAL_EXPORT_INVALID` | auth | — | — | `src/auth/logical_transfer.rs:425` | 3 |
-| <a id="diagnostic-snapback-auth-logical-import-format-unsupported"></a>`SNAPBACK_AUTH_LOGICAL_IMPORT_FORMAT_UNSUPPORTED` | auth | 400 | — | `src/auth/logical_transfer.rs:457` | 3 |
-| <a id="diagnostic-snapback-auth-logical-import-identity-collision"></a>`SNAPBACK_AUTH_LOGICAL_IMPORT_IDENTITY_COLLISION` | auth | 409 | — | `src/auth/logical_transfer.rs:449` | 3 |
-| <a id="diagnostic-snapback-auth-logical-import-invalid"></a>`SNAPBACK_AUTH_LOGICAL_IMPORT_INVALID` | auth | 400 | — | `src/auth/logical_transfer.rs:433` | 6 |
-| <a id="diagnostic-snapback-auth-logical-import-target-not-empty"></a>`SNAPBACK_AUTH_LOGICAL_IMPORT_TARGET_NOT_EMPTY` | auth | 409 | — | `src/auth/logical_transfer.rs:441` | 3 |
+| <a id="diagnostic-snapback-auth-logical-export-invalid"></a>`SNAPBACK_AUTH_LOGICAL_EXPORT_INVALID` | auth | — | — | `src/auth/logical_transfer.rs:430` | 5 |
+| <a id="diagnostic-snapback-auth-logical-import-format-unsupported"></a>`SNAPBACK_AUTH_LOGICAL_IMPORT_FORMAT_UNSUPPORTED` | auth | 400 | — | `src/auth/logical_transfer.rs:462` | 3 |
+| <a id="diagnostic-snapback-auth-logical-import-identity-collision"></a>`SNAPBACK_AUTH_LOGICAL_IMPORT_IDENTITY_COLLISION` | auth | 409 | — | `src/auth/logical_transfer.rs:454` | 3 |
+| <a id="diagnostic-snapback-auth-logical-import-invalid"></a>`SNAPBACK_AUTH_LOGICAL_IMPORT_INVALID` | auth | 400 | — | `src/auth/logical_transfer.rs:438` | 7 |
+| <a id="diagnostic-snapback-auth-logical-import-target-not-empty"></a>`SNAPBACK_AUTH_LOGICAL_IMPORT_TARGET_NOT_EMPTY` | auth | 409 | — | `src/auth/logical_transfer.rs:446` | 3 |
 | <a id="diagnostic-snapback-auth-mailbox-entry-not-found"></a>`SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND` | auth | 404 | — | `src/auth/provider.rs:5309` | 6 |
 | <a id="diagnostic-snapback-auth-mechanism-unsupported"></a>`SNAPBACK_AUTH_MECHANISM_UNSUPPORTED` | auth | — | — | `packages/snapback-codegen/define.mjs:1570` | 1 |
 | <a id="diagnostic-snapback-auth-mode-dev"></a>`SNAPBACK_AUTH_MODE_DEV` | auth | 404 | — | `src/server.rs:12303` | 2 |
@@ -22800,28 +22822,28 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-rate-budget"></a>`SNAPBACK_AUTH_RATE_BUDGET` | auth | 429 | — | `src/auth/throttle.rs:565` | 3 |
 | <a id="diagnostic-snapback-auth-recovery-code-invalid"></a>`SNAPBACK_AUTH_RECOVERY_CODE_INVALID` | auth | — | — | `src/storage/auth_identity.rs:598` | 3 |
 | <a id="diagnostic-snapback-auth-refresh-superseded"></a>`SNAPBACK_AUTH_REFRESH_SUPERSEDED` | auth | 409 | — | `packages/snapback-client/index.mjs:1184` | 8 |
-| <a id="diagnostic-snapback-auth-rehearsal-authority-ended"></a>`SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED` | auth | 403 | — | `src/auth/rehearsal.rs:2243` | 8 |
-| <a id="diagnostic-snapback-auth-rehearsal-binding-mismatch"></a>`SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH` | auth | 403 | — | `src/auth/rehearsal.rs:2229` | 10 |
-| <a id="diagnostic-snapback-auth-rehearsal-budget-exhausted"></a>`SNAPBACK_AUTH_REHEARSAL_BUDGET_EXHAUSTED` | auth | 429 | — | `src/auth/rehearsal.rs:2250` | 5 |
-| <a id="diagnostic-snapback-auth-rehearsal-carrier-required"></a>`SNAPBACK_AUTH_REHEARSAL_CARRIER_REQUIRED` | auth | 403 | — | `src/auth/rehearsal.rs:2194` | 3 |
-| <a id="diagnostic-snapback-auth-rehearsal-config-forbidden"></a>`SNAPBACK_AUTH_REHEARSAL_CONFIG_FORBIDDEN` | auth | 403 | — | `src/auth/rehearsal.rs:2208` | 2 |
-| <a id="diagnostic-snapback-auth-rehearsal-disposable-required"></a>`SNAPBACK_AUTH_REHEARSAL_DISPOSABLE_REQUIRED` | auth | 409 | — | `src/auth/rehearsal.rs:2303` | 3 |
-| <a id="diagnostic-snapback-auth-rehearsal-egress-refused"></a>`SNAPBACK_AUTH_REHEARSAL_EGRESS_REFUSED` | auth | 403 | — | `src/auth/rehearsal.rs:2337` | 4 |
-| <a id="diagnostic-snapback-auth-rehearsal-envelope-invalid"></a>`SNAPBACK_AUTH_REHEARSAL_ENVELOPE_INVALID` | auth | 409 | — | `src/auth/rehearsal.rs:2316` | 6 |
-| <a id="diagnostic-snapback-auth-rehearsal-expired"></a>`SNAPBACK_AUTH_REHEARSAL_EXPIRED` | auth | 403 | — | `src/auth/rehearsal.rs:2236` | 5 |
-| <a id="diagnostic-snapback-auth-rehearsal-export-key-unavailable"></a>`SNAPBACK_AUTH_REHEARSAL_EXPORT_KEY_UNAVAILABLE` | auth | — | — | `src/auth/rehearsal.rs:2323` | 3 |
-| <a id="diagnostic-snapback-auth-rehearsal-idempotency-conflict"></a>`SNAPBACK_AUTH_REHEARSAL_IDEMPOTENCY_CONFLICT` | auth | 409 | — | `src/auth/rehearsal.rs:2261` | 4 |
-| <a id="diagnostic-snapback-auth-rehearsal-namespace-consumed"></a>`SNAPBACK_AUTH_REHEARSAL_NAMESPACE_CONSUMED` | auth | 409 | — | `src/auth/rehearsal.rs:2275` | 2 |
-| <a id="diagnostic-snapback-auth-rehearsal-namespace-unavailable"></a>`SNAPBACK_AUTH_REHEARSAL_NAMESPACE_UNAVAILABLE` | auth | — | — | `src/auth/rehearsal.rs:2268` | 2 |
-| <a id="diagnostic-snapback-auth-rehearsal-producer-parity"></a>`SNAPBACK_AUTH_REHEARSAL_PRODUCER_PARITY` | auth | — | — | `src/auth/rehearsal.rs:2296` | 3 |
-| <a id="diagnostic-snapback-auth-rehearsal-profile-forbidden"></a>`SNAPBACK_AUTH_REHEARSAL_PROFILE_FORBIDDEN` | auth | 403 | — | `src/auth/rehearsal.rs:2201` | 3 |
-| <a id="diagnostic-snapback-auth-rehearsal-provenance-invalid"></a>`SNAPBACK_AUTH_REHEARSAL_PROVENANCE_INVALID` | auth | — | — | `src/auth/rehearsal.rs:2330` | 2 |
-| <a id="diagnostic-snapback-auth-rehearsal-reachability-invalid"></a>`SNAPBACK_AUTH_REHEARSAL_REACHABILITY_INVALID` | auth | — | — | `src/auth/rehearsal.rs:2289` | 2 |
-| <a id="diagnostic-snapback-auth-rehearsal-reachability-public"></a>`SNAPBACK_AUTH_REHEARSAL_REACHABILITY_PUBLIC` | auth | 403 | — | `src/auth/rehearsal.rs:2282` | 4 |
-| <a id="diagnostic-snapback-auth-rehearsal-request-invalid"></a>`SNAPBACK_AUTH_REHEARSAL_REQUEST_INVALID` | auth | 400 | — | `src/auth/rehearsal.rs:2187` | 3 |
-| <a id="diagnostic-snapback-auth-rehearsal-scope-denied"></a>`SNAPBACK_AUTH_REHEARSAL_SCOPE_DENIED` | auth | 403 | — | `src/auth/rehearsal.rs:2215` | 3 |
-| <a id="diagnostic-snapback-auth-rehearsal-selector-denied"></a>`SNAPBACK_AUTH_REHEARSAL_SELECTOR_DENIED` | auth | 403 | — | `src/auth/rehearsal.rs:2222` | 4 |
-| <a id="diagnostic-snapback-auth-rehearsal-state-present"></a>`SNAPBACK_AUTH_REHEARSAL_STATE_PRESENT` | auth | 409 | — | `src/auth/rehearsal.rs:2309` | 4 |
+| <a id="diagnostic-snapback-auth-rehearsal-authority-ended"></a>`SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED` | auth | 403 | — | `src/auth/rehearsal.rs:2245` | 8 |
+| <a id="diagnostic-snapback-auth-rehearsal-binding-mismatch"></a>`SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH` | auth | 403 | — | `src/auth/rehearsal.rs:2231` | 10 |
+| <a id="diagnostic-snapback-auth-rehearsal-budget-exhausted"></a>`SNAPBACK_AUTH_REHEARSAL_BUDGET_EXHAUSTED` | auth | 429 | — | `src/auth/rehearsal.rs:2252` | 5 |
+| <a id="diagnostic-snapback-auth-rehearsal-carrier-required"></a>`SNAPBACK_AUTH_REHEARSAL_CARRIER_REQUIRED` | auth | 403 | — | `src/auth/rehearsal.rs:2196` | 3 |
+| <a id="diagnostic-snapback-auth-rehearsal-config-forbidden"></a>`SNAPBACK_AUTH_REHEARSAL_CONFIG_FORBIDDEN` | auth | 403 | — | `src/auth/rehearsal.rs:2210` | 2 |
+| <a id="diagnostic-snapback-auth-rehearsal-disposable-required"></a>`SNAPBACK_AUTH_REHEARSAL_DISPOSABLE_REQUIRED` | auth | 409 | — | `src/auth/rehearsal.rs:2305` | 3 |
+| <a id="diagnostic-snapback-auth-rehearsal-egress-refused"></a>`SNAPBACK_AUTH_REHEARSAL_EGRESS_REFUSED` | auth | 403 | — | `src/auth/rehearsal.rs:2339` | 4 |
+| <a id="diagnostic-snapback-auth-rehearsal-envelope-invalid"></a>`SNAPBACK_AUTH_REHEARSAL_ENVELOPE_INVALID` | auth | 409 | — | `src/auth/rehearsal.rs:2318` | 6 |
+| <a id="diagnostic-snapback-auth-rehearsal-expired"></a>`SNAPBACK_AUTH_REHEARSAL_EXPIRED` | auth | 403 | — | `src/auth/rehearsal.rs:2238` | 5 |
+| <a id="diagnostic-snapback-auth-rehearsal-export-key-unavailable"></a>`SNAPBACK_AUTH_REHEARSAL_EXPORT_KEY_UNAVAILABLE` | auth | — | — | `src/auth/rehearsal.rs:2325` | 3 |
+| <a id="diagnostic-snapback-auth-rehearsal-idempotency-conflict"></a>`SNAPBACK_AUTH_REHEARSAL_IDEMPOTENCY_CONFLICT` | auth | 409 | — | `src/auth/rehearsal.rs:2263` | 4 |
+| <a id="diagnostic-snapback-auth-rehearsal-namespace-consumed"></a>`SNAPBACK_AUTH_REHEARSAL_NAMESPACE_CONSUMED` | auth | 409 | — | `src/auth/rehearsal.rs:2277` | 2 |
+| <a id="diagnostic-snapback-auth-rehearsal-namespace-unavailable"></a>`SNAPBACK_AUTH_REHEARSAL_NAMESPACE_UNAVAILABLE` | auth | — | — | `src/auth/rehearsal.rs:2270` | 2 |
+| <a id="diagnostic-snapback-auth-rehearsal-producer-parity"></a>`SNAPBACK_AUTH_REHEARSAL_PRODUCER_PARITY` | auth | — | — | `src/auth/rehearsal.rs:2298` | 3 |
+| <a id="diagnostic-snapback-auth-rehearsal-profile-forbidden"></a>`SNAPBACK_AUTH_REHEARSAL_PROFILE_FORBIDDEN` | auth | 403 | — | `src/auth/rehearsal.rs:2203` | 3 |
+| <a id="diagnostic-snapback-auth-rehearsal-provenance-invalid"></a>`SNAPBACK_AUTH_REHEARSAL_PROVENANCE_INVALID` | auth | — | — | `src/auth/rehearsal.rs:2332` | 2 |
+| <a id="diagnostic-snapback-auth-rehearsal-reachability-invalid"></a>`SNAPBACK_AUTH_REHEARSAL_REACHABILITY_INVALID` | auth | — | — | `src/auth/rehearsal.rs:2291` | 2 |
+| <a id="diagnostic-snapback-auth-rehearsal-reachability-public"></a>`SNAPBACK_AUTH_REHEARSAL_REACHABILITY_PUBLIC` | auth | 403 | — | `src/auth/rehearsal.rs:2284` | 4 |
+| <a id="diagnostic-snapback-auth-rehearsal-request-invalid"></a>`SNAPBACK_AUTH_REHEARSAL_REQUEST_INVALID` | auth | 400 | — | `src/auth/rehearsal.rs:2189` | 3 |
+| <a id="diagnostic-snapback-auth-rehearsal-scope-denied"></a>`SNAPBACK_AUTH_REHEARSAL_SCOPE_DENIED` | auth | 403 | — | `src/auth/rehearsal.rs:2217` | 3 |
+| <a id="diagnostic-snapback-auth-rehearsal-selector-denied"></a>`SNAPBACK_AUTH_REHEARSAL_SELECTOR_DENIED` | auth | 403 | — | `src/auth/rehearsal.rs:2224` | 4 |
+| <a id="diagnostic-snapback-auth-rehearsal-state-present"></a>`SNAPBACK_AUTH_REHEARSAL_STATE_PRESENT` | auth | 409 | — | `src/auth/rehearsal.rs:2311` | 4 |
 | <a id="diagnostic-snapback-auth-request-invalid"></a>`SNAPBACK_AUTH_REQUEST_INVALID` | auth | 400 | [guide](../operating/host-ops.md#mint-a-session-over-http) | `src/auth/provider.rs:5202` | 4 |
 | <a id="diagnostic-snapback-auth-required"></a>`SNAPBACK_AUTH_REQUIRED` | auth | 401 | [guide](../auth/sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals) | `packages/snapback-client/index.mjs:1175` | 21 |
 | <a id="diagnostic-snapback-auth-requirement-implicit"></a>`SNAPBACK_AUTH_REQUIREMENT_IMPLICIT` | auth | — | [guide](../auth/sessions-and-principals.md#choose-each-functions-auth-requirement) | `packages/snapback-codegen/codegen-summary.mjs:25` | 2 |
@@ -23076,7 +23098,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-client-mutation-id-reused"></a>`SNAPBACK_CLIENT_MUTATION_ID_REUSED` | client | 409 | — | `src/operation_ledger.rs:2648` | 16 |
 | <a id="diagnostic-snapback-client-mutation-legacy-auth-quarantined"></a>`SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED` | client | 409 | — | `src/server/api_error.rs:452` | 3 |
 | <a id="diagnostic-snapback-client-mutation-purge-selector-invalid"></a>`SNAPBACK_CLIENT_MUTATION_PURGE_SELECTOR_INVALID` | client | 400 | — | `src/server.rs:22631` | 2 |
-| <a id="diagnostic-snapback-client-mutation-result-invalid"></a>`SNAPBACK_CLIENT_MUTATION_RESULT_INVALID` | client | — | — | `src/storage.rs:14713` | 4 |
+| <a id="diagnostic-snapback-client-mutation-result-invalid"></a>`SNAPBACK_CLIENT_MUTATION_RESULT_INVALID` | client | — | — | `src/storage.rs:14717` | 4 |
 | <a id="diagnostic-snapback-client-mutation-result-too-large"></a>`SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE` | client | 413 | — | `src/server/api_error.rs:661` | 2 |
 | <a id="diagnostic-snapback-client-mutation-retention-full"></a>`SNAPBACK_CLIENT_MUTATION_RETENTION_FULL` | client | — | — | `src/error_tracking.rs:57` | 3 |
 | <a id="diagnostic-snapback-client-mutation-retention-state-invalid"></a>`SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID` | client | — | — | `src/local.rs:6874` | 5 |
@@ -23576,46 +23598,46 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-fork-asset-cut-unsupported"></a>`SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED` | server | 400 | [guide](../operating/instance-forks.md#know-what-the-quarantine-does-not-promise) | `src/instance_fork.rs:40` | 2 |
 | <a id="diagnostic-snapback-fork-boot-failed"></a>`SNAPBACK_FORK_BOOT_FAILED` | server | — | — | `src/cli/fork.rs:829` | 5 |
 | <a id="diagnostic-snapback-fork-boot-timeout"></a>`SNAPBACK_FORK_BOOT_TIMEOUT` | server | 504 | — | `src/cli/fork.rs:915` | 2 |
-| <a id="diagnostic-snapback-fork-custody-refused"></a>`SNAPBACK_FORK_CUSTODY_REFUSED` | server | — | — | `src/instance_fork.rs:873` | 2 |
-| <a id="diagnostic-snapback-fork-custody-unclassified"></a>`SNAPBACK_FORK_CUSTODY_UNCLASSIFIED` | server | — | — | `src/instance_fork.rs:860` | 3 |
-| <a id="diagnostic-snapback-fork-destination-exists"></a>`SNAPBACK_FORK_DESTINATION_EXISTS` | server | — | — | `src/instance_fork.rs:4636` | 2 |
-| <a id="diagnostic-snapback-fork-diff-invalid"></a>`SNAPBACK_FORK_DIFF_INVALID` | server | — | — | `src/instance_fork.rs:3715` | 14 |
+| <a id="diagnostic-snapback-fork-custody-refused"></a>`SNAPBACK_FORK_CUSTODY_REFUSED` | server | — | — | `src/instance_fork.rs:958` | 2 |
+| <a id="diagnostic-snapback-fork-custody-unclassified"></a>`SNAPBACK_FORK_CUSTODY_UNCLASSIFIED` | server | — | — | `src/instance_fork.rs:945` | 3 |
+| <a id="diagnostic-snapback-fork-destination-exists"></a>`SNAPBACK_FORK_DESTINATION_EXISTS` | server | — | — | `src/instance_fork.rs:4721` | 2 |
+| <a id="diagnostic-snapback-fork-diff-invalid"></a>`SNAPBACK_FORK_DIFF_INVALID` | server | — | — | `src/instance_fork.rs:3800` | 14 |
 | <a id="diagnostic-snapback-fork-diff-oracle-mismatch"></a>`SNAPBACK_FORK_DIFF_ORACLE_MISMATCH` | server | — | [guide](../operating/instance-forks.md#read-the-diff-at-its-real-boundary) | `src/instance_fork.rs:41` | 2 |
-| <a id="diagnostic-snapback-fork-diff-retention-gap"></a>`SNAPBACK_FORK_DIFF_RETENTION_GAP` | server | 410 | — | `src/instance_fork.rs:3662` | 3 |
+| <a id="diagnostic-snapback-fork-diff-retention-gap"></a>`SNAPBACK_FORK_DIFF_RETENTION_GAP` | server | 410 | — | `src/instance_fork.rs:3747` | 3 |
 | <a id="diagnostic-snapback-fork-egress-denied"></a>`SNAPBACK_FORK_EGRESS_DENIED` | harness | 403 | — | `packages/snapback-harness/envelope.mjs:75` | 14 |
-| <a id="diagnostic-snapback-fork-egress-marker-failed"></a>`SNAPBACK_FORK_EGRESS_MARKER_FAILED` | server | — | — | `src/instance_fork.rs:2232` | 2 |
+| <a id="diagnostic-snapback-fork-egress-marker-failed"></a>`SNAPBACK_FORK_EGRESS_MARKER_FAILED` | server | — | — | `src/instance_fork.rs:2317` | 2 |
 | <a id="diagnostic-snapback-fork-evidence-incomplete"></a>`SNAPBACK_FORK_EVIDENCE_INCOMPLETE` | server | — | — | `src/cli/fork.rs:1358` | 10 |
-| <a id="diagnostic-snapback-fork-evidence-mismatch"></a>`SNAPBACK_FORK_EVIDENCE_MISMATCH` | server | — | — | `src/instance_fork.rs:2018` | 20 |
+| <a id="diagnostic-snapback-fork-evidence-mismatch"></a>`SNAPBACK_FORK_EVIDENCE_MISMATCH` | server | — | — | `src/instance_fork.rs:2103` | 20 |
 | <a id="diagnostic-snapback-fork-expired-reap-failed"></a>`SNAPBACK_FORK_EXPIRED_REAP_FAILED` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/cli/fork.rs:394` | 2 |
-| <a id="diagnostic-snapback-fork-id-invalid"></a>`SNAPBACK_FORK_ID_INVALID` | server | 400 | — | `src/instance_fork.rs:2535` | 3 |
+| <a id="diagnostic-snapback-fork-id-invalid"></a>`SNAPBACK_FORK_ID_INVALID` | server | 400 | — | `src/instance_fork.rs:2620` | 3 |
 | <a id="diagnostic-snapback-fork-io-failed"></a>`SNAPBACK_FORK_IO_FAILED` | server | — | — | `src/instance_fork.rs:297` | 2 |
-| <a id="diagnostic-snapback-fork-keyring-mint-failed"></a>`SNAPBACK_FORK_KEYRING_MINT_FAILED` | server | — | — | `src/instance_fork.rs:1678` | 3 |
-| <a id="diagnostic-snapback-fork-lineage-invalid"></a>`SNAPBACK_FORK_LINEAGE_INVALID` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:1704` | 6 |
+| <a id="diagnostic-snapback-fork-keyring-mint-failed"></a>`SNAPBACK_FORK_KEYRING_MINT_FAILED` | server | — | — | `src/instance_fork.rs:1763` | 3 |
+| <a id="diagnostic-snapback-fork-lineage-invalid"></a>`SNAPBACK_FORK_LINEAGE_INVALID` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:1789` | 6 |
 | <a id="diagnostic-snapback-fork-load-failed"></a>`SNAPBACK_FORK_LOAD_FAILED` | server | — | — | `src/cli.rs:7915` | 11 |
-| <a id="diagnostic-snapback-fork-nested-refused"></a>`SNAPBACK_FORK_NESTED_REFUSED` | server | — | — | `src/instance_fork.rs:1630` | 3 |
+| <a id="diagnostic-snapback-fork-nested-refused"></a>`SNAPBACK_FORK_NESTED_REFUSED` | server | — | — | `src/instance_fork.rs:1715` | 3 |
 | <a id="diagnostic-snapback-fork-net-diff-unavailable"></a>`SNAPBACK_FORK_NET_DIFF_UNAVAILABLE` | server | 400 | [guide](../operating/instance-forks.md#read-the-diff-at-its-real-boundary) | `src/instance_fork.rs:38` | 2 |
 | <a id="diagnostic-snapback-fork-not-found"></a>`SNAPBACK_FORK_NOT_FOUND` | server | 404 | [guide](../operating/instance-forks.md#inspect-review-and-dispose-forks) | `src/cli/fork.rs:359` | 9 |
 | <a id="diagnostic-snapback-fork-path-invalid"></a>`SNAPBACK_FORK_PATH_INVALID` | server | — | — | `src/cli/fork.rs:305` | 10 |
 | <a id="diagnostic-snapback-fork-projection-unavailable"></a>`SNAPBACK_FORK_PROJECTION_UNAVAILABLE` | server | 400 | — | `src/cli/fork.rs:291` | 2 |
-| <a id="diagnostic-snapback-fork-publication-partial"></a>`SNAPBACK_FORK_PUBLICATION_PARTIAL` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:1945` | 4 |
-| <a id="diagnostic-snapback-fork-quarantined"></a>`SNAPBACK_FORK_QUARANTINED` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:1971` | 2 |
+| <a id="diagnostic-snapback-fork-publication-partial"></a>`SNAPBACK_FORK_PUBLICATION_PARTIAL` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:2030` | 4 |
+| <a id="diagnostic-snapback-fork-quarantined"></a>`SNAPBACK_FORK_QUARANTINED` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:2056` | 2 |
 | <a id="diagnostic-snapback-fork-ready-invalid"></a>`SNAPBACK_FORK_READY_INVALID` | server | — | — | `src/cli/fork.rs:455` | 22 |
 | <a id="diagnostic-snapback-fork-reap-clock-invalid"></a>`SNAPBACK_FORK_REAP_CLOCK_INVALID` | server | 400 | — | `src/cli/fork.rs:1311` | 4 |
 | <a id="diagnostic-snapback-fork-receipt-invalid"></a>`SNAPBACK_FORK_RECEIPT_INVALID` | server | — | — | `src/cli/fork.rs:1361` | 17 |
-| <a id="diagnostic-snapback-fork-registry-invalid"></a>`SNAPBACK_FORK_REGISTRY_INVALID` | server | — | — | `src/instance_fork.rs:2484` | 12 |
+| <a id="diagnostic-snapback-fork-registry-invalid"></a>`SNAPBACK_FORK_REGISTRY_INVALID` | server | — | — | `src/instance_fork.rs:2569` | 12 |
 | <a id="diagnostic-snapback-fork-registry-stale"></a>`SNAPBACK_FORK_REGISTRY_STALE` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/cli/fork.rs:373` | 7 |
 | <a id="diagnostic-snapback-fork-renew-expired"></a>`SNAPBACK_FORK_RENEW_EXPIRED` | server | 400 | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:37` | 2 |
 | <a id="diagnostic-snapback-fork-resource-limit-refused"></a>`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | server | 429 | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:36` | 2 |
 | <a id="diagnostic-snapback-fork-server-expired"></a>`SNAPBACK_FORK_SERVER_EXPIRED` | server | 410 | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:35` | 2 |
 | <a id="diagnostic-snapback-fork-server-renewal-observed"></a>`SNAPBACK_FORK_SERVER_RENEWAL_OBSERVED` | server | — | — | `src/cli/fork.rs:88` | 1 |
-| <a id="diagnostic-snapback-fork-sidecar-collision"></a>`SNAPBACK_FORK_SIDECAR_COLLISION` | server | — | — | `src/instance_fork.rs:1667` | 2 |
-| <a id="diagnostic-snapback-fork-sidecar-malformed"></a>`SNAPBACK_FORK_SIDECAR_MALFORMED` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:2050` | 9 |
-| <a id="diagnostic-snapback-fork-sidecar-missing"></a>`SNAPBACK_FORK_SIDECAR_MISSING` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:2040` | 3 |
+| <a id="diagnostic-snapback-fork-sidecar-collision"></a>`SNAPBACK_FORK_SIDECAR_COLLISION` | server | — | — | `src/instance_fork.rs:1752` | 2 |
+| <a id="diagnostic-snapback-fork-sidecar-malformed"></a>`SNAPBACK_FORK_SIDECAR_MALFORMED` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:2135` | 9 |
+| <a id="diagnostic-snapback-fork-sidecar-missing"></a>`SNAPBACK_FORK_SIDECAR_MISSING` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:2125` | 3 |
 | <a id="diagnostic-snapback-fork-source-invalid"></a>`SNAPBACK_FORK_SOURCE_INVALID` | server | 400 | — | `src/cli/fork.rs:144` | 5 |
 | <a id="diagnostic-snapback-fork-stop-failed"></a>`SNAPBACK_FORK_STOP_FAILED` | server | — | — | `src/cli/fork.rs:625` | 2 |
 | <a id="diagnostic-snapback-fork-stop-timeout"></a>`SNAPBACK_FORK_STOP_TIMEOUT` | server | 504 | — | `src/cli/fork.rs:641` | 2 |
 | <a id="diagnostic-snapback-fork-stop-unverified"></a>`SNAPBACK_FORK_STOP_UNVERIFIED` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/cli/fork.rs:527` | 5 |
-| <a id="diagnostic-snapback-fork-test-crash-cut"></a>`SNAPBACK_FORK_TEST_CRASH_CUT` | server | — | — | `src/instance_fork.rs:2272` | 7 |
+| <a id="diagnostic-snapback-fork-test-crash-cut"></a>`SNAPBACK_FORK_TEST_CRASH_CUT` | server | — | — | `src/instance_fork.rs:2357` | 7 |
 | <a id="diagnostic-snapback-fork-ttl-invalid"></a>`SNAPBACK_FORK_TTL_INVALID` | server | 400 | — | `src/cli/fork.rs:23` | 15 |
 | <a id="diagnostic-snapback-fork-writer-coverage-gap"></a>`SNAPBACK_FORK_WRITER_COVERAGE_GAP` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/instance_fork.rs:43` | 1 |
 | <a id="diagnostic-snapback-fork-writer-coverage-invalid"></a>`SNAPBACK_FORK_WRITER_COVERAGE_INVALID` | server | — | [guide](../operating/instance-forks.md#act-on-fork-diagnostics) | `src/cli/fork.rs:944` | 3 |
@@ -23882,12 +23904,12 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-job-idempotency-key-raced"></a>`SNAPBACK_JOB_IDEMPOTENCY_KEY_RACED` | server | 409 | [guide](../backend/jobs.md#enqueue-from-a-mutation) | `src/jobs.rs:429` | 4 |
 | <a id="diagnostic-snapback-job-idempotency-key-reused"></a>`SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED` | server | 409 | [guide](../backend/jobs.md#enqueue-from-a-mutation) | `src/jobs.rs:424` | 4 |
 | <a id="diagnostic-snapback-job-lease-expired"></a>`SNAPBACK_JOB_LEASE_EXPIRED` | server | — | — | `src/jobs.rs:308` | 3 |
-| <a id="diagnostic-snapback-job-producer-missing"></a>`SNAPBACK_JOB_PRODUCER_MISSING` | server | — | — | `src/storage.rs:3921` | 1 |
+| <a id="diagnostic-snapback-job-producer-missing"></a>`SNAPBACK_JOB_PRODUCER_MISSING` | server | — | — | `src/storage.rs:3925` | 1 |
 | <a id="diagnostic-snapback-job-push-grant-invalid"></a>`SNAPBACK_JOB_PUSH_GRANT_INVALID` | server | 400 | [guide](../backend/jobs.md#enqueue-from-a-mutation) | `src/runtime.rs:1996` | 4 |
 | <a id="diagnostic-snapback-job-state-invalid"></a>`SNAPBACK_JOB_STATE_INVALID` | server | — | — | `src/storage/jobs.rs:124` | 3 |
 | <a id="diagnostic-snapback-job-status-args-invalid"></a>`SNAPBACK_JOB_STATUS_ARGS_INVALID` | server | 400 | — | `src/local.rs:30139` | 2 |
 | <a id="diagnostic-snapback-job-unknown"></a>`SNAPBACK_JOB_UNKNOWN` | server | 404 | — | `src/admin.rs:5740` | 2 |
-| <a id="diagnostic-snapback-json-serialize-failed"></a>`SNAPBACK_JSON_SERIALIZE_FAILED` | server | — | — | `src/storage.rs:14416` | 1 |
+| <a id="diagnostic-snapback-json-serialize-failed"></a>`SNAPBACK_JSON_SERIALIZE_FAILED` | server | — | — | `src/storage.rs:14420` | 1 |
 | <a id="diagnostic-snapback-lease-convergence-connection-required"></a>`SNAPBACK_LEASE_CONVERGENCE_CONNECTION_REQUIRED` | client | — | — | `packages/snapback-client/lease-convergence.mjs:5` | 3 |
 | <a id="diagnostic-snapback-lease-convergence-pending-intent"></a>`SNAPBACK_LEASE_CONVERGENCE_PENDING_INTENT` | client | — | — | `packages/snapback-client/lease-convergence.mjs:7` | 3 |
 | <a id="diagnostic-snapback-live-coalesce-disabled"></a>`SNAPBACK_LIVE_COALESCE_DISABLED` | realtime | — | — | `src/cli.rs:876` | 3 |
@@ -24044,8 +24066,8 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-membership-privileged-writer-matrix"></a>`SNAPBACK_MEMBERSHIP_PRIVILEGED_WRITER_MATRIX` | server | 400 | — | `src/server/api_error.rs:1186` | 2 |
 | <a id="diagnostic-snapback-membership-privileged-writer-required"></a>`SNAPBACK_MEMBERSHIP_PRIVILEGED_WRITER_REQUIRED` | server | 400 | — | `src/server/api_error.rs:1187` | 2 |
 | <a id="diagnostic-snapback-membership-provenance-field-reserved"></a>`SNAPBACK_MEMBERSHIP_PROVENANCE_FIELD_RESERVED` | server | 400 | — | `src/server/api_error.rs:1137` | 2 |
-| <a id="diagnostic-snapback-membership-provenance-row-invalid"></a>`SNAPBACK_MEMBERSHIP_PROVENANCE_ROW_INVALID` | server | — | — | `src/storage.rs:12809` | 1 |
-| <a id="diagnostic-snapback-membership-provenance-unavailable"></a>`SNAPBACK_MEMBERSHIP_PROVENANCE_UNAVAILABLE` | server | — | — | `src/storage.rs:12763` | 1 |
+| <a id="diagnostic-snapback-membership-provenance-row-invalid"></a>`SNAPBACK_MEMBERSHIP_PROVENANCE_ROW_INVALID` | server | — | — | `src/storage.rs:12813` | 1 |
+| <a id="diagnostic-snapback-membership-provenance-unavailable"></a>`SNAPBACK_MEMBERSHIP_PROVENANCE_UNAVAILABLE` | server | — | — | `src/storage.rs:12767` | 1 |
 | <a id="diagnostic-snapback-membership-raw-write-denied"></a>`SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED` | server | 403 | [guide](../auth/scoped-roles.md#change-membership-through-generated-methods) | `src/runtime.rs:6627` | 3 |
 | <a id="diagnostic-snapback-membership-read-private"></a>`SNAPBACK_MEMBERSHIP_READ_PRIVATE` | server | 403 | — | `src/data_patch.rs:531` | 5 |
 | <a id="diagnostic-snapback-membership-reserved-role"></a>`SNAPBACK_MEMBERSHIP_RESERVED_ROLE` | server | 400 | — | `src/server/api_error.rs:1138` | 2 |
@@ -24171,7 +24193,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-operation-coverage-activation-authority-invalid"></a>`SNAPBACK_OPERATION_COVERAGE_ACTIVATION_AUTHORITY_INVALID` | server | 403 | — | `src/admin.rs:5483` | 2 |
 | <a id="diagnostic-snapback-operation-coverage-activation-version-unsupported"></a>`SNAPBACK_OPERATION_COVERAGE_ACTIVATION_VERSION_UNSUPPORTED` | server | 400 | — | `src/admin.rs:5465` | 2 |
 | <a id="diagnostic-snapback-operation-coverage-incomplete"></a>`SNAPBACK_OPERATION_COVERAGE_INCOMPLETE` | server | — | — | `src/server/api_error.rs:1412` | 5 |
-| <a id="diagnostic-snapback-operation-coverage-invalid"></a>`SNAPBACK_OPERATION_COVERAGE_INVALID` | server | — | — | `src/storage.rs:2313` | 1 |
+| <a id="diagnostic-snapback-operation-coverage-invalid"></a>`SNAPBACK_OPERATION_COVERAGE_INVALID` | server | — | — | `src/storage.rs:2317` | 1 |
 | <a id="diagnostic-snapback-operation-coverage-mismatch"></a>`SNAPBACK_OPERATION_COVERAGE_MISMATCH` | server | — | — | `src/operation_ledger.rs:4205` | 3 |
 | <a id="diagnostic-snapback-operation-coverage-unavailable"></a>`SNAPBACK_OPERATION_COVERAGE_UNAVAILABLE` | server | — | — | `src/operation_ledger.rs:4191` | 3 |
 | <a id="diagnostic-snapback-operation-epoch-closed"></a>`SNAPBACK_OPERATION_EPOCH_CLOSED` | server | 410 | — | `src/operation_ledger.rs:2476` | 2 |
@@ -24469,7 +24491,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-query-hydration-failed"></a>`SNAPBACK_QUERY_HYDRATION_FAILED` | queries | — | — | `packages/snapback-client/registration-ledger.mjs:434` | 1 |
 | <a id="diagnostic-snapback-query-implicit-limit-reached"></a>`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` | queries | 400 | [guide](../backend/queries.md#bound-every-collection-intentionally) | `packages/snapback-harness/envelope.mjs:37` | 4 |
 | <a id="diagnostic-snapback-query-in-items-exceeded"></a>`SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `packages/snapback-harness/envelope.mjs:36` | 6 |
-| <a id="diagnostic-snapback-query-keyset-invalid"></a>`SNAPBACK_QUERY_KEYSET_INVALID` | queries | — | — | `src/storage.rs:5056` | 4 |
+| <a id="diagnostic-snapback-query-keyset-invalid"></a>`SNAPBACK_QUERY_KEYSET_INVALID` | queries | — | — | `src/storage.rs:5060` | 4 |
 | <a id="diagnostic-snapback-query-limit-invalid"></a>`SNAPBACK_QUERY_LIMIT_INVALID` | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `packages/snapback-harness/envelope.mjs:38` | 6 |
 | <a id="diagnostic-snapback-query-offline-unavailable"></a>`SNAPBACK_QUERY_OFFLINE_UNAVAILABLE` | queries | — | — | `packages/snapback-client/index.mjs:1870` | 5 |
 | <a id="diagnostic-snapback-query-order-unsupported-field-type"></a>`SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE` | queries | 400 | — | `packages/snapback-codegen/index.mjs:3681` | 4 |
@@ -24781,7 +24803,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-schema-permission-fields-without-backing"></a>`SNAPBACK_SCHEMA_PERMISSION_FIELDS_WITHOUT_BACKING` | server | 400 | — | `src/server/api_error.rs:1293` | 2 |
 | <a id="diagnostic-snapback-schema-permission-field-duplicate"></a>`SNAPBACK_SCHEMA_PERMISSION_FIELD_DUPLICATE` | server | 400 | — | `src/server/api_error.rs:1294` | 2 |
 | <a id="diagnostic-snapback-schema-permission-field-unknown"></a>`SNAPBACK_SCHEMA_PERMISSION_FIELD_UNKNOWN` | server | 400 | — | `src/server/api_error.rs:1295` | 2 |
-| <a id="diagnostic-snapback-schema-physical-column-invalid"></a>`SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID` | server | — | — | `src/storage.rs:8967` | 3 |
+| <a id="diagnostic-snapback-schema-physical-column-invalid"></a>`SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID` | server | — | — | `src/storage.rs:8971` | 3 |
 | <a id="diagnostic-snapback-schema-required-field-backfill-required"></a>`SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED` | server | 409 | — | `src/server/api_error.rs:531` | 6 |
 | <a id="diagnostic-snapback-schema-structured-index-unsupported"></a>`SNAPBACK_SCHEMA_STRUCTURED_INDEX_UNSUPPORTED` | server | 400 | — | `src/server/api_error.rs:1224` | 2 |
 | <a id="diagnostic-snapback-schema-system-field"></a>`SNAPBACK_SCHEMA_SYSTEM_FIELD` | server | 400 | [guide](../getting-started/your-first-backend.md#declare-the-schema) | `src/server/api_error.rs:1297` | 2 |
@@ -25149,7 +25171,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-verify-starter-acceptance-output-limit"></a>`SNAPBACK_VERIFY_STARTER_ACCEPTANCE_OUTPUT_LIMIT` | cli | — | — | `packages/snapback-cli/verify.mjs:328` | 1 |
 | <a id="diagnostic-snapback-verify-starter-acceptance-timeout"></a>`SNAPBACK_VERIFY_STARTER_ACCEPTANCE_TIMEOUT` | cli | — | — | `packages/snapback-cli/verify.mjs:330` | 1 |
 | <a id="diagnostic-snapback-verify-under-declaration"></a>`SNAPBACK_VERIFY_UNDER_DECLARATION` | cli | — | — | `packages/snapback-cli/verify.mjs:932` | 1 |
-| <a id="diagnostic-snapback-version-out-of-range"></a>`SNAPBACK_VERSION_OUT_OF_RANGE` | server | — | — | `src/storage.rs:10901` | 1 |
+| <a id="diagnostic-snapback-version-out-of-range"></a>`SNAPBACK_VERSION_OUT_OF_RANGE` | server | — | — | `src/storage.rs:10905` | 1 |
 | <a id="diagnostic-snapback-version--"></a>`SNAPBACK_VERSION__` | cli | — | — | `packages/snapback-cli/index.mjs:1554` | 1 |
 | <a id="diagnostic-snapback-vm-driver-allow-test-base"></a>`SNAPBACK_VM_DRIVER_ALLOW_TEST_BASE` | cli | — | — | `packages/snapback-cli/adapters/fly-machines-vm-driver.mjs:69` | 1 |
 | <a id="diagnostic-snapback-vm-driver-test-base"></a>`SNAPBACK_VM_DRIVER_TEST_BASE` | cli | — | — | `packages/snapback-cli/adapters/fly-machines-vm-driver.mjs:69` | 2 |
@@ -25201,7 +25223,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -25209,7 +25231,7 @@ reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
 # Generated API reference
 
 One build-bound projection of 1071 public symbols (446 runtime values and 625 explicit type-only symbols).
-Registry identity: `sha256:27ec5486f9053937ed6ca54f18ae8bbade19b4cd96952ff3556a73a67eb37481`; source commit: `5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706`.
+Registry identity: `sha256:27ec5486f9053937ed6ca54f18ae8bbade19b4cd96952ff3556a73a67eb37481`; source commit: `3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -25280,7 +25302,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -34784,7 +34806,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35309,7 +35331,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -35543,7 +35565,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36186,7 +36208,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36293,7 +36315,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -36681,7 +36703,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37136,7 +37158,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37275,7 +37297,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37637,7 +37659,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -37728,7 +37750,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38097,7 +38119,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38247,7 +38269,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -38750,7 +38772,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39251,7 +39273,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39485,7 +39507,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39848,7 +39870,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -39962,7 +39984,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40596,7 +40618,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40901,7 +40923,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41348,7 +41370,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41474,7 +41496,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41646,7 +41668,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42101,7 +42123,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42288,7 +42310,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42693,7 +42715,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43160,7 +43182,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43417,7 +43439,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43807,7 +43829,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44431,7 +44453,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44579,7 +44601,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44787,7 +44809,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44980,7 +45002,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45233,7 +45255,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45839,7 +45861,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -48129,7 +48151,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -49237,7 +49259,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -49350,7 +49372,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -52427,7 +52449,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -52709,7 +52731,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -52833,7 +52855,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -52988,7 +53010,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -53112,7 +53134,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -53282,7 +53304,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -53704,7 +53726,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-commit: 5c5f43db3d0d7a53b4f3e9be104ee1cb9cd7a706
+reviewed-commit: 3c8f5dc586cc56d3ae982fd8f6309c7dd90439a2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->

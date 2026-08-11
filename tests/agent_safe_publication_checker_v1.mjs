@@ -2786,7 +2786,6 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/provider-introspection.json',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/schema.manifest.json',
   'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/seed.artifact.json',
-  'demos/zero-bakeoff/apps/contention-calendar/snapback/generated/trusted-composition-activation.json',
   'packages/snapback-cli/fixtures/comparator/app/snapback/generated/api-envelope.members.json',
   'packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.d.ts',
   'packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.mjs',

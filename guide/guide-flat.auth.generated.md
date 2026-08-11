@@ -9,7 +9,7 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.browser-session-custody, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/browser-auth, demos/card-game, demos/party-wall]
 status: current
 targets: [local]
@@ -103,23 +103,19 @@ process.
 
 ## Sign in: email code → session credential
 
-The client requests a code and exchanges it. In tests, the code is read
-from the server's admin-gated mailbox:
+The client requests a code and exchanges it. In tests, the shared `asUser`
+helper owns that complete loop, including the admin-gated mailbox read:
 
 ```js source=demos/card-game/tests/acceptance/authority-scope.mjs
-  const requested = await client.authRequestCode(email);
+async function mintSession(server, appId, email, clientStoreId) {
+  return asUser(server, appId, email, { clientStoreId });
+}
 ```
 
-```js source=demos/card-game/tests/acceptance/authority-scope.mjs
-  const credential = await client.authExchange({
-    challengeId: requested.challengeId,
-    code: mailbox.code,
-  });
-```
-
+The result exposes `client`, the public `session`, `userId`, and an idempotent
+`dispose`, plus the coordinator and custody state needed by lower-level tests.
 From then on the client carries the session credential; `AuthCoordinator`
-(from `@expo/snapback-contract`) owns custody, refresh, and the logout barrier
-for surface-based clients.
+(from `@expo/snapback-contract`) owns custody, refresh, and the logout barrier.
 
 For a browser/Vite surface in local development, keep the privileged mailbox
 read in a serve-only dev-server relay while the browser performs
@@ -163,19 +159,32 @@ which bearers are live.
 
 A sessions-mode acceptance suite needs two or more genuine principals. The
 mailbox above is admin-gated **and** impersonation-gated; both carriers are
-required, and both are local-only. The complete loop — client construction,
-code request, mailbox read, exchange — is:
+required, and both are local-only. Call `asUser(server, appId, email, opts)`
+once per persona, passing a distinct `clientStoreId` in `opts`. It creates
+isolated coordinator custody and a fresh client:
 
-```js source=demos/party-wall/tests/acceptance/headless.mjs
-    const client = new SnapbackClient(server.baseUrl, {
-      authCoordinator: coordinator,
-      authInvalidationProtocol: 1,
-      authorityDescriptorProtocol: 1,
-      authorizedLeaseProtocol: 1,
-      clientStoreId: `pw-${email.split('@')[0]}`,
-    });
+```js source=demos/_kit/as-user.mjs
+  const coordinator = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state: custodyState }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const client = new SnapbackClient(server.baseUrl, {
+    authInvalidationProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    authorizedLeaseProtocol: 1,
+    ...clientOptions,
+    authCoordinator: coordinator,
+    clientStoreId,
+  });
+```
+
+It then performs the complete code-request, mailbox-read, and exchange loop:
+
+```js source=demos/_kit/as-user.mjs
     const requested = await client.authRequestCode(email);
-    const mailboxResponse = await fetch(
+    const mailboxResponse = await fetchImpl(
       `${server.baseUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(requested.challengeId)}`,
       {
         headers: {
@@ -189,6 +198,11 @@ code request, mailbox read, exchange — is:
     const credential = await client.authExchange({
       challengeId: requested.challengeId,
       code: mailbox.code,
+    });
+    return Object.assign(identity, {
+      credential,
+      session: credential.session,
+      userId: credential.session.userId,
     });
 ```
 
@@ -209,8 +223,8 @@ The server-lifecycle kit's `captureImpersonationCapability: true` does this
 read for you and exposes the value as `server.impersonationCapability`.
 
 `SNAPBACK_AUTH_IMPERSONATION_REQUIRED` means the second header is missing.
-Call each persona's loop once per email; the returned
-`credential.session.userId` is the server-issued principal id.
+Call the helper once per email; the returned `userId` (also available as
+`credential.session.userId`) is the server-issued principal id.
 
 **Custody boundaries.** The mailbox route, the admin token, and the
 impersonation capability are local-test material. None may enter browser or
