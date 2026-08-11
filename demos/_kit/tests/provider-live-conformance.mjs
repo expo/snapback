@@ -1051,7 +1051,7 @@ export const createRecord = defineMutation({
       }, 'optimistic-create replay settlement');
       const canonical = observer.snapshot().data.find((entry) => entry.fields.title === 'response-loss');
       return {
-        clientMutationId: queuedError.clientMutationId,
+        clientMutationId: queuedOutcome.clientMutationId,
         wireAttempts: requests.length,
         replayed: replay.replayed,
         originalIdMap: droppedSettlement.receipt.idMap,

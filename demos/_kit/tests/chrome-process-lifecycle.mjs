@@ -639,10 +639,16 @@ function provesRepositoryInventory() {
       .filter((path) => readFileSync(join(repoRoot, path), 'utf8').includes(needle))
       .map((path) => relative(repoRoot, join(repoRoot, path)))
       .sort();
+    const expectedOwners = needle === userDataFlag
+      ? [
+          'demos/_kit/chrome-process.mjs',
+          'packages/snapback-cli/carrier-kit.mjs',
+        ]
+      : ['demos/_kit/chrome-process.mjs'];
     assert.deepEqual(
       owners,
-      ['demos/_kit/chrome-process.mjs'],
-      `${needle} must remain single-sourced in the shared launcher`,
+      expectedOwners,
+      `${needle} must remain confined to the repository launcher and the self-contained published carrier kit`,
     );
   }
 }

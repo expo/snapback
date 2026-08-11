@@ -134,6 +134,10 @@ async function mintSession(appId, email, clientStoreId) {
     authorityDescriptorProtocol: 1,
     authorizedLeaseProtocol: 1,
     clientStoreId,
+    // This conformance lane exercises online asset authority, not durable
+    // outbox ownership. Keep its concurrent per-user clients independent so
+    // the second session reaches the server-side cross-owner checks.
+    rqsStore: null,
   });
   const requested = await client.authRequestCode(email);
   const mailboxResponse = await fetch(

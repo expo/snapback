@@ -11712,9 +11712,26 @@ export class SnapbackClient {
       if (update.kind === LIVE_DURABLE_KINDS.LIVE_REPLACE) {
         // Updates for a superseded (pre-resubscribe) subscription id are
         // ignored; versions strictly increase per subscription (the global
-        // durable commit version assigned at fan-out).
+        // durable commit version assigned at fan-out). Asset lifecycle rows
+        // are the one existing exception: they are durable system-row writes
+        // outside the app commit clock, and their reserved projection can
+        // therefore move at the same app version. The connection lane is
+        // FIFO, so accepting that projection's equal-version replacement is
+        // ordered while lower versions and every ordinary equal-version
+        // replay remain ignored.
+        // @ref LLP 0044#live-asset-lifecycle — trusted asset transitions must
+        //   update the reserved live projection without polling.
         if (update.subscription_id !== handle.subscriptionId) return;
-        if (!durableVersionAdvances(handle.version, update.version)) return;
+        if (terminalQueryDeleted()) {
+          reportTerminalReuse(LIVE_DURABLE_KINDS.LIVE_REPLACE);
+          return;
+        }
+        const equalVersionAssetLifecycle = update.function === '_snapback.assetRecord'
+          && Number.isSafeInteger(update.version)
+          && update.version === handle.version;
+        if (!durableVersionAdvances(handle.version, update.version) && !equalVersionAssetLifecycle) {
+          return;
+        }
         if (authorizationFaulted) return;
         if (authorizationFence) {
           try {
@@ -11795,6 +11812,10 @@ export class SnapbackClient {
         // live_replace), so preserving existing order and appending new rows is
         // correct.
         if (update.subscription_id !== handle.subscriptionId) return;
+        if (terminalQueryDeleted()) {
+          reportTerminalReuse(LIVE_DURABLE_KINDS.LIVE_DELTA);
+          return;
+        }
         if (!durableVersionAdvances(handle.version, update.version)) return;
         if (authorizationFaulted) return;
         const nextRows = applyLiveDeltaById(handle.rows, update.ops);

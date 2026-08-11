@@ -248,7 +248,10 @@ try {
     'queue-resolve:1',
     'ack:ack_1',
   ]);
-  assert(boundaries.some(({ kind }) => kind === 'authorization_quarantine'));
+  assert(
+    !boundaries.some(({ kind }) => kind === 'authorization_quarantine'),
+    'a usable same-envelope successor snapshot defers the observable quarantine boundary',
+  );
   assert(boundaries.some(({ kind }) => kind === 'authorization_snapshot'));
 
   // A pending obligation blanks synchronously. A later ordinary replace in

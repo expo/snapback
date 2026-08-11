@@ -131,7 +131,11 @@ const coordinatedClient = async ({ bearerToken = null, ...options } = {}) => {
       refreshAfterMs: 60_000,
     }, 'test_session_fixture');
   }
-  return new SnapbackClient('http://stub', { ...options, authCoordinator: coordinator });
+  return new SnapbackClient('http://stub', {
+    rqsStore: null,
+    ...options,
+    authCoordinator: coordinator,
+  });
 };
 
 const agentHandshake = () => {
@@ -216,7 +220,8 @@ try {
     const discoveryHeaders = calls[0].init.headers;
     assertEqual(discoveryHeaders.authorization, 'Bearer session-secret');
     assertEqual(discoveryHeaders['x-snapback-auth-client-protocol'], '1');
-    const request = calls[1];
+    const request = calls.find(({ path }) => path === '/mutation/updateTodo');
+    assert(request, 'the mutation reached the transport after its fresh handshake');
     assertEqual(request.init.headers.authorization, 'Bearer session-secret');
     assertEqual(request.init.headers['x-snapback-auth-client-protocol'], '1');
     assertEqual(request.init.headers['x-snapback-authority-descriptor-protocol'], '1');
@@ -624,6 +629,7 @@ try {
       authInvalidationProtocol: 1,
       authorityDescriptorProtocol: 1,
       clientStoreId: 'agent_store',
+      rqsStore: null,
     });
     const established = await db.authSession();
     assertEqual(
