@@ -169,6 +169,11 @@ isolated coordinator custody and a fresh client:
     authInvalidationProtocol: 1,
     authorityDescriptorProtocol: 1,
     authorizedLeaseProtocol: 1,
+    // Multi-user acceptance scenarios intentionally hold several clients for
+    // one origin at once. Persistence is not part of this identity helper's
+    // contract; callers proving retained/outbox behavior inject their own
+    // isolated store through clientOptions.
+    rqsStore: null,
     ...clientOptions,
     authCoordinator: coordinator,
     clientStoreId,
