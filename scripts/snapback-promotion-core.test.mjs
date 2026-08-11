@@ -29,6 +29,7 @@ import {
   validatePublicationAuthorityReceipt,
   validateClosedLatestProofPlan,
   validatePreClosePublicationState,
+  validatePostPromotionLatestRootReceipts,
   validatePostPromotionLedger,
   vectorFromLease,
   validatePriorDependencyAlias,
@@ -1935,6 +1936,71 @@ test('post-promotion ledger closes candidate lineage, tags, and final receipts',
     }),
     /self-digest mismatch/u,
   );
+});
+
+test('latest receipts accept canonical GitHub second-precision run timestamps', () => {
+  const { lease } = fixture();
+  // GitHub's REST API reports run times at second precision and the raw
+  // strings are preserved end-to-end for the helper's byte-exact reopen
+  // equality; ceremony release-0.1.18-20260811-r10 was refused on exactly
+  // this shape after a successful hosted proof.
+  const receipts = (overrides = {}) => [
+    ['darwin-arm64', 'b'],
+    ['linux-x64', 'c'],
+  ].map(([platform, fill], index) => ({
+    platform,
+    sha256: fill.repeat(64),
+    github: {
+      authorizedLeaseSha256: leaseSha256(lease),
+      repository: 'expo/snapback',
+      workflow: 'public-package-proof.yml',
+      workflowId: 42,
+      workflowPath: '.github/workflows/public-package-proof.yml',
+      ref: 'release/qualified-0.1.18',
+      runId: 31449958810,
+      runAttempt: 1,
+      runHeadSha: 'd'.repeat(40),
+      operationId: lease.operationId,
+      publicationEpoch: lease.publicationEpoch,
+      expectedPriorRootVersion: '0.1.0',
+      dispatchStartedAt: '2026-08-11T01:39:37.123Z',
+      runCreatedAt: '2026-08-11T01:39:43Z',
+      runStartedAt: '2026-08-11T01:39:44Z',
+      collectedAt: '2026-08-11T01:45:00.456Z',
+      artifactId: 200 + index,
+      artifactName: `artifact-${platform}`,
+      artifactApiDigest: `sha256:${'e'.repeat(64)}`,
+      artifactArchiveSha256: 'e'.repeat(64),
+      ...overrides,
+    },
+    machine: {},
+    latestRootResolution: {},
+    latestRootPropagationSha256: '4'.repeat(64),
+    browserCaptureSha256: 'f'.repeat(64),
+    browserDistributionSha256: '3'.repeat(64),
+    browserExecutableSha256: '1'.repeat(64),
+    browserPackageTreeSha256: '2'.repeat(64),
+  }));
+  const accepted = receipts();
+  assert.equal(
+    validatePostPromotionLatestRootReceipts(accepted, lease.operationId),
+    accepted,
+  );
+  for (const runCreatedAt of [
+    '2026-08-11T01:39:43',
+    '2026-08-11T01:39:43.5Z',
+    '2026-13-11T01:39:43Z',
+    '2026-08-11T24:00:00Z',
+    '2026-08-11 01:39:43Z',
+  ]) {
+    assert.throws(
+      () => validatePostPromotionLatestRootReceipts(
+        receipts({ runCreatedAt, runStartedAt: runCreatedAt }),
+        lease.operationId,
+      ),
+      /must be canonical UTC milliseconds|is not canonical/u,
+    );
+  }
 });
 
 test('signature preimage excludes only signature', () => {
