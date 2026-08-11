@@ -42,3 +42,18 @@ post-landing adversarial verification pass.
    admissions). If the fleet wants expiry to convert frozen edges back to
    outstanding after a grace window, that is an LLP 0225 amendment, not a
    gate patch.
+
+## Verifier confirmations — 2026-08-10 (LLP 0198 session)
+
+- The `#[path]`/inline-mod fixture gap is now live-proven: behavior
+  handles `#[path]` (probe A9 red, B9 green) but no regression fixture
+  or test case exists — repro in the closed gaps ticket's verification
+  record. Raising this from "unpinned" to "confirmed missing."
+- New minor from the same pass: the unassigned-growth refusal
+  (`legacy unassigned bucket is shrink-only; assign new modules to a
+  real owner: <module>`) does not name the seven permitted owners; the
+  0225 §5 fix language expects them named. Diagnostic completeness
+  only.
+- Faked-clock (2026-08-12) CLI run passes with `2 expired waivers
+  (escalate)`; expired-waiver advisory posture behaves as the
+  pre-landing MATERIAL fix claims.

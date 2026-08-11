@@ -152,3 +152,48 @@ jobs-wave edges tracked by
 `issues/20260810-main-module-ownership-red-jobs-edges.md`. Waiver deadlines
 are escalation metadata: an expired deadline refuses only NEW admissions and
 never wedges parsing of committed snapshots.
+
+## Adversarial verification — 2026-08-10 (LLP 0198 session, verifier of record per arbitration)
+
+Verified at `6f7cd728d` (both hardening commits ancestors), probes-only,
+tree left byte-clean. **Verdict: enforcement CONFIRMED-SOLID; two
+non-MATERIAL findings, both folded into the open deferred-minors
+ticket.** 29-probe matrix (gpt-5.6-sol xhigh verifier + orchestrator
+supplementary passes):
+
+- **Detection per form (A1–A9): 9/9 red with the edge named** — crate,
+  self, super, grouped, alias, single re-export, chained re-export,
+  glob re-export chain, `#[path]`. Allowed-direction counterparts
+  (B1–B9): 9/9 green, 0 unresolved references in every run.
+- **Laundering (C1–C3):** real `--update-baseline` refused a same-tree
+  forbidden-edge admission and named it; manual baseline growth red
+  with `silent forbidden-edge baseline growth`; exception removal and
+  attributed relocation re-key both allowed. Monotonic contract holds.
+- **Set protocol (D1–D2):** a new fingerprint blocks independently on
+  top of ticket-admitted inherited reds; removing the in-tree ticket
+  blocks naming both outstanding jobs-wave fingerprints (correctly
+  attributed to `20260810-main-module-ownership-red-jobs-edges.md`,
+  not this slice).
+- **Freezes (E1–E2, F1–F2):** unassigned growth red (see finding 2);
+  shrink allowed; unsorted-bucket and absent-module self-consistency
+  reds fire.
+- **Supplementary S1 (faked clock 2026-08-12, real CLI via Date shim):**
+  committed snapshot passes — no parse-time wedge — with
+  `2 expired waivers (escalate)` advisory, confirming the pre-landing
+  MATERIAL fix (expiry gates only new admissions).
+- **Supplementary S2 (owner reassignment):** fail-closed — rotated
+  fingerprints surface as introduced edges with owners named both
+  sides; a legitimate move needs relocation re-keys (the known
+  deferred-minor workflow gap, behavior safe).
+- **Supplementary S3 (two-ticket fingerprint split):** blocks; the
+  single-ticket `trackingTicketFor` posture is enforced as documented,
+  message accurate.
+
+Findings (both routed to
+`issues/20260810-ownership-gate-hardening-review-minors.md`, neither
+MATERIAL, no new ticket): (1) MEDIUM — the promised `#[path]`
+regression fixture is absent from `tests/fixtures/module-ownership/`
+and the test file, though live behavior handles the form (confirms the
+deferred minor with repro: `rg -n '#\s*\[\s*path' scripts/check-module-ownership.test.mjs tests/fixtures/module-ownership` → no
+matches); (2) LOW — the unassigned-growth refusal names the module but
+not the seven permitted owners the spec's fix language calls for.
