@@ -556,6 +556,20 @@ for (const job of [
     `${job} must install the publication validator dependencies before qualification`,
   );
 }
+{
+  const start = qualifiedPackageStaging.indexOf('  linux_staged_proof:');
+  const bodyStart = start + '  linux_staged_proof:'.length;
+  const nextJob = qualifiedPackageStaging.slice(bodyStart).search(/\n  [a-z][a-z_]+:\n/u);
+  const end = nextJob === -1
+    ? qualifiedPackageStaging.length
+    : bodyStart + nextJob;
+  const block = qualifiedPackageStaging.slice(start, end);
+  assert.match(
+    block,
+    /apt-get install -y lsof[\s\S]*snapback-package-cold-install\.mjs/u,
+    'Linux staged proof must install lsof before exercising supervised readiness',
+  );
+}
 assert.match(
   qualifiedPackageStaging,
   /scripts\/qualified-staging-retain-release/u,
