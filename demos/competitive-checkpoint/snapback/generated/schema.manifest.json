@@ -5,14 +5,15 @@
   "auth": {
     "mode": "dev"
   },
+  "authoredSourceHash": "sha256:bdf6c5492368ce6288e4fa6456585736eb6318b96066e9fbebe337fda56e8ea1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "29a451c0d1f6bcb12c0a50ae171476f747cce16d0e354e70cb0eff92cc02e460",
+  "inputsHash": "7ce1569bb6725ae90da177172b683f9b8d040dc4b849f94cc65c846e8c961b40",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "relational_query_v1"
   ],
-  "schemaHash": "sha256:99cdc60ecb24aba1",
+  "schemaHash": "sha256:889d43be2935f114",
   "schemaVersion": "snapback.v0",
   "tables": [
     {

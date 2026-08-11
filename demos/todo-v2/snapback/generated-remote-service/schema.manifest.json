@@ -6,6 +6,7 @@
   "appId": "todo-v2",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
+  "authoredSourceHash": "sha256:f2fbe830774acb85e16a2ca7712efa9b97efa0dabb9264629cf205a5802bf9ea",
   "ephemeralCollections": [
     {
       "burst": 40,

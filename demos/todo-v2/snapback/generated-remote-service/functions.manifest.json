@@ -5,6 +5,7 @@
   ],
   "appId": "todo-v2",
   "artifactKind": "functionManifest",
+  "authoredSourceHash": "sha256:f2fbe830774acb85e16a2ca7712efa9b97efa0dabb9264629cf205a5802bf9ea",
   "bundleHash": "sha256:a3ea15b971bc5893",
   "config": [],
   "cronJobs": [],

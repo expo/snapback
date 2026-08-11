@@ -985,8 +985,9 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "implementationHash": "snapback.v1:sessions:function:sha256:7b9d67c107d18fffe1ff03287847b7763b82cb8165f94e6db9400ca9ce0051d2",
-    "inputsHash": "snapback.v1:sessions:inputs:sha256:69f3fe0bc01ebe1651cda46396607fff4cc9c293b72416b581b4f5776934a866",
-    "schemaHash": "snapback.v1:sessions:schema:sha256:d02a2866fdb9cc27fd4d3fa1d87fa9b8ea6d917903e56f1ae716ead30ad10437"
+    "authoredSourceHash": "sha256:fc25f81086705b2b49f3706e08bcca690377b97a5f6f22de39342c8bc600e53a",
+    "implementationHash": "snapback.v1:sessions:function:sha256:f75789812410680a56f8df3f4f1f0c05067dfe33377ddc286da62ee959550f8a",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:3b09db448b9777569935e45c62cfd9a003f4bba6d42d09935d3270d3b812c5a4",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:2de213bb5bc3fb86f69c3ff1b93438275cde771d054eeb2bc080f3d8fe86d83b"
   }
 }

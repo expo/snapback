@@ -4,6 +4,7 @@ export type * from '@expo/snapback-codegen/ctx';
 export type SchemaVersion = 'snapback.v0';
 export type Principal = string & { readonly __snapbackPrincipal: unique symbol };
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
+export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
 export type SearchMatchAtomV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } };
 export type SearchClauseV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } } | { Any: readonly SearchMatchAtomV1[] } | { Not: SearchMatchAtomV1 } | { Filter: { field: string; op: "eq"; value: string | number | boolean } };
@@ -21,7 +22,7 @@ export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';
 export interface GeneratedMutationIrV1 {
   readonly format: 'snapback.generated-mutation-ir.v1';
   readonly operationHash: `sha256:${string}`;
-  readonly sourceIdentity: Readonly<{ functionId: string; implementationHash: string; activation: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }> }> ;
+  readonly sourceIdentity: Readonly<{ functionId: string; implementationHash: string; authoredSourceHash: `sha256:${string}`; activation: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }> }> ;
   readonly schemaIdentity: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string }> ;
   readonly capabilityClass: 'local-executable' | 'server-only';
   readonly capabilityCode: string;
@@ -45,6 +46,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   argsContractHash: string;
   resultContractHash: string;
   expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;
+  authoredSourceHash: `sha256:${string}`;
   sourceSpan?: Readonly<{ file: string; line?: number; column?: number }>;
   resultContract?: Readonly<Record<string, unknown>>;
   mutationIr?: GeneratedMutationIrV1;
