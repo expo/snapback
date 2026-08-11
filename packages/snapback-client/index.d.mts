@@ -1,6 +1,25 @@
 import type { SnapbackDiagnosticCode } from './diagnostic-codes.d.mts';
+import type { SnapbackClientDiagnosticsChannel } from './client-diagnostics.mjs';
 
 export type { SnapbackDiagnosticCode } from './diagnostic-codes.d.mts';
+export {
+  createClientDevConsoleReporter,
+  createClientDiagnosticsChannel,
+  DEFAULT_QUEUED_MUTATION_WEDGE_WARNING_MS,
+  positiveDevelopmentEnvironment,
+  projectDiagnosticV1,
+} from './client-diagnostics.mjs';
+export type {
+  SnapbackClientDiagnosticsDisposable,
+  SnapbackClientDiagnosticsChannel,
+  SnapbackClientDiagnosticsOptions,
+  SnapbackClientDiagnosticsSnapshot,
+  SnapbackDevDiagnosticsConsole,
+  SnapbackDiagnosticEventInput,
+  SnapbackDiagnosticEventV2,
+  SnapbackDiagnosticOccurrence,
+  SnapbackDiagnosticV1Projection,
+} from './client-diagnostics.mjs';
 
 /** Stable, source-complete client diagnostic carrier (LLP 0010 / LLP 0193). */
 export interface SnapbackDiagnostic {
@@ -871,10 +890,18 @@ export interface SnapbackClientOptions {
    * instead of a settlement; it settles by ordered replay after reconnect.
    */
   readonly offlineQueue?: 'auto' | boolean;
-  /** @internal LLP 0218 P4 emission stub; LLP 0219 owns the public channel. */
+  /** LLP 0218 P4 relinquishment-event seam. When omitted, events land on
+   * this client's LLP 0219 structured diagnostics channel; injecting an
+   * observer redirects them (tests/tooling). */
   readonly devDiagnosticsChannel?: Readonly<{
     emit?(event: Readonly<Record<string, unknown>>): void;
   }> | null;
+  /** Enable the default console reporter when (and only when) the shared
+   * positive development-environment seam returns true. Defaults to true;
+   * false detaches console reporting while preserving the structured channel. */
+  readonly devDiagnosticsReporter?: boolean;
+  /** Per-durable-head warning window for the queued/wedged dev condition. */
+  readonly queuedMutationWedgeWarningMs?: number;
   readonly strictWireVersion?: boolean;
   readonly onWireVersionDiagnostic?: ((diagnostic: unknown) => void) | null;
 }
@@ -1258,8 +1285,10 @@ export interface ProgrammaticQueryRegistrationOptions<Args = Record<string, unkn
 
 export class SnapbackClient {
   constructor(baseUrl: string, options?: SnapbackClientOptions);
-  /** Final auth/client cleanup. Also releases a client-owned default RQS
-   * store; an explicitly injected store remains caller-owned. */
+  /** This client's bounded, process-local structured diagnostics channel. */
+  diagnosticsChannel(): SnapbackClientDiagnosticsChannel;
+  /** Final auth/client cleanup. Disposes the diagnostics channel and releases
+   * a client-owned default RQS store; an injected store remains caller-owned. */
   closeAuth(): Promise<void>;
   health(): Promise<unknown>;
   inspect(): Promise<unknown>;

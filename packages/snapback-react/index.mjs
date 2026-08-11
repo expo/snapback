@@ -26,6 +26,7 @@ export { bindSnapbackAppLifecycle } from '@expo/snapback-client';
 export {
   SnapbackQueuedMutationError,
   invokeSnapbackMutation,
+  observeSnapbackDiagnostics,
   observeSnapbackOptimisticCreate,
   observeSnapbackOutbox,
   observeSnapbackPresence,
@@ -34,6 +35,7 @@ export {
   skip,
   useEphemeralRepublisher,
   useSnapbackConnection,
+  useSnapbackDiagnostics,
   useSnapbackMutation,
   useSnapbackOptimisticCreate,
   useSnapbackOutbox,

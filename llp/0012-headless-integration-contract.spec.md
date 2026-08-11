@@ -5,7 +5,8 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-03, latest (LLP 0109 acceptance reconciliation:
+**Revised:** 2026-08-10, latest (LLP 0219 client dev diagnostics channel
+amendment); 2026-08-03 (LLP 0109 acceptance reconciliation:
 registered versioned seed installation as a separate closed family — the
 `/app/ensure` intent union is unchanged — plus its status-mapper rows; see
 the dated amendment). 2026-08-01 (LLP 0062-02 registration: the closed
@@ -610,6 +611,18 @@ generated artifact references, target profile, and structured details. Design
 Mode may present them richly; React may show them through dev tooling; agents may
 consume them directly.
 
+**Dated amendment (2026-08-10 — LLP 0219).** The process-local, per-client
+diagnostics channel is now the delivery, formatting, and coalescing surface for
+client diagnostics. Its carrier is `snapback.client-diagnostic.v2`: severity is
+`error | warning`, with stable code, subsystem, message/details, occurrence
+metadata, and optional site. The legacy `snapback.client-diagnostic.v1` carrier
+remains frozen and error-only: `onDiagnostic` and
+`inspection().diagnostics` are v1 projections through
+`projectDiagnosticV1`, and warning events are filtered rather than widened
+under the old discriminator. Adapters expose the same v2 diagnostic objects
+through `useSnapbackDiagnostics()`, `observeSnapbackDiagnostics()`, and the
+headless client's `diagnosticsChannel()`.
+
 The host-ops result envelope in
 [LLP 0024](./0024-agent-operating-surface.spec.md) reuses this diagnostic schema
 and its code families. CLI, HTTP, and MCP projections must not add another
@@ -843,6 +856,12 @@ Contract/Exact runtime. They should expose idiomatic APIs for:
 - local sync state;
 - auth/session state;
 - diagnostics and capability gaps.
+
+Client-side diagnostics follow the dated LLP 0219 amendment in
+[Diagnostic Schema](#diagnostic-schema): React/Expo project the bound headless
+client's channel through `useSnapbackDiagnostics()` and
+`observeSnapbackDiagnostics()` rather than defining another diagnostic object
+or reporter.
 
 The React adapter may be ergonomic, but it must remain a binding over generated
 Snapback function references and runtime state. It should not introduce direct

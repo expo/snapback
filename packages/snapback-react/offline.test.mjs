@@ -14,6 +14,10 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 
+import {
+  createClientDevConsoleReporter,
+  createClientDiagnosticsChannel,
+} from '../snapback-client/client-diagnostics.mjs';
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
 import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import {
@@ -711,9 +715,9 @@ function createOfflineFakeClient({ outbox = null } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// 8. The first queued hook dispatch is loud in development with the mutation,
-//    reason class, and drain mode. Later queued dispatches do not repeat that
-//    promotion; the existing per-dispatch wedge timer remains intact.
+// 8. A queued hook dispatch resolves LLP 0218's pending union while the
+//    canonical client event and React compatibility projection dedup to one
+//    dev-console line. The React adapter owns no later wedge timer.
 // ---------------------------------------------------------------------------
 {
   const priorNodeEnv = process.env.NODE_ENV;
@@ -722,26 +726,41 @@ function createOfflineFakeClient({ outbox = null } = {}) {
   process.env.NODE_ENV = 'development';
   console.warn = (...parts) => warnings.push(parts.join(' '));
   let provider = null;
+  let reporter = null;
+  let channel = null;
   try {
     const outbox = {
       supported: true,
       records: [{ id: 'different-pending-record', status: 'pending' }],
     };
     const fake = createOfflineFakeClient({ outbox });
-    let queuedDispatches = 0;
+    channel = createClientDiagnosticsChannel();
+    reporter = createClientDevConsoleReporter(channel);
+    fake.diagnosticsChannel = () => channel;
     fake.mutate = async () => {
-      queuedDispatches += 1;
+      channel.emit({
+        code: 'SNAPBACK_OFFLINE_MUTATION_QUEUED',
+        severity: 'warning',
+        subsystem: 'outbox',
+        message: 'Offline queue rule: queued is pending, not settled. Drain via useSnapbackOutbox().drainNow(); see guide/sync/offline-and-retention.md#replay-and-settle-without-guessing.',
+        details: {
+          mutation: 'record',
+          clientMutationId: 'queued-record-1',
+          sequence: 1,
+        },
+        site: 'record',
+      });
       return {
+        status: 'queued',
         queued: true,
-        clientMutationId: `queued-record-${queuedDispatches}`,
-        sequence: queuedDispatches,
+        clientMutationId: 'queued-record-1',
+        sequence: 1,
+        presentation: 'withheld',
       };
     };
     const binding = await prepareReactBindingForClient(fake, { generatedManifest });
     provider = createSnapbackReactProvider(binding, {
       connectionId: 'offline-queued-warning',
-      outboxDrain: 'manual',
-      __queuedMutationWedgeWarningMs: 5,
     });
 
     const queued = await invokeSnapbackMutation(provider, record, { value: 'offline' });
@@ -752,31 +771,20 @@ function createOfflineFakeClient({ outbox = null } = {}) {
       sequence: 1,
       presentation: 'withheld',
     });
-    assert.equal(warnings.length, 1, 'durable queueing warns at the call site');
-    assert.match(warnings[0], /SNAPBACK_REACT_MUTATION_QUEUED/);
-    assert.match(warnings[0], /mutation "record"/);
-    assert.match(warnings[0], /queue reason class: connectivity/);
-    assert.match(warnings[0], /drain mode: manual/);
+    assert.equal(warnings.length, 1, 'the canonical/compatibility pair prints once');
+    assert.match(warnings[0], /SNAPBACK_OFFLINE_MUTATION_QUEUED/);
+    assert.match(warnings[0], /Mutation: record/);
+    assert.deepEqual(
+      channel.snapshot().events.map((event) => event.code).sort(),
+      ['SNAPBACK_OFFLINE_MUTATION_QUEUED', 'SNAPBACK_REACT_MUTATION_QUEUED'],
+    );
 
     await new Promise((resolve) => setTimeout(resolve, 20));
-    assert.equal(warnings.length, 2, 'remaining durable work warns after the threshold');
-    assert.match(warnings[1], /SNAPBACK_REACT_MUTATION_QUEUE_WEDGED/);
-    assert.match(warnings[1], /mutation "record"/);
-    assert.match(warnings[1], /queued-record-1/);
-    assert.match(warnings[1], /does not prove whether that specific mutation remains pending/);
-    assert.doesNotMatch(warnings[1], /queue head blocking mutation/);
-    assert.doesNotMatch(warnings[1], /later mutations remain queued behind it/);
-
-    const secondQueued = await invokeSnapbackMutation(provider, record, { value: 'offline-again' });
-    assert.equal(secondQueued.status, 'queued');
-    assert.equal(secondQueued.clientMutationId, 'queued-record-2');
-    assert.equal(
-      warnings.length,
-      2,
-      'a later queued dispatch does not repeat the first-in-session loud promotion',
-    );
+    assert.equal(warnings.length, 1, 'React schedules no compatibility wedge timer');
   } finally {
     if (provider !== null) await provider.dispose();
+    reporter?.dispose();
+    channel?.dispose();
     console.warn = originalWarn;
     if (priorNodeEnv === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = priorNodeEnv;

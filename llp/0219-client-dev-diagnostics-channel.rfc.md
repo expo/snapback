@@ -5,6 +5,11 @@
 **Systems:** JS headless client, React/Expo adapters, Client diagnostics, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-10 (re-land reconciliation over LLP 0218 P3 and the
+static React package split: queued dispatch resolves the authoritative union,
+the React queued code is diagnostic-only, the client owns the wedge deadline,
+and `useSnapbackOutbox().drainNow()` / the provider-owned drain are the
+current recovery surface)
 **Revised:** 2026-08-10 (Review → Accepted — accepted to begin implementation
 (author direction in-session); round-2 verdicts bind revision (c) — Claude
 READY pre-existing-clean, GPT NOT READY with its MATERIALs fixed in the (d)
@@ -93,11 +98,12 @@ search (B6) as the weakest builder dimensions above auth's 48:
   this the strongest convergent product finding of the pilot
   (`issues/closed/20260809-outbox-silent-queue-dx.md`, pilot record F5).
 
-Current main has fixed the immediate defects — content-keyed hook inputs
+At proposal time main had fixed the immediate defects — content-keyed hook inputs
 (`issues/closed/20260806-usesnapbackquery-inline-args-resubscribe.md`), a
 distinct `SnapbackQueuedMutationError` class, an immediate queued warning and
 a 30-second wedge warning (`QUEUED_MUTATION_WEDGE_WARNING_MS`,
-`packages/snapback-react/index.mjs:57`), and `useSnapbackOutbox()`. But those
+`packages/snapback-react/index.mjs:57`, before the static package split), and
+`useSnapbackOutbox()`. But those
 fixes are fragmented: direct `console.warn` calls
 (`packages/snapback-react/index.mjs:~1000–1040`), a 64-entry React inspection
 diagnostics array (`packages/snapback-react/index.mjs:309,409`), and separate
@@ -139,11 +145,10 @@ output, agent inspection, and any future overlay are projections.
 
 **Build Option 2.** A bounded, process-local structured diagnostics channel
 in the client, with an enabled-by-default console reporter in
-positively-identified dev builds (the existing
-`positiveDevelopmentEnvironment()` seam — today defined in
-`packages/snapback-react/index.mjs:83`, hoisted or shared into the client
-so headless and Expo hosts get the same positive identification — never a
-production default).
+positively-identified dev builds through the shared
+`positiveDevelopmentEnvironment()` seam in
+`packages/snapback-client/client-diagnostics.mjs`, so headless, React, and
+Expo hosts get the same positive identification — never a production default.
 Targeted detectors are *producers* into the channel; the first two are the
 live-hook args identity-churn detector (naming the hook site) and the outbox
 queued/wedged detector. A dev overlay is an optional LATER consumer, not the
@@ -177,7 +182,7 @@ into minutes.
   in `diagnostic-codes.d.mts`), severity, subsystem, message, details,
   occurrence metadata. The existing carrier hardcodes
   `severity: 'error'` (`packages/snapback-client/index.d.mts:9`,
-  `packages/snapback-react/index.mjs:111` freezes
+  `packages/snapback-react/implementation.mjs` freezes
   `snapback.client-diagnostic.v1`); warning-class events and every
   carrier-shape addition this channel needs (`subsystem`, occurrence
   metadata) ship under a **distinct carrier version** — a silently widened
@@ -217,9 +222,9 @@ into minutes.
   records — emitted synchronously at the **relinquishment-to-queued
   transition**: every relinquishment, not every durable insertion, since an
   explicit-id online dispatch commits the durable record before delivery.
-  The existing React-arm `SNAPBACK_REACT_MUTATION_QUEUED` warning becomes a
-  compatibility projection of that one event, not a second event; the
-  default reporter deduplicates the pair to one line per transition.
+  The React arm emits `SNAPBACK_REACT_MUTATION_QUEUED` as a compatibility
+  channel event carrying the same durable identity; the default reporter
+  deduplicates the canonical/compatibility pair to one line per transition.
   LLP 0218 §4.1/§4.4 own the trigger cadence and the queued payload; this
   bullet is the matching producer-cadence amendment 0218 §4.4 schedules.
   0218's first-queued-dispatch loud promotion ("session" = client-instance
@@ -229,7 +234,8 @@ into minutes.
   `SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` as an *active condition* after the
   30 s threshold, carrying queue depth, oldest-pending age, head
   mutation/sequence, transport provenance, and the current recovery path
-  (`useSnapbackOutbox().replay()`, or LLP 0218's drain once landed). The
+  (`useSnapbackOutbox().drainNow()`; the provider-owned drain runs by
+  default). The
   condition is keyed to the durable queue head, observed from the durable
   store's own outbox notifications (the `subscribeOutbox` seam, which
   carries head identity/sequence) — never inferred from the bounded
@@ -247,15 +253,16 @@ into minutes.
 ### Consumers and compatibility
 
 - Default dev reporter: subscribes to the channel, deduplicated
-  `console.warn`; existing direct warns in `packages/snapback-react/index.mjs`
+  `console.warn`; existing direct warns in
+  `packages/snapback-react/implementation.mjs`
   (queued, wedge, optimistic-replay advisories, internal errors) reroute
   through it so console text stops being the source. The reroute preserves
   LLP 0107's normative delivery pins (one advisory per (mutation, query)
   pair per provider); the P4 amendment records the new delivery surface.
 - `useSnapbackDiagnostics()` and `observeSnapbackDiagnostics(provider,
   listener)` mirror the existing outbox hook/observer pattern
-  (`useSnapbackOutbox`/`observeSnapbackOutbox`,
-  `packages/snapback-react/index.mjs:3562` region). `onDiagnostic` and
+  (`useSnapbackOutbox`/`observeSnapbackOutbox` in the shared
+  `packages/snapback-react/implementation.mjs`). `onDiagnostic` and
   `inspection().diagnostics` remain as compatibility projections. Headless
   `outboxDiagnostics`/`subscribeOutbox`/`outboxStatus()` are preserved. The
   `outboxStatus()` extension (`oldestPendingAtMs`, drain phase, last
@@ -266,8 +273,9 @@ into minutes.
   channel; an eventual overlay ships (if ever) from a tree-shakable
   `@expo/snapback-react/devtools` export that only reads the channel plus
   existing hooks and owns no queue/settlement/remediation behavior.
-- **Out of scope:** no server route, no telemetry database, no automatic
-  replay, no settlement-semantics change, no LLP 0156 client ingest.
+- **Out of scope:** no server route, no telemetry database, no
+  channel-owned replay/drain, no settlement-semantics change, no LLP 0156
+  client ingest. LLP 0218 P3 independently owns the landed automatic drain.
   Process-local means history dies on reload; acceptable for dev advisories
   because authoritative outbox conditions are reconstructed from the durable
   store.
@@ -279,17 +287,92 @@ into minutes.
   widening + new fields); bridge `__outboxDiagnostics`.
   *Proof:* unit tests for bounds, coalescing/drop accounting, redaction,
   active-condition lifecycle, schema-version decode.
+  *Status (2026-08-10):* landed —
+  `packages/snapback-client/client-diagnostics.mjs` (+ `.d.mts`), per-client
+  channel wiring with `diagnosticsChannel()` and close-time disposal, the
+  `__outboxDiagnostics` bridge (queued = warning, refusal/stranded classes =
+  error), OQ2 resolved as a `snapback.client-diagnostic.v2` version-tagged
+  superset with `projectDiagnosticV1` decode/filter; proof green in
+  `client-diagnostics.test.mjs` (bounds, coalescing/drop accounting,
+  structural redaction, active-condition lifecycle, single-deadline
+  scheduler, v1 projection).
 - **P2 — producers.** Churn detectors + queued/wedged conditions rerouted
   through the channel; default dev reporter; production suppression.
   *Proof:* package tests for positive dev detection, prod silence, Strict
   Mode/HMR exclusion, no-warn on content-equal args, warn inside the churn
   window, immediate queued emit at the relinquishment cut, 30 s wedge,
   terminal clearing; parity fixture across `onDiagnostic`/hook/observer.
+  *Status (2026-08-10):* landed — client half: shared
+  `positiveDevelopmentEnvironment()` hoisted into `@expo/snapback-client`,
+  default dev console reporter (queued-pair dedup keyed by
+  `clientMutationId`, first-loud pinned to client-instance lifetime,
+  `devDiagnosticsReporter: false` opt-out), and the wedge active condition
+  owned by the client channel's single deadline scheduler, keyed per durable
+  head read from the store's own records (failed replays clear nothing;
+  result-gone heads stay active with the acknowledge-cut recovery path);
+  LLP 0218 attachment points are marked in code where its `outboxStatus()`
+  extension and drain recovery land. React half: per-hook-instance churn
+  detectors on committed descriptor-identity transitions (dev-only call-site
+  capture, Strict Mode/HMR excluded, content-equal args never counted),
+  `SNAPBACK_REACT_MUTATION_QUEUED` demoted to a channel compatibility
+  projection with no React-owned timer, replay-divergence/HMR-reload/internal
+  errors rerouted through the channel (0107 once-per-pair pin preserved,
+  reload notice keeps a console fallback), and
+  `useSnapbackDiagnostics()`/`observeSnapbackDiagnostics()` projecting the
+  bound client's channel. Proof green in `client-diagnostics.test.mjs` and
+  `dev-diagnostics.test.mjs` plus both full package suites.
+  *0218 P3 attachment (2026-08-10, re-land):* queued delivery now attaches to
+  the landed relinquishment-to-queued union cut. The headless client emits
+  the canonical `SNAPBACK_OFFLINE_MUTATION_QUEUED` fact there; React resolves
+  `status:'queued'`, emits only the reporter-deduplicated compatibility
+  diagnostic, owns no wedge timer, and leaves drain scheduling to the
+  provider-owned LLP 0218 controller.
+  *0218 P1 attachment (2026-08-10, same day):* LLP 0218 P1 landed
+  (9f62b14e2) and the marked attachment points are consumed: the wedge fact
+  now carries `outboxStatus()`'s landed `oldestPendingAtMs`,
+  `blockedReason` (named in the wedge line: not-writer /
+  custody-unsettled), `drainPhase`, and pass-through `nextRetryAtMs`;
+  0218's landed uncovered-range relinquishment code
+  `SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED` is treated as a queued
+  transition (trigger + reporter dedup + warning severity) without
+  synthesizing a canonical event — canonical-code unification stays with
+  0218 §4.4. Head identity still comes from store records via the
+  notification seam, never diagnostic history.
+  *Concurrent-landing reconciliation (2026-08-10):* main's lane H
+  (03dd340da, LLP 0043 M1) independently landed
+  `SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN` — a dev-only advisory for
+  fresh-identity-but-content-equal args (5 consecutive renders, warn once
+  per hook instance). That detector is complementary, not rival: it warns
+  where content keying is saving the subscription but memoization is still
+  owed; this RFC's detector warns where inputs genuinely change and the
+  subscription actually churns. Per this RFC's reroute rule the lane H
+  advisory keeps its detection semantics and site capture and now delivers
+  through the channel as a producer (`react-runtime.mjs
+  diagnoseLiveHookArgsIdentity`), with its direct console line preserved
+  only as the no-channel fallback. Two codes, two conditions, one delivery
+  surface.
 - **P3 — acceptance bar.** Test app reproducing both pilot pathologies
   (unmemoized genuinely-changing hook args; forced connectivity-refusal
   enqueue with no drain). *Proof:* an acceptance run showing each pathology
   surfaced, site-named, with recovery path, within one screenful of console —
   the minutes-not-hours demonstration this RFC is accepted against.
+  *Status (2026-08-10):* landed —
+  `packages/snapback-react/dev-diagnostics-acceptance.test.mjs`: an
+  app-shaped run over the real provider machinery reproducing both pilot
+  pathologies with a captured console and one screenful defined as 40 lines.
+  The undrained acceptance leg explicitly selects
+  `outboxDrain:'manual'`; the shipped default remains LLP 0218 P3's
+  provider-owned automatic drain. Queued dispatch resolves the P3 union rather
+  than throwing the deprecated compatibility class.
+  Acceptance evidence: churn surfaced at captured console line 1
+  (site-named, with the memoize/hoist fix), queued surfaced at captured
+  line 1 (single deduplicated canonical line), wedge surfaced at captured
+  line 2 after the (shortened-for-test) threshold with queue depth, head
+  identity/sequence, and recovery path; the content-equal control produced
+  zero churn lines and the wedged condition was visible on
+  `useSnapbackDiagnostics()`/`observeSnapbackDiagnostics` snapshots. The
+  ~50-minute silent bisection and the multi-hour wedge each surface within
+  the first two console lines.
 - **P4 — docs.** Amend LLP 0012 (channel/projection contract), LLP 0114
   (subscription-churn detector semantics over its query-group/hook
   surface), and LLP 0107 (presence-churn + queue-condition semantics + the
@@ -298,6 +381,13 @@ into minutes.
   update `guide/clients/react.md`, `guide/sync/offline-and-retention.md`,
   `guide/operating/diagnostics.md`.
   *Proof:* `node scripts/check-guide.mjs` + `./ref-check --verbose` green.
+  *Status (2026-08-10):* landed — the four LLP amendments, shipped
+  `clients.dev-diagnostics` capability row, and React/offline/operating Guide
+  sections now describe the P1–P3 implementation, including LLP 0218 P3's
+  relinquishment cadence, resolved queued union, and provider-owned drain.
+  Guide/reference/flat projections were regenerated; guide check,
+  ref-check, and package-test inventory are green. Existing code already
+  carried the decision-bearing LLP 0219 refs, so P4 added no mechanical refs.
 
 ## Open questions
 

@@ -5,7 +5,8 @@
 **Systems:** React, React/Expo, Ephemeral state, Client integration, Realtime, Auth, Mutation settlement, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-10 (LLP 0218 P3 React-contract amendment: accepted
+**Revised:** 2026-08-10 (LLP 0219 presence-churn, queue-condition, and
+advisory-delivery amendment over LLP 0218 P3); 2026-08-10 (LLP 0218 P3 React-contract amendment: accepted
 offline intent resolves through the queued dispatch union instead of rejecting;
 installed optimistic layers survive enqueue and follow LLP 0218 §4.2's total
 durable-disposition map). 2026-08-10 (first-class generated optimistic create: one
@@ -389,6 +390,36 @@ Headless server diagnostics pass through. Inspection reports stores, consumers,
 subscriptions, publishers, timers, late work, resync reasons, cleanup error,
 and the optimistic-layer surface above (installed count plus confirmed-layer
 mutation/query identification).
+
+### Client dev diagnostics amendment (2026-08-10 — LLP 0219)
+
+The presence lifecycle now observes committed scope/value descriptor-identity
+transitions per `useSnapbackPresence` hook instance in positively identified
+development builds. Same-descriptor Strict Mode resubscribe does not count, and
+fresh but content-equal scope/value objects never count. At the tunable shipped
+default of eight transitions inside two seconds,
+`SNAPBACK_REACT_PRESENCE_PUBLISH_CHURN` names the development-captured hook site
+and generated collection and emits into the bound client's diagnostics
+channel. This detector observes the lifecycle above; it changes no room,
+publisher, heartbeat, or admission semantics.
+
+Queue diagnostics are likewise observational only. LLP 0218 P3's queued
+dispatch resolves the union and remains authoritative. The canonical
+`SNAPBACK_OFFLINE_MUTATION_QUEUED` client event and its React
+`SNAPBACK_REACT_MUTATION_QUEUED` compatibility diagnostic projection share
+the durable mutation id, so the default dev reporter emits one queued console
+line for the pair; the deprecated queued error has no throw site.
+`SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` is a client-channel-owned active
+condition after 30 seconds, keyed to the durable queue head rather than bounded
+diagnostic history: a failed drain clears nothing, head advance clears and
+re-arms for the successor, and a `result-gone` head remains active with the
+explicit acknowledgement cut as recovery. React owns no queue-warning timer.
+
+The replay-divergence advisory and queued advisories now route through the
+client channel and its default dev reporter. The normative replay-divergence
+pin remains exactly one advisory per `(mutation, query)` pair per provider;
+only the delivery surface changed. LLP 0218 P3's provider-owned automatic
+drain and `useSnapbackOutbox().drainNow()` remain the recovery authority.
 
 ## Package and acceptance
 

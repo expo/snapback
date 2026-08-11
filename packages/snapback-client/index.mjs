@@ -44,6 +44,13 @@ import {
 import {
   prepareReactBindingForClient,
 } from './react-binding.mjs';
+import {
+  attachOutboxDiagnosticsProducer,
+  createClientDevConsoleReporter,
+  createClientDiagnosticsChannel,
+  DEFAULT_QUEUED_MUTATION_WEDGE_WARNING_MS,
+  positiveDevelopmentEnvironment,
+} from './client-diagnostics.mjs';
 import { readInlineBootPayload as readInlineBootPayloadForRegistration } from './rqs-preload-core.mjs';
 import {
   deriveLegacyResumeAnswerV1,
@@ -60,6 +67,13 @@ export {
   remediationControlCatalogProjection,
 } from './remediation.mjs';
 export { createAssetClient } from './assets.mjs';
+export {
+  createClientDevConsoleReporter,
+  createClientDiagnosticsChannel,
+  DEFAULT_QUEUED_MUTATION_WEDGE_WARNING_MS,
+  positiveDevelopmentEnvironment,
+  projectDiagnosticV1,
+} from './client-diagnostics.mjs';
 export {
   CANONICAL_CLIENT_VALUE_V1_LIMITS,
   canonicalizeClientValueV1,
@@ -2015,9 +2029,15 @@ export class SnapbackClient {
     // captured descriptor, principal scope, and durable authority lineage.
     // `false` disables queueing; `true` requires an outbox-capable store.
     offlineQueue = 'auto',
-    // Internal LLP 0218 P4 attachment seam. LLP 0219 owns the eventual
-    // channel; until then an injected object may observe payload-safe events.
+    // LLP 0218 P4 attachment seam, now attached: when no explicit observer
+    // is injected, relinquishment events land on this client's LLP 0219
+    // structured diagnostics channel (the delivery surface 0218 SS4.4 names).
     devDiagnosticsChannel = null,
+    // The line-oriented channel reporter is a development default only. The
+    // positive environment seam still gates `true`; `false` is an explicit
+    // host opt-out.
+    devDiagnosticsReporter = true,
+    queuedMutationWedgeWarningMs = DEFAULT_QUEUED_MUTATION_WEDGE_WARNING_MS,
     // LLP 0094 §0B.6 strict mode: refuse a suspected pre-B1 legacy server
     // instead of downgrading to an offerless (legacy) open. Conformance
     // claims made against a strict configuration are claims about v1-bound
@@ -2043,6 +2063,8 @@ export class SnapbackClient {
     __preloadBootPayload = undefined,
     __materializationStore = null,
     __allowLegacyDevAssertion = false,
+    __clientDiagnosticsOptions = null,
+    __devDiagnosticsReporterOptions = null,
     // Deterministic construction seam for the LLP 0166 background runtime.
     // Production callers omit it; wiring tests inject clocks/carriers without
     // replacing any policy or broker object.
@@ -2171,9 +2193,37 @@ export class SnapbackClient {
     this.__outboxBarrierProviders = new Set();
     this.__outboxLastReplayStop = null;
     this.__outboxDiagnostics = [];
+    if (typeof devDiagnosticsReporter !== 'boolean') {
+      throw new TypeError('devDiagnosticsReporter must be boolean');
+    }
+    this.__clientDiagnosticsChannel = createClientDiagnosticsChannel(
+      __clientDiagnosticsOptions ?? undefined,
+    );
     this.__outboxListeners = new Set();
+    // @ref LLP 0219#decision — default console delivery exists only under a
+    // positive dev/HMR signal; absence of production markers never enables it.
+    this.__devDiagnosticsReporter = devDiagnosticsReporter
+      && positiveDevelopmentEnvironment()
+      ? createClientDevConsoleReporter(
+        this.__clientDiagnosticsChannel,
+        __devDiagnosticsReporterOptions ?? undefined,
+      )
+      : null;
+    this.__outboxDiagnosticsProducer = attachOutboxDiagnosticsProducer({
+      channel: this.__clientDiagnosticsChannel,
+      subscribeOutbox: (listener) => this.subscribeOutbox(listener),
+      readHeadFact: () => this.#outboxHeadFact(),
+      queuedMutationWedgeWarningMs,
+      now: __clientDiagnosticsOptions?.now ?? Date.now,
+    });
     this.__optimisticMutationViews = new Set();
-    this.__devDiagnosticsChannel = devDiagnosticsChannel;
+    // @ref LLP 0219#producers-pilot-scoped-detectors — LLP 0218 §4.4 owns the
+    // relinquishment trigger and payload; this channel owns delivery. With no
+    // injected observer, the P4 seam's default target is this client's own
+    // structured channel, adapted into the v2 carrier.
+    this.__devDiagnosticsChannel = devDiagnosticsChannel ?? Object.freeze({
+      emit: (event) => this.#bridgeRelinquishmentDevEvent(event),
+    });
     this.__queuedRelinquishmentCount = 0;
     if (typeof strictWireVersion != 'boolean') {
       throw new TypeError('strictWireVersion must be boolean');
@@ -5457,6 +5507,9 @@ export class SnapbackClient {
       this.__rqsStoreClosePromise ??= Promise.resolve().then(() => this.rqsStore.close());
       try { await this.__rqsStoreClosePromise; } catch (error) { firstError ??= error; }
     }
+    this.__outboxDiagnosticsProducer.dispose();
+    this.__devDiagnosticsReporter?.dispose();
+    this.__clientDiagnosticsChannel.dispose();
     if (firstError) throw firstError;
   }
   // @ref LLP 0031#migration-plan — system writes moved from ungated root
@@ -6117,6 +6170,67 @@ export class SnapbackClient {
     return store;
   }
 
+  async #outboxHeadFact() {
+    let store = null;
+    try { store = this.#offlineQueueStore(); } catch { store = null; }
+    if (!store) {
+      return {
+        head: null,
+        pending: 0,
+        oldestPendingAtMs: null,
+        blockedReason: null,
+        drainPhase: 'idle',
+        nextRetryAtMs: null,
+      };
+    }
+
+    const status = await this.outboxStatus();
+    // @ref LLP 0219#producers-pilot-scoped-detectors — queue-head identity is
+    // re-read from the durable store notification seam, never reconstructed
+    // from the bounded __outboxDiagnostics history.
+    const records = typeof store.outboxRecords === 'function'
+      ? await store.outboxRecords()
+      : await store.outboxPending();
+    const pendingFromRecords = records
+      .filter((record) => record?.status === 'pending').length;
+    const pending = status.pending === pendingFromRecords
+      ? status.pending
+      : pendingFromRecords;
+    const head = records
+      .filter((record) => record?.status === 'pending' || record?.status === 'result-gone')
+      .sort((left, right) => left.sequence - right.sequence)[0] ?? null;
+    const statusFact = {
+      oldestPendingAtMs: status.oldestPendingAtMs,
+      blockedReason: status.blockedReason,
+      drainPhase: status.drainPhase,
+      nextRetryAtMs: status.nextRetryAtMs,
+    };
+    if (head === null) return { head: null, pending, ...statusFact };
+
+    let transportProvenance;
+    if (typeof head.transportProvenance === 'string') {
+      transportProvenance = head.transportProvenance;
+    } else if (Array.isArray(head.operationIssuance?.transports)) {
+      transportProvenance = head.operationIssuance.transports
+        .filter((transport) => typeof transport === 'string')
+        .slice(0, 8);
+    }
+    // LLP 0218 P1 attachment consumed: the diagnostics fact now carries its
+    // landed status fields while head identity still comes from store records.
+    return {
+      head: {
+        clientMutationId: head.clientMutationId ?? head.id,
+        sequence: head.sequence,
+        status: head.status,
+        function: head.function,
+        ...(Number.isFinite(head.enqueuedAt) ? { enqueuedAtMs: head.enqueuedAt } : {}),
+        ...(transportProvenance === undefined ? {} : { transportProvenance }),
+      },
+      pending,
+      ...statusFact,
+    };
+  }
+
   // Authority-transition privacy does not depend on whether this particular
   // client instance has queue production enabled: its store may contain intent
   // written by a predecessor process. Reconcile that existing custody
@@ -6273,9 +6387,52 @@ export class SnapbackClient {
   }
 
   #recordOutboxDiagnostic(diagnostic) {
-    this.__outboxDiagnostics.push(Object.freeze({ at: Date.now(), ...diagnostic }));
+    const recorded = Object.freeze({ at: Date.now(), ...diagnostic });
+    this.__outboxDiagnostics.push(recorded);
     if (this.__outboxDiagnostics.length > 256) this.__outboxDiagnostics.shift();
+    const { code, at, ...details } = recorded;
+    // @ref LLP 0219#producers-pilot-scoped-detectors — the canonical queued
+    // channel events ride LLP 0218 §4.4's relinquishment helper (every
+    // foreground relinquishment, never bare durable insertion), so the
+    // record-cut bridge deliberately skips them here; every other outbox
+    // lifecycle fact still projects into this client's v2 channel.
+    const queuedAdvisory = code === 'SNAPBACK_OFFLINE_MUTATION_QUEUED'
+      || code === 'SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED';
+    if (!queuedAdvisory) {
+      try {
+        this.__clientDiagnosticsChannel.emit({
+          schemaVersion: 'snapback.client-diagnostic.v2',
+          code,
+          severity: 'error',
+          subsystem: 'outbox',
+          message: `Outbox settlement rule (${code}): do not treat durable work as settled until reconciliation completes. Inspect outboxStatus() and follow guide/sync/offline-and-retention.md#replay-and-settle-without-guessing.`,
+          details: { atMs: at, ...details },
+          site: typeof details.mutation === 'string' ? details.mutation : undefined,
+        });
+      } catch { /* diagnostic observation cannot own queue behavior */ }
+    }
     this.#notifyOutboxListeners();
+  }
+
+  // @ref LLP 0219#channel-semantics — adapter from LLP 0218 §4.4's stable
+  // relinquishment payload (code, mutation, clientMutationId, sequence,
+  // queueReasonClass, drainMode, firstInSession) into the v2 carrier this
+  // channel owns. Trigger cadence and payload stay 0218's; delivery,
+  // formatting, and coalescing stay here.
+  #bridgeRelinquishmentDevEvent(event) {
+    if (typeof event?.code !== 'string') return;
+    const { code, ...details } = event;
+    try {
+      this.__clientDiagnosticsChannel.emit({
+        schemaVersion: 'snapback.client-diagnostic.v2',
+        code,
+        severity: 'warning',
+        subsystem: 'outbox',
+        message: 'Offline queue rule: queued is pending, not settled. Keep pending UI visible; the provider-owned drain replays it, or drain via useSnapbackOutbox().drainNow() / client.replayQueuedMutations(); see guide/sync/offline-and-retention.md#replay-and-settle-without-guessing.',
+        details,
+        site: typeof details.mutation === 'string' ? details.mutation : undefined,
+      });
+    } catch { /* diagnostics are observational and cannot own dispatch */ }
   }
 
   #emitDevDiagnosticsEvent(event) {
@@ -6335,6 +6492,10 @@ export class SnapbackClient {
 
   get outboxDiagnostics() {
     return [...this.__outboxDiagnostics];
+  }
+
+  diagnosticsChannel() {
+    return this.__clientDiagnosticsChannel;
   }
 
   #notifyOutboxListeners() {

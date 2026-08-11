@@ -355,6 +355,22 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
       ['node', ['scripts/check-package-export-types.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.client-diagnostics.v1.json',
+    profileFilename: 'client-diagnostics-profiles.v1.json',
+    profileIds: Object.freeze([
+      'public-subpath-client-diagnostics',
+      'resolved-public-subpath-client-diagnostics',
+    ]),
+    authorities: Object.freeze([
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0219#channel-semantics',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/client-diagnostics.test.mjs']],
+    ]),
+  }),
 ]);
 
 // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — a real
@@ -2005,6 +2021,97 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/outbox-store.test.mjs']],
       ['node', ['packages/snapback-react/offline.test.mjs']],
       ['node', ['packages/snapback-contract/online-surface.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.client-dev-diagnostics.v1.json',
+    profileFilename: 'sessions-custody-offline-queue-profiles.v1.json',
+    workloadVersion: 'client-dev-diagnostics.2026-08-10.v1',
+    profileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-react-binding',
+      'public-subpath-rqs-registered',
+      'react-core-application',
+      'react-core-capabilities-negative',
+      'react-core-query',
+      'react-external',
+      'react-full-capabilities-positive',
+    ]),
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.outbox-dev-diagnostic-propagation.v1.json',
+        profileIds: Object.freeze([
+          'external-react-application',
+          'react-core-application',
+          'react-core-capabilities-negative',
+          'react-core-query',
+          'react-external',
+          'react-full-capabilities-positive',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.outbox-settlement-react-contract.v1.json',
+        profileIds: Object.freeze(['public-subpath-react-binding']),
+      }),
+      Object.freeze({
+        filename: 'baseline.outbox-drain-controller.v1.json',
+        profileIds: Object.freeze(['public-subpath-rqs-registered']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0219#channel-semantics',
+      'LLP 0219#producers-pilot-scoped-detectors',
+      'LLP 0219#consumers-and-compatibility',
+    ]),
+    rationale: Object.freeze({
+      date: '2026-08-10',
+      landing: 'a0df98620ecf45f9a8d9f5af539cef214ba37793',
+      fix: 'LLP 0219 adds a bounded per-client dev diagnostics channel: '
+        + 'the new @expo/snapback-client/client-diagnostics public subpath, '
+        + 'default dev console reporter and channel-owned queue-wedge condition '
+        + 'wired into the client index, React subscription and presence churn '
+        + 'detectors, useSnapbackDiagnostics()/observeSnapbackDiagnostics(), '
+        + 'and existing React warning reroutes through the channel. The re-land '
+        + 'attaches queued delivery to LLP 0218 P3\'s resolved dispatch union '
+        + 'and provider-owned drain without restoring pre-P3 semantics.',
+      ticket: 'issues/closed/20260809-outbox-silent-queue-dx.md',
+      standingPolicy: 'LLP 0145 Phase A, 2026-08-10 author ruling: attributed '
+        + 'growth from a landed, receipted fix takes an automatic blessed rollover.',
+      byteDeltas: 'external-react-application min 120201->124379 (+4178), '
+        + 'gzip 36362->37615 (+1253), brotli 31731->32778 (+1047); '
+        + 'react-core-application min 65413->69599 (+4186), gzip '
+        + '20329->21593 (+1264), brotli 17804->18917 (+1113); '
+        + 'react-core-capabilities-negative min 75300->80570 (+5270), gzip '
+        + '23232->24751 (+1519), brotli 20231->21630 (+1399); '
+        + 'react-core-query min 64466->68650 (+4184), gzip 20072->21315 '
+        + '(+1243), brotli 17601->18660 (+1059); '
+        + 'react-external min 120003->124181 (+4178), gzip 36288->37552 '
+        + '(+1264), brotli 31659->32740 (+1081); '
+        + 'react-full-capabilities-positive min 68366->68516 (+150), gzip '
+        + '22499->22577 (+78), brotli 19585->19659 (+74).',
+      summary: 'Advance the two legacy React application closures plus the '
+        + 'four core/full composition closures introduced by main\'s React '
+        + 'restructure and grown by LLP 0219\'s channel producers, observers, '
+        + 'hook, and warning reroutes; every other active ceiling and the P3 '
+        + 'predecessor remain immutable.',
+    }),
+    beforeAfterProfileIds: Object.freeze([
+      'external-react-application',
+      'public-subpath-react-binding',
+      'public-subpath-rqs-registered',
+      'react-core-application',
+      'react-core-capabilities-negative',
+      'react-core-query',
+      'react-external',
+      'react-full-capabilities-positive',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/client-diagnostics.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-react/dev-diagnostics.test.mjs']],
     ]),
   }),
 ]);

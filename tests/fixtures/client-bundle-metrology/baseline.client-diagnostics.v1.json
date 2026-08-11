@@ -1,0 +1,181 @@
+{
+  "schemaVersion": "snapback.client-bundle-metrology-supplemental-baseline.v1",
+  "source": {
+    "revision": "a0df98620ecf45f9a8d9f5af539cef214ba37793",
+    "packageTrees": {
+      "packages/snapback-client": "99f8944dd62c0064347dae5a1b65ded4ad56ffbb",
+      "packages/snapback-contract": "7d91518a61642bc96ddb43d10885e247417ee518",
+      "packages/snapback-react": "e29518664b5919f151ab3a60bc3d8874b5a3466f"
+    }
+  },
+  "authorities": [
+    "LLP 0145#phase-a--establish-a-size-ratchet",
+    "LLP 0063#workstream-8--performance-and-packaging-budgets",
+    "LLP 0219#channel-semantics"
+  ],
+  "frozenRule": "prospective additive profile first run; valid ceilings never loosen",
+  "method": {
+    "runtime": {
+      "node": "v24.18.0",
+      "zlib": "1.3.1-e00f703",
+      "brotli": "1.2.0"
+    },
+    "bundler": "esbuild@0.28.1",
+    "bundle": true,
+    "platform": "browser",
+    "format": "esm",
+    "target": "es2022",
+    "minify": true,
+    "treeShaking": true,
+    "legalComments": "none",
+    "conditions": [
+      "browser",
+      "import",
+      "default"
+    ],
+    "gzipLevel": 9,
+    "brotliQuality": 11,
+    "reactExternal": true,
+    "attribution": "esbuild module-own bytesInOutput grouped by stable package boundary"
+  },
+  "inputs": {
+    "profilesSha256": "f2a8565e5132a398ce2208a8f336407040f39a4325f5a11400bda17b8df6b126",
+    "lockfileSha256": "3aa805546ef4b1b35cd89bcdb4ae1c98e9eda9096621e2f76851ed0ed676e2cf"
+  },
+  "behaviorCommands": [
+    "node packages/snapback-client/client-diagnostics.test.mjs"
+  ],
+  "profiles": [
+    {
+      "id": "public-subpath-client-diagnostics",
+      "package": "@expo/snapback-client/client-diagnostics",
+      "fixtureSha256": "dde8d7c5751638a31f4e1cca13f5c5d8dbc6eed8d2be05ee1f11ad19bc7219d9",
+      "externals": [],
+      "minifiedBytes": 12379,
+      "gzipBytes": 4724,
+      "brotliBytes": 4247,
+      "outputSha256": "c769e37f4bf95bdd48e640d898ff2f100d99b80c8036adb4f66028d8b790dbe9",
+      "attribution": {
+        "packages": [
+          {
+            "name": "@expo/snapback-client",
+            "bytes": 12104
+          },
+          {
+            "name": "<fixture>",
+            "bytes": 142
+          }
+        ],
+        "modules": [
+          {
+            "module": "packages/snapback-client/client-diagnostics.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 12104
+          },
+          {
+            "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-client-diagnostics.fixture.mjs",
+            "package": "<fixture>",
+            "bytes": 142
+          }
+        ]
+      },
+      "metafile": {
+        "inputs": {
+          "packages/snapback-client/client-diagnostics.mjs": {
+            "bytes": 27827,
+            "imports": []
+          },
+          "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-client-diagnostics.fixture.mjs": {
+            "bytes": 280,
+            "imports": [
+              {
+                "path": "packages/snapback-client/client-diagnostics.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          }
+        },
+        "output": {
+          "bytes": 12379,
+          "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-client-diagnostics.fixture.mjs",
+          "imports": [],
+          "inputs": {
+            "packages/snapback-client/client-diagnostics.mjs": {
+              "bytesInOutput": 12104
+            },
+            "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-client-diagnostics.fixture.mjs": {
+              "bytesInOutput": 142
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "resolved-public-subpath-client-diagnostics",
+      "package": "@expo/snapback-client/client-diagnostics",
+      "fixtureSha256": "290375e80dffbe2407e8d87fd9001483819ab1bfd992ac05f94907a345f6153f",
+      "externals": [],
+      "resolveOptionalRuntimes": true,
+      "minifiedBytes": 12388,
+      "gzipBytes": 4728,
+      "brotliBytes": 4257,
+      "outputSha256": "0baa101a5937db12e64a3f809b026f659a94fd8286f0ae39a1c37c35de73a50b",
+      "attribution": {
+        "packages": [
+          {
+            "name": "@expo/snapback-client",
+            "bytes": 12104
+          },
+          {
+            "name": "<fixture>",
+            "bytes": 151
+          }
+        ],
+        "modules": [
+          {
+            "module": "packages/snapback-client/client-diagnostics.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 12104
+          },
+          {
+            "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/resolved-public-subpath-client-diagnostics.fixture.mjs",
+            "package": "<fixture>",
+            "bytes": 151
+          }
+        ]
+      },
+      "metafile": {
+        "inputs": {
+          "packages/snapback-client/client-diagnostics.mjs": {
+            "bytes": 27827,
+            "imports": []
+          },
+          "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/resolved-public-subpath-client-diagnostics.fixture.mjs": {
+            "bytes": 289,
+            "imports": [
+              {
+                "path": "packages/snapback-client/client-diagnostics.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          }
+        },
+        "output": {
+          "bytes": 12388,
+          "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/resolved-public-subpath-client-diagnostics.fixture.mjs",
+          "imports": [],
+          "inputs": {
+            "packages/snapback-client/client-diagnostics.mjs": {
+              "bytesInOutput": 12104
+            },
+            "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/resolved-public-subpath-client-diagnostics.fixture.mjs": {
+              "bytesInOutput": 151
+            }
+          }
+        }
+      }
+    }
+  ]
+}

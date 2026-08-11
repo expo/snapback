@@ -19,6 +19,10 @@ import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 
 import {
+  createClientDevConsoleReporter,
+  createClientDiagnosticsChannel,
+} from '../snapback-client/client-diagnostics.mjs';
+import {
   prepareReactBindingForClient,
   activeReactBindingDeploymentIdentity,
   classifyRegeneratedReactReference,
@@ -145,8 +149,11 @@ function createFakeClient(initialGeneration) {
   let served = initialGeneration;
   const liveHandles = [];
   const mutations = [];
+  const diagnosticsChannel = createClientDiagnosticsChannel();
+  const diagnosticsReporter = createClientDevConsoleReporter(diagnosticsChannel);
   const client = {
     liveQuery() {},
+    diagnosticsChannel: () => diagnosticsChannel,
     async inspect() {
       return {
         targetProfileId: 'local-dev-sqlite-ibex',
@@ -193,7 +200,11 @@ function createFakeClient(initialGeneration) {
       return Object.freeze(handle);
     },
     serve(generation) { served = generation; },
-    inspection() { return { liveHandles, mutations }; },
+    disposeDiagnostics() {
+      diagnosticsReporter.dispose();
+      diagnosticsChannel.dispose();
+    },
+    inspection() { return { liveHandles, mutations, diagnosticsChannel }; },
   };
   return client;
 }
@@ -226,6 +237,8 @@ async function waitFor(predicate, label, attempts = 400) {
   const provider = createSnapbackReactProvider(binding, {
     connectionId: 'hmr-a',
     developmentHmr: { timeoutMs: 5_000, pollIntervalMs: 0 },
+    __diagnosticsChurnTransitionThreshold: 1,
+    __diagnosticsChurnWindowMs: 2_000,
   });
   let timelineState = null;
   let aboutState = null;
@@ -298,9 +311,17 @@ async function waitFor(predicate, label, attempts = 400) {
   assert.equal(timelineState.status, 'ready');
   assert.equal(timelineState.data[0].caption, 'second-generation');
   assert.equal(aboutState.status, 'ready', 'continuity survived the handoff');
+  assert.equal(
+    client.inspection().diagnosticsChannel.snapshot().events.filter(
+      (event) => event.code === 'SNAPBACK_REACT_SUBSCRIPTION_CHURN',
+    ).length,
+    0,
+    'the mounted-provider generation handoff is not counted as hook churn',
+  );
 
   await act(async () => { renderer.unmount(); });
   await provider.dispose();
+  client.disposeDiagnostics();
   delete globalThis.__DEV__;
 }
 
@@ -350,6 +371,7 @@ async function waitFor(predicate, label, attempts = 400) {
   );
   await act(async () => { renderer.unmount(); });
   await provider.dispose();
+  client.disposeDiagnostics();
   delete globalThis.__DEV__;
 }
 
@@ -409,6 +431,7 @@ async function waitFor(predicate, label, attempts = 400) {
   console.error = originalConsoleError;
   await act(async () => { renderer.unmount(); });
   await provider.dispose();
+  client.disposeDiagnostics();
   delete globalThis.__DEV__;
 }
 
@@ -466,6 +489,7 @@ async function waitFor(predicate, label, attempts = 400) {
   );
   assert.equal(provider.inspection().generationHandoff, null, 'no handoff ever armed');
   await provider.dispose();
+  client.disposeDiagnostics();
   delete globalThis.__DEV__;
 }
 

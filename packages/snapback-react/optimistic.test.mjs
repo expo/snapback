@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 
+import {
+  createClientDevConsoleReporter,
+  createClientDiagnosticsChannel,
+} from '../snapback-client/client-diagnostics.mjs';
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
 import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import {
@@ -24,6 +28,14 @@ console.warn = (...parts) => {
   }
   originalConsoleWarn(...parts);
 };
+const replayReporter = (channel) => createClientDevConsoleReporter(channel, {
+  console: {
+    warn(line) {
+      if (line.includes('SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT')) console.warn(line);
+    },
+    error() {},
+  },
+});
 const queryContract = {
   kind: 'records',
   record: {
@@ -70,6 +82,8 @@ const functions = Object.freeze({
 function fakeClient() {
   const handles = new Set();
   const attempts = [];
+  const diagnosticsChannel = createClientDiagnosticsChannel();
+  const diagnosticsReporter = replayReporter(diagnosticsChannel);
   const devDiagnosticsEvents = [];
   const mutationListeners = new Map();
   const mutationDispositions = new Map();
@@ -84,6 +98,7 @@ function fakeClient() {
   };
   const client = {
     liveQuery() {},
+    diagnosticsChannel: () => diagnosticsChannel,
     authorityFence: {
       capture: () => authorityEpoch,
       isCurrent: (capture) => capture === authorityEpoch,
@@ -104,6 +119,10 @@ function fakeClient() {
     },
     async authSession() { return { activeMode: 'dev' }; },
     __emitDevDiagnosticsEvent(event) { devDiagnosticsEvents.push(event); },
+    disposeDiagnostics() {
+      diagnosticsReporter.dispose();
+      diagnosticsChannel.dispose();
+    },
     registerAuthBarrierParticipant(participant) {
       barrier = participant;
       return async () => { if (barrier === participant) barrier = null; };
@@ -342,6 +361,7 @@ assert.match(replayWarnings[0], /guide\/recipes\/optimistic-toggle\.md/);
 observer.dispose();
 await flush();
 await provider.dispose();
+client.disposeDiagnostics();
 assert.equal(client.inspection().handles, 0);
 
 async function queuedLayerHarness({ disableStatusSubscription = false } = {}) {
@@ -411,6 +431,7 @@ async function queuedDispatchResolvesGenericRollbackCannotErasePendingLayer() {
   assert.equal(harness.queuedClient.inspection().mutationSubscriptions, 0);
   harness.queuedObserver.dispose();
   await harness.queuedProvider.dispose();
+  harness.queuedClient.disposeDiagnostics();
 }
 await queuedDispatchResolvesGenericRollbackCannotErasePendingLayer();
 
@@ -432,6 +453,7 @@ for (const disposition of ['failed', 'stranded', 'quarantined', 'resultGone']) {
   assert.equal(harness.queuedClient.inspection().mutationSubscriptions, 0);
   harness.queuedObserver.dispose();
   await harness.queuedProvider.dispose();
+  harness.queuedClient.disposeDiagnostics();
 }
 
 // Settlement performed by another writer context arrives only through the
@@ -446,6 +468,7 @@ for (const disposition of ['failed', 'stranded', 'quarantined', 'resultGone']) {
   assert.equal(harness.queuedProvider.inspection().optimisticLayers, 0);
   harness.queuedObserver.dispose();
   await harness.queuedProvider.dispose();
+  harness.queuedClient.disposeDiagnostics();
 }
 
 // Unknown is not settlement evidence: retain and expose an orphan until the
@@ -463,6 +486,7 @@ for (const disposition of ['failed', 'stranded', 'quarantined', 'resultGone']) {
   assert.equal(harness.queuedClient.inspection().mutationSubscriptions, 0);
   harness.queuedObserver.dispose();
   await harness.queuedProvider.dispose();
+  harness.queuedClient.disposeDiagnostics();
 }
 
 // Accepted intent is never rejected by local queued-path bookkeeping.
@@ -482,6 +506,7 @@ for (const disposition of ['failed', 'stranded', 'quarantined', 'resultGone']) {
   await harness.queuedClient.cutAuthority();
   harness.queuedObserver.dispose();
   await harness.queuedProvider.dispose();
+  harness.queuedClient.disposeDiagnostics();
 }
 
 // Provider teardown releases a still-pending durable-status subscription.
@@ -493,6 +518,7 @@ for (const disposition of ['failed', 'stranded', 'quarantined', 'resultGone']) {
   assert.equal(harness.queuedClient.inspection().mutationSubscriptions, 1);
   harness.queuedObserver.dispose();
   await harness.queuedProvider.dispose();
+  harness.queuedClient.disposeDiagnostics();
   assert.equal(harness.queuedClient.inspection().mutationSubscriptions, 0);
 }
 
@@ -538,9 +564,12 @@ const likeFunctions = Object.freeze({
 function fakeSurfacesClient(initialRowsByQuery) {
   const handles = new Set();
   const attempts = [];
+  const diagnosticsChannel = createClientDiagnosticsChannel();
+  const diagnosticsReporter = replayReporter(diagnosticsChannel);
   let dispatches = 0;
   return {
     liveQuery() {},
+    diagnosticsChannel: () => diagnosticsChannel,
     async inspect() {
       return {
         targetProfileId: 'local-dev-sqlite-ibex',
@@ -587,6 +616,10 @@ function fakeSurfacesClient(initialRowsByQuery) {
     },
     emit(name, rows) {
       for (const handle of handles) if (handle.name === name) handle.emit(rows);
+    },
+    disposeDiagnostics() {
+      diagnosticsReporter.dispose();
+      diagnosticsChannel.dispose();
     },
     inspection() { return { attempts, dispatches, handles: handles.size }; },
   };
@@ -663,6 +696,7 @@ assert.equal(replayWarnings.length, 1, 'capture-and-set projections pass the rep
 likeObserver.dispose();
 await flush();
 await likeProvider.dispose();
+likeClient.disposeDiagnostics();
 assert.equal(likeClient.inspection().handles, 0);
 
 // projectRecordFields derives the same recipe shape from one declaration: an
@@ -799,6 +833,7 @@ assert.throws(() => projectRecordFields('p2', { id: 'p3', liked: true }, { idFie
 helperObserver.dispose();
 await flush();
 await helperProvider.dispose();
+helperClient.disposeDiagnostics();
 assert.equal(helperClient.inspection().handles, 0);
 console.warn = originalConsoleWarn;
 
@@ -864,6 +899,7 @@ assert.deepEqual(
 absentObserver.dispose();
 await flush();
 await absentProvider.dispose();
+absentClient.disposeDiagnostics();
 
 // Presence with non-matching fields is not absence evidence: the helper layer
 // remains installed and continues projecting its captured intended values.
@@ -918,6 +954,7 @@ assert.equal(
 dippedObserver.dispose();
 await flush();
 await dippedProvider.dispose();
+dippedClient.disposeDiagnostics();
 
 // Hand-written matchers preserve their complete-receipt semantics, including
 // when they override a matcher obtained by spreading projectRecordFields.
@@ -1056,6 +1093,7 @@ assert.ok(
 customObserver.dispose();
 await flush();
 await customProvider.dispose();
+customClient.disposeDiagnostics();
 
 console.log('optimistic.test.mjs: strand backstop, custom matcher preservation, and confirmed-layer inspection pass');
 
@@ -1125,5 +1163,6 @@ assert.deepEqual(
 queryFirstAbsentObserver.dispose();
 await flush();
 await queryFirstAbsentProvider.dispose();
+queryFirstAbsentClient.disposeDiagnostics();
 
 console.log('optimistic.test.mjs: query-first row-absence confirmation pass');

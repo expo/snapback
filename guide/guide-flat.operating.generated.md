@@ -1166,14 +1166,14 @@ title: Diagnostics and local doctoring
 id: operating.diagnostics
 order: 3
 audience: agent-first
-capabilities: [operating.diagnostics]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0094-wire-envelope-contract.spec.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, src/diagnostic.rs, src/remediation.rs, src/authoring_suggestion.rs, packages/snapback-client/remediation.mjs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime]
-examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs, tests/host_ops_v0.rs]
+capabilities: [operating.diagnostics, clients.dev-diagnostics]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0094-wire-envelope-contract.spec.md, llp/0095-client-lifecycle-and-conformance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, src/diagnostic.rs, src/remediation.rs, src/authoring_suggestion.rs, packages/snapback-client/remediation.mjs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/index.mjs, packages/snapback-cli/runtime-recovery.mjs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/runtime-link-smoke.mjs, scripts/bootstrap-ibex-runtime, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs, packages/snapback-client/client-diagnostics.d.mts, packages/snapback-client/index.mjs, packages/snapback-react/implementation.mjs]
+examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/authoring-validation.test.mjs, tests/host_ops_v0.rs, packages/snapback-client/client-diagnostics.test.mjs, packages/snapback-react/dev-diagnostics-acceptance.test.mjs]
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-commit: HEAD
+reviewed-commit: 5b3122704d59e3792d744a7475462008dad0bade
 ---
 
 # Diagnostics and local doctoring
@@ -1203,6 +1203,63 @@ Public unauthenticated projections intentionally drop `message` and
 `details`, because they can contain source paths, handler text, arguments, or
 operator context. Error envelopes expose the diagnostic at
 `error.diagnostic`; some terminal mutation paths also attach a receipt.
+
+<!-- since: 0.1.19 unreleased -->
+
+> **Unreleased.** The client-side dev diagnostics channel landed after the
+> newest published closure, 0.1.18; use contributor source until a 0.1.19+
+> closure publishes.
+
+## Inspect client-side dev diagnostics
+
+Every `SnapbackClient` owns one bounded, process-local diagnostics channel,
+available from `client.diagnosticsChannel()`. Its carrier is
+`snapback.client-diagnostic.v2` with these exact fields: stable `code`,
+`severity: 'error' | 'warning'`, `subsystem`, human `message`, structured
+`details`, `occurrence: { firstAtMs, lastAtMs, count }`, and optional `site`.
+The legacy `snapback.client-diagnostic.v1` object stays error-only;
+`onDiagnostic` and `inspection().diagnostics` receive v1 projections through
+`projectDiagnosticV1`, so warnings are filtered rather than silently widening
+the frozen carrier.
+
+Call `snapshot()` for the current frozen projection. `events` is bounded
+history (256 entries by default). `activeConditions` is a separate keyed map
+(64 entries by default) for conditions that are true now, such as an unchanged
+durable queue head past its wedge deadline; history eviction does not clear a
+condition. `counters.emitted` counts event emission attempts,
+`counters.coalesced` counts repeats merged by code/site inside their cooldown,
+and `counters.dropped` counts capacity eviction or post-disposal/condition-cap
+drops. `subscribe(listener)` observes later emissions and condition changes;
+read `snapshot()` first when you need initial state. A condition clear notifies
+with `null` so consumers re-read the snapshot.
+
+The default line reporter subscribes only when development is positively
+identified: `__DEV__ === true`, a live bundler HMR host, or explicit
+`NODE_ENV === 'development'`. Missing production markers are not proof of
+development, and production never enables this reporter by default. Set
+`devDiagnosticsReporter: false` to opt out even in development. Reporter
+deduplication changes console volume only; every structured occurrence remains
+accounted for by the channel.
+
+Redaction is structural, not a best-effort scrub of rendered prose. The channel
+admits bounded plain-data shapes and safe error summaries, caps strings,
+entries, and depth, rejects functions/promises/exotic objects, and drops
+payload-bearing keys such as args, inputs, payloads, presence values,
+credentials, tokens, headers, and bodies. Producers contribute only
+payload-safe scalar facts such as queue depth/age/sequence, transition counts,
+generated-reference names, hashed canonical-input identity, and the
+development-only hook site; transport provenance may be one string or a
+bounded list of strings. Raw mutation arguments, presence values, credentials,
+and application payloads never belong here.
+
+For agent inspection, prefer the structured surface over console scraping:
+headless agents read `diagnosticsChannel().snapshot()` or subscribe directly;
+React-aware tools use `observeSnapbackDiagnostics(provider, listener)`; UI can
+render the same object with `useSnapbackDiagnostics()`. These are projections
+of one client-owned channel, not backend telemetry, and their history dies with
+the client process. The [React guide](../clients/react.md#inspect-client-dev-diagnostics)
+and [offline guide](../sync/offline-and-retention.md#keep-a-queued-react-mutation-pending)
+show the shipped churn and queued/wedged producers.
 
 ## Use candidates from the served generation
 

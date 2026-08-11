@@ -6,6 +6,7 @@ import {
   LIVE_RECONNECT_BASE_DELAY_MS,
   LIVE_RECONNECT_MAX_DELAY_MS,
   handoffPreparedReactBindingGeneration,
+  preparedReactBindingClient,
 } from '@expo/snapback-client';
 
 const LIVE_HOOK_ARGS_CHURN_WARNING_RENDERS = 5;
@@ -14,12 +15,17 @@ let liveHookArgs = null;
 // Invoked only after index.mjs positively identifies a development runtime.
 // State is keyed by the hook's existing subscription-lease ref, so no extra
 // React hook is required and unmounted sites remain weakly held.
+// @ref LLP 0219#consumers-and-compatibility — LLP 0043 M1's identity-churn
+// memoization advisory keeps its 5-consecutive-render, warn-once semantics;
+// only its delivery moves into the bound client's diagnostics channel, with
+// the direct console line preserved as the no-channel fallback.
 export function diagnoseLiveHookArgsIdentity({
   hookRef,
   reference,
   args,
   argsKey,
   site,
+  diagnosticsChannel = null,
 }) {
   liveHookArgs ??= new WeakMap();
   const previous = liveHookArgs.get(hookRef) ?? null;
@@ -31,16 +37,36 @@ export function diagnoseLiveHookArgsIdentity({
   const warned = changedIdentity && sameValue ? previous.warned : false;
   if (consecutiveRenders >= LIVE_HOOK_ARGS_CHURN_WARNING_RENDERS && !warned) {
     const functionName = reference?.name ?? reference?.id ?? String(reference ?? 'unknown');
-    console.warn(
-      `[Snapback] useSnapbackQuery(${functionName}) received a new args object with unchanged contents for ${LIVE_HOOK_ARGS_CHURN_WARNING_RENDERS} consecutive renders. Memoize the args object at this hook site.`,
-      Object.freeze({
+    const message = `useSnapbackQuery(${functionName}) received a new args object with unchanged contents for ${LIVE_HOOK_ARGS_CHURN_WARNING_RENDERS} consecutive renders. Memoize the args object at this hook site. See guide/clients/react.md.`;
+    let delivered = false;
+    try {
+      delivered = diagnosticsChannel?.emit?.({
+        schemaVersion: 'snapback.client-diagnostic.v2',
         code: 'SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN',
-        hook: 'useSnapbackQuery',
-        function: functionName,
-        consecutiveRenders,
-        site,
-      }),
-    );
+        severity: 'warning',
+        subsystem: 'react',
+        message,
+        details: {
+          hook: 'useSnapbackQuery',
+          referenceName: functionName,
+          consecutiveRenders,
+          callSite: typeof site === 'string' ? site.split('\n').slice(1, 3).join(' | ') : undefined,
+        },
+        site: typeof site === 'string' ? `${functionName}:args-identity` : undefined,
+      }) != null;
+    } catch { /* the console fallback below must survive diagnostics failure */ }
+    if (!delivered) {
+      console.warn(
+        `[Snapback] ${message}`,
+        Object.freeze({
+          code: 'SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN',
+          hook: 'useSnapbackQuery',
+          function: functionName,
+          consecutiveRenders,
+          site,
+        }),
+      );
+    }
   }
   liveHookArgs.set(hookRef, {
     args,
@@ -50,13 +76,28 @@ export function diagnoseLiveHookArgsIdentity({
   });
 }
 
-export function triggerControlledDevelopmentReload(failure, developmentHmr) {
-  console.error(
-    `${failure.code}: ${failure.message} (reason: ${failure.details?.reason ?? 'unknown'}). `
+export function triggerControlledDevelopmentReload(
+  failure,
+  developmentHmr,
+  diagnosticsChannel = null,
+) {
+  const message = `${failure.message} (reason: ${failure.details?.reason ?? 'unknown'}). `
     + 'Snapback is triggering a full dev reload so the mounted provider realigns with the '
     + 'regenerated api module. If no reload mechanism is available on this host, reload '
-    + 'manually (press "r" in the Metro terminal or refresh the page).',
-  );
+    + 'manually (press "r" in the Metro terminal or refresh the page).';
+  let delivered = false;
+  try {
+    delivered = diagnosticsChannel?.emit?.({
+      schemaVersion: 'snapback.client-diagnostic.v2',
+      code: failure.code,
+      severity: 'error',
+      subsystem: 'react',
+      message,
+      details: failure.details,
+      site: 'react-runtime:hmr-reload',
+    }) != null;
+  } catch { /* the console fallback below must survive diagnostics failure */ }
+  if (!delivered) console.error(`${failure.code}: ${message}`);
   try {
     if (typeof developmentHmr?.onReloadRequired === 'function') {
       developmentHmr.onReloadRequired(failure);
@@ -67,7 +108,16 @@ export function triggerControlledDevelopmentReload(failure, developmentHmr) {
   try { globalThis.location?.reload?.(); } catch { /* best effort */ }
 }
 
-export async function runDevelopmentHmrHandoff(binding, target, developmentHmr) {
+export async function runDevelopmentHmrHandoff(
+  binding,
+  target,
+  developmentHmr,
+  diagnosticsChannel = null,
+) {
+  if (diagnosticsChannel === null) {
+    try { diagnosticsChannel = preparedReactBindingClient(binding).diagnosticsChannel?.() ?? null; }
+    catch { diagnosticsChannel = null; }
+  }
   let outcome;
   try {
     outcome = await handoffPreparedReactBindingGeneration(binding, target, {
@@ -96,7 +146,7 @@ export async function runDevelopmentHmrHandoff(binding, target, developmentHmr) 
       ...(outcome?.cause === undefined ? {} : { cause: outcome.cause }),
     }),
   });
-  triggerControlledDevelopmentReload(failure, developmentHmr);
+  triggerControlledDevelopmentReload(failure, developmentHmr, diagnosticsChannel);
   return {
     ...outcome,
     failure,
@@ -196,6 +246,8 @@ export function warnIfReplayDivergent({
   store,
   initialProjection,
   validateResultContract,
+  diagnosticsChannel,
+  providerInstanceId,
 }) {
   const key = `${mutationReference.id}\u0000${queryReference.id}`;
   if (replayAdvisoryKeys.has(key)) return;
@@ -214,12 +266,34 @@ export function warnIfReplayDivergent({
       + `(${error?.code ?? error?.message ?? String(error)})`;
   }
   if (detail === null) return;
+  // @ref LLP 0219#consumers-and-compatibility — keep LLP 0107's normative
+  // once-per-(mutation, query)-pair-per-provider pin; only its delivery
+  // surface moves from direct console output into the bound client channel.
   replayAdvisoryKeys.add(key);
-  console.warn(
-    `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT: the optimistic update for ${mutationReference.name} `
-    + `over ${queryReference.name} ${detail}. Optimistic updates are replayable projections over an `
-    + 'evolving authoritative base: capture the intended outcome and set it (or use '
-    + 'projectRecordFields) instead of toggling or incrementing the incoming rows. See '
-    + 'guide/recipes/optimistic-toggle.md.',
-  );
+  const message = `Optimistic replay rule: the update for ${mutationReference.name} over ${queryReference.name} ${detail}. Optimistic updates are replayable projections over an evolving authoritative base; capture the intended outcome and set it (or use projectRecordFields) instead of toggling or incrementing incoming rows. See guide/recipes/optimistic-toggle.md.`;
+  let delivered = false;
+  try {
+    delivered = diagnosticsChannel?.emit?.({
+      schemaVersion: 'snapback.client-diagnostic.v2',
+      code: 'SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT',
+      severity: 'warning',
+      subsystem: 'react',
+      message,
+      details: {
+        mutationReference: mutationReference.name,
+        queryReference: queryReference.name,
+        observedReplay: detail,
+      },
+      site: `${providerInstanceId}:${mutationReference.id}:${queryReference.id}`,
+    }) != null;
+  } catch { /* advisory delivery never owns optimistic settlement */ }
+  if (!delivered) {
+    console.warn(
+      `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT: the optimistic update for ${mutationReference.name} `
+      + `over ${queryReference.name} ${detail}. Optimistic updates are replayable projections over an `
+      + 'evolving authoritative base: capture the intended outcome and set it (or use '
+      + 'projectRecordFields) instead of toggling or incrementing the incoming rows. See '
+      + 'guide/recipes/optimistic-toggle.md.',
+    );
+  }
 }

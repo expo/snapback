@@ -40,7 +40,10 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // Bumped 52224 -> 52736 on 2026-08-10 for the LLP 0220 D2 backend.assets
 // citations (view-once demo witness, recipe doc path, llp/0220): the page
 // had 28 bytes of headroom before the mandated additions.
-const CAPABILITIES_SIZE_BUDGET_BYTES = 52736;
+// Bumped 52736 -> 53760 on 2026-08-10 for LLP 0219's one new
+// clients.dev-diagnostics row; the restructured main left insufficient room
+// for the required witness, aliases, authorities, and Guide destination.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 53760;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

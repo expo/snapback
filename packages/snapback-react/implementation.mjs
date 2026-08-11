@@ -33,6 +33,10 @@ import {
   canonicalizeClientValueV1,
   canonicalReactStoreKeyV1,
 } from '@expo/snapback-client/canonical-client-value';
+import {
+  positiveDevelopmentEnvironment,
+  projectDiagnosticV1,
+} from '@expo/snapback-client/client-diagnostics';
 import { placeholderToDataURL, thumbHashToApproximateAspectRatio } from './thumbhash.mjs';
 
 // @ref LLP 0114#prepared-binding-and-provider-ownership — the provider owns
@@ -52,7 +56,8 @@ const PRESENCE_CONSUMER_CAP = 256;
 const PRESENCE_PUBLISHER_CAP = 64;
 const OPTIMISTIC_LAYER_CAP = 256;
 const REACT_RUNTIME_FALLBACK_RETRY_MS = 250;
-const QUEUED_MUTATION_WEDGE_WARNING_MS = 30_000;
+const DEFAULT_HOOK_CHURN_TRANSITION_THRESHOLD = 8;
+const DEFAULT_HOOK_CHURN_WINDOW_MS = 2_000;
 const DEFAULT_OUTBOX_DRAIN_OPTIONS = Object.freeze({});
 const providerContext = createContext(null);
 let providerSequence = 0;
@@ -67,27 +72,15 @@ const localUniqueLabel = () => globalThis.crypto?.randomUUID?.()
   ?? `${Date.now().toString(36)}-${(localLabelSequence += 1).toString(36)}-${Math.random().toString(36).slice(2)}`;
 const preparedGroupReadersByRegistry = new WeakMap();
 const providerOutboxDrainStates = new WeakMap();
+const hookDiagnosticsOptionsByProvider = new WeakMap();
 
 function preparedGroupForProvider(provider) {
   return preparedGroupReadersByRegistry.get(provider.registry)?.() ?? null;
 }
 
-// Positive development/HMR identification for the mounted-provider generation
-// handoff. Recovery arms only when the host AFFIRMATIVELY identifies itself
-// as a development environment: Metro/React Native's compile-time `__DEV__`,
-// a live bundler HMR host (`import.meta.hot` / `module.hot`), or an explicit
-// NODE_ENV of 'development'. Absence of production markers is never treated
-// as development, so release builds keep the strict uncaught refusal.
-// @ref LLP 0114#mounted-provider-hmr-generation-handoff-dated-amendment-2026-08-05
-/* global __DEV__ */
-const positiveDevelopmentEnvironment = () => {
-  if (typeof __DEV__ === 'boolean') return __DEV__ === true;
-  if (import.meta.hot != null) return true;
-  if (typeof module !== 'undefined' && module?.hot != null) return true;
-  return typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
-};
-
 const HANDOFF_DEFERRED_REFERENCE = Symbol('snapback.react.hmr-deferred-reference.v1');
+const HOOK_CHURN_UNINITIALIZED = Symbol('snapback.react.hook-churn-uninitialized');
+const HOOK_CHURN_DISABLED = Symbol('snapback.react.hook-churn-disabled');
 const HANDOFF_PENDING = Object.freeze({
   status: 'pending',
   data: undefined,
@@ -124,6 +117,164 @@ function diagnosticError(code, message, details = {}) {
   error.code = code;
   error.diagnostic = value;
   return error;
+}
+
+function diagnosticsChannelForClient(client) {
+  try {
+    const channel = client?.diagnosticsChannel?.();
+    return channel
+      && typeof channel.emit === 'function'
+      && typeof channel.subscribe === 'function'
+      && typeof channel.snapshot === 'function'
+      ? channel
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function emitReactDiagnostic(channel, event) {
+  if (channel === null) return false;
+  try {
+    return channel.emit({
+      schemaVersion: 'snapback.client-diagnostic.v2',
+      subsystem: 'react',
+      ...event,
+    }) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function hookDiagnosticsOptions(options) {
+  const transitionThreshold = options.__diagnosticsChurnTransitionThreshold
+    ?? DEFAULT_HOOK_CHURN_TRANSITION_THRESHOLD;
+  const windowMs = options.__diagnosticsChurnWindowMs ?? DEFAULT_HOOK_CHURN_WINDOW_MS;
+  if (!Number.isSafeInteger(transitionThreshold) || transitionThreshold < 1) {
+    throw new TypeError('__diagnosticsChurnTransitionThreshold must be a positive safe integer');
+  }
+  if (!Number.isFinite(windowMs) || windowMs < 0) {
+    throw new TypeError('__diagnosticsChurnWindowMs must be a non-negative finite number');
+  }
+  return Object.freeze({ transitionThreshold, windowMs });
+}
+
+function captureHookCallSite() {
+  const stack = new Error().stack;
+  if (typeof stack !== 'string') return '<unknown application hook site>';
+  const frames = stack.split('\n').slice(1);
+  for (const entry of frames) {
+    const frame = entry.trim();
+    if (
+      frame.length === 0
+      || frame.includes(import.meta.url)
+      || frame.startsWith('at captureHookCallSite ')
+      || frame.startsWith('captureHookCallSite@')
+      || frame.startsWith('at createHookChurnDetector ')
+      || frame.startsWith('createHookChurnDetector@')
+      || frame.startsWith('at useSnapbackQuery ')
+      || frame.startsWith('useSnapbackQuery@')
+      || frame.startsWith('at useSnapbackPresence ')
+      || frame.startsWith('useSnapbackPresence@')
+      || frame.includes('/node_modules/react/')
+      || frame.includes('/node_modules/react-test-renderer/')
+      || frame.includes('node:internal')
+    ) continue;
+    return frame.startsWith('at ') ? frame.slice(3) : frame;
+  }
+  return '<unknown application hook site>';
+}
+
+function createHookChurnDetector(provider, hookKind) {
+  if (!positiveDevelopmentEnvironment()) return HOOK_CHURN_DISABLED;
+  let channel = null;
+  try {
+    channel = diagnosticsChannelForClient(preparedReactBindingClient(provider.binding));
+  } catch { /* legacy/fake providers have no bound client channel */ }
+  if (channel === null) return HOOK_CHURN_DISABLED;
+  const config = hookDiagnosticsOptionsByProvider.get(provider)
+    ?? Object.freeze({
+      transitionThreshold: DEFAULT_HOOK_CHURN_TRANSITION_THRESHOLD,
+      windowMs: DEFAULT_HOOK_CHURN_WINDOW_MS,
+    });
+  return {
+    channel,
+    hookKind,
+    callSite: captureHookCallSite(),
+    transitionThreshold: config.transitionThreshold,
+    windowMs: config.windowMs,
+    committed: false,
+    primaryIdentity: null,
+    secondaryIdentity: null,
+    transitionTimes: new Array(config.transitionThreshold),
+    transitionCount: 0,
+    transitionCursor: 0,
+  };
+}
+
+function recordCommittedHookDescriptor(
+  detector,
+  { primaryIdentity, secondaryIdentity = null, referenceName, hmrHandoff = false },
+) {
+  if (detector === HOOK_CHURN_DISABLED) return;
+  // @ref LLP 0219#producers-pilot-scoped-detectors — a transition is a
+  // committed descriptor-identity change. Same-descriptor Strict Mode
+  // unsubscribe/resubscribe and the mounted-provider HMR handoff are excluded.
+  if (hmrHandoff || primaryIdentity === null) {
+    detector.committed = false;
+    detector.primaryIdentity = null;
+    detector.secondaryIdentity = null;
+    return;
+  }
+  if (!detector.committed) {
+    detector.committed = true;
+    detector.primaryIdentity = primaryIdentity;
+    detector.secondaryIdentity = secondaryIdentity;
+    return;
+  }
+  if (
+    detector.primaryIdentity === primaryIdentity
+    && detector.secondaryIdentity === secondaryIdentity
+  ) return;
+  detector.primaryIdentity = primaryIdentity;
+  detector.secondaryIdentity = secondaryIdentity;
+
+  const atMs = Date.now();
+  detector.transitionTimes[detector.transitionCursor] = atMs;
+  detector.transitionCursor = (
+    detector.transitionCursor + 1
+  ) % detector.transitionThreshold;
+  detector.transitionCount = Math.min(
+    detector.transitionCount + 1,
+    detector.transitionThreshold,
+  );
+  if (detector.transitionCount < detector.transitionThreshold) return;
+  const firstAtMs = detector.transitionTimes[detector.transitionCursor];
+  const elapsedMs = Math.max(0, atMs - firstAtMs);
+  if (elapsedMs > detector.windowMs) return;
+
+  const hookName = detector.hookKind === 'query'
+    ? 'useSnapbackQuery'
+    : 'useSnapbackPresence';
+  const code = detector.hookKind === 'query'
+    ? 'SNAPBACK_REACT_SUBSCRIPTION_CHURN'
+    : 'SNAPBACK_REACT_PRESENCE_PUBLISH_CHURN';
+  const site = `${detector.callSite} :: ${referenceName}`;
+  emitReactDiagnostic(detector.channel, {
+    code,
+    severity: 'warning',
+    message: `React live-hook stability rule: ${hookName} arguments must remain stable or content-equal across renders. Observed ${detector.transitionThreshold} committed ${detector.hookKind} descriptor transitions in ${elapsedMs}ms for ${referenceName}. Memoize or hoist the hook arguments; content-keying means only genuinely-changing inputs churn. See guide/clients/react.md.`,
+    details: {
+      hookKind: detector.hookKind,
+      referenceName,
+      transitionCount: detector.transitionThreshold,
+      windowElapsedMs: elapsedMs,
+      windowMs: detector.windowMs,
+      transitionThreshold: detector.transitionThreshold,
+      callSite: detector.callSite,
+    },
+    site,
+  });
 }
 
 /**
@@ -306,6 +457,7 @@ function assertProvider(provider) {
 
 function createRegistry(binding, providerInstanceId, options = {}) {
   const client = preparedReactBindingClient(binding);
+  const clientDiagnosticsChannel = diagnosticsChannelForClient(client);
   const stores = new Map();
   const rooms = new Map();
   const leases = new Set();
@@ -316,19 +468,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const loadReactRuntime = typeof options.__loadReactRuntime === 'function'
     ? options.__loadReactRuntime
     : () => import('./react-runtime.mjs');
-  const queuedMutationWedgeWarningMs = Number.isFinite(
-    options.__queuedMutationWedgeWarningMs,
-  ) && options.__queuedMutationWedgeWarningMs >= 0
-    ? options.__queuedMutationWedgeWarningMs
-    : QUEUED_MUTATION_WEDGE_WARNING_MS;
-  const queuedMutationWarningTimers = new Set();
-  let queuedMutationPromotionEmitted = false;
-  const queuedMutationDrainMode = () => {
-    const mode = typeof options.__outboxDrainMode === 'function'
-      ? options.__outboxDrainMode()
-      : options.outboxDrain ?? 'none';
-    return mode === 'auto' || mode === 'manual' ? mode : 'none';
-  };
   let preparedGroup = options.preparedGroup ?? null;
   if (preparedGroup !== null && !isPreparedReactQueryGroup(preparedGroup)) {
     throw diagnosticError(
@@ -416,9 +555,27 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }
   };
   const recordDiagnostic = (error) => {
-    diagnostics.push(serializeError(error));
+    const serialized = serializeError(error);
+    const projected = serialized?.schemaVersion === 'snapback.client-diagnostic.v1'
+      ? serialized
+      : projectDiagnosticV1(serialized);
+    const legacy = projected ?? diagnostic(
+      serialized?.code ?? error?.code ?? 'SNAPBACK_REACT_QUERY_FAILED',
+      serialized?.message ?? (error instanceof Error ? error.message : String(error)),
+      serialized?.details ?? {},
+    );
+    diagnostics.push(legacy);
     if (diagnostics.length > 64) diagnostics.shift();
-    try { options.onDiagnostic?.(diagnostics.at(-1)); } catch { /* observational */ }
+    // @ref LLP 0219#consumers-and-compatibility — the 64-entry inspection
+    // ring and onDiagnostic remain frozen v1 projections while the same error
+    // fact also enters the bound client's v2 diagnostics channel.
+    emitReactDiagnostic(clientDiagnosticsChannel, {
+      code: legacy.code,
+      severity: 'error',
+      message: legacy.message,
+      details: legacy.details,
+    });
+    try { options.onDiagnostic?.(legacy); } catch { /* observational */ }
     notifyConnection();
   };
   const retireUnadoptedPreparedSubscriptions = () => {
@@ -1234,6 +1391,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   // over its own output is action-shaped (toggle/increment) and would re-run
   // the user action during rebase. Observational only — warns once per
   // (mutation, query) pair and never changes admission or layer state.
+  // @ref LLP 0219#consumers-and-compatibility — rerouting through the bound
+  // client channel preserves LLP 0107's once-per-pair-per-provider pin.
   const replayAdvisoryKeys = new Set();
   const warnIfReplayDivergent = (
     mutationReference,
@@ -1250,6 +1409,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         store,
         initialProjection,
         validateResultContract,
+        diagnosticsChannel: clientDiagnosticsChannel,
+        providerInstanceId,
       })).catch(recordDiagnostic);
     return;
     const key = `${mutationReference.id} ${queryReference.id}`;
@@ -1284,56 +1445,31 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   // relinquishment reason class, and provider-owned drain mode.
   const promoteQueuedMutationDiagnostic = (mutationReference, outcome) => {
     if (!positiveDevelopmentEnvironment()) return;
-    const queuedDiagnostic = [...(client.outboxDiagnostics ?? [])].reverse().find((entry) => (
-      entry?.clientMutationId === outcome.clientMutationId
-      && typeof entry?.queueReasonClass === 'string'
-    )) ?? null;
-    const queueReasonClass = outcome.queueReasonClass
-      ?? queuedDiagnostic?.queueReasonClass
-      ?? 'connectivity';
-    const drainMode = queuedMutationDrainMode();
-    if (!queuedMutationPromotionEmitted) {
-      queuedMutationPromotionEmitted = true;
+    // @ref LLP 0219#consumers-and-compatibility — this is a compatibility
+    // projection of SNAPBACK_OFFLINE_MUTATION_QUEUED. The shared
+    // clientMutationId is the reporter's queued-pair dedup key. React does not
+    // schedule a wedge timer; the client channel owns that condition.
+    const delivered = emitReactDiagnostic(clientDiagnosticsChannel, {
+      code: 'SNAPBACK_REACT_MUTATION_QUEUED',
+      severity: 'warning',
+      message: `Offline queue compatibility rule: mutation "${mutationReference.name}" is durably queued, so settlement remains pending. Keep pending UI visible and replay via useSnapbackOutbox().drainNow(); roll back only for a declared server refusal. See guide/sync/offline-and-retention.md#replay-and-settle-without-guessing.`,
+      details: {
+        mutation: mutationReference.name,
+        queued: true,
+        clientMutationId: outcome.clientMutationId,
+        sequence: outcome.sequence,
+        status: 'queued',
+        presentation: outcome.presentation,
+      },
+      site: `${mutationReference.name}:${outcome.clientMutationId}`,
+    });
+    if (!delivered) {
       console.warn(
-        `SNAPBACK_REACT_MUTATION_QUEUED: mutation "${mutationReference.name}" queued instead of `
-        + `settling (queue reason class: ${queueReasonClass}; drain mode: ${drainMode}; `
-        + `clientMutationId: ${outcome.clientMutationId}; sequence: ${outcome.sequence}). `
-        + 'Keep pending UI until replay settles it, and roll back only for a declared server '
-        + 'refusal carrying appCode.',
+        `SNAPBACK_REACT_MUTATION_QUEUED: mutation "${mutationReference.name}" was durably queued as `
+        + `${outcome.clientMutationId} (sequence ${outcome.sequence}); keep pending UI until `
+        + 'the provider-owned drain settles it, and roll back only for a declared server refusal.',
       );
     }
-
-    // The first-in-session promotion is separately deduplicated above. Every
-    // queued dispatch keeps the existing wedge timer so a later stuck queue
-    // remains observable even after the loud promotion has already fired.
-    const timer = setTimeout(async () => {
-      queuedMutationWarningTimers.delete(timer);
-      if (terminal) return;
-      const progressed = (client.outboxDiagnostics ?? []).some((entry) => (
-        entry?.clientMutationId === outcome.clientMutationId
-        && ![
-          'SNAPBACK_OFFLINE_MUTATION_QUEUED',
-          'SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED',
-        ].includes(entry.code)
-      ));
-      if (progressed || typeof client.outboxStatus !== 'function') return;
-      let status;
-      try {
-        status = await client.outboxStatus();
-      } catch {
-        return;
-      }
-      if (terminal || status?.supported !== true || status.pending === 0) return;
-      console.warn(
-        `SNAPBACK_REACT_MUTATION_QUEUE_WEDGED: the durable queue still has pending work `
-        + `${queuedMutationWedgeWarningMs}ms after mutation "${mutationReference.name}" `
-        + `(${outcome.clientMutationId}, sequence ${outcome.sequence}) was queued; the bounded `
-        + 'diagnostic history does not prove whether that specific mutation remains pending. '
-        + 'Inspect useSnapbackOutbox() and the original connectivity refusal.',
-      );
-    }, queuedMutationWedgeWarningMs);
-    timer?.unref?.();
-    queuedMutationWarningTimers.add(timer);
   };
 
   const emitQueuedPresentationDiagnostic = (mutationReference, outcome, code, cause) => {
@@ -2685,12 +2821,20 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
 
   const triggerControlledDevelopmentReload = (failure) => {
-    console.error(
-      `${failure.code}: ${failure.message} (reason: ${failure.details?.reason ?? 'unknown'}). `
+    const reloadMessage = `${failure.message} (reason: ${failure.details?.reason ?? 'unknown'}). `
       + 'Snapback is triggering a full dev reload so the mounted provider realigns with the '
       + 'regenerated api module. If no reload mechanism is available on this host, reload '
-      + 'manually (press "r" in the Metro terminal or refresh the page).',
-    );
+      + 'manually (press "r" in the Metro terminal or refresh the page).';
+    const delivered = emitReactDiagnostic(clientDiagnosticsChannel, {
+      code: failure.code,
+      severity: 'error',
+      message: reloadMessage,
+      details: failure.details,
+      site: `provider:${providerInstanceId}:hmr-reload`,
+    });
+    // A reload notice is failure-recovery infrastructure: if the bound client
+    // has no reachable diagnostics channel, preserve one direct fallback.
+    if (!delivered) console.error(`${failure.code}: ${reloadMessage}`);
     try {
       if (typeof developmentHmr?.onReloadRequired === 'function') {
         developmentHmr.onReloadRequired(failure);
@@ -3185,8 +3329,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       terminal = true;
       custodyPaused = true;
       hostPaused = true;
-      for (const timer of queuedMutationWarningTimers) clearTimeout(timer);
-      queuedMutationWarningTimers.clear();
       const ownsUnadoptedRegisteredOwner = preparedGroup?.connectionId === connectionId
         && (
           preparedRegistrations.size > 0
@@ -3254,6 +3396,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
 
 export function createSnapbackReactFullProvider(binding, options = {}) {
   const prepared = assertPreparedReactBinding(binding);
+  const devHookDiagnostics = hookDiagnosticsOptions(options);
   const client = preparedReactBindingClient(prepared);
   const providerInstanceId = `provider-${++providerSequence}-${localUniqueLabel()}`;
   let registry = null;
@@ -3422,11 +3565,13 @@ export function createSnapbackReactFullProvider(binding, options = {}) {
       return client.replayQueuedMutations();
     },
   }));
+  hookDiagnosticsOptionsByProvider.set(provider, devHookDiagnostics);
   return Object.freeze(provider);
 }
 
 export function createSnapbackReactCoreProvider(binding, options = {}) {
   const prepared = assertPreparedReactBinding(binding);
+  const devHookDiagnostics = hookDiagnosticsOptions(options);
   const providerInstanceId = `provider-${++providerSequence}-${localUniqueLabel()}`;
   let registry = null;
   let disposePromise = null;
@@ -3466,6 +3611,7 @@ export function createSnapbackReactCoreProvider(binding, options = {}) {
       return disposePromise;
     },
   };
+  hookDiagnosticsOptionsByProvider.set(provider, devHookDiagnostics);
   return Object.freeze(provider);
 }
 
@@ -3581,6 +3727,10 @@ const canonicalHookInputKey = (value) => (
 export function useSnapbackQuery(reference, args) {
   const provider = useProvider();
   const lease = useRef(null);
+  const churnDetectorRef = useRef(HOOK_CHURN_UNINITIALIZED);
+  if (churnDetectorRef.current === HOOK_CHURN_UNINITIALIZED) {
+    churnDetectorRef.current = createHookChurnDetector(provider, 'query');
+  }
   const argsKey = canonicalHookInputKey(args);
   if (
     positiveDevelopmentEnvironment()
@@ -3590,8 +3740,13 @@ export function useSnapbackQuery(reference, args) {
   ) {
     // Development-only diagnostics share the existing lazy failure/HMR
     // runtime. The production entry allocates no detector state or hook; the
-    // existing lease ref supplies stable mounted-hook identity.
+    // existing lease ref supplies stable mounted-hook identity. Delivery
+    // rides the bound client's diagnostics channel when one exists
+    // (LLP 0219), with the LLP 0043 M1 semantics unchanged.
     const site = new Error('Snapback live-hook args allocation site').stack ?? null;
+    const identityChurnChannel = churnDetectorRef.current === HOOK_CHURN_DISABLED
+      ? null
+      : churnDetectorRef.current.channel;
     void import('./react-runtime.mjs').then((module) => {
       module.diagnoseLiveHookArgsIdentity({
         hookRef: lease,
@@ -3599,6 +3754,7 @@ export function useSnapbackQuery(reference, args) {
         args,
         argsKey,
         site,
+        diagnosticsChannel: identityChurnChannel,
       });
     }).catch(() => {});
   }
@@ -3609,6 +3765,11 @@ export function useSnapbackQuery(reference, args) {
   const subscribe = useCallback((listener) => {
     const next = provider.registry.subscribe(descriptor, listener, lease.current);
     lease.current = next;
+    recordCommittedHookDescriptor(churnDetectorRef.current, {
+      primaryIdentity: descriptor.key,
+      referenceName: descriptor.reference?.name ?? reference?.name ?? '<unknown query>',
+      hmrHandoff: descriptor.handoff !== undefined,
+    });
     return () => {
       const releasing = next;
       queueMicrotask(() => {
@@ -3632,6 +3793,10 @@ export function useSnapbackPresence(reference, options) {
   const tokenRef = useRef(null);
   if (tokenRef.current === null) tokenRef.current = provider.registry.createPresenceToken();
   const token = tokenRef.current;
+  const churnDetectorRef = useRef(HOOK_CHURN_UNINITIALIZED);
+  if (churnDetectorRef.current === HOOK_CHURN_UNINITIALIZED) {
+    churnDetectorRef.current = createHookChurnDetector(provider, 'presence');
+  }
   const scopeKey = canonicalHookInputKey(options.scope);
   const valueKey = canonicalHookInputKey(options.value);
   const descriptor = useMemo(
@@ -3645,8 +3810,15 @@ export function useSnapbackPresence(reference, options) {
   );
   const subscribe = useCallback((listener) => {
     const lease = provider.registry.subscribePresence(descriptor, token, listener);
+    recordCommittedHookDescriptor(churnDetectorRef.current, {
+      primaryIdentity: descriptor.key,
+      secondaryIdentity: valueKey,
+      referenceName: descriptor.definition?.reference?.name
+        ?? reference?.name
+        ?? '<unknown presence>',
+    });
     return () => lease.release();
-  }, [provider, descriptor, token]);
+  }, [provider, descriptor, token, valueKey]);
   return useSyncExternalStore(
     subscribe,
     () => provider.registry.presenceSnapshot(descriptor, token),
@@ -4524,6 +4696,65 @@ export function invokeSnapbackCommand(providerValue, reference, args) {
   const provider = assertProvider(providerValue);
   const admitted = admittedReactCommand(provider.binding, reference);
   return commandClientFor(provider).start(admitted, args);
+}
+
+// ---------------------------------------------------------------------------
+// Client diagnostics (LLP 0219). React owns only the provider-bound
+// useSyncExternalStore projection; the client channel owns history,
+// coalescing, active conditions, reporters, and deadline scheduling.
+
+const diagnosticsStores = new WeakMap();
+
+function diagnosticsStoreFor(provider) {
+  let store = diagnosticsStores.get(provider);
+  if (store) return store;
+  let client;
+  try { client = preparedReactBindingClient(provider.binding); } catch { client = null; }
+  const channel = diagnosticsChannelForClient(client);
+  if (channel === null) {
+    throw diagnosticError(
+      'SNAPBACK_REACT_DIAGNOSTICS_UNSUPPORTED',
+      'the bound client does not expose diagnosticsChannel(); use a current @expo/snapback-client and see guide/clients/react.md',
+      { capability: 'client-diagnostics' },
+    );
+  }
+  store = Object.freeze({
+    getSnapshot: () => channel.snapshot(),
+    subscribe(listener) {
+      return channel.subscribe(() => listener());
+    },
+  });
+  diagnosticsStores.set(provider, store);
+  return store;
+}
+
+export function useSnapbackDiagnostics() {
+  const provider = useProvider();
+  const store = useMemo(() => diagnosticsStoreFor(provider), [provider]);
+  return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+}
+
+/// Framework-neutral diagnostics observer: acceptance adapters and the React
+/// hook read the exact same frozen client-channel projection.
+export function observeSnapbackDiagnostics(providerValue, listener) {
+  const provider = assertProvider(providerValue);
+  if (typeof listener !== 'function') {
+    throw new TypeError('observeSnapbackDiagnostics requires a listener function');
+  }
+  const store = diagnosticsStoreFor(provider);
+  let closed = false;
+  const off = store.subscribe(() => {
+    if (!closed) listener(store.getSnapshot());
+  });
+  listener(store.getSnapshot());
+  return Object.freeze({
+    snapshot: () => store.getSnapshot(),
+    dispose() {
+      if (closed) return;
+      closed = true;
+      off();
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -5,7 +5,8 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-10 (static React core composition: the package root
+**Revised:** 2026-08-10 (LLP 0219 subscription-churn diagnostic amendment);
+2026-08-10 (static React core composition: the package root
 remains the Full synchronous surface/command/asset composition, while
 `@expo/snapback-react/core` selects the same provider registry owner without
 those optional capabilities; see the dated section); 2026-08-09 (LLP 0210 §D1 registers `useSnapbackAssetUrl` as a named projection over the framework-neutral issued-URL store; no React-owned refresh state); 2026-08-07 (LLP 0189 alignment sweep: verification-cadence/claim-gating clauses re-scoped or annotated to the LLP 0189 D-3/D-6 defaults). 2026-08-06 (descriptor-mode cold retained boot: the existing
@@ -1664,3 +1665,25 @@ Regression witness: `packages/snapback-react/hmr-generation-handoff.test.mjs`
 (atomic handoff with continuity, mutation deferral, controlled reload on a
 never-redeployed backend, and strict production/foreign admission — all with
 zero uncaught errors).
+
+### Client subscription-churn diagnostic (dated amendment 2026-08-10, LLP 0219)
+
+In positively identified development builds, `useSnapbackQuery` now observes
+committed descriptor-identity transitions per hook instance. The first
+committed descriptor establishes the baseline; only a later commit to a
+different canonical descriptor counts. A same-descriptor Strict Mode
+unsubscribe/resubscribe and the mounted-provider HMR generation handoff do not
+count. Fresh but content-equal arguments never change the descriptor and never
+count — this restates this Spec's content-keying as the correctness fix, not a
+memoization requirement. `useSnapbackQueries` keeps its existing content-keyed
+child-store sharing and group replacement semantics; no separate group-level
+churn producer ships in this slice.
+
+The thresholds are tunable; the shipped defaults are eight transitions inside
+two seconds. `SNAPBACK_REACT_SUBSCRIPTION_CHURN` names the
+development-captured hook call site and generated reference, recommends
+memoizing or hoisting genuinely changing inputs, and emits into the bound
+headless client's LLP 0219 diagnostics channel. React owns neither a parallel
+history nor direct console delivery. The static package split does not create
+a second owner: both the root and `@expo/snapback-react/core` export the same
+provider-bound diagnostics projection from the shared implementation.

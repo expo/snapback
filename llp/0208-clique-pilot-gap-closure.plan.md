@@ -6,7 +6,9 @@
 Schema, Memberships, Assets, Push, Relational queries, Operations, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-09
-**Revised:** 2026-08-09, later same day (asset-surface tickets filed —
+**Revised:** 2026-08-10 (G1 closed by LLP 0218 P3's provider-owned drain and
+LLP 0219's client diagnostics channel); 2026-08-09, later same day
+(asset-surface tickets filed —
 G11 papercuts, the G4 asset-authority slice, and the G8 multi-asset
 half — with the design-shaped remainder recorded as dated amendments in
 LLP 0044 and LLP 0180 for super-refine; register rows annotated in
@@ -24,7 +26,8 @@ identity — Wave 4 program), LLP 0043 (offline replay retention), LLP 0073
 aggregation), LLP 0056 / LLP 0100 (memberships), LLP 0044 / LLP 0180
 (assets), LLP 0143 / LLP 0045 (push), LLP 0036 (app config), LLP 0108
 (inline handler dialect), LLP 0061 (guide), LLP 0189 (verification
-cadence)
+cadence), LLP 0218 (platform-owned outbox drain), LLP 0219 (client dev
+diagnostics channel)
 
 ## Summary
 
@@ -132,12 +135,15 @@ per LLP 0189, independent of this Plan's review state:
   restore / online event / 5s poll, and the recorded lesson
   generalized to "every screen needs outbox awareness" — a burden no
   screen should carry.
-- **Closure:** the React arm owns an app-wide outbox drain (the
-  builder's `OutboxFlusher` is effectively the spec) and exposes queue
-  state — depth, oldest-pending — as a hook so UIs can render pending
-  affordances. The dev-mode queue warnings belong to the settlement
-  ticket; this gap is the supported machinery.
-- **Owner:** LLP 0043 / LLP 0107;
+- **Closure:** **CLOSED 2026-08-10.** LLP 0218 P3 ships the provider-owned
+  automatic drain (manual mode is the explicit escape hatch) and the expanded
+  `useSnapbackOutbox()` state/affordance surface, including
+  `drainNow()`. LLP 0219 closes the observability half with the bounded
+  per-client channel, one deduplicated canonical queued line, a
+  per-durable-head wedged active condition, and hook/observer/headless agent
+  projections. Screens no longer own a flusher or a queue-warning timer.
+- **Owner:** LLP 0218 (drain) / LLP 0219 (observability), building on LLP
+  0043 / LLP 0107;
   `issues/20260731-js-arm-lease-custody-and-sessions-outbox.md` covers
   adjacent custody work. New ticket at commissioning, sequenced after
   the settlement ticket's contract ruling.

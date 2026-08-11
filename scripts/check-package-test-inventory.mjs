@@ -106,6 +106,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'browser-closure.test.mjs',
       'bundle.test.mjs',
       'carrier-capability-honesty.test.mjs',
+      'client-diagnostics.test.mjs',
       'commands.test.mjs',
       'connection-open-stream-reset-retry.test.mjs',
       'demand-broker.test.mjs',
@@ -201,6 +202,8 @@ export const PACKAGE_TEST_INVENTORIES = [
       'cold-boot-binding-indexeddb.test.mjs',
       'cold-boot-binding.test.mjs',
       'commands.test.mjs',
+      'dev-diagnostics-acceptance.test.mjs',
+      'dev-diagnostics.test.mjs',
       'hmr-generation-handoff.test.mjs',
       'lifecycle.test.mjs',
       'offline.test.mjs',
@@ -459,7 +462,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 248,
+  expectedTotal = 251,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -781,6 +784,12 @@ export function checkPackageTestInventories(options = {}) {
 // 247 -> 248 (2026-08-10, LLP 0034 §10.11): @expo/snapback-contract gains
 // keyed-surface ephemeral link, boot-refusal, publish-splitting, and
 // authority-wiring swap coverage.
+// 248 -> 249 (2026-08-10, LLP 0219 P1): @expo/snapback-client gains the
+// bounded client diagnostics channel and per-client outbox bridge proof.
+// 249 -> 250 (2026-08-10, LLP 0219 P2 React): @expo/snapback-react gains the
+// live-hook churn, queued compatibility, and diagnostics consumer proof.
+// 250 -> 251 (2026-08-10, LLP 0219 P3): @expo/snapback-react gains the
+// app-shaped Clique churn and silent queued-wedge acceptance bar.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

@@ -65,6 +65,7 @@ export type {
   TypedRemediation,
 } from '@expo/snapback-client/commands';
 export type SnapbackDiagnostic = import('@expo/snapback-client').SnapbackDiagnostic;
+export type SnapbackDiagnosticsSnapshot = import('@expo/snapback-client').SnapbackClientDiagnosticsSnapshot;
 
 /** @deprecated Queued React mutations now resolve `SnapbackMutationDispatchOutcome`.
  * LLP 0218 P6 removes this throw-site-free compatibility export. */
@@ -749,6 +750,19 @@ export function observeSnapbackOutbox(
   provider: SnapbackReactCoreProvider,
   listener: (state: SnapbackOutboxState) => void,
 ): SnapbackOutboxObserver;
+
+/** Frozen projection of the bound client's bounded v2 diagnostics channel. */
+export function useSnapbackDiagnostics(): SnapbackDiagnosticsSnapshot;
+
+export interface SnapbackDiagnosticsObserver {
+  snapshot(): SnapbackDiagnosticsSnapshot;
+  dispose(): void;
+}
+export function observeSnapbackDiagnostics(
+  provider: SnapbackReactCoreProvider,
+  listener: (snapshot: SnapbackDiagnosticsSnapshot) => void,
+): SnapbackDiagnosticsObserver;
+
 export function useEphemeralRepublisher(
   reference: string,
   callback: (context: Readonly<{
