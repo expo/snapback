@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.module-ownership-baseline.v2",
   "manifestSchemaVersion": "snapback.module-ownership-manifest.v1",
-  "moduleCount": 232,
-  "edgeCount": 1704,
+  "moduleCount": 233,
+  "edgeCount": 1714,
   "edges": [
     {
       "from": "src/admin_agent_destroy.rs",
@@ -3001,6 +3001,12 @@
     {
       "from": "src/generation_activation.rs",
       "fromOwner": "generation-activation-coordinator",
+      "to": "src/storage/generation_commit.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/generation_activation.rs",
+      "fromOwner": "generation-activation-coordinator",
       "to": "src/storage/projection_rebuild.rs",
       "toOwner": "storage-migration-kernel"
     },
@@ -3890,6 +3896,12 @@
       "from": "src/local.rs",
       "fromOwner": "unassigned",
       "to": "src/storage/connections.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/local.rs",
+      "fromOwner": "unassigned",
+      "to": "src/storage/generation_commit.rs",
       "toOwner": "storage-migration-kernel"
     },
     {
@@ -7231,6 +7243,12 @@
     {
       "from": "src/storage.rs",
       "fromOwner": "storage-migration-kernel",
+      "to": "src/storage/generation_commit.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage.rs",
+      "fromOwner": "storage-migration-kernel",
       "to": "src/storage/jobs.rs",
       "toOwner": "storage-migration-kernel"
     },
@@ -8735,6 +8753,48 @@
       "toOwner": "storage-migration-kernel"
     },
     {
+      "from": "src/storage/generation_commit.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/auth/mode.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/generation_commit.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/contract_types.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/generation_commit.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/diagnostic.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/generation_commit.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/manifest.rs",
+      "toOwner": "shared-contract-types-leaf"
+    },
+    {
+      "from": "src/storage/generation_commit.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/storage.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/generation_commit.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/storage/auth_mode.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
+      "from": "src/storage/generation_commit.rs",
+      "fromOwner": "storage-migration-kernel",
+      "to": "src/storage/projection_rebuild.rs",
+      "toOwner": "storage-migration-kernel"
+    },
+    {
       "from": "src/storage/hosted_admission.rs",
       "fromOwner": "storage-migration-kernel",
       "to": "src/auth/deployment.rs",
@@ -10229,7 +10289,7 @@
       "toOwner": "transport-adapters"
     }
   ],
-  "frozenForbiddenEdgeCount": 386,
+  "frozenForbiddenEdgeCount": 387,
   "frozenForbiddenEdges": [
     {
       "fingerprint": "src/admin_secret_read.rs (transport-adapters) → src/local.rs (unassigned)"
@@ -10708,6 +10768,9 @@
         "worklist": "issues/20260809-0199-ownership-ratchet-worklist.md",
         "provenance": "The upgraded module-relative and transitive re-export analyzer proves this edge in the predecessor source graph."
       }
+    },
+    {
+      "fingerprint": "src/local.rs (unassigned) → src/storage/generation_commit.rs (storage-migration-kernel)"
     },
     {
       "fingerprint": "src/local.rs (unassigned) → src/storage/jobs.rs (storage-migration-kernel)",
