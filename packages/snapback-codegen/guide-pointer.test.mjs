@@ -127,6 +127,11 @@ for (const pointer of pointers) {
 
 assert.deepEqual(
   pointers.map(({ pageId }) => pageId).sort(),
-  ['auth.sessions-and-principals', 'backend.mutations', 'backend.relational-queries'],
+  [
+    'auth.protecting-data',
+    'auth.sessions-and-principals',
+    'backend.mutations',
+    'backend.relational-queries',
+  ],
   'guidePointer coverage includes both policy diagnostics and the proved plain-join advisory',
 );
