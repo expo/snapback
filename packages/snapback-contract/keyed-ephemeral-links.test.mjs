@@ -200,17 +200,36 @@ test('keyed ephemeral publish links split scope, value, and ttl', async () => {
     value: { picking: '13' },
     ttlMs: 4_500,
   });
-  assert.deepEqual(client.state.publishes, [{
-    name: 'roomPresence',
-    options: {
-      connectionId: 'keyed-ephemeral-connection',
-      scope: { roomId: 'room-platform' },
-      value: { picking: '13' },
-      ttlMs: 4_500,
-      userId: 'user-1',
-      permissions: [],
-    },
-  }]);
+  const [publish] = client.state.publishes;
+  assert.equal(client.state.publishes.length, 1);
+  assert.equal(publish.name, 'roomPresence');
+  assert.deepEqual(publish.options.scope, { roomId: 'room-platform' });
+  assert.deepEqual(publish.options.value, { picking: '13' });
+  assert.equal(publish.options.ttlMs, 4_500);
+  assert.equal(publish.options.userId, 'user-1');
+  assert.deepEqual(publish.options.permissions, []);
+  await surface.dispose();
+});
+
+// The ephemeral lane must never ride the durable keyed surface's connection:
+// an ephemeral consumer holding demand there leaves every predecessor durable
+// subscription registered server-side after a re-key
+// (issues/20260810-durable-unsubscribe-withheld-behind-shared-connection-demand.md).
+test('keyed ephemeral traffic takes its own connection, stable across operations', async () => {
+  const { client, surface } = await createWorkingSurface();
+  await surface.links.roomPresencePublish({ roomId: 'room-planning', value: { picking: '5' } });
+  await surface.links.roomPresencePublish({ roomId: 'room-platform', value: { picking: '8' } });
+  const connections = client.state.publishes.map(({ options }) => options.connectionId);
+  assert.equal(connections.length, 2);
+  assert.notEqual(connections[0], 'keyed-ephemeral-connection', 'ephemeral publish must not reuse the durable connection');
+  assert.equal(connections[0], connections[1], 'the ephemeral connection is stable across publishes');
+
+  const subscription = surface.links.roomPresence({ roomId: 'room-planning' })
+    .subscribe(() => {});
+  await waitFor(() => client.state.subscribes.length === 1, 'ephemeral subscribe');
+  assert.equal(client.state.subscribes[0].options.connectionId, connections[0]);
+
+  subscription.dispose();
   await surface.dispose();
 });
 

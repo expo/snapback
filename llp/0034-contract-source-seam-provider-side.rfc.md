@@ -1078,3 +1078,25 @@ The keyed provider deliberately does **not** implement
 available on the ordinary boundary-provider path; the keyed omission is an
 explicit, greppable capability gap rather than an accidental partial
 implementation.
+
+**The ephemeral lane takes its own connection.** The first implementation gave
+both lanes the surface's connection id, on the reasoning that the multi-live
+surface already shares one. That is wrong under re-keying: with an ephemeral
+consumer holding demand on the durable connection, a disposed keyed binding's
+subscription is never unregistered server-side. The pointing-room
+contract-browser arm caught it — four live subscriptions after a room switch
+(both predecessors plus both successors), unchanged at 45 s, with the UI half
+entirely correct. A same-host bisect over the same binary and packages isolated
+it to the presence of the ephemeral consumer on that connection, and not to the
+link wrappers, the provider's `subscribeEphemeral`, or the participant rewrite;
+separate connections restore the expected pair-per-scope.
+
+The keyed surface therefore mints a dedicated ephemeral connection id, stable
+across authority transitions, and the durable lane keeps the surface's own. That
+does not settle whether the kit should deliver a durable unsubscribe
+independently of other consumers' demand — the multi-live surface still shares
+one connection and simply never exercises this, which is an absence of exercise
+rather than evidence of safety. That question, and a host-independent
+registration-level gate for it, are
+`issues/20260810-durable-unsubscribe-withheld-behind-shared-connection-demand.md`;
+no shipped surface depends on its answer.

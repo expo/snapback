@@ -869,10 +869,20 @@ export async function createSnapbackContractSurface({
           );
           if (!outcome.committed) throw staleContractAuthorityError();
         };
+        // The ephemeral lane takes its own connection, never the durable keyed
+        // surface's. Sharing one connection across both lanes leaves every
+        // predecessor durable subscription registered server-side forever after
+        // a re-key: the ephemeral consumer holds connection demand, and the
+        // durable unsubscribe is never delivered (proved on the pointing-room
+        // contract-browser arm — 4 live subscriptions after a room switch, at
+        // 10 s and still at 45 s; separate connections restore 2). The kit-level
+        // question is issues/20260810-durable-unsubscribe-withheld-behind-shared-connection-demand.md;
+        // this surface does not depend on its answer.
+        const ephemeralConnectionId = defaultContractConnectionId();
         const buildKeyedEphemeralWiring = (capture, effectiveUserId) => buildEphemeralWiring({
           client,
           manifest,
-          connectionId: sharedConnectionId,
+          connectionId: ephemeralConnectionId,
           userId: effectiveUserId,
           ephemeralPermissions,
           ephemeralIdleLingerMs,
